@@ -127,6 +127,10 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                 const result = await originalRouteLoader(...args);
                 return result;
             } catch (error) {
+                // If this is using the Remix throw-Response convention then don't convert to
+                // an `UnavailableError`.
+                if (error instanceof Response) throw error;
+
                 // Classify network errors as the `Unavailable` status code.
                 //
                 // If the user is offline then we use a `FailedPreconditionError` since it's a
@@ -154,6 +158,10 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                 const result = await originalRouteAction(...args);
                 return result;
             } catch (error) {
+                // If this is using the Remix throw-Response convention then don't convert to
+                // an `UnavailableError`.
+                if (error instanceof Response) throw error;
+
                 // Classify network errors as the `Unavailable` status code.
                 //
                 // If the user is offline then we use a `FailedPreconditionError` since it's a
@@ -181,6 +189,10 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                 const result = await originalRouteLazy(...args);
                 return result;
             } catch (error) {
+                // If this is using the Remix throw-Response convention then don't convert to
+                // an `UnavailableError`.
+                if (error instanceof Response) throw error;
+
                 // Classify network errors as the `Unavailable` status code.
                 //
                 // If the user is offline then we use a `FailedPreconditionError` since it's a

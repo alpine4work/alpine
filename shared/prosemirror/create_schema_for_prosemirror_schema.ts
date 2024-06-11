@@ -228,7 +228,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
                           : NodeAttrsSchema,
                   }
                 : {}),
-            ...(nodeType.isInline || (nodeType.markSet && nodeType.markSet.length > 0)
+            ...(nodeType.isInline
                 ? {
                       marks: NodeMarksPropertySchema,
                   }

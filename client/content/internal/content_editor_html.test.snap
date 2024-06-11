@@ -4,19 +4,14 @@ exports[`bold 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello 
-    <strong
-      class="content_schema__14lcw3gv"
-    >
+    <strong>
       world
     </strong>
     !
@@ -150,20 +145,16 @@ exports[`bullet list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Hello world!
     </p>
   </div>
@@ -206,42 +197,32 @@ exports[`bullet list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 1
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 2
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 3
     </p>
   </div>
@@ -282,53 +263,40 @@ exports[`bullet list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Test
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 1
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 2
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 3
     </p>
   </div>
@@ -339,56 +307,43 @@ exports[`bullet list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Test
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 1
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 2
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 3
     </p>
   </div>
@@ -477,20 +432,16 @@ exports[`can put hard breaks inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Hello…
       <br />
       …world!
@@ -519,15 +470,12 @@ exports[`can put hard breaks inside paragraphs 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello…
     <br />
     …world!
@@ -551,25 +499,19 @@ exports[`can put multiple paragraphs inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gl"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Hello…
     </p>
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       …world!
     </p>
   </div>
@@ -739,25 +681,18 @@ exports[`check list (checked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -777,12 +712,8 @@ exports[`check list (checked) plain 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Hello world!
       </p>
     </div>
@@ -968,25 +899,18 @@ exports[`check list (unchecked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1006,12 +930,8 @@ exports[`check list (unchecked) plain 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Hello world!
       </p>
     </div>
@@ -1063,25 +983,18 @@ exports[`check list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1101,29 +1014,19 @@ exports[`check list with multiple items 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 1
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1143,29 +1046,19 @@ exports[`check list with multiple items 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 2
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1185,12 +1078,8 @@ exports[`check list with multiple items 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 3
       </p>
     </div>
@@ -1246,25 +1135,18 @@ exports[`check list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1284,29 +1166,19 @@ exports[`check list with sub-list 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Test
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1326,29 +1198,19 @@ exports[`check list with sub-list 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 1
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1368,29 +1230,19 @@ exports[`check list with sub-list 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 2
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1410,12 +1262,8 @@ exports[`check list with sub-list 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 3
       </p>
     </div>
@@ -1427,25 +1275,18 @@ exports[`check list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -1465,49 +1306,36 @@ exports[`check list with sub-list of another type 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Test
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 1
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 2
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 3
     </p>
   </div>
@@ -1809,38 +1637,23 @@ exports[`code (multiline) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <pre
-    class="content_schema__14lcw3gg"
-  >
-    <code
-      class="content_schema__14lcw3gh"
-    >
-      <div
-        class="content_schema__14lcw3gi"
-      >
+  <pre>
+    <code>
+      <div>
         Hello world!
       </div>
-      <div
-        class="content_schema__14lcw3gi"
-      >
-        <br
-          class="ProseMirror-trailingBreak"
-        />
+      <div>
+        <br />
       </div>
-      <div
-        class="content_schema__14lcw3gi"
-      >
+      <div>
           Hello world!
       </div>
-      <div
-        class="content_schema__14lcw3gi"
-      >
+      <div>
         Hello world!
       </div>
     </code>
@@ -1914,19 +1727,14 @@ exports[`code 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello 
-    <code
-      class="content_schema__14lcw3gu"
-    >
+    <code>
       world
     </code>
     !
@@ -2018,21 +1826,14 @@ exports[`code plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <pre
-    class="content_schema__14lcw3gg"
-  >
-    <code
-      class="content_schema__14lcw3gh"
-    >
-      <div
-        class="content_schema__14lcw3gi"
-      >
+  <pre>
+    <code>
+      <div>
         Hello world!
       </div>
     </code>
@@ -2086,15 +1887,12 @@ exports[`divider empty 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <hr
-    class="content_schema__14lcw3gt"
-  />
+  <hr />
 </div>
 `;
 
@@ -2194,15 +1992,12 @@ exports[`heading 1 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <h2
-    class="content_schema__14lcw3gc"
-  >
+  <h2>
     Hello world!
   </h2>
 </div>
@@ -2320,15 +2115,12 @@ exports[`heading 2 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <h3
-    class="content_schema__14lcw3gd"
-  >
+  <h3>
     Hello world!
   </h3>
 </div>
@@ -2446,15 +2238,12 @@ exports[`heading 3 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <h4
-    class="content_schema__14lcw3ge"
-  >
+  <h4>
     Hello world!
   </h4>
 </div>
@@ -2488,18 +2277,14 @@ exports[`highlight 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello 
     <mark
-      class="content_schema__14lcw3g13"
       data-highlight-color="green"
     >
       world
@@ -2529,19 +2314,14 @@ exports[`italic 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello 
-    <em
-      class="content_schema__14lcw3gw"
-    >
+    <em>
       world
     </em>
     !
@@ -2567,18 +2347,14 @@ exports[`link (XSS vulnerability) 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello 
     <a
-      class="content_schema__14lcw3g17"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -2594,18 +2370,14 @@ exports[`link 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello 
     <a
-      class="content_schema__14lcw3g17"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
@@ -2747,21 +2519,17 @@ exports[`ordered list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Hello world!
     </p>
   </div>
@@ -2804,45 +2572,35 @@ exports[`ordered list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 1
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 2
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 3
     </p>
   </div>
@@ -2883,57 +2641,44 @@ exports[`ordered list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Test
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 1
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 2
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Item 3
     </p>
   </div>
@@ -2944,37 +2689,27 @@ exports[`ordered list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gm"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent__14lcw3gj:0"
+    style="--list-item-indent: 0;"
   >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+    <p>
       Test
     </p>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -2994,29 +2729,19 @@ exports[`ordered list with sub-list of another type 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 1
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -3036,29 +2761,19 @@ exports[`ordered list with sub-list of another type 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 2
       </p>
     </div>
   </div>
   <div
-    class="content_schema__14lcw3gk content_schema__14lcw3gn"
     data-list-indent="1"
-    style="--list-item-indent__14lcw3gj:1"
+    style="--list-item-indent: 1;"
   >
-    <div
-      class="content_schema__14lcw3gp"
-    >
-      <div
-        class="content_schema__14lcw3gq"
-      >
+    <div>
+      <div>
         <svg
-          class="content_schema__14lcw3gs"
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -3078,12 +2793,8 @@ exports[`ordered list with sub-list of another type 1`] = `
         </svg>
       </div>
     </div>
-    <div
-      class="content_schema__14lcw3go"
-    >
-      <p
-        class="content_schema__14lcw3g6"
-      >
+    <div>
+      <p>
         Item 3
       </p>
     </div>
@@ -3271,15 +2982,12 @@ exports[`paragraph plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello world!
   </p>
 </div>
@@ -3409,18 +3117,13 @@ exports[`quote plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <blockquote
-    class="content_schema__14lcw3gf"
-  >
-    <p
-      class="content_schema__14lcw3g6"
-    >
+  <blockquote>
+    <p>
       Hello world!
     </p>
   </blockquote>
@@ -3459,19 +3162,14 @@ exports[`strike 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g3"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
-  <p
-    class="content_schema__14lcw3g6"
-  >
+  <p>
     Hello 
-    <del
-      class="content_schema__14lcw3gx"
-    >
+    <del>
       world
     </del>
     !

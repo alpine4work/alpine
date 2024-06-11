@@ -43,21 +43,20 @@ assertAssignableTypes<TestWorkerSystemActionContext, WorkerSystemActionContext>(
 export function createTestWorkerContext(): TestWorkerContext {
     const baseContext = createTestContext();
 
-    const context: TestWorkerContext = {
-        ...baseContext,
-        action: (session, options) => {
+    const context: TestWorkerContext = Object.assign(baseContext.cloneWithHelpers({}), {
+        action: ((session, options) => {
             return baseContext.action(session, options).clone({
                 rpc: new LocalRpcContextModule(),
                 fork: new ForkActionContextModule(),
             });
-        },
-        systemAction: (session, options) => {
+        }) satisfies TestWorkerContext["action"],
+        systemAction: ((session, options) => {
             return baseContext.systemAction(session, options).clone({
                 rpc: new LocalRpcContextModule(),
                 fork: new ForkActionContextModule(),
             });
-        },
-    };
+        }) satisfies TestWorkerContext["systemAction"],
+    });
 
     return context;
 }

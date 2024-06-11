@@ -20,10 +20,7 @@ import {
     ServerSystemActionContextModules,
     ServerUnknownActionContext,
 } from "~/server/context/server_action_context.js";
-import {
-    ServerProcessContext,
-    ServerProcessContextModules,
-} from "~/server/context/server_process_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {
     DynamoBatchContextModule,
     DynamoContextModule,
@@ -43,7 +40,8 @@ import {
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
+import {Context, ContextWithDestroy} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -51,6 +49,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -60,7 +59,13 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 assert(process.release.name === "node");
 assert(process.env.NODE_ENV === "test");
 
-export type TestContext = ServerProcessContext & {
+export type TestContext = Context<ServerProcessContextModules> &
+    TestContextHelpers<ServerProcessContextModules>;
+
+type TestContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> =
+    ContextWithDestroy<Modules> & TestContextHelpers<Modules>;
+
+type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
     readonly isOpensearchEnabled: boolean;
@@ -109,7 +114,8 @@ export type TestContext = ServerProcessContext & {
     /**
      * Escalate one of our existing test contexts to a system context.
      */
-    readonly escalateToSystemContext: <Value>(
+    escalateToSystemContext<Value>(
+        this: void,
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
@@ -117,7 +123,15 @@ export type TestContext = ServerProcessContext & {
         }>,
         spaceId: SpaceId,
         action: (context: ServerSystemActionContext) => Promise<Value>,
-    ) => Promise<Value>;
+    ): Promise<Value>;
+
+    /**
+     * `Context.clone()` but preserves `TestContext`'s helper functions like
+     * `context.action()` on the cloned context.
+     */
+    cloneWithHelpers<NewModules extends {[key: string]: ContextModuleBase}>(
+        newModules: NewModules,
+    ): TestContextWithDestroy<Replace<Modules, NewModules>>;
 };
 
 /**
@@ -320,7 +334,7 @@ export function createTestContext({
         edge: new TestLocalEdgeServiceContextModule(),
     });
 
-    const context = Object.assign(processContext, {
+    const helpers: TestContextHelpers<any> = {
         getDynamoLocalPort,
         getOpensearchLocalPort,
         isOpensearchEnabled: shouldStartOpensearch,
@@ -332,7 +346,12 @@ export function createTestContext({
         systemAction: createSystemContext,
         withCache,
         escalateToSystemContext,
-    });
+        cloneWithHelpers(modules) {
+            return Object.assign((this as any).clone(modules), helpers);
+        },
+    };
+
+    const context = Object.assign(processContext, helpers);
 
     testSharedHooks.beforeAll(async () => {
         const [tempPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] = await runAllPromises(

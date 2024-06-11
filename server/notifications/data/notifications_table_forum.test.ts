@@ -144,6 +144,7 @@ test("won't create two inbox entries if inbox is observed between serially event
         }).then(massageInboxEntriesQuery),
     ).toEqual([
         new InboxChannelPostsEntryModel({
+            isArchived: false,
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             loudNotificationCount: 0,
@@ -171,6 +172,7 @@ test("won't create two inbox entries if inbox is observed between serially event
         }).then(massageInboxEntriesQuery),
     ).toEqual([
         new InboxChannelPostsEntryModel({
+            isArchived: false,
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             loudNotificationCount: 0,
@@ -252,6 +254,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -280,6 +283,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -316,6 +320,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -346,6 +351,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -374,6 +380,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -410,6 +417,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -440,6 +448,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -460,6 +469,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -488,6 +498,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -533,6 +544,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -553,6 +565,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -581,6 +594,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
@@ -601,6 +615,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -666,6 +681,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -694,6 +710,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -730,6 +747,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -765,6 +783,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -793,6 +812,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
@@ -818,6 +838,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -854,6 +875,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -889,6 +911,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -917,6 +940,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
@@ -942,6 +966,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -978,6 +1003,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -1013,6 +1039,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -1038,6 +1065,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -1066,6 +1094,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -1126,6 +1155,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -1154,6 +1184,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -1190,6 +1221,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -1225,6 +1257,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -1253,6 +1286,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -1298,6 +1332,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -1318,6 +1353,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -1346,6 +1382,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -1382,6 +1419,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -1417,6 +1455,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -1445,6 +1484,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -1513,6 +1553,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -1541,6 +1582,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -1577,6 +1619,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
@@ -1605,6 +1648,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -1633,6 +1677,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -1669,6 +1714,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
@@ -1697,6 +1743,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -1725,6 +1772,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     postId: otherPost.id,
@@ -1753,6 +1801,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -1814,6 +1863,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -1859,6 +1909,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
@@ -1884,6 +1935,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -1929,6 +1981,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post.id,
@@ -1954,6 +2007,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -2061,6 +2115,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -2081,6 +2136,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -2109,6 +2165,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -2142,6 +2199,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -2162,6 +2220,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -2190,6 +2249,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -2290,6 +2350,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -2310,6 +2371,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -2350,6 +2412,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -2370,6 +2433,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -2457,6 +2521,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -2495,6 +2560,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -2520,6 +2586,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -2558,6 +2625,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -2583,6 +2651,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -2603,6 +2672,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -2641,6 +2711,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -2666,6 +2737,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -2686,6 +2758,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -2724,6 +2797,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -2749,6 +2823,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -2769,6 +2844,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -2807,6 +2883,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -2832,6 +2909,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -2857,6 +2935,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -2895,6 +2974,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -2920,6 +3000,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -2945,6 +3026,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -2983,6 +3065,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3008,6 +3091,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -3033,6 +3117,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3126,6 +3211,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3164,6 +3250,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3189,6 +3276,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3227,6 +3315,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3252,6 +3341,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -3272,6 +3362,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3304,6 +3395,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3329,6 +3421,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -3349,6 +3442,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3387,6 +3481,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
@@ -3407,6 +3502,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3432,6 +3528,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -3452,6 +3549,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3490,6 +3588,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
@@ -3510,6 +3609,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3535,6 +3635,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -3555,6 +3656,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3593,6 +3695,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
@@ -3613,6 +3716,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3638,6 +3742,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -3658,6 +3763,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3696,6 +3802,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
@@ -3721,6 +3828,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
@@ -3741,6 +3849,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
@@ -3766,6 +3875,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3865,6 +3975,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -3895,6 +4006,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -3920,6 +4032,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -3940,6 +4053,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -3968,6 +4082,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
@@ -3988,6 +4103,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4021,6 +4137,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -4051,6 +4168,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -4076,6 +4194,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -4096,6 +4215,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -4124,6 +4244,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4157,6 +4278,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -4187,6 +4309,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -4207,6 +4330,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -4235,6 +4359,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4268,6 +4393,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -4298,6 +4424,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -4326,6 +4453,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4445,6 +4573,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -4470,6 +4599,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -4495,6 +4625,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -4515,6 +4646,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -4543,6 +4675,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
@@ -4563,6 +4696,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4615,6 +4749,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -4640,6 +4775,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -4668,6 +4804,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4710,6 +4847,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -4735,6 +4873,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -4763,6 +4902,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
@@ -4783,6 +4923,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4825,6 +4966,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -4850,6 +4992,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -4875,6 +5018,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -4903,6 +5047,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
@@ -4923,6 +5068,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -4965,6 +5111,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -4985,6 +5132,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -5010,6 +5158,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -5035,6 +5184,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -5063,6 +5213,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
@@ -5083,6 +5234,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5116,6 +5268,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
@@ -5146,6 +5299,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -5166,6 +5320,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session3.get(),
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -5191,6 +5346,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -5216,6 +5372,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -5244,6 +5401,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
@@ -5264,6 +5422,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -5369,6 +5528,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -5421,6 +5581,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -5491,6 +5652,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -5548,6 +5710,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -5618,6 +5781,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -5684,6 +5848,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     postId: post.id,
@@ -6491,6 +6656,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6516,6 +6682,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6541,6 +6708,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6566,6 +6734,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6591,6 +6760,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 2,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6616,6 +6786,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 2,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6668,6 +6839,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6693,6 +6865,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6718,6 +6891,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 2,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6743,6 +6917,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 2,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6796,6 +6971,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6821,6 +6997,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 2,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6846,6 +7023,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 2,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6898,6 +7076,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6923,6 +7102,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6948,6 +7128,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6973,6 +7154,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -6998,6 +7180,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 2,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -7051,6 +7234,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -7076,6 +7260,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -7101,6 +7286,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -7126,6 +7312,7 @@ for (const [currentProcessingType, processingMultiple] of [
                         key: expect.any(String),
                         version: 1,
                         model: new InboxPostCommentsEntryModel({
+                            isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
                             channel,
@@ -7198,6 +7385,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -7223,6 +7411,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7248,6 +7437,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7281,6 +7471,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7306,6 +7497,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7342,6 +7534,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7367,6 +7560,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -7387,6 +7581,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7455,6 +7650,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -7480,6 +7676,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7505,6 +7702,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7541,6 +7739,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7566,6 +7765,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7602,6 +7802,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7627,6 +7828,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -7647,6 +7849,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7726,6 +7929,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -7751,6 +7955,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -7776,6 +7981,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7801,6 +8007,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7843,6 +8050,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -7868,6 +8076,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -7893,6 +8102,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -7921,6 +8131,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -7961,6 +8172,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -7986,6 +8198,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -8014,6 +8227,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8039,6 +8253,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8079,6 +8294,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -8107,6 +8323,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8132,6 +8349,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8157,6 +8375,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8243,6 +8462,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8268,6 +8488,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8293,6 +8514,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8318,6 +8540,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -8363,6 +8586,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8388,6 +8612,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8413,6 +8638,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -8441,6 +8667,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8479,6 +8706,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8504,6 +8732,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -8532,6 +8761,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8552,6 +8782,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8590,6 +8821,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -8618,6 +8850,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8638,6 +8871,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8658,6 +8892,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8754,6 +8989,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8779,6 +9015,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8804,6 +9041,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8847,6 +9085,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8872,6 +9111,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8897,6 +9137,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -8935,6 +9176,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -8955,6 +9197,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session1.get(),
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
@@ -8980,6 +9223,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
@@ -9082,6 +9326,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
@@ -9115,6 +9360,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -9161,6 +9407,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     postId: post3.id,
@@ -9194,6 +9441,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -9273,6 +9521,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9324,6 +9573,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9408,6 +9658,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9474,6 +9725,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9525,6 +9777,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9612,6 +9865,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9650,6 +9904,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9754,6 +10009,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9812,6 +10068,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -9859,6 +10116,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxPostCommentsEntryModel({
+                    isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     postId: post.id,
@@ -10004,6 +10262,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10032,6 +10291,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -10060,6 +10320,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -10113,6 +10374,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10141,6 +10403,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -10169,6 +10432,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -10213,6 +10477,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -10241,6 +10506,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10269,6 +10535,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -10297,6 +10564,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -10341,6 +10609,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -10359,6 +10628,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
@@ -10387,6 +10657,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10415,6 +10686,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -10433,6 +10705,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
@@ -10461,6 +10734,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -10479,6 +10753,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
@@ -10580,6 +10855,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10666,6 +10942,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10683,6 +10960,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10786,6 +11064,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10803,6 +11082,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10820,6 +11100,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -10974,6 +11255,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -11010,6 +11292,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -11027,6 +11310,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -11102,6 +11386,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -11119,6 +11404,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
                 new InboxChannelPostsEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
@@ -11598,6 +11884,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             key: expect.any(String),
                             version: expect.any(Number),
                             model: new InboxChannelPostsEntryModel({
+                                isArchived: false,
                                 spaceId: scenario.space.id,
                                 accountId: scenario.session3.account.id,
                                 loudNotificationCount: 0,
@@ -11666,6 +11953,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             key: expect.any(String),
                             version: expect.any(Number),
                             model: new InboxChannelPostsEntryModel({
+                                isArchived: false,
                                 spaceId: scenario.space.id,
                                 accountId: scenario.session3.account.id,
                                 loudNotificationCount: 0,
@@ -11729,6 +12017,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChannelPostsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 loudNotificationCount: 0,
@@ -11758,6 +12047,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChannelPostsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 loudNotificationCount: 0,
@@ -11801,6 +12091,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
@@ -11839,6 +12130,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
@@ -11886,6 +12178,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
@@ -11921,6 +12214,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
@@ -11956,6 +12250,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
@@ -12000,6 +12295,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
@@ -12035,6 +12331,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,
@@ -12086,6 +12383,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 postId: post.id,

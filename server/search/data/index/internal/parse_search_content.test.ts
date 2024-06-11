@@ -153,12 +153,12 @@ test("properly highlights content with `<em>` HTML tags in inline code", () => {
                     {type: "text", text: " test "},
                     {type: "text", marks: [{type: "code"}], text: "content_view.tsx"},
                     {type: "text", text: " test "},
-                    {type: "text", marks: [{type: "code"}], text: "\\<em>content_view.tsx"},
+                    {type: "text", marks: [{type: "code"}], text: "<em>content_view.tsx"},
                     {type: "text", text: " test "},
                     {
                         type: "text",
                         marks: [{type: "code"}, {type: "highlight", attrs: {color: "orange"}}],
-                        text: "content\\</em>_view.tsx",
+                        text: "content</em>_view.tsx",
                     },
                     {type: "text", text: " test "},
                     {

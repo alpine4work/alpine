@@ -73,6 +73,7 @@ export function SpaceLayoutSideBarInboxOverlay({
     return (
         <>
             <Box
+                data-testid="SpaceLayoutSideBarInboxOverlay"
                 flexShrink="0"
                 height={spaceLayoutSideBarInboxOverlayHeaderHeight}
                 borderBottom="grey-10"

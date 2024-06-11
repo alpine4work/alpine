@@ -139,6 +139,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -175,6 +176,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -210,6 +212,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -237,6 +240,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -290,6 +294,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -317,6 +322,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -393,6 +399,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -429,6 +436,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -464,6 +472,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -505,6 +514,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -545,6 +555,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -586,6 +597,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -626,6 +638,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -658,6 +671,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -752,6 +766,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -779,6 +794,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -814,6 +830,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -855,6 +872,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -904,6 +922,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -931,6 +950,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -966,6 +986,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -1007,6 +1028,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId,
@@ -1082,6 +1104,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     chatId,
@@ -1126,6 +1149,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     chatId,
@@ -1153,6 +1177,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     chatId: otherChatId,
@@ -1228,6 +1253,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -1277,6 +1303,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -1326,6 +1353,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -1425,6 +1453,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -1452,6 +1481,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -1482,6 +1512,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -1509,6 +1540,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -1594,6 +1626,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -1633,6 +1666,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -1707,6 +1741,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -1742,6 +1777,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -1764,6 +1800,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -1799,6 +1836,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -1816,6 +1854,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -1838,6 +1877,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -1873,6 +1913,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -1890,6 +1931,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -1912,6 +1954,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -1947,6 +1990,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -1964,6 +2008,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -1986,6 +2031,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2021,6 +2067,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2043,6 +2090,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2060,6 +2108,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2100,6 +2149,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2122,6 +2172,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2139,6 +2190,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2179,6 +2231,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2201,6 +2254,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2223,6 +2277,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2301,6 +2356,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2336,6 +2392,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2358,6 +2415,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2393,6 +2451,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2410,6 +2469,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2432,6 +2492,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2461,6 +2522,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2478,6 +2540,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2500,6 +2563,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2535,6 +2599,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat4Id,
@@ -2552,6 +2617,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2569,6 +2635,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2591,6 +2658,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2626,6 +2694,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat4Id,
@@ -2643,6 +2712,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2660,6 +2730,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2682,6 +2753,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2717,6 +2789,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat4Id,
@@ -2734,6 +2807,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2751,6 +2825,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2773,6 +2848,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2808,6 +2884,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat3Id,
@@ -2830,6 +2907,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat4Id,
@@ -2847,6 +2925,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.sharedSession.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat2Id,
@@ -2869,6 +2948,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -2940,6 +3020,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -2975,6 +3056,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -3002,6 +3084,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -3037,6 +3120,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -3064,6 +3148,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -3109,6 +3194,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -3136,6 +3222,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId,
@@ -3227,6 +3314,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat2Id,
@@ -3249,6 +3337,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat1Id,
@@ -3276,6 +3365,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -3298,6 +3388,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -3339,6 +3430,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat2Id,
@@ -3361,6 +3453,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat1Id,
@@ -3388,6 +3481,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -3434,6 +3528,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat1Id,
@@ -3461,6 +3556,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -3516,6 +3612,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -3633,6 +3730,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat3Id,
@@ -3655,6 +3753,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: null,
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat2Id,
@@ -3677,6 +3776,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat1Id,
@@ -3704,6 +3804,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -3726,6 +3827,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -3777,6 +3879,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat3Id,
@@ -3809,6 +3912,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -3855,6 +3959,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat3Id,
@@ -3887,6 +3992,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -3904,6 +4010,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -3950,6 +4057,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat2Id,
@@ -3972,6 +4080,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat3Id,
@@ -4004,6 +4113,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -4021,6 +4131,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -4067,6 +4178,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat1Id,
@@ -4084,6 +4196,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat2Id,
@@ -4106,6 +4219,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat3Id,
@@ -4138,6 +4252,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -4155,6 +4270,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -4192,6 +4308,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId: chat1Id,
@@ -4219,6 +4336,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat1Id,
@@ -4236,6 +4354,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session3.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat2Id,
@@ -4258,6 +4377,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: expect.any(AccountModel),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     chatId: chat3Id,
@@ -4290,6 +4410,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat1Id,
@@ -4307,6 +4428,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherChatAccount: await scenario.session2.get(),
                 }),
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     chatId: chat2Id,
@@ -4367,6 +4489,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -4416,6 +4539,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -4471,6 +4595,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -4534,6 +4659,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([
                 new InboxChatEntryModel({
+                    isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     chatId,
@@ -4593,6 +4719,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,
@@ -4628,6 +4755,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,
@@ -4672,6 +4800,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,
@@ -4704,6 +4833,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,
@@ -4736,6 +4866,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,
@@ -4777,6 +4908,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,
@@ -4809,6 +4941,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,
@@ -4857,6 +4990,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
+                isArchived: false,
                 spaceId: space.id,
                 accountId: session2.account.id,
                 chatId,

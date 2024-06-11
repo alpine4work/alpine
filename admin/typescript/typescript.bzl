@@ -314,7 +314,7 @@ EOF
             ":{}_deps_typings".format(name),
         ],
         size = "small",
-        tags = ["typescript"],
+        tags = ["typescript", "dev-check"],
     )
 
 def _dedupe_labels(labels):

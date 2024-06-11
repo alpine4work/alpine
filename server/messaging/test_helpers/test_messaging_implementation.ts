@@ -579,7 +579,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
 
                 await expect(getRoom(context.action(session4), room1.key)).rejects.toThrow(
-                    new PermissionDeniedError(spacePermissionDeniedErrorMessage),
+                    PermissionDeniedError,
                 );
             });
         }

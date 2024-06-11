@@ -14,6 +14,7 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -122,6 +123,35 @@ const inlineTestCases: Array<{
     },
 ];
 
+// CSS classes and variable names may change after minor modifications to our
+// vanilla extract CSS. So remove them from the HTML so we assert against so
+// our test doesn't keep breaking.
+function stripHtml(originalElement: HTMLElement): HTMLElement {
+    const element = originalElement.cloneNode(true) as HTMLElement;
+
+    element.removeAttribute("class");
+
+    for (const childElement of element.querySelectorAll("[class]")) {
+        childElement.removeAttribute("class");
+    }
+
+    for (const childElement of element.querySelectorAll("[style]")) {
+        assert(childElement instanceof HTMLElement);
+
+        for (let i = 0; i < childElement.style.length; i++) {
+            const property = childElement.style[i]!;
+            if (!property.startsWith("--list-item-indent__")) continue;
+
+            const propertyValue = childElement.style.getPropertyValue(property);
+            childElement.style.removeProperty(property);
+            childElement.style.setProperty("--list-item-indent", propertyValue);
+            break;
+        }
+    }
+
+    return element;
+}
+
 for (const blockTestCase of blockTestCases) {
     test(`${blockTestCase.name} empty`, () => {
         const content = schema.node("doc", {}, [blockTestCase.build([])]);
@@ -140,7 +170,7 @@ for (const blockTestCase of blockTestCases) {
         expect(screen.getByRole("textbox")).toHaveTextContent("");
 
         if (blockTestCase.disableContentTests) {
-            expect(screen.getByRole("textbox")).toMatchSnapshot();
+            expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
         }
 
         expectClipboardRoundtripToWork();
@@ -167,7 +197,7 @@ for (const blockTestCase of blockTestCases) {
         );
 
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
-        expect(screen.getByRole("textbox")).toMatchSnapshot();
+        expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
         expectClipboardRoundtripToWork();
     });
@@ -232,7 +262,7 @@ for (const inlineTestCase of inlineTestCases) {
         );
 
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
-        expect(screen.getByRole("textbox")).toMatchSnapshot();
+        expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
         if (!inlineTestCase.disableClipboardTests) {
             expectClipboardRoundtripToWork();
@@ -522,7 +552,7 @@ test("bullet list with multiple items", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -542,7 +572,7 @@ test("ordered list with multiple items", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -574,7 +604,7 @@ test("check list with multiple items", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -611,7 +641,7 @@ test("bullet list with sub-list", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -648,7 +678,7 @@ test("ordered list with sub-list", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -685,7 +715,7 @@ test("check list with sub-list", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -722,7 +752,7 @@ test("bullet list with sub-list of another type", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -759,7 +789,7 @@ test("ordered list with sub-list of another type", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -796,7 +826,7 @@ test("check list with sub-list of another type", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -818,7 +848,7 @@ test("can put hard breaks inside paragraphs", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -842,7 +872,7 @@ test("can put hard breaks inside list items", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });
@@ -863,7 +893,7 @@ test("can put multiple paragraphs inside list items", () => {
         />,
     );
 
-    expect(screen.getByRole("textbox")).toMatchSnapshot();
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
     expectClipboardRoundtripToWork();
 });

@@ -139,15 +139,15 @@ const shimmerComponentByRouteId: {
     "routes/s.$spaceId.tasks.collections.$collectionId": TaskGridRouteShimmer,
     "routes/s.$spaceId.tasks.view": TaskQueryRouteShimmer,
 
-    // The create routes are simple lists that should be almost instant to load
-    // since they don't have server loaders.
-    "routes/s.$spaceId.create._index": false,
-    "routes/s.$spaceId.create.more": false,
-
     // TODO(calebmer): We don't currently have a design for these routes. Once we
     // implement these routes we should add appropriate shimmers.
     "routes/s.$spaceId._index": false,
+
+    // NOCOMMIT: Implement shimmers
+    "routes/s.$spaceId.create._index": false,
+    "routes/s.$spaceId.create.more": false,
     "routes/s.$spaceId.more._index": false,
+    "routes/s.$spaceId.more.switch-space": false,
 };
 
 export function getRouteIdsWithDefinedShimmerForTest() {
