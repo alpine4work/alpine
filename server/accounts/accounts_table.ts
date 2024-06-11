@@ -3,6 +3,7 @@ import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -216,7 +217,56 @@ const AccountsTable = DynamoTableSchema.new({
                 },
             ],
         },
+
+        /**
+         * Apple device tokens are an anonymous identifier for a device + app pair. It
+         * is the address to which we send push notifications. Only one user is signed
+         * in on a device at a time but a user may sign out of the account on their
+         * device then sign in to another.
+         *
+         * When the user signs out of an account we invalidate the device token with
+         * Apple's Push Notification service (APNs) but don't remove it from the
+         * database. Invalidating the device token means even if we send notifications
+         * the device won't show them. When a new user signs in we update the device
+         * token in the database with the new `AccountId`.
+         *
+         * We have an index to read all `AppleDeviceToken`s for an account.
+         */
+        {
+            name: "AppleDeviceToken",
+            partitionKeyAttributes: {
+                deviceToken: DynamoKeyAttributeSchema.bytes(32),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        accountId: Schema.id<AccountId>(),
+                    }),
+                },
+            ],
+        },
     ],
+});
+
+/**
+ * Index containing all of an account's devices. When sending the user a push
+ * notification we will query this index and send a notification to each
+ * device.
+ */
+// NOTE(calebmer, 2024-06-11): While today we only support iOS devices, this
+// index should eventually contain all devices for an account no matter the
+// operating system so we only need to query one index. For example, Android
+// registration IDs should also appear in this index.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const AccountDevicesIndex = AccountsTable.addIndex({
+    name: "AccountDevices",
+    itemTypes: [{partitionType: "AppleDeviceToken", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+    },
+    sortKeyAttributes: {},
 });
 
 type AccountEmailAddressItem = DynamoTableItemType<
@@ -1046,8 +1096,7 @@ export async function dangerouslyGetAccountIfExistsWithoutCaching(
     return createAccountModelFromItem(accountItem);
 }
 
-export const updateSessionActorAccountNameBeforeExecuteTestCheckpoint =
-    new TestCheckpoint<AccountId>();
+export const updateOurAccountNameBeforeExecuteTestCheckpoint = new TestCheckpoint<AccountId>();
 
 /**
  * Updates an account's name. When we update an account's name we also need to
@@ -1057,11 +1106,11 @@ export const updateSessionActorAccountNameBeforeExecuteTestCheckpoint =
  * instead we export a low level update function that requires you to inject
  * some logic for updating tasks.
  *
- * You should call `updateSessionActorAccountName()` in
+ * You should call `updateOurAccountName()` in
  * `//server/accounts/update_name` which brings together the account table
  * update with the task table update.
  */
-export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
+export async function internalUpdateOurAccountNameWithoutUpdatingTasks<
     Modules extends DynamoContextModules & {
         actor: DynamoSessionActorContextModule;
         jobs: JobsContextModule;
@@ -1071,11 +1120,11 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
     name: string,
     {
         nameVersionForTest,
-        getSessionActorAccountSpaces,
+        getOurAccountSpaceIds,
         getTaskTransactionEntries,
     }: {
         nameVersionForTest?: number;
-        getSessionActorAccountSpaces: (
+        getOurAccountSpaceIds: (
             context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
         ) => Promise<{
             spaceIds: ReadonlySet<SpaceId>;
@@ -1107,9 +1156,7 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
         const nameVersion = nameVersionForTest ?? accountItem.nameVersion + 1;
 
         // We commit an update account name task action in all the spaces an account is in.
-        const {spaceIds, getConditionCheckTransactionEntry} = await getSessionActorAccountSpaces(
-            context,
-        );
+        const {spaceIds, getConditionCheckTransactionEntry} = await getOurAccountSpaceIds(context);
 
         const taskTransactionEntries = getTaskTransactionEntries(context, {
             spaceIds,
@@ -1117,7 +1164,7 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
             nameVersion,
         });
 
-        await updateSessionActorAccountNameBeforeExecuteTestCheckpoint.waitForTest(
+        await updateOurAccountNameBeforeExecuteTestCheckpoint.waitForTest(
             context.actor.getAccountId(),
         );
 
@@ -1151,5 +1198,27 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
         }
 
         return createAccountModelFromItem(newAccountItem);
+    });
+}
+
+/**
+ * Save a 32-byte Apple device token for the acting account.
+ *
+ * If the device token was already registered with a different account then
+ * this will override the `AccountId` associated with the device token. This is
+ * acceptable since device tokens are unguessable. If a device wants to change
+ * its `AccountId` (since the user signed out then back in) it may do so.
+ */
+export async function saveOurAccountAppleDeviceToken(
+    context: ServerSessionActionContext,
+    deviceToken: Uint8Array,
+): Promise<void> {
+    // This method is called every time our iOS app is opened in case the device
+    // token has changed. So it's ok to replace the existing item.
+    await AccountsTable.createOrReplaceItem(context, {
+        partitionType: "AppleDeviceToken",
+        sortRangeType: "Attributes",
+        deviceToken,
+        accountId: context.actor.getAccountId(),
     });
 }

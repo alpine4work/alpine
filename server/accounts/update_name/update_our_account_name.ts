@@ -1,8 +1,8 @@
-import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
+import {internalUpdateOurAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
-import {getSessionActorAccountSpaceIds} from "~/server/spaces/spaces_table.js";
+import {getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
-import {internalGetUpdateSessionActorAccountNameTaskTransactionEntries} from "~/server/tasks/data/task_table.js";
+import {internalGetUpdateOurAccountNameTaskTransactionEntries} from "~/server/tasks/data/task_table.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {Context} from "~/shared/context/context.js";
 
@@ -15,13 +15,13 @@ import {Context} from "~/shared/context/context.js";
  * the account's name in the account table. The account name is inlined in the
  * OpenSearch task index so we also need to go update it there.
  */
-export async function updateSessionActorAccountName(
+export async function updateOurAccountName(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     name: string,
 ): Promise<AccountModelWithoutSpace> {
-    const account = await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(context, name, {
-        getSessionActorAccountSpaces: getSessionActorAccountSpaceIds,
-        getTaskTransactionEntries: internalGetUpdateSessionActorAccountNameTaskTransactionEntries,
+    const account = await internalUpdateOurAccountNameWithoutUpdatingTasks(context, name, {
+        getOurAccountSpaceIds,
+        getTaskTransactionEntries: internalGetUpdateOurAccountNameTaskTransactionEntries,
     });
 
     return account;

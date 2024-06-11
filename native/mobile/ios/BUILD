@@ -149,6 +149,9 @@ swift_library(
         ":fastbuild_compilation_mode": ["FASTBUILD_COMPILATION_MODE"],
         ":dbg_compilation_mode": ["DBG_COMPILATION_MODE"],
         ":opt_compilation_mode": ["OPT_COMPILATION_MODE"],
+    }) + select({
+        ":provisioning_profile_default": [],
+        "//conditions:default": ["PROVISIONING_PROFILE"],
     }),
     module_name = "Cyberworlds",
 )
@@ -162,6 +165,13 @@ config_setting(
     name = "provisioning_profile_local",
     flag_values = {
         ":provisioning_profile": "local",
+    },
+)
+
+config_setting(
+    name = "provisioning_profile_default",
+    flag_values = {
+        ":provisioning_profile": "default",
     },
 )
 

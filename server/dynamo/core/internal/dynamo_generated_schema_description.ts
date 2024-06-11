@@ -194,9 +194,65 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         }
                     }
+                },
+                "AppleDeviceToken": {
+                    "id": 3,
+                    "partitionKeyAttributeByKey": {
+                        "deviceToken": {
+                            "type": "Bytes",
+                            "byteLength": 32
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "accountId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
-            "indexes": []
+            "indexes": [
+                {
+                    "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
+                    "overloadByName": {
+                        "AccountDevices": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "AppleDeviceToken",
+                                    "sortRangeType": "Attributes"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {}
+                        }
+                    }
+                }
+            ]
         },
         "AlphaAccess": {
             "name": "AlphaAccess",

@@ -36,6 +36,11 @@ struct Session {
     static func delete() {
         logger.info("Deleting session")
 
+        // When the user signs out, we should also unregister their device token. If
+        // the user signs in again that should generate a new device token. This way we
+        // don't send notifications for the signed out user!
+        UIApplication.shared.unregisterForRemoteNotifications()
+
         deleteToken()
         UserDefaults.standard.removeObject(forKey: "spaceId")
     }

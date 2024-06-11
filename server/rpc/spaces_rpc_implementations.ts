@@ -5,7 +5,7 @@ import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/tab
 import {
     dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
-    getSessionActorAccountSpaceIds,
+    getOurAccountSpaceIds,
     getSpace,
     removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";
@@ -72,12 +72,12 @@ implementRpc(
 );
 
 implementRpc(
-    definition.getSessionActorAccountSpaces,
+    definition.getOurAccountSpaces,
     {visibility: ["AppClient"]},
     async (unauthenticatedContext, input) => {
         const context = unauthenticatedContext.actor.authorizeSession();
 
-        const {spaceIds} = await getSessionActorAccountSpaceIds(context);
+        const {spaceIds} = await getOurAccountSpaceIds(context);
 
         const spaces = await runAllPromises(
             Array.from(spaceIds, async spaceId =>

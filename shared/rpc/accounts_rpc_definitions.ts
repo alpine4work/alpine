@@ -27,8 +27,8 @@ export const getAccounts = defineRpc({
     },
 });
 
-export const updateSessionActorAccountName = defineRpc({
-    name: "updateSessionActorAccountName",
+export const updateOurAccountName = defineRpc({
+    name: "updateOurAccountName",
     input: {
         name: LabelStringSchema,
     },
@@ -36,6 +36,16 @@ export const updateSessionActorAccountName = defineRpc({
         account: AccountModelWithoutSpace.schema,
     },
 });
+
+export const saveOurAccountAppleDeviceToken = defineRpc({
+    name: "saveOurAccountAppleDeviceToken",
+    input: {
+        deviceToken: Schema.bytes.fixedLength(32),
+    },
+    output: {},
+});
+
+globalThis.__saveOurAccountAppleDeviceToken = saveOurAccountAppleDeviceToken;
 
 export const getAccountByIdAsAdmin = defineRpc({
     name: "getAccountByIdAsAdmin",

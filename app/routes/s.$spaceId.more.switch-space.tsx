@@ -14,7 +14,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
-import {getSessionActorAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -34,7 +34,7 @@ export function meta() {
 export async function loader({context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
-    const {spaces: otherSpaces} = await getSessionActorAccountSpaces(context, {});
+    const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
 
     return jsonWithSchema(LoaderSchema, {otherSpaces});
 }

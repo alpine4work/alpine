@@ -9,7 +9,7 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {SpaceAvatar, spaceAvatarBorderRadius} from "~/client/spaces/space_avatar.js";
-import {getSessionActorAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {buttonStyles, sprinkles} from "~/shared/styles/styles.js";
 
@@ -43,10 +43,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                     label: "Switch space",
                     size: "xl",
                     actions: async () => {
-                        const {spaces: otherSpaces} = await getSessionActorAccountSpaces(
-                            context,
-                            {},
-                        );
+                        const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
 
                         return otherSpaces.map(
                             ({space: otherSpace, inbox}): MenuAction => ({

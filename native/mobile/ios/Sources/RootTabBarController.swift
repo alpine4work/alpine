@@ -160,6 +160,12 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         webNavigationController.setWindowSafeAreaInsets(windowSafeAreaInsets)
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        // Wait until the user is logged in to ask for authorization to send push
+        // notifications.
+        AppDelegate.shared.registerForRemoteNotificationsAndRequestAuthorization()
+    }
+
     func tabBarController(
         _ tabBarController: UITabBarController,
         didSelect viewController: UIViewController

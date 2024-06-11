@@ -1,4 +1,4 @@
-import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
+import {internalUpdateOurAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
@@ -13,7 +13,7 @@ import {
     expensivelyGetAllSpaceAccounts,
     getAccount,
     getAccountIfExists,
-    getSessionActorAccountSpaceIds,
+    getOurAccountSpaceIds,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountsCacheForTest,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -788,18 +788,18 @@ test("removing an account from a space updates the account's space ids", async (
     expect(await isMember(otherSpace, session3)).toEqual(false);
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 
-    expect(Array.from((await getSessionActorAccountSpaceIds(session1.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session1.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(Array.from((await getSessionActorAccountSpaceIds(session2.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session2.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(Array.from((await getSessionActorAccountSpaceIds(session3.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session3.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(
-        Array.from((await getSessionActorAccountSpaceIds(otherSession.action())).spaceIds),
-    ).toEqual([otherSpace.id]);
+    expect(Array.from((await getOurAccountSpaceIds(otherSession.action())).spaceIds)).toEqual([
+        otherSpace.id,
+    ]);
 
     await removeSpaceAccountAsAdmin(session1.action(), {
         spaceId: space.id,
@@ -815,18 +815,16 @@ test("removing an account from a space updates the account's space ids", async (
     expect(await isMember(otherSpace, session3)).toEqual(false);
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 
-    expect(Array.from((await getSessionActorAccountSpaceIds(session1.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session1.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(Array.from((await getSessionActorAccountSpaceIds(session2.action())).spaceIds)).toEqual(
-        [],
-    );
-    expect(Array.from((await getSessionActorAccountSpaceIds(session3.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session2.action())).spaceIds)).toEqual([]);
+    expect(Array.from((await getOurAccountSpaceIds(session3.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(
-        Array.from((await getSessionActorAccountSpaceIds(otherSession.action())).spaceIds),
-    ).toEqual([otherSpace.id]);
+    expect(Array.from((await getOurAccountSpaceIds(otherSession.action())).spaceIds)).toEqual([
+        otherSpace.id,
+    ]);
 
     await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
         spaceId: space.id,
@@ -842,18 +840,17 @@ test("removing an account from a space updates the account's space ids", async (
     expect(await isMember(otherSpace, session3)).toEqual(false);
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 
-    expect(Array.from((await getSessionActorAccountSpaceIds(session1.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session1.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(Array.from((await getSessionActorAccountSpaceIds(session2.action())).spaceIds)).toEqual(
-        [],
-    );
-    expect(Array.from((await getSessionActorAccountSpaceIds(session3.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session2.action())).spaceIds)).toEqual([]);
+    expect(Array.from((await getOurAccountSpaceIds(session3.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(
-        Array.from((await getSessionActorAccountSpaceIds(otherSession.action())).spaceIds),
-    ).toEqual([otherSpace.id, space.id]);
+    expect(Array.from((await getOurAccountSpaceIds(otherSession.action())).spaceIds)).toEqual([
+        otherSpace.id,
+        space.id,
+    ]);
 
     await removeSpaceAccountAsAdmin(session1.action(), {
         spaceId: otherSpace.id,
@@ -869,18 +866,16 @@ test("removing an account from a space updates the account's space ids", async (
     expect(await isMember(otherSpace, session3)).toEqual(false);
     expect(await isMember(otherSpace, otherSession)).toEqual(false);
 
-    expect(Array.from((await getSessionActorAccountSpaceIds(session1.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session1.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(Array.from((await getSessionActorAccountSpaceIds(session2.action())).spaceIds)).toEqual(
-        [],
-    );
-    expect(Array.from((await getSessionActorAccountSpaceIds(session3.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session2.action())).spaceIds)).toEqual([]);
+    expect(Array.from((await getOurAccountSpaceIds(session3.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(
-        Array.from((await getSessionActorAccountSpaceIds(otherSession.action())).spaceIds),
-    ).toEqual([space.id]);
+    expect(Array.from((await getOurAccountSpaceIds(otherSession.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
 
     await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
         spaceId: space.id,
@@ -896,18 +891,18 @@ test("removing an account from a space updates the account's space ids", async (
     expect(await isMember(otherSpace, session3)).toEqual(false);
     expect(await isMember(otherSpace, otherSession)).toEqual(false);
 
-    expect(Array.from((await getSessionActorAccountSpaceIds(session1.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session1.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(Array.from((await getSessionActorAccountSpaceIds(session2.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session2.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(Array.from((await getSessionActorAccountSpaceIds(session3.action())).spaceIds)).toEqual([
+    expect(Array.from((await getOurAccountSpaceIds(session3.action())).spaceIds)).toEqual([
         space.id,
     ]);
-    expect(
-        Array.from((await getSessionActorAccountSpaceIds(otherSession.action())).spaceIds),
-    ).toEqual([space.id]);
+    expect(Array.from((await getOurAccountSpaceIds(otherSession.action())).spaceIds)).toEqual([
+        space.id,
+    ]);
 });
 
 test("`isAccountMemberOfSpace()` caches a true result in context", async () => {
@@ -1853,14 +1848,10 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         null,
     );
 
-    await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(
-        session2.action(),
-        "Shawn Tyson",
-        {
-            getSessionActorAccountSpaces: getSessionActorAccountSpaceIds,
-            getTaskTransactionEntries: () => [],
-        },
-    );
+    await internalUpdateOurAccountNameWithoutUpdatingTasks(session2.action(), "Shawn Tyson", {
+        getOurAccountSpaces: getOurAccountSpaceIds,
+        getTaskTransactionEntries: () => [],
+    });
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         new AccountModel({
@@ -1927,14 +1918,10 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         null,
     );
 
-    await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(
-        session2.action(),
-        "Shawn Meredith",
-        {
-            getSessionActorAccountSpaces: getSessionActorAccountSpaceIds,
-            getTaskTransactionEntries: () => [],
-        },
-    );
+    await internalUpdateOurAccountNameWithoutUpdatingTasks(session2.action(), "Shawn Meredith", {
+        getOurAccountSpaces: getOurAccountSpaceIds,
+        getTaskTransactionEntries: () => [],
+    });
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         new AccountModel({

@@ -1805,6 +1805,7 @@ export async function createPostComment(
         content: MessageContent;
     },
 ): Promise<{
+    spaceId: SpaceId;
     index: number;
     createdTime: Date;
 }> {
@@ -1963,6 +1964,7 @@ export async function createPostComment(
         }
 
         return {
+            spaceId: postItem.spaceId,
             index: commentIndex,
             createdTime,
         };
@@ -2063,6 +2065,7 @@ export function updatePostCommentContent(
         content: MessageContent;
     },
 ): Promise<{
+    spaceId: SpaceId;
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
@@ -2172,7 +2175,10 @@ export function updatePostCommentContent(
             },
         });
 
-        return {contentUpdatedTime};
+        return {
+            spaceId,
+            contentUpdatedTime,
+        };
     });
 }
 

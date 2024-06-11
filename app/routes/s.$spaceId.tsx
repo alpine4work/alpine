@@ -67,7 +67,8 @@ import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
-    updateSessionActorAccountName,
+    saveOurAccountAppleDeviceToken,
+    updateOurAccountName,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
     createAlphaSpaceAsAdmin,
@@ -237,7 +238,7 @@ export default function SpaceLayoutRoute() {
     useDevConsoleTool("accounts", () => ({
         store: accountsStore,
         updateOurName: async (name: string) => {
-            const {account} = await updateSessionActorAccountName(context, {name});
+            const {account} = await updateOurAccountName(context, {name});
             accountsStore.immediatelyUpdateAccountStoreIfExists(account);
         },
     }));
@@ -388,6 +389,44 @@ export default function SpaceLayoutRoute() {
             window.removeEventListener("keydown", handleKeyDown, true);
         };
     }, [isMobile, setSearchState]);
+
+    // In native mobile iOS apps, save any iOS device tokens to the server. We'll
+    // use the device token to actually send the user push notifications.
+    useEffect(() => {
+        if (!NativeMobileBridge) return;
+
+        const take = () => {
+            NativeMobileBridge!.notifications.takeAppleDeviceTokens().then(
+                deviceTokens => {
+                    for (const deviceToken of deviceTokens) {
+                        saveOurAccountAppleDeviceToken(context, {deviceToken}).then(
+                            () => {
+                                // Hooray!
+                            },
+                            error => {
+                                context.tracer
+                                    .getRoot()
+                                    .logUncaughtException("Couldn't save iOS device token", error);
+                            },
+                        );
+                    }
+                },
+                error => {
+                    context.tracer
+                        .getRoot()
+                        .logUncaughtException("Couldn't take iOS device tokens", error);
+                },
+            );
+        };
+
+        // Initial take call in case device tokens were added before our JavaScript
+        // code started running.
+        take();
+
+        return NativeMobileBridge.notifications.subscribeToAppleDeviceTokensUpdate(() => {
+            take();
+        });
+    }, [context]);
 
     const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
         ? dataRouterStateContext

@@ -356,23 +356,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * custom support for `Uint8Array`. If we try to deserialize a string, we will
      * treat the string as base64 binary encoded data.
      */
-    public static bytes = new Schema<Uint8Array>({
-        getDescription: () => ({type: "Bytes"}),
-        serialize: value => new JsonStringifiableUint8Array(value),
-        deserialize: value => {
-            if (value instanceof Uint8Array) return value;
-
-            if (typeof value !== "string")
-                throw new SchemaDeserializationError("Expected a `Uint8Array` or base64 string");
-
-            try {
-                return decodeBase64(value);
-            } catch {
-                throw new SchemaDeserializationError("Unable to parse base64 string");
-            }
-        },
-        validate: null,
-    });
+    public static bytes: BytesSchema;
 
     /**
      * Accept a valid `Date` object.
@@ -2153,6 +2137,154 @@ export class IntegerSchema extends Schema<number> {
 
 // Avoid circular dependency between `Schema` and `IntegerSchema`.
 Schema.integer = IntegerSchema.integer;
+
+// Needs to be exported so `.d.ts` generation can find it.
+export class BytesSchema extends Schema<Uint8Array> {
+    public static override bytes = new BytesSchema({
+        getDescription: () => ({type: "Bytes"}),
+        serialize: value => new JsonStringifiableUint8Array(value),
+        deserialize: value => {
+            if (value instanceof Uint8Array) return value;
+
+            if (typeof value !== "string")
+                throw new SchemaDeserializationError("Expected a `Uint8Array` or base64 string");
+
+            try {
+                return decodeBase64(value);
+            } catch {
+                throw new SchemaDeserializationError("Unable to parse base64 string");
+            }
+        },
+        validate: null,
+    });
+
+    private _transformBytes({
+        serialize,
+        deserialize,
+        validate: newValidate,
+    }: {
+        serialize: (value: Uint8Array) => Uint8Array;
+        deserialize: (value: Uint8Array) => Uint8Array;
+        validate: ((value: Uint8Array) => void) | null;
+    }): BytesSchema {
+        const {validate: oldValidate} = this;
+
+        return new BytesSchema({
+            getDescription: () => this.getDescription(),
+            serialize: newValue => {
+                const value = serialize(newValue);
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+                return deserialize(value);
+            },
+            validate:
+                newValidate || oldValidate
+                    ? value => {
+                          oldValidate?.(value);
+                          newValidate?.(value);
+                      }
+                    : null,
+        });
+    }
+
+    /**
+     * Verifies that binary data has at least this many bytes.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public minLength(byteLength: number): BytesSchema {
+        return this._transformBytes({
+            serialize: value => {
+                if (value.byteLength > byteLength)
+                    throw new InvalidArgumentError(
+                        `Expected bytes to have a byte length less than or equal to ${byteLength}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.byteLength > byteLength)
+                    throw new SchemaDeserializationError(
+                        `Expected bytes to have a byte length less than or equal to ${byteLength}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.byteLength > byteLength)
+                    throw new InvalidArgumentError(
+                        `Expected bytes to have a byte length less than or equal to ${byteLength}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that binary data has at most this many bytes.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public maxLength(byteLength: number): BytesSchema {
+        return this._transformBytes({
+            serialize: value => {
+                if (value.byteLength < byteLength)
+                    throw new InvalidArgumentError(
+                        `Expected bytes to have a byte length greater than or equal to ${byteLength}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.byteLength < byteLength)
+                    throw new SchemaDeserializationError(
+                        `Expected bytes to have a byte length greater than or equal to ${byteLength}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.byteLength < byteLength)
+                    throw new InvalidArgumentError(
+                        `Expected bytes to have a byte length greater than or equal to ${byteLength}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that binary data has exactly this many bytes.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public fixedLength(byteLength: number): BytesSchema {
+        return this._transformBytes({
+            serialize: value => {
+                if (value.byteLength !== byteLength)
+                    throw new InvalidArgumentError(
+                        `Expected bytes to have a byte length equal to ${byteLength}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value.byteLength !== byteLength)
+                    throw new SchemaDeserializationError(
+                        `Expected bytes to have a byte length equal to ${byteLength}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value.byteLength !== byteLength)
+                    throw new InvalidArgumentError(
+                        `Expected bytes to have a byte length equal to ${byteLength}`,
+                    );
+            },
+        });
+    }
+}
+
+// Avoid circular dependency between `Schema` and `IntegerSchema`.
+Schema.bytes = BytesSchema.bytes;
 
 /**
  * Schema for a set value.

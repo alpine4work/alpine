@@ -2,8 +2,8 @@ import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/da
 import {addDays, addHours} from "date-fns";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {updateSessionActorAccountNameBeforeExecuteTestCheckpoint} from "~/server/accounts/accounts_table.js";
-import {updateSessionActorAccountName} from "~/server/accounts/update_name/update_session_actor_account_name.js";
+import {updateOurAccountNameBeforeExecuteTestCheckpoint} from "~/server/accounts/accounts_table.js";
+import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -15762,7 +15762,7 @@ test("commits an update name action when the account's name updates", async () =
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
 
-    await updateSessionActorAccountName(TestTask.action(session), newAccountName1);
+    await updateOurAccountName(TestTask.action(session), newAccountName1);
 
     expect((await session.get()).initialData.name).toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
@@ -15785,7 +15785,7 @@ test("commits an update name action when the account's name updates", async () =
         },
     ]);
 
-    await updateSessionActorAccountName(TestTask.action(session), newAccountName2);
+    await updateOurAccountName(TestTask.action(session), newAccountName2);
 
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).toEqual(newAccountName2);
@@ -15838,7 +15838,7 @@ test("doesn't an update name action when the account is in no spaces", async () 
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
 
-    await updateSessionActorAccountName(TestTask.action(session), newAccountName1);
+    await updateOurAccountName(TestTask.action(session), newAccountName1);
 
     expect((await session.get()).initialData.name).toEqual(newAccountName1);
     expect((await session.get()).initialData.name).not.toEqual(newAccountName2);
@@ -15847,7 +15847,7 @@ test("doesn't an update name action when the account is in no spaces", async () 
         await backfillTaskActionTransactionHistory(space.systemAction(), space.id, startTime),
     ).toEqual([]);
 
-    await updateSessionActorAccountName(TestTask.action(session), newAccountName2);
+    await updateOurAccountName(TestTask.action(session), newAccountName2);
 
     expect((await session.get()).initialData.name).not.toEqual(newAccountName1);
     expect((await session.get()).initialData.name).toEqual(newAccountName2);
@@ -15871,11 +15871,11 @@ test("commits an update name action when the account's name updates to every spa
 
     expect((await session.get()).initialData.name).not.toEqual(newAccountName);
 
-    const pausePromise = updateSessionActorAccountNameBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = updateOurAccountNameBeforeExecuteTestCheckpoint.pauseForTest(
         session.account.id,
     );
 
-    const updatePromise = updateSessionActorAccountName(TestTask.action(session), newAccountName);
+    const updatePromise = updateOurAccountName(TestTask.action(session), newAccountName);
 
     const {unpause} = await pausePromise;
 
@@ -15932,11 +15932,11 @@ test("commits an update name action when the account's name updates to every spa
 
     expect((await session.get()).initialData.name).not.toEqual(newAccountName);
 
-    const pausePromise = updateSessionActorAccountNameBeforeExecuteTestCheckpoint.pauseForTest(
+    const pausePromise = updateOurAccountNameBeforeExecuteTestCheckpoint.pauseForTest(
         session.account.id,
     );
 
-    const updatePromise = updateSessionActorAccountName(TestTask.action(session), newAccountName);
+    const updatePromise = updateOurAccountName(TestTask.action(session), newAccountName);
 
     const {unpause} = await pausePromise;
 

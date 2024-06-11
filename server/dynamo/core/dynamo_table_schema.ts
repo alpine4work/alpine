@@ -3716,6 +3716,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
+        // Sort keys may not be empty. If we have no sort key attributes then only
+        // return `!` as the sort key. We use `!` since it's less than all valid
+        // DynamoDB attribute characters.
+        if (sortKeyEntries.length === 0) {
+            return "!";
+        }
+
         return sortKeyEntries.join(dynamoKeySeparator);
     }
 

@@ -1,5 +1,7 @@
 import {DynamoEmailAddressSchema} from "~/server/dynamo/core/internal/dynamo_email_address_schema.js";
 import {EmailAddress} from "~/server/emails/email_address.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -157,6 +159,7 @@ export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "BooleanReversed"}
     | {readonly type: "Integer"}
     | {readonly type: "Float"}
+    | {readonly type: "Bytes"; readonly byteLength: number}
     | {readonly type: "OrderKey"}
     | {readonly type: "LabelString"}
     | {readonly type: "EmailAddress"}
@@ -392,6 +395,40 @@ export class DynamoKeyAttributeSchema<Value> {
         // https://activesphere.com/blog/2018/08/17/order-preserving-serialization
         binary: null,
     });
+
+    /**
+     * Binary data with a fixed length. Useful if you have some opaque binary data
+     * you want to use as a key.
+     *
+     * When serialized to a string we use a base64 format that is URL safe and
+     * preserves the order of the underlying binary data. If you try to serialize
+     * byte data with a different length then you'll get an error.
+     */
+    public static bytes(byteLength: number) {
+        return new DynamoKeyAttributeSchema<Uint8Array>({
+            description: {type: "Bytes", byteLength},
+
+            minValue: new Uint8Array(createArrayWithLength(byteLength, () => 0)),
+            maxValue: new Uint8Array(createArrayWithLength(byteLength, () => 2 ** 8 - 1)),
+
+            serialize: value => {
+                assert(value.byteLength === byteLength);
+                return encodeBase64(value, "Rfc4648UrlWithOrderPreservation") as DynamoKeyAttribute;
+            },
+            deserialize: keyAttribute =>
+                decodeBase64(keyAttribute, "Rfc4648UrlWithOrderPreservation"),
+
+            binary: {
+                getByteCount: () => byteLength,
+                serializeBytes: (value, bytes, byteOffset) => {
+                    assert(value.byteLength === byteLength);
+                    bytes.set(value, byteOffset);
+                },
+                deserializeBytes: (bytes, byteOffset) =>
+                    bytes.slice(byteOffset, byteOffset + byteLength),
+            },
+        });
+    }
 
     /**
      * `OrderKey`s have a natural lexicographic order.

@@ -676,4 +676,36 @@ export const NativeMobileBridge: {
          */
         subscribeToAddCommentAction(listener: () => void): () => void;
     };
+
+    /**
+     * Methods related to registering and handling push notifications from the
+     * native platform's push notification service. There may be methods that only
+     * work on one platform or another.
+     */
+    readonly notifications: {
+        /**
+         * Take any Apple device tokens needed for sending push notifications from our
+         * server. To watch for when new device tokens become available call
+         * `subscribeToAppleDeviceTokensUpdate()`. When you call this function, it'll
+         * only return each device token once. So you may get a device token in a first
+         * call and in subsequent calls you will never receive another device token.
+         *
+         * To learn more about this process from the native iOS code side read
+         * “[Registering your app with APNs][1].”
+         *
+         * We call these “Apple device tokens” instead of “iOS device tokens” because
+         * MacOS native apps use the same format.
+         *
+         * [1]: https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns
+         */
+        takeAppleDeviceTokens(): Promise<ReadonlyArray<Uint8Array>>;
+
+        /**
+         * Calls any subscribed listeners whenever there are new Apple device tokens.
+         * Call `takeAppleDeviceTokens()` to get those tokens.
+         * `takeAppleDeviceTokens()` will only return new device tokens the first time
+         * it's called.
+         */
+        subscribeToAppleDeviceTokensUpdate(listener: () => void): () => void;
+    };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

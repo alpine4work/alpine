@@ -47,8 +47,8 @@ export const removeSpaceAccountAsAdmin = defineRpc({
     output: {},
 });
 
-export const getSessionActorAccountSpaces = defineRpc({
-    name: "getSessionActorAccountSpaces",
+export const getOurAccountSpaces = defineRpc({
+    name: "getOurAccountSpaces",
     input: {},
     output: {
         spaces: Schema.array(

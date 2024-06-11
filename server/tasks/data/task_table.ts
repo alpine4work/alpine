@@ -3342,11 +3342,11 @@ export function deleteTaskAndAllChildren(
 }
 
 /**
- * The task part required for implementing `updateSessionActorAccountName()`.
+ * The task part required for implementing `updateOurAccountName()`.
  * Commits an `UpdateAccountName` action to every space the account is in then
  * once the transaction has committed begins indexing the action.
  */
-export function internalGetUpdateSessionActorAccountNameTaskTransactionEntries(
+export function internalGetUpdateOurAccountNameTaskTransactionEntries(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     {
         spaceIds,

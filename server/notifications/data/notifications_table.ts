@@ -1533,6 +1533,8 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             mapIterable(accountIds, async accountOrMentionId => {
                 // Only update the inbox entry for accounts that are a member of the space the
                 // event is a part of.
+                //
+                // NOCOMMIT: Test that removed accounts don't get notifications anymore.
                 if (!(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))) {
                     return;
                 }

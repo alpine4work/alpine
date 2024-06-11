@@ -1346,7 +1346,7 @@ export async function expensivelyGetAllSpaceAccounts(
  * Also allows you to get a condition check transaction entry that fails if our
  * actor was added to or removed from a space.
  */
-export async function getSessionActorAccountSpaceIds(context: ServerSessionActionContext): Promise<{
+export async function getOurAccountSpaceIds(context: ServerSessionActionContext): Promise<{
     spaceIds: ReadonlySet<SpaceId>;
     getConditionCheckTransactionEntry: () => DynamoTransactionEntry;
 }> {

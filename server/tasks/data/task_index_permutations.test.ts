@@ -1,8 +1,8 @@
-import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
+import {internalUpdateOurAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {getAccount, getSessionActorAccountSpaceIds} from "~/server/spaces/spaces_table.js";
+import {getAccount, getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
@@ -53,12 +53,12 @@ testTaskActionPermutations({
             if (account.initialData.nameVersion === action.accountNameVersion) {
                 assert(account.initialData.name === action.accountName);
             } else if (account.initialData.nameVersion < action.accountNameVersion) {
-                await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(
+                await internalUpdateOurAccountNameWithoutUpdatingTasks(
                     context.action(action.accountId === session2.accountId ? session2 : session1),
                     action.accountName,
                     {
                         nameVersionForTest: action.accountNameVersion,
-                        getSessionActorAccountSpaces: getSessionActorAccountSpaceIds,
+                        getOurAccountSpaces: getOurAccountSpaceIds,
                         getTaskTransactionEntries: () => [],
                     },
                 );

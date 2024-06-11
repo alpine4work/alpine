@@ -115,6 +115,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private let initialPathByTab: InitialPathByTab
     private let webConfiguration: WKWebViewConfiguration
     private let weakScriptMessageHandler: WeakScriptMessageHandler
+    private var remoteNotificationDeviceTokenCountObservation: NSKeyValueObservation?
 
     struct InitialPathByTab {
         let home: String
@@ -575,6 +576,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         initWebView()
 
+        remoteNotificationDeviceTokenCountObservation = AppDelegate.shared.observe(
+            \.remoteNotificationDeviceTokenCount,
+            options: []
+        ) { [weak self] _, _ in
+            guard let this = self else { return }
+
+            this.webView.evaluateJavaScript(
+                "window.__NativeMobileBridge.notifications._callIosDeviceTokensUpdate()"
+            )
+        }
+
         // Tested this with:
         //
         // - Showing the keyboard
@@ -642,6 +654,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     deinit {
         let url = webView.url
         logger.info("Deinitializing at: \(url?.absoluteString ?? "nil", privacy: .public)")
+
+        remoteNotificationDeviceTokenCountObservation?.invalidate()
+        remoteNotificationDeviceTokenCountObservation = nil
 
         webViewHealthTimer?.invalidate()
         webViewHealthTimer = nil
@@ -1663,6 +1678,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             prepareForKeyboardWebSubstitute { replyHandler(nil, nil) }
         } else if messageBody == "keyboard.cleanupAfterSubstitute" {
             cleanupAfterKeyboardWebSubstitute { replyHandler(nil, nil) }
+        } else if messageBody == "notifications.takeAppleDeviceTokens" {
+            let deviceTokens = AppDelegate.shared.takeRemoteNotificationDeviceTokens()
+            replyHandler(deviceTokens.map { [UInt8]($0) }, nil)
         } else {
             logger.warning("Received unrecognized message from web view: \(messageBody)")
 
@@ -3294,6 +3312,16 @@ private class WebNavigationEntryController: UIViewController {
                 style: .default,
                 handler: { [weak self] (_) in
                     guard let this = self else { return }
+
+                    #if PROVISIONING_PROFILE
+                        if isOfflineNavigationError
+                            && AppDelegate.shared.hasRegisterForRemoteNotificationsFailed
+                        {
+                            AppDelegate.shared.hasRegisterForRemoteNotificationsFailed = false
+                            UIApplication.shared.registerForRemoteNotifications()
+                        }
+                    #endif
+
                     this.webNavigationController.forceReloadWebView()
                 }
             )
@@ -3482,6 +3510,7 @@ private let webBridgeSource = """
         const navigationExternalSwitchTabListeners = new Set();
         const keyboardFrameChangeListeners = new Set();
         const addCommentEditMenuListeners = new Set();
+        const notificationsIosDeviceTokensUpdateListeners = new Set();
 
         let scheduledAfterNavigationAnimationCallbacks = [];
         let scheduledAfterKeyboardAnimationCallbacks = [];
@@ -3785,6 +3814,29 @@ private let webBridgeSource = """
                 },
                 _callAddCommentActionListeners: () => {
                     for (const listener of addCommentEditMenuListeners) {
+                        try {
+                            listener();
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
+                },
+            },
+            notifications: {
+                takeAppleDeviceTokens: async () => {
+                    const deviceTokens = await window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("notifications.takeAppleDeviceTokens");
+                    return deviceTokens.map(deviceToken => new Uint8Array(deviceToken));
+                },
+                subscribeToAppleDeviceTokensUpdate: listener => {
+                    notificationsIosDeviceTokensUpdateListeners.add(listener);
+                    return () => {
+                        notificationsIosDeviceTokensUpdateListeners.delete(listener);
+                    };
+                },
+                _callIosDeviceTokensUpdate: () => {
+                    for (const listener of notificationsIosDeviceTokensUpdateListeners) {
                         try {
                             listener();
                         } catch (error) {
