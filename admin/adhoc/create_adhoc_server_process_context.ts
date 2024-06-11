@@ -1,8 +1,14 @@
 import {createAdhocDynamoContext} from "~/admin/adhoc/create_adhoc_dynamo_context.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
-import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {Session} from "~/server/accounts/accounts_table.js";
+import {
+    DynamoSessionActorContextModule,
+    DynamoSystemActorContextModule,
+} from "~/server/accounts/dynamo_actor_context_module.js";
 import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {
+    ServerSessionActionContext,
+    ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
@@ -19,9 +25,9 @@ import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const env = parseDotenv();
 
@@ -33,7 +39,10 @@ export async function createAdhocServerProcessContext({
 }: {
     awsProfile?: string;
 } = {}): Promise<
-    ServerProcessContext & {systemAction: (spaceId: SpaceId) => ServerSystemActionContext}
+    ServerProcessContext & {
+        systemAction: (spaceId: SpaceId) => ServerSystemActionContext;
+        impersonateSessionAction: (sessionId: SessionId) => Promise<ServerSessionActionContext>;
+    }
 > {
     const baseContext = await createAdhocDynamoContext({awsProfile});
 
@@ -106,6 +115,20 @@ export async function createAdhocServerProcessContext({
                 cache: new CacheContextModule(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew("Adhoc", spaceId),
+            });
+
+            return actionContext;
+        },
+        impersonateSessionAction: async (sessionId: SessionId) => {
+            const session = await Session.getIfExists(context, sessionId, null);
+            if (!session) throw new NotFoundError("Session not found");
+
+            const actionContext = context.clone<
+                Omit<ServerSessionActionContextModules, keyof ServerProcessContextModules>
+            >({
+                cache: new CacheContextModule(),
+                dynamoBatchContext: new DynamoBatchContextModule(),
+                actor: DynamoSessionActorContextModule.dangerouslyNew("Adhoc", session),
             });
 
             return actionContext;
