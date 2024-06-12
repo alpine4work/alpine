@@ -67,7 +67,7 @@ import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
-    saveOurAccountAppleDeviceToken,
+    registerOurAccountAppleDeviceToken,
     updateOurAccountName,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
@@ -399,7 +399,7 @@ export default function SpaceLayoutRoute() {
             NativeMobileBridge!.notifications.takeAppleDeviceTokens().then(
                 deviceTokens => {
                     for (const deviceToken of deviceTokens) {
-                        saveOurAccountAppleDeviceToken(context, {deviceToken}).then(
+                        registerOurAccountAppleDeviceToken(context, {deviceToken}).then(
                             () => {
                                 // Hooray!
                             },

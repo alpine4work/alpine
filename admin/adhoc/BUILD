@@ -15,6 +15,7 @@ ts_project(
         "//:node_modules/fuse.js",
         "//admin/helpers",
         "//client/rpc",
+        "//server/apns",
         "//server/rpc",
         "//server/tracer",
         "//shared/content",

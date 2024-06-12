@@ -3,7 +3,10 @@ import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerSessionActionContext,
+} from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -29,6 +32,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
@@ -259,7 +263,6 @@ const AccountsTable = DynamoTableSchema.new({
 // index should eventually contain all devices for an account no matter the
 // operating system so we only need to query one index. For example, Android
 // registration IDs should also appear in this index.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AccountDevicesIndex = AccountsTable.addIndex({
     name: "AccountDevices",
     itemTypes: [{partitionType: "AppleDeviceToken", sortRangeType: "Attributes"}],
@@ -1209,7 +1212,7 @@ export async function internalUpdateOurAccountNameWithoutUpdatingTasks<
  * acceptable since device tokens are unguessable. If a device wants to change
  * its `AccountId` (since the user signed out then back in) it may do so.
  */
-export async function saveOurAccountAppleDeviceToken(
+export async function registerOurAccountAppleDeviceToken(
     context: ServerSessionActionContext,
     deviceToken: Uint8Array,
 ): Promise<void> {
@@ -1221,4 +1224,42 @@ export async function saveOurAccountAppleDeviceToken(
         deviceToken,
         accountId: context.actor.getAccountId(),
     });
+}
+
+export type AccountDevice = {
+    readonly type: "Apple";
+    readonly deviceToken: Uint8Array;
+};
+
+/**
+ * Get all devices registered for the provided `AccountId`. System actors can
+ * see the registered devices for any account since we need to send push
+ * notifications to the account's devices as the system actor.
+ */
+export async function getRegisteredAccountDevices(
+    context: ServerActionContext,
+    accountId: AccountId,
+): Promise<ReadonlyArray<AccountDevice>> {
+    // NOCOMMIT: Test!!!
+    switch (context.actor.type) {
+        case "System": {
+            // System actors can see devices for any account.
+            break;
+        }
+        case "Session": {
+            if (context.actor.getAccountId() !== accountId) {
+                throw new PermissionDeniedError(
+                    "Can't see devices for an account that's not your own",
+                );
+            }
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+
+    return arrayFromAsyncIterable(
+        AccountDevicesIndex.query(context, {partitionKey: {accountId}, limit: "All"}),
+        (item): AccountDevice => ({type: "Apple", deviceToken: item.deviceToken}),
+    );
 }

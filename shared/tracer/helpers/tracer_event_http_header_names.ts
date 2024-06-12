@@ -74,6 +74,16 @@ type TracerEventHttpHeaderNameMap = {
     "cf-ipcountry": true;
     "cdn-loop": true;
     "cf-worker": true;
+    // APNs headers
+    // https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns
+    // https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Understand-error-codes
+    "apns-push-type": true;
+    "apns-id": true;
+    "apns-expiration": true;
+    "apns-priority": true;
+    "apns-topic": true;
+    "apns-collapse-id": true;
+    "apns-unique-id": true;
     // Cyberworlds custom headers
     "cyberworlds-durable-object-id-name": true;
     "cyberworlds-durable-object-if-initialized": true;
@@ -137,6 +147,13 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "cf-ipcountry": true,
     "cdn-loop": true,
     "cf-worker": true,
+    "apns-push-type": true,
+    "apns-id": true,
+    "apns-expiration": true,
+    "apns-priority": true,
+    "apns-topic": true,
+    "apns-collapse-id": true,
+    "apns-unique-id": true,
     "cyberworlds-durable-object-id-name": true,
     "cyberworlds-durable-object-if-initialized": true,
     "cyberworlds-space-id-hint": true,

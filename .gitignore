@@ -10,6 +10,7 @@ bazel-*
 # Misc
 .DS_Store
 *.pem
+!/server/apns/certificates/*.pem
 
 # Debug
 npm-debug.log*

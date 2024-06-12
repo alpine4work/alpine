@@ -37,15 +37,13 @@ export const updateOurAccountName = defineRpc({
     },
 });
 
-export const saveOurAccountAppleDeviceToken = defineRpc({
-    name: "saveOurAccountAppleDeviceToken",
+export const registerOurAccountAppleDeviceToken = defineRpc({
+    name: "registerOurAccountAppleDeviceToken",
     input: {
         deviceToken: Schema.bytes.fixedLength(32),
     },
     output: {},
 });
-
-globalThis.__saveOurAccountAppleDeviceToken = saveOurAccountAppleDeviceToken;
 
 export const getAccountByIdAsAdmin = defineRpc({
     name: "getAccountByIdAsAdmin",

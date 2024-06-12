@@ -1,7 +1,7 @@
 import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
-    saveOurAccountAppleDeviceToken,
+    registerOurAccountAppleDeviceToken,
 } from "~/server/accounts/accounts_table.js";
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
@@ -38,10 +38,13 @@ implementRpc(
 );
 
 implementRpc(
-    definition.saveOurAccountAppleDeviceToken,
+    definition.registerOurAccountAppleDeviceToken,
     {visibility: ["AppClient"]},
     async (context, input) => {
-        await saveOurAccountAppleDeviceToken(context.actor.authorizeSession(), input.deviceToken);
+        await registerOurAccountAppleDeviceToken(
+            context.actor.authorizeSession(),
+            input.deviceToken,
+        );
 
         return {};
     },
