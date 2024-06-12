@@ -942,7 +942,7 @@ function TaskQueryViewInstructionalPlaceholder({
                         display="flex"
                         height="6"
                         alignItems="center"
-                        paddingX="1.5"
+                        paddingX="2"
                         gap="2"
                         border="grey-10"
                         borderRadius="base"
