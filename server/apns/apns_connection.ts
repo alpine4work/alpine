@@ -1,14 +1,11 @@
 import {addDays} from "date-fns";
-import fs from "node:fs";
 import http2 from "node:http2";
-import {join as joinPath} from "node:path";
 import {
     ApnsAlertNotification,
     ApnsAlertNotificationOptions,
 } from "~/server/apns/apns_alert_notification.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {DeadlineExceededError, InternalError, UnavailableError} from "~/shared/error/error.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -33,9 +30,25 @@ const pingIntervalMs = 5_000;
 const requestTimeoutMs = 10_000;
 
 /**
- * Certificates for sending push notifications to the APNs sandbox. These
- * certificates are not accepted for production! They may only be used to
- * send notifications in development.
+ * An HTTP/2 connection to Apple Push Notification service (APNs). The APNs API
+ * is documented in “[Sending notification requests to APNs][1]” and “[Handling
+ * notification responses from APNs][2].”
+ *
+ * There are services like [AWS SNS][3] that provide a simple HTTP/1 interface
+ * to send push notifications but it's not complicated (and saves us money and
+ * reduces vendor lock in) to use Node.js HTTP/2 client to send notifications
+ * ourselves. The downside is HTTP/2 clients have more state and edge cases to
+ * deal with than an HTTP/1 client. Hence this class which properly handles
+ * connection setup and errors.
+ *
+ * # Certificates
+ *
+ * You must pass in certificates in PEM format (the `certificate` option and
+ * `certificatePrivateKey` option) generated from our Apple developer account
+ * so we can properly authenticate with APNs.
+ *
+ * We have development certificates in `server/apns/certificates` that work in
+ * the APNs sandbox but will not work in production!
  *
  * These certificates expire within a year. To generate new certificates:
  *
@@ -60,38 +73,15 @@ const requestTimeoutMs = 10_000;
  *    key and export it as a `.p12` file. Name it `apns_development.p12`.
  *
  * 6. Create a certificate `.pem` file with:
- *    `openssl x509 -in apns_development.cer -out apns_development_cert.pem`
+ *    `openssl x509 -in apns_development.cer -out apns_development_certificate.pem`
  *
  * 7. Create a key `.pem` file with:
- *    `openssl pkcs12 -in apns_development.p12 -out apns_development_key.pem -nocerts -nodes -legacy`
- */
-// NOCOMMIT: This should come from constructor? Fine for now.
-const apnsDevelopmentCert = fs.readFileSync(
-    joinPath(runfilesPath, "cyberworlds/server/apns/certificates/apns_development_cert.pem"),
-);
-
-// NOCOMMIT: This should come from constructor? Fine for now.
-const apnsDevelopmentKey = fs.readFileSync(
-    joinPath(runfilesPath, "cyberworlds/server/apns/certificates/apns_development_key.pem"),
-);
-
-/**
- * An HTTP/2 connection to Apple Push Notification service (APNs). The APNs API
- * is documented in “[Sending notification requests to APNs][1]” and “[Handling
- * notification responses from APNs][2].”
- *
- * There are services like [AWS SNS][3] that provide a simple HTTP/1 interface
- * to send push notifications but it's not complicated (and saves us money and
- * reduces vendor lock in) to use Node.js HTTP/2 client to send notifications
- * ourselves. The downside is HTTP/2 clients have more state and edge cases to
- * deal with than an HTTP/1 client. Hence this class which properly handles
- * connection setup and errors.
+ *    `openssl pkcs12 -in apns_development.p12 -out apns_development_certificate_private_key.pem -nocerts -nodes -legacy`
  *
  * [1]: https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns
  * [2]: https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns
  * [3]: https://aws.amazon.com/sns/
  */
-// NOCOMMIT: Pool connection shutdown logic
 // NOCOMMIT: Connection ID in tracer?
 export class ApnsConnection {
     private readonly _processContext: ServerProcessContext;
@@ -107,6 +97,7 @@ export class ApnsConnection {
     public static connect(
         processContext: ServerProcessContext,
         actionContext: ServerActionContext,
+        {certificate, certificatePrivateKey}: {certificate: string; certificatePrivateKey: string},
     ) {
         // Make sure `processContext` is actually a process context and doesn't
         // sneakily contain an actor.
@@ -120,8 +111,8 @@ export class ApnsConnection {
                     ? "https://api.push.apple.com:443"
                     : "https://api.sandbox.push.apple.com:443",
                 {
-                    key: apnsDevelopmentKey,
-                    cert: apnsDevelopmentCert,
+                    cert: certificate,
+                    key: certificatePrivateKey,
                 },
             );
 

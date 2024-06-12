@@ -3,6 +3,8 @@ import {
     DynamoActorContextModule,
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
+import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
+import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -25,6 +27,7 @@ import {
 } from "~/server/node/create_server_process_context.js";
 import {
     createServiceTokenAgent,
+    getServiceTokenAgentKeyFromOption,
     serviceTokenAgentParseOptions,
 } from "~/server/node/create_service_token_agent.js";
 import {runService} from "~/server/node/run_service.js";
@@ -35,6 +38,7 @@ import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -46,6 +50,8 @@ runService({
         taskRealtimeServiceLocalPort: {type: "string"},
         ecsCluster: {type: "string"},
         taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
+        apnsCertificate: {type: "string"},
+        apnsCertificatePrivateKey: {type: "string"},
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
@@ -61,10 +67,21 @@ runService({
             }
         }
 
-        const tokenAgent = await createServiceTokenAgent({
-            serviceName: "JobQueueService",
-            options,
-        });
+        const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey] = await runAllPromises([
+            createServiceTokenAgent({
+                serviceName: "JobQueueService",
+                options,
+            }),
+            getServiceTokenAgentKeyFromOption(
+                assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
+            ),
+            getServiceTokenAgentKeyFromOption(
+                assertExists(
+                    options.apnsCertificatePrivateKey,
+                    "Missing `apnsCertificatePrivateKey` option",
+                ),
+            ),
+        ]);
 
         const awsSigner = new AwsRequestSigner();
 
@@ -91,6 +108,13 @@ runService({
         }).clone({
             languageModel: new LanguageModelContextModule(languageModel),
         });
+
+        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
+            certificate: apnsCertificate,
+            certificatePrivateKey: apnsCertificatePrivateKey,
+        });
+
+        const apnsContextModule = new ApnsContextModule(apnsConnectionPool);
 
         const taskRealtimeServiceRouter =
             process.env.NODE_ENV === "production"
@@ -159,6 +183,7 @@ runService({
                                 router: taskRealtimeServiceRouter,
                                 dangerouslyEscalateToSystemContext,
                             }),
+                            apns: apnsContextModule,
                         },
                         action,
                     );
@@ -172,6 +197,7 @@ runService({
                         router: taskRealtimeServiceRouter,
                         dangerouslyEscalateToSystemContext,
                     }),
+                    apns: apnsContextModule,
                 });
 
                 return processJob(actionContext, job, jobStartTime, span);
@@ -220,6 +246,7 @@ runService({
                                 router: taskRealtimeServiceRouter,
                                 dangerouslyEscalateToSystemContext,
                             }),
+                            apns: apnsContextModule,
                         },
                         action,
                     );

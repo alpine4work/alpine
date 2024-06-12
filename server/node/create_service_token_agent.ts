@@ -51,36 +51,6 @@ export async function createServiceTokenAgent<
         throw new InternalError("Missing `jobQueueServicePublicKey` option");
     if (!options.servicePrivateKey) throw new InternalError("Missing `servicePrivateKey` option");
 
-    // Our key args may either be a file path or an environment variable name. We
-    // first test the environment variable name then try to load as a file path.
-    //
-    // We allow an environment variable name since an RSA key argument might be too
-    // long for the command line. Tools like AWS also make it easiest to pass in
-    // secrets through environment variables as opposed to command line arguments
-    // or files. As of 2023-08-07 the AWS CDK logic for setting production CLI
-    // arguments can be found in
-    // `admin/aws/internal/add_all_container_aws_resources.ts`.
-    function getKeyFromOption(arg: string) {
-        if (arg.startsWith("$")) {
-            const envKey = arg.slice(1);
-            const envValue = process.env[envKey];
-
-            if (envValue === undefined)
-                throw new InternalError(quote`Env variable ${envKey} does not exist`);
-
-            // Don't allow access to the environment variable anywhere else in the program.
-            // Force key usage to be controlled here from the top of the program.
-            //
-            // Also secures against attacks where an attacker finds a way to inspect
-            // `process.env`.
-            delete process.env[envKey];
-
-            return envValue;
-        } else {
-            return fs.readFile(arg, "utf8");
-        }
-    }
-
     const [
         appServicePublicKey,
         edgeServiceFamilyPublicKey,
@@ -88,11 +58,11 @@ export async function createServiceTokenAgent<
         jobQueueServicePublicKey,
         servicePrivateKey,
     ] = await runAllPromises([
-        getKeyFromOption(options.appServicePublicKey),
-        getKeyFromOption(options.edgeServiceFamilyPublicKey),
-        getKeyFromOption(options.taskRealtimeServicePublicKey),
-        getKeyFromOption(options.jobQueueServicePublicKey),
-        getKeyFromOption(options.servicePrivateKey),
+        getServiceTokenAgentKeyFromOption(options.appServicePublicKey),
+        getServiceTokenAgentKeyFromOption(options.edgeServiceFamilyPublicKey),
+        getServiceTokenAgentKeyFromOption(options.taskRealtimeServicePublicKey),
+        getServiceTokenAgentKeyFromOption(options.jobQueueServicePublicKey),
+        getServiceTokenAgentKeyFromOption(options.servicePrivateKey),
     ]);
 
     const [publicSide, privateSide] = await runAllPromises([
@@ -110,4 +80,36 @@ export async function createServiceTokenAgent<
     ]);
 
     return {publicSide, privateSide};
+}
+
+/**
+ * Our key args may either be a file path or an environment variable name. We
+ * first test the environment variable name then try to load as a file path.
+ *
+ * We allow an environment variable name since an RSA key argument might be too
+ * long for the command line. Tools like AWS also make it easiest to pass in
+ * secrets through environment variables as opposed to command line arguments
+ * or files. As of 2023-08-07 the AWS CDK logic for setting production CLI
+ * arguments can be found in
+ * `admin/aws/internal/add_all_container_aws_resources.ts`.
+ */
+export async function getServiceTokenAgentKeyFromOption(arg: string): Promise<string> {
+    if (arg.startsWith("$")) {
+        const envKey = arg.slice(1);
+        const envValue = process.env[envKey];
+
+        if (envValue === undefined)
+            throw new InternalError(quote`Env variable ${envKey} does not exist`);
+
+        // Don't allow access to the environment variable anywhere else in the program.
+        // Force key usage to be controlled here from the top of the program.
+        //
+        // Also secures against attacks where an attacker finds a way to inspect
+        // `process.env`.
+        delete process.env[envKey];
+
+        return envValue;
+    } else {
+        return fs.readFile(arg, "utf8");
+    }
 }

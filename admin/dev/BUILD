@@ -6,6 +6,7 @@ ts_project(
     data = [
         "//:env_files",
         "//admin/vendor:bazelisk_copy_to_bin",
+        "//server/apns:apns_development_certificates",
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
     ],
     deps = [

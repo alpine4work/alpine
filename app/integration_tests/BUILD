@@ -4,6 +4,7 @@ ts_playwright_tests(
     name = "integration_tests",
     data = [
         "//app",
+        "//server/apns:apns_development_certificates",
         "//server/edge",
         "//server/jobs/queue",
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",

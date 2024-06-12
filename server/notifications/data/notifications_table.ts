@@ -1,9 +1,11 @@
 import {differenceInMinutes} from "date-fns";
+import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     ServerSessionActionContext,
     ServerSystemActionContext,
+    ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {
     getDocumentAndCommentThreadsWithInitialComments,
@@ -41,6 +43,7 @@ import {
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {Context} from "~/shared/context/context.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -1425,6 +1428,10 @@ export const notificationEventProcessingTestCounter = new TestCounter<AccountId>
 export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 
+type ProcessNotificationEventSystemActionContext = Context<
+    ServerSystemActionContextModules & {apns: ApnsContextModule}
+>;
+
 /**
  * Processes a notification generating event by fanning out to subscriber
  * inboxes and notification destinations (like email or mobile push
@@ -1433,7 +1440,7 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * This function is idempotent.
  */
 export async function processNotificationEvent(
-    context: ServerSystemActionContext,
+    context: ProcessNotificationEventSystemActionContext,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {
@@ -1447,7 +1454,7 @@ export async function processNotificationEvent(
 }
 
 function actuallyProcessNotificationEvent(
-    context: ServerSystemActionContext,
+    context: ProcessNotificationEventSystemActionContext,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {

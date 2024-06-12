@@ -9,6 +9,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/fs-extra",
+        "//server/apns",
         "//server/jobs/core",
         "//server/language_models/all_mini_lm_l6_v2",
         "//server/language_models/cohere_embed_english_v3",

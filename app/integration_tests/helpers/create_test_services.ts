@@ -233,6 +233,14 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
+                `--apnsCertificate=${joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
+                )}`,
+                `--apnsCertificatePrivateKey=${joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
+                )}`,
             ],
             {
                 env: process.env,

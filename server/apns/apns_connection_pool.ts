@@ -2,7 +2,7 @@ import {
     ApnsAlertNotification,
     ApnsAlertNotificationOptions,
 } from "~/server/apns/apns_alert_notification.js";
-import {ApnsConnection} from "~/server/apns/internal/apns_connection.js";
+import {ApnsConnection} from "~/server/apns/apns_connection.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
@@ -51,6 +51,8 @@ type ApnsConnectionPoolConnection = {
  */
 export class ApnsConnectionPool {
     private readonly _processContext: ServerProcessContext;
+    private readonly _certificate: string;
+    private readonly _certificatePrivateKey: string;
 
     private _isDestroyed = false;
     private readonly _idleInterval: Interval;
@@ -58,8 +60,13 @@ export class ApnsConnectionPool {
     private _nextConnectionIndex = -1;
     private _connections: Array<ApnsConnectionPoolConnection> = [];
 
-    constructor(processContext: ServerProcessContext) {
+    constructor(
+        processContext: ServerProcessContext,
+        {certificate, certificatePrivateKey}: {certificate: string; certificatePrivateKey: string},
+    ) {
         this._processContext = processContext;
+        this._certificate = certificate;
+        this._certificatePrivateKey = certificatePrivateKey;
 
         this._idleInterval = createInterval(() => {
             // Close any connections that haven't had a request since our last
@@ -109,7 +116,10 @@ export class ApnsConnectionPool {
         assert(!this._isDestroyed);
 
         const connection: ApnsConnectionPoolConnection = {
-            promise: ApnsConnection.connect(this._processContext, context),
+            promise: ApnsConnection.connect(this._processContext, context, {
+                certificate: this._certificate,
+                certificatePrivateKey: this._certificatePrivateKey,
+            }),
             requestCount: 0,
             isIdle: false,
         };

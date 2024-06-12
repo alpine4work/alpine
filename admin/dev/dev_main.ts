@@ -244,6 +244,14 @@ async function createArtifacts() {
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
+                `--apnsCertificate=${joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
+                )}`,
+                `--apnsCertificatePrivateKey=${joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
+                )}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

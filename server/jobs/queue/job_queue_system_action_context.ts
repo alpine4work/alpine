@@ -1,3 +1,4 @@
+import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {SearchEntityIndexSystemActionContextModules} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
@@ -8,6 +9,7 @@ export type JobQueueSystemActionContext = Context<JobQueueSystemActionContextMod
 
 export type JobQueueSystemActionContextModules = ServerSystemActionContextModules & {
     tasks: TaskContextModuleBase;
+    apns: ApnsContextModule;
 };
 
 export type MaintenanceJobQueueSystemActionContext =

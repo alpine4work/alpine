@@ -1,11 +1,25 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
+
+js_library(
+    name = "apns_development_certificates",
+    data = [
+        "certificates/apns_development_certificate.pem",
+        "certificates/apns_development_certificate_private_key.pem",
+    ],
+    no_copy_to_bin = [
+        "certificates/apns_development_certificate.pem",
+        "certificates/apns_development_certificate_private_key.pem",
+    ],
+    visibility = [
+        "//admin/adhoc:__pkg__",
+        "//admin/dev:__pkg__",
+        "//app/integration_tests:__pkg__",
+    ],
+)
 
 ts_project(
     name = "apns",
-    data = [
-        "certificates/apns_development_cert.pem",
-        "certificates/apns_development_key.pem",
-    ],
     visibility = [
         "//admin/adhoc:__pkg__",
         "//server:__subpackages__",
