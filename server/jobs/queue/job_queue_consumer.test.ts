@@ -62,10 +62,10 @@ beforeEach(async () => {
     });
 });
 
-afterEach(() => {
+afterEach(async () => {
     assert(consumer !== null);
 
-    consumer.stop();
+    await consumer.stop();
     consumer = null;
 
     stopTestJobCheckpointIdsFromThrowing.clear();

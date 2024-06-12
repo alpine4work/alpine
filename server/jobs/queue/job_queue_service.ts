@@ -243,7 +243,7 @@ runService({
         });
 
         registerShutdownListenerForIngressTraffic(async () => {
-            consumer.stop();
+            await consumer.stop();
         });
 
         // In production, we communicate that our process is healthy by writing to a

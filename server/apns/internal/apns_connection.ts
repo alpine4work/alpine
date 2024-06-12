@@ -2,7 +2,10 @@ import {addDays} from "date-fns";
 import fs from "node:fs";
 import http2 from "node:http2";
 import {join as joinPath} from "node:path";
-import {ApnsAlertNotification} from "~/server/apns/apns_alert_notification.js";
+import {
+    ApnsAlertNotification,
+    ApnsAlertNotificationOptions,
+} from "~/server/apns/apns_alert_notification.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -12,12 +15,22 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {convertIdIntoUuid} from "~/shared/id/convert_id_into_uuid.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 
 const apnsTracerServiceName = "APNs";
-const apnsConnectionPingIntervalMs = 5_000;
-const apnsRequestTimeoutMs = 10_000;
+
+/**
+ * How frequently should we ping the HTTP/2 connection to let APNs know our
+ * client is still alive?
+ */
+const pingIntervalMs = 5_000;
+
+/**
+ * If no data is returned for a request within this timeout then we'll end the
+ * request and throw an error.
+ */
+const requestTimeoutMs = 10_000;
 
 /**
  * Certificates for sending push notifications to the APNs sandbox. These
@@ -79,14 +92,15 @@ const apnsDevelopmentKey = fs.readFileSync(
  * [3]: https://aws.amazon.com/sns/
  */
 // NOCOMMIT: Pool connection shutdown logic
+// NOCOMMIT: Connection ID in tracer?
 export class ApnsConnection {
     private readonly _processContext: ServerProcessContext;
     private readonly _session: http2.ClientHttp2Session;
 
-    private _isClosing = false;
     private _hasCloseError = false;
     private _closeError: unknown = undefined;
-    private readonly _closePromiseResolver = createPromiseResolver();
+    private readonly _startClosePromiseResolver = createPromiseResolver();
+    private readonly _endClosePromiseResolver = createPromiseResolver();
 
     private readonly _pingInterval: Interval;
 
@@ -149,7 +163,7 @@ export class ApnsConnection {
                 if (error) span.addException(error);
                 finishSpan();
             });
-        }, apnsConnectionPingIntervalMs);
+        }, pingIntervalMs);
 
         this._session.on("close", this._handleClose);
         this._session.on("error", this._handleError);
@@ -158,12 +172,22 @@ export class ApnsConnection {
     }
 
     /**
+     * Resolves when the connection starts to close. Call `waitForClose()` if you
+     * want to wait for the connection to actually close.
+     *
+     * Throws an error if the connection closed with an error.
+     */
+    public waitForCloseStart(): Promise<void> {
+        return this._startClosePromiseResolver.promise;
+    }
+
+    /**
      * Resolves when the connection has closed.
      *
      * Throws an error if the connection closed with an error.
      */
     public waitForClose(): Promise<void> {
-        return this._closePromiseResolver.promise;
+        return this._endClosePromiseResolver.promise;
     }
 
     /**
@@ -171,11 +195,12 @@ export class ApnsConnection {
      * has successfully closed (the same promise returned by `waitForClose()`).
      */
     public close(): Promise<void> {
-        if (this._isClosing) return this._closePromiseResolver.promise;
-
-        this._isClosing = true;
+        if (this._startClosePromiseResolver.isSettled())
+            return this._endClosePromiseResolver.promise;
 
         this._pingInterval.clear();
+
+        this._startClosePromiseResolver.resolve();
 
         const {span, finishSpan} = this._processContext.tracer
             .getRoot()
@@ -184,17 +209,17 @@ export class ApnsConnection {
         span.addData({http: {service: {name: apnsTracerServiceName}}});
 
         // Finish the span after we've finished closing.
-        void this._closePromiseResolver.promise.finally(finishSpan);
+        void this._endClosePromiseResolver.promise.finally(finishSpan);
 
         this._session.close();
 
-        return this._closePromiseResolver.promise;
+        return this._endClosePromiseResolver.promise;
     }
 
     private _closeWithError(error: unknown) {
         // If we've already started closing, still log the error to our telemetry
         // provider but we don't need to run the `close()` function again.
-        if (this._isClosing) {
+        if (this._startClosePromiseResolver.isSettled()) {
             this._processContext.tracer
                 .getRoot()
                 .logUncaughtException("Already closed APNs connection", error, {
@@ -203,11 +228,12 @@ export class ApnsConnection {
             return;
         }
 
-        this._isClosing = true;
+        this._pingInterval.clear();
+
         this._hasCloseError = true;
         this._closeError = error;
 
-        this._pingInterval.clear();
+        this._startClosePromiseResolver.reject(error);
 
         const {span, finishSpan} = this._processContext.tracer
             .getRoot()
@@ -218,39 +244,43 @@ export class ApnsConnection {
         span.addException(error);
 
         // Finish the span after we've finished closing.
-        void this._closePromiseResolver.promise.finally(finishSpan);
+        void this._endClosePromiseResolver.promise.finally(finishSpan);
 
         this._session.close();
     }
 
     private readonly _handleClose = () => {
         // We've already closed.
-        if (this._closePromiseResolver.isSettled()) return;
+        if (this._endClosePromiseResolver.isSettled()) return;
+
+        this._pingInterval.clear();
 
         // If we were closed by `close()` or `_closeWithError()` then this is an
         // expected close event. If the HTTP/2 client closed on its own this is an
         // unexpected close event and we should log an error.
-        const wasCloseExpected = this._isClosing;
-        this._isClosing = true;
+        const wasCloseExpected = this._startClosePromiseResolver.isSettled();
 
-        this._pingInterval.clear();
+        if (!wasCloseExpected && !this._hasCloseError) {
+            this._hasCloseError = true;
+            this._closeError = new UnavailableError("Connection closed unexpectedly");
 
-        if (this._hasCloseError) {
-            this._closePromiseResolver.reject(this._closeError);
-        } else {
-            this._closePromiseResolver.resolve();
-        }
-
-        if (!wasCloseExpected) {
             const {span, finishSpan} = this._processContext.tracer
                 .getRoot()
                 .startSpan("Closing APNs connection");
 
             span.addData({http: {service: {name: apnsTracerServiceName}}});
 
-            span.addException(new UnavailableError("Connection closed unexpectedly"));
+            span.addException(this._closeError);
 
             finishSpan();
+        }
+
+        if (this._hasCloseError) {
+            if (!wasCloseExpected) this._startClosePromiseResolver.reject(this._closeError);
+            this._endClosePromiseResolver.reject(this._closeError);
+        } else {
+            if (!wasCloseExpected) this._startClosePromiseResolver.resolve();
+            this._endClosePromiseResolver.resolve();
         }
     };
 
@@ -296,47 +326,11 @@ export class ApnsConnection {
             expirationTime = addDays(new Date(), 5),
             priority = 10,
             collapseId,
-        }: {
-            /**
-             * Identifies the notification. Will be converted into UUID. The APNs console
-             * will report any notification errors with the UUID format of this string.
-             */
-            id?: Id;
-
-            /**
-             * The date at which the notification is no longer valid.
-             *
-             * If an expiration time is set to null then APNs attempts to deliver the
-             * notification only once and doesn't store it. Otherwise, APNs will store the
-             * notification and try to send it until the expiration time is reached.
-             *
-             * Defaults to 5 days after the current time.
-             */
-            expirationTime?: Date | null;
-
-            /**
-             * The priority of the notification. Defaults to 10.
-             *
-             * - Specify 10 to send the notification immediately.
-             * - Specify 5 to send the notification based on power considerations on the
-             *   user’s device.
-             * - Specify 1 to prioritize the device’s power considerations over all other
-             *   factors for delivery, and prevent awakening the device.
-             */
-            priority?: 1 | 5 | 10;
-
-            /**
-             * An identifier you use to merge multiple notifications into a single
-             * notification for the user. Typically, each notification request displays a
-             * new notification on the user’s device. When sending the same notification
-             * more than once, use the same value in this header to merge the requests. The
-             * value of this key must not exceed 64 bytes.
-             */
-            collapseId?: string;
-        } = {},
+        }: ApnsAlertNotificationOptions = {},
     ) {
         return context.tracer.withSpan("Sending APNs alert notification", async (context, span) => {
-            if (this._isClosing) throw new InternalError("Connection is closed");
+            if (this._startClosePromiseResolver.isSettled())
+                throw new InternalError("Connection is closed");
 
             assert(deviceToken.byteLength === 32);
 
@@ -380,7 +374,7 @@ export class ApnsConnection {
                 headers: http2.IncomingHttpHeaders & http2.IncomingHttpStatusHeader;
                 body: Buffer;
             }>((resolve, reject) => {
-                request.setTimeout(apnsRequestTimeoutMs, () => {
+                request.setTimeout(requestTimeoutMs, () => {
                     request.close(http2.constants.NGHTTP2_CANCEL);
                     reject(new DeadlineExceededError("Request timed out"));
                 });

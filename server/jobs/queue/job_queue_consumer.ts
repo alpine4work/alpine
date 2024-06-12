@@ -24,6 +24,7 @@ import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {CancelledError, UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -113,6 +114,7 @@ export class JobQueueConsumer {
     private _abortController = new AbortController();
     private _runningConsumeCallCount = 0;
     private _hasPendingConsumeCall = false;
+    private readonly _processPromises = new Set<Promise<void>>();
 
     private constructor(
         context: ServerProcessContext,
@@ -174,10 +176,15 @@ export class JobQueueConsumer {
         return consumer;
     }
 
-    public stop() {
+    public async stop() {
         assert(!this._isStopped);
         this._isStopped = true;
         this._abortController.abort(stopError);
+
+        // Wait for all our running jobs to finish.
+        while (this._processPromises.size > 0) {
+            await runAllPromises(this._processPromises);
+        }
     }
 
     private async _consume() {
@@ -226,6 +233,20 @@ export class JobQueueConsumer {
                     currentTime,
                     messageBatchSize: messages.length,
                 });
+
+                const processPromise = promise.then(
+                    () => {
+                        this._processPromises.delete(processPromise);
+                    },
+                    () => {
+                        // Ignore errors in process promise. When `stop()` is called (and we wait for
+                        // process promises to finish) we don't want job errors to cause `stop()` to
+                        // throw.
+
+                        this._processPromises.delete(processPromise);
+                    },
+                );
+                this._processPromises.add(processPromise);
 
                 return {
                     receiptHandle,

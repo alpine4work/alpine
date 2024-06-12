@@ -1,3 +1,5 @@
+import {Id} from "~/shared/id/id.js";
+
 /**
  * The JSON payload of a notification. Type is derived from Apple's
  * “[Generating a remove notification][1]” documentation.
@@ -31,4 +33,47 @@ export type ApnsAlertNotification = {
         readonly "relevance-score"?: number;
         readonly "filter-criteria"?: string;
     };
+};
+
+/**
+ * Other system options that aren't part of the notification body. All optional
+ * and they typically have defaults.
+ */
+export type ApnsAlertNotificationOptions = {
+    /**
+     * Identifies the notification. Will be converted into UUID. The APNs console
+     * will report any notification errors with the UUID format of this string.
+     */
+    id?: Id;
+
+    /**
+     * The date at which the notification is no longer valid.
+     *
+     * If an expiration time is set to null then APNs attempts to deliver the
+     * notification only once and doesn't store it. Otherwise, APNs will store the
+     * notification and try to send it until the expiration time is reached.
+     *
+     * Defaults to 5 days after the current time.
+     */
+    expirationTime?: Date | null;
+
+    /**
+     * The priority of the notification. Defaults to 10.
+     *
+     * - Specify 10 to send the notification immediately.
+     * - Specify 5 to send the notification based on power considerations on the
+     *   user’s device.
+     * - Specify 1 to prioritize the device’s power considerations over all other
+     *   factors for delivery, and prevent awakening the device.
+     */
+    priority?: 1 | 5 | 10;
+
+    /**
+     * An identifier you use to merge multiple notifications into a single
+     * notification for the user. Typically, each notification request displays a
+     * new notification on the user’s device. When sending the same notification
+     * more than once, use the same value in this header to merge the requests. The
+     * value of this key must not exceed 64 bytes.
+     */
+    collapseId?: string;
 };
