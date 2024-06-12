@@ -135,7 +135,7 @@ test("can update a task's notes", async () => {
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
 
-    await connection1.procedures.updateContent({
+    await connection1.procedures.updateNotesContent({
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
         clientId: client1Id,
@@ -143,7 +143,7 @@ test("can update a task's notes", async () => {
 
     expect(connection1.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 2,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
             stepsContentReferences: emptyContentReferences,
@@ -153,7 +153,7 @@ test("can update a task's notes", async () => {
 
     expect(connection2.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 2,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
             stepsContentReferences: emptyContentReferences,
@@ -161,7 +161,7 @@ test("can update a task's notes", async () => {
         },
     ]);
 
-    await connection2.procedures.updateContent({
+    await connection2.procedures.updateNotesContent({
         version: 2,
         steps: [new ReplaceStep(3, 3, textSlice("c"))],
         clientId: client2Id,
@@ -169,7 +169,7 @@ test("can update a task's notes", async () => {
 
     expect(connection1.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
             stepsContentReferences: emptyContentReferences,
@@ -179,7 +179,7 @@ test("can update a task's notes", async () => {
 
     expect(connection2.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
             stepsContentReferences: emptyContentReferences,
@@ -218,7 +218,7 @@ test("can update a task's notes with out-of-order updates", async () => {
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
 
-    await connection1.procedures.updateContent({
+    await connection1.procedures.updateNotesContent({
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
         clientId: client1Id,
@@ -226,7 +226,7 @@ test("can update a task's notes with out-of-order updates", async () => {
 
     expect(connection1.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 2,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
             stepsContentReferences: emptyContentReferences,
@@ -236,7 +236,7 @@ test("can update a task's notes with out-of-order updates", async () => {
 
     expect(connection2.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 2,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
             stepsContentReferences: emptyContentReferences,
@@ -244,7 +244,7 @@ test("can update a task's notes with out-of-order updates", async () => {
         },
     ]);
 
-    await connection2.procedures.updateContent({
+    await connection2.procedures.updateNotesContent({
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("c"))],
         clientId: client2Id,
@@ -252,7 +252,7 @@ test("can update a task's notes with out-of-order updates", async () => {
 
     expect(connection1.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
             stepsContentReferences: emptyContentReferences,
@@ -262,7 +262,7 @@ test("can update a task's notes with out-of-order updates", async () => {
 
     expect(connection2.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
             stepsContentReferences: emptyContentReferences,
@@ -308,7 +308,7 @@ test("can't update a task's notes with out-of-order updates if our durable objec
     expect(connection2.takeEvents()).toEqual([]);
 
     await expect(
-        connection2.procedures.updateContent({
+        connection2.procedures.updateNotesContent({
             version: 0,
             steps: [new ReplaceStep(1, 1, textSlice("c"))],
             clientId: client2Id,
@@ -343,7 +343,7 @@ test("can update a task's notes when our durable object doesn't remember earlier
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
 
-    await connection2.procedures.updateContent({
+    await connection2.procedures.updateNotesContent({
         version: 2,
         steps: [new ReplaceStep(3, 3, textSlice("c"))],
         clientId: client2Id,
@@ -351,7 +351,7 @@ test("can update a task's notes when our durable object doesn't remember earlier
 
     expect(connection1.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
             stepsContentReferences: emptyContentReferences,
@@ -361,7 +361,7 @@ test("can update a task's notes when our durable object doesn't remember earlier
 
     expect(connection2.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 3,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
             stepsContentReferences: emptyContentReferences,
@@ -390,7 +390,7 @@ test("can backfill task notes steps our durable object remembers", async () => {
 
     expect(connection1.takeEvents()).toEqual([]);
 
-    await connection1.procedures.updateContent({
+    await connection1.procedures.updateNotesContent({
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
         clientId: client1Id,
@@ -398,7 +398,7 @@ test("can backfill task notes steps our durable object remembers", async () => {
 
     expect(connection1.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 2,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
             stepsContentReferences: emptyContentReferences,
@@ -413,7 +413,7 @@ test("can backfill task notes steps our durable object remembers", async () => {
     const connection2 = await connectForTest(context.action(session2), task.id);
 
     expect(
-        await connection2.procedures.backfill({
+        await connection2.procedures.backfillNotes({
             version: 0,
         }),
     ).toEqual({
@@ -454,7 +454,7 @@ test("can't backfill task notes steps our durable object doesn't remember", asyn
     expect(connection2.takeEvents()).toEqual([]);
 
     expect(
-        await connection2.procedures.backfill({
+        await connection2.procedures.backfillNotes({
             version: 0,
         }),
     ).toEqual({
@@ -492,7 +492,7 @@ test("can current task notes version", async () => {
     expect(connection2.takeEvents()).toEqual([]);
 
     expect(
-        await connection2.procedures.backfill({
+        await connection2.procedures.backfillNotes({
             version: 2,
         }),
     ).toEqual({
@@ -529,7 +529,7 @@ test("can backfill task note steps but can't update if you only have view access
 
     expect(connection1.takeEvents()).toEqual([]);
 
-    await connection1.procedures.updateContent({
+    await connection1.procedures.updateNotesContent({
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
         clientId: client1Id,
@@ -537,7 +537,7 @@ test("can backfill task note steps but can't update if you only have view access
 
     expect(connection1.takeEvents()).toEqual([
         {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: 2,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
             stepsContentReferences: emptyContentReferences,
@@ -552,7 +552,7 @@ test("can backfill task note steps but can't update if you only have view access
     const connection2 = await connectForTest(context.action(session2), task.id);
 
     expect(
-        await connection2.procedures.backfill({
+        await connection2.procedures.backfillNotes({
             version: 0,
         }),
     ).toEqual({
@@ -572,7 +572,7 @@ test("can backfill task note steps but can't update if you only have view access
     expect(connection2.takeEvents()).toEqual([]);
 
     await expect(
-        connection2.procedures.updateContent({
+        connection2.procedures.updateNotesContent({
             version: 2,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
             clientId: client2Id,

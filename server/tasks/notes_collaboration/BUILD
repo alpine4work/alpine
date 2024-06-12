@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/prosemirror-transform",
         "//server/cloudflare",
         "//server/helpers",
+        "//server/messaging/realtime",
         "//server/tracer",
         "//shared/content",
         "//shared/context",

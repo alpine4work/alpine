@@ -3,6 +3,13 @@ import {
     WorkerSessionActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
+import {
+    BackfillMessagesFunction,
+    CreateMessageFunction,
+    DeleteMessageFunction,
+    MessagingRealtimeConnection,
+    UpdateMessageContentFunction,
+} from "~/server/messaging/realtime/messaging_realtime_connection.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {
@@ -13,24 +20,46 @@ import {
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {TaskId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     authorizeTaskAccess,
+    backfillTaskComments,
+    createTaskComment,
+    deleteTaskComment,
     getTaskNotesContentReferences,
+    updateTaskCommentContent,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
-import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {
+    TaskNotesCollaborationEvent,
+    TaskNotesCollaborationProtocol,
+} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 
 export class TaskNotesCollaborationConnection {
     private readonly _contentManager: TaskNotesCollaborationContentManager;
     public readonly closeWithError: (context: WorkerProcessContext, error: unknown) => void;
     private readonly _mutex = new Mutex();
     private _editAccessPromiseResolver: PromiseResolver<void>;
+    private readonly _messagingConnection: MessagingRealtimeConnection<TaskId, TaskCommentModel>;
 
     constructor({
+        connectionId,
         contentManager,
         closeWithError,
+        sendEvent,
+        sendEventToOthers,
+        iterateOtherConnections,
     }: {
         contentManager: TaskNotesCollaborationContentManager;
         closeWithError: (context: WorkerProcessContext, error: unknown) => void;
+        connectionId: WebSocketConnectionId;
+        sendEvent: (context: WorkerProcessContext, event: TaskNotesCollaborationEvent) => void;
+        sendEventToOthers: (
+            context: WorkerProcessContext,
+            event: TaskNotesCollaborationEvent,
+        ) => void;
+        iterateOtherConnections: () => Iterable<TaskNotesCollaborationConnection>;
     }) {
         this._contentManager = contentManager;
         this.closeWithError = closeWithError;
@@ -40,6 +69,26 @@ export class TaskNotesCollaborationConnection {
         // Can ignore uncaught exceptions. They'll be thrown if the user tries to
         // update notes content.
         this._editAccessPromiseResolver.promise.catch(() => {});
+
+        this._messagingConnection = new MessagingRealtimeConnection({
+            connectionId,
+            spaceId: contentManager.spaceId,
+            roomKey: contentManager.taskId,
+
+            sendEvent: (context, event) => sendEvent(context, {type: "Comments", event}),
+            sendEventToOthers: (context, event) =>
+                sendEventToOthers(context, {type: "Comments", event}),
+            iterateOtherConnections: () =>
+                mapIterable(
+                    iterateOtherConnections(),
+                    connection => connection._messagingConnection,
+                ),
+
+            createMessage,
+            updateMessageContent,
+            deleteMessage,
+            backfillMessages,
+        });
     }
 
     /**
@@ -74,7 +123,7 @@ export class TaskNotesCollaborationConnection {
         WorkerSessionActionContextModules,
         typeof TaskNotesCollaborationProtocol
     > = {
-        backfill: (context, input) =>
+        backfillNotes: (context, input) =>
             // Handle procedures for this connection in sequence as a defense against
             // race conditions.
             //
@@ -147,7 +196,52 @@ export class TaskNotesCollaborationConnection {
                 }
             }),
 
-        updateContent: (context, input) =>
+        backfillComments: async (
+            context,
+            {
+                clientCommentCount: clientMessageCount,
+                clientLastCommentChangeTime: clientLastMessageChangeTime,
+                newCommentLimit: newMessageLimit,
+            },
+        ) => {
+            const {
+                messageCount: commentCount,
+                lastMessageChangeTime: lastCommentChangeTime,
+                newMessages: newComments,
+                newOtherReferencedMessages: newOtherReferencedComments,
+                messageChangesResult: commentChangesResult,
+                typingStateByConnectionId,
+            } = await this._messagingConnection.backfillMessages(context, {
+                clientMessageCount,
+                clientLastMessageChangeTime,
+                newMessageLimit,
+            });
+
+            return {
+                commentCount,
+                lastCommentChangeTime,
+                newComments,
+                newOtherReferencedComments,
+                commentChangesResult,
+                typingStateByConnectionId,
+            };
+        },
+
+        createComment: (context, {parentCommentIndex: parentMessageIndex, content}) =>
+            this._messagingConnection.createMessage(context, {parentMessageIndex, content}),
+
+        updateCommentContent: (context, {commentIndex: messageIndex, content}) =>
+            this._messagingConnection.updateMessageContent(context, {messageIndex, content}),
+
+        deleteComment: (context, {commentIndex: messageIndex}) =>
+            this._messagingConnection.deleteMessage(context, {messageIndex}),
+
+        startTypingInCommentInput: (context, input) =>
+            this._messagingConnection.startTypingInMessageInput(context, input),
+        stopTypingInCommentInput: (context, input) =>
+            this._messagingConnection.stopTypingInMessageInput(context, input),
+
+        updateNotesContent: (context, input) =>
             // Handle procedures for this connection in sequence as a defense against
             // race conditions.
             //
@@ -164,3 +258,66 @@ export class TaskNotesCollaborationConnection {
             }),
     };
 }
+
+const createMessage: CreateMessageFunction<TaskId, TaskCommentModel> = async (
+    context,
+    {roomKey: taskId, parentMessageIndex: parentCommentIndex, content},
+) => {
+    const {comment} = await createTaskComment(context, {
+        taskId,
+        parentCommentIndex,
+        content,
+    });
+
+    return comment;
+};
+
+const updateMessageContent: UpdateMessageContentFunction<TaskId> = async (
+    context,
+    {roomKey: taskId, messageIndex: commentIndex, content},
+) => {
+    return updateTaskCommentContent(context, {
+        taskId,
+        commentIndex,
+        content,
+    });
+};
+
+const deleteMessage: DeleteMessageFunction<TaskId> = async (
+    context,
+    {roomKey: taskId, messageIndex: commentIndex},
+) => {
+    return deleteTaskComment(context, {taskId, commentIndex});
+};
+
+const backfillMessages: BackfillMessagesFunction<TaskId, TaskCommentModel> = async (
+    context,
+    {
+        roomKey: taskId,
+        clientMessageCount: clientCommentCount,
+        clientLastMessageChangeTime: clientLastCommentChangeTime,
+        newMessageLimit: newCommentLimit,
+    },
+) => {
+    const {
+        commentCount,
+        lastCommentChangeTime,
+        newComments,
+        newOtherReferencedComments,
+        commentChangesResult,
+    } = await backfillTaskComments(context, {
+        taskId,
+        clientCommentCount,
+        clientLastCommentChangeTime,
+        newCommentLimit,
+    });
+
+    return {
+        messageCount: commentCount,
+        lastMessageChangeTime: lastCommentChangeTime,
+        newMessages: newComments,
+        newOtherReferencedMessages: newOtherReferencedComments,
+        messageChangesResult: commentChangesResult,
+        extra: null,
+    };
+};

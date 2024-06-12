@@ -263,16 +263,16 @@ export class TaskNotesCollaborationContentManager {
               ).references;
 
         // We have to wait for some async data dependencies to send
-        // `UpdateContentWithoutPersistence`. We load our data without:
+        // `UpdateNotesContentWithoutPersistence`. We load our data without:
         //
         // - Blocking persistence
         // - Blocking the update queue
         //
         // However, this means you don't get ordering guarantees around
-        // `UpdateContentWithoutPersistence`! You may receive these events in any order
+        // `UpdateNotesContentWithoutPersistence`! You may receive these events in any order
         // because the timing of loading content references will vary.
         this._sendEventToAll(context, {
-            type: "UpdateContentWithoutPersistence",
+            type: "UpdateNotesContentWithoutPersistence",
             newVersion: oldVersion + steps.length,
             steps,
             stepsContentReferences,

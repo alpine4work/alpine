@@ -8,12 +8,15 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotesContentSchema,
@@ -134,5 +137,66 @@ export const searchTaskCollections = defineRpc({
                 }),
             ),
         ),
+    },
+});
+
+export const createTaskComment = defineRpc({
+    name: "createTaskComment",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        parentCommentIndex: Schema.integer.nullable(),
+        content: MessageContentSchema,
+    },
+    output: {
+        comment: TaskCommentModel.schema(),
+    },
+});
+
+export const updateTaskCommentContent = defineRpc({
+    name: "updateTaskCommentContent",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        commentIndex: Schema.integer,
+        content: MessageContentSchema,
+    },
+    output: {
+        contentUpdatedTime: Schema.date,
+        contentReferences: ContentReferencesSchema,
+    },
+});
+
+export const deleteTaskComment = defineRpc({
+    name: "deleteTaskComment",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        commentIndex: Schema.integer,
+    },
+    output: {
+        deletedTime: Schema.date,
+    },
+});
+
+export const backfillTaskComments = defineRpc({
+    name: "backfillTaskComments",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        clientCommentCount: Schema.integer,
+        clientLastCommentChangeTime: Schema.date.nullable(),
+        newCommentLimit: Schema.integer,
+    },
+    output: {
+        commentCount: Schema.integer,
+        lastCommentChangeTime: Schema.date.nullable(),
+        newComments: Schema.array(TaskCommentModel.schema()),
+        newOtherReferencedComments: Schema.array(TaskCommentModel.schema()),
+        commentChangesResult: Schema.union({
+            Available: Schema.object({
+                type: Schema.value("Available"),
+                changes: Schema.array(MessageChangeSchema),
+            }),
+            Unavailable: Schema.object({
+                type: Schema.value("Unavailable"),
+            }),
+        }),
     },
 });

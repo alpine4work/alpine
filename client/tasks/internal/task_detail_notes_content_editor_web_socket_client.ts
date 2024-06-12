@@ -145,7 +145,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 connectionState = ourConnectionState;
 
                 this._client.procedures
-                    .backfill({
+                    .backfillNotes({
                         version: this._state.getSnapshot().editorState.getVersion(),
                     })
                     .then(
@@ -219,7 +219,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
 
         const unsubscribeFromClientMessages = this._client.subscribeToEvents(event => {
             switch (event.type) {
-                case "UpdateContentWithoutPersistence": {
+                case "UpdateNotesContentWithoutPersistence": {
                     this._dispatch({
                         type: "ReceiveSteps",
                         newVersion: event.newVersion,
@@ -229,6 +229,10 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                         })),
                         stepsContentReferences: event.stepsContentReferences,
                     });
+                    break;
+                }
+                // (maximchen) We do not care about task comments when processing task notes
+                case "Comments": {
                     break;
                 }
                 case "PersistedContent": {
@@ -282,7 +286,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                 lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
 
                 this._client.procedures
-                    .updateContent({
+                    .updateNotesContent({
                         version: state.pendingSendableSteps.version,
                         steps: state.pendingSendableSteps.steps,
                         clientId: state.pendingSendableSteps.clientId,

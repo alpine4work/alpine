@@ -1,6 +1,13 @@
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessagingTypingStateSchema,
+    createMessagingRealtimeEventSchemas,
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {
     TaskNotesContentStepSchema,
     TaskNotesContentWithReferencesSchema,
@@ -28,7 +35,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
          * client will need to fully reset its content. Losing any local steps in the
          * process.
          */
-        backfill: {
+        backfillNotes: {
             input: {
                 version: Schema.integer,
             },
@@ -55,12 +62,72 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
             },
         },
 
-        updateContent: {
+        updateNotesContent: {
             input: {
                 version: Schema.integer,
                 steps: Schema.array(TaskNotesContentStepSchema),
                 clientId: Schema.id<ContentEditorClientId>(),
             },
+            output: {},
+        },
+
+        backfillComments: {
+            input: {
+                clientCommentCount: Schema.integer,
+                clientLastCommentChangeTime: Schema.date.nullable(),
+                newCommentLimit: Schema.integer,
+            },
+            output: {
+                commentCount: Schema.integer,
+                lastCommentChangeTime: Schema.date.nullable(),
+                newComments: Schema.array(TaskCommentModel.schema()),
+                newOtherReferencedComments: Schema.array(TaskCommentModel.schema()),
+                commentChangesResult: Schema.union({
+                    Available: Schema.object({
+                        type: Schema.value("Available"),
+                        changes: Schema.array(MessageChangeSchema),
+                    }),
+                    Unavailable: Schema.object({
+                        type: Schema.value("Unavailable"),
+                    }),
+                }),
+                typingStateByConnectionId: Schema.map(
+                    Schema.id<WebSocketConnectionId>(),
+                    MessagingTypingStateSchema,
+                ),
+            },
+        },
+
+        createComment: {
+            input: {
+                parentCommentIndex: Schema.integer.nullable(),
+                content: MessageContentSchema,
+            },
+            output: {},
+        },
+
+        updateCommentContent: {
+            input: {
+                commentIndex: Schema.integer,
+                content: MessageContentSchema,
+            },
+            output: {},
+        },
+
+        deleteComment: {
+            input: {
+                commentIndex: Schema.integer,
+            },
+            output: {},
+        },
+
+        startTypingInCommentInput: {
+            input: {},
+            output: {},
+        },
+
+        stopTypingInCommentInput: {
+            input: {},
             output: {},
         },
     },
@@ -81,12 +148,17 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
          * out-of-order. A recommend implementation is if you get a future message, put
          * it in a queue until you get earlier messages needed to process it.
          */
-        UpdateContentWithoutPersistence: Schema.object({
-            type: Schema.value("UpdateContentWithoutPersistence"),
+        UpdateNotesContentWithoutPersistence: Schema.object({
+            type: Schema.value("UpdateNotesContentWithoutPersistence"),
             newVersion: Schema.integer,
             steps: Schema.array(TaskNotesContentStepSchema),
             stepsContentReferences: ContentReferencesSchema,
             clientId: Schema.id<ContentEditorClientId>(),
+        }),
+
+        Comments: Schema.object({
+            type: Schema.value("Comments"),
+            event: Schema.union(createMessagingRealtimeEventSchemas(TaskCommentModel.schema())),
         }),
 
         /**
@@ -94,9 +166,9 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
          * version and if the client disconnects the changes will still be there.
          *
          * You may get a `PersistedContent` event before a
-         * `UpdateContentWithoutPersistence` with the steps for this version. That's
+         * `UpdateNotesContentWithoutPersistence` with the steps for this version. That's
          * because we need to load references from the database before we can send
-         * `UpdateContentWithoutPersistence` and persistence may happen before that.
+         * `UpdateNotesContentWithoutPersistence` and persistence may happen before that.
          */
         PersistedContent: Schema.object({
             type: Schema.value("PersistedContent"),

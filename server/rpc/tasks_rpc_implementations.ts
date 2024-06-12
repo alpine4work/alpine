@@ -1,12 +1,19 @@
-import {getContentReferences} from "~/server/content/get_content_references.js";
+import {
+    getContentReferences,
+    getContentReferencesForNode,
+} from "~/server/content/get_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {searchTaskCollections} from "~/server/tasks/data/task_index.js";
 import {
     authorizeTaskAccess,
+    backfillTaskComments,
     commitTaskActionTransaction,
+    createTaskComment,
     deleteTaskAndAllChildren,
+    deleteTaskComment,
     getTaskNotesContentWithoutReferences,
+    updateTaskCommentContent,
     updateTaskGridViewExpansionState,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
@@ -15,6 +22,7 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {AccountId} from "~/shared/id/types/id_types.js";
 import * as definition from "~/shared/rpc/tasks_rpc_definitions.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 
 implementRpc(
     definition.commitTaskActionTransaction,
@@ -138,5 +146,73 @@ implementRpc(
         const collectionResults = await searchTaskCollections(context, input);
 
         return {collectionResults};
+    },
+);
+
+implementRpc(
+    definition.createTaskComment,
+    {visibility: ["TaskNotesCollaborationService"]},
+    async (unknownContext, input) => {
+        const context = unknownContext.actor.authorizeSession();
+
+        const {spaceId, index, createdTime} = await createTaskComment(
+            context.actor.authorizeSession(),
+            input,
+        );
+
+        const [author, contentReferences] = await runAllPromises([
+            getAccount(context, spaceId, context.actor.getAccountId()),
+            getContentReferencesForNode(context, spaceId, input.content),
+        ]);
+
+        const comment = new TaskCommentModel({
+            taskId: input.taskId,
+            index,
+            author,
+            createdTime,
+            payload: {
+                type: "Content",
+                parentMessageIndex: input.parentCommentIndex,
+                content: {
+                    doc: input.content,
+                    references: contentReferences,
+                },
+                contentUpdatedTime: null,
+            },
+        });
+
+        return {comment};
+    },
+);
+implementRpc(
+    definition.updateTaskCommentContent,
+    {visibility: ["TaskNotesCollaborationService"]},
+    async (context, input) => {
+        const {spaceId, contentUpdatedTime} = await updateTaskCommentContent(
+            context.actor.authorizeSession(),
+            input,
+        );
+
+        const contentReferences = await getContentReferencesForNode(
+            context,
+            spaceId,
+            input.content,
+        );
+
+        return {contentUpdatedTime, contentReferences};
+    },
+);
+implementRpc(
+    definition.deleteTaskComment,
+    {visibility: ["TaskNotesCollaborationService"]},
+    (context, input) => {
+        return deleteTaskComment(context.actor.authorizeSession(), input);
+    },
+);
+implementRpc(
+    definition.backfillTaskComments,
+    {visibility: ["TaskNotesCollaborationService"]},
+    (context, input) => {
+        return backfillTaskComments(context.actor.authorizeSession(), input);
     },
 );
