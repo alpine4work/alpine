@@ -4184,6 +4184,7 @@ export function updateTaskCommentContent(
         content: MessageContent;
     },
 ): Promise<{
+    spaceId: SpaceId;
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
@@ -4271,7 +4272,7 @@ export function updateTaskCommentContent(
             },
         });
 
-        return {contentUpdatedTime};
+        return {spaceId, contentUpdatedTime};
     });
 }
 
@@ -4374,6 +4375,7 @@ export async function createTaskComment(
         content: MessageContent;
     },
 ): Promise<{
+    spaceId: SpaceId;
     index: number;
     createdTime: Date;
 }> {
@@ -4489,6 +4491,7 @@ export async function createTaskComment(
         }
 
         return {
+            spaceId,
             index: commentIndex,
             createdTime,
         };

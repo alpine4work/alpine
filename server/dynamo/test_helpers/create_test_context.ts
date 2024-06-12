@@ -115,7 +115,6 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
      * Escalate one of our existing test contexts to a system context.
      */
     escalateToSystemContext<Value>(
-        this: void,
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;

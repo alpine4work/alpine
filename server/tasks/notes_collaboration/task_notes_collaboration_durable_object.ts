@@ -107,12 +107,26 @@ class TaskNotesCollaborationDurableObject {
             WorkerSessionActionContextModules,
             typeof TaskNotesCollaborationProtocol,
             TaskNotesCollaborationConnection
-        >(this._processContext, TaskNotesCollaborationProtocol, ({closeWithError}) => {
-            return new TaskNotesCollaborationConnection({
-                contentManager: this._contentManager,
+        >(
+            this._processContext,
+            TaskNotesCollaborationProtocol,
+            ({
+                connectionId,
                 closeWithError,
-            });
-        });
+                sendEvent,
+                sendEventToOthers,
+                iterateOtherConnections,
+            }) => {
+                return new TaskNotesCollaborationConnection({
+                    connectionId,
+                    contentManager: this._contentManager,
+                    closeWithError,
+                    sendEvent,
+                    sendEventToOthers,
+                    iterateOtherConnections,
+                });
+            },
+        );
     }
 
     public static parseRoute(url: URL): [string, TaskNotesCollaborationDurableObjectRoute] {
