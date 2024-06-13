@@ -902,13 +902,6 @@ type InboxAttributesItem = MergeObjectIntersection<
     }
 >;
 
-type LegacyInboxAttributesItem = MergeObjectIntersection<
-    InboxTableTypes["Item"] & {
-        readonly partitionType: "Inbox";
-        readonly sortRangeType: "Attributes";
-    }
->;
-
 type InboxEntryItem = MergeObjectIntersection<
     InboxTableTypes["Item"] & (typeof inboxEntryItemTypes)[number]
 >;
@@ -917,84 +910,59 @@ type InboxEntryItemKey = MergeObjectIntersection<
     InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
 >;
 
+/**
+ * Move inbox attribute items from their old destination to their new destination.
+ */
 export async function runMoveInboxAttributesItemMigration(
     context: DynamoContext,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
-    for await (const item of InboxTable.expensiveScan(context, {
+    for await (const initialLegacyItem of InboxTable.expensiveScan(context, {
         segmentIndex,
         totalSegmentCount,
         filter: [{partitionType: "Inbox", sortRangeType: "Attributes"}],
     })) {
-        if (item.partitionType !== "Inbox" || item.sortRangeType !== "Attributes") break;
+        if (
+            initialLegacyItem.partitionType !== "Inbox" ||
+            initialLegacyItem.sortRangeType !== "Attributes"
+        ) {
+            break;
+        }
 
-        await actuallyMigrateLegacyInboxAttributesItem(context, item);
+        let hasAlreadyAttempted = false;
+
+        await context.dynamo.retryTransaction(async context => {
+            const isInitialAttempt = !hasAlreadyAttempted;
+            hasAlreadyAttempted = true;
+
+            const legacyItem = isInitialAttempt
+                ? initialLegacyItem
+                : await InboxTable.getItemIfExists(
+                      context,
+                      {
+                          partitionType: "Inbox",
+                          sortRangeType: "Attributes",
+                          spaceId: initialLegacyItem.spaceId,
+                          accountId: initialLegacyItem.accountId,
+                      },
+                      {consistency: "Strong"},
+                  );
+            if (!legacyItem) return;
+
+            await DynamoTableSchema.executeTransaction(context, [
+                InboxTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
+                    {
+                        ...legacyItem,
+                        partitionType: "Account",
+                        sortRangeType: "InboxAttributes",
+                    },
+                ),
+                InboxTable.transactionDangerouslyDeleteItemWithoutEventAndBreakFutureUpdates(
+                    legacyItem,
+                ),
+            ]);
+        });
     }
-}
-
-// TODO(calebmer, 2024-06-13): We're moving the inbox attributes item from the
-// `Inbox` partition to the `Account` partition so we can query an account's
-// inbox items all at once. As a part of this migration, before you access the
-// `InboxAttributes` item you MUST call this function. It moves the legacy
-// inbox attributes item to its new location.
-//
-// NOCOMMIT: Remove this! Finish migration!
-async function migrateLegacyInboxAttributesItem(
-    context: DynamoContext,
-    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
-) {
-    const legacyItem = await InboxTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Inbox",
-            sortRangeType: "Attributes",
-            spaceId,
-            accountId,
-        },
-        {consistency: "Strong"},
-    );
-    if (!legacyItem) return;
-
-    await actuallyMigrateLegacyInboxAttributesItem(context, legacyItem);
-}
-
-async function actuallyMigrateLegacyInboxAttributesItem(
-    context: DynamoContext,
-    initialLegacyItem: LegacyInboxAttributesItem,
-) {
-    let hasAlreadyAttempted = false;
-
-    await context.dynamo.retryTransaction(async context => {
-        const isInitialAttempt = !hasAlreadyAttempted;
-        hasAlreadyAttempted = true;
-
-        const legacyItem = isInitialAttempt
-            ? initialLegacyItem
-            : await InboxTable.getItemIfExists(
-                  context,
-                  {
-                      partitionType: "Inbox",
-                      sortRangeType: "Attributes",
-                      spaceId: initialLegacyItem.spaceId,
-                      accountId: initialLegacyItem.accountId,
-                  },
-                  {consistency: "Strong"},
-              );
-        if (!legacyItem) return;
-
-        await DynamoTableSchema.executeTransaction(context, [
-            InboxTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
-                {
-                    ...legacyItem,
-                    partitionType: "Account",
-                    sortRangeType: "InboxAttributes",
-                },
-            ),
-            InboxTable.transactionDangerouslyDeleteItemWithoutEventAndBreakFutureUpdates(
-                legacyItem,
-            ),
-        ]);
-    });
 }
 
 /**
@@ -1129,11 +1097,6 @@ export async function getInbox(
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    await migrateLegacyInboxAttributesItem(context, {
-        spaceId,
-        accountId: context.actor.getAccountId(),
-    });
-
     return context.dynamo.retryTransaction(async context => {
         const inbox = await InboxTable.getRealtimeItemIfExists(
             context,
@@ -1213,11 +1176,6 @@ export async function getInboxEntries(
             ? !result.pageInfo.hasNextPage
             : !result.pageInfo.hasPreviousPage)
     ) {
-        await migrateLegacyInboxAttributesItem(context, {
-            spaceId,
-            accountId: context.actor.getAccountId(),
-        });
-
         const inboxItem = await InboxTable.getItemIfExists(context, {
             partitionType: "Account",
             sortRangeType: "InboxAttributes",
@@ -1309,11 +1267,6 @@ export async function observeInbox(
     {spaceId}: {spaceId: SpaceId},
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
-
-    await migrateLegacyInboxAttributesItem(context, {
-        spaceId,
-        accountId: context.actor.getAccountId(),
-    });
 
     await InboxTable.updateItem(
         context,
@@ -1448,8 +1401,6 @@ async function archiveInboxEntryItemKey(
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
 
-    await migrateLegacyInboxAttributesItem(context, itemKey);
-
     return context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
             InboxTable.getItemIfExists(context, {
@@ -1540,8 +1491,6 @@ async function unarchiveInboxEntryItemKey(
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
-
-    await migrateLegacyInboxAttributesItem(context, itemKey);
 
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
@@ -1952,8 +1901,6 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     {initialInboxItemIfExists}: {initialInboxItemIfExists?: InboxAttributesItem | null} = {},
 ): Promise<UpdateInboxEntryResult | null> {
     let hasAttempted = false;
-
-    await migrateLegacyInboxAttributesItem(context, itemKey);
 
     return context.dynamo.retryTransaction(run);
 
@@ -2643,11 +2590,6 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             );
         }
 
-        await migrateLegacyInboxAttributesItem(context, {
-            spaceId: event.spaceId,
-            accountId,
-        });
-
         const inboxItem = await InboxTable.getItemIfExists(context, {
             partitionType: "Account",
             sortRangeType: "InboxAttributes",
@@ -2739,11 +2681,6 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             // Don't update a new comment threads entry for the account who authored
             // the comment.
             if (event.authorId === accountId) return null;
-
-            await migrateLegacyInboxAttributesItem(context, {
-                spaceId: event.spaceId,
-                accountId,
-            });
 
             const inboxItem = await InboxTable.getItemIfExists(context, {
                 partitionType: "Account",
@@ -3004,11 +2941,6 @@ export async function getInboxChannelPostsEntryPosts(
     await authorizeSpaceAccess(context, spaceId);
 
     if (afterPostId === null) {
-        await migrateLegacyInboxAttributesItem(context, {
-            spaceId,
-            accountId: context.actor.getAccountId(),
-        });
-
         // If an inbox entry exists then the inbox attributes item should also exist.
         const inboxItem = await InboxTable.getItem(
             context,
@@ -3190,11 +3122,6 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
 }> {
     const commentThreadIdsPromise = (async () => {
         await authorizeSpaceAccess(context, spaceId);
-
-        await migrateLegacyInboxAttributesItem(context, {
-            spaceId,
-            accountId: context.actor.getAccountId(),
-        });
 
         // If an inbox entry exists then the inbox attributes item should also exist.
         const inboxItem = await InboxTable.getItem(
