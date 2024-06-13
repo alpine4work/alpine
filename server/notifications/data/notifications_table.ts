@@ -1,8 +1,11 @@
 import {differenceInMinutes} from "date-fns";
+import {Node} from "prosemirror-model";
+import {getRegisteredAccountDevices} from "~/server/accounts/accounts_table.js";
 import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
+    ServerActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -42,8 +45,13 @@ import {
     getAccount,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
-import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {
+    isTextEndedWithPunctuation,
+    printContentSingleLineTextSnippet,
+} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
+import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -61,6 +69,7 @@ import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
@@ -96,6 +105,7 @@ import {
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
+import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -1491,6 +1501,7 @@ function actuallyProcessNotificationEvent(
 function createNotificationEventProcessor<Event extends NotificationEvent, Info>({
     getSubscribers,
     updateInboxEntry,
+    getAlertContent,
 }: {
     /**
      * Get the accounts subscribed to notifications for this event.
@@ -1523,14 +1534,71 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             info: Info;
             accountId: AccountId;
         },
-    ) => Promise<void>;
-}): (context: ServerSystemActionContext, event: Event, span: TracerSpan) => Promise<void> {
+    ) => Promise<UpdateInboxEntryResult | null>;
+
+    /**
+     * Get the content of a push notification for the action. The notification will
+     * be displayed in different ways on different platforms. [iOS push
+     * notifications][1] appear in a banner on the device's notification feed.
+     *
+     * A push notification is sent if:
+     *
+     * - The inbox entry was updated; and
+     * - The inbox entry is not archived
+     *
+     * The alert will be delivered silently unless `loudNotificationCount` changed.
+     * In which case the alert will be delivered with high priority and a sound.
+     *
+     * # Style guide
+     *
+     * A brief style guide for writing notifications:
+     *
+     * - `title`: The full name of the actor sending this notification.
+     *
+     * - `subtitle`: A continuation of `title` detailing critical context for the
+     *   notification. The subtitle must be short and fit on a single line.
+     *
+     *   The user should be able to read the notification's `title` and `subtitle`
+     *   as one sentence. They are rendered on two lines as operating systems
+     *   truncate notification titles to one line. The subtitle is on its own line
+     *   (and not combined with title) so the critical context it carries can be
+     *   visible.
+     *
+     *   For example, a `title` of "Caleb Meredith" and a `subtitle` of "on their
+     *   post in Welcome" is a good notification. We don't have space to say that
+     *   "Welcome" is a channel. "on" is lower cased so the `title` and `subtitle`
+     *   read like one sentence when put together.
+     *
+     * - `body`: The content snippet associated with this notification printed on a
+     *   single line of text. `printNotificationEventAlertContentBody()` can handle
+     *   this for you.
+     *
+     * [1]: https://developer.apple.com/design/human-interface-guidelines/notifications
+     */
+    getAlertContent: (
+        context: ServerSystemActionContext,
+        event: Event,
+        options: {
+            info: Info;
+            accountId: AccountId;
+            locale: string;
+            entryItem: InboxEntryItem;
+        },
+    ) => Promise<{
+        title: string;
+        subtitle?: string;
+        body: string;
+    }>;
+}): (
+    context: ProcessNotificationEventSystemActionContext,
+    event: Event,
+    span: TracerSpan,
+) => Promise<void> {
     return async (context, event, span) => {
         span.addData({
             notifications: {
                 eventType: event.type,
                 eventId: event.id,
-                inbox: {spaceId: event.spaceId},
             },
         });
 
@@ -1550,20 +1618,117 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                 // check above.
                 const accountId = accountOrMentionId as AccountId;
 
-                await context.tracer.withSpan("Updating inbox entry", async (context, span) => {
-                    span.addData({
-                        notifications: {
-                            eventType: event.type,
-                            eventId: event.id,
-                            inbox: {spaceId: event.spaceId, accountId},
-                        },
-                    });
+                await context.tracer.withSpan(
+                    "Process notification event for account",
+                    async (context, span) => {
+                        span.addData({
+                            notifications: {
+                                eventType: event.type,
+                                eventId: event.id,
+                            },
+                        });
+                        span.addPropagatedData({context: {accountId}});
 
-                    return updateInboxEntry(context, event, {info, accountId});
-                });
+                        const result = await context.tracer.withSpan(
+                            "Update inbox entry",
+                            async context => updateInboxEntry(context, event, {info, accountId}),
+                        );
+                        if (!result) return;
+
+                        // If we archived an entry (or updated an archived entry) that shouldn't
+                        // generate a push notification.
+                        if (result.newEntryItem.isArchived) return;
+
+                        await context.tracer.withSpan(
+                            "Send push notification to devices",
+                            context =>
+                                sendPushNotificationToAccountDevices(
+                                    context,
+                                    accountId,
+                                    result,
+                                    () =>
+                                        getAlertContent(context, event, {
+                                            info,
+                                            accountId,
+                                            // TODO(calebmer): All notifications are currently in US English. When we
+                                            // localize the product this should change.
+                                            locale: "en-US",
+                                            entryItem: result.newEntryItem,
+                                        }),
+                                ),
+                        );
+                    },
+                );
             }),
         );
     };
+}
+
+async function sendPushNotificationToAccountDevices(
+    context: ProcessNotificationEventSystemActionContext,
+    accountId: AccountId,
+    result: UpdateInboxEntryResult,
+    getAlertContent: () => Promise<{
+        title: string;
+        subtitle?: string;
+        body: string;
+    }>,
+) {
+    const [accountDevices, alertContent] = await runAllPromises([
+        getRegisteredAccountDevices(context, accountId),
+        // We optimistically build alert content even if we don't need it (e.g. since
+        // there are no registered devices).
+        //
+        // We expect accounts will want to set up push notifications on some device and
+        // we want to send them notifications quickly. So it's worth speeding up
+        // notification sending even if sometimes it's a little wasteful to load alert
+        // content when we don't need it.
+        getAlertContent(),
+    ]);
+
+    // Interrupt the user if tge loud notification count increased.
+    const isLoud = result.loudNotificationCountDifference > 0;
+
+    await runAllPromises(
+        accountDevices.map(async accountDevice => {
+            await context.apns.sendAlert(
+                accountDevice.deviceToken,
+                {
+                    aps: {
+                        alert: alertContent,
+                        "thread-id": getApnsNotificationThreadId(result.newEntryItem),
+                        // Only make a sound for loud notifications.
+                        sound: isLoud ? "default" : undefined,
+                        "interruption-level": isLoud ? "active" : "passive",
+                    },
+                },
+                {
+                    // If this is a loud notification then send the notification immediately.
+                    // Otherwise, we can respect the device's power needs.
+                    priority: isLoud ? 10 : 5,
+                },
+            );
+        }),
+    );
+}
+
+function getApnsNotificationThreadId(item: InboxEntryItem): string | undefined {
+    switch (item.sortRangeType) {
+        case "ChatEntry":
+            return item.chatId;
+        case "PostCommentsEntry":
+            return item.postId;
+        case "ChannelPostsEntry":
+            return `${item.channelId}-${item.bucketGeneration}`;
+        case "DocumentCommentThreadEntry":
+            // `DocumentCommentThreadId` is only guaranteed to be unique within a document.
+            // It may not be unique across documents.
+            return `${item.documentId}-${item.commentThreadId}`;
+        case "DocumentNewCommentThreadsEntry":
+            return `${item.documentId}-${item.bucketGeneration}`;
+        default:
+            throw exhaustive(item);
+    }
 }
 
 /**
@@ -1603,6 +1768,11 @@ function isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
     }
 }
 
+type UpdateInboxEntryResult = {
+    readonly newEntryItem: InboxEntryItem;
+    readonly loudNotificationCountDifference: number;
+};
+
 /**
  * Helper function for updating an inbox entry and the main inbox attributes
  * item along with it. Makes sure to keep everything consistent. For example,
@@ -1618,7 +1788,7 @@ function isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
  * `clientRequestToken` but as an optimization we try to avoid transactions
  * when possible which means we need `update` to be idempotent.
  */
-async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
+function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     context: ServerSystemActionContext,
     event: NotificationEvent,
     accountId: AccountId,
@@ -1632,10 +1802,12 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         >
     >,
     {initialInboxItemIfExists}: {initialInboxItemIfExists?: InboxAttributesItem | null} = {},
-): Promise<void> {
+): Promise<UpdateInboxEntryResult | null> {
     let hasAttempted = false;
 
-    await context.dynamo.retryTransaction(async context => {
+    return context.dynamo.retryTransaction(run);
+
+    async function run(context: ServerSystemActionContext): Promise<UpdateInboxEntryResult | null> {
         const isInitialAttempt = !hasAttempted;
         hasAttempted = true;
 
@@ -1675,7 +1847,15 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         // a user is sending a message to a chat they created) then don't create a
         // new entry.
         if (!oldInboxEntryItem && newInboxEntryItemPartial2.isArchived) {
-            return;
+            return null;
+        }
+
+        // We don't update archived inbox entries. An archived inbox entry stays the
+        // same from the moment it's archived onward. Some `update()` functions may
+        // make a change (e.g. `processNotificationCreateChatMessageEvent()` always
+        // updates `latestMessage`) but we ignore it.
+        if (oldInboxEntryItem?.isArchived && newInboxEntryItemPartial2.isArchived) {
+            return null;
         }
 
         // Move the entry to the top of the inbox if:
@@ -1771,8 +1951,26 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 ) {
                     // Optimization: Don't write to the database (and so update `updateVersionLock`)
                     // if the item didn't actually update.
-                    if (!isDeepEqual(oldInboxEntryItem, newInboxEntryItem)) {
+                    if (oldInboxEntryItem && isDeepEqual(oldInboxEntryItem, newInboxEntryItem)) {
+                        // Even though we don't actually write a new inbox item, we still want to
+                        // return an update result. If we return null we won't send push notifications
+                        // for this event!
+                        //
+                        // It's important to still send push notifications in this case. If there's a
+                        // sticky mention (`latestMessage.isStickyMention` is set) the inbox entry
+                        // won't update (it continues to show the sticky mention) but we still want to
+                        // send push notifications for any messages sent after the sticky mention.
+                        return {
+                            newEntryItem: oldInboxEntryItem,
+                            loudNotificationCountDifference,
+                        };
+                    } else {
                         await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
+
+                        return {
+                            newEntryItem: newInboxEntryItem,
+                            loudNotificationCountDifference,
+                        };
                     }
                 } else {
                     await DynamoGeneralRealtimeTableSchema.executeTransaction(
@@ -1780,6 +1978,11 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                         [InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem)],
                         {clientRequestToken},
                     );
+
+                    return {
+                        newEntryItem: newInboxEntryItem,
+                        loudNotificationCountDifference,
+                    };
                 }
             } else {
                 const oldEntryCount = inboxItem?.entryCount ?? 0;
@@ -1811,16 +2014,21 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     ],
                     {clientRequestToken},
                 );
+
+                return {
+                    newEntryItem: newInboxEntryItem,
+                    loudNotificationCountDifference,
+                };
             }
         } catch (error) {
             // If DynamoDB has committed a transaction with this `clientRequestToken` in the
             // last 10min then we can return peacefully to make sure this function is
             // idempotent.
-            if (isDynamoIdempotentParameterMismatchError(error)) return;
+            if (isDynamoIdempotentParameterMismatchError(error)) return null;
 
             throw error;
         }
-    });
+    }
 }
 
 function getInboxEntryLatestUpdateTime(
@@ -1842,6 +2050,28 @@ function getInboxEntryLatestUpdateTime(
     }
 }
 
+async function printNotificationEventAlertContentBody(
+    context: ServerActionContext,
+    event: {spaceId: SpaceId; isContentSnippetComplete: boolean; contentSnippet: Node},
+) {
+    const contentReferences = await getContentReferencesForNode(
+        context,
+        event.spaceId,
+        event.contentSnippet,
+    );
+
+    let body = printContentSingleLineTextSnippet({
+        doc: event.contentSnippet,
+        references: contentReferences,
+    });
+
+    if (!event.isContentSnippetComplete && !isTextEndedWithPunctuation(body)) {
+        body += "…";
+    }
+
+    return body;
+}
+
 const processNotificationCreateChatMessageEvent = createNotificationEventProcessor<
     NotificationCreateChatMessageEvent,
     {spaceId: SpaceId; accountIds: ReadonlyArray<AccountId>}
@@ -1855,12 +2085,12 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             accountIds,
         };
     },
-    updateInboxEntry: async (
+    updateInboxEntry: (
         context,
         event,
         {info: {spaceId, accountIds: chatAccountIds}, accountId},
     ) => {
-        await updateInboxEntry(
+        return updateInboxEntry(
             context,
             event,
             accountId,
@@ -2005,6 +2235,49 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             },
         );
     },
+    getAlertContent: async (
+        context,
+        event,
+        {info: {accountIds: chatAccountIds}, entryItem, locale},
+    ) => {
+        assert(entryItem.sortRangeType === "ChatEntry");
+
+        const [authorAccount, otherAccount, body] = await runAllPromises([
+            getAccount(context, event.spaceId, event.authorId),
+            entryItem.otherAccountId && entryItem.otherAccountId !== event.authorId
+                ? getAccount(context, event.spaceId, entryItem.otherAccountId)
+                : null,
+            printNotificationEventAlertContentBody(context, event),
+        ]);
+
+        // We don't include "Mentioned you" in the subtitle even if there was a
+        // mention since:
+        //
+        // - Subtitle is already long
+        // - All chat messages are loud notifications even if there's not a mention
+        let subtitle: string | undefined;
+
+        if (chatAccountIds.length <= 2) {
+            // No subtitle
+        } else {
+            subtitle = "to ";
+
+            if (chatAccountIds.length === 3 && otherAccount) {
+                subtitle += "you and ";
+                subtitle += getAccountShortNameWithoutFullNameTooltip(otherAccount.initialData);
+            } else if (!otherAccount) {
+                subtitle += "you and ";
+                subtitle += printPrettyNumber(locale, chatAccountIds.length - 2, "other");
+            } else {
+                subtitle += "you, ";
+                subtitle += getAccountShortNameWithoutFullNameTooltip(otherAccount.initialData);
+                subtitle += ", and ";
+                subtitle += printPrettyNumber(locale, chatAccountIds.length - 3, "other");
+            }
+        }
+
+        return {title: authorAccount.initialData.name, subtitle, body};
+    },
 });
 
 const processNotificationCreatePostCommentEvent = createNotificationEventProcessor<
@@ -2022,8 +2295,8 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             accountIds,
         };
     },
-    updateInboxEntry: async (context, event, {info: {postCreatedTime}, accountId}) => {
-        await updateInboxEntry(
+    updateInboxEntry: (context, event, {info: {postCreatedTime}, accountId}) => {
+        return updateInboxEntry(
             context,
             event,
             accountId,
@@ -2131,6 +2404,35 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             },
         );
     },
+    getAlertContent: async (context, event, {accountId}) => {
+        const [author, post, body] = await runAllPromises([
+            getAccount(context, event.spaceId, event.authorId),
+            // This function is cached which is important since we call this function when
+            // building a `InboxPostCommentsEntryModel` for realtime in the same action.
+            getPostAuthorAndChannelPreview(context, event.postId),
+            printNotificationEventAlertContentBody(context, event),
+        ]);
+
+        let subtitle = "";
+
+        if (!event.mentionedAccountIds.has(accountId)) {
+            subtitle += "on ";
+        } else {
+            subtitle += "mentioned you on ";
+        }
+
+        if (post.author.id === accountId) {
+            subtitle += "your";
+        } else if (post.author.id === event.authorId) {
+            subtitle += "their";
+        } else {
+            subtitle += `${getAccountShortNameWithoutFullNameTooltip(post.author.initialData)}’s`;
+        }
+
+        subtitle += ` post in ${post.channel.name}`;
+
+        return {title: author.initialData.name, subtitle, body};
+    },
 });
 
 const processNotificationCreatePostEvent = createNotificationEventProcessor<
@@ -2151,12 +2453,12 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
     },
     updateInboxEntry: async (context, event, {info: {}, accountId}) => {
         // Don't update an entry for the account who created the post.
-        if (event.authorId === accountId) return;
+        if (event.authorId === accountId) return null;
 
         // If the account was mentioned in the post, we create a separate entry with a
         // loud notification instead of merging into one channel post summary entry.
         if (event.mentionedAccountIds.has(accountId)) {
-            await updateInboxEntry(
+            return updateInboxEntry(
                 context,
                 event,
                 accountId,
@@ -2189,7 +2491,6 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                     };
                 },
             );
-            return;
         }
 
         const inboxItem = await InboxTable.getItemIfExists(context, {
@@ -2199,7 +2500,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             accountId,
         });
 
-        await updateInboxEntry(
+        return updateInboxEntry(
             context,
             event,
             accountId,
@@ -2234,6 +2535,26 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             {initialInboxItemIfExists: inboxItem},
         );
     },
+    getAlertContent: async (context, event, {accountId}) => {
+        const [author, channel, body] = await runAllPromises([
+            getAccount(context, event.spaceId, event.authorId),
+            getChannelPreview(context, event.channelId),
+            printNotificationEventAlertContentBody(context, event),
+        ]);
+
+        let subtitle: string;
+        if (!event.mentionedAccountIds.has(accountId)) {
+            subtitle = `in ${channel.name}`;
+        } else {
+            subtitle = `mentioned you in ${channel.name}`;
+        }
+
+        return {
+            title: author.initialData.name,
+            subtitle,
+            body,
+        };
+    },
 });
 
 const processNotificationCreateDocumentCommentEvent = createNotificationEventProcessor<
@@ -2262,7 +2583,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
         if (isFirstComment && !event.mentionedAccountIds.has(accountId)) {
             // Don't update a new comment threads entry for the account who authored
             // the comment.
-            if (event.authorId === accountId) return;
+            if (event.authorId === accountId) return null;
 
             const inboxItem = await InboxTable.getItemIfExists(context, {
                 partitionType: "Inbox",
@@ -2271,7 +2592,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 accountId,
             });
 
-            await updateInboxEntry(
+            return updateInboxEntry(
                 context,
                 event,
                 accountId,
@@ -2308,10 +2629,9 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 },
                 {initialInboxItemIfExists: inboxItem},
             );
-            return;
         }
 
-        await updateInboxEntry(
+        return updateInboxEntry(
             context,
             event,
             accountId,
@@ -2421,6 +2741,64 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 };
             },
         );
+    },
+    getAlertContent: async (context, event, {accountId, entryItem}) => {
+        assert(
+            entryItem.sortRangeType === "DocumentNewCommentThreadsEntry" ||
+                entryItem.sortRangeType === "DocumentCommentThreadEntry",
+        );
+
+        const [author, document, firstCommentAuthor, body] = await runAllPromises([
+            getAccount(context, event.spaceId, event.authorId),
+            getDocumentPreview(context, event.documentId),
+            entryItem.sortRangeType === "DocumentCommentThreadEntry" &&
+            entryItem.firstCommentAuthorId !== accountId &&
+            entryItem.firstCommentAuthorId !== event.authorId
+                ? getAccount(context, event.spaceId, entryItem.firstCommentAuthorId)
+                : null,
+            printNotificationEventAlertContentBody(context, event),
+        ]);
+
+        const truncatedDocumentTitle = truncateDocumentTitleForNotification(document.getTitle());
+
+        let subtitle = "";
+
+        switch (entryItem.sortRangeType) {
+            case "DocumentNewCommentThreadsEntry": {
+                if (!event.mentionedAccountIds.has(accountId)) {
+                    subtitle += truncatedDocumentTitle;
+                } else {
+                    subtitle += `mentioned you in their thread on ${truncatedDocumentTitle}`;
+                }
+                break;
+            }
+            case "DocumentCommentThreadEntry": {
+                if (!event.mentionedAccountIds.has(accountId)) {
+                    subtitle += "mentioned you in ";
+                } else {
+                    subtitle += "in ";
+                }
+
+                if (entryItem.firstCommentAuthorId === accountId) {
+                    subtitle += "your";
+                } else if (entryItem.firstCommentAuthorId === event.authorId) {
+                    subtitle += "their";
+                } else {
+                    subtitle += `${getAccountShortNameWithoutFullNameTooltip(
+                        // We should have loaded `firstCommentAuthor` under the same conditions as it
+                        // took to reach this branch.
+                        assertExists(firstCommentAuthor).initialData,
+                    )}’s`;
+                }
+
+                subtitle += ` thread on ${truncatedDocumentTitle}`;
+                break;
+            }
+            default:
+                throw exhaustive(entryItem);
+        }
+
+        return {title: author.initialData.name, subtitle, body};
     },
 });
 

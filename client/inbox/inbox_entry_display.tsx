@@ -3,13 +3,14 @@ import {ReactNode} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {printPrettyNumber, printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
 import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
 import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
+import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     InboxChannelPostsEntryModel,
@@ -19,6 +20,7 @@ import {
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
+import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
@@ -142,8 +144,12 @@ function getInboxChatEntryDisplay({
 
         if (entry.chatAccountCount === 3 && entry.otherChatAccount) {
             summary.push(entry.otherChatAccount);
-        } else {
+        } else if (!entry.otherChatAccount) {
             summary.push(printPrettyNumber(locale, entry.chatAccountCount - 2, "other"));
+        } else {
+            summary.push(entry.otherChatAccount);
+            summary.push(" and ");
+            summary.push(printPrettyNumber(locale, entry.chatAccountCount - 3, "other"));
         }
     } else if (entry.latestMessage.author.id !== currentAccount.id) {
         summary.push(entry.latestMessage.author);
@@ -153,8 +159,15 @@ function getInboxChatEntryDisplay({
             summary.push(" and ");
             summary.push(entry.otherChatAccount);
         } else if (entry.chatAccountCount > 2) {
-            summary.push(" and ");
-            summary.push(printPrettyNumber(locale, entry.chatAccountCount - 2, "other"));
+            if (!entry.otherChatAccount) {
+                summary.push(" and ");
+                summary.push(printPrettyNumber(locale, entry.chatAccountCount - 2, "other"));
+            } else {
+                summary.push(", ");
+                summary.push(entry.otherChatAccount);
+                summary.push(", and ");
+                summary.push(printPrettyNumber(locale, entry.chatAccountCount - 3, "other"));
+            }
         }
 
         summary.push(" a chat message");
@@ -305,7 +318,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
             ? entry.latestComment?.author ?? null
             : null;
 
-    const truncatedDocumentTitle = truncateDocumentTitle(entry.document.getTitle());
+    const truncatedDocumentTitle = truncateDocumentTitleForNotification(entry.document.getTitle());
 
     const summary: Array<InboxEntryDisplaySummaryItem> = [];
 
@@ -363,7 +376,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
     const secondAccount: AccountModel | null =
         entry.firstComment.author.id !== firstAccount.id ? entry.firstComment.author : null;
 
-    const truncatedDocumentTitle = truncateDocumentTitle(entry.document.getTitle());
+    const truncatedDocumentTitle = truncateDocumentTitleForNotification(entry.document.getTitle());
 
     const summary: Array<InboxEntryDisplaySummaryItem> = [];
 
@@ -399,15 +412,4 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
         latestMessage: entry.firstComment,
         summary,
     };
-}
-
-function truncateDocumentTitle(string: string) {
-    const splitter = new GraphemeSplitter();
-
-    const maxGraphemeCount = 50;
-    const graphemes = splitter.splitGraphemes(string);
-
-    if (graphemes.length < maxGraphemeCount) return string;
-
-    return `${graphemes.slice(0, maxGraphemeCount).join("").trim()}…`;
 }

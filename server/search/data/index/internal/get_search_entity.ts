@@ -9,7 +9,7 @@ import {
     getChannelNameAndDescriptionContent,
     getChannelPreview,
     getPostCommentPayload,
-    getPostContentAndChannel,
+    getPostContentAndChannelPreview,
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
@@ -353,7 +353,7 @@ class SearchEntityReadState {
     }> {
         this._recordDependencyId(`Post:${postId}`);
 
-        const contentAndChannel = await getPostContentAndChannel(this._context, postId, {
+        const contentAndChannel = await getPostContentAndChannelPreview(this._context, postId, {
             consistency: "Strong",
         });
 

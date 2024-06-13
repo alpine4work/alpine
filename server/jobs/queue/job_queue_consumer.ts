@@ -427,9 +427,22 @@ export class JobQueueConsumer {
 
             const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
 
-            const handleSpanName = `${
+            let handleSpanName = `${
                 messageBody.type === "Maintenance" ? "Process maintenance job" : "Process job"
             } ${messageBody.job.type}`;
+
+            // For jobs that process many different things, include the subtype in the
+            // name to help identify the span.
+            switch (messageBody.job.type) {
+                case "NotificationEvent": {
+                    handleSpanName += ` ${messageBody.job.event.type}`;
+                    break;
+                }
+                case "IndexSearchEntity": {
+                    handleSpanName += ` ${messageBody.job.update.type}`;
+                    break;
+                }
+            }
 
             const spanName = `Handle: ${handleSpanName}`;
 
@@ -475,6 +488,8 @@ export class JobQueueConsumer {
 
             if (messageBody.type === "Regular") {
                 const spaceId = getJobDescriptionSpaceId(messageBody.job);
+
+                span.addPropagatedData({context: {spaceId}});
 
                 await this._processContext.with<
                     Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {

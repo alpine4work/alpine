@@ -811,6 +811,10 @@ const DocumentPreviewContextCache = new ContextCache<DocumentId, DocumentPreview
  * Get a preview of the document with the provided id.
  *
  * Cheaper than `getDocument()` since we don't return the full content.
+ *
+ * The result is cached. If you call this for the same `DocumentId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
  */
 export function getDocumentPreviewIfExists(
     context: ServerActionContext,
@@ -856,6 +860,10 @@ export function getDocumentPreviewIfExists(
  * Get a preview of the document with the provided id.
  *
  * Cheaper than `getDocument()` since we don't return the full content.
+ *
+ * The result is cached. If you call this for the same `DocumentId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
  */
 export async function getDocumentPreview(
     context: ServerActionContext,
@@ -2617,6 +2625,9 @@ export async function updateDocumentContent(
                             const mentionedAccountIds = getMentionedAccountIdsInContent(
                                 createCommentThread.initialCommentContent,
                             );
+                            const contentSnippet = getNotificationMessageContentSnippet(
+                                createCommentThread.initialCommentContent,
+                            );
 
                             context.jobs.send({
                                 type: "NotificationEvent",
@@ -2630,9 +2641,10 @@ export async function updateDocumentContent(
                                     createdTime: createCommentThread.createdTime ?? currentTime,
                                     authorId: context.actor.getAccountId(),
                                     mentionedAccountIds,
-                                    contentSnippet: getNotificationMessageContentSnippet(
-                                        createCommentThread.initialCommentContent,
-                                    ),
+                                    isContentSnippetComplete:
+                                        contentSnippet.nodeSize ===
+                                        createCommentThread.initialCommentContent.nodeSize,
+                                    contentSnippet,
                                 },
                             });
 
@@ -3790,6 +3802,7 @@ export async function createDocumentComment(
         ]);
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+        const contentSnippet = getNotificationMessageContentSnippet(content);
 
         context.jobs.send({
             type: "NotificationEvent",
@@ -3803,7 +3816,8 @@ export async function createDocumentComment(
                 createdTime,
                 authorId,
                 mentionedAccountIds,
-                contentSnippet: getNotificationMessageContentSnippet(content),
+                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                contentSnippet,
             },
         });
 

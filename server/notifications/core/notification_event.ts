@@ -26,6 +26,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
 
@@ -42,6 +43,7 @@ const NotificationCreatePostCommentEventSchema = Schema.object({
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
 
@@ -56,6 +58,7 @@ const NotificationCreatePostEventSchema = Schema.object({
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: PostContentSchema,
 });
 
@@ -73,6 +76,7 @@ const NotificationCreateDocumentCommentEventSchema = Schema.object({
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
 

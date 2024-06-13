@@ -1,7 +1,6 @@
 import {ReactElement, useCallback, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
@@ -19,6 +18,7 @@ import {getChannel} from "~/server/forum/data/forum_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";

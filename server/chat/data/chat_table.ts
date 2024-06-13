@@ -831,6 +831,7 @@ export function sendChatMessage(
         ]);
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+        const contentSnippet = getNotificationMessageContentSnippet(content);
 
         context.jobs.send({
             type: "NotificationEvent",
@@ -842,8 +843,9 @@ export function sendChatMessage(
                 messageIndex,
                 createdTime,
                 authorId,
-                mentionedAccountIds: getMentionedAccountIdsInContent(content),
-                contentSnippet: getNotificationMessageContentSnippet(content),
+                mentionedAccountIds,
+                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                contentSnippet,
             },
         });
 

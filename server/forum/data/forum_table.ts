@@ -962,6 +962,15 @@ export async function getChannel(
 
 const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | null>();
 
+/**
+ * Gets a preview channel object with the provided ID. Returns null if the
+ * channel doesn't exist and throws an error if the channel exists but you
+ * don't have access to the channel.
+ *
+ * The result is cached. If you call this for the same `ChannelId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
+ */
 export function getChannelPreviewIfExists(
     context: ServerActionContext,
     id: ChannelId,
@@ -1002,9 +1011,12 @@ export function getChannelPreviewIfExists(
 }
 
 /**
- * Gets a preview channel object with the provided ID. Returns null if the
- * channel doesn't exist and throws an error if the channel exists but you
- * don't have access to the channel.
+ * Gets a preview channel object with the provided ID. Throws an error if the
+ * channel doesn't exist.
+ *
+ * The result is cached. If you call this for the same `ChannelId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
  */
 export async function getChannelPreview(
     context: ServerActionContext,
@@ -1374,6 +1386,7 @@ export async function createPost(
     const result = await ForumRealtimeTable.createItem(context, postItem);
 
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+    const contentSnippet = getNotificationPostContentSnippet(content);
 
     context.jobs.send({
         type: "NotificationEvent",
@@ -1386,7 +1399,8 @@ export async function createPost(
             createdTime: postItem.createdTime,
             authorId: postItem.authorId,
             mentionedAccountIds,
-            contentSnippet: getNotificationPostContentSnippet(content),
+            isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+            contentSnippet,
         },
     });
 
@@ -1476,7 +1490,7 @@ export async function getPost(
     return post;
 }
 
-export async function getPostContentAndChannel(
+export async function getPostContentAndChannelPreview(
     context: ServerActionContext,
     id: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
@@ -1563,21 +1577,35 @@ async function createPostModelFromItem(
     });
 }
 
+const PostAuthorAndChannelPreviewCache = new ContextCache<
+    PostId,
+    {readonly spaceId: SpaceId; readonly authorId: AccountId; readonly channelId: ChannelId}
+>();
+
 /**
  * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored
  * the post.
+ *
+ * The result is cached. If you call this for the same `PostId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
  */
-export async function getPostAuthorAndChannelPreview(context: ServerActionContext, postId: PostId) {
-    const postItem = await ForumRealtimeTable.getPartialItem(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId,
-        },
-        {
-            attributes: ["spaceId", "authorId", "channelId"],
-        },
+export async function getPostAuthorAndChannelPreview(
+    context: ServerActionContext,
+    postId: PostId,
+): Promise<{author: AccountModel; channel: ChannelPreviewModel}> {
+    const postItem = await PostAuthorAndChannelPreviewCache.get(context, postId, () =>
+        ForumRealtimeTable.getPartialItem(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId,
+            },
+            {
+                attributes: ["spaceId", "authorId", "channelId"],
+            },
+        ),
     );
 
     const [author, channel] = await runAllPromises([
@@ -1897,6 +1925,7 @@ export async function createPostComment(
         ]);
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+        const contentSnippet = getNotificationMessageContentSnippet(content);
 
         context.jobs.send({
             type: "NotificationEvent",
@@ -1909,7 +1938,8 @@ export async function createPostComment(
                 createdTime,
                 authorId,
                 mentionedAccountIds,
-                contentSnippet: getNotificationMessageContentSnippet(content),
+                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                contentSnippet,
             },
         });
 

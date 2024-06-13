@@ -714,20 +714,13 @@ export type TracerEventData = {
         readonly messageType?: string;
     };
 
+    /** Information regarding the event being processed. */
     readonly notifications?: {
         /** What is the notification event we are describing? */
         readonly eventType?: string;
 
         /** The ID of the notification we are processing. */
         readonly eventId?: NotificationEventId;
-
-        readonly inbox?: {
-            /** The space the inbox belongs to. */
-            readonly spaceId?: SpaceId;
-
-            /** The account the inbox belongs to. */
-            readonly accountId?: AccountId;
-        };
     };
 
     /** Information regarding the task product surface. */

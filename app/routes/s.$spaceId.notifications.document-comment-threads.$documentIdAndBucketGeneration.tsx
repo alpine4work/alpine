@@ -4,7 +4,6 @@ import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {printPrettySmallNumberSummary} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {
     DocumentCommentThreadListView,
@@ -26,6 +25,7 @@ import {
 } from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {
     DocumentCommentModel,

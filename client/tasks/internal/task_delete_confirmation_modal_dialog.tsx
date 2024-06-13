@@ -1,10 +1,10 @@
 import {useMemo} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {printPrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
 export function TaskDeleteConfirmationModalDialog({

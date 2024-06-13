@@ -38,11 +38,19 @@ export type ApnsAlertNotification = {
 /**
  * Other system options that aren't part of the notification body. All optional
  * and they typically have defaults.
+ *
+ * For more information on these options see “[Sending notification requests to
+ * APNs][1].”
+ *
+ * [1]: https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns
  */
 export type ApnsAlertNotificationOptions = {
     /**
      * Identifies the notification. Will be converted into UUID. The APNs console
      * will report any notification errors with the UUID format of this string.
+     *
+     * Corresponds to the `apns-id` header when communicating with APNs over
+     * HTTP/2.
      */
     id?: Id;
 
@@ -54,6 +62,9 @@ export type ApnsAlertNotificationOptions = {
      * notification and try to send it until the expiration time is reached.
      *
      * Defaults to 5 days after the current time.
+     *
+     * Corresponds to the `apns-expiration` header when communicating with APNs
+     * over HTTP/2.
      */
     expirationTime?: Date | null;
 
@@ -65,6 +76,9 @@ export type ApnsAlertNotificationOptions = {
      *   user’s device.
      * - Specify 1 to prioritize the device’s power considerations over all other
      *   factors for delivery, and prevent awakening the device.
+     *
+     * Corresponds to the `apns-priority` header when communicating with APNs
+     * over HTTP/2.
      */
     priority?: 1 | 5 | 10;
 
@@ -74,6 +88,9 @@ export type ApnsAlertNotificationOptions = {
      * new notification on the user’s device. When sending the same notification
      * more than once, use the same value in this header to merge the requests. The
      * value of this key must not exceed 64 bytes.
+     *
+     * Corresponds to the `apns-collapse-id` header when communicating with APNs
+     * over HTTP/2.
      */
     collapseId?: string;
 };

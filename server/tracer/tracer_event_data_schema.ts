@@ -241,10 +241,6 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     notifications: {
         eventType: IdentifierStringSchema,
         eventId: Schema.id(),
-        inbox: {
-            spaceId: Schema.id(),
-            accountId: Schema.id(),
-        },
     },
     tasks: {
         actions: Schema.string,

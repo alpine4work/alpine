@@ -30,6 +30,12 @@ export function getContentReferencesForSteps(
     return getContentReferences(context, spaceId, referencedIds);
 }
 
+/**
+ * Get entities referenced in content.
+ *
+ * This function may be called multiple times on the same content in an action.
+ * So all data loading functions are cached.
+ */
 export async function getContentReferences(
     context: ServerActionContext,
     spaceId: SpaceId,

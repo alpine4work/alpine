@@ -31,7 +31,10 @@ import {
     serviceTokenAgentParseOptions,
 } from "~/server/node/create_service_token_agent.js";
 import {runService} from "~/server/node/run_service.js";
-import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
+import {
+    registerShutdownListener,
+    registerShutdownListenerForIngressTraffic,
+} from "~/server/node/shutdown_manager.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
@@ -112,6 +115,10 @@ runService({
         const apnsConnectionPool = new ApnsConnectionPool(processContext, {
             certificate: apnsCertificate,
             certificatePrivateKey: apnsCertificatePrivateKey,
+        });
+
+        registerShutdownListener(async () => {
+            await apnsConnectionPool.destroy();
         });
 
         const apnsContextModule = new ApnsContextModule(apnsConnectionPool);
