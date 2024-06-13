@@ -273,6 +273,9 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         segmentIndex: Schema.integer,
         totalSegmentCount: Schema.integer,
     },
+    apns: {
+        connectionId: Schema.id(),
+    },
 };
 
 /**

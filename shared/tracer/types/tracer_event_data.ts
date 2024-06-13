@@ -1,6 +1,7 @@
 import type {DateString} from "~/shared/helpers/date/date_string.js";
 import {
     AccountId,
+    ApnsConnectionId,
     ChannelId,
     ChatId,
     DocumentId,
@@ -819,6 +820,19 @@ export type TracerEventData = {
 
         /** How many total segments are running as a part of this migration? */
         readonly totalSegmentCount?: number;
+    };
+
+    /**
+     * Information related to requests made to Apple Push Notification service
+     * (APNs). APNs uses the HTTP/2 protocol so a lot of data relate to APNs is
+     * stored in `http` tracer data. Particularly `http.request.headers` and
+     * `http.response.headers`.
+     */
+    readonly apns?: {
+        /**
+         * The ID we assigned to the APNs HTTP/2 connection.
+         */
+        readonly connectionId?: ApnsConnectionId;
     };
 };
 

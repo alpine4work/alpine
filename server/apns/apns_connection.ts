@@ -13,9 +13,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {convertIdIntoUuid} from "~/shared/id/convert_id_into_uuid.js";
 import {generateId} from "~/shared/id/id.js";
+import {ApnsConnectionId} from "~/shared/id/types/id_types.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 
-const apnsTracerServiceName = "APNs";
+const apnsHostname =
+    process.env.NODE_ENV === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
+
+const apnsPort = "443";
 
 /**
  * How frequently should we ping the HTTP/2 connection to let APNs know our
@@ -82,8 +86,8 @@ const requestTimeoutMs = 10_000;
  * [2]: https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns
  * [3]: https://aws.amazon.com/sns/
  */
-// NOCOMMIT: Connection ID in tracer?
 export class ApnsConnection {
+    private readonly _id: ApnsConnectionId;
     private readonly _processContext: ServerProcessContext;
     private readonly _session: http2.ClientHttp2Session;
 
@@ -104,17 +108,14 @@ export class ApnsConnection {
         assert(!("actor" in processContext) && !("cache" in processContext));
 
         return actionContext.tracer.withSpan("Connecting to APNs", async (actionContext, span) => {
-            span.addData({http: {service: {name: apnsTracerServiceName}}});
+            const id = generateId<ApnsConnectionId>();
 
-            const session = http2.connect(
-                process.env.NODE_ENV === "production"
-                    ? "https://api.push.apple.com:443"
-                    : "https://api.sandbox.push.apple.com:443",
-                {
-                    cert: certificate,
-                    key: certificatePrivateKey,
-                },
-            );
+            span.addData({apns: {connectionId: id}});
+
+            const session = http2.connect(`https://${apnsHostname}:${apnsPort}`, {
+                cert: certificate,
+                key: certificatePrivateKey,
+            });
 
             await new Promise<void>((resolve, reject) => {
                 const handleConnect = () => {
@@ -135,11 +136,16 @@ export class ApnsConnection {
                 session.on("error", handleError);
             });
 
-            return new ApnsConnection(processContext, session);
+            return new ApnsConnection(id, processContext, session);
         });
     }
 
-    private constructor(processContext: ServerProcessContext, session: http2.ClientHttp2Session) {
+    private constructor(
+        id: ApnsConnectionId,
+        processContext: ServerProcessContext,
+        session: http2.ClientHttp2Session,
+    ) {
+        this._id = id;
         this._processContext = processContext;
         this._session = session;
 
@@ -148,7 +154,7 @@ export class ApnsConnection {
                 .getRoot()
                 .startSpan("Sending ping to APNs connection");
 
-            span.addData({http: {service: {name: apnsTracerServiceName}}});
+            span.addData({apns: {connectionId: this._id}});
 
             this._session.ping(error => {
                 if (error) span.addException(error);
@@ -197,7 +203,7 @@ export class ApnsConnection {
             .getRoot()
             .startSpan("Closing APNs connection");
 
-        span.addData({http: {service: {name: apnsTracerServiceName}}});
+        span.addData({apns: {connectionId: this._id}});
 
         // Finish the span after we've finished closing.
         void this._endClosePromiseResolver.promise.finally(finishSpan);
@@ -214,7 +220,7 @@ export class ApnsConnection {
             this._processContext.tracer
                 .getRoot()
                 .logUncaughtException("Already closed APNs connection", error, {
-                    http: {service: {name: apnsTracerServiceName}},
+                    apns: {connectionId: this._id},
                 });
             return;
         }
@@ -230,7 +236,7 @@ export class ApnsConnection {
             .getRoot()
             .startSpan("Closing APNs connection");
 
-        span.addData({http: {service: {name: apnsTracerServiceName}}});
+        span.addData({apns: {connectionId: this._id}});
 
         span.addException(error);
 
@@ -259,7 +265,7 @@ export class ApnsConnection {
                 .getRoot()
                 .startSpan("Closing APNs connection");
 
-            span.addData({http: {service: {name: apnsTracerServiceName}}});
+            span.addData({apns: {connectionId: this._id}});
 
             span.addException(this._closeError);
 
@@ -347,8 +353,13 @@ export class ApnsConnection {
             });
 
             span.addData({
+                net: {sock: {peer: {name: apnsHostname, port: apnsPort}}},
                 http: {
-                    service: {name: apnsTracerServiceName},
+                    service: {name: "APNs"},
+                    // IMPORTANT: Don't include the full URL! `deviceToken`s are sensitive data and
+                    // should not be logged to telemetry. If an attacker got access to a
+                    // `deviceToken` they may be able to send the device arbitrary push
+                    // notifications if they also get access on our APNs private key.
                     route: "/3/device/:deviceToken",
                     method: "POST",
                     request: {

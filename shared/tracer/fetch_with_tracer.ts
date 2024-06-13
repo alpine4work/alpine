@@ -222,6 +222,7 @@ export async function fetchWithTracer<ResponseData>(
                             tracerEventHttpHeaderNames.has(headerName),
                         ),
                     ),
+                    obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(response.headers),
                 },
             },
         });
@@ -253,12 +254,6 @@ export async function fetchWithTracer<ResponseData>(
                     response: {
                         contentLength: responseContentLengthHeaderNumber ?? undefined,
                         uncompressedContentLength: responseUncompressedContentLength,
-                        header: Object.fromEntries(
-                            filterIterable(response.headers, ([headerName]) =>
-                                tracerEventHttpHeaderNames.has(headerName),
-                            ),
-                        ),
-                        obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(response.headers),
                     },
                 },
             });
