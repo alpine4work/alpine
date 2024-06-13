@@ -5817,7 +5817,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const comment2 = await createPostComment(context.action(scenario.session1), {
+            await createPostComment(context.action(scenario.session1), {
                 postId: post.id,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment2"),
@@ -5858,15 +5858,15 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment2.createdTime,
-                        author: await scenario.session1.get(),
+                        createdTime: comment1.createdTime,
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment2"),
+                            doc: createSimpleMessageContent("comment1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session2.get(),
+                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -9068,7 +9068,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            const comment4 = await createPostComment(context.action(scenario.session2), {
+            await createPostComment(context.action(scenario.session2), {
                 postId: post3.id,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment4"),
@@ -9147,19 +9147,24 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        createdTime: comment3.createdTime,
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment4"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount2MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [scenario.session2.account.id, await scenario.session2.get()],
+                                ]),
+                            },
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: null,
                 }),
             ]);
 
-            const comment5 = await createPostComment(context.action(scenario.session2), {
+            await createPostComment(context.action(scenario.session2), {
                 postId: post2.id,
                 parentCommentIndex: null,
                 content: createSimpleMessageContent("comment5"),
@@ -9186,15 +9191,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment5.createdTime,
-                        author: await scenario.session2.get(),
+                        createdTime: comment2.createdTime,
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment5"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount2MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [scenario.session2.account.id, await scenario.session2.get()],
+                                ]),
+                            },
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: null,
                 }),
                 new InboxPostCommentsEntryModel({
                     isArchived: true,
@@ -9233,15 +9243,20 @@ for (const [currentProcessingType, processingMultiple] of [
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
                     latestComment: {
-                        createdTime: comment4.createdTime,
-                        author: await scenario.session2.get(),
+                        createdTime: comment3.createdTime,
+                        author: await scenario.session1.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("comment4"),
-                            references: emptyContentReferences,
+                            doc: scenario.mentionAccount2MessageContent,
+                            references: {
+                                ...emptyContentReferences,
+                                accountById: new Map([
+                                    [scenario.session2.account.id, await scenario.session2.get()],
+                                ]),
+                            },
                         }),
                         isStickyMention: false,
                     },
-                    otherCommentAuthor: await scenario.session1.get(),
+                    otherCommentAuthor: null,
                 }),
             ]);
         });
@@ -10124,28 +10139,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     channel,
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
-                    postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
-                        doc: assertPostContent(
-                            PostContentProsemirrorSchema.node("doc", {}, [
-                                PostContentProsemirrorSchema.node("paragraph", {}, [
-                                    PostContentProsemirrorSchema.text("Hello "),
-                                    PostContentProsemirrorSchema.node("mention", {
-                                        mention: {
-                                            accountId: scenario.session2.account.id,
-                                            isShort: false,
-                                        },
-                                    }),
-                                    PostContentProsemirrorSchema.text("!"),
-                                ]),
-                            ]),
-                        ),
-                        references: {
-                            ...emptyContentReferences,
-                            accountById: new Map([
-                                [scenario.session2.account.id, await scenario.session2.get()],
-                            ]),
-                        },
-                    }),
+                    postContentTextSnippetIfMentioned: null,
                     latestComment: {
                         createdTime: comment.createdTime,
                         author: await scenario.session3.get(),

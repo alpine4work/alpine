@@ -58,7 +58,7 @@ testTaskActionPermutations({
                     action.accountName,
                     {
                         nameVersionForTest: action.accountNameVersion,
-                        getOurAccountSpaces: getOurAccountSpaceIds,
+                        getOurAccountSpaceIds,
                         getTaskTransactionEntries: () => [],
                     },
                 );

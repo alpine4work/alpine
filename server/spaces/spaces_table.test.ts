@@ -1849,7 +1849,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     );
 
     await internalUpdateOurAccountNameWithoutUpdatingTasks(session2.action(), "Shawn Tyson", {
-        getOurAccountSpaces: getOurAccountSpaceIds,
+        getOurAccountSpaceIds,
         getTaskTransactionEntries: () => [],
     });
 
@@ -1919,7 +1919,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     );
 
     await internalUpdateOurAccountNameWithoutUpdatingTasks(session2.action(), "Shawn Meredith", {
-        getOurAccountSpaces: getOurAccountSpaceIds,
+        getOurAccountSpaceIds,
         getTaskTransactionEntries: () => [],
     });
 

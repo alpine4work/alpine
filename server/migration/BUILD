@@ -11,6 +11,7 @@ ts_project(
         "//server/forum/data",
         "//server/helpers",
         "//server/node",
+        "//server/notifications/data",
         "//server/spaces",
         "//server/tasks/data",
         "//shared/context",

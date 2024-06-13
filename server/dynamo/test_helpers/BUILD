@@ -17,6 +17,7 @@ ts_project(
         "//admin/opensearch/local",
         "//admin/sqs/local",
         "//server/accounts",
+        "//server/apns",
         "//server/context",
         "//server/dynamo/core",
         "//server/notifications/core",

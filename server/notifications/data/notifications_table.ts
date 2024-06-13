@@ -1,7 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {getRegisteredAccountDevices} from "~/server/accounts/accounts_table.js";
-import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
@@ -1587,7 +1587,7 @@ export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoin
 export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 
 type ProcessNotificationEventSystemActionContext = Context<
-    ServerSystemActionContextModules & {apns: ApnsContextModule}
+    ServerSystemActionContextModules & {apns: ApnsContextModuleBase}
 >;
 
 /**

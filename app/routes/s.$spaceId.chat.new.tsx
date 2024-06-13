@@ -132,19 +132,13 @@ export default function NewChatRoute({
     // Having state here allows us to optimistically update selected accounts. Then
     // when we get a new result back from Remix (due to route transition), that
     // always wins.
-    //
-    // TODO(calebmer, #global-loading-indicator): We should show some global
-    // loading indicator while waiting on `loaderData` to update with the chat for
-    // the new selected accounts.
     const [selectedAccounts, setSelectedAccounts] = useStateWithDependencies(
         selectedAccounts => selectedAccounts,
         [loaderData.selectedAccounts],
     );
 
     useEffect(() => {
-        // Use `window.location.search` since we may have silently updated search params
-        // in a way Remix state doesn't know about.
-        const newSearchParams = new URLSearchParams(window.location.search);
+        const newSearchParams = new URLSearchParams(searchParams);
         if (selectedAccounts.length === 0) {
             newSearchParams.delete("accounts");
         } else {
@@ -254,7 +248,15 @@ export default function NewChatRoute({
                         title="New message"
                     />
                 )}
-                <Box width="full" maxWidth="160" style={{margin: "0 auto"}}>
+                <Box
+                    width="full"
+                    maxWidth="160"
+                    style={{margin: "0 auto"}}
+                    // For Playwright so we can tell when we're done loading a chat.
+                    data-testid={
+                        isAccountPickerPending ? "ChatAccountPickerContainer:Pending" : undefined
+                    }
+                >
                     <ChatAccountPicker
                         selectedAccounts={selectedAccounts}
                         onUpdateSelectedAccounts={setSelectedAccounts}

@@ -3681,6 +3681,63 @@ export const dynamoGeneratedSchemaDescription: {
         "Inbox": {
             "name": "Inbox",
             "partitionByType": {
+                "Account": {
+                    "id": 2,
+                    "partitionKeyAttributeByKey": {
+                        "accountId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "InboxAttributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "entryCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "lastZeroEntryCountTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
                 "Inbox": {
                     "id": 0,
                     "partitionKeyAttributeByKey": {

@@ -116,6 +116,12 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
             return () => {};
         },
     },
+    notifications: {
+        takeAppleDeviceTokens: async () => [],
+        subscribeToAppleDeviceTokensUpdate: () => {
+            return () => {};
+        },
+    },
 };
 
 (window as any).__NativeMobileBridge = NativeMobileBridgeForTest;

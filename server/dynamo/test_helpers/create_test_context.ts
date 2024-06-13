@@ -14,6 +14,7 @@ import {
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
+import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
@@ -114,7 +115,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     /**
      * Escalate one of our existing test contexts to a system context.
      */
-    escalateToSystemContext<Value>(
+    readonly escalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
@@ -122,7 +123,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
         }>,
         spaceId: SpaceId,
         action: (context: ServerSystemActionContext) => Promise<Value>,
-    ): Promise<Value>;
+    ) => Promise<Value>;
 
     /**
      * `Context.clone()` but preserves `TestContext`'s helper functions like
@@ -163,7 +164,7 @@ export function createTestContext({
     | {
           shouldSendJobsToSqs?: false;
           processJob?: (
-              context: ServerSystemActionContext,
+              context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
               job: JobDescription,
               jobStartTime: Date,
               span: TracerSpan,

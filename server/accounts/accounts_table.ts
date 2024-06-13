@@ -3,10 +3,6 @@ import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerActionContext,
-    ServerSessionActionContext,
-} from "~/server/context/server_action_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -1213,7 +1209,7 @@ export async function internalUpdateOurAccountNameWithoutUpdatingTasks<
  * its `AccountId` (since the user signed out then back in) it may do so.
  */
 export async function registerOurAccountAppleDeviceToken(
-    context: ServerSessionActionContext,
+    context: Context<DynamoContextModules & {actor: DynamoSessionActorContextModule}>,
     deviceToken: Uint8Array,
 ): Promise<void> {
     // This method is called every time our iOS app is opened in case the device
@@ -1237,7 +1233,7 @@ export type AccountDevice = {
  * notifications to the account's devices as the system actor.
  */
 export async function getRegisteredAccountDevices(
-    context: ServerActionContext,
+    context: Context<DynamoContextModules & {actor: DynamoActorContextModule}>,
     accountId: AccountId,
 ): Promise<ReadonlyArray<AccountDevice>> {
     // NOCOMMIT: Test!!!

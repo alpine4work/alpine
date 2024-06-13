@@ -1,4 +1,3 @@
-import GraphemeSplitter from "grapheme-splitter";
 import {ReactNode} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";

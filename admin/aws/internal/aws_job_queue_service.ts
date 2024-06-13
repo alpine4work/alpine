@@ -146,6 +146,11 @@ export class AwsJobQueueService extends Construct {
                 ),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
                 COHERE_API_KEY: EcsSecret.fromSecretsManager(secrets, "cohereApiKey"),
+                APNS_CERTIFICATE: EcsSecret.fromSecretsManager(secrets, "apnsCertificate"),
+                APNS_CERTIFICATE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "apnsCertificatePrivateKey",
+                ),
             },
             environment: {
                 NODE_ENV: "production",
@@ -172,6 +177,8 @@ export class AwsJobQueueService extends Construct {
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY",
+                    "--apnsCertificate=\\$APNS_CERTIFICATE",
+                    "--apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY",
                 ].join(" ")}`,
             ],
             healthCheck: {

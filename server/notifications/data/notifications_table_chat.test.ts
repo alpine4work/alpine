@@ -4628,7 +4628,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            const message2 = await sendChatMessage(context.action(scenario.session1), {
+            await sendChatMessage(context.action(scenario.session1), {
                 chatId,
                 parentMessageIndex: null,
                 content: createSimpleMessageContent("message2"),
@@ -4666,15 +4666,15 @@ for (const [currentProcessingType, processingMultiple] of [
                     chatAccountCount: 2,
                     loudNotificationCount: 0,
                     latestMessage: {
-                        createdTime: message2.createdTime,
-                        author: await scenario.session1.get(),
+                        createdTime: message1.createdTime,
+                        author: await scenario.session2.get(),
                         contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("message2"),
+                            doc: createSimpleMessageContent("message1"),
                             references: emptyContentReferences,
                         }),
                         isStickyMention: false,
                     },
-                    otherChatAccount: await scenario.session2.get(),
+                    otherChatAccount: null,
                 }),
             ]);
         });

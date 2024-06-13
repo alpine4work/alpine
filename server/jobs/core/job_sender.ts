@@ -1,5 +1,4 @@
 import {SQSClient, SendMessageBatchCommand} from "@aws-sdk/client-sqs";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {JobDescription, JobDescriptionSchema} from "~/server/jobs/core/job_description.js";
 import {MaintenanceJobDescriptionSchema} from "~/server/jobs/core/maintenance_job_description.js";
 import {Context} from "~/shared/context/context.js";
@@ -21,10 +20,10 @@ const maxSendMessageBatchCount = 10;
 // `maxBatchOpenMs`).
 //
 // We're shorter since for jobs like notification event processing we want to
-//feel like the notification is being delivered immediately.
+// feel like the notification is being delivered immediately.
 //
 // https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-client-side-buffering-request-batching.html
-const sendMessageBatchTimeoutMs = perceivedAsInstantLimitMs;
+const sendMessageBatchTimeoutMs = 100;
 
 export type JobQueueMessageBody = SchemaType<typeof JobQueueMessageBodySchema>;
 

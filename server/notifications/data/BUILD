@@ -13,6 +13,7 @@ ts_project(
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
         "//server/jobs/queue:__pkg__",
+        "//server/migration:__pkg__",
         "//server/rpc:__pkg__",
     ],
     deps = [
