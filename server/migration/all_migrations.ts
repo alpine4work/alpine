@@ -5,6 +5,7 @@ import {
     runIndexEverySearchEntityMigration,
     runIndexTaskAndTaskCollectionSearchEntitiesMigration,
 } from "~/server/migration/migrations/index_every_search_entity_migration.js";
+import {runMoveInboxAttributesItemMigration} from "~/server/notifications/data/notifications_table.js";
 import {Context} from "~/shared/context/context.js";
 
 export const allMigrations: {
@@ -16,4 +17,5 @@ export const allMigrations: {
     IndexEverySearchEntity: runIndexEverySearchEntityMigration,
     IndexTaskAndTaskCollectionSearchEntities: runIndexTaskAndTaskCollectionSearchEntitiesMigration,
     MoveForumChannelsAndPostsMigration: runMoveForumChannelsAndPostsMigration,
+    MoveInboxAttributesItem: runMoveInboxAttributesItemMigration,
 };

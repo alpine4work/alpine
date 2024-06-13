@@ -957,10 +957,35 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Transaction entry for deleting an item in the database. Same semantics as
+     * `deleteItem()` but can be part of a transaction that atomically
+     * succeeds or fails.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     *
+     * This method is dangerous for realtime tables because we don't currently
+     * support the delete operation! To delete from a general realtime table we'd
+     * need to leave a gravestone so that a future update for an item of the same
+     * key would have a version number greater than the deleted item's. If you want
+     * to delete an item from the table anyway while breaking this table's realtime
+     * guarantees you may use this method.
+     */
+    public transactionDangerouslyDeleteItemWithoutEventAndBreakFutureUpdates<
+        Item extends Types["Item"],
+    >(item: Item): DynamoTransactionEntry {
+        assert(
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.transactionDeleteItem(item);
+    }
+
+    /**
      * Get an item from the database and if it doesn't exist then return null.
      */
     public getItemIfExists<Key extends Types["ItemKey"]>(
-        context: ServerActionContext,
+        context: DynamoContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {

@@ -16,8 +16,10 @@ import {
     getDocumentCommentThreadNotificationSubscribers,
     getDocumentPreview,
 } from "~/server/documents/data/documents_table.js";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
@@ -118,6 +120,63 @@ const initialInboxGeneration = 0;
 const InboxTable = DynamoGeneralRealtimeTableSchema.new({
     name: "Inbox",
     partitions: [
+        {
+            name: "Account",
+            partitionKeyAttributes: {
+                accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+            },
+            sortRanges: [
+                {
+                    name: "InboxAttributes",
+                    sortKeyAttributes: {
+                        spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+                    },
+                    attributes: Schema.object({
+                        /**
+                         * The current inbox generation. This is incremented whenever the inbox is
+                         * observed so new entries are always placed above old entries (including
+                         * old entries with loud notifications).
+                         *
+                         * This should only ever increase! Never decrease.
+                         */
+                        generation: Schema.integer.min(initialInboxGeneration),
+
+                        /**
+                         * The number of loud notifications in this inbox. This should be a simple sum
+                         * of `loudNotificationCount` in each individual inbox entry.
+                         *
+                         * This is the number we display next to the user's notification bell in the
+                         * product and as the notification badge on native apps.
+                         *
+                         * `loudNotificationCount` on individual entries will also be displayed on that
+                         * entry so you know where the loud notifications are coming from.
+                         *
+                         * Individual entries should have `loudNotificationCount` set to zero when they
+                         * are archived! Archived entries do not contribute to the overall notification
+                         * indicators.
+                         */
+                        loudNotificationCount: Schema.integer.min(0),
+
+                        /**
+                         * The number of entries in our inbox. Does not count archived entries
+                         * (entries with `isArchived: true`).
+                         */
+                        entryCount: Schema.integer.min(0).default(0),
+
+                        /**
+                         * When `entryCount` is set to 0 from a non-zero value, we set this to the
+                         * current time. We use this to tell:
+                         *
+                         * - If the inbox has never had notifications in it this will be `null`
+                         * - If the inbox was recently cleared, we don't want to show a notification
+                         *   indicator for a while to give the user some peace
+                         */
+                        lastZeroEntryCountTime: Schema.date.nullable().default(null),
+                    }),
+                },
+            ],
+        },
+
         /**
          * Users receive a lot of notifications from our product. Mentions in document
          * comment threads, new posts in channels, chat messages, and more. These
@@ -222,52 +281,22 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 accountId: DynamoKeyAttributeSchema.id<AccountId>(),
             },
             sortRanges: [
+                // TODO(calebmer, 2024-06-13): We've moved the inbox attributes item from this
+                // partition into an `Account` partition so we can query all inboxes for an
+                // account at once. This item definition still exists to maintain backwards
+                // compatibility but shouldn't be used. Once we fully migrate all inbox items
+                // we can remove this.
                 {
                     name: "Attributes",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
-                        /**
-                         * The current inbox generation. This is incremented whenever the inbox is
-                         * observed so new entries are always placed above old entries (including
-                         * old entries with loud notifications).
-                         *
-                         * This should only ever increase! Never decrease.
-                         */
                         generation: Schema.integer.min(initialInboxGeneration),
-
-                        /**
-                         * The number of loud notifications in this inbox. This should be a simple sum
-                         * of `loudNotificationCount` in each individual inbox entry.
-                         *
-                         * This is the number we display next to the user's notification bell in the
-                         * product and as the notification badge on native apps.
-                         *
-                         * `loudNotificationCount` on individual entries will also be displayed on that
-                         * entry so you know where the loud notifications are coming from.
-                         *
-                         * Individual entries should have `loudNotificationCount` set to zero when they
-                         * are archived! Archived entries do not contribute to the overall notification
-                         * indicators.
-                         */
                         loudNotificationCount: Schema.integer.min(0),
-
-                        /**
-                         * The number of entries in our inbox. Does not count archived entries
-                         * (entries with `isArchived: true`).
-                         */
                         entryCount: Schema.integer.min(0).default(0),
-
-                        /**
-                         * When `entryCount` is set to 0 from a non-zero value, we set this to the
-                         * current time. We use this to tell:
-                         *
-                         * - If the inbox has never had notifications in it this will be `null`
-                         * - If the inbox was recently cleared, we don't want to show a notification
-                         *   indicator for a while to give the user some peace
-                         */
                         lastZeroEntryCountTime: Schema.date.nullable().default(null),
                     }),
                 },
+
                 {
                     name: "ChatEntry",
                     sortKeyAttributes: {
@@ -542,6 +571,19 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
     ],
     modelSchema: InboxItemModelSchema,
     models: {
+        Account: {
+            InboxAttributes: {
+                async build(context, item) {
+                    return new InboxModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
+                        loudNotificationCount: item.loudNotificationCount,
+                        entryCount: item.entryCount,
+                        lastZeroEntryCountTime: item.lastZeroEntryCountTime,
+                    });
+                },
+            },
+        },
         Inbox: {
             Attributes: {
                 async build(context, item) {
@@ -855,6 +897,13 @@ type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTabl
 
 type InboxAttributesItem = MergeObjectIntersection<
     InboxTableTypes["Item"] & {
+        readonly partitionType: "Account";
+        readonly sortRangeType: "InboxAttributes";
+    }
+>;
+
+type LegacyInboxAttributesItem = MergeObjectIntersection<
+    InboxTableTypes["Item"] & {
         readonly partitionType: "Inbox";
         readonly sortRangeType: "Attributes";
     }
@@ -867,6 +916,86 @@ type InboxEntryItem = MergeObjectIntersection<
 type InboxEntryItemKey = MergeObjectIntersection<
     InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
 >;
+
+export async function runMoveInboxAttributesItemMigration(
+    context: DynamoContext,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+) {
+    for await (const item of InboxTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: [{partitionType: "Inbox", sortRangeType: "Attributes"}],
+    })) {
+        if (item.partitionType !== "Inbox" || item.sortRangeType !== "Attributes") break;
+
+        await actuallyMigrateLegacyInboxAttributesItem(context, item);
+    }
+}
+
+// TODO(calebmer, 2024-06-13): We're moving the inbox attributes item from the
+// `Inbox` partition to the `Account` partition so we can query an account's
+// inbox items all at once. As a part of this migration, before you access the
+// `InboxAttributes` item you MUST call this function. It moves the legacy
+// inbox attributes item to its new location.
+//
+// NOCOMMIT: Remove this! Finish migration!
+async function migrateLegacyInboxAttributesItem(
+    context: DynamoContext,
+    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+) {
+    const legacyItem = await InboxTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Inbox",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId,
+        },
+        {consistency: "Strong"},
+    );
+    if (!legacyItem) return;
+
+    await actuallyMigrateLegacyInboxAttributesItem(context, legacyItem);
+}
+
+async function actuallyMigrateLegacyInboxAttributesItem(
+    context: DynamoContext,
+    initialLegacyItem: LegacyInboxAttributesItem,
+) {
+    let hasAlreadyAttempted = false;
+
+    await context.dynamo.retryTransaction(async context => {
+        const isInitialAttempt = !hasAlreadyAttempted;
+        hasAlreadyAttempted = true;
+
+        const legacyItem = isInitialAttempt
+            ? initialLegacyItem
+            : await InboxTable.getItemIfExists(
+                  context,
+                  {
+                      partitionType: "Inbox",
+                      sortRangeType: "Attributes",
+                      spaceId: initialLegacyItem.spaceId,
+                      accountId: initialLegacyItem.accountId,
+                  },
+                  {consistency: "Strong"},
+              );
+        if (!legacyItem) return;
+
+        await DynamoTableSchema.executeTransaction(context, [
+            InboxTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
+                {
+                    ...legacyItem,
+                    partitionType: "Account",
+                    sortRangeType: "InboxAttributes",
+                },
+            ),
+            InboxTable.transactionDangerouslyDeleteItemWithoutEventAndBreakFutureUpdates(
+                legacyItem,
+            ),
+        ]);
+    });
+}
 
 /**
  * First, see the documentation on the `Inbox` partition of `NotificationsTable`
@@ -980,8 +1109,8 @@ const unarchivedInboxEntryGenerationIncrement = 1;
 
 function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttributesItem {
     return {
-        partitionType: "Inbox",
-        sortRangeType: "Attributes",
+        partitionType: "Account",
+        sortRangeType: "InboxAttributes",
         spaceId,
         accountId,
         generation: initialInboxGeneration,
@@ -1000,12 +1129,17 @@ export async function getInbox(
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
+    await migrateLegacyInboxAttributesItem(context, {
+        spaceId,
+        accountId: context.actor.getAccountId(),
+    });
+
     return context.dynamo.retryTransaction(async context => {
         const inbox = await InboxTable.getRealtimeItemIfExists(
             context,
             {
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
                 spaceId,
                 accountId: context.actor.getAccountId(),
             },
@@ -1079,9 +1213,14 @@ export async function getInboxEntries(
             ? !result.pageInfo.hasNextPage
             : !result.pageInfo.hasPreviousPage)
     ) {
+        await migrateLegacyInboxAttributesItem(context, {
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        });
+
         const inboxItem = await InboxTable.getItemIfExists(context, {
-            partitionType: "Inbox",
-            sortRangeType: "Attributes",
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
             spaceId,
             accountId: context.actor.getAccountId(),
         });
@@ -1171,11 +1310,16 @@ export async function observeInbox(
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
 
+    await migrateLegacyInboxAttributesItem(context, {
+        spaceId,
+        accountId: context.actor.getAccountId(),
+    });
+
     await InboxTable.updateItem(
         context,
         {
-            partitionType: "Inbox",
-            sortRangeType: "Attributes",
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
             spaceId,
             accountId: context.actor.getAccountId(),
         },
@@ -1304,11 +1448,13 @@ async function archiveInboxEntryItemKey(
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
 
+    await migrateLegacyInboxAttributesItem(context, itemKey);
+
     return context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
             InboxTable.getItemIfExists(context, {
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
                 spaceId: itemKey.spaceId,
                 accountId: itemKey.accountId,
             }),
@@ -1395,11 +1541,13 @@ async function unarchiveInboxEntryItemKey(
 ): Promise<void> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
 
+    await migrateLegacyInboxAttributesItem(context, itemKey);
+
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
             InboxTable.getItemIfExists(context, {
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
                 spaceId: itemKey.spaceId,
                 accountId: itemKey.accountId,
             }),
@@ -1788,7 +1936,7 @@ type UpdateInboxEntryResult = {
  * `clientRequestToken` but as an optimization we try to avoid transactions
  * when possible which means we need `update` to be idempotent.
  */
-function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
+async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     context: ServerSystemActionContext,
     event: NotificationEvent,
     accountId: AccountId,
@@ -1805,6 +1953,8 @@ function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 ): Promise<UpdateInboxEntryResult | null> {
     let hasAttempted = false;
 
+    await migrateLegacyInboxAttributesItem(context, itemKey);
+
     return context.dynamo.retryTransaction(run);
 
     async function run(context: ServerSystemActionContext): Promise<UpdateInboxEntryResult | null> {
@@ -1815,8 +1965,8 @@ function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             isInitialAttempt && initialInboxItemIfExists !== undefined
                 ? initialInboxItemIfExists
                 : InboxTable.getItemIfExists(context, {
-                      partitionType: "Inbox",
-                      sortRangeType: "Attributes",
+                      partitionType: "Account",
+                      sortRangeType: "InboxAttributes",
                       spaceId: itemKey.spaceId,
                       accountId: itemKey.accountId,
                   }),
@@ -1996,8 +2146,8 @@ function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     [
                         InboxTable.transactionDirectlyUpdateItem({
                             ...inboxItem,
-                            partitionType: "Inbox",
-                            sortRangeType: "Attributes",
+                            partitionType: "Account",
+                            sortRangeType: "InboxAttributes",
                             spaceId: itemKey.spaceId,
                             accountId: itemKey.accountId,
                             generation: inboxGeneration,
@@ -2493,9 +2643,14 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             );
         }
 
+        await migrateLegacyInboxAttributesItem(context, {
+            spaceId: event.spaceId,
+            accountId,
+        });
+
         const inboxItem = await InboxTable.getItemIfExists(context, {
-            partitionType: "Inbox",
-            sortRangeType: "Attributes",
+            partitionType: "Account",
+            sortRangeType: "InboxAttributes",
             spaceId: event.spaceId,
             accountId,
         });
@@ -2585,9 +2740,14 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             // the comment.
             if (event.authorId === accountId) return null;
 
+            await migrateLegacyInboxAttributesItem(context, {
+                spaceId: event.spaceId,
+                accountId,
+            });
+
             const inboxItem = await InboxTable.getItemIfExists(context, {
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
                 spaceId: event.spaceId,
                 accountId,
             });
@@ -2844,12 +3004,17 @@ export async function getInboxChannelPostsEntryPosts(
     await authorizeSpaceAccess(context, spaceId);
 
     if (afterPostId === null) {
+        await migrateLegacyInboxAttributesItem(context, {
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        });
+
         // If an inbox entry exists then the inbox attributes item should also exist.
         const inboxItem = await InboxTable.getItem(
             context,
             {
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
                 spaceId,
                 accountId: context.actor.getAccountId(),
             },
@@ -2866,8 +3031,8 @@ export async function getInboxChannelPostsEntryPosts(
             await InboxTable.updateItem(
                 context,
                 {
-                    partitionType: "Inbox",
-                    sortRangeType: "Attributes",
+                    partitionType: "Account",
+                    sortRangeType: "InboxAttributes",
                     spaceId,
                     accountId: context.actor.getAccountId(),
                 },
@@ -3026,12 +3191,17 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
     const commentThreadIdsPromise = (async () => {
         await authorizeSpaceAccess(context, spaceId);
 
+        await migrateLegacyInboxAttributesItem(context, {
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        });
+
         // If an inbox entry exists then the inbox attributes item should also exist.
         const inboxItem = await InboxTable.getItem(
             context,
             {
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
+                partitionType: "Account",
+                sortRangeType: "InboxAttributes",
                 spaceId,
                 accountId: context.actor.getAccountId(),
             },
@@ -3048,8 +3218,8 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
             await InboxTable.updateItem(
                 context,
                 {
-                    partitionType: "Inbox",
-                    sortRangeType: "Attributes",
+                    partitionType: "Account",
+                    sortRangeType: "InboxAttributes",
                     spaceId,
                     accountId: context.actor.getAccountId(),
                 },
