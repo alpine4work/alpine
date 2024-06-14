@@ -74,8 +74,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
@@ -1117,6 +1119,40 @@ export async function getInbox(
         );
         return getRealtimeItem();
     });
+}
+
+/**
+ * Get all of the session actor's inboxes for all the spaces they're in.
+ * Inboxes are stored in the same DynamoDB partition so it's one DynamoDB query
+ * to load them all.
+ */
+export async function getOurAccountInboxes(
+    context: ServerSessionActionContext,
+): Promise<ReadonlyArray<DynamoGeneralRealtimeItem<InboxModel>>> {
+    const inboxes = await parallelMapAsyncIterableToArray(
+        InboxTable.query(context, {
+            partitionKey: {partitionType: "Account", accountId: context.actor.getAccountId()},
+            startSortKey: {
+                sortRangeType: "InboxAttributes",
+                spaceId: DynamoKeyAttributeSchema.id.getMinValue<SpaceId>(),
+            },
+            endSortKey: {
+                sortRangeType: "InboxAttributes",
+                spaceId: DynamoKeyAttributeSchema.id.getMaxValue<SpaceId>(),
+            },
+            limit: "All",
+        }),
+        async item => {
+            // Confirm the account is still a member of this space. If an account is
+            // removed from a space we don't clean up their inbox item in case they're
+            // re-added.
+            if (!(await isAccountMemberOfSpace(context, item.spaceId, item.accountId))) return null;
+
+            return InboxTable.buildRealtimeItem(context, item);
+        },
+    );
+
+    return inboxes.filter(isNonNullable);
 }
 
 /**

@@ -54,7 +54,7 @@ export const getOurAccountSpaces = defineRpc({
         spaces: Schema.array(
             Schema.object({
                 space: SpaceModel.schema(),
-                inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+                inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()).nullable(),
             }),
         ),
     },

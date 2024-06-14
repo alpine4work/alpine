@@ -1126,6 +1126,46 @@ export class DynamoGeneralRealtimeTableSchema<
 
     /**
      * Query a range of items from the table. Highly efficient as DynamoDB
+     * collocates related data. Does not return information to keep the query
+     * up-to-date in realtime. For realtime support use `realtimeQuery()`.
+     */
+    public query<
+        const PartitionKey extends Types["PartitionKey"],
+        const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+    >(
+        context: DynamoContext,
+        options: {
+            partitionKey: PartitionKey;
+            startSortKey?: StartSortKey | undefined;
+            endSortKey?: EndSortKey | undefined;
+            isStartSortKeyExclusive?: boolean;
+            isEndSortKeyExclusive?: boolean;
+            // Required to specify a limit or the `All` string. So if you intentionally
+            // want everything you have to say so.
+            limit: number | "All";
+            pageLimit?: number;
+            descending?: boolean;
+            consistency?: DynamoReadConsistency;
+        },
+    ): AsyncIterableIterator<
+        MergeObjectIntersection<
+            Types["Item"] &
+                PartitionKey & {
+                    readonly sortRangeType: Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]];
+                }
+        >
+    > {
+        assert(
+            options.partitionKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.query(context, options);
+    }
+
+    /**
+     * Query a range of items from the table. Highly efficient as DynamoDB
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.
      */

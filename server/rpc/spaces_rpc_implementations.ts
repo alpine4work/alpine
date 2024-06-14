@@ -1,5 +1,5 @@
 import {createAlphaSpaceAsAdmin} from "~/server/forum/data/forum_table.js";
-import {getInbox} from "~/server/notifications/data/notifications_table.js";
+import {getOurAccountInboxes} from "~/server/notifications/data/notifications_table.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/table/search_entity_table.js";
 import {
@@ -77,16 +77,20 @@ implementRpc(
     async (unauthenticatedContext, input) => {
         const context = unauthenticatedContext.actor.authorizeSession();
 
-        const {spaceIds} = await getOurAccountSpaceIds(context);
-
-        const spaces = await runAllPromises(
-            Array.from(spaceIds, async spaceId =>
-                runAllPromises([getSpace(context, spaceId), getInbox(context, {spaceId})]).then(
-                    ([space, inbox]) => ({space, inbox}),
-                ),
+        const [spaces, inboxes] = await runAllPromises([
+            getOurAccountSpaceIds(context).then(({spaceIds}) =>
+                runAllPromises(Array.from(spaceIds, spaceId => getSpace(context, spaceId))),
             ),
-        );
+            getOurAccountInboxes(context),
+        ]);
 
-        return {spaces};
+        const inboxBySpaceId = new Map(inboxes.map(inbox => [inbox.model.spaceId, inbox]));
+
+        return {
+            spaces: spaces.map(space => {
+                const inbox = inboxBySpaceId.get(space.id) ?? null;
+                return {space, inbox};
+            }),
+        };
     },
 );

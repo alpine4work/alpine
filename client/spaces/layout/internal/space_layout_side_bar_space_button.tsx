@@ -59,7 +59,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                                         paddingY="0.5"
                                     >
                                         <SpaceAvatar space={otherSpace} size="8" />
-                                        {inbox.model.loudNotificationCount > 0 && (
+                                        {inbox && inbox.model.loudNotificationCount > 0 && (
                                             <LoudNotificationBadge
                                                 top="-0.0625rem"
                                                 right="0.125rem"

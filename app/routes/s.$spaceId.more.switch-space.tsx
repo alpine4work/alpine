@@ -22,7 +22,7 @@ const LoaderSchema = Schema.object({
     otherSpaces: Schema.array(
         Schema.object({
             space: SpaceModel.schema(),
-            inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
+            inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()).nullable(),
         }),
     ),
 });
@@ -70,7 +70,7 @@ export default function MoreSwitchSpaceRoute() {
                                 paddingY="2"
                             >
                                 <SpaceAvatar space={otherSpace} size="8" />
-                                {inbox.model.loudNotificationCount > 0 && (
+                                {inbox && inbox.model.loudNotificationCount > 0 && (
                                     <LoudNotificationBadge
                                         top="0.3125rem"
                                         right="0.125rem"
