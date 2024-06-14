@@ -1257,11 +1257,11 @@ class WebSocketServerConnectionWrapper<
         this.dangerouslySendRawMessageEvenWhenSoftClosed(
             context,
             message.type === "ProcedureResponse"
-                ? `ProcedureResponse:${
+                ? `ProcedureResponse (${
                       message.result.ok ? message.result.output.type : message.result.outputType
-                  }`
+                  })`
                 : message.type === "Event"
-                ? `Event:${message.event.type}`
+                ? `Event (${message.event.type})`
                 : message.type,
             JSON.stringify(serializedMessage),
         );

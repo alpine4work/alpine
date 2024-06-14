@@ -435,11 +435,11 @@ export class JobQueueConsumer {
             // name to help identify the span.
             switch (messageBody.job.type) {
                 case "NotificationEvent": {
-                    handleSpanName += ` ${messageBody.job.event.type}`;
+                    handleSpanName += ` (${messageBody.job.event.type})`;
                     break;
                 }
                 case "IndexSearchEntity": {
-                    handleSpanName += ` ${messageBody.job.update.type}`;
+                    handleSpanName += ` (${messageBody.job.update.type})`;
                     break;
                 }
             }
