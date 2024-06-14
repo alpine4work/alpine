@@ -497,7 +497,7 @@ export type TracerEventData = {
                       readonly writeCapacityUnits?: number;
                   }
                 // TypeScript needs this to consider `readCapacityUnits` and
-                // `writeCapacityUnits` when indexing.
+                // `writeCapacityUnits` so the type when accessing an index prop is correct.
                 | number
                 | undefined;
 
@@ -506,6 +506,35 @@ export type TracerEventData = {
 
             /** The total number of write capacity units consumed by this operation. */
             readonly totalWriteCapacityUnits?: number;
+        };
+
+        /**
+         * Information about the items DynamoDB is accessing with this action. DynamoDB
+         * could be accessing many different item types from many different tables.
+         */
+        readonly table?: {
+            readonly [tableName: string]: {
+                /**
+                 * What partition type in the provided table are we accessing? If we're
+                 * accessing multiple partition types they'll be combined together with
+                 * a `+`.
+                 */
+                readonly partitionType?: string;
+
+                /**
+                 * Information about the partitions in our table DynamoDB is accessing.
+                 */
+                readonly partition?: {
+                    readonly [partitionType: string]: {
+                        /**
+                         * What sort range type in the provided table's partition are we accessing? If
+                         * we're accessing multiple sort range types they'll be combined together with
+                         * a `+`.
+                         */
+                        readonly sortRangeType: string;
+                    };
+                };
+            };
         };
 
         /**

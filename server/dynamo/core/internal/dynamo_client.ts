@@ -9,7 +9,11 @@ import {
     intoDynamoAttributeValue,
     intoDynamoAttributeValueObject,
 } from "~/server/dynamo/core/internal/dynamo_attribute_value.js";
-import {DynamoClientInternal} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
+import {
+    DynamoClientDebugItemType,
+    DynamoClientDebugItemTypes,
+    DynamoClientInternal,
+} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -94,34 +98,47 @@ export class DynamoClient {
             consistency = "Eventual",
             projectionExpression,
             expressionAttributeNames,
+            debugItemType,
         }: {
             tableName: string;
             key: SchemaSerializedObjectValue;
             consistency?: DynamoReadConsistency;
             projectionExpression?: string;
             expressionAttributeNames?: ReadonlyMap<string, string>;
+            debugItemType: DynamoClientDebugItemType;
         },
     ): Promise<SchemaSerializedObjectValue | null> {
         if (batchContext !== null) {
             const batcher = this._getItemBatcherByConsistency[consistency];
-            return batcher.getItem(tracer, batchContext, tableName, key, {
-                projectionExpression,
-                expressionAttributeNames,
-            });
+            return batcher.getItem(
+                tracer,
+                batchContext,
+                tableName,
+                key,
+                {
+                    projectionExpression,
+                    expressionAttributeNames,
+                },
+                debugItemType,
+            );
         }
 
-        const output = await this._client.GetItem(tracer, {
-            TableName: tableName,
-            Key: intoDynamoAttributeValueObject(key),
-            ConsistentRead: consistency === "Strong",
-            ProjectionExpression: projectionExpression,
-            ExpressionAttributeNames:
-                projectionExpression &&
-                expressionAttributeNames &&
-                expressionAttributeNames.size > 0
-                    ? Object.fromEntries(expressionAttributeNames)
-                    : undefined,
-        });
+        const output = await this._client.GetItem(
+            tracer,
+            {
+                TableName: tableName,
+                Key: intoDynamoAttributeValueObject(key),
+                ConsistentRead: consistency === "Strong",
+                ProjectionExpression: projectionExpression,
+                ExpressionAttributeNames:
+                    projectionExpression &&
+                    expressionAttributeNames &&
+                    expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
+                        : undefined,
+            },
+            [debugItemType],
+        );
 
         if (!output.Item) return null;
         return fromDynamoAttributeValueObject(output.Item);
@@ -152,6 +169,7 @@ export class DynamoClient {
             expressionAttributeValues,
             expressionAttributeNames,
             retryConditionCheckError = null,
+            debugItemType,
         }: {
             tableName: string;
             key: SchemaSerializedObjectValue;
@@ -160,6 +178,7 @@ export class DynamoClient {
             expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
             expressionAttributeNames?: ReadonlyMap<string, string>;
             retryConditionCheckError?: ((error?: unknown) => never) | null;
+            debugItemType: DynamoClientDebugItemType;
         },
     ): Promise<void> {
         // Make sure that all the properties in our `key` also exist in our `item`.
@@ -172,27 +191,38 @@ export class DynamoClient {
 
         // Writes without a condition may be batched.
         if (batchContext !== null && conditionExpression === undefined)
-            return this._writeItemBatcher.putItem(tracer, batchContext, tableName, key, item);
+            return this._writeItemBatcher.putItem(
+                tracer,
+                batchContext,
+                tableName,
+                key,
+                item,
+                debugItemType,
+            );
 
         try {
-            await this._client.PutItem(tracer, {
-                TableName: tableName,
-                Item: intoDynamoAttributeValueObject(item),
-                ConditionExpression: conditionExpression,
-                ExpressionAttributeValues:
-                    expressionAttributeValues && expressionAttributeValues.size > 0
-                        ? Object.fromEntries(
-                              mapIterable(expressionAttributeValues, ([name, value]) => [
-                                  name,
-                                  intoDynamoAttributeValue(value),
-                              ]),
-                          )
-                        : undefined,
-                ExpressionAttributeNames:
-                    expressionAttributeNames && expressionAttributeNames.size > 0
-                        ? Object.fromEntries(expressionAttributeNames)
-                        : undefined,
-            });
+            await this._client.PutItem(
+                tracer,
+                {
+                    TableName: tableName,
+                    Item: intoDynamoAttributeValueObject(item),
+                    ConditionExpression: conditionExpression,
+                    ExpressionAttributeValues:
+                        expressionAttributeValues && expressionAttributeValues.size > 0
+                            ? Object.fromEntries(
+                                  mapIterable(expressionAttributeValues, ([name, value]) => [
+                                      name,
+                                      intoDynamoAttributeValue(value),
+                                  ]),
+                              )
+                            : undefined,
+                    ExpressionAttributeNames:
+                        expressionAttributeNames && expressionAttributeNames.size > 0
+                            ? Object.fromEntries(expressionAttributeNames)
+                            : undefined,
+                },
+                [debugItemType],
+            );
         } catch (error) {
             let errorCause = error;
             while (errorCause instanceof Error && "cause" in errorCause)
@@ -226,6 +256,7 @@ export class DynamoClient {
             expressionAttributeValues,
             expressionAttributeNames,
             retryConditionCheckError = null,
+            debugItemType,
         }: {
             tableName: string;
             key: SchemaSerializedObjectValue;
@@ -233,33 +264,44 @@ export class DynamoClient {
             expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
             expressionAttributeNames?: ReadonlyMap<string, string>;
             retryConditionCheckError?: ((error?: unknown) => never) | null;
+            debugItemType: DynamoClientDebugItemType;
         },
     ): Promise<void> {
         // Writes without a condition may be batched.
         if (batchContext !== null && conditionExpression === undefined)
-            return this._writeItemBatcher.deleteItem(tracer, batchContext, tableName, key);
+            return this._writeItemBatcher.deleteItem(
+                tracer,
+                batchContext,
+                tableName,
+                key,
+                debugItemType,
+            );
 
         try {
-            await this._client.DeleteItem(tracer, {
-                TableName: tableName,
-                Key: intoDynamoAttributeValueObject(key),
-                ConditionExpression: conditionExpression,
-                ExpressionAttributeValues:
-                    expressionAttributeValues && expressionAttributeValues.size > 0
-                        ? Object.fromEntries(
-                              mapIterable(expressionAttributeValues, ([name, value]) => [
-                                  name,
-                                  intoDynamoAttributeValue(value),
-                              ]),
-                          )
-                        : undefined,
-                ExpressionAttributeNames:
-                    conditionExpression &&
-                    expressionAttributeNames &&
-                    expressionAttributeNames.size > 0
-                        ? Object.fromEntries(expressionAttributeNames)
-                        : undefined,
-            });
+            await this._client.DeleteItem(
+                tracer,
+                {
+                    TableName: tableName,
+                    Key: intoDynamoAttributeValueObject(key),
+                    ConditionExpression: conditionExpression,
+                    ExpressionAttributeValues:
+                        expressionAttributeValues && expressionAttributeValues.size > 0
+                            ? Object.fromEntries(
+                                  mapIterable(expressionAttributeValues, ([name, value]) => [
+                                      name,
+                                      intoDynamoAttributeValue(value),
+                                  ]),
+                              )
+                            : undefined,
+                    ExpressionAttributeNames:
+                        conditionExpression &&
+                        expressionAttributeNames &&
+                        expressionAttributeNames.size > 0
+                            ? Object.fromEntries(expressionAttributeNames)
+                            : undefined,
+                },
+                [debugItemType],
+            );
         } catch (error) {
             let errorCause = error;
             while (errorCause instanceof Error && "cause" in errorCause)
@@ -288,13 +330,19 @@ export class DynamoClient {
         }: {
             clientRequestToken?: string;
             retryConditionCheckError?: ((error?: unknown) => never) | null;
-        } = {},
+        },
     ): Promise<void> {
         try {
-            await this._client.TransactWriteItems(tracer, {
-                TransactItems: entries.map(entry => entry._getTransactItemForClient(DynamoClient)),
-                ClientRequestToken: clientRequestToken,
-            });
+            await this._client.TransactWriteItems(
+                tracer,
+                {
+                    TransactItems: entries.map(entry =>
+                        entry._getTransactItemForClient(DynamoClient),
+                    ),
+                    ClientRequestToken: clientRequestToken,
+                },
+                entries.map(entry => entry.debugItemType),
+            );
         } catch (error) {
             let errorCause = error;
             while (errorCause instanceof Error && "cause" in errorCause)
@@ -358,6 +406,7 @@ export class DynamoClient {
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
         onAfterTransactionExecutedSuccessfully = null,
+        debugItemType,
     }: {
         tableName: string;
         item: SchemaSerializedObjectValue;
@@ -366,6 +415,7 @@ export class DynamoClient {
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
         onAfterTransactionExecutedSuccessfully?: (() => void) | null;
+        debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             transactItem: {
@@ -394,6 +444,7 @@ export class DynamoClient {
             },
             isConditionCheckErrorRetriable,
             onAfterTransactionExecutedSuccessfully,
+            debugItemType,
         });
     }
 
@@ -412,6 +463,7 @@ export class DynamoClient {
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
         onAfterTransactionExecutedSuccessfully = null,
+        debugItemType,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
@@ -420,6 +472,7 @@ export class DynamoClient {
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
         onAfterTransactionExecutedSuccessfully?: (() => void) | null;
+        debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             transactItem: {
@@ -448,6 +501,7 @@ export class DynamoClient {
             },
             isConditionCheckErrorRetriable,
             onAfterTransactionExecutedSuccessfully,
+            debugItemType,
         });
     }
 
@@ -466,6 +520,7 @@ export class DynamoClient {
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
         onAfterTransactionExecutedSuccessfully = null,
+        debugItemType,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
@@ -474,6 +529,7 @@ export class DynamoClient {
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
         onAfterTransactionExecutedSuccessfully?: (() => void) | null;
+        debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             transactItem: {
@@ -502,6 +558,7 @@ export class DynamoClient {
             },
             isConditionCheckErrorRetriable,
             onAfterTransactionExecutedSuccessfully,
+            debugItemType,
         });
     }
 
@@ -524,21 +581,27 @@ export class DynamoClient {
             tableName,
             keys,
             retryTransactionConflictError,
+            debugItemTypes,
         }: {
             tableName: string;
             keys: ReadonlyArray<SchemaSerializedObjectValue>;
             retryTransactionConflictError: (error?: unknown) => never;
+            debugItemTypes: DynamoClientDebugItemTypes;
         },
     ): Promise<Array<SchemaSerializedObjectValue | null>> {
         try {
-            const output = await this._client.TransactGetItems(tracer, {
-                TransactItems: keys.map(key => ({
-                    Get: {
-                        TableName: tableName,
-                        Key: intoDynamoAttributeValueObject(key),
-                    },
-                })),
-            });
+            const output = await this._client.TransactGetItems(
+                tracer,
+                {
+                    TransactItems: keys.map(key => ({
+                        Get: {
+                            TableName: tableName,
+                            Key: intoDynamoAttributeValueObject(key),
+                        },
+                    })),
+                },
+                debugItemTypes,
+            );
 
             return (output.Responses ?? []).map(response =>
                 response.Item ? fromDynamoAttributeValueObject(response.Item) : null,
@@ -580,17 +643,7 @@ export class DynamoClient {
      */
     async *query(
         tracer: TracerBase,
-        {
-            tableName,
-            indexName,
-            partitionKey,
-            sortKey,
-            lastEvaluatedKey: _lastEvaluatedKey,
-            consistency = "Eventual",
-            limit,
-            pageLimit,
-            descending = false,
-        }: {
+        options: {
             tableName: string;
             indexName?: string;
             partitionKey: {
@@ -609,8 +662,22 @@ export class DynamoClient {
             limit?: number;
             pageLimit?: number;
             descending?: boolean;
+            debugIndexName?: string;
+            debugItemTypes: DynamoClientDebugItemTypes;
         },
     ): AsyncIterableIterator<SchemaSerializedObjectValue> {
+        const {
+            tableName,
+            indexName,
+            partitionKey,
+            sortKey,
+            lastEvaluatedKey: _lastEvaluatedKey,
+            consistency = "Eventual",
+            limit,
+            pageLimit,
+            descending = false,
+        } = options;
+
         const keyConditionExpressionEntries = [`${partitionKey.name} = :pkv`];
 
         if (sortKey?.startValue !== undefined && sortKey.endValue !== undefined) {
@@ -659,23 +726,27 @@ export class DynamoClient {
             // then our new limit is 60 since we don't want to exceed our total limit.
             const remainingLimit = limit !== undefined ? limit - totalScannedCount : undefined;
 
-            const output = await this._client.Query(tracer, {
-                TableName: tableName,
-                IndexName: indexName,
-                ConsistentRead: consistency === "Strong",
-                // If a `pageLimit` was configured then as we paginate, each page will be sized
-                // as `pageLimit` so we don't read a full 1 MB per page.
-                Limit:
-                    pageLimit !== undefined
-                        ? remainingLimit !== undefined
-                            ? Math.min(pageLimit, remainingLimit)
-                            : pageLimit
-                        : remainingLimit,
-                ScanIndexForward: !descending,
-                KeyConditionExpression: keyConditionExpression,
-                ExpressionAttributeValues: expressionAttributeValues,
-                ExclusiveStartKey: lastEvaluatedKey,
-            });
+            const output = await this._client.Query(
+                tracer,
+                {
+                    TableName: tableName,
+                    IndexName: indexName,
+                    ConsistentRead: consistency === "Strong",
+                    // If a `pageLimit` was configured then as we paginate, each page will be sized
+                    // as `pageLimit` so we don't read a full 1 MB per page.
+                    Limit:
+                        pageLimit !== undefined
+                            ? remainingLimit !== undefined
+                                ? Math.min(pageLimit, remainingLimit)
+                                : pageLimit
+                            : remainingLimit,
+                    ScanIndexForward: !descending,
+                    KeyConditionExpression: keyConditionExpression,
+                    ExpressionAttributeValues: expressionAttributeValues,
+                    ExclusiveStartKey: lastEvaluatedKey,
+                },
+                options,
+            );
 
             totalScannedCount += output.ScannedCount ?? 0;
             lastEvaluatedKey = output.LastEvaluatedKey;
@@ -783,6 +854,7 @@ type DynamoClientKeyBatch<ItemInput, ItemOutput> = {
     key: SchemaSerializedObjectValue;
     inputs: Array<ItemInput>;
     promiseResolvers: Array<{tracer: TracerBase; promiseResolver: PromiseResolver<ItemOutput>}>;
+    debugItemTypes: Array<DynamoClientDebugItemType>;
 };
 
 /**
@@ -833,6 +905,7 @@ abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, I
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: ItemInput1,
+        debugItemType: DynamoClientDebugItemType,
     ): Promise<ItemOutput> {
         const scheduledBatch = batchContext.getScheduledBatch(this, tracer);
 
@@ -860,12 +933,14 @@ abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, I
                     key,
                     inputs: [],
                     promiseResolvers: [],
+                    debugItemTypes: [],
                 };
             },
         );
 
         keyBatch.inputs.push(input);
         keyBatch.promiseResolvers.push({tracer, promiseResolver});
+        keyBatch.debugItemTypes.push(debugItemType);
 
         return promiseResolver.promise;
     }
@@ -1071,8 +1146,9 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: DynamoClientGetItemBatchItemInput,
+        debugItemType: DynamoClientDebugItemType,
     ) {
-        return this._addItem(tracer, batchContext, tableName, key, input);
+        return this._addItem(tracer, batchContext, tableName, key, input, debugItemType);
     }
 
     protected override _reorganizeBatch(
@@ -1099,13 +1175,19 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         if (batch.tableBatches.size === 1) {
             const [tableName, tableBatch] = [...batch.tableBatches.entries()][0]!;
             if (tableBatch.keyBatches.size === 1) {
-                const {key, promiseResolvers} = [...tableBatch.keyBatches.values()][0]!;
+                const {key, promiseResolvers, debugItemTypes} = [
+                    ...tableBatch.keyBatches.values(),
+                ][0]!;
 
-                const output = await this._client.GetItem(tracer, {
-                    TableName: tableName,
-                    ConsistentRead: this._consistency === "Strong",
-                    Key: intoDynamoAttributeValueObject(key),
-                });
+                const output = await this._client.GetItem(
+                    tracer,
+                    {
+                        TableName: tableName,
+                        ConsistentRead: this._consistency === "Strong",
+                        Key: intoDynamoAttributeValueObject(key),
+                    },
+                    debugItemTypes,
+                );
 
                 const item = output.Item ? fromDynamoAttributeValueObject(output.Item) : null;
                 for (const {promiseResolver} of promiseResolvers) promiseResolver.resolve(item);
@@ -1175,6 +1257,12 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                     }),
                 ),
             },
+            flatMapIterable(batch.tableBatches.values(), tableBatch =>
+                flatMapIterable(
+                    tableBatch.keyBatches.values(),
+                    ({debugItemTypes}) => debugItemTypes,
+                ),
+            ),
         );
 
         for (const [tableName, items] of Object.entries(output.Responses ?? {})) {
@@ -1323,6 +1411,7 @@ function reorganizeDynamoClientGetItemBatch(
             for (let i = 0; i < keyBatch.inputs.length; i++) {
                 const input = keyBatch.inputs[i]!;
                 const promiseResolver = keyBatch.promiseResolvers[i]!;
+                const debugItemTypes = keyBatch.debugItemTypes[i]!;
 
                 let wasAdded = false;
                 for (const newTableBatch of newTableBatches) {
@@ -1338,11 +1427,13 @@ function reorganizeDynamoClientGetItemBatch(
                             key: keyBatch.key,
                             inputs: [],
                             promiseResolvers: [],
+                            debugItemTypes: [],
                         }),
                     );
 
                     newKeyBatch.inputs.push(null);
                     newKeyBatch.promiseResolvers.push(promiseResolver);
+                    newKeyBatch.debugItemTypes.push(debugItemTypes);
                     wasAdded = true;
                     break;
                 }
@@ -1360,6 +1451,7 @@ function reorganizeDynamoClientGetItemBatch(
                                     key: keyBatch.key,
                                     inputs: [null],
                                     promiseResolvers: [promiseResolver],
+                                    debugItemTypes: [debugItemTypes],
                                 },
                             ],
                         ]),
@@ -1428,8 +1520,16 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         tableName: string,
         key: SchemaSerializedObjectValue,
         item: SchemaSerializedObjectValue,
+        debugItemType: DynamoClientDebugItemType,
     ): Promise<void> {
-        return this._addItem(tracer, batchContext, tableName, key, {action: "Put", item});
+        return this._addItem(
+            tracer,
+            batchContext,
+            tableName,
+            key,
+            {action: "Put", item},
+            debugItemType,
+        );
     }
 
     public deleteItem(
@@ -1437,8 +1537,16 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         batchContext: DynamoClientBatchContext,
         tableName: string,
         key: SchemaSerializedObjectValue,
+        debugItemType: DynamoClientDebugItemType,
     ): Promise<void> {
-        return this._addItem(tracer, batchContext, tableName, key, {action: "Delete"});
+        return this._addItem(
+            tracer,
+            batchContext,
+            tableName,
+            key,
+            {action: "Delete"},
+            debugItemType,
+        );
     }
 
     protected override _reorganizeBatch(
@@ -1457,24 +1565,34 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         if (batch.tableBatches.size === 1) {
             const [tableName, tableBatch] = [...batch.tableBatches.entries()][0]!;
             if (tableBatch.keyBatches.size === 1) {
-                const {key, inputs, promiseResolvers} = [...tableBatch.keyBatches.values()][0]!;
+                const {key, inputs, promiseResolvers, debugItemTypes} = [
+                    ...tableBatch.keyBatches.values(),
+                ][0]!;
 
                 // We only write the last input.
                 const input = assertExists(inputs[inputs.length - 1]);
 
                 switch (input.action) {
                     case "Put": {
-                        await this._client.PutItem(tracer, {
-                            TableName: tableName,
-                            Item: intoDynamoAttributeValueObject(input.item),
-                        });
+                        await this._client.PutItem(
+                            tracer,
+                            {
+                                TableName: tableName,
+                                Item: intoDynamoAttributeValueObject(input.item),
+                            },
+                            debugItemTypes,
+                        );
                         break;
                     }
                     case "Delete": {
-                        await this._client.DeleteItem(tracer, {
-                            TableName: tableName,
-                            Key: intoDynamoAttributeValueObject(key),
-                        });
+                        await this._client.DeleteItem(
+                            tracer,
+                            {
+                                TableName: tableName,
+                                Key: intoDynamoAttributeValueObject(key),
+                            },
+                            debugItemTypes,
+                        );
                         break;
                     }
                     default:
@@ -1531,6 +1649,12 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                     }),
                 ),
             },
+            flatMapIterable(batch.tableBatches.values(), tableBatch =>
+                flatMapIterable(
+                    tableBatch.keyBatches.values(),
+                    ({debugItemTypes}) => debugItemTypes,
+                ),
+            ),
         );
 
         const unprocessedBatch: DynamoClientBatch<null, DynamoClientWriteItemBatchAction, void> = {

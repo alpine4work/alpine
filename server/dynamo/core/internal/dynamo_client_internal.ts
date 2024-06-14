@@ -9,6 +9,7 @@ import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -18,6 +19,14 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
  * Actions supported by our DynamoDB client.
  */
 export type DynamoClientAction = Exclude<keyof DynamoClientInternal, "isLocal">;
+
+export type DynamoClientDebugItemTypes = Iterable<DynamoClientDebugItemType>;
+
+export type DynamoClientDebugItemType = {
+    readonly tableName: string;
+    readonly partitionType: string;
+    readonly sortRangeType: string;
+};
 
 /**
  * Type-safe DynamoDB client. We initially created this abstraction when our
@@ -116,8 +125,18 @@ export class DynamoClientInternal {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
-    public GetItem(tracer: TracerBase, input: types.GetItemInput): Promise<types.GetItemOutput> {
-        return tracer.withSpan("DynamoDB GetItem", async span => {
+    public GetItem(
+        tracer: TracerBase,
+        input: types.GetItemInput,
+        debugItemTypes: DynamoClientDebugItemTypes,
+    ): Promise<types.GetItemOutput> {
+        let spanName = "DynamoDB GetItem";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
@@ -125,6 +144,7 @@ export class DynamoClientInternal {
                 dynamodb: {
                     action: "GetItem",
                     tableName: input.TableName ?? "",
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     consistentRead: input.ConsistentRead ?? false,
                 },
             });
@@ -157,25 +177,35 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         otherTracers: Iterable<TracerBase>,
         input: types.BatchGetItemInput,
+        debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.BatchGetItemOutput> {
-        return tracer.withSpan("DynamoDB BatchGetItem", async span => {
+        let spanName = "DynamoDB BatchGetItem";
+
+        const tableNames = [];
+        let anyConsistentRead = false;
+        let batchSize = 0;
+
+        for (const [tableName, requestItem] of Object.entries(input.RequestItems ?? {})) {
+            tableNames.push(tableName);
+            anyConsistentRead ||= requestItem.ConsistentRead ?? false;
+            batchSize += requestItem.Keys?.length ?? 0;
+        }
+
+        const tableNamesString = tableNames.sort().join("+");
+
+        if (tableNamesString.length > 0) {
+            spanName += ` ${tableNamesString}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            const tableNames = [];
-            let anyConsistentRead = false;
-            let batchSize = 0;
-
-            for (const [tableName, requestItem] of Object.entries(input.RequestItems ?? {})) {
-                tableNames.push(tableName);
-                anyConsistentRead ||= requestItem.ConsistentRead ?? false;
-                batchSize += requestItem.Keys?.length ?? 0;
-            }
 
             span.addData({
                 dynamodb: {
                     action: "BatchGetItem",
-                    tableName: tableNames.sort().join("+"),
+                    tableName: tableNamesString,
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     consistentRead: anyConsistentRead,
                     batchSize,
                 },
@@ -219,8 +249,18 @@ export class DynamoClientInternal {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
-    public PutItem(tracer: TracerBase, input: types.PutItemInput): Promise<types.PutItemOutput> {
-        return tracer.withSpan("DynamoDB PutItem", async span => {
+    public PutItem(
+        tracer: TracerBase,
+        input: types.PutItemInput,
+        debugItemTypes: DynamoClientDebugItemTypes,
+    ): Promise<types.PutItemOutput> {
+        let spanName = "DynamoDB PutItem";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
@@ -228,6 +268,7 @@ export class DynamoClientInternal {
                 dynamodb: {
                     action: "PutItem",
                     tableName: input.TableName ?? "",
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     conditionExpression: input.ConditionExpression,
                 },
             });
@@ -259,8 +300,15 @@ export class DynamoClientInternal {
     public DeleteItem(
         tracer: TracerBase,
         input: types.DeleteItemInput,
+        debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.DeleteItemOutput> {
-        return tracer.withSpan("DynamoDB DeleteItem", async span => {
+        let spanName = "DynamoDB DeleteItem";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
@@ -268,6 +316,7 @@ export class DynamoClientInternal {
                 dynamodb: {
                     action: "DeleteItem",
                     tableName: input.TableName ?? "",
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     conditionExpression: input.ConditionExpression,
                 },
             });
@@ -300,23 +349,33 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         otherTracers: Iterable<TracerBase>,
         input: types.BatchWriteItemInput,
+        debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.BatchWriteItemOutput> {
-        return tracer.withSpan("DynamoDB BatchWriteItem", async span => {
+        let spanName = "DynamoDB BatchWriteItem";
+
+        const tableNames = [];
+        let batchSize = 0;
+
+        for (const [tableName, writeRequests] of Object.entries(input.RequestItems ?? {})) {
+            tableNames.push(tableName);
+            batchSize += writeRequests.length;
+        }
+
+        const tableNamesString = tableNames.sort().join("+");
+
+        if (tableNamesString.length > 0) {
+            spanName += ` ${tableNamesString}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            const tableNames = [];
-            let batchSize = 0;
-
-            for (const [tableName, writeRequests] of Object.entries(input.RequestItems ?? {})) {
-                tableNames.push(tableName);
-                batchSize += writeRequests.length;
-            }
 
             span.addData({
                 dynamodb: {
                     action: "BatchWriteItem",
-                    tableName: tableNames.sort().join("+"),
+                    tableName: tableNamesString,
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     batchSize,
                 },
             });
@@ -361,68 +420,76 @@ export class DynamoClientInternal {
     public TransactWriteItems(
         tracer: TracerBase,
         input: types.TransactWriteItemsInput,
+        debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.TransactWriteItemsOutput> {
-        return tracer.withSpan("DynamoDB TransactWriteItems", async span => {
+        let spanName = "DynamoDB TransactWriteItems";
+
+        const tableNames = new Set<string>();
+        const transactItemsSummary: Array<unknown> = [];
+
+        for (const transactItem of input.TransactItems ?? []) {
+            if (transactItem.ConditionCheck) {
+                if (transactItem.ConditionCheck.TableName)
+                    tableNames.add(transactItem.ConditionCheck.TableName);
+
+                transactItemsSummary.push({
+                    ConditionCheck: {
+                        TableName: transactItem.ConditionCheck.TableName,
+                        ConditionExpression: transactItem.ConditionCheck.ConditionExpression,
+                    },
+                });
+            }
+
+            if (transactItem.Put) {
+                if (transactItem.Put.TableName) tableNames.add(transactItem.Put.TableName);
+
+                transactItemsSummary.push({
+                    Put: {
+                        TableName: transactItem.Put.TableName,
+                        ConditionExpression: transactItem.Put.ConditionExpression,
+                    },
+                });
+            }
+
+            if (transactItem.Delete) {
+                if (transactItem.Delete.TableName) tableNames.add(transactItem.Delete.TableName);
+
+                transactItemsSummary.push({
+                    Delete: {
+                        TableName: transactItem.Delete.TableName,
+                        ConditionExpression: transactItem.Delete.ConditionExpression,
+                    },
+                });
+            }
+
+            if (transactItem.Update) {
+                if (transactItem.Update.TableName) tableNames.add(transactItem.Update.TableName);
+
+                transactItemsSummary.push({
+                    Update: {
+                        TableName: transactItem.Update.TableName,
+                        ConditionExpression: transactItem.Update.ConditionExpression,
+                        UpdateExpression: transactItem.Update.UpdateExpression,
+                    },
+                });
+            }
+        }
+
+        const tableNamesString = Array.from(tableNames).sort().join("+");
+
+        if (tableNamesString.length > 0) {
+            spanName += ` ${tableNamesString}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            const tableNames = new Set<string>();
-            const transactItemsSummary = [];
-
-            for (const transactItem of input.TransactItems ?? []) {
-                if (transactItem.ConditionCheck) {
-                    if (transactItem.ConditionCheck.TableName)
-                        tableNames.add(transactItem.ConditionCheck.TableName);
-
-                    transactItemsSummary.push({
-                        ConditionCheck: {
-                            TableName: transactItem.ConditionCheck.TableName,
-                            ConditionExpression: transactItem.ConditionCheck.ConditionExpression,
-                        },
-                    });
-                }
-
-                if (transactItem.Put) {
-                    if (transactItem.Put.TableName) tableNames.add(transactItem.Put.TableName);
-
-                    transactItemsSummary.push({
-                        Put: {
-                            TableName: transactItem.Put.TableName,
-                            ConditionExpression: transactItem.Put.ConditionExpression,
-                        },
-                    });
-                }
-
-                if (transactItem.Delete) {
-                    if (transactItem.Delete.TableName)
-                        tableNames.add(transactItem.Delete.TableName);
-
-                    transactItemsSummary.push({
-                        Delete: {
-                            TableName: transactItem.Delete.TableName,
-                            ConditionExpression: transactItem.Delete.ConditionExpression,
-                        },
-                    });
-                }
-
-                if (transactItem.Update) {
-                    if (transactItem.Update.TableName)
-                        tableNames.add(transactItem.Update.TableName);
-
-                    transactItemsSummary.push({
-                        Update: {
-                            TableName: transactItem.Update.TableName,
-                            ConditionExpression: transactItem.Update.ConditionExpression,
-                            UpdateExpression: transactItem.Update.UpdateExpression,
-                        },
-                    });
-                }
-            }
 
             span.addData({
                 dynamodb: {
                     action: "TransactWriteItems",
-                    tableName: Array.from(tableNames).sort().join("+"),
+                    tableName: tableNamesString,
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     transactWrite: {
                         items: JSON.stringify(transactItemsSummary),
                         itemCount: input.TransactItems?.length,
@@ -465,25 +532,35 @@ export class DynamoClientInternal {
     public TransactGetItems(
         tracer: TracerBase,
         input: types.TransactGetItemsInput,
+        debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.TransactGetItemsOutput> {
-        return tracer.withSpan("DynamoDB TransactGetItems", async span => {
+        let spanName = "DynamoDB TransactGetItems";
+
+        const tableNames = new Set<string>();
+        let size = 0;
+
+        for (const transactItem of input.TransactItems ?? []) {
+            if (transactItem.Get) {
+                if (transactItem.Get.TableName) tableNames.add(transactItem.Get.TableName);
+                size++;
+            }
+        }
+
+        const tableNamesString = Array.from(tableNames).sort().join("+");
+
+        if (tableNamesString.length > 0) {
+            spanName += ` ${tableNamesString}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
-
-            const tableNames = new Set<string>();
-            let size = 0;
-
-            for (const transactItem of input.TransactItems ?? []) {
-                if (transactItem.Get) {
-                    if (transactItem.Get.TableName) tableNames.add(transactItem.Get.TableName);
-                    size++;
-                }
-            }
 
             span.addData({
                 dynamodb: {
                     action: "TransactGetItems",
-                    tableName: Array.from(tableNames).sort().join("+"),
+                    tableName: tableNamesString,
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     transactGet: {size},
                 },
             });
@@ -511,8 +588,28 @@ export class DynamoClientInternal {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
-    public Query(tracer: TracerBase, input: types.QueryInput): Promise<types.QueryOutput> {
-        return tracer.withSpan("DynamoDB Query", async span => {
+    public Query(
+        tracer: TracerBase,
+        input: types.QueryInput,
+        {
+            debugIndexName,
+            debugItemTypes,
+        }: {
+            debugIndexName?: string;
+            debugItemTypes: DynamoClientDebugItemTypes;
+        },
+    ): Promise<types.QueryOutput> {
+        let spanName = "DynamoDB Query";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+
+            if (input.IndexName !== undefined) {
+                spanName += ` (${debugIndexName ?? input.IndexName})`;
+            }
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
@@ -520,10 +617,14 @@ export class DynamoClientInternal {
                 dynamodb: {
                     action: "Query",
                     tableName: input.TableName ?? "",
+                    table: getDebugItemTypesTracerEventData(debugItemTypes),
                     consistentRead: input.ConsistentRead ?? false,
                     query: {
                         keyConditionExpression: input.KeyConditionExpression,
-                        indexName: input.IndexName,
+                        indexName:
+                            input.IndexName !== undefined
+                                ? debugIndexName ?? input.IndexName
+                                : undefined,
                         scanIndexForward: input.ScanIndexForward ?? true,
                         limit: input.Limit,
                         hasExclusiveStartKey:
@@ -559,7 +660,13 @@ export class DynamoClientInternal {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
      */
     public Scan(tracer: TracerBase, input: types.ScanInput): Promise<types.ScanOutput> {
-        return tracer.withSpan("DynamoDB Scan", async span => {
+        let spanName = "DynamoDB Scan";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
             assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
@@ -607,7 +714,13 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.CreateTableInput,
     ): Promise<types.CreateTableOutput> {
-        return tracer.withSpan("DynamoDB CreateTable", async span => {
+        let spanName = "DynamoDB CreateTable";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             span.addData({
                 dynamodb: {
                     action: "CreateTable",
@@ -634,7 +747,13 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.DescribeTableInput,
     ): Promise<types.DescribeTableOutput> {
-        return tracer.withSpan("DynamoDB DescribeTable", async span => {
+        let spanName = "DynamoDB DescribeTable";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             span.addData({
                 dynamodb: {
                     action: "DescribeTable",
@@ -661,7 +780,13 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.DescribeTimeToLiveCommandInput,
     ): Promise<types.DescribeTimeToLiveCommandOutput> {
-        return tracer.withSpan("DynamoDB DescribeTimeToLive", async span => {
+        let spanName = "DynamoDB DescribeTimeToLive";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             span.addData({
                 dynamodb: {
                     action: "DescribeTimeToLive",
@@ -687,7 +812,13 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.UpdateTableCommandInput,
     ): Promise<types.UpdateTableCommandOutput> {
-        return tracer.withSpan("DynamoDB UpdateTable", async span => {
+        let spanName = "DynamoDB UpdateTable";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             span.addData({
                 dynamodb: {
                     action: "UpdateTable",
@@ -713,7 +844,13 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.UpdateTimeToLiveCommandInput,
     ): Promise<types.UpdateTimeToLiveCommandOutput> {
-        return tracer.withSpan("DynamoDB UpdateTimeToLive", async span => {
+        let spanName = "DynamoDB UpdateTimeToLive";
+
+        if (input.TableName !== undefined) {
+            spanName += ` ${input.TableName}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
             span.addData({
                 dynamodb: {
                     action: "UpdateTimeToLive",
@@ -819,4 +956,50 @@ function getConsumedCapacityTracerEventData(
     consumedCapacityEventData.totalWriteCapacityUnits = totalWriteCapacityUnits;
 
     return consumedCapacityEventData;
+}
+
+function getDebugItemTypesTracerEventData(
+    itemTypes: DynamoClientDebugItemTypes,
+): NonNullable<NonNullable<TracerEventData["dynamodb"]>["table"]> {
+    const sortRangeTypesByPartitionTypeByTableName = new Map<string, Map<string, Set<string>>>();
+
+    for (const itemType of itemTypes) {
+        const sortRangeTypesByPartitionType = getOrSetDefaultMapValue(
+            sortRangeTypesByPartitionTypeByTableName,
+            itemType.tableName,
+            () => new Map(),
+        );
+
+        const sortRangeTypes = getOrSetDefaultMapValue(
+            sortRangeTypesByPartitionType,
+            itemType.partitionType,
+            () => new Set(),
+        );
+
+        sortRangeTypes.add(itemType.sortRangeType);
+    }
+
+    const eventData: any = {};
+
+    for (const [
+        tableName,
+        sortRangeTypesByPartitionType,
+    ] of sortRangeTypesByPartitionTypeByTableName) {
+        const tableEventData: {
+            partitionType: string;
+            partition: any;
+        } = {
+            partitionType: Array.from(sortRangeTypesByPartitionType.keys()).sort().join("+"),
+            partition: {},
+        };
+        eventData[tableName] = tableEventData;
+
+        for (const [partitionType, sortRangeTypes] of sortRangeTypesByPartitionType) {
+            tableEventData.partition[partitionType] = {
+                sortRangeType: Array.from(sortRangeTypes).sort().join("+"),
+            };
+        }
+    }
+
+    return eventData;
 }

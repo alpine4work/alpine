@@ -259,7 +259,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     private readonly _partitionConfigByName: Map<
         string,
         DynamoTableSchemaTypes.Partition.ConfigBase & {
-            readonly sortRangeByName: Map<string, DynamoTableSchemaTypes.SortRange.ConfigBase>;
+            readonly sortRangeByName: Map<
+                string,
+                DynamoTableSchemaTypes.SortRange.ConfigBase & {
+                    readonly index: number;
+                }
+            >;
         }
     >;
 
@@ -431,12 +436,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         this._partitionConfigByName = new Map(
             config.partitions.map(partitionConfig => [
                 partitionConfig.name,
-                {
-                    ...partitionConfig,
+                Object.assign(partitionConfig, {
                     sortRangeByName: new Map(
-                        partitionConfig.sortRanges.map(sortRange => [sortRange.name, sortRange]),
+                        partitionConfig.sortRanges.map((sortRange, index) => [
+                            sortRange.name,
+                            Object.assign(sortRange, {index}),
+                        ]),
                     ),
-                },
+                }),
             ]),
         );
 
@@ -1236,6 +1243,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 consistency,
+                debugItemType: {
+                    tableName: this._name,
+                    partitionType: key.partitionType,
+                    sortRangeType: key.sortRangeType,
+                },
             },
         );
         if (!serializedItem) return null;
@@ -1343,6 +1355,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 expressionAttributeNames: new Map(
                     mapIterable(expressionAttributeNames, ([key, value]) => [value, key]),
                 ),
+                debugItemType: {
+                    tableName: this._name,
+                    partitionType: key.partitionType,
+                    sortRangeType: key.sortRangeType,
+                },
             },
         );
         if (!serializedItem) return null;
@@ -1748,6 +1765,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     tableName: this._name,
                     key: {partitionKey, sortKey},
                     item: serializedItem,
+                    debugItemType: {
+                        tableName: this._name,
+                        partitionType: item.partitionType,
+                        sortRangeType: item.sortRangeType,
+                    },
                 },
             );
         } else {
@@ -1775,6 +1797,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     retryConditionCheckError: isConditionCheckErrorRetriable
                         ? getDynamoRetryTransactionIfExists(context)
                         : null,
+                    debugItemType: {
+                        tableName: this._name,
+                        partitionType: item.partitionType,
+                        sortRangeType: item.sortRangeType,
+                    },
                 },
             );
         }
@@ -1943,6 +1970,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 {
                     tableName: this._name,
                     key: {partitionKey, sortKey},
+                    debugItemType: {
+                        tableName: this._name,
+                        partitionType: key.partitionType,
+                        sortRangeType: key.sortRangeType,
+                    },
                 },
             );
         } else {
@@ -1971,6 +2003,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     retryConditionCheckError: isConditionCheckErrorRetriable
                         ? retryTransaction
                         : null,
+                    debugItemType: {
+                        tableName: this._name,
+                        partitionType: key.partitionType,
+                        sortRangeType: key.sortRangeType,
+                    },
                 },
             );
         }
@@ -2206,6 +2243,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 tableName: this._name,
                 item: serializedItem,
                 onAfterTransactionExecutedSuccessfully,
+                debugItemType: {
+                    tableName: this._name,
+                    partitionType: item.partitionType,
+                    sortRangeType: item.sortRangeType,
+                },
             });
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
@@ -2225,6 +2267,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 ),
                 isConditionCheckErrorRetriable,
                 onAfterTransactionExecutedSuccessfully,
+                debugItemType: {
+                    tableName: this._name,
+                    partitionType: item.partitionType,
+                    sortRangeType: item.sortRangeType,
+                },
             });
         }
     }
@@ -2364,6 +2411,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             return DynamoClient.transactionDeleteItem({
                 tableName: this._name,
                 key: {partitionKey, sortKey},
+                debugItemType: {
+                    tableName: this._name,
+                    partitionType: key.partitionType,
+                    sortRangeType: key.sortRangeType,
+                },
             });
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
@@ -2382,6 +2434,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
                 isConditionCheckErrorRetriable,
+                debugItemType: {
+                    tableName: this._name,
+                    partitionType: key.partitionType,
+                    sortRangeType: key.sortRangeType,
+                },
             });
         }
     }
@@ -2428,6 +2485,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
             isConditionCheckErrorRetriable,
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
         });
     }
 
@@ -2490,6 +2552,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
             isConditionCheckErrorRetriable,
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
         });
     }
 
@@ -2578,6 +2645,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             },
             isConditionCheckErrorRetriable: true,
             onAfterTransactionExecutedSuccessfully: null,
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
         });
     }
 
@@ -2646,6 +2718,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             },
             isConditionCheckErrorRetriable: true,
             onAfterTransactionExecutedSuccessfully: null,
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
         });
     }
 
@@ -2682,6 +2759,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             },
             isConditionCheckErrorRetriable: false,
             onAfterTransactionExecutedSuccessfully: null,
+            debugItemType: {
+                tableName: this._name,
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
+            },
         });
     }
 
@@ -2720,6 +2802,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         sortKey,
                     })),
                     retryTransactionConflictError: retry,
+                    debugItemTypes: keys.map(key => ({
+                        tableName: this._name,
+                        partitionType: key.partitionType,
+                        sortRangeType: key.sortRangeType,
+                    })),
                 },
             );
 
@@ -2815,6 +2902,20 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ? this._serializeSortKey(partitionKey, endSortKey)
             : undefined;
 
+        const partitionConfig = this._partitionConfigByName.get(partitionKey.partitionType)!;
+
+        const startSortRangeIndex = startSortKey
+            ? partitionConfig.sortRangeByName.get(startSortKey.sortRangeType)?.index
+            : undefined;
+        const endSortRangeIndex = endSortKey
+            ? partitionConfig.sortRangeByName.get(endSortKey.sortRangeType)?.index
+            : undefined;
+
+        const sortRanges = partitionConfig.sortRanges.slice(
+            startSortRangeIndex,
+            endSortRangeIndex !== undefined ? endSortRangeIndex + 1 : undefined,
+        );
+
         const iterator = client.query(context.tracer.getTracer(), {
             tableName: this._name,
             partitionKey: {
@@ -2832,6 +2933,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             limit: limit !== "All" ? limit : undefined,
             pageLimit,
             descending,
+            debugItemTypes: sortRanges.map(sortRange => ({
+                tableName: this._name,
+                partitionType: partitionKey.partitionType,
+                sortRangeType: sortRange.name,
+            })),
         });
 
         for await (const serializedItem of iterator) {
@@ -3156,6 +3262,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     limit: limit !== "All" ? limit : undefined,
                     pageLimit,
                     descending,
+                    debugIndexName: indexConfig.name,
+                    debugItemTypes: config.itemTypes.map(itemType => ({
+                        tableName: schema._name,
+                        partitionType: itemType.partitionType,
+                        sortRangeType: itemType.sortRangeType,
+                    })),
                 });
 
                 for await (const serializedItem of iterator) {
@@ -3340,6 +3452,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     limit: limit !== "All" ? limit : undefined,
                     pageLimit,
                     descending,
+                    debugIndexName: indexConfig.name,
+                    debugItemTypes: config.itemTypes.map(itemType => ({
+                        tableName: schema._name,
+                        partitionType: itemType.partitionType,
+                        sortRangeType: itemType.sortRangeType,
+                    })),
                 });
 
                 for await (const serializedItem of iterator) {

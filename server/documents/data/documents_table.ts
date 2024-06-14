@@ -2923,8 +2923,18 @@ async function updateDocumentSnapshotAfterUpdatingContent(
         newContent: DocumentContent;
     },
 ) {
-    await context.tracer.withSpan("Update document snapshot", async (context, span) => {
-        span.addPropagatedData({context: {documentId: id}});
+    const handleSpanName = "Update document snapshot";
+
+    // Since we expect this process to be kind of expensive, we're making this a
+    // handler span that sets `context.handle` so we can see the DynamoDB consumed
+    // capacity cost associated with snapshot updating.
+    await context.tracer.withSpan(`Handle: ${handleSpanName}`, async (context, span) => {
+        span.addPropagatedData({
+            context: {
+                documentId: id,
+                handler: handleSpanName,
+            },
+        });
 
         const snapshot = await DocumentsTable.getPartialItemIfExists(
             context,

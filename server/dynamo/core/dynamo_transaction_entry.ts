@@ -2,6 +2,7 @@
 // for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
+import {DynamoClientDebugItemType} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 
 /**
  * An entry within a DynamoDB write transaction. Entries within a transaction
@@ -13,16 +14,19 @@ export class DynamoTransactionEntry {
     private readonly _transactItem: types.TransactWriteItem;
     public readonly isConditionCheckErrorRetriable: boolean;
     private readonly _onAfterTransactionExecutedSuccessfullyCallback: (() => void) | null;
+    public readonly debugItemType: DynamoClientDebugItemType;
 
     private constructor(
         transactItem: types.TransactWriteItem,
         isConditionCheckErrorRetriable: boolean,
         onAfterTransactionExecutedSuccessfully: (() => void) | null,
+        debugItemType: DynamoClientDebugItemType,
     ) {
         this._transactItem = transactItem;
         this.isConditionCheckErrorRetriable = isConditionCheckErrorRetriable;
         this._onAfterTransactionExecutedSuccessfullyCallback =
             onAfterTransactionExecutedSuccessfully;
+        this.debugItemType = debugItemType;
     }
 
     /**
@@ -37,16 +41,19 @@ export class DynamoTransactionEntry {
             transactItem,
             isConditionCheckErrorRetriable,
             onAfterTransactionExecutedSuccessfully,
+            debugItemType,
         }: {
             transactItem: types.TransactWriteItem;
             isConditionCheckErrorRetriable: boolean;
             onAfterTransactionExecutedSuccessfully: (() => void) | null;
+            debugItemType: DynamoClientDebugItemType;
         },
     ) {
         return new DynamoTransactionEntry(
             transactItem,
             isConditionCheckErrorRetriable,
             onAfterTransactionExecutedSuccessfully,
+            debugItemType,
         );
     }
 

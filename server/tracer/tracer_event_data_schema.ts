@@ -1,4 +1,7 @@
-import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/internal/tracer_event_data_dynamo_consumed_capacity_keys.js";
+import {
+    tracerEventDataDynamoConsumedCapacityKeys,
+    tracerEventDataDynamoPartitionTypesByTableName,
+} from "~/server/tracer/internal/tracer_event_data_dynamo.js";
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
@@ -183,6 +186,23 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             totalReadCapacityUnits: Schema.float,
             totalWriteCapacityUnits: Schema.float,
         },
+        table: Object.fromEntries(
+            Array.from(
+                tracerEventDataDynamoPartitionTypesByTableName,
+                (partitionTypes, tableName) => [
+                    tableName,
+                    {
+                        partitionType: Schema.string,
+                        partition: Object.fromEntries(
+                            partitionTypes.map(partitionType => [
+                                partitionType,
+                                {sortRangeType: Schema.string},
+                            ]),
+                        ),
+                    },
+                ],
+            ),
+        ),
         conditionExpression: Schema.string,
         updateExpression: Schema.string,
         batchSize: Schema.integer,

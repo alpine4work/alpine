@@ -27,11 +27,11 @@ js_run_binary(
     name = "dynamo_generated_files",
     outs = [
         "dynamo_schema_description.ts",
-        "tracer_event_data_dynamo_consumed_capacity_keys.ts",
+        "tracer_event_data_dynamo.ts",
     ],
     args = [
         "--dynamoSchemaDescriptionPath=$(rootpath dynamo_schema_description.ts)",
-        "--tracerEventDataDynamoConsumedCapacityKeysPath=$(rootpath tracer_event_data_dynamo_consumed_capacity_keys.ts)",
+        "--tracerEventDataDynamoPath=$(rootpath tracer_event_data_dynamo.ts)",
     ],
     tool = ":generate_dynamo_files",
     visibility = [
@@ -45,7 +45,7 @@ sh_binary(
     srcs = ["dynamo_write_schema.sh"],
     data = [
         "//server/dynamo/core:write_dynamo_schema_description",
-        "//server/tracer:write_tracer_event_data_dynamo_consumed_capacity_keys",
+        "//server/tracer:write_tracer_event_data_dynamo",
     ],
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )

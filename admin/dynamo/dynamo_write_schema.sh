@@ -12,4 +12,4 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
 # --- end runfiles.bash initialization v3 ---
 
 "$(rlocation cyberworlds/server/dynamo/core/write_dynamo_schema_description_update.sh)"
-"$(rlocation cyberworlds/server/tracer/write_tracer_event_data_dynamo_consumed_capacity_keys_update.sh)"
+"$(rlocation cyberworlds/server/tracer/write_tracer_event_data_dynamo_update.sh)"
