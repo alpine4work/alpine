@@ -9,7 +9,7 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
-import {createPostEventEmitter} from "~/client/forum/post_creator.js";
+import {subscribeToOptimisticCreatePostEvent} from "~/client/forum/post_creator.js";
 import {
     PostListChannelHeader,
     PostQueryList,
@@ -140,14 +140,16 @@ export function ChannelView({
     // emits an event after a post has been successfully created and we handle
     // that event here.
     useEffect(() => {
-        return createPostEventEmitter.subscribe(event =>
+        return subscribeToOptimisticCreatePostEvent(event => {
+            if (event.channelId !== channel.id) return;
+
             setPosts(posts =>
                 posts.updateQuery(query =>
                     query.handleEventTransaction(event.readTime, event.eventTransaction),
                 ),
-            ),
-        );
-    }, []);
+            );
+        });
+    }, [channel.id]);
 
     const [isEditingNameInline, setIsEditingNameInline] = useState(false);
     if (isEditingNameInline && isMobile) setIsEditingNameInline(false);

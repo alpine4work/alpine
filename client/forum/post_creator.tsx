@@ -47,6 +47,7 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {Id} from "~/shared/id/id.js";
+import {ChannelId} from "~/shared/id/types/id_types.js";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
@@ -58,10 +59,21 @@ import {
 } from "~/shared/styles/forum_shared_styles.js";
 import {contentSchemaStyles, forumStyles, sprinkles} from "~/shared/styles/styles.js";
 
-export const createPostEventEmitter = new EventEmitter<{
+const optimisticCreatePostEventEmitter = new EventEmitter<{
+    channelId: ChannelId;
     readTime: Date;
     eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
 }>();
+
+export function subscribeToOptimisticCreatePostEvent(
+    listener: (event: {
+        channelId: ChannelId;
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
+    }) => void,
+): () => void {
+    return optimisticCreatePostEventEmitter.subscribe(listener);
+}
 
 const StateSchema = Schema.object({
     content: PostContentWithReferencesSchema,
@@ -173,7 +185,11 @@ export function PostCreator({
                 // WebSocket connection, we emit the realtime event returned by
                 // `createPost()` so `<ChannelView>` can use that too in case the WebSocket
                 // is slow.
-                createPostEventEmitter.emit({readTime, eventTransaction});
+                optimisticCreatePostEventEmitter.emit({
+                    channelId: channel.id,
+                    readTime,
+                    eventTransaction,
+                });
 
                 if (shouldReturnBack) {
                     await navigate(-1);
