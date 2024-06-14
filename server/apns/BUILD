@@ -22,6 +22,7 @@ ts_project(
     name = "apns",
     visibility = [
         "//admin/adhoc:__pkg__",
+        "//app:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [

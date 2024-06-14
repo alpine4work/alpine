@@ -130,6 +130,18 @@ export function createTestServices(): {context: TestContext; services: TestServi
             ensureDevServiceKeys(),
         ]);
 
+        const allMiniLmL6V2LanguageModelPath = joinPath(runfilesPath, "all_mini_lm_l6_v2");
+
+        const apnsCertificatePath = joinPath(
+            runfilesPath,
+            "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
+        );
+
+        const apnsCertificatePrivateKeyPath = joinPath(
+            runfilesPath,
+            "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
+        );
+
         appServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/app/app.sh"),
             [
@@ -144,7 +156,9 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
+                `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
+                `--apnsCertificate=${apnsCertificatePath}`,
+                `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
             ],
             {
                 env: process.env,
@@ -232,15 +246,9 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
-                `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
-                `--apnsCertificate=${joinPath(
-                    runfilesPath,
-                    "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
-                )}`,
-                `--apnsCertificatePrivateKey=${joinPath(
-                    runfilesPath,
-                    "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
-                )}`,
+                `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
+                `--apnsCertificate=${apnsCertificatePath}`,
+                `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
             ],
             {
                 env: process.env,

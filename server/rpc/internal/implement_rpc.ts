@@ -1,3 +1,4 @@
+import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
@@ -15,6 +16,7 @@ export type RpcServerActionContext = Context<RpcServerActionContextModules>;
 export type RpcServerActionContextModules = ServerActionContextModules & {
     tasks: TaskContextModule;
     languageModel: LanguageModelContextModule;
+    apns: ApnsContextModuleBase;
 };
 
 export type RpcImplementation = {

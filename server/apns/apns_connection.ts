@@ -319,8 +319,8 @@ export class ApnsConnection {
         deviceToken: Uint8Array,
         notification: ApnsAlertNotification,
         {
-            id = generateId(),
-            expirationTime = addDays(new Date(), 5),
+            id,
+            expirationTime = addDays(new Date(), 28),
             priority = 10,
             collapseId,
         }: ApnsAlertNotificationOptions = {},
@@ -337,7 +337,7 @@ export class ApnsConnection {
 
             const requestHeaders = {
                 "apns-push-type": "alert",
-                "apns-id": convertIdIntoUuid(id),
+                "apns-id": id ? convertIdIntoUuid(id) : undefined,
                 "apns-expiration": expirationTime
                     ? String(Math.floor(expirationTime.getTime() / 1000))
                     : undefined,

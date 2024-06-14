@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/cookie",
         "//:node_modules/date-fns",
         "//:node_modules/react-router",
+        "//server/apns",
         "//server/context",
         "//server/helpers",
         "//server/rpc",

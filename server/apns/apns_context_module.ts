@@ -21,6 +21,27 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
         notification: ApnsAlertNotification,
         options?: ApnsAlertNotificationOptions,
     ): Promise<void>;
+
+    /**
+     * Provides a `sendAlert()` function to the action that does the same thing as
+     * our class's `sendAlert()` function. If we don't have an APNs connection yet
+     * then we'll connect in parallel with the action so if the action starts with
+     * any data loading we can connect to APNs in parallel with that.
+     *
+     * For the duration of the action we will use the same APNs connection.
+     *
+     * Use this function as an optimization when you want to connect to APNs in
+     * parallel with some other work.
+     */
+    public abstract withSendAlert<Value>(
+        action: (
+            sendAlert: (
+                deviceToken: Uint8Array,
+                notification: ApnsAlertNotification,
+                options?: ApnsAlertNotificationOptions,
+            ) => Promise<void>,
+        ) => Promise<Value>,
+    ): Promise<Value>;
 }
 
 export class ApnsContextModule extends ApnsContextModuleBase {
@@ -46,6 +67,29 @@ export class ApnsContextModule extends ApnsContextModuleBase {
     ) {
         return this._connectionPool.sendAlert(this._context, deviceToken, notification, options);
     }
+
+    /**
+     * Provides a `sendAlert()` function to the action that does the same thing as
+     * our class's `sendAlert()` function. If we don't have an APNs connection yet
+     * then we'll connect in parallel with the action so if the action starts with
+     * any data loading we can connect to APNs in parallel with that.
+     *
+     * For the duration of the action we will use the same APNs connection.
+     *
+     * Use this function as an optimization when you want to connect to APNs in
+     * parallel with some other work.
+     */
+    public withSendAlert<Value>(
+        action: (
+            sendAlert: (
+                deviceToken: Uint8Array,
+                notification: ApnsAlertNotification,
+                options?: ApnsAlertNotificationOptions,
+            ) => Promise<void>,
+        ) => Promise<Value>,
+    ): Promise<Value> {
+        return this._connectionPool.withSendAlert(this._context, action);
+    }
 }
 
 export class TestApnsContextModule extends ApnsContextModuleBase {
@@ -56,5 +100,11 @@ export class TestApnsContextModule extends ApnsContextModuleBase {
 
     public async sendAlert() {
         // Noop in tests...
+    }
+
+    public withSendAlert<Value>(
+        action: (sendAlert: () => Promise<void>) => Promise<Value>,
+    ): Promise<Value> {
+        return action((...args) => this.sendAlert(...args));
     }
 }

@@ -47,6 +47,7 @@ ts_project(
         "//client/virtualized",
         "//server/accounts",
         "//server/alpha",
+        "//server/apns",
         "//server/chat/data",
         "//server/content",
         "//server/context",

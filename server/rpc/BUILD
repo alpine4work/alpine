@@ -25,6 +25,7 @@ ts_project(
         "//server/accounts",
         "//server/accounts/update_name",
         "//server/alpha",
+        "//server/apns",
         "//server/chat/data",
         "//server/content",
         "//server/context",

@@ -8,7 +8,7 @@ import {Id} from "~/shared/id/id.js";
  */
 export type ApnsAlertNotification = {
     readonly aps: {
-        readonly alert:
+        readonly alert?:
             | string
             | {
                   readonly title?: string;
@@ -61,7 +61,8 @@ export type ApnsAlertNotificationOptions = {
      * notification only once and doesn't store it. Otherwise, APNs will store the
      * notification and try to send it until the expiration time is reached.
      *
-     * Defaults to 5 days after the current time.
+     * Defaults to 28 days after the current time. 30 days is the max according to
+     * Apple's documentation.
      *
      * Corresponds to the `apns-expiration` header when communicating with APNs
      * over HTTP/2.

@@ -2,6 +2,7 @@ import {ServerRoute} from "@remix-run/server-runtime";
 import {parse as parseCookieHeader, serialize as serializeSetCookieHeader} from "cookie";
 import {differenceInDays, isValid as isValidDate, parseISO} from "date-fns";
 import {Params} from "react-router";
+import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
@@ -40,6 +41,14 @@ export type LoaderContextModules = MergeObjectIntersection<
          * The language model we use for tasks like embedding search queries.
          */
         languageModel: LanguageModelContextModule;
+
+        /**
+         * Access our connection pool to Apple Push Notification service to send push
+         * notifications when appropriate. Generally push notifications are sent from
+         * `JobQueueService` when processing notification events but there are a couple
+         * cases where notifications need to be sent from `AppService`.
+         */
+        apns: ApnsContextModuleBase;
     }
 >;
 

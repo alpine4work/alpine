@@ -112,17 +112,6 @@ runService({
             languageModel: new LanguageModelContextModule(languageModel),
         });
 
-        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
-            certificate: apnsCertificate,
-            certificatePrivateKey: apnsCertificatePrivateKey,
-        });
-
-        registerShutdownListener(async () => {
-            await apnsConnectionPool.destroy();
-        });
-
-        const apnsContextModule = new ApnsContextModule(apnsConnectionPool);
-
         const taskRealtimeServiceRouter =
             process.env.NODE_ENV === "production"
                 ? new TaskRealtimeServiceEcsRouter({
@@ -145,6 +134,17 @@ runService({
                           10,
                       ),
                   });
+
+        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
+            certificate: apnsCertificate,
+            certificatePrivateKey: apnsCertificatePrivateKey,
+        });
+
+        registerShutdownListener(async () => {
+            await apnsConnectionPool.destroy();
+        });
+
+        const apnsContextModule = new ApnsContextModule(apnsConnectionPool);
 
         const consumer = JobQueueConsumer.start(processContext, {
             region: "us-east-1",

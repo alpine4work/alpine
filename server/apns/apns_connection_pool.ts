@@ -6,6 +6,7 @@ import {ApnsConnection} from "~/server/apns/apns_connection.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -315,9 +316,58 @@ export class ApnsConnectionPool {
         deviceToken: Uint8Array,
         notification: ApnsAlertNotification,
         options?: ApnsAlertNotificationOptions,
-    ) {
+    ): Promise<void> {
         return this._withConnection(context, connection =>
             connection.sendAlert(context, deviceToken, notification, options),
         );
+    }
+
+    /**
+     * Provides a `sendAlert()` function to the action that does the same thing as
+     * our class's `sendAlert()` function. If we don't have an APNs connection yet
+     * then we'll connect in parallel with the action so if the action starts with
+     * any data loading we can connect to APNs in parallel with that.
+     *
+     * For the duration of the action we will use the same APNs connection.
+     *
+     * Use this function as an optimization when you want to connect to APNs in
+     * parallel with some other work.
+     */
+    public async withSendAlert<Value>(
+        context: ServerActionContext,
+        action: (
+            sendAlert: (
+                deviceToken: Uint8Array,
+                notification: ApnsAlertNotification,
+                options?: ApnsAlertNotificationOptions,
+            ) => Promise<void>,
+        ) => Promise<Value>,
+    ): Promise<Value> {
+        const connectionPromiseResolver = createPromiseResolver<ApnsConnection>();
+
+        const sendAlert = async (
+            deviceToken: Uint8Array,
+            notification: ApnsAlertNotification,
+            options?: ApnsAlertNotificationOptions,
+        ) => {
+            const connection = await connectionPromiseResolver.promise;
+            await connection.sendAlert(context, deviceToken, notification, options);
+        };
+
+        const actionPromise = action(sendAlert);
+
+        const [value] = await runAllPromises([
+            actionPromise,
+            this._withConnection(context, connection => {
+                connectionPromiseResolver.resolve(connection);
+
+                return actionPromise.catch(() => {
+                    // Don't throw any errors here. Only error from the `withConnection()` promise
+                    // should be connection errors.
+                });
+            }).catch(connectionPromiseResolver.reject),
+        ]);
+
+        return value;
     }
 }

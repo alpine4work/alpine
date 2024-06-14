@@ -107,6 +107,15 @@ const sqsLocalLogsPath = joinPath(devEnvPaths.log, "sqs");
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
 const sqsLocalStatsPort = parsePort(env.SQS_LOCAL_STATS_PORT);
 
+const apnsCertificatePath = joinPath(
+    runfilesPath,
+    "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
+);
+const apnsCertificatePrivateKeyPath = joinPath(
+    runfilesPath,
+    "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
+);
+
 export type Artifact = {
     readonly bazelTarget: string;
     readonly executablePath: string;
@@ -173,6 +182,8 @@ async function createArtifacts() {
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${appDevInspectorPort}`,
+                `--apnsCertificate=${apnsCertificatePath}`,
+                `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -244,14 +255,8 @@ async function createArtifacts() {
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
-                `--apnsCertificate=${joinPath(
-                    runfilesPath,
-                    "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
-                )}`,
-                `--apnsCertificatePrivateKey=${joinPath(
-                    runfilesPath,
-                    "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
-                )}`,
+                `--apnsCertificate=${apnsCertificatePath}`,
+                `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

@@ -13,6 +13,8 @@ import {
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
+import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
+import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -30,11 +32,13 @@ import {
 } from "~/server/node/create_server_process_context.js";
 import {
     createServiceTokenAgent,
+    getServiceTokenAgentKeyFromOption,
     serviceTokenAgentParseOptions,
 } from "~/server/node/create_service_token_agent.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {runService} from "~/server/node/run_service.js";
+import {registerShutdownListener} from "~/server/node/shutdown_manager.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
@@ -108,6 +112,8 @@ runService({
         taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
         allMiniLmL6V2LanguageModel: {type: "string"},
         cohereApiKey: {type: "string"},
+        apnsCertificate: {type: "string"},
+        apnsCertificatePrivateKey: {type: "string"},
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
@@ -115,11 +121,22 @@ runService({
         const port = options.port ? parseInt(options.port, 10) : null;
         if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
 
-        const tokenAgent = await createServiceTokenAgent({
-            serviceName: "AppService",
-            privateSide: AppServiceTokenAgentPrivateSide,
-            options,
-        });
+        const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey] = await runAllPromises([
+            createServiceTokenAgent({
+                serviceName: "AppService",
+                privateSide: AppServiceTokenAgentPrivateSide,
+                options,
+            }),
+            getServiceTokenAgentKeyFromOption(
+                assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
+            ),
+            getServiceTokenAgentKeyFromOption(
+                assertExists(
+                    options.apnsCertificatePrivateKey,
+                    "Missing `apnsCertificatePrivateKey` option",
+                ),
+            ),
+        ]);
 
         const awsSigner = new AwsRequestSigner();
 
@@ -169,6 +186,17 @@ runService({
                           10,
                       ),
                   });
+
+        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
+            certificate: apnsCertificate,
+            certificatePrivateKey: apnsCertificatePrivateKey,
+        });
+
+        registerShutdownListener(async () => {
+            await apnsConnectionPool.destroy();
+        });
+
+        const apnsContextModule = new ApnsContextModule(apnsConnectionPool);
 
         let hasSeededDynamo = false;
 
@@ -285,6 +313,7 @@ runService({
                                 dangerouslyEscalateToSystemContext,
                             }),
                             languageModel: new LanguageModelContextModule(languageModel),
+                            apns: apnsContextModule,
                         },
                         context => {
                             // The first time our server process runs in development, seed DynamoDB with

@@ -6,7 +6,9 @@ import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/da
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     ServerActionContext,
+    ServerActionContextModules,
     ServerSessionActionContext,
+    ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
@@ -85,7 +87,7 @@ import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {isId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -93,6 +95,7 @@ import {
     ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
+    NotificationEventId,
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
@@ -1399,7 +1402,7 @@ function getInboxEntryItemKey({
  * `processNotificationEvent()`.
  */
 export async function archiveInboxEntry(
-    context: ServerSessionActionContext,
+    context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<{archiveTime: Date}> {
     return archiveInboxEntryItemKey(
@@ -1432,94 +1435,124 @@ export function unarchiveInboxEntry(
 }
 
 async function archiveInboxEntryItemKey(
-    context: ServerSessionActionContext,
+    context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
     itemKey: InboxEntryItemKey,
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
 
-    return context.dynamo.retryTransaction(async context => {
-        const [inboxItem, inboxEntryItem] = await runAllPromises([
-            InboxTable.getItemIfExists(context, {
-                partitionType: "Account",
-                sortRangeType: "InboxAttributes",
-                spaceId: itemKey.spaceId,
-                accountId: itemKey.accountId,
+    const {archiveTime, newEntryItem, loudNotificationCountDifference} =
+        await context.dynamo.retryTransaction(async context => {
+            const [inboxItem, inboxEntryItem] = await runAllPromises([
+                InboxTable.getItemIfExists(context, {
+                    partitionType: "Account",
+                    sortRangeType: "InboxAttributes",
+                    spaceId: itemKey.spaceId,
+                    accountId: itemKey.accountId,
+                }),
+                InboxTable.getItemIfExists(context, itemKey),
+            ]);
+
+            if (!inboxEntryItem) throw new NotFoundError("Inbox entry not found");
+
+            assert(
+                inboxItem,
+                "Can't have inbox entry item without corresponding inbox attributes item",
+            );
+
+            // If the inbox entry item is already archived, do nothing.
+            if (inboxEntryItem.isArchived) {
+                return {
+                    archiveTime: inboxEntryItem.enteredTime,
+                    newEntryItem: inboxEntryItem,
+                    loudNotificationCountDifference: 0,
+                };
+            }
+
+            const archiveTime = new Date();
+
+            let newInboxEntryItem = {
+                ...inboxEntryItem,
+                isArchived: true,
+                // Archiving an entry clears all of its loud notifications.
+                loudNotificationCount: 0,
+                // When we archive an item it goes back to our inbox generation. That way if
+                // it's unarchived it doesn't go back into the loud notification generation.
+                generation: inboxItem.generation,
+                // When we archive an item, it goes to the top of the archive.
+                enteredTime: archiveTime,
+            };
+
+            // Clear out the `isStickyMention` property for messaging entries.
+            if (
+                "latestMessage" in newInboxEntryItem &&
+                newInboxEntryItem.latestMessage.isStickyMention
+            ) {
+                newInboxEntryItem = {
+                    ...newInboxEntryItem,
+                    latestMessage: {
+                        ...newInboxEntryItem.latestMessage,
+                        isStickyMention: false,
+                    },
+                };
+            }
+
+            // Clear out the `isStickyMention` property for messaging entries.
+            if (
+                "latestComment" in newInboxEntryItem &&
+                newInboxEntryItem.latestComment?.isStickyMention
+            ) {
+                newInboxEntryItem = {
+                    ...newInboxEntryItem,
+                    latestComment: {
+                        ...newInboxEntryItem.latestComment,
+                        isStickyMention: false,
+                    },
+                };
+            }
+
+            // `Math.max` to protect against in case we under-counted the number of inbox
+            // entries at some point.
+            const newEntryCount = Math.max(0, inboxItem.entryCount - 1);
+
+            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+                InboxTable.transactionDirectlyUpdateItem({
+                    ...inboxItem,
+                    loudNotificationCount:
+                        inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
+                    entryCount: newEntryCount,
+                    lastZeroEntryCountTime:
+                        newEntryCount === 0 && inboxItem.entryCount !== 0
+                            ? archiveTime
+                            : inboxItem.lastZeroEntryCountTime,
+                }),
+                InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+            ]);
+
+            return {
+                archiveTime,
+                newEntryItem: newInboxEntryItem,
+                loudNotificationCountDifference: -inboxEntryItem.loudNotificationCount,
+            };
+        });
+
+    // If we're archiving an entry with loud notifications, we need to send an
+    // alert to Apple devices to update the badge count.
+    if (loudNotificationCountDifference !== 0) {
+        assert(newEntryItem.isArchived);
+
+        // NOTE(calebmer): Consider turning this into a job on the job queue to
+        // guarantee notification delivery.
+        context.process.waitUntil(
+            sendPushNotificationToAccountDevices(context, {
+                accountId: context.actor.getAccountId(),
+                eventId: generateId(),
+                newEntryItem,
+                loudNotificationCountDifference,
             }),
-            InboxTable.getItemIfExists(context, itemKey),
-        ]);
-
-        if (!inboxEntryItem) throw new NotFoundError("Inbox entry not found");
-
-        assert(
-            inboxItem,
-            "Can't have inbox entry item without corresponding inbox attributes item",
         );
+    }
 
-        // If the inbox entry item is already archived, do nothing.
-        if (inboxEntryItem.isArchived) return {archiveTime: inboxEntryItem.enteredTime};
-
-        const archiveTime = new Date();
-
-        let newInboxEntryItem = {
-            ...inboxEntryItem,
-            isArchived: true,
-            // Archiving an entry clears all of its loud notifications.
-            loudNotificationCount: 0,
-            // When we archive an item it goes back to our inbox generation. That way if
-            // it's unarchived it doesn't go back into the loud notification generation.
-            generation: inboxItem.generation,
-            // When we archive an item, it goes to the top of the archive.
-            enteredTime: archiveTime,
-        };
-
-        // Clear out the `isStickyMention` property for messaging entries.
-        if (
-            "latestMessage" in newInboxEntryItem &&
-            newInboxEntryItem.latestMessage.isStickyMention
-        ) {
-            newInboxEntryItem = {
-                ...newInboxEntryItem,
-                latestMessage: {
-                    ...newInboxEntryItem.latestMessage,
-                    isStickyMention: false,
-                },
-            };
-        }
-
-        // Clear out the `isStickyMention` property for messaging entries.
-        if (
-            "latestComment" in newInboxEntryItem &&
-            newInboxEntryItem.latestComment?.isStickyMention
-        ) {
-            newInboxEntryItem = {
-                ...newInboxEntryItem,
-                latestComment: {
-                    ...newInboxEntryItem.latestComment,
-                    isStickyMention: false,
-                },
-            };
-        }
-
-        // `Math.max` to protect against in case we under-counted the number of inbox
-        // entries at some point.
-        const newEntryCount = Math.max(0, inboxItem.entryCount - 1);
-
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-            InboxTable.transactionDirectlyUpdateItem({
-                ...inboxItem,
-                loudNotificationCount:
-                    inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
-                entryCount: newEntryCount,
-                lastZeroEntryCountTime:
-                    newEntryCount === 0 && inboxItem.entryCount !== 0
-                        ? archiveTime
-                        : inboxItem.lastZeroEntryCountTime,
-            }),
-            InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
-        ]);
-
-        return {archiveTime};
-    });
+    return {archiveTime};
 }
 
 async function unarchiveInboxEntryItemKey(
@@ -1768,28 +1801,21 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                         );
                         if (!result) return;
 
-                        // If we archived an entry (or updated an archived entry) that shouldn't
-                        // generate a push notification.
-                        if (result.newEntryItem.isArchived) return;
-
-                        await context.tracer.withSpan(
-                            "Send push notification to devices",
-                            context =>
-                                sendPushNotificationToAccountDevices(
-                                    context,
+                        await sendPushNotificationToAccountDevices(context, {
+                            accountId,
+                            eventId: event.id,
+                            newEntryItem: result.newEntryItem,
+                            loudNotificationCountDifference: result.loudNotificationCountDifference,
+                            getAlertContent: () =>
+                                getAlertContent(context, event, {
+                                    info,
                                     accountId,
-                                    result,
-                                    () =>
-                                        getAlertContent(context, event, {
-                                            info,
-                                            accountId,
-                                            // TODO(calebmer): All notifications are currently in US English. When we
-                                            // localize the product this should change.
-                                            locale: "en-US",
-                                            entryItem: result.newEntryItem,
-                                        }),
-                                ),
-                        );
+                                    // TODO(calebmer): All notifications are currently in US English. When we
+                                    // localize the product this should change.
+                                    locale: "en-US",
+                                    entryItem: result.newEntryItem,
+                                }),
+                        });
                     },
                 );
             }),
@@ -1797,52 +1823,157 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
     };
 }
 
+/**
+ * Send push notifications to registered account devices. Only sends a
+ * notification if the new inbox entry is not archived OR loud notification
+ * counts changed. If the new inbox entry is archived and loud notification
+ * counts changed then we'll send an alert with no content (so we won't call
+ * `getAlertContent`). If the new inbox entry is not archived then
+ * `getAlertContent` must be provided.
+ *
+ * This function is idempotent. If you call it multiple times with the save
+ * `eventId` the user will only see one notification on their device.
+ */
 async function sendPushNotificationToAccountDevices(
-    context: ProcessNotificationEventSystemActionContext,
-    accountId: AccountId,
-    result: UpdateInboxEntryResult,
-    getAlertContent: () => Promise<{
-        title: string;
-        subtitle?: string;
-        body: string;
-    }>,
+    context: Context<ServerActionContextModules & {apns: ApnsContextModuleBase}>,
+    {
+        accountId,
+        eventId,
+        newEntryItem,
+        loudNotificationCountDifference,
+        getAlertContent,
+    }: {
+        accountId: AccountId;
+        eventId: NotificationEventId;
+        newEntryItem: InboxEntryItem;
+        loudNotificationCountDifference: number;
+        getAlertContent?: () => Promise<{
+            title: string;
+            subtitle?: string;
+            body: string;
+        }>;
+    },
 ) {
-    const [accountDevices, alertContent] = await runAllPromises([
-        getRegisteredAccountDevices(context, accountId),
-        // We optimistically build alert content even if we don't need it (e.g. since
-        // there are no registered devices).
-        //
-        // We expect accounts will want to set up push notifications on some device and
-        // we want to send them notifications quickly. So it's worth speeding up
-        // notification sending even if sometimes it's a little wasteful to load alert
-        // content when we don't need it.
-        getAlertContent(),
-    ]);
+    // If we archived an entry (or updated an archived entry) that shouldn't
+    // generate a push notification.
+    //
+    // However, if the loud notification count changed then we need to send a
+    // silent push notification updating the badge number.
+    if (newEntryItem.isArchived && loudNotificationCountDifference === 0) {
+        return;
+    }
 
-    // Interrupt the user if tge loud notification count increased.
-    const isLoud = result.loudNotificationCountDifference > 0;
+    return context.tracer.withSpan("Send push notification to devices", (context, span) => {
+        // We use `withSendAlert()` as an optimization to connect to APNs in parallel with
+        // loading registered account devices. This will be a little wasteful if the
+        // user has no Apple devices but it should be fine since we'll have an APN
+        // connection later for an account which does have Apple devices.
+        return context.apns.withSendAlert(async sendAlert => {
+            const getLoudNotificationCount = async () => {
+                const loudNotificationCounts = await parallelMapAsyncIterableToArray(
+                    InboxTable.query(context, {
+                        partitionKey: {
+                            partitionType: "Account",
+                            accountId,
+                        },
+                        startSortKey: {
+                            sortRangeType: "InboxAttributes",
+                            spaceId: DynamoKeyAttributeSchema.id.getMinValue<SpaceId>(),
+                        },
+                        endSortKey: {
+                            sortRangeType: "InboxAttributes",
+                            spaceId: DynamoKeyAttributeSchema.id.getMaxValue<SpaceId>(),
+                        },
+                        limit: "All",
+                        // Use strong read consistency. We don't want to update the app notification
+                        // badge with a stale count.
+                        consistency: "Strong",
+                    }),
+                    async item => {
+                        // Confirm the account is still a member of this space. If an account is
+                        // removed from a space we don't clean up their inbox item in case they're
+                        // re-added.
+                        if (!(await isAccountMemberOfSpace(context, item.spaceId, item.accountId)))
+                            return 0;
 
-    await runAllPromises(
-        accountDevices.map(async accountDevice => {
-            await context.apns.sendAlert(
-                accountDevice.deviceToken,
-                {
-                    aps: {
-                        alert: alertContent,
-                        "thread-id": getApnsNotificationThreadId(result.newEntryItem),
-                        // Only make a sound for loud notifications.
-                        sound: isLoud ? "default" : undefined,
-                        "interruption-level": isLoud ? "active" : "passive",
+                        return item.loudNotificationCount;
                     },
-                },
-                {
-                    // If this is a loud notification then send the notification immediately.
-                    // Otherwise, we can respect the device's power needs.
-                    priority: isLoud ? 10 : 5,
-                },
+                );
+
+                return loudNotificationCounts.reduce((a, b) => a + b, 0);
+            };
+
+            const [accountDevices, alertContent, loudNotificationCount] = await runAllPromises([
+                getRegisteredAccountDevices(context, accountId),
+
+                // We optimistically build alert content even if we don't need it (e.g. since
+                // there are no registered devices).
+                //
+                // We expect accounts will want to set up push notifications on some device and
+                // we want to send them notifications quickly. So it's worth speeding up
+                // notification sending even if sometimes it's a little wasteful to load alert
+                // content when we don't need it.
+                !newEntryItem.isArchived ? assertExists(getAlertContent)() : null,
+
+                // We optimistically get the account's total loud notification count even if we
+                // don't need it (e.g. since there are no registered devices).
+                //
+                // We expect accounts will want to set up push notifications on some device and
+                // we want to send them notifications quickly. So it's worth speeding up
+                // notification sending even if sometimes it's a little wasteful to load the
+                // notification count when we don't need it.
+                loudNotificationCountDifference !== 0 ? getLoudNotificationCount() : null,
+            ]);
+
+            span.addData({common: {count: accountDevices.length}});
+
+            // Interrupt the user if tge loud notification count increased.
+            const isLoud = loudNotificationCountDifference > 0;
+
+            await runAllPromises(
+                accountDevices.map(async accountDevice => {
+                    // TODO(calebmer): I expect to get errors from APNs if a device token is
+                    // invalidated (e.g. the app is deleted). We should detect these errors and
+                    // delete the device token from our database.
+                    await sendAlert(
+                        accountDevice.deviceToken,
+                        {
+                            aps: {
+                                alert: alertContent ?? undefined,
+                                "thread-id": getApnsNotificationThreadId(newEntryItem),
+
+                                // Update the badge. There are likely all kinds of race conditions with badge
+                                // updates. For example, let's say we're sending alert A and alert B. Alert A
+                                // updates notification count to 3. Alert B dismisses the notification changing
+                                // it to 2. If alert A runs on a server which needs to establish a new APNs
+                                // connection then alert B may be delivered to the device first! When alert A
+                                // is received the notification count will be 3 when in fact it's 2.
+                                //
+                                // I can't find a way to set an ordering for APNs notifications. So we need to
+                                // find another way to fix this issue when it comes up. Maybe we schedule a
+                                // reconciliation job to send an alert 5 minutes from now? Maybe we update the
+                                // loud notification count when the app opens? I'm not sure.
+                                badge: loudNotificationCount ?? undefined,
+
+                                // Only make a sound for loud notifications.
+                                sound: isLoud ? "default" : undefined,
+                                "interruption-level": isLoud ? "active" : "passive",
+                            },
+                        },
+                        {
+                            // If this is a loud notification then send the notification immediately.
+                            // Otherwise, we can respect the device's power needs.
+                            priority: isLoud ? 10 : 5,
+
+                            // Make sure notification sending is idempotent. If we send the same
+                            // notification twice it should be collapsed into one on the user's device.
+                            collapseId: eventId,
+                        },
+                    );
+                }),
             );
-        }),
-    );
+        });
+    });
 }
 
 function getApnsNotificationThreadId(item: InboxEntryItem): string | undefined {

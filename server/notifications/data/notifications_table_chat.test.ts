@@ -1,3 +1,4 @@
+import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -3407,10 +3408,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat1Id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId: chat1Id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -3505,10 +3509,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat2Id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId: chat2Id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -3580,10 +3587,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat1Id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId: chat1Id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -3846,20 +3856,29 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat1Id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId: chat1Id},
+                },
+            );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat2Id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId: chat2Id},
+                },
+            );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId: chat1Id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId: chat1Id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4508,10 +4527,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4614,10 +4636,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "Chat", chatId},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "Chat", chatId},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4957,7 +4982,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await archiveInboxEntry(session2.action(), {
+        await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
             spaceId: space.id,
             key: {type: "Chat", chatId},
         });

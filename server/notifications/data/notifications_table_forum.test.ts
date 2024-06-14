@@ -1,4 +1,5 @@
 import {addMinutes, subMinutes} from "date-fns";
+import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createChannel, createPost, createPostComment} from "~/server/forum/data/forum_table.js";
 import {
@@ -4123,10 +4124,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4264,10 +4268,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4379,10 +4386,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4716,20 +4726,29 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4824,10 +4843,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await unarchiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -4943,10 +4965,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await unarchiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -5088,10 +5113,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await unarchiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -5254,10 +5282,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await unarchiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -5466,17 +5497,27 @@ for (const [currentProcessingType, processingMultiple] of [
             await ProcessContextModule.waitForTestTasks();
 
             await expect(
-                archiveInboxEntry(context.action(scenario.otherSession), {
-                    spaceId: scenario.space.id,
-                    key: {type: "PostComments", postId: post.id},
-                }),
+                archiveInboxEntry(
+                    context
+                        .action(scenario.otherSession)
+                        .clone({apns: new TestApnsContextModule()}),
+                    {
+                        spaceId: scenario.space.id,
+                        key: {type: "PostComments", postId: post.id},
+                    },
+                ),
             ).rejects.toThrow(PermissionDeniedError);
 
             await expect(
-                unarchiveInboxEntry(context.action(scenario.otherSession), {
-                    spaceId: scenario.space.id,
-                    key: {type: "PostComments", postId: post.id},
-                }),
+                unarchiveInboxEntry(
+                    context
+                        .action(scenario.otherSession)
+                        .clone({apns: new TestApnsContextModule()}),
+                    {
+                        spaceId: scenario.space.id,
+                        key: {type: "PostComments", postId: post.id},
+                    },
+                ),
             ).rejects.toThrow(PermissionDeniedError);
         });
 
@@ -5550,10 +5591,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -5679,10 +5723,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -5803,10 +5850,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -5834,10 +5884,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await unarchiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -6108,10 +6161,13 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+                },
+            );
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -6246,15 +6302,21 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await archiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
-            await archiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+                },
+            );
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -6295,10 +6357,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -6339,10 +6404,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -6383,10 +6451,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await unarchiveInboxEntry(context.action(scenario.session3), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session3).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -6427,10 +6498,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await unarchiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -6471,10 +6545,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             );
 
-            await unarchiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await unarchiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id}))
@@ -6579,13 +6656,16 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(context.action(scenario.session1), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             const {archiveTime: archiveTime2} = await archiveInboxEntry(
-                context.action(scenario.session1),
+                context.action(scenario.session1).clone({apns: new TestApnsContextModule()}),
                 {
                     spaceId: scenario.space.id,
                     key: {type: "PostComments", postId: post2.id},
@@ -7457,10 +7537,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session2), {
@@ -8036,10 +8119,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post3.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post3.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session2), {
@@ -8158,10 +8244,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session2), {
@@ -8280,10 +8369,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session2), {
@@ -8965,20 +9057,29 @@ for (const [currentProcessingType, processingMultiple] of [
 
             await ProcessContextModule.waitForTestTasks();
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post3.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post3.id},
+                },
+            );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post1.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post1.id},
+                },
+            );
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post2.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post2.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session2), {
@@ -9717,10 +9818,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session2), {
@@ -10060,10 +10164,13 @@ for (const [currentProcessingType, processingMultiple] of [
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
 
-            await archiveInboxEntry(context.action(scenario.session2), {
-                spaceId: scenario.space.id,
-                key: {type: "PostComments", postId: post.id},
-            });
+            await archiveInboxEntry(
+                context.action(scenario.session2).clone({apns: new TestApnsContextModule()}),
+                {
+                    spaceId: scenario.space.id,
+                    key: {type: "PostComments", postId: post.id},
+                },
+            );
 
             expect(
                 await getInboxEntries(context.action(scenario.session2), {
@@ -12054,7 +12161,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await archiveInboxEntry(session2.action(), {
+        await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
             spaceId: space.id,
             key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
         });
@@ -12344,7 +12451,7 @@ for (const [currentProcessingType, processingMultiple] of [
             }),
         ]);
 
-        await archiveInboxEntry(session2.action(), {
+        await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
             spaceId: space.id,
             key: {type: "PostComments", postId: post.id},
         });
