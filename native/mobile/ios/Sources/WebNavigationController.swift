@@ -620,13 +620,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
 
-        // We stop making health checks when the application is backgrounded.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(applicationWillResignActive(notification:)),
-            name: UIApplication.willResignActiveNotification,
-            object: nil
-        )
+        // Health checks consider the application healthy from when it becomes active.
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(applicationDidBecomeActive(notification:)),
@@ -682,11 +676,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
 
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIApplication.willResignActiveNotification,
-            object: nil
-        )
         NotificationCenter.default.removeObserver(
             self,
             name: UIApplication.didBecomeActiveNotification,
@@ -825,9 +814,47 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 return
             }
 
-            if let lastPingTime = this.webViewHealthState.lastPingTime {
-                if lastPingTime.distance(to: DispatchTime.now()).toSeconds() > 1 {
-                    this.webViewHealthState.isHealthy = false
+            if UIApplication.shared.applicationState == .background {
+                // This hopefully keeps the web view alive for 30s after the app's been
+                // backgrounded. So if the user quickly switches to another app then back we
+                // won't lose their state. It's unfortunate we only get 30s before we lose the
+                // user's state but that's how Apple's decided to implement WebKit for healthy
+                // resource utilization purposes.
+                //
+                // We believe this should work based on [this radar issue][1] and [this
+                // StackOverflow answer][2] but have not extensively tested ourselves.
+                //
+                // JavaScript timeouts and intervals are paused while the application is
+                // backgrounded. Which is why we don't look at the ping time.
+                //
+                // We believe in [WebKit's source code `XPCConnectionTerminationWatchdog`][3]
+                // is what's keeping our process alive. XPC standing for cross-process
+                // communication.
+                //
+                // [1]: https://openradar.appspot.com/7739943
+                // [2]: https://stackoverflow.com/a/40739474/1568890
+                // [3]: https://github.com/WebKit/WebKit/blob/5d6df46811480fb26abf29a0e34dc90ef720927e/Source/WebKit/UIProcess/Cocoa/AuxiliaryProcessProxyCocoa.mm#L70-L73
+                this.webView.evaluateJavaScript(
+                    "setTimeout(() => { window.__keepAliveCount = (window.__keepAliveCount || 0) + 1 }, 10000)"
+                )
+            } else if let lastPingTime = this.webViewHealthState.lastPingTime {
+                let currentTime = DispatchTime.now()
+
+                if lastPingTime.distance(to: currentTime).toSeconds() > 1 {
+                    // When backgrounded we may stop receiving pings from the web view. So when our
+                    // application becomes active again, wait a bit for pings from the web view to
+                    // resume.
+                    let hasApplicationRecentlyBecameActive =
+                        if let notificationTime = this
+                            .lastApplicationDidBecomeActiveNotificationTime
+                        {
+                            notificationTime > lastPingTime
+                                && notificationTime.distance(to: currentTime).toSeconds() <= 2
+                        } else { false }
+
+                    if !hasApplicationRecentlyBecameActive {
+                        this.webViewHealthState.isHealthy = false
+                    }
                 }
             } else if let readyTime = this.webViewHealthState.readyTime {
                 let currentTime = DispatchTime.now()
@@ -2168,14 +2195,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         updateAllWebMaskedViewMasks()
     }
 
-    @objc private func applicationWillResignActive(notification: NSNotification) {
-        webViewHealthTimer?.invalidate()
-        webViewHealthTimer = nil
-    }
-
     @objc private func applicationDidBecomeActive(notification: NSNotification) {
         lastApplicationDidBecomeActiveNotificationTime = DispatchTime.now()
-        initWebViewHealthTimer()
     }
 
     private func getSafeAreaInsets(withoutPreserving: Bool = false) -> UIEdgeInsets {
@@ -3015,14 +3036,21 @@ private class WebNavigationEntryController: UIViewController {
         else if healthState.isLoading {
             replaceWebViewWithSnapshotView()
 
-            // If there's currently stuff in our view then immediately show a loading
-            // indicator. If there's nothing in our view then the loading indicator timer
-            // set by `replaceWebViewWithSnapshotView()` will eventually show the loading
-            // indicator after a delay.
-            if view.subviews.count > 0 {
-                clearLoadingIndicatorTimer()
-                presentLoadingIndicator()
-            }
+            // We used to have the following code which would immediately show the loading
+            // indicator if there was stuff in the navigation entry. However, we found this
+            // to be jarring when the user opens the app after WebKit has suspended the web
+            // process (so needs to reload) since the loading indicator briefly flashes in.
+            //
+            // We now think it's a better user experience to effectively freeze the app for
+            // `delayScreenTransitionLoadingIndicatorLimitSeconds` and then showing a
+            // loading spinner if loading doesn't finish during that time period.
+            //
+            // ```
+            // if view.subviews.count > 0 {
+            //     clearLoadingIndicatorTimer()
+            //     presentLoadingIndicator()
+            // }
+            // ```
         } else if !healthState.isHealthy {
             replaceWebViewWithSnapshotView()
             clearLoadingIndicatorTimer()
