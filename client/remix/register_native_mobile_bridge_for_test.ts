@@ -124,6 +124,12 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
             return () => {};
         },
     },
+    haptic: {
+        playLightImpact: () => {},
+        playMediumImpact: () => {},
+        playHeavyImpact: () => {},
+        playSelectionChanged: () => {},
+    },
 };
 
 (window as any).__NativeMobileBridge = NativeMobileBridgeForTest;

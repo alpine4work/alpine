@@ -1,3 +1,4 @@
+import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
@@ -21,6 +22,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase<
     ServerUnknownActionContextModules & {
         tasks: TaskContextModule;
         languageModel: LanguageModelContextModule;
+        apns: ApnsContextModuleBase;
     }
 > {
     public async execute<Input, Output>(

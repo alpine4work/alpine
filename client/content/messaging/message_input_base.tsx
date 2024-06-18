@@ -99,6 +99,7 @@ export type MessageInputRef = {
 export type MessageInputBaseProps<RoomKey extends string, Message extends MessageModel<RoomKey>> = {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
+    sendButtonVerb?: string;
     placeholder?: string;
     withMobileLayout: boolean;
     state: ContentEditorState<MessageContentWithReferences>;
@@ -170,6 +171,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         onFocus,
         onBlur,
         onArrowUp,
+        sendButtonVerb = messageEditingForThisInput ? "Save" : "Send",
         placeholder = `${
             messageEditingForThisInput ? "Edit" : messageNoun === "message" ? "Send a" : "Add a"
         } ${messageNoun}`,
@@ -825,11 +827,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             >
                                 <IconButton
                                     variant="accent"
-                                    description={
-                                        isEditingMessage
-                                            ? `Save ${messageNoun}`
-                                            : `Send ${messageNoun}`
-                                    }
+                                    description={`${sendButtonVerb} ${messageNoun}`}
                                     onPress={onSend}
                                     isDisabled={isSendButtonDisabled}
                                     isPending={isSendButtonPending}

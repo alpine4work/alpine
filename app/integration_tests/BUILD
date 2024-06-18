@@ -12,7 +12,6 @@ ts_playwright_tests(
     ],
     skip_projects_by_src = {
         # Explicitly desktop only tests.
-        "documents/document_comments_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],

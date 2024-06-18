@@ -149,6 +149,7 @@ export function ContentEditorMobileCommentInputBottomBar({
                         // Only rendered on mobile layouts.
                         withMobileLayout={true}
                         messageNoun="comment"
+                        sendButtonVerb="Save"
                         isBottomBar={true}
                         // We're replacing `<ContentEditorMobileKeyboardToolbar>`. This makes it so
                         // `useScrollToAvoidBottomBarsAndMobileKeyboard()` doesn't ignore the initial
