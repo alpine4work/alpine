@@ -314,9 +314,6 @@ export default function SpaceLayoutRoute() {
         if (isInitialAppRender) return;
 
         // Don't open the search modal on mobile.
-        //
-        // NOCOMMIT: If we have the `search` param on mobile I think we should navigate
-        // to the search page? To support that URL scheme.
         if (isMobile) return;
 
         const url = new URL(window.location.href);
@@ -686,7 +683,7 @@ export default function SpaceLayoutRoute() {
                         <PeekStackContextProvider ref={peekStackRef}>
                             {nodes}
                         </PeekStackContextProvider>
-                        {searchState && (
+                        {!isMobile && searchState && (
                             <SearchModalErrorBoundary>
                                 <SearchModal
                                     initialQueryText={searchState.initialQueryText}
