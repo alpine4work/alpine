@@ -1,9 +1,11 @@
 import _Fuse from "fuse.js";
 import {
+    AccountDevice,
     authorizeInternalAccess,
     checkAccountVersionConditionCheck,
     dangerouslyGetAccountIfExistsWithoutCaching,
     getAccountByIdAsAdmin,
+    internalGetRegisteredAccountDevicesWithoutAuthorization,
 } from "~/server/accounts/accounts_table.js";
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {
@@ -1415,4 +1417,38 @@ export async function getSpaceAccountNameSearchIndex(
             });
         },
     };
+}
+
+/**
+ * Get all devices registered for the provided `AccountId`. System actors can
+ * see the registered devices for any account since we need to send push
+ * notifications to the account's devices as the system actor.
+ */
+export async function getRegisteredAccountDevices(
+    context: ServerActionContext,
+    accountId: AccountId,
+): Promise<ReadonlyArray<AccountDevice>> {
+    switch (context.actor.type) {
+        case "System": {
+            // System actors can see devices for any account in their space.
+            if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
+                throw new PermissionDeniedError(
+                    "Can't see devices for an account that's not a member of our space",
+                );
+            }
+            break;
+        }
+        case "Session": {
+            if (context.actor.getAccountId() !== accountId) {
+                throw new PermissionDeniedError(
+                    "Can't see devices for an account that's not your own",
+                );
+            }
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+
+    return internalGetRegisteredAccountDevicesWithoutAuthorization(context, accountId);
 }

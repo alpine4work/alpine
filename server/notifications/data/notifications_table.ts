@@ -1,6 +1,5 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
-import {getRegisteredAccountDevices} from "~/server/accounts/accounts_table.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
@@ -47,6 +46,7 @@ import {
     authorizeSpaceAccess,
     expensivelyGetAllSpaceAccounts,
     getAccount,
+    getRegisteredAccountDevices,
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";

@@ -1231,29 +1231,15 @@ export type AccountDevice = {
  * Get all devices registered for the provided `AccountId`. System actors can
  * see the registered devices for any account since we need to send push
  * notifications to the account's devices as the system actor.
+ *
+ * You should use `getRegisteredAccountDevices()` in `spaces_table.ts` since it
+ * authorizes that the actor is allowed to read the account's registered
+ * devices.
  */
-export async function getRegisteredAccountDevices(
+export async function internalGetRegisteredAccountDevicesWithoutAuthorization(
     context: Context<DynamoContextModules & {actor: DynamoActorContextModule}>,
     accountId: AccountId,
 ): Promise<ReadonlyArray<AccountDevice>> {
-    // NOCOMMIT: Test!!!
-    switch (context.actor.type) {
-        case "System": {
-            // System actors can see devices for any account.
-            break;
-        }
-        case "Session": {
-            if (context.actor.getAccountId() !== accountId) {
-                throw new PermissionDeniedError(
-                    "Can't see devices for an account that's not your own",
-                );
-            }
-            break;
-        }
-        default:
-            throw exhaustive(context.actor);
-    }
-
     return arrayFromAsyncIterable(
         AccountDevicesIndex.query(context, {partitionKey: {accountId}, limit: "All"}),
         (item): AccountDevice => ({type: "Apple", deviceToken: item.deviceToken}),

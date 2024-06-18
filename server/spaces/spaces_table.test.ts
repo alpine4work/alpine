@@ -1,4 +1,7 @@
-import {internalUpdateOurAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
+import {
+    internalUpdateOurAccountNameWithoutUpdatingTasks,
+    registerOurAccountAppleDeviceToken,
+} from "~/server/accounts/accounts_table.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
@@ -14,6 +17,7 @@ import {
     getAccount,
     getAccountIfExists,
     getOurAccountSpaceIds,
+    getRegisteredAccountDevices,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountsCacheForTest,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -29,8 +33,11 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -1987,4 +1994,219 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     expect(await getAccountIfExists(session1.action(), space.id, otherSession.account.id)).toEqual(
         null,
     );
+});
+
+test("can get an account's registered apple devices", async () => {
+    const [space1, space2] = await runAllPromises([
+        TestSpace.create(context),
+        TestSpace.create(context),
+    ]);
+
+    const [session1A, session1B, session2A, sharedSession] = await runAllPromises([
+        space1.createSession(),
+        space1.createSession(),
+        space2.createSession(),
+        space1.createSession(),
+    ]);
+
+    await space2.addAccount(sharedSession.account);
+
+    await expect(
+        getRegisteredAccountDevices(session1A.action(), session1A.account.id),
+    ).resolves.toEqual([]);
+
+    await expect(
+        getRegisteredAccountDevices(session1B.action(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session2A.action(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(sharedSession.action(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(space1.systemAction(), session1A.account.id),
+    ).resolves.toEqual([]);
+
+    await expect(
+        getRegisteredAccountDevices(space2.systemAction(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session1B.action(), session1B.account.id),
+    ).resolves.toEqual([]);
+
+    await expect(
+        getRegisteredAccountDevices(session1A.action(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session2A.action(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(sharedSession.action(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(space1.systemAction(), session1B.account.id),
+    ).resolves.toEqual([]);
+
+    await expect(
+        getRegisteredAccountDevices(space2.systemAction(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(sharedSession.action(), sharedSession.account.id),
+    ).resolves.toEqual([]);
+
+    await expect(
+        getRegisteredAccountDevices(session1A.action(), sharedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session1B.action(), sharedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session2A.action(), sharedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(space1.systemAction(), sharedSession.account.id),
+    ).resolves.toEqual([]);
+
+    await expect(
+        getRegisteredAccountDevices(space2.systemAction(), sharedSession.account.id),
+    ).resolves.toEqual([]);
+
+    const deviceToken1A = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+    const deviceToken1B1 = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+    const deviceToken1B2 = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+    const deviceToken1B3 = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+    const sharedDeviceToken = new Uint8Array(
+        createArrayWithLength(32, () => randomInteger(0, 255)),
+    );
+
+    expect(deviceToken1A).toEqual(deviceToken1A);
+    expect(deviceToken1A).not.toEqual(deviceToken1B1);
+    expect(deviceToken1A).not.toEqual(sharedDeviceToken);
+    expect(deviceToken1B1).not.toEqual(deviceToken1B2);
+
+    // Run twice intentionally to test idempotence.
+    await registerOurAccountAppleDeviceToken(session1A.action(), deviceToken1A);
+    await registerOurAccountAppleDeviceToken(session1A.action(), deviceToken1A);
+
+    await registerOurAccountAppleDeviceToken(session1B.action(), deviceToken1B1);
+    await registerOurAccountAppleDeviceToken(session1B.action(), deviceToken1B2);
+    await registerOurAccountAppleDeviceToken(session1B.action(), deviceToken1B3);
+
+    await registerOurAccountAppleDeviceToken(sharedSession.action(), sharedDeviceToken);
+
+    await expect(
+        getRegisteredAccountDevices(session1A.action(), session1A.account.id),
+    ).resolves.toEqual([{type: "Apple", deviceToken: deviceToken1A}]);
+
+    await expect(
+        getRegisteredAccountDevices(session1B.action(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session2A.action(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(sharedSession.action(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(space1.systemAction(), session1A.account.id),
+    ).resolves.toEqual([{type: "Apple", deviceToken: deviceToken1A}]);
+
+    await expect(
+        getRegisteredAccountDevices(space2.systemAction(), session1A.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session1B.action(), session1B.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [
+            {type: "Apple", deviceToken: deviceToken1B1},
+            {type: "Apple", deviceToken: deviceToken1B2},
+            {type: "Apple", deviceToken: deviceToken1B3},
+        ].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
+
+    await expect(
+        getRegisteredAccountDevices(session1A.action(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session2A.action(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(sharedSession.action(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(space1.systemAction(), session1B.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [
+            {type: "Apple", deviceToken: deviceToken1B1},
+            {type: "Apple", deviceToken: deviceToken1B2},
+            {type: "Apple", deviceToken: deviceToken1B3},
+        ].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
+
+    await expect(
+        getRegisteredAccountDevices(space2.systemAction(), session1B.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(sharedSession.action(), sharedSession.account.id),
+    ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
+
+    await expect(
+        getRegisteredAccountDevices(session1A.action(), sharedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session1B.action(), sharedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(session2A.action(), sharedSession.account.id),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(space1.systemAction(), sharedSession.account.id),
+    ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
+
+    await expect(
+        getRegisteredAccountDevices(space2.systemAction(), sharedSession.account.id),
+    ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
 });
