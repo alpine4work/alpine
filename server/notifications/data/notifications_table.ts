@@ -48,6 +48,7 @@ import {
     expensivelyGetAllSpaceAccounts,
     getAccount,
     isAccountMemberOfSpace,
+    isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
@@ -1257,7 +1258,6 @@ export async function getInboxEntry(
         consistency?: DynamoReadConsistency;
     },
 ): Promise<DynamoGeneralRealtimeItem<InboxEntryModel>> {
-    // NOCOMMIT: Test!
     await authorizeSpaceAccess(context, spaceId);
 
     const item = await InboxTable.getRealtimeItem(
@@ -1815,8 +1815,6 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             mapIterable(accountIds, async accountOrMentionId => {
                 // Only update the inbox entry for accounts that are a member of the space the
                 // event is a part of.
-                //
-                // NOCOMMIT: Test that removed accounts don't get notifications anymore.
                 if (!(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))) {
                     return;
                 }
@@ -1934,8 +1932,18 @@ async function sendPushNotificationToAccountDevices(
                         // Confirm the account is still a member of this space. If an account is
                         // removed from a space we don't clean up their inbox item in case they're
                         // re-added.
-                        if (!(await isAccountMemberOfSpace(context, item.spaceId, item.accountId)))
+                        //
+                        // We don't authorize since a system actor will only have access to one space.
+                        // Not all the spaces the account has access to.
+                        if (
+                            !(await isAccountMemberOfSpaceWithoutAuthorization(
+                                context,
+                                item.spaceId,
+                                item.accountId,
+                            ))
+                        ) {
                             return 0;
+                        }
 
                         return item.loudNotificationCount;
                     },

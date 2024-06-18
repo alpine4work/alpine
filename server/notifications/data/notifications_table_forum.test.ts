@@ -9,6 +9,7 @@ import {
     getInboxChannelPostsEntryPosts,
     getInboxEntries,
     getInboxEntriesIndexForTest,
+    getInboxEntry,
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
     notificationEventProcessingTestCounter,
@@ -20,6 +21,11 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {
+    dangerouslyAddSpaceAccountAsAdmin,
+    getSpaceAccountsCacheForTest,
+    removeSpaceAccountAsAdmin,
+} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
@@ -90,7 +96,7 @@ async function testGetInboxChannelPostsEntryPosts(
     return {hasMorePosts, posts: posts.map(post => post.model)};
 }
 
-test("won't create two inbox entries if inbox is observed between serially event processing", async () => {
+test("won't create two inbox entries if inbox is observed between serial event processing", async () => {
     processingType = "TwiceSerially";
 
     const scenario = await createNotificationsScenario(context);
@@ -640,6 +646,101 @@ for (const [currentProcessingType, processingMultiple] of [
             expect(getCount1()).toEqual(2 * processingMultiple);
             expect(getCount2()).toEqual(1 * processingMultiple);
             expect(getCount3()).toEqual(1 * processingMultiple);
+        });
+
+        test("can get individual inbox entries", async () => {
+            const scenario = await createNotificationsScenario(context);
+
+            const _channel = await createChannel(context.action(scenario.session1), {
+                spaceId: scenario.space.id,
+                name: "Test",
+            });
+
+            const channel = new ChannelPreviewModel({
+                id: _channel.id,
+                spaceId: scenario.space.id,
+                createdTime: _channel.createdTime,
+                name: "Test",
+            });
+
+            const post = await createPost(context.action(scenario.session1), {
+                channelId: channel.id,
+                content: emptyPostContent,
+            });
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await expect(
+                getInboxEntry(context.action(scenario.otherSession), {
+                    spaceId: scenario.space.id,
+                    key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await expect(
+                getInboxEntry(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+                }),
+            ).rejects.toThrow(NotFoundError);
+
+            await expect(
+                getInboxEntry(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+                }),
+            ).resolves.toEqual({
+                key: expect.any(String),
+                version: expect.any(Number),
+                model: new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel,
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session1.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: emptyPostContent,
+                            references: emptyContentReferences,
+                        }),
+                    },
+                    otherPostAuthor: null,
+                }),
+            });
+
+            await expect(
+                getInboxEntry(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+                }),
+            ).resolves.toEqual({
+                key: expect.any(String),
+                version: expect.any(Number),
+                model: new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session3.account.id,
+                    loudNotificationCount: 0,
+                    channel,
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session1.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: emptyPostContent,
+                            references: emptyContentReferences,
+                        }),
+                    },
+                    otherPostAuthor: null,
+                }),
+            });
         });
 
         test("mentioning someone in a post a creates a loud notification for them whether or not they are a subscriber", async () => {
@@ -12502,5 +12603,209 @@ for (const [currentProcessingType, processingMultiple] of [
                 otherCommentAuthor: null,
             }),
         ]);
+    });
+
+    test("if an account is removed from a space their inbox won't update anymore", async () => {
+        const space = await TestSpace.create(context);
+
+        const session1 = await space.createSession({hasInternalAccess: true});
+        const session2 = await space.createSession();
+
+        const channel = await createChannel(session1.action(), {
+            spaceId: space.id,
+            name: "Test channel",
+        });
+
+        const post = await createPost(session2.action(), {
+            channelId: channel.id,
+            content: createSimplePostContent("Test post"),
+        });
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).rejects.toThrow(NotFoundError);
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 1,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 1",
+                }),
+            }),
+        });
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 2,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 2",
+                }),
+            }),
+        });
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 3"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 3,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 3",
+                }),
+            }),
+        });
+
+        await removeSpaceAccountAsAdmin(session1.action(), {
+            spaceId: space.id,
+            accountId: session2.account.id,
+        });
+
+        const spaceAccountsCache = getSpaceAccountsCacheForTest();
+        spaceAccountsCache.clearForTest();
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 4"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 5"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+            spaceId: space.id,
+            accountId: session2.account.id,
+        });
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 3,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 3",
+                }),
+            }),
+        });
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 6"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 4,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 6",
+                }),
+            }),
+        });
+
+        await createPostComment(session1.action(), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 7"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 5,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 7",
+                }),
+            }),
+        });
     });
 }

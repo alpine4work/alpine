@@ -1132,7 +1132,7 @@ test("`isAccountMemberOfSpace()` uses `spaceAccountsCache` to return true", asyn
     expect(await isMember(space, session2)).toEqual(true);
     expect(await isMember(space, otherSession)).toEqual(true);
 
-    spaceAccountsCache.cleanForTest();
+    spaceAccountsCache.clearForTest();
 
     expect(await isMember(space, session1)).toEqual(true);
     expect(await isMember(space, session2)).toEqual(false);
@@ -1363,7 +1363,7 @@ test("`isAccountMemberOfSpace()` ignores the `spaceAccountsCache` cache if accou
     expect(await isMember(space, session2)).toEqual(true);
     expect(await isMember(space, otherSession)).toEqual(false);
 
-    spaceAccountsCache.cleanForTest();
+    spaceAccountsCache.clearForTest();
 
     expect(await isMember(space, session1)).toEqual(true);
     expect(await isMember(space, session2)).toEqual(true);
@@ -1657,7 +1657,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         null,
     );
 
-    spaceAccountsCache.cleanForTest();
+    spaceAccountsCache.clearForTest();
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         new AccountModel({
@@ -1773,7 +1773,7 @@ test("`getAccountIfExists()` will return cached accounts from `spaceAccountsCach
         null,
     );
 
-    spaceAccountsCache.cleanForTest();
+    spaceAccountsCache.clearForTest();
 
     expect(await getAccountIfExists(session1.action(), space.id, session1.account.id)).toEqual(
         new AccountModel({

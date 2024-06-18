@@ -688,7 +688,7 @@ class SpaceAccountsCache {
         }
     }
 
-    public cleanForTest() {
+    public clearForTest() {
         assert(import.meta.jest);
 
         for (const {timeout} of this._entryBySpaceId.values()) {
@@ -770,7 +770,7 @@ class SpaceAccountsCache {
 
             // Once our background promise has finished, update the cache entry to use the
             // new data.
-            entry.next.dataPromise.finally(() => {
+            void entry.next.dataPromise.finally(() => {
                 const currentEntry = this._entryBySpaceId.get(spaceId);
                 if (entry !== currentEntry) return;
 

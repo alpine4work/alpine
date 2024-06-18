@@ -8,6 +8,7 @@ import {
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     getInboxEntries,
+    getInboxEntry,
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
     notificationEventProcessingTestCounter,
@@ -17,6 +18,12 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {
+    dangerouslyAddSpaceAccountAsAdmin,
+    getSpaceAccountsCacheForTest,
+    removeSpaceAccountAsAdmin,
+} from "~/server/spaces/spaces_table.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -25,6 +32,7 @@ import {
     emptyDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
@@ -1426,6 +1434,244 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherCommentAuthor: await scenario.session1.get(),
                 }),
             ]);
+        });
+    });
+
+    test("if an account is removed from a space their inbox won't update anymore", async () => {
+        const space = await TestSpace.create(context);
+
+        const session1 = await space.createSession({hasInternalAccess: true});
+        const session2 = await space.createSession();
+
+        const document = await createDocument(session1.action(), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(session1.action(), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+        const commentThreadCreatedTime = new Date();
+
+        await updateDocumentContent(session2.action(), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    11,
+                    DocumentContentProsemirrorSchema.mark("comment", {
+                        commentThreadId,
+                    }),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment 0"),
+                    createdTime: commentThreadCreatedTime,
+                },
+            ],
+        });
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).rejects.toThrow(NotFoundError);
+
+        await createDocumentComment(session1.action(), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 1,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 1",
+                }),
+            }),
+        });
+
+        await createDocumentComment(session1.action(), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 2,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 2",
+                }),
+            }),
+        });
+
+        await createDocumentComment(session1.action(), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 3"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 3,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 3",
+                }),
+            }),
+        });
+
+        await removeSpaceAccountAsAdmin(session1.action(), {
+            spaceId: space.id,
+            accountId: session2.account.id,
+        });
+
+        const spaceAccountsCache = getSpaceAccountsCacheForTest();
+        spaceAccountsCache.clearForTest();
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await createDocumentComment(session1.action(), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 4"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await createDocumentComment(session1.action(), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 5"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await expect(
+            getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+            spaceId: space.id,
+            accountId: session2.account.id,
+        });
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 3,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 3",
+                }),
+            }),
+        });
+
+        await createDocumentComment(session1.action(), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 6"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 4,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 6",
+                }),
+            }),
+        });
+
+        await createDocumentComment(session1.action(), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test comment 7"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntry(session2.action(), {
+                spaceId: space.id,
+                key: {type: "DocumentCommentThread", documentId: document.id, commentThreadId},
+            }),
+        ).toEqual({
+            key: expect.any(String),
+            version: 5,
+            model: expect.objectContaining({
+                latestComment: expect.objectContaining({
+                    contentTextSnippet: "Test comment 7",
+                }),
+            }),
         });
     });
 }
