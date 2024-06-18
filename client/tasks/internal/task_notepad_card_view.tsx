@@ -20,6 +20,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
@@ -329,8 +330,8 @@ function TaskNotepadCardView({
                     document.activeElement.blur();
                 }
 
-                // NOCOMMIT: Haptic feedback when dragging starts and when dragging crosses
-                // each task boundary.
+                NativeMobileBridge?.haptic.playMediumImpact();
+
                 onManuallyActivateTouchSensor({nativeEvent: event});
 
                 // Dispatch a `pointercancel` event so that we end up setting

@@ -35,6 +35,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -115,8 +116,6 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
-
-// NOCOMMIT: Haptic feedback when you close a task or mark it as active
 
 export type TaskGridViewColumn =
     | "ExpandButton"
@@ -1188,8 +1187,8 @@ function TaskRowView(
                     document.activeElement.blur();
                 }
 
-                // NOCOMMIT: Haptic feedback when dragging starts and when dragging crosses
-                // each task boundary.
+                NativeMobileBridge?.haptic.playMediumImpact();
+
                 onManuallyActivateTouchSensorRef.current?.({nativeEvent: event});
 
                 // Dispatch a `pointercancel` event so that any `usePress()` hooks cancel their

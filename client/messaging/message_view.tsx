@@ -26,6 +26,7 @@ import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {MessageViewTouchLightbox} from "~/client/messaging/message_view_touch_lightbox.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
@@ -460,7 +461,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     hasParentMessage ? containerElement : messageElement
                 ).getBoundingClientRect().top;
 
-                // NOCOMMIT: Haptic feedback when opening lightbox
+                NativeMobileBridge?.haptic.playMediumImpact();
+
                 setTouchLightboxState({
                     initialMessageTop,
                     getMessageTop: () => {
@@ -495,7 +497,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             if (!gestureFinishedPromise) {
                 setShowTouchReplyIcon(false);
             } else {
-                gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
+                void gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
             }
 
             if (hasReplyGestureActivated) {
@@ -606,8 +608,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         maxTouchReplyIconElementTranslateX,
                     );
 
-                    // NOCOMMIT: Haptic feedback when reply gesture activates.
                     if (touchReplyIconElementTranslateX === maxTouchReplyIconElementTranslateX) {
+                        if (!touchState.hasReplyGestureActivated) {
+                            NativeMobileBridge?.haptic.playHeavyImpact();
+                        }
+
                         touchState.hasReplyGestureActivated = true;
                     } else {
                         touchState.hasReplyGestureActivated = false;
@@ -641,7 +646,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             if (!gestureFinishedPromise) {
                 setShowTouchReplyIcon(false);
             } else {
-                gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
+                void gestureFinishedPromise.finally(() => setShowTouchReplyIcon(false));
             }
         };
 

@@ -21,6 +21,7 @@ import {
 } from "~/client/inbox/inbox_entry_display.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -376,7 +377,7 @@ export function InboxEntryView({
                     // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
                     // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
                     // across multiple hardware pixels per move.
-                    (1 / 3);
+                    (1 / 2);
 
                 const touchSwipeIconElement = touchSwipeIconRef.current;
 
@@ -392,11 +393,12 @@ export function InboxEntryView({
                     minTouchSwipeIconElementTranslateX,
                 );
 
-                // NOCOMMIT: Haptic feedback when reply gesture activates.
                 if (touchSwipeIconElementTranslateX === minTouchSwipeIconElementTranslateX) {
                     if (!touchState.hasSwipeGestureActivated) {
                         setTouchSwipeState("Activated");
                         touchSwipeStateRef.current = "Activated";
+
+                        NativeMobileBridge?.haptic.playHeavyImpact();
                     }
                     touchState.hasSwipeGestureActivated = true;
                 } else {

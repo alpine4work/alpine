@@ -39,9 +39,6 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-// NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
-// to reward.
-
 /**
  * A keyboard toolbar that's basically the same as
  * `<ContentEditorMobileKeyboardToolbar>` but designed for use with

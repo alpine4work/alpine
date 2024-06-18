@@ -748,4 +748,48 @@ export const NativeMobileBridge: {
          */
         subscribeToAppleDeviceTokensUpdate(listener: () => void): () => void;
     };
+
+    /**
+     * Helpers for playing haptic feedback using the mobile device's haptic
+     * feedback engine. Haptic feedback effect names use the names from iOS.
+     * For other operating system's, find equivalent haptic feedback effects for
+     * the task.
+     */
+    readonly haptic: {
+        /**
+         * Play a light impact haptic feedback effect.
+         *
+         * Corresponds to [`UIImpactFeedbackGenerator`'s][1] `light` style.
+         *
+         * [1]: https://developer.apple.com/documentation/uikit/uiimpactfeedbackgenerator
+         */
+        playLightImpact(): void;
+
+        /**
+         * Play a medium impact haptic feedback effect.
+         *
+         * Corresponds to [`UIImpactFeedbackGenerator`'s][1] `medium` style.
+         *
+         * [1]: https://developer.apple.com/documentation/uikit/uiimpactfeedbackgenerator
+         */
+        playMediumImpact(): void;
+
+        /**
+         * Play a heavy impact haptic feedback effect.
+         *
+         * Corresponds to [`UIImpactFeedbackGenerator`'s][1] `heavy` style.
+         *
+         * [1]: https://developer.apple.com/documentation/uikit/uiimpactfeedbackgenerator
+         */
+        playHeavyImpact(): void;
+
+        /**
+         * Play a haptic feedback effect for when the selection changes.
+         *
+         * Corresponds to [`UISelectionFeedbackGenerator`][1].
+         *
+         * [1]: https://developer.apple.com/documentation/uikit/uiselectionfeedbackgenerator
+         */
+        playSelectionChanged(): void;
+    };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

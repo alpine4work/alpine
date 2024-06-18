@@ -1786,6 +1786,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webDelegate?.webNavigationController?(setInboxSubtleNotificationBadge: self)
         } else if messageBody == "scrollbar.updateAllInsets" {
             setAllWebScrollViewScrollIndicatorInsets()
+        } else if messageBody == "haptic.playLightImpact" {
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+        } else if messageBody == "haptic.playMediumImpact" {
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+        } else if messageBody == "haptic.playHeavyImpact" {
+            let generator = UIImpactFeedbackGenerator(style: .heavy)
+            generator.impactOccurred()
+        } else if messageBody == "haptic.playSelectionChanged" {
+            let generator = UISelectionFeedbackGenerator()
+            generator.selectionChanged()
         } else {
             logger.warning("Received unrecognized message from web view: \(messageBody)")
         }
@@ -3984,6 +3996,20 @@ private func createWebBridgeSource(initialTab: WebNavigationController.Tab) -> S
                                 }, 0);
                             }
                         }
+                    },
+                },
+                haptic: {
+                    playLightImpact: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("haptic.playLightImpact");
+                    },
+                    playMediumImpact: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("haptic.playMediumImpact");
+                    },
+                    playHeavyImpact: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("haptic.playHeavyImpact");
+                    },
+                    playSelectionChanged: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("haptic.playSelectionChanged");
                     },
                 },
             };

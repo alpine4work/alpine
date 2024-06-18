@@ -1,5 +1,6 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {MenuAction} from "~/client/design/menu.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {
     TaskClientStore,
@@ -132,6 +133,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                             undoManager,
                             affinityManager,
                         });
+
+                        // Reward the user with haptic feedback when they change task's status.
+                        NativeMobileBridge?.haptic.playLightImpact();
                     },
                 },
                 {
@@ -167,6 +171,7 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                                 {undoManager, affinityManager},
                             );
                         };
+
                         // Checks if there are any open subtasks
                         if (getOpenChildCountSnapshot() !== 0) {
                             // If there are open subtasks, then open warning dialogue
@@ -177,6 +182,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                             // If there are no open subtasks, then just close the task
                             runCommitTaskActionTransaction();
                         }
+
+                        // Reward the user with haptic feedback when they change task's status.
+                        NativeMobileBridge?.haptic.playLightImpact();
                     },
                 },
             ];
@@ -207,6 +215,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                             ],
                             {undoManager, affinityManager},
                         );
+
+                        // Reward the user with haptic feedback when they change task's status.
+                        NativeMobileBridge?.haptic.playLightImpact();
                     },
                 },
                 {
@@ -242,6 +253,7 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                                 {undoManager, affinityManager},
                             );
                         };
+
                         // Checks if there are any open subtasks
                         if (getOpenChildCountSnapshot() !== 0) {
                             // If there are open subtasks, then open warning dialogue
@@ -252,6 +264,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                             // If there are no open subtasks, then just close the task
                             runCommitTaskActionTransaction();
                         }
+
+                        // Reward the user with haptic feedback when they change task's status.
+                        NativeMobileBridge?.haptic.playLightImpact();
                     },
                 },
             ];
@@ -280,6 +295,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                             ],
                             {undoManager, affinityManager},
                         );
+
+                        // Reward the user with haptic feedback when they change task's status.
+                        NativeMobileBridge?.haptic.playLightImpact();
                     },
                 },
                 {
@@ -344,6 +362,9 @@ export function getTaskStatusMenuActionsWithoutFullTask({
                             undoManager,
                             affinityManager,
                         });
+
+                        // Reward the user with haptic feedback when they change task's status.
+                        NativeMobileBridge?.haptic.playLightImpact();
                     },
                 },
             ];

@@ -8,6 +8,7 @@ import {
 } from "~/client/design/use_touch_slop.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
@@ -166,6 +167,7 @@ function TaskStatusButton(
                             {undoManager, affinityManager},
                         );
                     };
+
                     // Checks if there are any open subtasks
                     // if there are then open warning dialogue
                     if (task.getOpenChildTaskCount() !== 0) {
@@ -176,6 +178,9 @@ function TaskStatusButton(
                         runCommitTaskActionTransaction();
                     }
                 }
+
+                // Reward the user with haptic feedback when they change task's status.
+                NativeMobileBridge?.haptic.playLightImpact();
             },
             onKeyDown,
         },

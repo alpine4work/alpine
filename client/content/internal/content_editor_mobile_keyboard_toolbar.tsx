@@ -51,9 +51,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 
-// NOCOMMIT: Haptic feedback when style is selected? This feels like a nice way
-// to reward.
-
 export function ContentEditorMobileKeyboardToolbar({
     state,
     viewRef,
@@ -145,7 +142,7 @@ export function ContentEditorMobileKeyboardToolbar({
                 },
             );
 
-            animation.finished.finally(() => {
+            void animation.finished.finally(() => {
                 setIsToolbarRendered(false);
             });
         } else {
@@ -459,7 +456,7 @@ export function ContentEditorMobileKeyboardToolbar({
                                     if (!NativeMobileBridge) {
                                         setIsSubstituteOpen(true);
                                     } else {
-                                        NativeMobileBridge.keyboard
+                                        void NativeMobileBridge.keyboard
                                             .prepareForSubstitute()
                                             .finally(() => {
                                                 setIsSubstituteOpen(true);

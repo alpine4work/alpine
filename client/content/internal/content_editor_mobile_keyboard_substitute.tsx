@@ -151,7 +151,7 @@ function ContentEditorMobileKeyboardSubstitute(
             },
         );
 
-        animation.finished.finally(() => {
+        void animation.finished.finally(() => {
             onClose();
             contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver?.resolve();
             contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver = null;
@@ -428,7 +428,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                 label="Link"
                 labelProps={{
                     className: contentSchemaStyles.linkClassName,
-                    style: {color: "inherit"},
+                    style: {color: colorSchemeVars["grey-100"]},
                 }}
                 isActive={!!linkSelection}
                 onPress={() => {
@@ -454,7 +454,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
 
                     view.dispatch(view.state.tr.setSelection(selection));
 
-                    Promise.race([
+                    void Promise.race([
                         contentEditorMobileKeyboardSubstituteClosingAnimationPromiseResolver.promise,
                         // The closing animation should take 250ms but just in case there's a bug that
                         // causes us to never resolve the promise, let's resolve in 1000ms.
@@ -477,11 +477,13 @@ function ContentEditorMobileKeyboardSubstituteMain({
                     icon={<Palette />}
                     label="Highlight"
                     isActive={!!activeHighlightMark}
-                    onPress={
-                        activeHighlightMark
-                            ? () => onSelectHighlightColor(null)
-                            : onHighlightSelectorOpen
-                    }
+                    onPress={() => {
+                        if (activeHighlightMark) {
+                            onSelectHighlightColor(null);
+                        } else {
+                            onHighlightSelectorOpen();
+                        }
+                    }}
                 />
             )}
             <ContentEditorMobileKeyboardSubstituteButton
@@ -763,7 +765,9 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
             </Box>
             {isActive && (
                 <Box
-                    color={`${highlightColor === "blue" ? "indigo" : highlightColor}-60`}
+                    color={`${
+                        highlightColor === HighlightColor.Blue ? "indigo" : highlightColor
+                    }-60`}
                     position="absolute"
                     top="0.5"
                     right="1"

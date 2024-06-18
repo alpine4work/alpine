@@ -23,12 +23,14 @@ import {
     createContext,
     useContext,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import {createPortal, flushSync} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
@@ -221,16 +223,36 @@ export function TaskGridViewDndContext({
     // have other keyboard shortcuts.
     const sensors = useSensors(mouseSensor, touchSensor);
 
-    const onDragEnd = useEvent(({active, over}: DragEndEvent) => {
-        if (!over) return;
+    const lastDragOverIdRef = useRef<string | number | null>(null);
 
-        const activeData = assertExists(active.data.current) as TaskGridViewDraggableData;
-        assert(typeof activeData.type === "string");
+    const {onDragEnd, onDragStart, onDragMove} = useEvents({
+        onDragEnd: ({active, over}: DragEndEvent) => {
+            if (!over) return;
 
-        const overData = assertExists(over.data.current) as TaskGridViewDroppableData;
-        assert(typeof overData.type === "string");
+            const activeData = assertExists(active.data.current) as TaskGridViewDraggableData;
+            assert(typeof activeData.type === "string");
 
-        onActuallyDragEnd(activeData, overData);
+            const overData = assertExists(over.data.current) as TaskGridViewDroppableData;
+            assert(typeof overData.type === "string");
+
+            onActuallyDragEnd(activeData, overData);
+        },
+        onDragStart: () => {
+            lastDragOverIdRef.current = null;
+        },
+        onDragMove: ({over}: DragEndEvent) => {
+            if (over !== null) {
+                if (lastDragOverIdRef.current === null) {
+                    lastDragOverIdRef.current = over.id;
+                } else if (lastDragOverIdRef.current !== over.id) {
+                    lastDragOverIdRef.current = over.id;
+
+                    // Whenever we're dragging over something new, play the selection changed
+                    // haptic feedback.
+                    NativeMobileBridge?.haptic.playSelectionChanged();
+                }
+            }
+        },
     });
 
     // If we already have a parent `<TaskGridViewDndContext>` then don't render
@@ -404,6 +426,8 @@ export function TaskGridViewDndContext({
                 sensors={sensors}
                 collisionDetection={taskGridViewDndCollisionDetection}
                 onDragEnd={onDragEnd}
+                onDragStart={onDragStart}
+                onDragMove={onDragMove}
                 // NOTE(calebmer): We patch `@dnd-kit/core` to add this property. If the node
                 // we're dragging unmounts, we still want `active.data.current` to return the
                 // last data object we saw.
