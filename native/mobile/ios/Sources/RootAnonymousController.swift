@@ -15,6 +15,7 @@ class RootAnonymousController: WebNavigationController, SceneDelegateRootControl
 
         super
             .init(
+                initialTab: .home,
                 initialPath: initialPath,
                 // There is no tab navigation in an anonymous view. The user shouldn't be able
                 // to switch tabs but in case they do always go back to the initial sign in

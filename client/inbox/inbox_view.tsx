@@ -38,7 +38,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -73,7 +73,7 @@ export function InboxView({
             for (let i = 0; i < itemCount; i++) {
                 const item = query.getItem(i);
                 if (item.type === "Loaded") {
-                    if (item.item.model.getPath() === spacePath) {
+                    if (getInboxEntryPath(item.item.model) === spacePath) {
                         return item.item.key;
                     }
                 }
@@ -185,7 +185,7 @@ export function InboxView({
             if (selectedEntryKey === entry.key) return Promise.resolve();
 
             return switchPeek({
-                spacePath: entry.model.getPath(),
+                spacePath: getInboxEntryPath(entry.model),
                 extra: {key: entry.key},
             });
         },

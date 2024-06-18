@@ -3,8 +3,31 @@ import UIKit
 
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "AppDelegate")
 
-@UIApplicationMain class AppDelegate: NSObject, UIApplicationDelegate {
+@objc class AppNotificationRequest: NSObject {
+    let identifier: String
+    let spaceId: String
+    let entryPath: String
+
+    init(identifier: String, spaceId: String, entryPath: String) {
+        self.identifier = identifier
+        self.spaceId = spaceId
+        self.entryPath = entryPath
+    }
+
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let object = object as? AppNotificationRequest else { return super.isEqual(object) }
+        return object.identifier == self.identifier && object.spaceId == self.spaceId
+            && object.entryPath == self.entryPath
+    }
+}
+
+@UIApplicationMain
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     public static var shared: AppDelegate { UIApplication.shared.delegate as! AppDelegate }
+
+    static private let spacePathRegex = try! Regex<(Substring, Substring)>(
+        "^/s/([a-zA-Z0-9]+)(?:/|$)"
+    )
 
     var hasRegisterForRemoteNotificationsFailed = false
     private var remoteNotificationDeviceTokens = [Data]()
@@ -17,6 +40,22 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: 
     /// You may observe this variable to be notified when there are new device
     /// tokens for you to retrieve.
     @objc private(set) dynamic var remoteNotificationDeviceTokenCount = 0
+
+    /// The current notification request. Will be observed by our application code
+    /// and used to immediately take the user to a notification which they tapped.
+    @objc private(set) dynamic var notificationRequest: AppNotificationRequest?
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        let notificationCenter = UNUserNotificationCenter.current()
+        notificationCenter.delegate = self
+
+        logger.info("Finished launching application")
+
+        return true
+    }
 
     func application(
         _ application: UIApplication,
@@ -95,5 +134,40 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: 
         let deviceTokens = remoteNotificationDeviceTokens
         remoteNotificationDeviceTokens = []
         return deviceTokens
+    }
+
+    func updateNotificationRequestFromSceneConnectionOptions(
+        _ connectionOptions: UIScene.ConnectionOptions
+    ) {
+        if let response = connectionOptions.notificationResponse {
+            didReceiveNotificationResponse(response)
+        }
+    }
+
+    func userNotificationCenter(
+        _ notificationCenter: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async { didReceiveNotificationResponse(response) }
+
+    private func didReceiveNotificationResponse(_ response: UNNotificationResponse) {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
+
+        let entryPath = response.notification.request.content.userInfo["entry"]
+        guard let entryPath = entryPath as? String else {
+            logger.warning("Received notification without an entry property")
+            return
+        }
+
+        let spacePathMatch = (try! AppDelegate.spacePathRegex.firstMatch(in: entryPath))!
+
+        let newNotificationRequest = AppNotificationRequest(
+            identifier: response.notification.request.identifier,
+            spaceId: String(spacePathMatch.1),
+            entryPath: entryPath
+        )
+        if newNotificationRequest != notificationRequest {
+            logger.info("Received notification: \(entryPath, privacy: .public)")
+            notificationRequest = newNotificationRequest
+        }
     }
 }

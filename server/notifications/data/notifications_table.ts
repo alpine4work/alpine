@@ -110,6 +110,7 @@ import {
     InboxItemModelSchema,
     InboxModel,
     InboxPostCommentsEntryModel,
+    getInboxEntryKeyPath,
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
@@ -1392,6 +1393,46 @@ function getInboxEntryItemKey({
     }
 }
 
+function getInboxEntryKey(itemKey: InboxEntryItemKey): InboxEntryKey {
+    switch (itemKey.sortRangeType) {
+        case "ChatEntry": {
+            return {
+                type: "Chat",
+                chatId: itemKey.chatId,
+            };
+        }
+        case "PostCommentsEntry": {
+            return {
+                type: "PostComments",
+                postId: itemKey.postId,
+            };
+        }
+        case "ChannelPostsEntry": {
+            return {
+                type: "ChannelPosts",
+                channelId: itemKey.channelId,
+                bucketGeneration: itemKey.bucketGeneration,
+            };
+        }
+        case "DocumentCommentThreadEntry": {
+            return {
+                type: "DocumentCommentThread",
+                documentId: itemKey.documentId,
+                commentThreadId: itemKey.commentThreadId,
+            };
+        }
+        case "DocumentNewCommentThreadsEntry": {
+            return {
+                type: "DocumentNewCommentThreads",
+                documentId: itemKey.documentId,
+                bucketGeneration: itemKey.bucketGeneration,
+            };
+        }
+        default:
+            throw exhaustive(itemKey);
+    }
+}
+
 /**
  * Archives an inbox entry, moving it out of the account's primary inbox and
  * into an archive. The user can still manually revive archived inbox entries
@@ -1930,6 +1971,20 @@ async function sendPushNotificationToAccountDevices(
             // Interrupt the user if tge loud notification count increased.
             const isLoud = loudNotificationCountDifference > 0;
 
+            const entryPath = getInboxEntryKeyPath(
+                newEntryItem.spaceId,
+                getInboxEntryKey(newEntryItem),
+            );
+            const entryUrl = new URL(
+                entryPath,
+                // We'll discard the domain name before sending a notification so put anything
+                // in there.
+                "https://example.com",
+            );
+
+            // Make sure we show context for the inbox entry.
+            entryUrl.searchParams.set("inbox", "show");
+
             await runAllPromises(
                 accountDevices.map(async accountDevice => {
                     // TODO(calebmer): I expect to get errors from APNs if a device token is
@@ -1938,6 +1993,8 @@ async function sendPushNotificationToAccountDevices(
                     await sendAlert(
                         accountDevice.deviceToken,
                         {
+                            entry: `${entryUrl.pathname}${entryUrl.search}${entryUrl.hash}`,
+
                             aps: {
                                 alert: alertContent ?? undefined,
                                 "thread-id": getApnsNotificationThreadId(newEntryItem),

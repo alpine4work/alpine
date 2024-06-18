@@ -26,7 +26,7 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -313,7 +313,7 @@ function InboxMobileEntryView({
                 if (isPending) return;
                 setIsPending(true);
 
-                const url = new URL(entry.model.getPath(), window.location.href);
+                const url = new URL(getInboxEntryPath(entry.model), window.location.href);
                 url.searchParams.set("inbox", "show");
 
                 // TODO(calebmer, #global-loading-indicator): Some kind of global loading

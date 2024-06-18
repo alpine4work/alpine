@@ -15,26 +15,26 @@ beforeEach(() => {
     history.replaceState(null, "", "/home");
 });
 
-let navigationRequestExternalPopCount = 0;
+let navigationRequestEventualExternalPopCount = 0;
 
-NativeMobileBridgeForTest.navigation.subscribeToRequestExternalPopForTest(() => {
-    navigationRequestExternalPopCount += 1;
+NativeMobileBridgeForTest.navigation.subscribeToRequestEventualExternalPopForTest(() => {
+    navigationRequestEventualExternalPopCount += 1;
 });
 
 beforeEach(() => {
-    navigationRequestExternalPopCount = 0;
+    navigationRequestEventualExternalPopCount = 0;
 });
 
 afterEach(() => {
     assert(
-        navigationRequestExternalPopCount === 0,
-        "Non-zero `navigationRequestExternalPopCount` at the end of test, should call `expectNavigationRequestExternalPopCount()`",
+        navigationRequestEventualExternalPopCount === 0,
+        "Non-zero `navigationRequestEventualExternalPopCount` at the end of test, should call `expectNavigationRequestEventualExternalPopCount()`",
     );
 });
 
-function expectNavigationRequestExternalPopCount(count: number) {
-    expect(navigationRequestExternalPopCount).toEqual(count);
-    navigationRequestExternalPopCount = 0;
+function expectNavigationRequestEventualExternalPopCount(count: number) {
+    expect(navigationRequestEventualExternalPopCount).toEqual(count);
+    navigationRequestEventualExternalPopCount = 0;
 }
 
 function createHistory() {
@@ -875,11 +875,11 @@ test("can pop even when there are no past entries", async () => {
     expect(history.getEntryKey()).toEqual("Home-000");
     expect(history.getInertRouterStates()).toEqual([]);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     history.go(-1);
 
-    expectNavigationRequestExternalPopCount(1);
+    expectNavigationRequestEventualExternalPopCount(1);
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
@@ -908,11 +908,11 @@ test("can pop even when there are no past entries", async () => {
         {entryKey: "Home-001", routerState: "/page1"},
     ]);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     history.go(-1);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     expect(createPath(window.location)).toEqual("/page1");
     expect(history.action).toEqual(Action.Pop);
@@ -920,11 +920,11 @@ test("can pop even when there are no past entries", async () => {
     expect(history.getEntryKey()).toEqual("Home-001");
     expect(history.getInertRouterStates()).toEqual([{entryKey: "Home-000", routerState: "/home"}]);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     history.go(-1);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
@@ -932,11 +932,11 @@ test("can pop even when there are no past entries", async () => {
     expect(history.getEntryKey()).toEqual("Home-000");
     expect(history.getInertRouterStates()).toEqual([]);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     history.go(-1);
 
-    expectNavigationRequestExternalPopCount(1);
+    expectNavigationRequestEventualExternalPopCount(1);
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
@@ -965,11 +965,11 @@ test("can pop even when there are no past entries", async () => {
         {entryKey: "Home-001", routerState: "/page3"},
     ]);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     history.go(-100);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
@@ -977,11 +977,11 @@ test("can pop even when there are no past entries", async () => {
     expect(history.getEntryKey()).toEqual("Home-000");
     expect(history.getInertRouterStates()).toEqual([]);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     history.go(-100);
 
-    expectNavigationRequestExternalPopCount(1);
+    expectNavigationRequestEventualExternalPopCount(1);
 
     expect(createPath(window.location)).toEqual("/home");
     expect(history.action).toEqual(Action.Pop);
@@ -1153,11 +1153,11 @@ test("can pop across switched tabs", async () => {
         {entryKey: "Home-001", routerState: "/page1"},
     ]);
 
-    expectNavigationRequestExternalPopCount(0);
+    expectNavigationRequestEventualExternalPopCount(0);
 
     history.go(-1);
 
-    expectNavigationRequestExternalPopCount(1);
+    expectNavigationRequestEventualExternalPopCount(1);
 
     expect(createPath(window.location)).toEqual("/create");
     expect(history.action).toEqual(Action.Push);

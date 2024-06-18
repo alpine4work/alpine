@@ -188,6 +188,8 @@ export function AppRouterProvider({
                 const url = new URL(router.createHref(state.location), window.location.href);
 
                 NativeMobileBridge?.navigation.preparePop(url);
+            } else {
+                NativeMobileBridge?.navigation.prepareExternalPop();
             }
         } else if (state.historyAction === "REPLACE") {
             if (state.location.state?.withPushAnimation) {
@@ -208,7 +210,7 @@ export function AppRouterProvider({
         // drag from left to pop gesture where the animation finishes and the old route
         // briefly flashes before the new route renders. This is because the browser
         // hasn't finished rendering the correct route by the time we call
-        // `NativeMobileBridge.navigation.finishExternalPop()`.
+        // `NativeMobileBridge.navigation.externalPop()`.
         //
         // Double request animation frame guarantees we run some code after the
         // browser's next animation frame.
@@ -236,7 +238,7 @@ export function AppRouterProvider({
                     } else if (state.location.state?.isNotFromExternal) {
                         NativeMobileBridge.navigation.pop(url);
                     } else {
-                        NativeMobileBridge.navigation.finishExternalPop();
+                        NativeMobileBridge.navigation.externalPop();
                     }
                 } else if (state.historyAction === "REPLACE") {
                     if (state.location.state?.withPushAnimation) {

@@ -7,7 +7,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     var spaceId: String { session.spaceId }
     let webNavigationController: WebNavigationController
 
-    private let session: Session
+    let session: Session
     private let signOut: () -> Void
     private let switchSpace: (String, Session) -> Void
 
@@ -35,7 +35,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     init(
         session: Session,
         signOut: @escaping () -> Void,
-        switchSpace: @escaping (String, Session) -> Void
+        switchSpace: @escaping (String, Session) -> Void,
+        initialTab: WebNavigationController.Tab = .home,
+        initialPath: String? = nil
     ) {
         self.session = session
         self.signOut = signOut
@@ -69,7 +71,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         websiteDataStore.httpCookieStore.setCookie(sessionCookie)
 
         webNavigationController = WebNavigationController(
-            initialPath: "/s/\(session.spaceId)",
+            initialTab: initialTab,
+            initialPath: initialPath ?? "/s/\(session.spaceId)",
             initialPathByTab: WebNavigationController.InitialPathByTab(
                 home: "/s/\(session.spaceId)",
                 search: "/s/\(session.spaceId)/search",
@@ -149,7 +152,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             moreTabController,
         ]
 
-        selectedViewController = homeTabController
+        selectedViewController =
+            viewControllers?.first(where: { ($0 as! RootTabController).tab == initialTab })
+            ?? homeTabController
         selectedViewController!.addChild(webNavigationController)
         selectedViewController!.view.addSubview(webNavigationController.view)
     }
@@ -164,6 +169,19 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // Wait until the user is logged in to ask for authorization to send push
         // notifications.
         AppDelegate.shared.registerForRemoteNotificationsAndRequestAuthorization()
+
+        // HACK(calebmer): Without this code, when you open the app from a notification
+        // then hit the back button there will be no navigation animations until the
+        // user switches tabs. After three hours of debugging, including trying to
+        // dissassemble UIKit code, I can't figure out what's happening here and why
+        // switching the selected tab works. I only know it does work. Committing this
+        // fix and moving on.
+        let homeViewController = viewControllers![0]
+        if selectedViewController != homeViewController {
+            let originalViewController = selectedViewController
+            selectedViewController = homeViewController
+            selectedViewController = originalViewController
+        }
     }
 
     func tabBarController(
@@ -232,7 +250,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         isAnimated: Bool
     ) {
         // Defense in case this method is called with the same scroll view twice.
-        if let scrollView = scrollView, scrollView == mainScrollView { return }
+        if let scrollView = scrollView, scrollView === mainScrollView { return }
 
         // See the comment on the same statement in
         // `webNavigationController(didScroll:)` for more information on why we call
@@ -326,11 +344,13 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         options: .curveEaseIn,
                         animations: { [self] in
                             tabBar.frame.origin.y = tabBarFrameOriginY
+
                             if !isWebDisablingTabBar {
                                 // Never animate bottom bars when hiding the tab bar. We want this when
                                 // popping back to a screen that has the tab bar hidden (since the snapshot was
                                 // rendered with a hidden tab bar). It's weird for the bottom bar to jump up
                                 // then animate down with the tab bar.
+                                let previousAreAnimationsEnabeld = UIView.areAnimationsEnabled
                                 if newTabBarIsHidden { UIView.setAnimationsEnabled(false) }
 
                                 webNavigationController.setTabBarScrollOffset(
@@ -338,7 +358,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                                     navigationBarScrollOffset: navigationBarScrollOffset
                                 )
 
-                                if newTabBarIsHidden { UIView.setAnimationsEnabled(true) }
+                                if newTabBarIsHidden {
+                                    UIView.setAnimationsEnabled(previousAreAnimationsEnabeld)
+                                }
                             }
                         },
                         completion: { [self] (finished) in

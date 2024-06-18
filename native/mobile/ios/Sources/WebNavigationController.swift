@@ -111,7 +111,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         "(?:^|\\?|&)inbox=show(?:&|$)"
     )
 
-    private let initialPath: String
     private let initialPathByTab: InitialPathByTab
     private let webConfiguration: WKWebViewConfiguration
     private let weakScriptMessageHandler: WeakScriptMessageHandler
@@ -135,7 +134,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         }
     }
 
-    private var currentTab = Tab.home
+    private var currentTab: Tab
 
     enum Tab {
         case home
@@ -495,15 +494,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasAddedMainScrollViewWhilePreparingNavigation = false
 
     init(
+        initialTab: Tab,
         initialPath: String,
         initialPathByTab: InitialPathByTab,
         websiteDataStore: WKWebsiteDataStore
     ) {
-        let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
+        let initialUrl = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
 
-        logger.info("Initializing at: \(url.absoluteString, privacy: .public)")
+        logger.info("Initializing at: \(initialUrl.absoluteString, privacy: .public)")
 
-        self.initialPath = initialPath
+        self.currentTab = initialTab
         self.initialPathByTab = initialPathByTab
 
         webConfiguration = WKWebViewConfiguration()
@@ -522,7 +522,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webConfiguration.userContentController.addUserScript(
             WKUserScript(
-                source: webBridgeSource,
+                source: createWebBridgeSource(initialTab: initialTab),
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
             )
@@ -628,17 +628,40 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
 
-        let request = URLRequest(url: url)
+        let request = URLRequest(url: initialUrl)
         webView.load(request)
 
-        let rootViewController = WebNavigationEntryController(
-            entry: WebNavigationEntry(),
-            url: url,
-            webNavigationController: self,
-            webView: webView,
-            healthState: webViewHealthState
-        )
-        viewControllers = [rootViewController]
+        if initialPath == initialPathByTab.get(initialTab) {
+            viewControllers = [
+                WebNavigationEntryController(
+                    entry: WebNavigationEntry(),
+                    url: initialUrl,
+                    webNavigationController: self,
+                    webView: webView,
+                    healthState: webViewHealthState
+                )
+            ]
+        } else {
+            viewControllers = [
+                WebNavigationEntryController(
+                    entry: WebNavigationEntry(),
+                    url: URL(
+                        string: initialPathByTab.get(initialTab),
+                        relativeTo: WebNavigationController.baseUrl
+                    )!,
+                    webNavigationController: self,
+                    webView: webView,
+                    healthState: webViewHealthState
+                ),
+                WebNavigationEntryController(
+                    entry: WebNavigationEntry(),
+                    url: initialUrl,
+                    webNavigationController: self,
+                    webView: webView,
+                    healthState: webViewHealthState
+                ),
+            ]
+        }
 
         initWebViewHealthTimer()
     }
@@ -1078,6 +1101,38 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
 
             return nil
+        } else if prompt == "%%%navigation.prepareExternalPop" {
+            // This may be called in either an immediate external pop or an eventual
+            // external pop.
+            //
+            // - In an immediate external pop (from
+            //   `propagateImmediateExternalPopNavigation()`) `preparingNavigationEntry`
+            //   will be non-nill and `topViewController` will already have a snapshot.
+            //
+            // - In an eventual external pop (from `requestEventualExternalPop()`)
+            //   `preparingNavigationEntry` will be nil, we won't have taken a snapshot of
+            //   the top view controller yet, and we'll need to run the pop animation when
+            //   `externalPop()` is called. So take a snapshot now before the web view
+            //   re-render happens.
+            if preparingNavigationEntry == nil {
+                preparingNavigationEntry =
+                    (viewControllers.count > 1
+                    ? viewControllers[viewControllers.count - 2] as! WebNavigationEntryController
+                    : topViewController! as! WebNavigationEntryController)
+                    .entry
+                hasAddedMainScrollViewWhilePreparingNavigation = false
+
+                isNavigationAnimating = true
+
+                cleanupModalPresentedViewController()
+
+                // Beware! If `NativeMobileBridge.navigation.externalPop()` is not promptly
+                // called the app will appear frozen.
+                (topViewController! as! WebNavigationEntryController)
+                    .replaceWebViewWithSnapshotView()
+            }
+
+            return nil
         } else if prompt.starts(with: "%%%navigation.preparePop:") {
             let urlString = prompt.suffix(from: prompt.index(prompt.startIndex, offsetBy: 25))
             let url = URL(string: String(urlString))!
@@ -1249,14 +1304,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             } else {
                 DispatchQueue.main.async { completion() }
             }
-        } else if messageBody == "navigation.finishExternalPop" {
+        } else if messageBody == "navigation.externalPop" {
             cleanupModalPresentedViewController()
 
             logger.info(
-                "Finishing external pop navigation to: \((self.topViewController! as! WebNavigationEntryController).url.absoluteString, privacy: .public)"
+                "External pop navigation to: \((self.topViewController! as! WebNavigationEntryController).url.absoluteString, privacy: .public)"
             )
-
-            (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
 
             webDelegate?.webNavigationController?(
                 self,
@@ -1266,6 +1319,47 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             preparingNavigationEntry = nil
             hasAddedMainScrollViewWhilePreparingNavigation = false
+
+            // - In an immediate external pop (from
+            //   `propagateImmediateExternalPopNavigation()`) `isNavigationAnimating` is
+            //   false since the animation already happened. We only need to put the web
+            //   view back in the top view controller.
+            //
+            // - In an eventual external pop (from `requestEventualExternalPop()`)
+            //   `isNavigationAnimating` is true and we'll need to run the pop animation.
+            //
+            // See how we handle `prepareExternalPop()` for more information.
+            if !isNavigationAnimating {
+                (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
+            } else {
+                ((viewControllers.count > 1
+                    ? viewControllers[viewControllers.count - 2] : topViewController!)
+                    as! WebNavigationEntryController)
+                    .moveWebViewInto(webView)
+
+                super.popViewController(animated: true)
+
+                let completion = { [weak self] in
+                    guard let this = self else { return }
+
+                    this.isNavigationAnimating = false
+
+                    if this.isAfterNavigationAnimationCallbackScheduled {
+                        this.isAfterNavigationAnimationCallbackScheduled = false
+                        this.webView.evaluateJavaScript(
+                            "window.__NativeMobileBridge.navigation._callScheduledAfterAnimationCallbacks()"
+                        )
+                    }
+                }
+
+                // Call completion after push animation. Derived from:
+                // https://stackoverflow.com/a/33767837/1568890
+                if let transitionCoordinator = transitionCoordinator {
+                    transitionCoordinator.animate(alongsideTransition: nil) { _ in completion() }
+                } else {
+                    DispatchQueue.main.async { completion() }
+                }
+            }
         } else if messageBody.starts(with: "navigation.pop:") {
             cleanupModalPresentedViewController()
 
@@ -1335,9 +1429,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
                 completion()
             }
-        } else if messageBody == "navigation.requestExternalPop" {
-            // Initiate a pop navigation from native code...
-            let _ = popViewController(animated: true)
+        } else if messageBody == "navigation.requestEventualExternalPop" {
+            logger.info("Requested eventual external pop")
+
+            // Instead of calling `popViewController()`, tell web about the external pop
+            // and wait for web to call `prepareExternalPop()` to replace the current view
+            // with a snapshot view. This keeps the app responsive while loading the popped
+            // route.
+            if viewControllers.count > 1 {
+                let nextViewController =
+                    viewControllers[viewControllers.count - 2] as! WebNavigationEntryController
+
+                callNavigationExternalPopListeners(delta: 1, url: nextViewController.url)
+            }
         } else if messageBody.starts(with: "navigation.replace:") {
             let urlString = messageBody.suffix(
                 from: messageBody.index(messageBody.startIndex, offsetBy: 19)
@@ -2504,7 +2608,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let viewController = super.popViewController(animated: animated)!
 
-        propagateExternalPopNavigation(
+        propagateImmediateExternalPopNavigation(
             lastTopViewController: viewController as! WebNavigationEntryController,
             delta: 1
         )
@@ -2524,7 +2628,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let poppedViewControllers = super.popToRootViewController(animated: animated)!
 
-        propagateExternalPopNavigation(
+        propagateImmediateExternalPopNavigation(
             lastTopViewController: poppedViewControllers.last! as! WebNavigationEntryController,
             delta: poppedViewControllers.count
         )
@@ -2548,7 +2652,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let poppedViewControllers = super.popToViewController(viewController, animated: animated)!
 
-        propagateExternalPopNavigation(
+        propagateImmediateExternalPopNavigation(
             lastTopViewController: poppedViewControllers.last! as! WebNavigationEntryController,
             delta: poppedViewControllers.count
         )
@@ -2556,7 +2660,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         return poppedViewControllers
     }
 
-    private func propagateExternalPopNavigation(
+    private func propagateImmediateExternalPopNavigation(
         lastTopViewController: WebNavigationEntryController,
         delta: Int
     ) {
@@ -2564,10 +2668,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // the navigation controller.
         guard modalPresentedViewController == nil else { return }
 
+        logger.info("Propagating immediate external pop")
+
         preparingNavigationEntry = (topViewController! as! WebNavigationEntryController).entry
         hasAddedMainScrollViewWhilePreparingNavigation = false
 
-        // TODO(calebmer): If `NativeMobileBridge.navigation.finishExternalPop()` is
+        // TODO(calebmer): If `NativeMobileBridge.navigation.externalPop()` is
         // never called after this then we show a loading spinner forever. It's
         // certainly possible for an external pop to take a while (e.g. we need to load
         // new data from the network). But if JavaScript code crashes the app will be
@@ -3532,351 +3638,357 @@ private func jsonString(_ string: String) -> String {
     return String(data: try! jsonEncoder.encode(string), encoding: .utf8)!
 }
 
-private let webBridgeSource = """
-    {
-        const navigationExternalPopListeners = new Set();
-        const navigationExternalSwitchTabListeners = new Set();
-        const keyboardFrameChangeListeners = new Set();
-        const addCommentEditMenuListeners = new Set();
-        const notificationsIosDeviceTokensUpdateListeners = new Set();
+private func createWebBridgeSource(initialTab: WebNavigationController.Tab) -> String {
+    return """
+        {
+            const navigationExternalPopListeners = new Set();
+            const navigationExternalSwitchTabListeners = new Set();
+            const keyboardFrameChangeListeners = new Set();
+            const addCommentEditMenuListeners = new Set();
+            const notificationsIosDeviceTokensUpdateListeners = new Set();
 
-        let scheduledAfterNavigationAnimationCallbacks = [];
-        let scheduledAfterKeyboardAnimationCallbacks = [];
+            let scheduledAfterNavigationAnimationCallbacks = [];
+            let scheduledAfterKeyboardAnimationCallbacks = [];
 
-        let disableTabBarCount = 0;
-        let isKeyboardSubstituteOpen = false;
+            let disableTabBarCount = 0;
+            let isKeyboardSubstituteOpen = false;
 
-        let nextCallbackId = 0;
-        const callbackById = new Map();
+            let nextCallbackId = 0;
+            const callbackById = new Map();
 
-        const registerCallback = callback => {
-            if (!callback) return callback;
+            const registerCallback = callback => {
+                if (!callback) return callback;
 
-            const callbackId = nextCallbackId++;
-            callbackById.set(callbackId, callback);
+                const callbackId = nextCallbackId++;
+                callbackById.set(callbackId, callback);
 
-            return callbackId;
-        };
+                return callbackId;
+            };
 
-        const unregisterCallback = callbackId => {
-            callbackById.delete(callbackId);
-        };
+            const unregisterCallback = callbackId => {
+                callbackById.delete(callbackId);
+            };
 
-        const NativeMobileBridge = {
-            _callCallbackById: callbackId => {
-                const callback = callbackById.get(callbackId);
-                if (!callback) return;
+            const NativeMobileBridge = {
+                _callCallbackById: callbackId => {
+                    const callback = callbackById.get(callbackId);
+                    if (!callback) return;
 
-                const result = callback();
-                if (result instanceof Promise) {
-                    result.catch(error => {
-                        setTimeout(() => {
-                            throw error;
-                        }, 0);
-                    });
-                }
-            },
-            health: {
-                ready: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
-                },
-                ping: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
-                },
-            },
-            colors: {
-                setThemeColors: options => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-10"]},${options["theme-20"]},${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]},${options["theme-70"]},${options["theme-80"]},${options["theme-90"]}`);
-                },
-            },
-            session: {
-                signOut: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("session.signOut");
-                },
-                switchSpace: spaceId => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`session.switchSpace:${spaceId}`);
-                },
-            },
-            navigation: {
-                preparePush: () => {
-                    prompt("%%%navigation.preparePush");
-                },
-                push: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
-                },
-                subscribeToExternalPop: listener => {
-                    navigationExternalPopListeners.add(listener);
-                    return () => {
-                        navigationExternalPopListeners.delete(listener);
-                    };
-                },
-                _callExternalPopListeners: (delta, urlString) => {
-                    const url = new URL(urlString);
-
-                    for (const listener of navigationExternalPopListeners) {
-                        try {
-                            listener(delta, url);
-                        } catch (error) {
+                    const result = callback();
+                    if (result instanceof Promise) {
+                        result.catch(error => {
                             setTimeout(() => {
                                 throw error;
                             }, 0);
-                        }
+                        });
                     }
                 },
-                finishExternalPop: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
+                health: {
+                    ready: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
+                    },
+                    ping: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
+                    },
                 },
-                preparePop: url => {
-                    prompt(`%%%navigation.preparePop:${url}`);
+                colors: {
+                    setThemeColors: options => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`colors.setThemeColors:${options["theme-10"]},${options["theme-20"]},${options["theme-30"]},${options["theme-40"]},${options["theme-50"]},${options["theme-60"]},${options["theme-70"]},${options["theme-80"]},${options["theme-90"]}`);
+                    },
                 },
-                pop: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
+                session: {
+                    signOut: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("session.signOut");
+                    },
+                    switchSpace: spaceId => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`session.switchSpace:${spaceId}`);
+                    },
                 },
-                requestExternalPop: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.requestExternalPop");
-                },
-                replace: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
-                },
-                prepareReplaceWithPushAnimation: () => {
-                    prompt("%%%navigation.prepareReplaceWithPushAnimation");
-                },
-                replaceWithPushAnimation: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replaceWithPushAnimation:${url}`);
-                },
-                preparePresentModal: () => {
-                    prompt("%%%navigation.preparePresentModal");
-                },
-                presentModal: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.presentModal");
-                },
-                prepareDismissModal: () => {
-                    prompt("%%%navigation.prepareDismissModal");
-                },
-                dismissModal: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.dismissModal");
-                },
-                prepareSwitchTab: tab => {
-                    prompt(`%%%navigation.prepareSwitchTab:${tab}`);
-                },
-                switchTab: (tab, url) => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.switchTab:${tab},${url}`);
-                },
-                subscribeToExternalSwitchTab: listener => {
-                    navigationExternalSwitchTabListeners.add(listener);
-                    return () => {
-                        navigationExternalSwitchTabListeners.delete(listener);
-                    };
-                },
-                _callExternalSwitchTabListeners: async (tab, urlString) => {
-                    const url = new URL(urlString);
-
-                    for (const listener of navigationExternalSwitchTabListeners) {
-                        try {
-                            listener(tab, url);
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
-                        }
-                    }
-                },
-                scheduleAfterAnimation: action => {
-                    if (scheduledAfterNavigationAnimationCallbacks.length === 0) {
-                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.scheduleAfterAnimation");
-                    }
-
-                    scheduledAfterNavigationAnimationCallbacks.push(action);
-                },
-                _callScheduledAfterAnimationCallbacks: () => {
-                    const callbacks = scheduledAfterNavigationAnimationCallbacks;
-                    scheduledAfterNavigationAnimationCallbacks = [];
-
-                    for (const callback of callbacks) {
-                        try {
-                            callback();
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
-                        }
-                    }
-                },
-            },
-            navigationBar: {
-                runScrollDebounceTimeout: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
-                },
-            },
-            tabBar: {
-                height: \(tabBarHeight),
-                _scrollOffset: 0,
-                getDeferredScrollOffset: () => {
-                    return NativeMobileBridge.tabBar._scrollOffset;
-                },
-                isDisabled: () => {
-                    return disableTabBarCount > 0;
-                },
-                disable: ({isAnimated = false} = {}) => {
-                    disableTabBarCount += 1;
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.disable:${isAnimated}`);
-                },
-                enable: ({isAnimated = false} = {}) => {
-                    disableTabBarCount -= 1;
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
-                },
-                clearInboxNotificationBadge: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.clearInboxNotificationBadge");
-                },
-                setInboxLoudNotificationBadge: loudNotificationCount => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.setInboxLoudNotificationBadge:${loudNotificationCount}`);
-                },
-                setInboxSubtleNotificationBadge: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.setInboxSubtleNotificationBadge");
-                },
-            },
-            keyboard: {
-                subscribeToFrameChange: listener => {
-                    keyboardFrameChangeListeners.add(listener);
-                    return () => {
-                        keyboardFrameChangeListeners.delete(listener);
-                    };
-                },
-                _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated) => {
-                    for (const listener of keyboardFrameChangeListeners) {
-                        try {
-                            listener({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated});
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
-                        }
-                    }
-                },
-                isSubstituteOpen: () => {
-                    return isKeyboardSubstituteOpen;
-                },
-                prepareForSubstitute: () => {
-                    if (!isKeyboardSubstituteOpen) {
-                        disableTabBarCount += 1;
-                    }
-                    isKeyboardSubstituteOpen = true;
-
-                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
-                },
-                cleanupAfterSubstitute: () => {
-                    if (isKeyboardSubstituteOpen) {
-                        disableTabBarCount -= 1;
-                    }
-                    isKeyboardSubstituteOpen = false;
-
-                    return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
-                },
-                scheduleAfterAnimation: action => {
-                    if (scheduledAfterKeyboardAnimationCallbacks.length === 0) {
-                        const channel = new MessageChannel();
-                        channel.port1.onmessage = () => {
-                            window.webkit.messageHandlers.NativeMobileBridge.postMessage("keyboard.scheduleAfterAnimation");
+                navigation: {
+                    preparePush: () => {
+                        prompt("%%%navigation.preparePush");
+                    },
+                    push: url => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
+                    },
+                    subscribeToExternalPop: listener => {
+                        navigationExternalPopListeners.add(listener);
+                        return () => {
+                            navigationExternalPopListeners.delete(listener);
                         };
-                        channel.port2.postMessage(undefined);
-                    }
+                    },
+                    _callExternalPopListeners: (delta, urlString) => {
+                        const url = new URL(urlString);
 
-                    scheduledAfterKeyboardAnimationCallbacks.push(action);
-                },
-                _callScheduledAfterAnimationCallbacks: () => {
-                    const callbacks = scheduledAfterKeyboardAnimationCallbacks;
-                    scheduledAfterKeyboardAnimationCallbacks = [];
-
-                    for (const callback of callbacks) {
-                        try {
-                            callback();
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
+                        for (const listener of navigationExternalPopListeners) {
+                            try {
+                                listener(delta, url);
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
                         }
-                    }
-                },
-            },
-            scrollbar: {
-                updateAllInsets: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("scrollbar.updateAllInsets");
-                },
-            },
-            modal: {
-                presentDialog: options => {
-                    const actualOptions = {
-                        title: options.title,
-                        description: options.description,
-                        primaryButtonLabel: options.primaryButtonLabel,
-                        isPrimaryButtonDisabled: options.isPrimaryButtonDisabled,
-                        onPrimaryButtonPressCallbackId: registerCallback(() => {
-                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
-                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
-                            if (options.onPrimaryButtonPress) return options.onPrimaryButtonPress();
-                        }),
-                        cancelButtonLabel: options.cancelButtonLabel,
-                        onCancelButtonPressCallbackId: registerCallback(() => {
-                            unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
-                            unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
-                            if (options.onCancelButtonPress) return options.onCancelButtonPress();
-                        }),
-                        shouldHideCancelButton: options.shouldHideCancelButton,
-                    };
+                    },
+                    prepareExternalPop: () => {
+                        prompt("%%%navigation.prepareExternalPop");
+                    },
+                    externalPop: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.externalPop");
+                    },
+                    preparePop: url => {
+                        prompt(`%%%navigation.preparePop:${url}`);
+                    },
+                    pop: url => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
+                    },
+                    requestEventualExternalPop: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.requestEventualExternalPop");
+                    },
+                    replace: url => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                    },
+                    prepareReplaceWithPushAnimation: () => {
+                        prompt("%%%navigation.prepareReplaceWithPushAnimation");
+                    },
+                    replaceWithPushAnimation: url => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replaceWithPushAnimation:${url}`);
+                    },
+                    preparePresentModal: () => {
+                        prompt("%%%navigation.preparePresentModal");
+                    },
+                    presentModal: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.presentModal");
+                    },
+                    prepareDismissModal: () => {
+                        prompt("%%%navigation.prepareDismissModal");
+                    },
+                    dismissModal: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.dismissModal");
+                    },
+                    prepareSwitchTab: tab => {
+                        prompt(`%%%navigation.prepareSwitchTab:${tab}`);
+                    },
+                    switchTab: (tab, url) => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.switchTab:${tab},${url}`);
+                    },
+                    subscribeToExternalSwitchTab: listener => {
+                        navigationExternalSwitchTabListeners.add(listener);
+                        return () => {
+                            navigationExternalSwitchTabListeners.delete(listener);
+                        };
+                    },
+                    _callExternalSwitchTabListeners: async (tab, urlString) => {
+                        const url = new URL(urlString);
 
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
-                },
-            },
-            editMenu: {
-                enableAddCommentAction: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.enableAddCommentAction");
-                },
-                disableAddCommentAction: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.disableAddCommentAction");
-                },
-                subscribeToAddCommentAction: listener => {
-                    addCommentEditMenuListeners.add(listener);
-                    return () => {
-                        addCommentEditMenuListeners.delete(listener);
-                    };
-                },
-                _callAddCommentActionListeners: () => {
-                    for (const listener of addCommentEditMenuListeners) {
-                        try {
-                            listener();
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
+                        for (const listener of navigationExternalSwitchTabListeners) {
+                            try {
+                                listener(tab, url);
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
                         }
-                    }
-                },
-            },
-            notifications: {
-                takeAppleDeviceTokens: async () => {
-                    const deviceTokens = await window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("notifications.takeAppleDeviceTokens");
-                    return deviceTokens.map(deviceToken => new Uint8Array(deviceToken));
-                },
-                subscribeToAppleDeviceTokensUpdate: listener => {
-                    notificationsIosDeviceTokensUpdateListeners.add(listener);
-                    return () => {
-                        notificationsIosDeviceTokensUpdateListeners.delete(listener);
-                    };
-                },
-                _callIosDeviceTokensUpdate: () => {
-                    for (const listener of notificationsIosDeviceTokensUpdateListeners) {
-                        try {
-                            listener();
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
+                    },
+                    scheduleAfterAnimation: action => {
+                        if (scheduledAfterNavigationAnimationCallbacks.length === 0) {
+                            window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.scheduleAfterAnimation");
                         }
-                    }
-                },
-            },
-        };
 
-        window.__NativeMobileBridge = NativeMobileBridge;
-    }
-    """
+                        scheduledAfterNavigationAnimationCallbacks.push(action);
+                    },
+                    _callScheduledAfterAnimationCallbacks: () => {
+                        const callbacks = scheduledAfterNavigationAnimationCallbacks;
+                        scheduledAfterNavigationAnimationCallbacks = [];
+
+                        for (const callback of callbacks) {
+                            try {
+                                callback();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                },
+                navigationBar: {
+                    runScrollDebounceTimeout: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
+                    },
+                },
+                tabBar: {
+                    initialTab: \(initialTab.jsonString()),
+                    height: \(tabBarHeight),
+                    _scrollOffset: 0,
+                    getDeferredScrollOffset: () => {
+                        return NativeMobileBridge.tabBar._scrollOffset;
+                    },
+                    isDisabled: () => {
+                        return disableTabBarCount > 0;
+                    },
+                    disable: ({isAnimated = false} = {}) => {
+                        disableTabBarCount += 1;
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.disable:${isAnimated}`);
+                    },
+                    enable: ({isAnimated = false} = {}) => {
+                        disableTabBarCount -= 1;
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.enable:${isAnimated}`);
+                    },
+                    clearInboxNotificationBadge: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.clearInboxNotificationBadge");
+                    },
+                    setInboxLoudNotificationBadge: loudNotificationCount => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`tabBar.setInboxLoudNotificationBadge:${loudNotificationCount}`);
+                    },
+                    setInboxSubtleNotificationBadge: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("tabBar.setInboxSubtleNotificationBadge");
+                    },
+                },
+                keyboard: {
+                    subscribeToFrameChange: listener => {
+                        keyboardFrameChangeListeners.add(listener);
+                        return () => {
+                            keyboardFrameChangeListeners.delete(listener);
+                        };
+                    },
+                    _callFrameChangeListeners: (oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated) => {
+                        for (const listener of keyboardFrameChangeListeners) {
+                            try {
+                                listener({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated});
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                    isSubstituteOpen: () => {
+                        return isKeyboardSubstituteOpen;
+                    },
+                    prepareForSubstitute: () => {
+                        if (!isKeyboardSubstituteOpen) {
+                            disableTabBarCount += 1;
+                        }
+                        isKeyboardSubstituteOpen = true;
+
+                        return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.prepareForSubstitute");
+                    },
+                    cleanupAfterSubstitute: () => {
+                        if (isKeyboardSubstituteOpen) {
+                            disableTabBarCount -= 1;
+                        }
+                        isKeyboardSubstituteOpen = false;
+
+                        return window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("keyboard.cleanupAfterSubstitute");
+                    },
+                    scheduleAfterAnimation: action => {
+                        if (scheduledAfterKeyboardAnimationCallbacks.length === 0) {
+                            const channel = new MessageChannel();
+                            channel.port1.onmessage = () => {
+                                window.webkit.messageHandlers.NativeMobileBridge.postMessage("keyboard.scheduleAfterAnimation");
+                            };
+                            channel.port2.postMessage(undefined);
+                        }
+
+                        scheduledAfterKeyboardAnimationCallbacks.push(action);
+                    },
+                    _callScheduledAfterAnimationCallbacks: () => {
+                        const callbacks = scheduledAfterKeyboardAnimationCallbacks;
+                        scheduledAfterKeyboardAnimationCallbacks = [];
+
+                        for (const callback of callbacks) {
+                            try {
+                                callback();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                },
+                scrollbar: {
+                    updateAllInsets: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("scrollbar.updateAllInsets");
+                    },
+                },
+                modal: {
+                    presentDialog: options => {
+                        const actualOptions = {
+                            title: options.title,
+                            description: options.description,
+                            primaryButtonLabel: options.primaryButtonLabel,
+                            isPrimaryButtonDisabled: options.isPrimaryButtonDisabled,
+                            onPrimaryButtonPressCallbackId: registerCallback(() => {
+                                unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                                unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                                if (options.onPrimaryButtonPress) return options.onPrimaryButtonPress();
+                            }),
+                            cancelButtonLabel: options.cancelButtonLabel,
+                            onCancelButtonPressCallbackId: registerCallback(() => {
+                                unregisterCallback(actualOptions.onPrimaryButtonPressCallbackId);
+                                unregisterCallback(actualOptions.onCancelButtonPressCallbackId);
+                                if (options.onCancelButtonPress) return options.onCancelButtonPress();
+                            }),
+                            shouldHideCancelButton: options.shouldHideCancelButton,
+                        };
+
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage(`modal.presentDialog:${JSON.stringify(actualOptions)}`);
+                    },
+                },
+                editMenu: {
+                    enableAddCommentAction: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.enableAddCommentAction");
+                    },
+                    disableAddCommentAction: () => {
+                        window.webkit.messageHandlers.NativeMobileBridge.postMessage("editMenu.disableAddCommentAction");
+                    },
+                    subscribeToAddCommentAction: listener => {
+                        addCommentEditMenuListeners.add(listener);
+                        return () => {
+                            addCommentEditMenuListeners.delete(listener);
+                        };
+                    },
+                    _callAddCommentActionListeners: () => {
+                        for (const listener of addCommentEditMenuListeners) {
+                            try {
+                                listener();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                },
+                notifications: {
+                    takeAppleDeviceTokens: async () => {
+                        const deviceTokens = await window.webkit.messageHandlers.NativeMobileBridgeWithReply.postMessage("notifications.takeAppleDeviceTokens");
+                        return deviceTokens.map(deviceToken => new Uint8Array(deviceToken));
+                    },
+                    subscribeToAppleDeviceTokensUpdate: listener => {
+                        notificationsIosDeviceTokensUpdateListeners.add(listener);
+                        return () => {
+                            notificationsIosDeviceTokensUpdateListeners.delete(listener);
+                        };
+                    },
+                    _callIosDeviceTokensUpdate: () => {
+                        for (const listener of notificationsIosDeviceTokensUpdateListeners) {
+                            try {
+                                listener();
+                            } catch (error) {
+                                setTimeout(() => {
+                                    throw error;
+                                }, 0);
+                            }
+                        }
+                    },
+                },
+            };
+
+            window.__NativeMobileBridge = NativeMobileBridge;
+        }
+        """
+}

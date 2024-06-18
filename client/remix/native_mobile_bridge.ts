@@ -226,7 +226,21 @@ export const NativeMobileBridge: {
          *
          * We call 1 "external" pops which is what this function addresses.
          *
-         * The way an external pop in our native mobile app works is:
+         * There are two kinds of external pops. Immediate external pops and eventual
+         * external pops. Immediate external pops immediately run the pop animation. We
+         * run an immediate external pop when the user swipes from the left of their
+         * screen to go back. Eventual external pops load data in the background and
+         * only animate once the data is ready. If you call
+         * `requestEventualExternalPop()` you get an eventual external pop.
+         *
+         * Eventual external pops work a lot like our other navigations
+         * (e.g. `preparePush()`/`push()` or `prepareSwitchTab()`/`switchTab()`) in
+         * that they freeze the app on `useInsertionEffect()` to take a screenshot and
+         * run the animation once rendering is done in a `useEffect()`.
+         *
+         * Immediate external pops work differently. Here's how an immediate external
+         * pop (which you can trigger by swiping back on the screen of an iOS device)
+         * works:
          *
          * 1. Native code takes a snapshot of the web view and swaps the web view for
          *    that snapshot
@@ -242,9 +256,14 @@ export const NativeMobileBridge: {
          *             this route with React so all our state is preserved (React
          *             state, DOM scroll state, etc.). If we haven't continued to
          *             render this route we need to refetch data from the server
-         *          2. Once React has finished committing the new route to the DOM, it
+         *          2. Once React begins building the new route's DOM, it runs
+         *             `useInsertionEffect()` hooks
+         *          3. `prepareExternalPop()` is called but does nothing,
+         *             `prepareExternalPop()` only contributes to eventual external
+         *             pops
+         *          4. Once React has finished committing the new route to the DOM, it
          *             runs `useLayoutEffect()` hooks
-         *          3. `finishExternalPop()` is called and native removes the snapshot
+         *          5. `externalPop()` is called and native removes the snapshot
          *             on the popped view (created during the push animation) and adds
          *             the web view (which is rendering the correct route) back to the
          *             popped view
@@ -255,25 +274,37 @@ export const NativeMobileBridge: {
          *             the URL from native as the current location
          *          3. `NativeMobileMemoryHistory` tells `react-router` to start a
          *             navigation (so we need to load new data from the server)
-         *          4. Once React has finished committing the new route to the DOM, it
+         *          4. Once React begins building the new route's DOM, it runs
+         *             `useInsertionEffect()` hooks
+         *          5. `prepareExternalPop()` is called but does nothing,
+         *             `prepareExternalPop()` only contributes to eventual external
+         *             pops
+         *          6. Once React has finished committing the new route to the DOM, it
          *             runs `useLayoutEffect()` hooks
-         *          5. `finishExternalPop()` is called and native removes the snapshot
+         *          7. `externalPop()` is called and native removes the snapshot
          *             on the popped view (created during the push animation) and adds
          *             the web view (which is rendering the correct route) back to the
          *             popped view
          *
-         * If you don't promptly call `finishExternalPop()` after this function is
-         * called then the app will appear frozen! As we only show a snapshot view and
-         * not the underlying web view.
+         * For immediate external pops, if you don't promptly call `externalPop()`
+         * after this function is called then the app will appear frozen! As we only
+         * show a snapshot view and not the underlying web view.
          */
         subscribeToExternalPop(listener: (delta: number, url: URL) => void): () => void;
+
+        /**
+         * See `subscribeToExternalPop()` for documentation on what this function does.
+         * In short, web code uses this to tell native code we've about to render a
+         * native initiated pop navigation.
+         */
+        prepareExternalPop(): void;
 
         /**
          * See `subscribeToExternalPop()` for documentation on what this function does.
          * In short, web code uses this to tell native code we've finished rendering a
          * native initiated pop navigation.
          */
-        finishExternalPop(): void;
+        externalPop(): void;
 
         /**
          * A pop navigation initiated from web code (vs a pop navigation initiated by
@@ -310,7 +341,7 @@ export const NativeMobileBridge: {
          * This happens when the page reloads so web code loses its previous navigation
          * states but native remembers.
          */
-        requestExternalPop(): void;
+        requestEventualExternalPop(): void;
 
         /**
          * When web code performs a replace navigation, we need to update native code's
@@ -384,11 +415,12 @@ export const NativeMobileBridge: {
          * web should start rendering the new tab and perform a navigation with
          * `prepareSwitchTab()`/`switchTab()` when it's done.
          *
-         * This flow is different from `subscribeToExternalPop()` since in that flow
-         * you only need to call one function, `finishExternalPop()`. For
-         * `subscribeToExternalPop()` the app is frozen until the pop finishes.
-         * However, with `subscribeToExternalSwitchTab()` while the native tab bar UI
+         * This flow is similar to `subscribeToExternalPop()`'s eventual external pops.
+         * It's different from `subscribeToExternalPop()`'s immediate external pops.
+         *
+         * With `subscribeToExternalSwitchTab()` while the native tab bar UI
          * will have updated the app stays responsive while the navigation happens.
+         * Unlike immediate external pops.
          *
          * Some cases to consider:
          *
@@ -459,6 +491,14 @@ export const NativeMobileBridge: {
      * Functions for synchronizing the native code tab bar with web code.
      */
     readonly tabBar: {
+        /**
+         * The initial tab to use when launching the app. When initializing the native
+         * mobile router, first look in `history.state` for the tab. If it doesn't
+         * exist there then you may use the initial tab property from here. This way we
+         * maintain the proper tab when the app reloads.
+         */
+        readonly initialTab: NativeMobileTab;
+
         /**
          * The height of the tab bar in pixels. The tab bar is implemented to animate
          * at the same rate as the navigation bar.

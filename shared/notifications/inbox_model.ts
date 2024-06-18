@@ -1,5 +1,6 @@
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     AccountId,
     ChannelId,
@@ -62,10 +63,31 @@ export const InboxEntryKeySchema = Schema.union({
     DocumentNewCommentThreads: InboxDocumentNewCommentThreadsEntryKeySchema,
 });
 
+export function getInboxEntryKeyPath(spaceId: SpaceId, key: InboxEntryKey): string {
+    switch (key.type) {
+        case "Chat":
+            return `/s/${spaceId}/chat/${key.chatId}`;
+        case "PostComments":
+            return `/s/${spaceId}/posts/${key.postId}`;
+        case "ChannelPosts":
+            return `/s/${spaceId}/notifications/channel-posts/${key.channelId}-${key.bucketGeneration}`;
+        case "DocumentCommentThread":
+            return `/s/${spaceId}/documents/${key.documentId}/comments/${key.commentThreadId}`;
+        case "DocumentNewCommentThreads":
+            return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}`;
+        default:
+            throw exhaustive(key);
+    }
+}
+
+export function getInboxEntryPath(model: InboxEntryModelInterface): string {
+    return getInboxEntryKeyPath(model.spaceId, model.getKey());
+}
+
 interface InboxEntryModelInterface {
     readonly type: string;
+    readonly spaceId: SpaceId;
     getKey(): InboxEntryKey;
-    getPath(): string;
 }
 
 export class InboxChatEntryModel
@@ -92,10 +114,6 @@ export class InboxChatEntryModel
 
     public getKey(): InboxEntryKey {
         return {type: "Chat", chatId: this.chatId};
-    }
-
-    public getPath() {
-        return `/s/${this.spaceId}/chat/${this.chatId}`;
     }
 }
 
@@ -126,10 +144,6 @@ export class InboxPostCommentsEntryModel
 
     public getKey(): InboxEntryKey {
         return {type: "PostComments", postId: this.postId};
-    }
-
-    public getPath() {
-        return `/s/${this.spaceId}/posts/${this.postId}`;
     }
 }
 
@@ -163,10 +177,6 @@ export class InboxChannelPostsEntryModel
             bucketGeneration: this.bucketGeneration,
         };
     }
-
-    public getPath() {
-        return `/s/${this.spaceId}/notifications/channel-posts/${this.channel.id}-${this.bucketGeneration}`;
-    }
 }
 
 export class InboxDocumentCommentThreadEntryModel
@@ -199,10 +209,6 @@ export class InboxDocumentCommentThreadEntryModel
             commentThreadId: this.commentThreadId,
         };
     }
-
-    public getPath() {
-        return `/s/${this.spaceId}/documents/${this.document.id}/comments/${this.commentThreadId}`;
-    }
 }
 
 export class InboxDocumentNewCommentThreadsEntryModel
@@ -234,10 +240,6 @@ export class InboxDocumentNewCommentThreadsEntryModel
             documentId: this.document.id,
             bucketGeneration: this.bucketGeneration,
         };
-    }
-
-    public getPath() {
-        return `/s/${this.spaceId}/notifications/document-comment-threads/${this.document.id}-${this.bucketGeneration}`;
     }
 }
 

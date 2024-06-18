@@ -18,6 +18,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     }
 
     private var state: State?
+    private var notificationRequestObservation: NSKeyValueObservation?
 
     private var nextTransitionStateId = 1
     private var transitionStateById = [Int: TransitionState]()
@@ -28,6 +29,9 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     }
 
     deinit {
+        notificationRequestObservation?.invalidate()
+        notificationRequestObservation = nil
+
         for transitionState in transitionStateById.values {
             transitionState.timer.invalidate()
             transitionState.observation.invalidate()
@@ -50,22 +54,47 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     ) {
         assert(self.state == nil)
 
+        AppDelegate.shared.updateNotificationRequestFromSceneConnectionOptions(connectionOptions)
+
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
         let rootViewController: SceneDelegateRootController
         if let session = Session.get() {
-            rootViewController = RootTabBarController(
-                session: session,
-                signOut: { [weak self] in self?.signOut() },
-                switchSpace: { [weak self] (spaceId, session) in
-                    self?.switchSpace(spaceId: spaceId, session: session)
-                }
-            )
+            if let notificationRequest = AppDelegate.shared.notificationRequest {
+                // If the user opened a notification in a different space, then update the
+                // session to the new space...
+                let session =
+                    if notificationRequest.spaceId != session.spaceId {
+                        Session.set(token: session.token, spaceId: notificationRequest.spaceId)
+                    } else { session }
+
+                rootViewController = RootTabBarController(
+                    session: session,
+                    signOut: { [weak self] in self?.signOut() },
+                    switchSpace: { [weak self] (spaceId, session) in
+                        self?.switchSpace(spaceId: spaceId, session: session)
+                    },
+                    initialTab: .inbox,
+                    initialPath: notificationRequest.entryPath
+                )
+            } else {
+                rootViewController = RootTabBarController(
+                    session: session,
+                    signOut: { [weak self] in self?.signOut() },
+                    switchSpace: { [weak self] (spaceId, session) in
+                        self?.switchSpace(spaceId: spaceId, session: session)
+                    }
+                )
+            }
         } else {
             rootViewController = RootAnonymousController(signIn: { [weak self] (token, spaceId) in
                 self?.signIn(token: token, spaceId: spaceId)
             })
         }
+
+        logger.info(
+            "Setting root view controller: \(type(of: rootViewController).description(), privacy: .public)"
+        )
 
         let window = UIWindow(frame: windowScene.coordinateSpace.bounds)
         window.windowScene = windowScene
@@ -74,7 +103,42 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
         rootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
 
-        self.state = State(window: window, rootViewController: rootViewController)
+        state = State(window: window, rootViewController: rootViewController)
+
+        notificationRequestObservation = AppDelegate.shared.observe(
+            \.notificationRequest,
+            options: []
+        ) { [weak self] (_, _) in
+            guard let this = self else { return }
+
+            guard let notificationRequest = AppDelegate.shared.notificationRequest else { return }
+
+            guard let rootTabBarController = this.state?.rootViewController as? RootTabBarController
+            else { return }
+
+            // If the user opened a notification in a different space, then update the
+            // session to the new space...
+            let session =
+                if notificationRequest.spaceId != rootTabBarController.spaceId {
+                    Session.set(
+                        token: rootTabBarController.session.token,
+                        spaceId: notificationRequest.spaceId
+                    )
+                } else { rootTabBarController.session }
+
+            this.setRootViewController(
+                RootTabBarController(
+                    session: session,
+                    signOut: { [weak self] in self?.signOut() },
+                    switchSpace: { [weak self] (spaceId, session) in
+                        self?.switchSpace(spaceId: spaceId, session: session)
+                    },
+                    initialTab: .inbox,
+                    initialPath: notificationRequest.entryPath
+                ),
+                animated: false
+            )
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
@@ -107,7 +171,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             }
         )
 
-        transitionRootViewController(newRootViewController)
+        setRootViewController(newRootViewController, animated: true)
     }
 
     private func signOut() {
@@ -117,7 +181,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             [weak self] (token, spaceId) in self?.signIn(token: token, spaceId: spaceId)
         })
 
-        transitionRootViewController(newRootViewController)
+        setRootViewController(newRootViewController, animated: true)
     }
 
     private func switchSpace(spaceId: String, session: Session) {
@@ -131,11 +195,13 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             }
         )
 
-        transitionRootViewController(newRootViewController)
+        setRootViewController(newRootViewController, animated: true)
     }
 
-    private func transitionRootViewController(_ newRootViewController: SceneDelegateRootController)
-    {
+    private func setRootViewController(
+        _ newRootViewController: SceneDelegateRootController,
+        animated: Bool
+    ) {
         guard let window = self.state?.window else { return }
 
         newRootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
@@ -145,24 +211,33 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         let action = { [weak self] in
             guard let this = self, this.state?.window == window else { return }
 
-            UIView.transition(
-                with: window,
-                duration: 0.35,
-                options: [.transitionFlipFromLeft],
-                animations: {
-                    this.state!.rootViewController = newRootViewController
-                    window.rootViewController = newRootViewController
-                },
-                completion: { (_) in
-                    let oldRootViewControllerRetainCount =
-                        CFGetRetainCount(oldRootViewController) - 2
-                    if oldRootViewControllerRetainCount > 0 {
-                        logger.warning(
-                            "Old root view controller had \(oldRootViewControllerRetainCount, privacy: .public) more references than expected, there may be a memory cycle preventing deinitialization!"
+            if !animated {
+                this.state!.rootViewController = newRootViewController
+                window.rootViewController = newRootViewController
+            } else {
+                UIView.transition(
+                    with: window,
+                    duration: 0.35,
+                    options: [.transitionFlipFromLeft],
+                    animations: {
+                        logger.info(
+                            "Setting root view controller: \(type(of: newRootViewController).description(), privacy: .public)"
                         )
+
+                        this.state!.rootViewController = newRootViewController
+                        window.rootViewController = newRootViewController
+                    },
+                    completion: { (_) in
+                        let oldRootViewControllerRetainCount =
+                            CFGetRetainCount(oldRootViewController) - 2
+                        if oldRootViewControllerRetainCount > 0 {
+                            logger.warning(
+                                "Old root view controller had \(oldRootViewControllerRetainCount, privacy: .public) more references than expected, there may be a memory cycle preventing deinitialization!"
+                            )
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
         if !newRootViewController.webNavigationController.isLoading {

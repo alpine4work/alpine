@@ -22,7 +22,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModelSchema, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 
@@ -98,7 +98,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
                   context,
                   request,
                   peekRoutes,
-                  resolvePath(entriesResult.items[0]!.model.getPath()),
+                  resolvePath(getInboxEntryPath(entriesResult.items[0]!.model)),
               )
             : peekDataFromSelectedParam;
 

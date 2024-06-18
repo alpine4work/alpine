@@ -7,6 +7,13 @@ import {Id} from "~/shared/id/id.js";
  * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
  */
 export type ApnsAlertNotification = {
+    /**
+     * Custom Alpine property that specifies the URL path for this entry. If the
+     * user taps on a notification then we'll navigate to their inbox and open
+     * this URL.
+     */
+    readonly entry?: string;
+
     readonly aps: {
         readonly alert?:
             | string

@@ -43,7 +43,7 @@ import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars, inboxStyles, spinAnimationClassName} from "~/shared/styles/styles.js";
 
@@ -201,7 +201,8 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
 
                 // Optimization: Since we know the first inbox entry we can include it in the
                 // URL so our backend can load data it in parallel.
-                const firstItemPath = entriesRef.current?.getFirstItemIfExists()?.model.getPath();
+                const firstItem = entriesRef.current?.getFirstItemIfExists();
+                const firstItemPath = firstItem ? getInboxEntryPath(firstItem.model) : null;
                 if (firstItemPath) {
                     // base64 encode the initial path to hide the fact that it's a URL.
                     const textEncoder = new TextEncoder();
@@ -432,7 +433,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                 if (isPending) return;
                 setIsPending(true);
 
-                const url = new URL(entry.model.getPath(), window.location.href);
+                const url = new URL(getInboxEntryPath(entry.model), window.location.href);
                 url.searchParams.set("inbox", "show");
 
                 // TODO(calebmer, #global-loading-indicator): Some kind of global loading

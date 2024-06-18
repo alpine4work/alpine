@@ -9,11 +9,11 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 // Only importable from unit tests.
 assert(import.meta.jest);
 
-const navigationRequestExternalPopEmitter = new EventEmitter();
+const navigationRequestEventualExternalPopEmitter = new EventEmitter();
 
 export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
     navigation: {
-        subscribeToRequestExternalPopForTest: (listener: () => void) => void;
+        subscribeToRequestEventualExternalPopForTest: (listener: () => void) => void;
     };
 } = {
     health: {
@@ -33,14 +33,15 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
         subscribeToExternalPop: () => {
             return () => {};
         },
-        finishExternalPop: () => {},
+        prepareExternalPop: () => {},
+        externalPop: () => {},
         preparePop: () => {},
         pop: () => {},
-        requestExternalPop: () => {
-            navigationRequestExternalPopEmitter.emit();
+        requestEventualExternalPop: () => {
+            navigationRequestEventualExternalPopEmitter.emit();
         },
-        subscribeToRequestExternalPopForTest: listener => {
-            return navigationRequestExternalPopEmitter.subscribe(listener);
+        subscribeToRequestEventualExternalPopForTest: listener => {
+            return navigationRequestEventualExternalPopEmitter.subscribe(listener);
         },
         replace: () => {},
         prepareReplaceWithPushAnimation: () => {},
@@ -62,6 +63,7 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
         runScrollDebounceTimeout: () => {},
     },
     tabBar: {
+        initialTab: "Home",
         // Tab bar height on iOS is 49 points.
         height: 50,
         getDeferredScrollOffset: () => 0,

@@ -428,7 +428,10 @@ export class NativeMobileMemoryHistory implements History {
 
     constructor() {
         const historyState = (history.state && history.state.usr) || null;
-        const historyTab = getLocationStateNativeMobileTab(historyState);
+        const historyTab = getLocationStateNativeMobileTab(
+            historyState,
+            NativeMobileBridge!.tabBar.initialTab,
+        );
 
         // Use initial browser history:
         // https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L365-L371
@@ -698,7 +701,7 @@ export class NativeMobileMemoryHistory implements History {
                 // Request native code to perform a pop since it may know about previous
                 // navigation entries if our web view reloaded.
                 if (pastEntries.length === 0) {
-                    NativeMobileBridge!.navigation.requestExternalPop();
+                    NativeMobileBridge!.navigation.requestEventualExternalPop();
                     return;
                 }
 
