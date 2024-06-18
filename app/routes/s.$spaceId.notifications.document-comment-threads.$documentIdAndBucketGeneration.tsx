@@ -154,7 +154,6 @@ function DocumentNewCommentThreadsRouteInner({
 }) {
     const isMobile = useIsMobile();
     const rootNavigate = useRootNavigate();
-    const reporter = useReporter();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -363,8 +362,6 @@ function DocumentNewCommentThreadsRouteInner({
                 //
                 // - Open in a peek; OR
                 // - Navigate the peek we are rendered in
-                //
-                // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                 rootNavigate(
                     `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?${
                         isMobile
@@ -373,9 +370,7 @@ function DocumentNewCommentThreadsRouteInner({
                               `scroll=comments-${commentThreadId}`
                             : `comments=${commentThreadId}`
                     }`,
-                ).catch(error => {
-                    reporter.displayError("Can’t open document", error);
-                });
+                );
             })}
             initialCommentThreadResults={useMemo(
                 () =>

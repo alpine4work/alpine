@@ -113,8 +113,6 @@ function DocumentContentEditorCommentThreadSideDecoration({
 
     const {pressProps, isPressed} = usePress({
         onPress: () => {
-            // TODO(calebmer, #global-loading-indicator): Global navigation loading
-            // indicator?
             const commentThreadId = commentThreadIds.values().next().value;
             if (commentThreadId) void openCommentThread(commentThreadId);
         },

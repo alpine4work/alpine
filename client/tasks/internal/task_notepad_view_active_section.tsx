@@ -169,8 +169,8 @@ function TaskNotepadViewActiveSection({
     } | null>(null);
 
     const expand = useCallback(
-        async (taskId: TaskId) => {
-            await navigate(`/s/${space.id}/tasks/${taskId}`);
+        (taskId: TaskId) => {
+            navigate(`/s/${space.id}/tasks/${taskId}`);
         },
         [navigate, space.id],
     );

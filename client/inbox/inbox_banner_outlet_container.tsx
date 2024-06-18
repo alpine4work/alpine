@@ -142,9 +142,7 @@ export function InboxBannerOutletContainer({
                     } else {
                         // If the entry is already archived (e.g. because of a comment) we still want
                         // Cmd-D to close the peek so users can maintain that workflow.
-                        //
-                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                        void navigate(-1);
+                        navigate(-1);
                     }
                 }
             }}

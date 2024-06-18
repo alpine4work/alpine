@@ -59,8 +59,6 @@ export function handleContentLinkClick(
                 return;
             }
 
-            // TODO(calebmer, #global-loading-indicator): Some kind of loading indicator
-            // for navigation.
             const navigationPromise = onNavigate({
                 pathname: newUrl.pathname,
                 search: newUrl.search,
@@ -68,7 +66,7 @@ export function handleContentLinkClick(
             });
 
             pendingUrlByElement.set(element, newUrl);
-            navigationPromise.finally(() => {
+            void navigationPromise.finally(() => {
                 pendingUrlByElement.delete(element);
             });
             return;

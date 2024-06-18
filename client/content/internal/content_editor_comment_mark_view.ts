@@ -183,12 +183,10 @@ export function createContentEditorCommentMarkViewConstructor({
 
             // If we are currently navigating, don't navigate again...
             if (!isNavigationPending) {
-                // TODO(calebmer, #global-loading-indicator): Some kind of loading indicator
-                // for navigation.
                 const navigationPromise = openCommentThread(commentThreadId);
 
                 isNavigationPending = true;
-                navigationPromise.finally(() => {
+                void navigationPromise.finally(() => {
                     isNavigationPending = false;
                     maybeUpdatePressed();
                 });

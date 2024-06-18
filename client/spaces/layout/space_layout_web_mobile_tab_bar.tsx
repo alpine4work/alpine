@@ -181,8 +181,7 @@ export function SpaceLayoutWebMobileTabBar({
                     const pathname = `/s/${space.id}`;
 
                     if (location.pathname !== pathname) {
-                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                        void navigate(pathname);
+                        navigate(pathname);
                     }
                 }}
             />
@@ -193,8 +192,7 @@ export function SpaceLayoutWebMobileTabBar({
                     const pathname = `/s/${space.id}/search`;
 
                     if (location.pathname !== pathname) {
-                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                        void navigate(pathname);
+                        navigate(pathname);
                     }
                 }}
             />
@@ -205,8 +203,7 @@ export function SpaceLayoutWebMobileTabBar({
                     const pathname = `/s/${space.id}/create`;
 
                     if (location.pathname !== pathname) {
-                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                        void navigate(pathname);
+                        navigate(pathname);
                     }
                 }}
             />
@@ -254,8 +251,7 @@ export function SpaceLayoutWebMobileTabBar({
                     const pathname = `/s/${space.id}/inbox`;
 
                     if (location.pathname !== pathname) {
-                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                        void navigate(`/s/${space.id}/inbox`);
+                        navigate(`/s/${space.id}/inbox`);
                     }
                 }}
             />
@@ -266,8 +262,7 @@ export function SpaceLayoutWebMobileTabBar({
                     const pathname = `/s/${space.id}/more`;
 
                     if (location.pathname !== pathname) {
-                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                        void navigate(pathname);
+                        navigate(pathname);
                     }
                 }}
             />

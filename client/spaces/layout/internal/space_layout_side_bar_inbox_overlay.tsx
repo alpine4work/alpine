@@ -436,8 +436,6 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                 const url = new URL(getInboxEntryPath(entry.model), window.location.href);
                 url.searchParams.set("inbox", "show");
 
-                // TODO(calebmer, #global-loading-indicator): Some kind of global loading
-                // indicator?
                 peekStackContext
                     .push({
                         pathname: url.pathname,

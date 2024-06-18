@@ -143,7 +143,6 @@ function TaskCollectionsInput(
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const navigate = useNavigate();
-    const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
     const {store} = referencesSubscription;
 
@@ -671,12 +670,7 @@ function TaskCollectionsInput(
                         // to focus the others.
                         tabIndex={isReadOnly ? undefined : index === 0 && isTabbable ? 0 : -1}
                         onPress={() => {
-                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                            navigate(`/s/${space.id}/tasks/collections/${collection.id}`).catch(
-                                error => {
-                                    reporter.displayError("Can’t open collection", error);
-                                },
-                            );
+                            navigate(`/s/${space.id}/tasks/collections/${collection.id}`);
                         }}
                         onRemove={
                             !isReadOnly

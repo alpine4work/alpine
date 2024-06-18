@@ -300,9 +300,7 @@ export function SearchModal({
                             );
                             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
-                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                            // Eventually switch to new page with a loading spinner?
-                            void navigate(spacePath).then(() => {
+                            navigate(spacePath).finally(() => {
                                 markResultSelectAffinityInteraction(selectedPeek.extra.resultId);
                             });
                             break;
@@ -564,9 +562,6 @@ function SearchModalResultList({
             // started by `onPressStart`. Don't switch to that transition while we're
             // waiting on a navigation. That'll look janky since the search modal will
             // flash the new content right before the full page navigation.
-            //
-            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            // Eventually switch to new page with a loading spinner?
             holdPeekTransition(
                 navigate(destinationPath).then(() => {
                     markResultSelectAffinityInteraction(result.id);
@@ -580,9 +575,6 @@ function SearchModalResultList({
             // started by `onPressStart`. Don't switch to that transition while we're
             // waiting on a navigation. That'll look janky since the search modal will
             // flash the new content right before the full page navigation.
-            //
-            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            // Eventually switch to new page with a loading spinner?
             holdPeekTransition(
                 navigate(spacePath).then(() => {
                     markResultSelectAffinityInteraction(result.id);

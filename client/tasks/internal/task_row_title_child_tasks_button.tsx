@@ -96,10 +96,7 @@ function TaskRowTitleChildTasksButton(
             if (!isMaxExpandedTaskDepth) {
                 onAreChildTasksExpandedToggle();
             } else {
-                // TODO(calebmer, #global-loading-indicator): Some global loading indicator? Or
-                // local loading indicator inside this button? Probably local loading
-                // indicator.
-                if (task) void navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+                if (task) navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
             }
         },
     });

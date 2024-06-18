@@ -27,8 +27,7 @@ export default function MoreRoute() {
 
     const {isPressed: isSpacePressed, pressProps: spacePressProps} = usePress({
         onPress: () => {
-            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            void rootNavigate(`/s/${space.id}/more/switch-space`);
+            rootNavigate(`/s/${space.id}/more/switch-space`);
         },
     });
 

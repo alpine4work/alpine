@@ -392,8 +392,7 @@ function TaskRowCollectionsCell(
                                     // is the default, `auto`).
                                     nameMaxWidth={maxTaskRowViewCollectionsColumnWidth}
                                     onPress={() => {
-                                        // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                                        void navigate(
+                                        navigate(
                                             `/s/${space.id}/tasks/collections/${collection.id}`,
                                         );
                                     }}

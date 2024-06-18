@@ -86,8 +86,8 @@
         "@types/tough-cookie": "^4.0.5",
         "@types/ws": "^8.5.3",
         "@types/yargs": "^17.0.13",
-        "@typescript-eslint/eslint-plugin": "^5.60.1",
-        "@typescript-eslint/parser": "^5.60.1",
+        "@typescript-eslint/eslint-plugin": "7.13.1",
+        "@typescript-eslint/parser": "7.13.1",
         "@vanilla-extract/css": "^1.9.1",
         "@vanilla-extract/dynamic": "^2.0.2",
         "@vanilla-extract/esbuild-plugin": "2.1.0",
@@ -126,10 +126,10 @@
         "env-paths": "^2.2.1",
         "esbuild": "0.17.10",
         "escape-html": "^1.0.3",
-        "eslint": "8.20.0",
+        "eslint": "8.57.0",
         "eslint-config-react": "^1.1.7",
         "eslint-plugin-import": "^2.27.5",
-        "eslint-plugin-jest": "^26.9.0",
+        "eslint-plugin-jest": "28.6.0",
         "eslint-plugin-jest-dom": "^4.0.3",
         "eslint-plugin-playwright": "^0.12.0",
         "eslint-plugin-testing-library": "^5.11.0",
@@ -218,7 +218,10 @@
         "overrides": {
             "@remix-run/dev@1.18.0>esbuild": "0.17.10",
             "@vanilla-extract/integration@5.0.1>esbuild": "0.17.10",
-            "@vanilla-extract/integration@6.2.1>esbuild": "0.17.10"
+            "@vanilla-extract/integration@6.2.1>esbuild": "0.17.10",
+            "@remix-run/eslint-config@2.9.2>eslint-plugin-jest": "28.6.0",
+            "@remix-run/eslint-config@2.9.2>@typescript-eslint/eslint-plugin": "7.13.1",
+            "@remix-run/eslint-config@2.9.2>@typescript-eslint/parser": "7.13.1"
         },
         "patchedDependencies": {
             "prosemirror-view@1.27.2": "admin/patches/prosemirror-view@1.27.2.patch",
@@ -272,7 +275,9 @@
             "core-js": "2.6.12",
             "@npmcli/move-file": "1.1.2",
             "sourcemap-codec": "1.4.8",
-            "querystring": "0.2.0"
+            "querystring": "0.2.0",
+            "@humanwhocodes/config-array": "0.11.14",
+            "@humanwhocodes/object-schema": "2.0.3"
         },
         "peerDependencyRules": {
             "allowedVersions": {

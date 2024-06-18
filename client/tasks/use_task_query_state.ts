@@ -245,7 +245,7 @@ export function useTaskQueryState({
 
         // TODO(calebmer, #global-loading-indicator): Add a loading spinner while we
         // wait for the pending query to load.
-        pendingQueryPromise.finally(() => {
+        void pendingQueryPromise.finally(() => {
             if (isCancelled) return;
 
             // Don't animate when changing the query.

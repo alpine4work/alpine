@@ -103,8 +103,7 @@ function PostContentViewHeaderChannelBase({channel}: {channel: ChannelPreviewMod
     const navigate = useNavigate();
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-            void navigate(`/s/${channel.spaceId}/channels/${channel.id}`, {
+            navigate(`/s/${channel.spaceId}/channels/${channel.id}`, {
                 // Don't let the route open in `<PeekStack>`.
                 stopPropagation: true,
             });

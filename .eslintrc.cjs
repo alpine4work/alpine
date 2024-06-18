@@ -116,83 +116,6 @@ module.exports = {
         "no-redeclare": "off",
         "@typescript-eslint/no-redeclare": "off",
 
-        // Warn for all unused variables. Including those that begin with an
-        // underscore. Instead use the underscore naming convention for denoting
-        // private things.
-        "@typescript-eslint/no-unused-vars": "warn",
-
-        // Consistent use of generics when writing array types. This also makes it
-        // much easier to see if a type is wrapped in array since the other array
-        // syntax is postfix.
-        "@typescript-eslint/array-type": ["warn", {default: "generic"}],
-
-        // `x as T` is unsound as we perform no runtime check that `x` is actually
-        // `T`. You can use it but provide a comment explaining why.
-        "@typescript-eslint/consistent-type-assertions": ["warn", {assertionStyle: "as"}],
-
-        // `void` is kind of like `unknown` for convenience in function return
-        // types. However, if you want to use `void` in a type then what you
-        // actually want is probably `undefined`.
-        //
-        // NOTE(calebmer): This lint rule gets many valid uses of `void` wrong so
-        // turning it off.
-        "@typescript-eslint/no-invalid-void-type": "off",
-
-        // Use `// @ts-expect-error` instead of `// @ts-ignore` since the former
-        // will error if there is no error on the line underneath.
-        "@typescript-eslint/prefer-ts-expect-error": "error",
-
-        // Sometimes code is more readable when functions come before classes or
-        // enums or values they depend on.
-        "@typescript-eslint/no-use-before-define": "off",
-
-        // `this` aliasing is useful when working with immutable classes.
-        "@typescript-eslint/no-this-alias": "off",
-
-        // Remove `{}` and `object` from the ban types rule. The default lint rule
-        // is too picky.
-        //
-        // Default can be found at:
-        // https://github.com/typescript-eslint/typescript-eslint/blob/v3.0.2/packages/eslint-plugin/docs/rules/ban-types.md
-        "@typescript-eslint/ban-types": [
-            "error",
-            {
-                extendDefaults: false,
-                types: {
-                    String: {
-                        message: "Use string instead",
-                        fixWith: "string",
-                    },
-                    Boolean: {
-                        message: "Use boolean instead",
-                        fixWith: "boolean",
-                    },
-                    Number: {
-                        message: "Use number instead",
-                        fixWith: "number",
-                    },
-                    Symbol: {
-                        message: "Use symbol instead",
-                        fixWith: "symbol",
-                    },
-                    Object: {
-                        message: "Use object instead",
-                        fixWith: "object",
-                    },
-                    Function: {
-                        message:
-                            "The `Function` type accepts any function-like value. " +
-                            "It provides no type safety when calling the function, which can be a common source of bugs. " +
-                            "It also accepts things like class declarations, which will throw at runtime as they will not be called with `new`. " +
-                            "If you are expecting the function to accept certain arguments, you should explicitly define the function shape.",
-                    },
-                },
-            },
-        ],
-
-        // Inconvenient to annotate every type import with `import type`.
-        "@typescript-eslint/consistent-type-imports": "off",
-
         // Prefer named exports so we have consistent names for the import
         // across files.
         "import/no-default-export": "warn",
@@ -250,6 +173,7 @@ module.exports = {
             rules: {
                 // We trust our developers to use `any` appropriately. So we disable eslint
                 // rules surrounding `any`.
+                "@typescript-eslint/no-explicit-any": "off",
                 "@typescript-eslint/no-unsafe-argument": "off",
                 "@typescript-eslint/no-unsafe-assignment": "off",
                 "@typescript-eslint/no-unsafe-call": "off",
@@ -270,6 +194,99 @@ module.exports = {
                 "@typescript-eslint/restrict-template-expressions": [
                     "warn",
                     {allowAny: true, allowBoolean: true, allowNumber: true},
+                ],
+
+                // `x as T` is unsound as we perform no runtime check that `x` is actually
+                // `T`. You can use it but provide a comment explaining why.
+                "@typescript-eslint/consistent-type-assertions": ["warn", {assertionStyle: "as"}],
+
+                // Warn for all unused variables. Including those that begin with an
+                // underscore. Instead use the underscore naming convention for denoting
+                // private things.
+                "@typescript-eslint/no-unused-vars": "warn",
+
+                // Consistent use of generics when writing array types. This also makes it
+                // much easier to see if a type is wrapped in array since the other array
+                // syntax is postfix.
+                "@typescript-eslint/array-type": ["warn", {default: "generic"}],
+
+                // `void` is kind of like `unknown` for convenience in function return
+                // types. However, if you want to use `void` in a type then what you
+                // actually want is probably `undefined`.
+                //
+                // NOTE(calebmer): This lint rule gets many valid uses of `void` wrong so
+                // turning it off.
+                "@typescript-eslint/no-invalid-void-type": "off",
+
+                // Use `// @ts-expect-error` instead of `// @ts-ignore` since the former
+                // will error if there is no error on the line underneath.
+                "@typescript-eslint/prefer-ts-expect-error": "error",
+
+                // Trust developers to use TypeScript comments like `// @ts-expect-error` and
+                // `// @ts-ignore` appropriately. Developers should also know to add
+                // descriptions with their comment.
+                "@typescript-eslint/ban-ts-comment": "off",
+
+                // Sometimes code is more readable when functions come before classes or
+                // enums or values they depend on.
+                "@typescript-eslint/no-use-before-define": "off",
+
+                // `this` aliasing is useful when working with immutable classes.
+                "@typescript-eslint/no-this-alias": "off",
+
+                // Remove `{}` and `object` from the ban types rule. The default lint rule
+                // is too picky.
+                //
+                // Default can be found at:
+                // https://github.com/typescript-eslint/typescript-eslint/blob/v3.0.2/packages/eslint-plugin/docs/rules/ban-types.md
+                "@typescript-eslint/ban-types": [
+                    "error",
+                    {
+                        extendDefaults: false,
+                        types: {
+                            String: {
+                                message: "Use string instead",
+                                fixWith: "string",
+                            },
+                            Boolean: {
+                                message: "Use boolean instead",
+                                fixWith: "boolean",
+                            },
+                            Number: {
+                                message: "Use number instead",
+                                fixWith: "number",
+                            },
+                            Symbol: {
+                                message: "Use symbol instead",
+                                fixWith: "symbol",
+                            },
+                            Object: {
+                                message: "Use object instead",
+                                fixWith: "object",
+                            },
+                            Function: {
+                                message:
+                                    "The `Function` type accepts any function-like value. " +
+                                    "It provides no type safety when calling the function, which can be a common source of bugs. " +
+                                    "It also accepts things like class declarations, which will throw at runtime as they will not be called with `new`. " +
+                                    "If you are expecting the function to accept certain arguments, you should explicitly define the function shape.",
+                            },
+                        },
+                    },
+                ],
+
+                // Inconvenient to annotate every type import with `import type`.
+                "@typescript-eslint/consistent-type-imports": "off",
+
+                // If a function returns a promise, the developer must await it! Otherwise they
+                // may miss important errors.
+                "@typescript-eslint/no-floating-promises": [
+                    "error",
+                    {
+                        // We define a promise type that doesn't have to be awaited since in some cases
+                        // that's ok.
+                        allowForKnownSafePromises: ["SafeFloatingPromise"],
+                    },
                 ],
 
                 // The recommended type checking rules upgrade this to an error.

@@ -13,10 +13,28 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
+/**
+ * Function used to navigate to a different URL.
+ *
+ * The navigation function returns a `SafeFloatingPromise` which you may
+ * optionally await. (The eslint rule `@typescript-eslint/no-floating-promises`
+ * won't error if you don't await the result of the `navigate()` function.)
+ *
+ * This is because the promise returned by the navigate function will never
+ * reject and we'll navigate to the route after
+ * `delayScreenTransitionLoadingIndicatorLimitMs` and show a loading shimmer.
+ * So there's always a built-in loading indicator for the navigate function.
+ *
+ * If you call `navigate()` some place that has built-in support for loading
+ * indicators (e.g. an `<IconButton>`) we still recommend awaiting the promise.
+ * To show an inline loading indicator before we show a full screen loading
+ * indicator.
+ */
 export interface NavigateFunction {
-    (to: To, options?: NavigateOptions & {stopPropagation?: boolean}): Promise<void>;
-    (delta: number): Promise<void>;
+    (to: To, options?: NavigateOptions & {stopPropagation?: boolean}): SafeFloatingPromise<void>;
+    (delta: number): SafeFloatingPromise<void>;
 }
 
 /**

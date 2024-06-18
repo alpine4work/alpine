@@ -66,7 +66,7 @@ function TaskNotepadCardView({
     query: TaskClientQuery;
     taskId: TaskId;
     assigneeActivePosition: TaskPosition;
-    onExpand: Memo<(taskId: TaskId) => Promise<void>>;
+    onExpand: Memo<(taskId: TaskId) => void>;
     deleteTaskAndAllChildren: Memo<(taskId: TaskId) => void>;
 }) {
     const isMobile = useIsMobile();
@@ -139,14 +139,6 @@ function TaskNotepadCardView({
             }
         };
     }, [isPressed]);
-
-    const onPress = () => {
-        const promise = onExpand(taskId);
-
-        // TODO(calebmer, #global-loading-indicator): Some kind of global loading
-        // indicator for navigation?
-        void promise;
-    };
 
     const content = (
         <TaskCardViewContent
@@ -407,7 +399,7 @@ function TaskNotepadCardView({
                                 if (event.button !== 0) return;
 
                                 setIsPressed(false);
-                                if (isPressed) onPress();
+                                if (isPressed) onExpand(taskId);
                             },
                             onPointerLeave: () => setIsPressed(false),
                             onPointerCancel: () => setIsPressed(false),

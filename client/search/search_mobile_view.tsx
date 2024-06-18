@@ -281,9 +281,7 @@ function SearchMobileViewResult({
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            // TODO(calebmer, #global-loading-indicator): Some kind of global loading
-            // indicator.
-            void navigate(getSearchResultDestinationPath(spaceId, result.id, searchKey));
+            navigate(getSearchResultDestinationPath(spaceId, result.id, searchKey));
         },
     });
 

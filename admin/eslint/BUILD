@@ -4,6 +4,7 @@ ts_project(
     name = "eslint",
     deps = [
         "//client/content",
+        "//shared/helpers",
         "//shared/id",
     ],
 )

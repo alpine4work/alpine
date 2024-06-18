@@ -33,13 +33,11 @@ export function PostFauxInputCreateButton({
                 // is created. We want to navigate to the post and the user can navigate back
                 // to the channel with the back button.
                 if (withMobileLayout) {
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(
+                    navigate(
                         `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content`,
                     );
                 } else {
-                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                    void navigate(
+                    navigate(
                         `/s/${space.id}/posts/new/${draftId}?channel=${channel.id}&focus=content&return=back`,
                     );
                 }

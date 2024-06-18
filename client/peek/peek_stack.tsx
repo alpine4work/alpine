@@ -278,7 +278,7 @@ const initialPeekStackState: PeekStackState = {
     wasLastInteractionOutside: true,
 };
 
-type PeekStackContext = {
+export type PeekStackContext = {
     readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
 };
 
@@ -328,7 +328,7 @@ function PeekStackContextProvider(
         // Wiggle the stack as a response to the user's interaction.
         if (
             state.stack[0]?.history.location.pathname === peekPath.pathname &&
-            state.stack[0]!.history.location.search === peekPath.search
+            state.stack[0].history.location.search === peekPath.search
         ) {
             stackRef.current?.wiggle();
             return;
@@ -1490,9 +1490,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                         const spacePath = convertPeekPathToSpacePath(entry.history.location);
                         if (!spacePath) throw new InternalError("Can only expand peek routes");
 
-                        // TODO(calebmer, #global-loading-indicator): Global navigation loading
-                        // indicator?
-                        void navigate(spacePath);
+                        navigate(spacePath);
                         break;
                     }
                 }
