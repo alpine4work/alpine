@@ -1815,7 +1815,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     flexShrink="1"
                     height={navigationBarHeight}
                     paddingX={isMobile ? mobileNavigationBarGap : undefined}
-                    paddingLeft={desktopTitleMaxWidth === undefined && !isMobile ? "5" : undefined}
+                    paddingLeft={
+                        desktopTitleMaxWidth === undefined &&
+                        !isMobile &&
+                        titleJustifyContents !== "center"
+                            ? "5"
+                            : undefined
+                    }
                     display="flex"
                     justifyContent={titleJustifyContents}
                     alignItems="center"

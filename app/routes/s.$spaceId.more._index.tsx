@@ -44,10 +44,11 @@ export default function MoreRoute() {
             withoutMobileBackButton={true}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
-                <Box display="flex">
+                <Box display="flex" alignItems="stretch">
                     <Box
                         {...spacePressProps}
-                        flexGrow="1"
+                        flexShrink="0"
+                        width="1/2"
                         display="flex"
                         flexDirection="column"
                         alignItems="center"
@@ -72,10 +73,11 @@ export default function MoreRoute() {
                             <Box>Switch</Box>
                         </Box>
                     </Box>
-                    <Box alignSelf="stretch" borderLeft="grey-5" />
                     <Box
                         {...accountPressProps}
-                        flexGrow="1"
+                        borderLeft="grey-5"
+                        flexShrink="0"
+                        width="1/2"
                         display="flex"
                         flexDirection="column"
                         alignItems="center"

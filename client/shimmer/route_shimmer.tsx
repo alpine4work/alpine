@@ -122,11 +122,15 @@ const shimmerComponentByRouteId: {
     "routes/s.$spaceId.chat.$chatId": ChatRouteShimmer,
     "routes/s.$spaceId.chat.new": NewChatRouteShimmer,
     "routes/s.$spaceId.chat.with.$accountId": ChatRouteShimmer,
+    "routes/s.$spaceId.create._index": CreateRouteShimmer,
+    "routes/s.$spaceId.create.more": CreateMoreRouteShimmer,
     "routes/s.$spaceId.documents.$documentId._index": DocumentRouteShimmer,
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId":
         DocumentCommentThreadRouteShimmer,
     "routes/s.$spaceId.documents.$documentId.view": DocumentRouteShimmer,
     "routes/s.$spaceId.inbox": InboxRouteShimmer,
+    "routes/s.$spaceId.more._index": MoreRouteShimmer,
+    "routes/s.$spaceId.more.switch-space": MoreSwitchSpaceRouteShimmer,
     "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration":
         ChannelPostsNotificationRouteShimmer,
     "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration":
@@ -142,12 +146,6 @@ const shimmerComponentByRouteId: {
     // TODO(calebmer): We don't currently have a design for these routes. Once we
     // implement these routes we should add appropriate shimmers.
     "routes/s.$spaceId._index": false,
-
-    // NOCOMMIT: Implement shimmers
-    "routes/s.$spaceId.create._index": false,
-    "routes/s.$spaceId.create.more": false,
-    "routes/s.$spaceId.more._index": false,
-    "routes/s.$spaceId.more.switch-space": false,
 };
 
 export function getRouteIdsWithDefinedShimmerForTest() {
@@ -567,6 +565,47 @@ function MessageInputShimmer() {
     );
 }
 
+// Not much going on for the create route shimmer. We expect create routes to
+// load very fast given they don't have any data they need to load from the
+// server. Create route shimmers mostly exist for completeness and to make sure
+// a route like `/create/more` has a back button in its shimmer.
+function CreateRouteShimmer({
+    withBackButton,
+}: {
+    withBackButton?: boolean;
+    // We don't use this, it's only to appease TypeScript.
+    withMobileLayout?: boolean;
+}) {
+    const isMobile = useIsMobile();
+
+    withBackButton &&= isMobile;
+
+    const maxWidth = !isMobile ? "96" : undefined;
+
+    return (
+        <Box width="full" height="full">
+            <Box width="full" maxWidth={maxWidth} paddingTop="safe-area-inset" marginX="center">
+                <Box
+                    width="full"
+                    height={navigationBarHeight}
+                    paddingX={mobileNavigationBarGap}
+                    display="flex"
+                    justifyContent={withBackButton ? "space-between" : "center"}
+                    alignItems="center"
+                >
+                    {withBackButton && <MobileBackButton />}
+                    <TextShimmer fontSize="100" width="16" />
+                    {withBackButton && <MobileBackButtonSpacer />}
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function CreateMoreRouteShimmer() {
+    return <CreateRouteShimmer withBackButton />;
+}
+
 function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
     const isMobile = useIsMobile();
 
@@ -818,6 +857,137 @@ function InboxRouteShimmer() {
             </Box>
         );
     }
+}
+
+function MoreRouteShimmer() {
+    const isMobile = useIsMobile();
+
+    const maxWidth = !isMobile ? "96" : undefined;
+
+    return (
+        <Box width="full" height="full">
+            <Box
+                width="full"
+                maxWidth={maxWidth}
+                paddingX={screenPaddingX}
+                paddingTop="safe-area-inset"
+                marginX="center"
+            >
+                <Box width="full" height={navigationBarHeight} />
+                <Box display="flex" alignItems="stretch">
+                    <Box
+                        flexShrink="0"
+                        width="1/2"
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap="2"
+                        paddingX="2"
+                    >
+                        <Box
+                            className={pulseAnimationClassName}
+                            flexShrink="0"
+                            width="16"
+                            height="16"
+                            backgroundColor="grey-10"
+                            borderRadius="base"
+                        />
+                        <TextShimmer fontSize="100" width="14" />
+                        <Spacer space="0.5" />
+                        <Spacer space="4" />
+                    </Box>
+                    <Box
+                        borderLeft="grey-5"
+                        flexShrink="0"
+                        width="1/2"
+                        display="flex"
+                        flexDirection="column"
+                        alignItems="center"
+                        gap="2"
+                        paddingX="2"
+                    >
+                        <Box
+                            className={pulseAnimationClassName}
+                            flexShrink="0"
+                            width="16"
+                            height="16"
+                            backgroundColor="grey-10"
+                            borderRadius="full"
+                        />
+                        <TextShimmer fontSize="100" width="24" />
+                        <Spacer space="0.5" />
+                        <Spacer space="4" />
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function MoreSwitchSpaceRouteShimmer() {
+    const isMobile = useIsMobile();
+
+    const maxWidth = !isMobile ? "96" : undefined;
+
+    return (
+        <Box width="full" height="full">
+            <Box width="full" maxWidth={maxWidth} paddingTop="safe-area-inset" marginX="center">
+                <Box
+                    width="full"
+                    height={navigationBarHeight}
+                    paddingX={mobileNavigationBarGap}
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                >
+                    <MobileBackButton />
+                    <TextShimmer fontSize="100" width="24" />
+                    <MobileBackButtonSpacer />
+                </Box>
+                <Box paddingX={screenPaddingX}>
+                    <MoreSwitchSpaceSettingsRowShimmer ragRight="8" withBorderTop />
+                    <MoreSwitchSpaceSettingsRowShimmer ragRight="0" />
+                    <MoreSwitchSpaceSettingsRowShimmer ragRight="4" />
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function MoreSwitchSpaceSettingsRowShimmer({
+    ragRight,
+    withBorderTop,
+}: {
+    ragRight: Spacing;
+    withBorderTop?: boolean;
+}) {
+    return (
+        <Box
+            paddingX="2.5"
+            paddingY="1.5"
+            display="flex"
+            alignItems="center"
+            gap="2.5"
+            style={{
+                boxShadow: [
+                    `inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                    ...(withBorderTop ? [`inset 0 1px 0 0 ${colorSchemeVars["grey-5"]}`] : []),
+                ].join(", "),
+            }}
+        >
+            <Box paddingY="2">
+                <Box
+                    className={pulseAnimationClassName}
+                    flexShrink="0"
+                    width="8"
+                    height="8"
+                    backgroundColor="grey-10"
+                    borderRadius="base"
+                />
+            </Box>
+            <TextShimmer fontSize="100" width="32" ragRight={ragRight} />
+        </Box>
+    );
 }
 
 function ChannelPostsNotificationRouteShimmer() {
