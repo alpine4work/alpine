@@ -6,7 +6,7 @@ import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/interna
 import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, screenPaddingXRem, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -244,6 +244,7 @@ const droppableVerticalOverIndicatorClassName = sprinkles({
     position: "absolute",
     bottom: "3",
     height: "2",
+    pointerEvents: "none",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
 });
 
@@ -251,6 +252,7 @@ const droppableVerticalOverIndicatorFlippedClassName = sprinkles({
     position: "absolute",
     bottom: "1",
     height: "2",
+    pointerEvents: "none",
     backgroundColor: {light: "theme-30", dark: "theme-60"},
 });
 
@@ -301,6 +303,12 @@ export function TaskRowViewDroppable({
         ? mobileTaskRowViewIndentationRem
         : desktopTaskRowViewIndentationRem;
 
+    const droppableListItemIndent = isMobile
+        ? // Use a lot more space on mobile for the droppable list item hit area. Since the visual
+          // indentation we render is really hard to precisely reach with a finger.
+          parseRemLengthNumber(spacing["20"])
+        : desktopTaskRowViewIndentationRem;
+
     // If collections are expanded then make sure our task row renders on top of
     // all other task rows.
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -337,19 +345,19 @@ export function TaskRowViewDroppable({
                 style={{
                     left:
                         previousAdjacentIndentation !== null
-                            ? `${listItemIndent * indentation}rem`
+                            ? `${droppableListItemIndent * indentation}rem`
                             : 0,
                     width:
                         nextAdjacentIndentation !== null && previousAdjacentIndentation !== null
                             ? `${
-                                  listItemIndent *
+                                  droppableListItemIndent *
                                   (nextAdjacentIndentation - previousAdjacentIndentation - 1)
                               }rem`
                             : nextAdjacentIndentation !== null
-                            ? `${listItemIndent * nextAdjacentIndentation}rem`
+                            ? `${droppableListItemIndent * nextAdjacentIndentation}rem`
                             : previousAdjacentIndentation !== null
                             ? `calc(100% - ${
-                                  listItemIndent * (previousAdjacentIndentation + 1)
+                                  droppableListItemIndent * (previousAdjacentIndentation + 1)
                               }rem)`
                             : "100%",
                 }}
@@ -360,7 +368,8 @@ export function TaskRowViewDroppable({
                     style={{
                         height: 1,
                         left: `${
-                            parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation
+                            screenPaddingXRem[isMobile ? "mobile" : "desktop"] +
+                            listItemIndent * indentation
                         }rem`,
                     }}
                 />
@@ -375,7 +384,8 @@ export function TaskRowViewDroppable({
                     style={{
                         width: 1,
                         left: `${
-                            parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation
+                            screenPaddingXRem[isMobile ? "mobile" : "desktop"] +
+                            listItemIndent * indentation
                         }rem`,
                     }}
                 />
