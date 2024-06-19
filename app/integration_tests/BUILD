@@ -53,5 +53,3 @@ ts_playwright_tests(
 #   - On a document
 #   - While adding a new comment to a document
 #   - In a comment thread on a document
-# - Task collection creation mobile test and desktop test
-# - Task collection name editing mobile and desktop test
