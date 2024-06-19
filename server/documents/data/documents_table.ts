@@ -38,6 +38,7 @@ import {
     DocumentContentSchema,
     DocumentContentStepSchema,
     UncheckedDocumentContentSchema,
+    emptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {
@@ -732,11 +733,11 @@ export async function createDocument(
     {
         id = generateId<DocumentId>(),
         spaceId,
-        content,
+        content = emptyDocumentContent,
     }: {
         id?: DocumentId;
         spaceId: SpaceId;
-        content: DocumentContent;
+        content?: DocumentContent;
     },
 ): Promise<{
     id: DocumentId;

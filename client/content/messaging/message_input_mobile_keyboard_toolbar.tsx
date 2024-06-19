@@ -151,6 +151,7 @@ export function MessageInputMobileKeyboardToolbar({
         <Box
             ref={toolbarRef}
             id={toolbarId}
+            data-testid="MessageInputMobileKeyboardToolbar"
             height={mobileBottomBarKeyboardToolbarHeight}
             paddingX="0.5"
             display="flex"

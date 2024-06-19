@@ -118,7 +118,7 @@ export function ContentEditorMobileLinkModal({
     };
 
     return (
-        <Box width="full">
+        <Box data-testid="ContentEditorMobileLinkModal" width="full">
             <Box paddingTop="safe-area-inset" />
             <Box
                 height={navigationBarHeight}

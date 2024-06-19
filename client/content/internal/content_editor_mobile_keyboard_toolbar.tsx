@@ -240,6 +240,7 @@ export function ContentEditorMobileKeyboardToolbar({
                     <Box
                         ref={toolbarRef}
                         id={isNativeMobile ? `nmbb-kt-${id}` : id}
+                        data-testid="ContentEditorMobileKeyboardToolbar"
                         // NOTE(calebmer): This is a little strange, we have a wrapper `<div>` with
                         // `spacing["2"]` padding height on our keyboard toolbar. I've observed this
                         // makes the animation when the iOS keyboard opens more consistent. Before

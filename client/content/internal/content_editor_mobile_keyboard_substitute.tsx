@@ -218,6 +218,7 @@ function ContentEditorMobileKeyboardSubstitute(
     return createPortal(
         <Box
             ref={substituteRef}
+            data-testid="ContentEditorMobileKeyboardSubstitute"
             className={greyElevated2ClassName}
             position="absolute"
             // Render above everything on the page including toolbar.

@@ -119,6 +119,7 @@ export function ContentEditorLinkInput({
                     // max width?
                     width: url.length > 40 ? "20rem" : "12rem",
                 }}
+                aria-label="URL"
                 placeholder="https://example.com"
                 disabled={isDisabled}
                 value={url}
