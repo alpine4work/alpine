@@ -1,14 +1,19 @@
-import {useParams} from "@remix-run/react";
+import {useNavigate, useParams} from "@remix-run/react";
 import {json, redirect} from "@remix-run/router";
 import {LinkDescriptor} from "@remix-run/server-runtime";
+import {ArrowLeft} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {attemptOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
@@ -17,8 +22,9 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [
@@ -139,10 +145,13 @@ export async function action({request, context, params}: LoaderArgs) {
 }
 
 export default function SignInEmailCodePage() {
-    const formRef = useRef<HTMLFormElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const isMobile = useIsMobile();
+    const navigate = useNavigate();
     const params = useParams();
     const emailAddress = params.emailAddress;
+
+    const formRef = useRef<HTMLFormElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const [oneTimePassword, setOneTimePassword] = useState("");
     const [isDisabledForSubmit, setIsDisabledForSubmit] = useState(false);
@@ -185,28 +194,32 @@ export default function SignInEmailCodePage() {
     }, [hasError, fetcher.state]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        // this is a bit of a hack. the browser will scroll the input to the left, to keep the input
-        // cursor in view, but this only happens when we have 6 characters at which point we disable
-        // the input and submit the form anyway. we can't disable this with an event listener
-        // because for some reason the scroll event isn't fired (at least on ios). We might be able
-        // to fix this with overflow: clip but support isn't good at the moment. instead we check &
-        // reset the scroll every frame.
-        const preventScrollLoop = () => {
-            if (inputRef.current) {
-                inputRef.current.scrollLeft = 0;
-            }
-            frame = requestAnimationFrame(preventScrollLoop);
-        };
+        // Re-run effect whenever the password changes.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        oneTimePassword;
 
-        let frame = requestAnimationFrame(preventScrollLoop);
+        // Make sure we reset any scroll the browser applies to the input to keep the
+        // cursor visible when the input's value changes.
+        const inputElement = assertExists(inputRef.current);
+        inputElement.scrollLeft = 0;
+    }, [oneTimePassword]);
 
-        return () => {
-            cancelAnimationFrame(frame);
-        };
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const inputElement = assertExists(inputRef.current);
+
+        return scheduleAfterNavigationAnimation(() => {
+            inputElement.focus();
+        });
     }, []);
 
     return (
         <Box
+            position="relative"
             display="flex"
             justifyContent="center"
             backgroundColor="grey-0"
@@ -217,11 +230,31 @@ export default function SignInEmailCodePage() {
                 minHeight: "100lvh",
             }}
         >
+            {isMobile && (
+                <Box position="absolute" top="0" left="0" right="0" paddingTop="safe-area-inset">
+                    <Box
+                        height={navigationBarHeight}
+                        paddingX={mobileNavigationBarGap}
+                        display="flex"
+                        alignItems="center"
+                    >
+                        <IconButton
+                            size="base"
+                            description="Go back"
+                            withoutTooltip={true}
+                            pressErrorTitle="Couldn’t go back"
+                            onPress={() => navigate(-1)}
+                        >
+                            <ArrowLeft />
+                        </IconButton>
+                    </Box>
+                </Box>
+            )}
             <main
                 className={sprinkles({
                     width: "full",
                     maxWidth: "64",
-                    paddingY: {desktop: "32", mobile: "16"},
+                    paddingY: {desktop: "32", mobile: "20"},
                     paddingX: "4",
                 })}
             >
@@ -270,7 +303,6 @@ export default function SignInEmailCodePage() {
                             name="oneTimePassword"
                             disabled={isDisabledForSubmit}
                             type="text"
-                            placeholder="000000"
                             value={oneTimePassword}
                             onChange={onOneTimePasswordChange}
                             className={sprinkles({
@@ -282,14 +314,11 @@ export default function SignInEmailCodePage() {
                             style={{
                                 fontSize: "1.875rem",
                                 lineHeight: 1.5,
-                                letterSpacing: "1.15rem",
-                                paddingLeft: "0.49rem",
-                                transform: "translateY(0.03rem)",
+                                letterSpacing: "1.158rem",
+                                paddingLeft: "0.469rem",
                                 fontVariantNumeric: "tabular-nums",
                             }}
-                            spellCheck="false"
                             autoComplete="one-time-code"
-                            autoFocus={true}
                             inputMode="numeric"
                             aria-label="Sign in code"
                         />
@@ -300,49 +329,19 @@ export default function SignInEmailCodePage() {
                             display="flex"
                             gap="1"
                             zIndex="-10"
+                            style={{
+                                fontSize: "1.875rem",
+                                lineHeight: 1.5,
+                                fontVariantNumeric: "tabular-nums",
+                                ...inputPlaceholderStyles,
+                            }}
                         >
-                            <Box
-                                flexGrow="1"
-                                height="full"
-                                borderRadius="base"
-                                border="grey-5"
-                                borderWidth="thick"
-                            />
-                            <Box
-                                flexGrow="1"
-                                height="full"
-                                borderRadius="base"
-                                border="grey-5"
-                                borderWidth="thick"
-                            />
-                            <Box
-                                flexGrow="1"
-                                height="full"
-                                borderRadius="base"
-                                border="grey-5"
-                                borderWidth="thick"
-                            />
-                            <Box
-                                flexGrow="1"
-                                height="full"
-                                borderRadius="base"
-                                border="grey-5"
-                                borderWidth="thick"
-                            />
-                            <Box
-                                flexGrow="1"
-                                height="full"
-                                borderRadius="base"
-                                border="grey-5"
-                                borderWidth="thick"
-                            />
-                            <Box
-                                flexGrow="1"
-                                height="full"
-                                borderRadius="base"
-                                border="grey-5"
-                                borderWidth="thick"
-                            />
+                            <OneTimePasswordDigit isPlaceholder={oneTimePassword.length <= 0} />
+                            <OneTimePasswordDigit isPlaceholder={oneTimePassword.length <= 1} />
+                            <OneTimePasswordDigit isPlaceholder={oneTimePassword.length <= 2} />
+                            <OneTimePasswordDigit isPlaceholder={oneTimePassword.length <= 3} />
+                            <OneTimePasswordDigit isPlaceholder={oneTimePassword.length <= 4} />
+                            <OneTimePasswordDigit isPlaceholder={oneTimePassword.length <= 5} />
                         </Box>
                     </Box>
                     <Spacer space="6" />
@@ -357,6 +356,32 @@ export default function SignInEmailCodePage() {
                     </Button>
                 </fetcher.Form>
             </main>
+        </Box>
+    );
+}
+
+function OneTimePasswordDigit({isPlaceholder}: {isPlaceholder: boolean}) {
+    return (
+        <Box
+            flexGrow="1"
+            height="full"
+            borderRadius="base"
+            border="grey-5"
+            borderWidth="thick"
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            style={{
+                fontSize: "1.875rem",
+                lineHeight: 1.5,
+                fontVariantNumeric: "tabular-nums",
+                ...inputPlaceholderStyles,
+                color: colorSchemeVars["grey-20"],
+            }}
+        >
+            <Box aria-hidden={true} opacity={!isPlaceholder ? "0" : undefined}>
+                0
+            </Box>
         </Box>
     );
 }

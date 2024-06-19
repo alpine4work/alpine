@@ -77,6 +77,7 @@ export function MultilineTextInput({
                     })}
                     style={{resize: "none"}}
                     id={id}
+                    data-scrollbar="false"
                     value={value}
                     onChange={event => onChange(event.currentTarget.value)}
                     placeholder={placeholder}

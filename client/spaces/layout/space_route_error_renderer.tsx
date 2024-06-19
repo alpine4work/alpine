@@ -57,7 +57,7 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
                         width: "full",
                         maxWidth: "128",
                         paddingX: "8",
-                        paddingY: isMobile ? "4" : "32",
+                        paddingY: isMobile ? "6" : "32",
                     })}
                 >
                     <ErrorBodyRenderer title={useRouteErrorTitle()} error={error} />

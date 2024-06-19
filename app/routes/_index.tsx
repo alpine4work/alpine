@@ -153,7 +153,7 @@ export default function HomePage() {
             display="flex"
             justifyContent="center"
             id={id}
-            backgroundColor="grey-100"
+            backgroundColor="grey-0"
             minHeight="full"
             // Create a new z-index stacking context
             position="relative"
@@ -171,7 +171,7 @@ export default function HomePage() {
                 className={sprinkles({
                     width: "full",
                     maxWidth: "128",
-                    paddingY: {desktop: "32", mobile: "16"},
+                    paddingY: {desktop: "32", mobile: "20"},
                     paddingX: "4",
                 })}
             >

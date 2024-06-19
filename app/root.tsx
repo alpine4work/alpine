@@ -545,7 +545,7 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
                     width: "full",
                     maxWidth: "128",
                     paddingX: "8",
-                    paddingY: {desktop: "32", mobile: "16"},
+                    paddingY: {desktop: "32", mobile: "20"},
                 })}
             >
                 <ErrorBodyRenderer title={title ?? defaultTitle} error={error} />

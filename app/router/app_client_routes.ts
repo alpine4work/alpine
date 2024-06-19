@@ -4,7 +4,7 @@ import {DataRouteObject, LazyRouteFunction} from "react-router";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {createLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {processLoaderResult} from "~/client/remix/process_loader_result.js";
-import {FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
+import {ErrorBase, FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -131,6 +131,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                 // an `UnavailableError`.
                 if (error instanceof Response) throw error;
 
+                // If the error already has a code, we don't need to add a new one.
+                if (error instanceof ErrorBase) throw error;
+
                 // Classify network errors as the `Unavailable` status code.
                 //
                 // If the user is offline then we use a `FailedPreconditionError` since it's a
@@ -192,6 +195,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                 // If this is using the Remix throw-Response convention then don't convert to
                 // an `UnavailableError`.
                 if (error instanceof Response) throw error;
+
+                // If the error already has a code, we don't need to add a new one.
+                if (error instanceof ErrorBase) throw error;
 
                 // Classify network errors as the `Unavailable` status code.
                 //
@@ -352,7 +358,9 @@ function makeSpaceDataRouteReuseInflightRequest(
                 // end up parsing the `Response` body twice.
                 .then(processLoaderResult);
 
-            responsePromise.finally(() => inflightResponsePromiseByRequestKey.delete(requestKey));
+            void responsePromise.finally(() =>
+                inflightResponsePromiseByRequestKey.delete(requestKey),
+            );
 
             return responsePromise;
         });

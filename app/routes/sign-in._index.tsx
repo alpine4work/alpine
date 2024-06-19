@@ -9,6 +9,7 @@ import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
@@ -94,6 +95,8 @@ export default function SignInPage() {
     const [emailAddress, setEmailAddress] = useState("");
     const isFormValid = emailAddress.length > 0 && emailAddress.includes("@");
 
+    const {isNativeMobile} = useClientInfo();
+
     const fetcher = useFetcherWithSchema(ActionSchema);
 
     const [dismissedFetcherData, setDismissedFetcherData] = useState<SchemaType<
@@ -116,7 +119,7 @@ export default function SignInPage() {
                 className={sprinkles({
                     width: "full",
                     maxWidth: "64",
-                    paddingY: {desktop: "32", mobile: "16"},
+                    paddingY: {desktop: "32", mobile: "20"},
                     paddingX: "4",
                 })}
             >
@@ -169,7 +172,14 @@ export default function SignInPage() {
                     Don’t have an account yet?
                     <br />
                     <FocusRing>
-                        <Link to="/" className={contentSchemaStyles.linkClassName}>
+                        <Link
+                            to="/"
+                            className={contentSchemaStyles.linkClassName}
+                            // We don't support the home page in the native mobile app. So open in a
+                            // new tab.
+                            target={isNativeMobile ? "_blank" : undefined}
+                            rel={isNativeMobile ? "noreferrer" : undefined}
+                        >
                             Request access
                         </Link>
                     </FocusRing>

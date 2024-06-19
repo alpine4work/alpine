@@ -176,6 +176,8 @@ export function createNativeMobileRouterWithoutInitialization(
         },
         enableScrollRestoration: routerBase.enableScrollRestoration.bind(routerBase),
         navigate: (...args) => {
+            console.log("NAVIGATE", args);
+
             // If no `tab` is provided in state, then use the current `tab` from
             // `router.state.location` since that's the location the user currently sees.
             //
@@ -218,7 +220,7 @@ export function createNativeMobileRouterWithoutInitialization(
                     waitForKeyboardAnimationPromise = new Promise<void>(resolve =>
                         NativeMobileBridge!.keyboard.scheduleAfterAnimation(resolve),
                     );
-                    waitForKeyboardAnimationPromise.finally(() => {
+                    void waitForKeyboardAnimationPromise.finally(() => {
                         waitForKeyboardAnimationPromise = undefined;
                     });
                 }
@@ -226,7 +228,28 @@ export function createNativeMobileRouterWithoutInitialization(
 
             return (routerBase as any).navigate(...args);
         },
-        fetch: routerBase.fetch.bind(routerBase),
+        fetch: (key, routeId, href, options) => {
+            // If this is a fetch from a form, close the keyboard.
+            if (options && ("formData" in options || "body" in options)) {
+                // When a navigation is performed and we have a focused text input element,
+                // blur it. We want to wait for the virtual keyboard to close before navigating
+                // so we don't end up with snapshots of partially animated bottom bar elements.
+                if (isTextInputElement(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+
+                if (!waitForKeyboardAnimationPromise) {
+                    waitForKeyboardAnimationPromise = new Promise<void>(resolve =>
+                        NativeMobileBridge!.keyboard.scheduleAfterAnimation(resolve),
+                    );
+                    void waitForKeyboardAnimationPromise.finally(() => {
+                        waitForKeyboardAnimationPromise = undefined;
+                    });
+                }
+            }
+
+            return routerBase.fetch(key, routeId, href, options);
+        },
         revalidate: routerBase.revalidate.bind(routerBase),
         createHref: routerBase.createHref.bind(routerBase),
         encodeLocation: routerBase.encodeLocation.bind(routerBase),
