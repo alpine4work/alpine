@@ -78,9 +78,7 @@ type TaskRealtimeServiceRoute =
     | {readonly type: "NotFound"}
     | {readonly type: "Main"; readonly spaceId: SpaceId}
     | {readonly type: "ApplyActionTransaction"; readonly spaceId: SpaceId}
-    | {readonly type: "LoadQueries"; readonly spaceId: SpaceId}
-    | {readonly type: "GetTask"; readonly spaceId: SpaceId; readonly taskId: string}
-    | {readonly type: "GetCollection"; readonly spaceId: SpaceId; readonly collectionId: string};
+    | {readonly type: "LoadQueries"; readonly spaceId: SpaceId};
 
 runService({
     serviceName: "TaskRealtimeService",

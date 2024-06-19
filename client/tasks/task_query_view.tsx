@@ -421,7 +421,7 @@ export function TaskQueryView({
                     height="8"
                     paddingX="2"
                     color="grey-0"
-                    backgroundColor={{light: "grey-80", dark: "grey-90"}}
+                    backgroundColor="grey-90"
                     display="flex"
                     alignItems="center"
                     gap="1.5"

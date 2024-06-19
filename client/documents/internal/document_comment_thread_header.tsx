@@ -16,15 +16,6 @@ import {
     documentCommentThreadHeaderPaddingY,
 } from "~/shared/styles/document_shared_styles.js";
 
-// NOCOMMIT: Integration test comment resolution.
-//
-// - Make sure snippet survives (including after reload)
-// - Make sure it updates in realtime
-// - After resolving you can still hit the next button to go to the
-//   next comment
-//
-// Desktop and mobile and peek
-
 export function DocumentCommentThreadHeader({
     withMobileLayout,
     commentThread,

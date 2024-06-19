@@ -30,6 +30,7 @@ import {
     InternalError,
     InvalidArgumentError,
 } from "~/shared/error/error.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -54,6 +55,7 @@ import {
 import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step.js";
 import {getAccounts} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
+    confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency,
     getDocumentContentReferences,
     updateDocumentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
@@ -132,6 +134,16 @@ export class DocumentCollaborationContentManager {
                 readonly content: MessageContent;
             };
         }
+    >();
+
+    /**
+     * Comment threads our content manager is currently persisting.
+     * Comment threads will be removed from this set once we've finished persisting
+     * the update that unresolves them.
+     */
+    private readonly _persistingUnresolveCommentThreadIds = new Map<
+        DocumentCommentThreadId,
+        number
     >();
 
     constructor({
@@ -360,6 +372,14 @@ export class DocumentCollaborationContentManager {
                 });
             }
 
+            if (update.unresolveCommentThreadIds) {
+                for (const commentThreadId of update.unresolveCommentThreadIds) {
+                    const count =
+                        this._persistingUnresolveCommentThreadIds.get(commentThreadId) ?? 0;
+                    this._persistingUnresolveCommentThreadIds.set(commentThreadId, count);
+                }
+            }
+
             // Persist our content by sending our steps to DynamoDB. We need to save our
             // steps in the same sequence we received them.
             //
@@ -393,6 +413,116 @@ export class DocumentCollaborationContentManager {
                 const nextResolveCommentThreadIds = update.resolveCommentThreadIds ?? [];
                 const nextUnresolveCommentThreadIds = update.unresolveCommentThreadIds ?? [];
 
+                const persistDocumentContent = async () => {
+                    // While we wait, steps may be added to `nextSteps` if it's from the same
+                    // client so we can save in a single batch.
+                    await lastPersistenceStatePromise;
+
+                    // Do not allow the worker to batch more steps for this request! Instead the
+                    // worker needs to schedule a new update promise.
+                    if (this._persistenceState?.next?.steps === nextSteps)
+                        this._persistenceState.next = null;
+
+                    await context.tracer.withSpan(
+                        "Persist document content",
+                        async (context, span) => {
+                            try {
+                                await documentCollaborationContentManagerBeforePersistTestCheckpoint.waitForTest(
+                                    this.id,
+                                );
+
+                                const {conflictingSteps, updatedCommentThreads} =
+                                    await updateDocumentContent(context, {
+                                        documentId: this.id,
+                                        version: oldVersion,
+                                        steps: nextSteps,
+                                        clientId: update.clientId,
+                                        createCommentThreads: nextCreateCommentThreads,
+                                        resolveCommentThreadIds: nextResolveCommentThreadIds,
+                                        unresolveCommentThreadIds: nextUnresolveCommentThreadIds,
+                                    });
+
+                                // The document collaboration durable object should be the only process writing
+                                // to a document! If some other process is writing to a document, weird
+                                // things may start breaking in the durable object and on the client.
+                                //
+                                // We save steps anyway to preserve as much user data as we can.
+                                if (conflictingSteps.length > 0) {
+                                    throw new InternalError(
+                                        "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
+                                    );
+                                }
+
+                                this._persistedVersion = oldVersion + nextSteps.length;
+
+                                // Cleanup comment threads that have been persisted. We will be able to fetch
+                                // the latest value from the database from here on out.
+                                for (const [commentThreadId, optimisticCommentThread] of this
+                                    ._optimisticCommentThreadById) {
+                                    if (
+                                        optimisticCommentThread.persistedAfterVersion >
+                                        this._persistedVersion
+                                    ) {
+                                        continue;
+                                    }
+                                    this._optimisticCommentThreadById.delete(commentThreadId);
+                                    optimisticCommentThread.persistedPromiseResolver.resolve();
+                                }
+
+                                this._sendEventToAll(context, {
+                                    type: "PersistedContent",
+                                    newVersion: oldVersion + nextSteps.length,
+                                    updatedCommentThreads,
+                                });
+                            } catch (unknownError) {
+                                // Upgrade the severity to internal since the client has already seen the update.
+                                //
+                                // The client will also attempt to reconnect on a system error.
+                                const error = InternalError.from(unknownError);
+
+                                span.addException(error);
+
+                                // Persistence failed, clear out our optimistic comment threads.
+                                for (const [commentThreadId, optimisticCommentThread] of this
+                                    ._optimisticCommentThreadById) {
+                                    this._optimisticCommentThreadById.delete(commentThreadId);
+                                    optimisticCommentThread.persistedPromiseResolver.reject(error);
+                                }
+
+                                this._sendEventToAll(context, {
+                                    type: "Error",
+                                    error,
+                                });
+                                this._killProcess(context);
+                            } finally {
+                                // We're done persisting these comment thread IDs...
+                                //
+                                // It's ok to clean this up here since `hasSameClientIdAsNextPersistenceState`
+                                // should be false whenever we have some `update.unresolveCommentThreadIds`.
+                                // When unresolving we won't merge persistence requests.
+                                if (update.unresolveCommentThreadIds) {
+                                    for (const commentThreadId of update.unresolveCommentThreadIds) {
+                                        const count =
+                                            this._persistingUnresolveCommentThreadIds.get(
+                                                commentThreadId,
+                                            ) ?? 0;
+                                        if (count <= 1) {
+                                            this._persistingUnresolveCommentThreadIds.delete(
+                                                commentThreadId,
+                                            );
+                                        } else {
+                                            this._persistingUnresolveCommentThreadIds.set(
+                                                commentThreadId,
+                                                count - 1,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    );
+                };
+
                 this._persistenceState = {
                     next: {
                         clientId: update.clientId,
@@ -403,94 +533,7 @@ export class DocumentCollaborationContentManager {
                     // this `update()` method so the `AppService` network calls count against the
                     // Durable Object request limit for the WebSocket message that triggered the
                     // `update()`.
-                    promise: (async () => {
-                        // While we wait, steps may be added to `nextSteps` if it's from the same
-                        // client so we can save in a single batch.
-                        await lastPersistenceStatePromise;
-
-                        // Do not allow the worker to batch more steps for this request! Instead the
-                        // worker needs to schedule a new update promise.
-                        if (this._persistenceState?.next?.steps === nextSteps)
-                            this._persistenceState.next = null;
-
-                        await context.tracer.withSpan(
-                            "Persist document content",
-                            async (context, span) => {
-                                try {
-                                    await documentCollaborationContentManagerBeforePersistTestCheckpoint.waitForTest(
-                                        this.id,
-                                    );
-
-                                    const {conflictingSteps, updatedCommentThreads} =
-                                        await updateDocumentContent(context, {
-                                            documentId: this.id,
-                                            version: oldVersion,
-                                            steps: nextSteps,
-                                            clientId: update.clientId,
-                                            createCommentThreads: nextCreateCommentThreads,
-                                            resolveCommentThreadIds: nextResolveCommentThreadIds,
-                                            unresolveCommentThreadIds:
-                                                nextUnresolveCommentThreadIds,
-                                        });
-
-                                    // The document collaboration durable object should be the only process writing
-                                    // to a document! If some other process is writing to a document, weird
-                                    // things may start breaking in the durable object and on the client.
-                                    //
-                                    // We save steps anyway to preserve as much user data as we can.
-                                    if (conflictingSteps.length > 0) {
-                                        throw new InternalError(
-                                            "Some process updated document content other than the document's durable object. This may cause many downstream issues as a core assumption about the document collaboration implementation has been violated",
-                                        );
-                                    }
-
-                                    this._persistedVersion = oldVersion + nextSteps.length;
-
-                                    // Cleanup comment threads that have been persisted. We will be able to fetch
-                                    // the latest value from the database from here on out.
-                                    for (const [commentThreadId, optimisticCommentThread] of this
-                                        ._optimisticCommentThreadById) {
-                                        if (
-                                            optimisticCommentThread.persistedAfterVersion >
-                                            this._persistedVersion
-                                        ) {
-                                            continue;
-                                        }
-                                        this._optimisticCommentThreadById.delete(commentThreadId);
-                                        optimisticCommentThread.persistedPromiseResolver.resolve();
-                                    }
-
-                                    this._sendEventToAll(context, {
-                                        type: "PersistedContent",
-                                        newVersion: oldVersion + nextSteps.length,
-                                        updatedCommentThreads,
-                                    });
-                                } catch (unknownError) {
-                                    // Upgrade the severity to internal since the client has already seen the update.
-                                    //
-                                    // The client will also attempt to reconnect on a system error.
-                                    const error = InternalError.from(unknownError);
-
-                                    span.addException(error);
-
-                                    // Persistence failed, clear out our optimistic comment threads.
-                                    for (const [commentThreadId, optimisticCommentThread] of this
-                                        ._optimisticCommentThreadById) {
-                                        this._optimisticCommentThreadById.delete(commentThreadId);
-                                        optimisticCommentThread.persistedPromiseResolver.reject(
-                                            error,
-                                        );
-                                    }
-
-                                    this._sendEventToAll(context, {
-                                        type: "Error",
-                                        error,
-                                    });
-                                    this._killProcess(context);
-                                }
-                            },
-                        );
-                    })(),
+                    promise: persistDocumentContent(),
                 };
 
                 // Make sure the durable object stays alive until we've finished persisting.
@@ -507,8 +550,11 @@ export class DocumentCollaborationContentManager {
 
         if (steps.length === 0) return {presenceState, hasSentPresenceState: false};
 
-        const {referencedIds: stepsContentReferencedIds, references: stepsContentReferences} =
-            await this.getContentReferencesForSteps(context, steps);
+        const {
+            referencedIds: stepsContentReferencedIds,
+            references: stepsContentReferences,
+            resolvedCommentThreadIds: stepsResolvedCommentThreadIds,
+        } = await this.getContentReferencesForSteps(context, steps);
 
         // We have to wait for some async data dependencies to send
         // `UpdateContentWithoutPersistence`. We load our data without:
@@ -519,25 +565,28 @@ export class DocumentCollaborationContentManager {
         // However, this means you don't get ordering guarantees around
         // `UpdateContentWithoutPersistence`! You may receive these events in any order
         // because the timing of loading content references will vary.
-        this._sendEventToAll(context, {
-            type: "UpdateContentWithoutPersistence",
-            newVersion: oldVersion + steps.length,
-            steps,
-            stepsContentReferences,
-            clientId: update.clientId,
-            updateOtherPresenceState: connectionId ? {connectionId, state: presenceState} : null,
-            // Let the client know if this update also resolves or un-resolves comments.
-            // Remember that if you receive this comment resolution hasn't been persisted
-            // yet! So if you try to read a new `DocumentCommentThreadModel` it might not
-            // have been updated. You'll get new `DocumentCommentThreadModel`s with the
-            // `PersistedContent` event.
-            resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
-            unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
-        });
+        const send = () =>
+            this._sendEventToAll(context, {
+                type: "UpdateContentWithoutPersistence",
+                newVersion: oldVersion + steps.length,
+                steps,
+                stepsContentReferences,
+                clientId: update.clientId,
+                updateOtherPresenceState: connectionId
+                    ? {connectionId, state: presenceState}
+                    : null,
+                // Let the client know if this update also resolves or un-resolves comments.
+                // Remember that if you receive this comment resolution hasn't been persisted
+                // yet! So if you try to read a new `DocumentCommentThreadModel` it might not
+                // have been updated. You'll get new `DocumentCommentThreadModel`s with the
+                // `PersistedContent` event.
+                resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
+                unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
+            });
 
         // If the user tried to insert comment threads into the document we can't find
-        // (e.g. through a copy/paste) then follow up by removing those comment threads
-        // from the document.
+        // or that have already been resolved (e.g. through a copy/paste) then follow
+        // up by removing those comment threads from the document.
         //
         // This happens if the user copies content from a document which has some
         // comments and pastes them in another document. Those comments don't exist in
@@ -545,46 +594,87 @@ export class DocumentCollaborationContentManager {
         // entirely.
         //
         // May also want to consider a client implementation of this. Maybe we add
-        // `data-documentid` to comment `<mark>` elements so the clipboard DOM parser
+        // `data-document` to comment `<mark>` elements so the clipboard DOM parser
         // can throwaway comment marks from other documents when a paste happens. Then
         // this server logic will serve as a fallback.
-        //
-        // TODO(calebmer): I'd also like to remove marks for resolved comments that
-        // appear back in the document. For example, you copy some text, resolve a
-        // comment in that text, then paste the text. However, that's a little tricky
-        // to do here since the persisted resolution state may be out-of-sync with our
-        // content manager's view of the marks in the document.
         {
             const invalidCommentThreadIds = new Set<DocumentCommentThreadId>();
+            const possiblyResolvedCommentThreadIds = new Set<DocumentCommentThreadId>();
 
             for (const commentThreadId of stepsContentReferencedIds.commentThreadIds) {
                 if (!stepsContentReferences.commentThreadById.has(commentThreadId)) {
                     invalidCommentThreadIds.add(commentThreadId);
                 }
+
+                // If `getContentReferencesForSteps()` reports any comment thread as resolved
+                // (that we're not actively unresolving) then we want to remove that comment
+                // thread's marks from the document as well. However, since
+                // `getContentReferencesForSteps()` reads with eventual consistency we may be
+                // reading stale data, so before we clean the document we'll make another read
+                // against DynamoDB with strong consistency to confirm the comment threads are
+                // actually resolved.
+                //
+                // There is a chance of race conditions if a user unresolves while we're
+                // waiting on the network for `AppService` to return its data to
+                // `DocumentCollaborationService`. Such a race condition is pretty rare and the
+                // consequence is pretty minor (comment mark doesn’t reappear in document after
+                // unresolved) so we tolerate the race condition.
+                if (
+                    stepsResolvedCommentThreadIds.has(commentThreadId) &&
+                    !this._persistingUnresolveCommentThreadIds.has(commentThreadId)
+                ) {
+                    possiblyResolvedCommentThreadIds.add(commentThreadId);
+                }
             }
 
-            if (invalidCommentThreadIds.size > 0) {
-                const removeInvalidCommentThreadSteps = Array.from(
-                    invalidCommentThreadIds,
-                    commentThreadId =>
-                        new RemoveAllMarksStep(
-                            DocumentContentProsemirrorSchema.marks.comment.create({
-                                commentThreadId,
-                            }),
-                        ),
-                );
+            if (invalidCommentThreadIds.size === 0 && possiblyResolvedCommentThreadIds.size === 0) {
+                send();
+            } else {
+                if (possiblyResolvedCommentThreadIds.size > 0) {
+                    const {confirmedCommentThreadIds: resolvedCommentThreadIds} =
+                        await confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(
+                            context,
+                            {
+                                documentId: this.id,
+                                commentThreadIds: Array.from(possiblyResolvedCommentThreadIds),
+                            },
+                        );
 
-                context.process.waitUntil(
-                    this.update(context, null, {
-                        version: oldVersion + steps.length,
-                        steps: removeInvalidCommentThreadSteps,
-                        // This update was not generated by the client which called `update()` but
-                        // rather by our backend here.
-                        clientId: generateId(),
-                        createCommentThreads: [],
-                        updateOurPresenceState: {state: null},
-                    }),
-                );
+                    for (const commentThreadId of resolvedCommentThreadIds) {
+                        invalidCommentThreadIds.add(commentThreadId);
+                    }
+                }
+
+                if (invalidCommentThreadIds.size === 0) {
+                    send();
+                } else {
+                    const removeInvalidCommentThreadSteps = Array.from(
+                        invalidCommentThreadIds,
+                        commentThreadId =>
+                            new RemoveAllMarksStep(
+                                DocumentContentProsemirrorSchema.marks.comment.create({
+                                    commentThreadId,
+                                }),
+                            ),
+                    );
+
+                    context.process.waitUntil(
+                        this.update(context, null, {
+                            version: oldVersion + steps.length,
+                            steps: removeInvalidCommentThreadSteps,
+                            // This update was not generated by the client which called `update()` but
+                            // rather by our backend here.
+                            clientId: generateId(),
+                            createCommentThreads: [],
+                            updateOurPresenceState: {state: null},
+                        })
+                            // If we have some comment thread marks to remove, then wait to send our update
+                            // content event until after we've sent the `RemoveAllMarksStep`. This way, the
+                            // client will atomically apply our update with `RemoveAllMarksSteps` and the
+                            // user will never see the comment marks in the first place.
+                            .finally(send),
+                    );
+                }
             }
         }
 
@@ -605,6 +695,7 @@ export class DocumentCollaborationContentManager {
     ): Promise<{
         referencedIds: DocumentContentReferencedIds;
         references: DocumentContentReferences;
+        resolvedCommentThreadIds: ReadonlySet<DocumentCommentThreadId>;
     }> {
         const {optimisticCommentThreadIds, getOptimisticCommentThreadById} =
             this._getOptimisticCommentThreads(context, visitor => {
@@ -619,21 +710,25 @@ export class DocumentCollaborationContentManager {
             ignoreCommentThreadIds: optimisticCommentThreadIds,
         });
 
-        const [references, optimisticCommentThreadById] = await runAllPromises([
-            (async () => {
-                // Optimization: If we have no referenced IDs, then we don't need to send a
-                // network request.
-                if (isEmptyDocumentContentReferencedIds(referencedIds))
-                    return emptyDocumentContentReferences;
+        const [{references, resolvedCommentThreadIds}, optimisticCommentThreadById] =
+            await runAllPromises([
+                (async () => {
+                    // Optimization: If we have no referenced IDs, then we don't need to send a
+                    // network request.
+                    if (isEmptyDocumentContentReferencedIds(referencedIds)) {
+                        return {
+                            references: emptyDocumentContentReferences,
+                            resolvedCommentThreadIds: emptySet,
+                        };
+                    }
 
-                const {references} = await getDocumentContentReferences(context, {
-                    documentId: this.id,
-                    referencedIds,
-                });
-                return references;
-            })(),
-            getOptimisticCommentThreadById(),
-        ]);
+                    return getDocumentContentReferences(context, {
+                        documentId: this.id,
+                        referencedIds,
+                    });
+                })(),
+                getOptimisticCommentThreadById(),
+            ]);
 
         return {
             referencedIds,
@@ -643,6 +738,7 @@ export class DocumentCollaborationContentManager {
                     concatIterables(references.commentThreadById, optimisticCommentThreadById),
                 ),
             },
+            resolvedCommentThreadIds,
         };
     }
 

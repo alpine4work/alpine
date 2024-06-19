@@ -48,7 +48,7 @@ export function defineRpc<
     const inputSchema = Schema.object(inputConfig);
     const outputSchema = Schema.object(outputConfig);
 
-    const execute = async (
+    const execute = (
         context: Context<{rpc: RpcContextModuleBase}>,
         input: ObjectSchemaConfigType<InputConfig>,
     ): Promise<ObjectSchemaConfigType<OutputConfig>> => {

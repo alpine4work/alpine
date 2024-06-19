@@ -1,3 +1,4 @@
+import {undo} from "prosemirror-history";
 import {TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback} from "react";
@@ -69,6 +70,12 @@ export function useContentEditorDebugTools(viewRef: RefObject<EditorView>) {
             return {
                 view,
                 simulateTyping,
+
+                // Playwright tests use this method to delete some text. Removing it will break
+                // those tests.
+                delete: (from: number, to: number) => {
+                    view.dispatch(view.state.tr.delete(from, to));
+                },
 
                 // Playwright tests use this method to select text. Removing it will break
                 // those tests.

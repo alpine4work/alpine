@@ -116,6 +116,18 @@ export const getDocumentContentReferences = defineRpc({
     },
     output: {
         references: DocumentContentReferencesSchema,
+        resolvedCommentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()),
+    },
+});
+
+export const confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency = defineRpc({
+    name: "confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()),
+    },
+    output: {
+        confirmedCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()),
     },
 });
 

@@ -131,13 +131,14 @@ export function DocumentCommentThreadPreview({
     // `UpdateContentWithoutPersistence`. `isResolveButtonPending` will be true
     // until we receive `UpdateContentWithoutPersistence`.
     if (showMarkRemovedWarning !== shouldShowMarkRemovedWarning && !isResolveButtonPending) {
-        setShowMarkRemovedWarning(showMarkRemovedWarning);
+        setShowMarkRemovedWarning(shouldShowMarkRemovedWarning);
     }
 
     return (
         <FocusRing offset="border">
             <Box
                 ref={buttonRef}
+                data-testid="DocumentCommentThreadPreview"
                 display="block"
                 position="relative"
                 zIndex="0"
@@ -164,7 +165,7 @@ export function DocumentCommentThreadPreview({
                         height="8"
                         paddingX="2.5"
                         color="grey-0"
-                        backgroundColor={{light: "grey-80", dark: "grey-90"}}
+                        backgroundColor="grey-90"
                         display="flex"
                         justifyContent="center"
                         alignItems="center"

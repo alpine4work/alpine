@@ -73,7 +73,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
                             : isHovered
                             ? {light: "grey-5", dark: "grey-10"}
                             : undefined
-                        : {light: "grey-80", dark: "grey-90"}
+                        : "grey-90"
                 }
                 display="flex"
                 justifyContent="center"

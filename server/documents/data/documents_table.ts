@@ -1482,7 +1482,12 @@ async function createDocumentCommentThreadReferenceFromItem(
  * Get many comment threads in a document at once.
  *
  * This is not the most efficient of functions. We need to load each comment
- * thread separately. Use it sparingly.
+ * thread separately instead of querying many comment threads at once. Use it
+ * when you need to fetch a small subset of comment threads.
+ *
+ * Also returns a list of the resolved comment threads should the caller find
+ * that useful. Remember the list of resolved comment threads is read with
+ * eventual consistency.
  */
 export async function batchGetDocumentCommentThreadReferencesIfExists(
     context: ServerActionContext,
@@ -1493,8 +1498,13 @@ export async function batchGetDocumentCommentThreadReferencesIfExists(
         documentId: DocumentId;
         commentThreadIds: Iterable<DocumentCommentThreadId>;
     },
-): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadReference>> {
+): Promise<{
+    commentThreadById: Map<DocumentCommentThreadId, DocumentCommentThreadReference>;
+    resolvedCommentThreadIds: Set<DocumentCommentThreadId>;
+}> {
     const {spaceId} = await authorizeDocumentAccess(context, documentId);
+
+    const resolvedCommentThreadIds = new Set<DocumentCommentThreadId>();
 
     const commentThreadItems = await runAllPromises(
         mapIterable(commentThreadIds, async commentThreadId => {
@@ -1503,6 +1513,9 @@ export async function batchGetDocumentCommentThreadReferencesIfExists(
                 commentThreadId,
             });
             if (!commentThreadItem) return null;
+
+            if (commentThreadItem.resolutionState.type === "Resolved")
+                resolvedCommentThreadIds.add(commentThreadItem.commentThreadId);
 
             return [
                 commentThreadItem.commentThreadId,
@@ -1515,7 +1528,38 @@ export async function batchGetDocumentCommentThreadReferencesIfExists(
         }),
     );
 
-    return new Map(filterIterable(commentThreadItems, isNonNullable));
+    return {
+        commentThreadById: new Map(filterIterable(commentThreadItems, isNonNullable)),
+        resolvedCommentThreadIds,
+    };
+}
+
+export async function confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadIds,
+    }: {
+        documentId: DocumentId;
+        commentThreadIds: Iterable<DocumentCommentThreadId>;
+    },
+): Promise<Array<DocumentCommentThreadId>> {
+    await authorizeDocumentAccess(context, documentId);
+
+    const confirmedCommentThreadIds = await runAllPromises(
+        mapIterable(commentThreadIds, async commentThreadId => {
+            const commentThreadItem = await getDocumentCommentThreadItemIfExists(context, {
+                documentId,
+                commentThreadId,
+                consistency: "Strong",
+            });
+            if (!commentThreadItem) return null;
+            if (commentThreadItem.resolutionState.type !== "Resolved") return null;
+            return commentThreadItem.commentThreadId;
+        }),
+    );
+
+    return confirmedCommentThreadIds.filter(isNonNullable);
 }
 
 /**
@@ -2187,6 +2231,10 @@ export async function updateDocumentContent(
             }
         }
 
+        // We don't require an `AddMarksAfterRemoveAllStep` for
+        // `unresolveCommentThreadIds` because when rebasing
+        // `AddMarksAfterRemoveAllStep` ranges with old steps, we may end up with no
+        // ranges and remove the `AddMarksAfterRemoveAllStep`.
         for (const commentThreadId of resolveCommentThreadIds) {
             const removeAllMarksStep = clientSteps.find(
                 step =>
@@ -2207,21 +2255,6 @@ export async function updateDocumentContent(
             if (!clientSteps.every(step => step instanceof RemoveAllMarksStep)) {
                 throw new InvalidArgumentError(
                     "Can only update with `removeAllMarks` steps when resolving a comment thread",
-                );
-            }
-        }
-
-        for (const commentThreadId of unresolveCommentThreadIds) {
-            const removeAllMarksStep = clientSteps.find(
-                step =>
-                    step instanceof AddMarksAfterRemoveAllStep &&
-                    step.mark.type.name === "comment" &&
-                    step.mark.attrs.commentThreadId === commentThreadId,
-            );
-
-            if (!removeAllMarksStep) {
-                throw new InvalidArgumentError(
-                    "When resolving a comment thread there must be a `removeAllMarks` step for the comment thread",
                 );
             }
         }

@@ -6,6 +6,7 @@ import {
     authorizeDocumentAccess,
     backfillDocumentComments,
     batchGetDocumentCommentThreadReferencesIfExists,
+    confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency,
     createDocument,
     createDocumentComment,
     deleteDocumentComment,
@@ -105,14 +106,17 @@ implementRpc(
     async (context, {documentId, referencedIds}) => {
         const {spaceId} = await authorizeDocumentAccess(context, documentId);
 
-        const [references, commentThreadById] = await runAllPromises([
+        const [references, {commentThreadById, resolvedCommentThreadIds}] = await runAllPromises([
             getContentReferences(context, spaceId, referencedIds),
             referencedIds.commentThreadIds.size > 0
                 ? batchGetDocumentCommentThreadReferencesIfExists(context, {
                       documentId,
                       commentThreadIds: referencedIds.commentThreadIds,
                   })
-                : new Map(),
+                : {
+                      commentThreadById: new Map<never, never>(),
+                      resolvedCommentThreadIds: new Set<never>(),
+                  },
         ]);
 
         return {
@@ -120,7 +124,18 @@ implementRpc(
                 ...references,
                 commentThreadById,
             },
+            resolvedCommentThreadIds,
         };
+    },
+);
+
+implementRpc(
+    definition.confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency,
+    {visibility: ["DocumentCollaborationService"]},
+    async (context, input) => {
+        const confirmedCommentThreadIds =
+            await confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency(context, input);
+        return {confirmedCommentThreadIds};
     },
 );
 

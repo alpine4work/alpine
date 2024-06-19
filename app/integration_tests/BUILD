@@ -33,6 +33,7 @@ ts_playwright_tests(
         "//:node_modules/ws",
         "//admin/helpers",
         "//app:app_lib",
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/helpers/node",
         "//server/remix",

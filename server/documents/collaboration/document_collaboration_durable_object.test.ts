@@ -3271,13 +3271,13 @@ test("will cleanup comment thread marks if from a different document", async () 
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection3
-            .takeEvents()
-            .sort(
-                (a, b) =>
-                    defaultCompareStrings(a.type, b.type) ||
-                    ((a as any).newVersion ?? Infinity) - ((b as any).newVersion ?? Infinity),
-            ),
+        connection3.takeEvents().sort((a, b) =>
+            // We don't compare `newVersion` since we do specifically want to test the
+            // ordering of `UpdateContentWithoutPersistence` events here. The
+            // `RemoveAllMarksStep` event should always come first despite being at a
+            // later version.
+            defaultCompareStrings(a.type, b.type),
+        ),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -3288,6 +3288,16 @@ test("will cleanup comment thread marks if from a different document", async () 
             type: "PersistedContent",
             newVersion: 2,
             updatedCommentThreads: [],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.not.stringMatching(client1Id),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3310,16 +3320,6 @@ test("will cleanup comment thread marks if from a different document", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection3.id, state: null},
-            resolveCommentThreadIds: [],
-            unresolveCommentThreadIds: [],
-        },
-        {
-            type: "UpdateContentWithoutPersistence",
-            newVersion: 2,
-            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
-            stepsContentReferences: emptyDocumentContentReferences,
-            clientId: expect.not.stringMatching(client1Id),
-            updateOtherPresenceState: null,
             resolveCommentThreadIds: [],
             unresolveCommentThreadIds: [],
         },
@@ -3328,13 +3328,13 @@ test("will cleanup comment thread marks if from a different document", async () 
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection4
-            .takeEvents()
-            .sort(
-                (a, b) =>
-                    defaultCompareStrings(a.type, b.type) ||
-                    ((a as any).newVersion ?? Infinity) - ((b as any).newVersion ?? Infinity),
-            ),
+        connection4.takeEvents().sort((a, b) =>
+            // We don't compare `newVersion` since we do specifically want to test the
+            // ordering of `UpdateContentWithoutPersistence` events here. The
+            // `RemoveAllMarksStep` event should always come first despite being at a
+            // later version.
+            defaultCompareStrings(a.type, b.type),
+        ),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -3345,6 +3345,16 @@ test("will cleanup comment thread marks if from a different document", async () 
             type: "PersistedContent",
             newVersion: 2,
             updatedCommentThreads: [],
+        },
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: emptyDocumentContentReferences,
+            clientId: expect.not.stringMatching(client1Id),
+            updateOtherPresenceState: null,
+            resolveCommentThreadIds: [],
+            unresolveCommentThreadIds: [],
         },
         {
             type: "UpdateContentWithoutPersistence",
@@ -3367,16 +3377,6 @@ test("will cleanup comment thread marks if from a different document", async () 
             stepsContentReferences: emptyDocumentContentReferences,
             clientId: client1Id,
             updateOtherPresenceState: {connectionId: connection3.id, state: null},
-            resolveCommentThreadIds: [],
-            unresolveCommentThreadIds: [],
-        },
-        {
-            type: "UpdateContentWithoutPersistence",
-            newVersion: 2,
-            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
-            stepsContentReferences: emptyDocumentContentReferences,
-            clientId: expect.not.stringMatching(client1Id),
-            updateOtherPresenceState: null,
             resolveCommentThreadIds: [],
             unresolveCommentThreadIds: [],
         },

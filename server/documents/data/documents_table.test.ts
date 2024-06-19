@@ -5058,25 +5058,21 @@ describe("Comments", () => {
         });
 
         {
-            const commentThreads = await batchGetDocumentCommentThreadReferencesIfExists(
-                context.action(session1),
-                {
+            const {commentThreadById: commentThreads} =
+                await batchGetDocumentCommentThreadReferencesIfExists(context.action(session1), {
                     documentId: document.id,
                     commentThreadIds: [],
-                },
-            );
+                });
 
             expect(commentThreads.size).toEqual(0);
         }
 
         {
-            const commentThreads = await batchGetDocumentCommentThreadReferencesIfExists(
-                context.action(session1),
-                {
+            const {commentThreadById: commentThreads} =
+                await batchGetDocumentCommentThreadReferencesIfExists(context.action(session1), {
                     documentId: document.id,
                     commentThreadIds: [commentThreadId1],
-                },
-            );
+                });
 
             expect(commentThreads.size).toEqual(1);
             expect(commentThreads.has(commentThreadId1)).toBe(true);
@@ -5085,13 +5081,11 @@ describe("Comments", () => {
         {
             const fakeCommentThreadId = generateId<DocumentCommentThreadId>();
 
-            const commentThreads = await batchGetDocumentCommentThreadReferencesIfExists(
-                context.action(session1),
-                {
+            const {commentThreadById: commentThreads} =
+                await batchGetDocumentCommentThreadReferencesIfExists(context.action(session1), {
                     documentId: document.id,
                     commentThreadIds: [fakeCommentThreadId],
-                },
-            );
+                });
 
             expect(commentThreads.size).toEqual(0);
             expect(commentThreads.has(fakeCommentThreadId)).toBe(false);
@@ -5100,13 +5094,11 @@ describe("Comments", () => {
         {
             const fakeCommentThreadId = generateId<DocumentCommentThreadId>();
 
-            const commentThreads = await batchGetDocumentCommentThreadReferencesIfExists(
-                context.action(session1),
-                {
+            const {commentThreadById: commentThreads} =
+                await batchGetDocumentCommentThreadReferencesIfExists(context.action(session1), {
                     documentId: document.id,
                     commentThreadIds: [commentThreadId1, commentThreadId2, fakeCommentThreadId],
-                },
-            );
+                });
 
             expect(commentThreads.size).toEqual(2);
             expect(commentThreads.has(commentThreadId1)).toBe(true);
@@ -5117,13 +5109,11 @@ describe("Comments", () => {
         {
             const fakeCommentThreadId = generateId<DocumentCommentThreadId>();
 
-            const commentThreads = await batchGetDocumentCommentThreadReferencesIfExists(
-                context.action(session1),
-                {
+            const {commentThreadById: commentThreads} =
+                await batchGetDocumentCommentThreadReferencesIfExists(context.action(session1), {
                     documentId: document.id,
                     commentThreadIds: [commentThreadId1, commentThreadId2, fakeCommentThreadId],
-                },
-            );
+                });
 
             expect(commentThreads.size).toEqual(2);
             expect(commentThreads.has(commentThreadId1)).toBe(true);
