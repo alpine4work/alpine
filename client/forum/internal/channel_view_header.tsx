@@ -253,7 +253,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
 
                             onCancel();
                         }}
-                        onEnterFromPhysicalKeyboard={event => {
+                        onModEnter={event => {
                             event.preventDefault();
                             event.stopPropagation();
 

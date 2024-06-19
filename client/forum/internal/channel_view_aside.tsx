@@ -151,7 +151,7 @@ function ChannelViewAsideDescriptionEditor({
                 // press on these buttons without asking the user to confirm the save.
                 data-ownedby={editorId}
                 position="absolute"
-                right="0"
+                right={screenPaddingX}
                 display="flex"
                 justifyContent="flex-end"
                 style={{top: channelViewAsideEditingDescriptionOffsetTop}}
@@ -214,7 +214,7 @@ function ChannelViewAsideDescriptionEditor({
 
                             onCancel();
                         }}
-                        onEnterFromPhysicalKeyboard={event => {
+                        onModEnter={event => {
                             event.preventDefault();
                             event.stopPropagation();
 

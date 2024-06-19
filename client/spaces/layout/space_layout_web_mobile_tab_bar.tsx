@@ -176,6 +176,7 @@ export function SpaceLayoutWebMobileTabBar({
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Home"
+                label="Home"
                 icon={<House />}
                 onPress={() => {
                     const pathname = `/s/${space.id}`;
@@ -187,6 +188,7 @@ export function SpaceLayoutWebMobileTabBar({
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Search"
+                label="Search"
                 icon={<MagnifyingGlass />}
                 onPress={() => {
                     const pathname = `/s/${space.id}/search`;
@@ -198,6 +200,7 @@ export function SpaceLayoutWebMobileTabBar({
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Create"
+                label="Create"
                 icon={<Plus />}
                 onPress={() => {
                     const pathname = `/s/${space.id}/create`;
@@ -209,6 +212,7 @@ export function SpaceLayoutWebMobileTabBar({
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Inbox"
+                label="Inbox"
                 icon={
                     <>
                         <Bell />
@@ -257,6 +261,7 @@ export function SpaceLayoutWebMobileTabBar({
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="More"
+                label="More"
                 icon={<List />}
                 onPress={() => {
                     const pathname = `/s/${space.id}/more`;
@@ -272,10 +277,12 @@ export function SpaceLayoutWebMobileTabBar({
 
 function SpaceLayoutWebMobileTabBarButton({
     tab,
+    label,
     icon,
     onPress,
 }: {
     tab: WebMobileTab;
+    label: string;
     icon: ReactNode;
     onPress: () => void;
 }) {
@@ -284,6 +291,7 @@ function SpaceLayoutWebMobileTabBarButton({
     return (
         <Box
             {...pressProps}
+            aria-label={label}
             flexGrow="1"
             display="flex"
             justifyContent="center"
