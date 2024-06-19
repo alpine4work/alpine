@@ -25,8 +25,6 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-// NOCOMMIT: Integration test this router?? All navigation flows from
-// `NativeMobileBridge`. Outside of a space and inside of a space.
 export function NativeMobileOutlet({
     parentRouteIds,
     tracer,
