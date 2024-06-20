@@ -109,19 +109,10 @@ const {
     canNotPrimaryInputHoverContainerClassName,
 } = contentEditorStyles;
 
-// NOTE(calebmer): The following are bugs I'd like to fix in the native mobile
-// app. To do so may require swizzling or manual `UIView` tree modification. I
-// haven't found entrypoints in the WebKit source code for these behaviors yet,
-// however.
-
-// ## High priority bugs:
-
-// TODO(calebmer): Safari doesn't support `ascent-override` and
-// `descent-override` which means our phantom selection or comment highlights
-// an emoji the top looks ragged instead of straight.
+// TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
+// `ascent-override` and `descent-override` which means our phantom selection
+// or comment highlights an emoji the top looks ragged instead of straight.
 // https://bugs.webkit.org/show_bug.cgi?id=219735
-
-// ## Medium priority bugs:
 
 // TODO(calebmer): We set `spellcheck="false"` but if you tap on a word that
 // Safari would have put a red squiggle under then replacement words appear.
@@ -1004,15 +995,15 @@ function ContentEditor<Content extends ContentWithReferences>(
         });
 
         if (isMobileWebKit) {
-            // NOTE(calebmer): This is a fix for what I consider to be a Safari bug. In iOS
-            // the selection highlight and caret color is controlled by the `caret-color`
-            // CSS property. On desktop the caret color defaults to the current text color.
-            // On iOS the caret color defaults to `WKWebView`'s `tintColor` property. On
-            // desktop, we want the caret color to be `grey-100` even while in a link so
-            // the cursor color doesn't change as the user moves it across different
-            // styles. So we set `caret-color` to `grey-100` in `content_schema.css.ts`.
-            // However on iOS we want the caret/selection color to be `WKWebView`'s
-            // `tintColor`. The problem is:
+            // NOTE(calebmer, #mobile-webkit-weirdness): This is a fix for what I consider
+            // to be a Safari bug. In iOS the selection highlight and caret color is
+            // controlled by the `caret-color` CSS property. On desktop the caret color
+            // defaults to the current text color. On iOS the caret color defaults to
+            // `WKWebView`'s `tintColor` property. On desktop, we want the caret color to
+            // be `grey-100` even while in a link so the cursor color doesn't change as the
+            // user moves it across different styles. So we set `caret-color` to `grey-100`
+            // in `content_schema.css.ts`. However on iOS we want the caret/selection color
+            // to be `WKWebView`'s `tintColor`. The problem is:
             //
             // 1. Setting [`caret-color: initial` in WebKit also sets the stored caret
             //    color (which initially is null) to the current text color][1]
@@ -1222,6 +1213,13 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             decorations: state => {
                 let decorationSet = DecorationSet.empty;
+
+                if (isMobileWebKit) {
+                    decorationSet = addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
+                        decorationSet,
+                        state,
+                    );
+                }
 
                 decorationSet = addEmojiDecorations(decorationSet, state.doc);
 
@@ -2044,3 +2042,74 @@ const addEmojiDecorations = createProsemirrorIncrementalReducer<DecorationSet>(n
         );
     };
 });
+
+const sentenceBreakElement = new Lazy(() => {
+    const sentenceBreakElement = document.createElement("span");
+    sentenceBreakElement.ariaHidden = "true";
+    sentenceBreakElement.style.visibility = "false";
+    sentenceBreakElement.style.width = "0px";
+    sentenceBreakElement.appendChild(document.createTextNode("\u200B"));
+    return sentenceBreakElement;
+});
+
+// NOTE(calebmer, #mobile-webkit-weirdness): This is a hack to fix a bug in
+// mobile WebKit (iOS). If you have the following in a content editor (e.g.
+// post creator) where `|` is your cursor:
+//
+// ```
+// Test.
+// Test|
+// Test.
+// ```
+//
+// ... and you want to press space twice to insert a period (the double space
+// period shortcut must be on in your device's settings) without this hack it
+// won't work!
+//
+// If your cursor is at the very end of the doc then double space to insert a
+// period will work. Like this:
+//
+// ```
+// Test.
+// Test|
+// ```
+//
+// If your cursor is in the middle of a sentence then double space to insert a
+// period will work. Like this:
+//
+// ```
+// Test. Test| Test.
+// Test.
+// ```
+//
+// For some reason, WebKit frustratingly doesn't want to insert a period at the
+// end of a paragraph that's not the last paragraph. However, since we observed
+// WebKit will insert a period in the middle of a sentence we have a workaround.
+//
+// We insert a `<span>` with a zero width space (that's hidden with:
+// `aria-hidden="true"` and `visibility: none`. `display: none` doesn't work)
+// at the end of the paragraph your selection is in. This mimics the selection
+// in middle of sentence use case and WebKit happily inserts a period after
+// pressing double space. Ridiculous.
+//
+// If we ever fork WebKit someday can we fix this properly?
+function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
+    decorations: DecorationSet,
+    state: EditorState,
+): DecorationSet {
+    const $pos = state.selection.$from;
+
+    let depth = $pos.depth;
+    let node = $pos.node(depth);
+
+    while (node.isInline) {
+        depth -= 1;
+        node = $pos.node(depth);
+    }
+
+    if (!node.isTextblock || node.type.name !== "paragraph") return decorations;
+
+    return decorations.add(state.doc, [
+        Decoration.widget($pos.end(depth), sentenceBreakElement.get()),
+    ]);
+}
