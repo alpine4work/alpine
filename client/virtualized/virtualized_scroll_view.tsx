@@ -325,40 +325,38 @@ type VirtualizedScrollViewActualState = {
     readonly isJumpScrolling: boolean;
     readonly hasInitiallyScrolledRef: MutableRefObject<boolean>;
 
-    /**
-     * Well, this is annoying.
-     *
-     * Our scroll anchoring logic makes sure that when content is added to the
-     * scroll view, the visible items stay visible. Otherwise you get a janky,
-     * jittery, experience when scrolling up. To do that we adjust
-     * `scrollElement.scrollTop` when items resize in an effect. However in Safari
-     * on iOS (not Safari on MacOS) this cancels the momentum scroll animation
-     * ([you can follow this code around][1], [ends up around here][2]) leading to
-     * an even more janky experience where your scrolls don't feel continuous.
-     *
-     * I spent a lot of time digging around in the WebKit source code for a way to
-     * adjust scroll position without cancelling the scroll animation (e.g.
-     * dispatch `wheel` event?) but couldn't find anything.
-     *
-     * So on mobile WebKit the way we implement scroll anchoring is by offsetting
-     * the position in which all our items are rendered during a scroll then fixing
-     * the position once the scroll is done (with a `scrollElement.scrollTop`
-     * assignment).
-     *
-     * So if we start with content height of 100 and render an item above our
-     * rendered range which is 5 pixels larger than its min-height while scrolling
-     * up, we will keep a content height of 100 (even though the true content
-     * height is now 105) and we will offset the position of all items by -5. When
-     * the scroll is complete, we set the content height back to 105 and offset the
-     * `scrollElement.scrollTop` by +5 so to the user it feels like you didn't move.
-     *
-     * Now, this is a little janky when you get to the top of the scroll view.
-     * Especially if the accumulated offset is a big number. But we are ok with
-     * this tradeoff for smooth continuous scrolling.
-     *
-     * [1]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/dom/Element.cpp#L1564-L1585
-     * [2]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/rendering/RenderLayerScrollableArea.cpp#L304-L327
-     */
+    // NOTE(calebmer, #mobile-webkit-weirdness): Well, this is annoying.
+    //
+    // Our scroll anchoring logic makes sure that when content is added to the
+    // scroll view, the visible items stay visible. Otherwise you get a janky,
+    // jittery, experience when scrolling up. To do that we adjust
+    // `scrollElement.scrollTop` when items resize in an effect. However in Safari
+    // on iOS (not Safari on MacOS) this cancels the momentum scroll animation
+    // ([you can follow this code around][1], [ends up around here][2]) leading to
+    // an even more janky experience where your scrolls don't feel continuous.
+    //
+    // I spent a lot of time digging around in the WebKit source code for a way to
+    // adjust scroll position without cancelling the scroll animation (e.g.
+    // dispatch `wheel` event?) but couldn't find anything.
+    //
+    // So on mobile WebKit the way we implement scroll anchoring is by offsetting
+    // the position in which all our items are rendered during a scroll then fixing
+    // the position once the scroll is done (with a `scrollElement.scrollTop`
+    // assignment).
+    //
+    // So if we start with content height of 100 and render an item above our
+    // rendered range which is 5 pixels larger than its min-height while scrolling
+    // up, we will keep a content height of 100 (even though the true content
+    // height is now 105) and we will offset the position of all items by -5. When
+    // the scroll is complete, we set the content height back to 105 and offset the
+    // `scrollElement.scrollTop` by +5 so to the user it feels like you didn't move.
+    //
+    // Now, this is a little janky when you get to the top of the scroll view.
+    // Especially if the accumulated offset is a big number. But we are ok with
+    // this tradeoff for smooth continuous scrolling.
+    //
+    // [1]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/dom/Element.cpp#L1564-L1585
+    // [2]: https://github.com/WebKit/WebKit/blob/8f690bd4d72836915fb0c82775e16f1bf01caf59/Source/WebCore/rendering/RenderLayerScrollableArea.cpp#L304-L327
     readonly scrollAnchorAdjustmentDuringMobileWebKitScroll: number | null;
 };
 

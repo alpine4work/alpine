@@ -375,11 +375,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         setIsFocused(true);
         onFocus?.();
 
-        // HACK(calebmer): Absolute hack. We animate up message inputs in our native
-        // mobile wrapper so the animation is synced with the keyboard. However,
-        // sometimes WebKit doesn't know the selection has translated up as well.
-        // Calling blur/focus after the keyboard animation (which is ~2.5s) forces
-        // WebKit to re-render the selection in the right location.
+        // HACK(calebmer, #mobile-webkit-weirdness): Absolute hack. We animate up
+        // message inputs in our native mobile wrapper so the animation is synced
+        // with the keyboard. However, sometimes WebKit doesn't know the selection
+        // has translated up as well. Calling blur/focus after the keyboard animation
+        // (which is ~2.5s) forces WebKit to re-render the selection in the right
+        // location.
         //
         // Ideally native code would find a way to animate the selection with the
         // keyboard as well but I can't find a way to do that right now. My guess would

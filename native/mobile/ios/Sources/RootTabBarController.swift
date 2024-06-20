@@ -408,12 +408,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // associate `UIScrollView`s with WebKit DOM nodes from here. Instead we make
         // assumptions. Like assuming there's only one `useNavigationBar()` scroll view
         // on the page at a time.
-        //
-        // TODO(calebmer): Ignore scroll views that only scroll horizontally but not
-        // vertically.
-        //
-        // TODO(calebmer): If we ever have nested vertical scroll views, ignore scrolls
-        // from a scroll view that is nested inside another scroll view.
 
         // Clamp scroll offset so it's not affected by overscroll at the top of the
         // scroll view. Overscroll at the bottom of the scroll view is desired! We want

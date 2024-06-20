@@ -768,92 +768,90 @@ class SearchModalErrorBoundary extends Component<{children: ReactNode}> {
     }
 }
 
-/**
- * The iOS Safari support for the software keyboard is frustrating. It forces
- * the web page into a state which breaks our assumptions of how a web browser
- * should work, it's observable through (at times) inconsistent means, and
- * lacks any customization.
- *
- * Note that this only applies to the iOS Safari web browser! In our native
- * mobile app we use different tricks to handle the software keyboard. Namely,
- * we disable WebKit's keyboard handling and add our own that supports custom
- * animations and such.
- *
- * Proper keyboard support for our product requires a couple arcane tricks.
- *
- * Two excellent blog posts document the issues with the iOS Safari keyboard.
- * “[The Eccentric Ways of iOS Safari with the Keyboard][1]” and “[Fixing the
- * Safari Mobile Resizing Bug: A Developer’s Guide][2]”. It is easy reading
- * these posts then working with our code to feel hopeless, but don't feel
- * broken dear developer! You are a software engineer, you are a master of
- * your programming environment. Anything you dream can happen on a screen you
- * can make happen with enough time. This is a battle with Apple's willful
- * ignorance of advanced web programming. There's no rule that says we can't
- * make this work, so let's make it work.
- *
- * Now, at the core of the problem is how iOS Safari chooses to accommodate the
- * software keyboard with websites. Most websites are not designed with the iOS
- * software keyboard in mind. So Apple needed to choose behavior for their
- * keyboard that would work good enough with all the websites out there. The
- * method they chose is to have the keyboard push the web view up instead of
- * shrinking the web view when the keyboard opens. They also scroll the
- * web view to make sure they didn't push the content the user tapped
- * offscreen.
- *
- * This is good for fluid animation performance. Slow JavaScript code
- * responding to window resizing may make the website feel broken. However,
- * this leads to the weird experience of the website's sticky navigation
- * headers being moved offscreen. Which doesn't happen in native apps.
- *
- * Since part of the website is offscreen, iOS needs to let the user scroll to
- * see it so Safari OVERRIDES any `body { overflow: hidden }` CSS. Given Alpine
- * completely disables body scrolling in a space, instead adding scroll
- * sub-views this is a problem. There are two competing scroll bars! One for the
- * main content, one for the `html` element.
- *
- * So, in short what we need to do is:
- *
- * 1. Detect the actual displayed size of the web view and render our content
- *    in that space (instead of the full shifted web view space)
- *
- * 2. Enforce our `body { overflow: hidden }` and stop the user from scrolling
- *    the `html` element.
- *
- * To accomplish these two goals our implementation:
- *
- * 1. Can't rely on `height: 100svh` or `height: 100%` to get the height.
- *    However, `window.visualViewport.height` and `window.innerHeight` appear
- *    to have the right value. (Though the blog posts we link claim
- *    `window.innerHeight` has different behavior in different versions of
- *    iOS.)
- *
- *    We can observe changes to height with a `resize` listener on
- *    `window.visualViewport` but a resize listener on `window` doesn't fire,
- *    frustratingly. We put the correct height in React state and render our
- *    container element with that height (instead of 100svh).
- *
- * 2. Adds a non-passive `touchmove` event handler that calls
- *    `event.preventDefault()` if the user moves their touch in a
- *    non-scrollable element. Since the scroll event would bubble to the `html`
- *    element otherwise.
- *
- *    We allow `touchmove` events in scrollable elements. However, then
- *    overscroll is a problem! If the user reaches the end of a scrollable
- *    element then they start scrolling a parent element. This is fixed by
- *    [`overscroll-behavior: contain`][3] which means we need to set
- *    `overscroll-behavior: contain` on _every scrollable element_. We make
- *    this happen with our Sprinkles CSS framework. `overflowY: "auto"` also
- *    adds `overscrollBehavior: "contain"`.
- *
- * This leads to the behavior we want when the keyboard is opened/closed but
- * the keyboard open/close animation looks terrible. The keyboard opens and
- * sometime before/during/after the animation content jumps into the right
- * position.
- *
- * [1]: https://blog.opendigerati.com/the-eccentric-ways-of-ios-safari-with-the-keyboard-b5aa3f34228d
- * [2]: https://medium.com/@krutilin.sergey.ks/fixing-the-safari-mobile-resizing-bug-a-developers-guide-6568f933cde0
- * [3]: https://developer.mozilla.org/en-US/docs/Web/CSS/overscroll-behavior
- */
+// NOTE(calebmer, #mobile-webkit-weirdness): The iOS Safari support for the
+// software keyboard is frustrating. It forces the web page into a state which
+// breaks our assumptions of how a web browser should work, it's observable
+// through (at times) inconsistent means, and lacks any customization.
+//
+// Note that this only applies to the iOS Safari web browser! In our native
+// mobile app we use different tricks to handle the software keyboard. Namely,
+// we disable WebKit's keyboard handling and add our own that supports custom
+// animations and such.
+//
+// Proper keyboard support for our product requires a couple arcane tricks.
+//
+// Two excellent blog posts document the issues with the iOS Safari keyboard.
+// “[The Eccentric Ways of iOS Safari with the Keyboard][1]” and “[Fixing the
+// Safari Mobile Resizing Bug: A Developer’s Guide][2]”. It is easy reading
+// these posts then working with our code to feel hopeless, but don't feel
+// broken dear developer! You are a software engineer, you are a master of
+// your programming environment. Anything you dream can happen on a screen you
+// can make happen with enough time. This is a battle with Apple's willful
+// ignorance of advanced web programming. There's no rule that says we can't
+// make this work, so let's make it work.
+//
+// Now, at the core of the problem is how iOS Safari chooses to accommodate the
+// software keyboard with websites. Most websites are not designed with the iOS
+// software keyboard in mind. So Apple needed to choose behavior for their
+// keyboard that would work good enough with all the websites out there. The
+// method they chose is to have the keyboard push the web view up instead of
+// shrinking the web view when the keyboard opens. They also scroll the
+// web view to make sure they didn't push the content the user tapped
+// offscreen.
+//
+// This is good for fluid animation performance. Slow JavaScript code
+// responding to window resizing may make the website feel broken. However,
+// this leads to the weird experience of the website's sticky navigation
+// headers being moved offscreen. Which doesn't happen in native apps.
+//
+// Since part of the website is offscreen, iOS needs to let the user scroll to
+// see it so Safari OVERRIDES any `body { overflow: hidden }` CSS. Given Alpine
+// completely disables body scrolling in a space, instead adding scroll
+// sub-views this is a problem. There are two competing scroll bars! One for the
+// main content, one for the `html` element.
+//
+// So, in short what we need to do is:
+//
+// 1. Detect the actual displayed size of the web view and render our content
+//    in that space (instead of the full shifted web view space)
+//
+// 2. Enforce our `body { overflow: hidden }` and stop the user from scrolling
+//    the `html` element.
+//
+// To accomplish these two goals our implementation:
+//
+// 1. Can't rely on `height: 100svh` or `height: 100%` to get the height.
+//    However, `window.visualViewport.height` and `window.innerHeight` appear
+//    to have the right value. (Though the blog posts we link claim
+//    `window.innerHeight` has different behavior in different versions of
+//    iOS.)
+//
+//    We can observe changes to height with a `resize` listener on
+//    `window.visualViewport` but a resize listener on `window` doesn't fire,
+//    frustratingly. We put the correct height in React state and render our
+//    container element with that height (instead of 100svh).
+//
+// 2. Adds a non-passive `touchmove` event handler that calls
+//    `event.preventDefault()` if the user moves their touch in a
+//    non-scrollable element. Since the scroll event would bubble to the `html`
+//    element otherwise.
+//
+//    We allow `touchmove` events in scrollable elements. However, then
+//    overscroll is a problem! If the user reaches the end of a scrollable
+//    element then they start scrolling a parent element. This is fixed by
+//    [`overscroll-behavior: contain`][3] which means we need to set
+//    `overscroll-behavior: contain` on _every scrollable element_. We make
+//    this happen with our Sprinkles CSS framework. `overflowY: "auto"` also
+//    adds `overscrollBehavior: "contain"`.
+//
+// This leads to the behavior we want when the keyboard is opened/closed but
+// the keyboard open/close animation looks terrible. The keyboard opens and
+// sometime before/during/after the animation content jumps into the right
+// position.
+//
+// [1]: https://blog.opendigerati.com/the-eccentric-ways-of-ios-safari-with-the-keyboard-b5aa3f34228d
+// [2]: https://medium.com/@krutilin.sergey.ks/fixing-the-safari-mobile-resizing-bug-a-developers-guide-6568f933cde0
+// [3]: https://developer.mozilla.org/en-US/docs/Web/CSS/overscroll-behavior
 function useMobileWebKitKeyboardSupport() {
     const [resizedWindowHeightForMobileWebKit, setResizedWindowHeightForMobileWebKit] = useState<
         number | null

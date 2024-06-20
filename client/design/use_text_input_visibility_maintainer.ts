@@ -160,9 +160,9 @@ export function useTextInputVisibilityMaintainer() {
                 if (Math.abs(scrollDelta) >= 1) {
                     const scrollTop = scrollableElement.scrollTop + Math.round(scrollDelta);
 
-                    // NOTE(calebmer): Mobile WebKit appears to have a bug where updating
-                    // `scrollTop` in this event updates `scrollTop` in JavaScript but doesn't
-                    // update the native scroll layer? However wrapping in
+                    // NOTE(calebmer, #mobile-webkit-weirdness): Mobile WebKit appears to have a bug
+                    // where updating `scrollTop` in this event updates `scrollTop` in JavaScript
+                    // but doesn't update the native scroll layer? However wrapping in
                     // `requestAnimationFrame()` appears to work.
                     if (!isMobileWebKit) {
                         scrollableElement.scrollTop = scrollTop;
@@ -182,9 +182,9 @@ export function useTextInputVisibilityMaintainer() {
                 if (Math.abs(scrollDelta) >= 1) {
                     const scrollTop = scrollableElement.scrollTop + Math.round(scrollDelta);
 
-                    // NOTE(calebmer): Mobile WebKit appears to have a bug where updating
-                    // `scrollTop` in this event updates `scrollTop` in JavaScript but doesn't
-                    // update the native scroll layer? However wrapping in
+                    // NOTE(calebmer, #mobile-webkit-weirdness): Mobile WebKit appears to have a bug
+                    // where updating `scrollTop` in this event updates `scrollTop` in JavaScript
+                    // but doesn't update the native scroll layer? However wrapping in
                     // `requestAnimationFrame()` appears to work.
                     if (!isMobileWebKit) {
                         scrollableElement.scrollTop = scrollTop;

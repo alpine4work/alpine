@@ -137,10 +137,11 @@ function OverlayAnimated(
         };
     }, [isActuallyVisible, state.isAnimating, state.isVisible]);
 
-    // NOTE(calebmer): Implement fade out animation with the `motion` package. I've
-    // observed CSS class based animations randomly stop working on mobile WebKit
-    // after ~3min of app use. Implementing the animation with `motion` fixes the
-    // issue. I have no idea why it fixes the issue, but it does.
+    // NOTE(calebmer, #mobile-webkit-weirdness): Implement fade out animation with
+    // the `motion` package. I've observed CSS class based animations randomly stop
+    // working on mobile WebKit after ~3min of app use. Implementing the animation
+    // with `motion` fixes the issue. I have no idea why it fixes the issue, but it
+    // does.
     //
     // Adding `allowWebkitAcceleration: true` breaks the animation again.
     // Interestingly translation will work but the opacity change won't work.

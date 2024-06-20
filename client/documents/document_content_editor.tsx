@@ -403,10 +403,10 @@ export function DocumentContentEditor({
             );
         }
 
-        animation.finished.finally(() => {
-            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
-            // initial transform values when the animation completes. Make sure our
-            // transforms stick in the DOM by manually updating.
+        void animation.finished.finally(() => {
+            // NOTE(calebmer, #mobile-webkit-weirdness): I've observed mobile WebKit,
+            // surprisingly, reverting back to initial transform values when the animation
+            // completes. Make sure our transforms stick in the DOM by manually updating.
             //
             // This feels like either a bug in WebKit or `motion` or the combination of
             // both.
@@ -555,10 +555,10 @@ export function DocumentContentEditor({
             );
         }
 
-        animation.finished.finally(() => {
-            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
-            // initial transform values when the animation completes. Make sure our
-            // transforms stick in the DOM by manually updating.
+        void animation.finished.finally(() => {
+            // NOTE(calebmer, #mobile-webkit-weirdness): I've observed mobile WebKit,
+            // surprisingly, reverting back to initial transform values when the animation
+            // completes. Make sure our transforms stick in the DOM by manually updating.
             //
             // This feels like either a bug in WebKit or `motion` or the combination of
             // both.
@@ -668,10 +668,10 @@ export function DocumentContentEditor({
             },
         );
 
-        animation.finished.finally(() => {
-            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
-            // initial transform values when the animation completes. Make sure our
-            // transforms stick in the DOM by manually updating.
+        void animation.finished.finally(() => {
+            // NOTE(calebmer, #mobile-webkit-weirdness): I've observed mobile WebKit,
+            // surprisingly, reverting back to initial transform values when the animation
+            // completes. Make sure our transforms stick in the DOM by manually updating.
             //
             // This feels like either a bug in WebKit or `motion` or the combination of
             // both.
@@ -736,10 +736,10 @@ export function DocumentContentEditor({
             },
         );
 
-        animation.finished.finally(() => {
-            // NOTE(calebmer): I've observed mobile WebKit, surprisingly, reverting back to
-            // initial transform values when the animation completes. Make sure our
-            // transforms stick in the DOM by manually updating.
+        void animation.finished.finally(() => {
+            // NOTE(calebmer, #mobile-webkit-weirdness): I've observed mobile WebKit,
+            // surprisingly, reverting back to initial transform values when the animation
+            // completes. Make sure our transforms stick in the DOM by manually updating.
             //
             // This feels like either a bug in WebKit or `motion` or the combination of
             // both.

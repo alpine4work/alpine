@@ -97,11 +97,12 @@ export function useScrollToNewMessages<Message extends MessageModel>({
 
             let scrollDelta = actualNewItemsTop - idealNewItemsTop;
 
-            // So mobile WebKit doesn't automatically adjust scroll when content in a
-            // scrollable element shrinks until the user or JavaScript initiates a scroll.
-            // This may happen when we have a typing indicator that's replaced by a message
-            // that's smaller than the typing indicator (will happen if the message merges
-            // with the previous one).
+            // NOTE(calebmer, #mobile-webkit-weirdness): So mobile WebKit doesn't
+            // automatically adjust scroll when content in a scrollable element shrinks
+            // until the user or JavaScript initiates a scroll. This may happen when we
+            // have a typing indicator that's replaced by a message that's smaller than
+            // the typing indicator (will happen if the message merges with the previous
+            // one).
             //
             // So if our scroll delta is 0 (well between -1 and 1 to support fractions like
             // 0.5) then move our scroll just a smidge so WebKit automatic scroll

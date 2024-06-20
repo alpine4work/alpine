@@ -612,11 +612,11 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             ) {
                 scrollDelta += currentScrollableRect.height - lastScrollableRect.height;
 
-                // So mobile WebKit doesn't do the automatic scroll adjustment until the user
-                // or JavaScript initiates a scroll. So if our scroll delta is 0 (well between
-                // -1 and 1 to support fractions like 0.5) then move our scroll just a smidge
-                // so WebKit automatic scroll adjustment kicks in. This seems to work fine on
-                // desktop WebKit.
+                // NOTE(calebmer, #mobile-webkit-weirdness): So mobile WebKit doesn't do the
+                // automatic scroll adjustment until the user or JavaScript initiates a scroll.
+                // So if our scroll delta is 0 (well between -1 and 1 to support fractions like
+                // 0.5) then move our scroll just a smidge so WebKit automatic scroll
+                // adjustment kicks in. This seems to work fine on desktop WebKit.
                 //
                 // To test this, open the keyboard in a chat at the end of messages. Hit
                 // return so the message input grows then hit delete so it shrinks back.
