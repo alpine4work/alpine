@@ -692,7 +692,7 @@ class SpaceAccountsCache {
     }
 
     public clearForTest() {
-        assert(import.meta.jest);
+        assert(process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH);
 
         for (const {timeout} of this._entryBySpaceId.values()) {
             timeout.clear();
@@ -957,7 +957,7 @@ class SpaceAccountsCache {
 const spaceAccountsCache = new SpaceAccountsCache();
 
 export function getSpaceAccountsCacheForTest() {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH);
     return spaceAccountsCache;
 }
 

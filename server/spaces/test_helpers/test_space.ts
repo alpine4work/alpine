@@ -9,7 +9,9 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -80,7 +82,7 @@ export class TestSpace {
 
     public async createSession(
         account?: TestAccount | {name?: string; hasInternalAccess?: boolean},
-    ) {
+    ): Promise<TestSpaceSession> {
         if (!account || !(account instanceof TestAccount)) {
             account = await TestAccount.create(this.context, account);
         }
@@ -91,6 +93,11 @@ export class TestSpace {
         ]);
 
         return session;
+    }
+
+    public createSessions<N extends number>(count: N): Promise<Tuple<TestSpaceSession, N>>;
+    public createSessions(count: number): Promise<Array<TestSpaceSession>> {
+        return runAllPromises(createArrayWithLength(count, () => this.createSession()));
     }
 
     public async addAccount(account: TestAccount | TestSession) {

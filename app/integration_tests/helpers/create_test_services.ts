@@ -323,6 +323,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
             getBaseUrl: () => {
                 if (edgeServicePort === null)
                     throw new InternalError("Test server has not yet initialized");
+
                 return `http://localhost:${edgeServicePort}`;
             },
             signIn,

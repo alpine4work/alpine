@@ -41,7 +41,10 @@ import {runService} from "~/server/node/run_service.js";
 import {registerShutdownListener} from "~/server/node/shutdown_manager.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
-import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/spaces_table.js";
+import {
+    getSpaceAccountsCacheForTest,
+    isAccountMemberOfSpaceWithoutAuthorization,
+} from "~/server/spaces/spaces_table.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
@@ -203,12 +206,18 @@ runService({
         const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
 
         const requestListener = createStandardizedRequestListener<
-            "HealthCheck" | Array<RouteMatch<ServerRoute>> | null
+            "HealthCheck" | "ClearSpaceAccountsCacheForTest" | Array<RouteMatch<ServerRoute>> | null
         >(
             tracer,
             url => {
                 if (url.pathname === "/api/internal/healthcheck")
-                    return ["/api/internal/healthcheck", "HealthCheck"];
+                    return [url.pathname, "HealthCheck"];
+
+                // Add route when running integration tests...
+                if (process.env.PLAYWRIGHT_TEST_PATH) {
+                    if (url.pathname === "/api/internal/test/clearSpaceAccountsCache")
+                        return [url.pathname, "ClearSpaceAccountsCacheForTest"];
+                }
 
                 const matches = handleRequest.matchServerRoutes(url);
                 let route = "";
@@ -227,6 +236,18 @@ runService({
             },
             (request, url, matches, span) => {
                 if (matches === "HealthCheck") {
+                    return Promise.resolve(
+                        new Response("200 OK", {
+                            status: 200,
+                            headers: {"content-type": "text/plain"},
+                        }),
+                    );
+                }
+
+                if (matches === "ClearSpaceAccountsCacheForTest") {
+                    const spaceAccountsCache = getSpaceAccountsCacheForTest();
+                    spaceAccountsCache.clearForTest();
+
                     return Promise.resolve(
                         new Response("200 OK", {
                             status: 200,
