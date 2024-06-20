@@ -176,11 +176,15 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // dissassemble UIKit code, I can't figure out what's happening here and why
         // switching the selected tab works. I only know it does work. Committing this
         // fix and moving on.
-        let homeViewController = viewControllers![0]
-        if selectedViewController != homeViewController {
+        let homeTabController = viewControllers![0]
+        let searchTabController = viewControllers![1]
+        if selectedViewController != homeTabController {
             let originalViewController = selectedViewController
-            selectedViewController = homeViewController
+            selectedViewController = homeTabController
             selectedViewController = originalViewController
+        } else {
+            selectedViewController = searchTabController
+            selectedViewController = homeTabController
         }
     }
 
