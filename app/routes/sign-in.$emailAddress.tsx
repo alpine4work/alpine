@@ -203,6 +203,13 @@ export default function SignInEmailCodePage() {
         // cursor visible when the input's value changes.
         const inputElement = assertExists(inputRef.current);
         inputElement.scrollLeft = 0;
+
+        // Seems like the `scroll` event happens after our layout effect. Schedule an
+        // animation frame to reset scroll works. This is kind of a hack. Ideally
+        // there'd be some way to tell the browser not to scroll in the first place.
+        requestAnimationFrame(() => {
+            inputElement.scrollLeft = 0;
+        });
     }, [oneTimePassword]);
 
     const hasInitiallyMountedRef = useRef(false);
