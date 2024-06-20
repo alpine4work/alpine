@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports
 import {Link, ShouldRevalidateFunction, useParams} from "@remix-run/react";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";

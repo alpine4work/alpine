@@ -6,9 +6,10 @@ import {
     dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
     getOurAccountSpaceIds,
-    getSpace,
+    getSpaceIfPossible,
     removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import * as definition from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -77,17 +78,30 @@ implementRpc(
     async (unauthenticatedContext, input) => {
         const context = unauthenticatedContext.actor.authorizeSession();
 
+        const {spaceIds} = await getOurAccountSpaceIds(context);
+
         const [spaces, inboxes] = await runAllPromises([
-            getOurAccountSpaceIds(context).then(({spaceIds}) =>
-                runAllPromises(Array.from(spaceIds, spaceId => getSpace(context, spaceId))),
+            runAllPromises(
+                Array.from(spaceIds, async spaceId => {
+                    // In case we read stale a stale list of `SpaceId`s that includes a space we
+                    // lost access to.
+                    const spaceResult = await getSpaceIfPossible(context, spaceId);
+
+                    if (!spaceResult) return null;
+                    if (!spaceResult.ok) return null;
+
+                    return spaceResult.value;
+                }),
             ),
-            getOurAccountInboxes(context),
+            getOurAccountInboxes(context, spaceIds),
         ]);
 
         const inboxBySpaceId = new Map(inboxes.map(inbox => [inbox.model.spaceId, inbox]));
 
         return {
-            spaces: spaces.map(space => {
+            spaces: filterMapArray(spaces, space => {
+                if (!space) return null;
+
                 const inbox = inboxBySpaceId.get(space.id) ?? null;
                 return {space, inbox};
             }),

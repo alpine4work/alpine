@@ -5,6 +5,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {WebSocketClient, WebSocketClientProcedures} from "~/client/web_socket/web_socket_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -114,8 +115,13 @@ export function useWebSocketErrorDialog(
     errorState: {hasError: false} | {hasError: true; error: unknown} | null,
 ) {
     const reporter = useReporter();
+    const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
 
     useEffect(() => {
+        // If the WebSocket in an inert route fails, don't report an error to the user
+        // until the user navigates back to the route.
+        if (isInertNativeMobileRoute) return;
+
         if (!client || !errorState?.hasError) return;
 
         // Only show one "Lost connection" dialog at a time. We may have multiple
@@ -148,5 +154,5 @@ export function useWebSocketErrorDialog(
         return webSocketErrorDialogEventEmitter.subscribe(() => {
             client.reconnect();
         });
-    }, [client, errorState, reporter]);
+    }, [client, errorState, isInertNativeMobileRoute, reporter]);
 }

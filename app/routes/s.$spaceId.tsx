@@ -1,6 +1,15 @@
 import {Outlet, ShouldRevalidateFunction} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
-import {Component, ReactNode, useContext, useEffect, useMemo, useRef, useState} from "react";
+import {
+    Component,
+    ContextType,
+    ReactNode,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {flushSync} from "react-dom";
 import {
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
@@ -36,7 +45,6 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
 import {SpaceLayoutNativeMobileInboxController} from "~/client/spaces/layout/space_layout_native_mobile_inbox_controller.js";
@@ -200,17 +208,7 @@ SpaceLayoutRoute.clientLoaderTaskStoreLoaderData = clientLoaderTaskStoreLoaderDa
  */
 export default function SpaceLayoutRoute() {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
-    const location = useLocation();
-    const params = useParams();
-    const error = useRouteError();
     const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
-    const context = useAppContext();
-    const isInitialAppRender = useIsInitialAppRender();
-    const updateMetaTitle = useUpdateMetaTitle();
-    const clientInfo = useClientInfo();
-    const isMobile = useIsMobile();
-
-    const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
     // `useLoaderData()` doesn't work in an error boundary. We use this exact
     // component for error and catch boundaries to avoid remounting when navigating
@@ -221,9 +219,41 @@ export default function SpaceLayoutRoute() {
         [rawLoaderData],
     );
 
-    // If it's our `/s/:spaceId` route throwing then we won't be able to render the
-    // state chrome so let a parent error boundary handle it.
-    if (!loaderData) throw error;
+    const error = useRouteError();
+
+    // If it's our `/s/:spaceId` route itself throwing then we won't be able to
+    // render the space chrome. So render our root error renderer.
+    if (!loaderData) {
+        return <SpaceRouteErrorRenderer error={error} />;
+    }
+
+    return (
+        <SpaceLayoutRouteInner
+            dataRouterStateContext={dataRouterStateContext}
+            loaderData={loaderData}
+            error={error}
+        />
+    );
+}
+
+function SpaceLayoutRouteInner({
+    dataRouterStateContext,
+    loaderData,
+    error,
+}: {
+    dataRouterStateContext: NonNullable<ContextType<typeof DataRouterStateContext>>;
+    loaderData: SchemaType<typeof LoaderSchema>;
+    error: unknown;
+}) {
+    const location = useLocation();
+    const params = useParams();
+    const context = useAppContext();
+    const isInitialAppRender = useIsInitialAppRender();
+    const updateMetaTitle = useUpdateMetaTitle();
+    const clientInfo = useClientInfo();
+    const isMobile = useIsMobile();
+
+    const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
     const {space, currentAccount, hasInternalAccess, inbox} = loaderData;
 
@@ -668,46 +698,40 @@ export default function SpaceLayoutRoute() {
                 }
             }}
         >
-            <RootNavigationContextProvider>
-                <SpaceContextProvider
-                    // Re-render everything when the space changes.
-                    key={space.id}
-                    space={space}
-                    currentAccount={currentAccount}
+            <SpaceContextProvider
+                // Re-render everything when the space changes.
+                key={space.id}
+                space={space}
+                currentAccount={currentAccount}
+            >
+                <TaskRealtimeClientContextProvider
+                    spaceId={space.id}
+                    currentAccountId={currentAccount.id}
                 >
-                    <TaskRealtimeClientContextProvider
-                        spaceId={space.id}
-                        currentAccountId={currentAccount.id}
-                    >
-                        <ContextMenuManager />
-                        <PeekStackContextProvider ref={peekStackRef}>
-                            {nodes}
-                        </PeekStackContextProvider>
-                        {!isMobile && searchState && (
-                            <SearchModalErrorBoundary>
-                                <SearchModal
-                                    initialQueryText={searchState.initialQueryText}
-                                    onClose={() => setSearchState(null)}
-                                    pushPeekStack={async (to, options) => {
-                                        await assertExists(peekStackRef.current).push(to, options);
-                                    }}
-                                    debugOptions={
-                                        debugOptions.isDebugModeEnabled
-                                            ? debugOptions.options
-                                            : null
-                                    }
-                                />
-                            </SearchModalErrorBoundary>
-                        )}
-                        {isMobile && !clientInfo.isNativeMobile && (
-                            <SpaceLayoutWebMobileTabBar initialInbox={inbox} />
-                        )}
-                        {clientInfo.isNativeMobile && (
-                            <SpaceLayoutNativeMobileInboxController initialInbox={inbox} />
-                        )}
-                    </TaskRealtimeClientContextProvider>
-                </SpaceContextProvider>
-            </RootNavigationContextProvider>
+                    <ContextMenuManager />
+                    <PeekStackContextProvider ref={peekStackRef}>{nodes}</PeekStackContextProvider>
+                    {!isMobile && searchState && (
+                        <SearchModalErrorBoundary>
+                            <SearchModal
+                                initialQueryText={searchState.initialQueryText}
+                                onClose={() => setSearchState(null)}
+                                pushPeekStack={async (to, options) => {
+                                    await assertExists(peekStackRef.current).push(to, options);
+                                }}
+                                debugOptions={
+                                    debugOptions.isDebugModeEnabled ? debugOptions.options : null
+                                }
+                            />
+                        </SearchModalErrorBoundary>
+                    )}
+                    {isMobile && !clientInfo.isNativeMobile && (
+                        <SpaceLayoutWebMobileTabBar initialInbox={inbox} />
+                    )}
+                    {clientInfo.isNativeMobile && (
+                        <SpaceLayoutNativeMobileInboxController initialInbox={inbox} />
+                    )}
+                </TaskRealtimeClientContextProvider>
+            </SpaceContextProvider>
         </GlobalKeyDownEvent>
     );
 }

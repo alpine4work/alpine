@@ -46,6 +46,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
 import {
@@ -1076,17 +1077,17 @@ export async function authorizeSpaceAccess(
                     context.actor.getAccountId(),
                 ))
             ) {
-                throw new PermissionDeniedError("Account does not have access to space", {
-                    // TODO(calebmer): Add link to page that lists all spaces an account has access
-                    // to in the help part of this error message.
-                    displayMessage: errorDisplayMessage`You are not a member of this space.`,
+                throw new PermissionDeniedError("Account doesn't have access to space", {
+                    displayMessage: errorDisplayMessage`You don’t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
+                        "switching spaces",
+                    )} or ${errorDisplayMessage.signOutLink("signing out")}.`,
                 });
             }
             break;
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
-                throw new PermissionDeniedError("System does not have access to space");
+                throw new PermissionDeniedError("System doesn't have access to space");
             }
             break;
         }
@@ -1290,23 +1291,58 @@ export async function getAccount(
 }
 
 /**
- * Get the space with the specified ID.
- *
- * As a performance optimization, you may provide `optimisticSessionAccountId`
- * which is passed to `authorizeSpaceAccess()`. See the documentation of that
- * function for the purpose of `optimisticSessionAccountId`.
+ * Get the space with the specified `SpaceId`. Returns a null if the space
+ * doesn't exist and returns a `Result` if the actor doesn't have access to
+ * the space.
+ */
+export async function getSpaceIfPossible(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+): Promise<Result<SpaceModel, PermissionDeniedError> | null> {
+    const [authorizationResult, spaceItem] = await runAllPromises([
+        authorizeSpaceAccess(context, spaceId).then(
+            (): Result<void, never> => ({ok: true, value: undefined}),
+            (error): Result<never, PermissionDeniedError> => {
+                if (!(error instanceof PermissionDeniedError)) throw error;
+                return {ok: false, error};
+            },
+        ),
+        SpacesTable.getItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+        }),
+    ]);
+
+    if (!spaceItem) return null;
+    if (!authorizationResult.ok) return authorizationResult;
+
+    return {
+        ok: true,
+        value: new SpaceModel({
+            id: spaceItem.spaceId,
+            name: spaceItem.name,
+            alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
+        }),
+    };
+}
+
+/**
+ * Get the space with the specified `SpaceId`. Throws an error if the actor
+ * doesn't have access to the space or if the space doesn't exist.
  */
 export async function getSpace(
     context: ServerActionContext,
     spaceId: SpaceId,
 ): Promise<SpaceModel> {
-    await authorizeSpaceAccess(context, spaceId);
-
-    const spaceItem = await SpacesTable.getItem(context, {
-        partitionType: "Space",
-        sortRangeType: "Attributes",
-        spaceId,
-    });
+    const [, spaceItem] = await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+        SpacesTable.getItem(context, {
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+        }),
+    ]);
 
     return new SpaceModel({
         id: spaceItem.spaceId,

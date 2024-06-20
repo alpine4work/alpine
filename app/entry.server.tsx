@@ -8,6 +8,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isErrorCode} from "~/shared/error/error_code.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
 
 // We've patched Remix so that when it serializes and deserializes errors it
@@ -96,7 +97,7 @@ export default async function handleRequest(
         // to the user. Something has really gone wrong if we end up here.
         if (process.env.NODE_ENV !== "production") {
             // eslint-disable-next-line no-console
-            console.error(error);
+            console.error(quote`Uncaught exception while handling ${request.url}:`, error);
         }
 
         span.addException(error);

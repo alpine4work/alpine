@@ -7,6 +7,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {PeekErrorBoundary} from "~/client/peek/peek_error_boundary.js";
 import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
+import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -116,12 +117,17 @@ export default function PeekLayout() {
 
     return (
         <AppContextProvider value={context}>
-            <LoadingIndicatorSpaceOutletContainer
-                routeId="routes/s.$spaceId.peek"
-                withMobileLayout={true}
+            <NavigationContextProvider
+            // Make sure we use a new navigation context provider in peeks so the promises
+            // returned by `navigate()` will correspond to the peek `useLocation()`.
             >
-                <Outlet />
-            </LoadingIndicatorSpaceOutletContainer>
+                <LoadingIndicatorSpaceOutletContainer
+                    routeId="routes/s.$spaceId.peek"
+                    withMobileLayout={true}
+                >
+                    <Outlet />
+                </LoadingIndicatorSpaceOutletContainer>
+            </NavigationContextProvider>
         </AppContextProvider>
     );
 }

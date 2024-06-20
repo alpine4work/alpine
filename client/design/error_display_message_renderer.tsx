@@ -1,15 +1,15 @@
-import {Link, useLocation} from "@remix-run/react";
+import {useLocation} from "@remix-run/react";
 import {createPath} from "@remix-run/router";
 import {Fragment, useEffect, useRef} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
+import {Link} from "~/client/remix/link.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 // The same default error message is copied in
 // `WebNavigationController.swift`'s `showUnhealthyAlert()` function. If we
@@ -48,6 +48,8 @@ export function ErrorDisplayMessageRenderer({
 }) {
     const context = useAppContext();
     const location = useLocation();
+    const navigate = useNavigate();
+
     const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
 
     const errorToReportRef = useRef({error, hasReported: false});
@@ -103,32 +105,43 @@ export function ErrorDisplayMessageRenderer({
                         return <Fragment key={index}>{displayMessageSegment.text}</Fragment>;
                     case "Link":
                         return (
-                            // TODO(calebmer): Pressed styling?
-                            <FocusRing key={index}>
-                                {startsWithSafeUrlProtocol(displayMessageSegment.url) ? (
-                                    <a
-                                        href={displayMessageSegment.url}
-                                        className={contentSchemaStyles.linkClassName}
-                                    >
-                                        {displayMessageSegment.text}
-                                    </a>
-                                ) : (
-                                    <Link
-                                        to={
-                                            displayMessageSegment.url === "/sign-in"
-                                                ? // Special-case `/sign-in` URL to provide a `to` search param that will take us
-                                                  // back to the URL which erred.
-                                                  `${
-                                                      displayMessageSegment.url
-                                                  }?to=${encodeURIComponent(createPath(location))}`
-                                                : displayMessageSegment.url
+                            <Link
+                                key={index}
+                                url={
+                                    displayMessageSegment.url === errorDisplayMessage.signInLink.url
+                                        ? // Special-case `/sign-in` URL to provide a `to` search param that will take us
+                                          // back to the URL which erred.
+                                          `${displayMessageSegment.url}?to=${encodeURIComponent(
+                                              createPath(location),
+                                          )}`
+                                        : displayMessageSegment.url
+                                }
+                                onClick={event => {
+                                    if (NativeMobileBridge) {
+                                        // Special-case `/sign-out` so if we're in the native mobile app we'll trigger
+                                        // an app sign out.
+                                        if (
+                                            displayMessageSegment.url ===
+                                            errorDisplayMessage.signOutLink.url
+                                        ) {
+                                            event.preventDefault();
+                                            NativeMobileBridge.session.signOut();
                                         }
-                                        className={contentSchemaStyles.linkClassName}
-                                    >
-                                        {displayMessageSegment.text}
-                                    </Link>
-                                )}
-                            </FocusRing>
+
+                                        // Special-case `/switch-space` so if we're in the native mobile app we'll open
+                                        // the switch space route in app instead of in an external web browser.
+                                        if (
+                                            displayMessageSegment.url ===
+                                            errorDisplayMessage.switchSpaceLink.url
+                                        ) {
+                                            event.preventDefault();
+                                            navigate("/switch-space");
+                                        }
+                                    }
+                                }}
+                            >
+                                {displayMessageSegment.text}
+                            </Link>
                         );
                     default:
                         throw exhaustive(displayMessageSegment);

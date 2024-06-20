@@ -6,10 +6,12 @@ import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_accou
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-const SpaceContext = createContext<{
+export type SpaceContext = {
     readonly space: SpaceModel;
     readonly currentAccount: AccountModel;
-} | null>(null);
+};
+
+const SpaceContext = createContext<SpaceContext | null>(null);
 
 const MyAccountWebSocket = createContext<{
     readonly isConnected: boolean;
@@ -17,12 +19,21 @@ const MyAccountWebSocket = createContext<{
 } | null>(null);
 
 /**
- * Context available when we are in a space route. Throws an
- * error if we are not in a space route.
+ * Context available when we are in a space route. Throws an error if we are
+ * not in a space route.
  */
-export function useSpaceContext() {
+export function useSpaceContext(): SpaceContext {
     const spaceContext = useContext(SpaceContext);
     if (!spaceContext) throw new InternalError("Must be in a space route to get space context");
+    return spaceContext;
+}
+
+/**
+ * Context available when we are in a space route. Returns null if we're not in
+ * a space route.
+ */
+export function useSpaceContextIfExists(): SpaceContext | null {
+    const spaceContext = useContext(SpaceContext);
     return spaceContext;
 }
 

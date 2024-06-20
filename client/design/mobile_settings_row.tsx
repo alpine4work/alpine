@@ -1,6 +1,6 @@
 import {Check, IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, useState} from "react";
-import {mergeProps, useHover, usePress} from "react-aria";
+import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
@@ -51,11 +51,9 @@ export function MobileSettingsRow({
         },
     });
 
-    const {isHovered, hoverProps} = useHover({});
-
     return (
         <Box
-            {...mergeProps(pressProps, hoverProps)}
+            {...pressProps}
             position="relative"
             zIndex="0"
             paddingX="2.5"
@@ -65,7 +63,7 @@ export function MobileSettingsRow({
             gap="2.5"
             style={{
                 boxShadow:
-                    !isPressed && !isHovered && (!withoutBorderBottom || withBorderTop)
+                    !isPressed && (!withoutBorderBottom || withBorderTop)
                         ? [
                               ...(!withoutBorderBottom
                                   ? [`inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`]
@@ -81,7 +79,7 @@ export function MobileSettingsRow({
                 position="absolute"
                 zIndex="-10"
                 borderRadius="base"
-                backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+                backgroundColor={isPressed ? "grey-10" : undefined}
                 style={{
                     // Cover the previous button's border bottom. If the top border is rendered by
                     // our element then we don't need to go into the above sibling element's space.

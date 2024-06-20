@@ -729,9 +729,8 @@ export function attemptOneTimePasswordSignIn(
                 (accountEmailAddressItem.oneTimePasswordSignInState.failedAttemptCount + 1);
 
             throw new PermissionDeniedError("Incorrect one time password", {
-                displayMessage: errorDisplayMessage`The sign in code does not match the one we sent to your email. ${remainingAttemptCount} attempt(s) remaining before this account is locked. If you can’t find the email, check your spam folder or try ${errorDisplayMessage.link(
+                displayMessage: errorDisplayMessage`The sign in code does not match the one we sent to your email. ${remainingAttemptCount} attempt(s) remaining before this account is locked. If you can’t find the email, check your spam folder or try ${errorDisplayMessage.signInLink(
                     "signing in",
-                    "/sign-in",
                 )} again.`,
             });
         } else {
@@ -817,18 +816,16 @@ function accountEmailAddressNotFoundErrorDisplayMessage(emailAddress: string) {
 
 function missingOneTimePasswordError() {
     return new FailedPreconditionError("Missing one time password", {
-        displayMessage: errorDisplayMessage`To sign in, you need a recent code. Try ${errorDisplayMessage.link(
+        displayMessage: errorDisplayMessage`To sign in, you need a recent code. Try ${errorDisplayMessage.signInLink(
             "signing in",
-            "/sign-in",
         )} again to get a new code.`,
     });
 }
 
 function accountEmailAddressSignInLockedError(hoursUntilUnlocked: number) {
     return new PermissionDeniedError("Account email address is locked", {
-        displayMessage: errorDisplayMessage`This account is locked after entering too many incorrect passwords. Wait ${hoursUntilUnlocked} hour(s) then try ${errorDisplayMessage.link(
+        displayMessage: errorDisplayMessage`This account is locked after entering too many incorrect passwords. Wait ${hoursUntilUnlocked} hour(s) then try ${errorDisplayMessage.signInLink(
             "signing in",
-            "/sign-in",
         )} again.`,
     });
 }

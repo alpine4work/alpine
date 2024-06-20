@@ -41,7 +41,7 @@ import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schem
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
-import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate.js";
+import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -278,7 +278,7 @@ export default function Root() {
                             error={error}
                             title={
                                 isRouteErrorResponse(routeError) && routeError.status === 404
-                                    ? "Couldn’t find content"
+                                    ? "Couldn’t find page"
                                     : undefined
                             }
                         />
@@ -305,7 +305,7 @@ export default function Root() {
                         error={error}
                         title={
                             isRouteErrorResponse(routeError) && routeError.status === 404
-                                ? "Couldn’t find content"
+                                ? "Couldn’t find page"
                                 : undefined
                         }
                     />
@@ -444,7 +444,7 @@ export default function Root() {
                     >
                         <CurrentTimeContextProvider initialTime={initialTime}>
                             <IsMobileContextProvider>
-                                <WaitForNavigationContextProvider>
+                                <NavigationContextProvider>
                                     <GlobalKeyDownRootContextProvider>
                                         <BottomBarFrameContextProvider>
                                             <RootOverlayScopeContextProvider>
@@ -458,7 +458,7 @@ export default function Root() {
                                             </RootOverlayScopeContextProvider>
                                         </BottomBarFrameContextProvider>
                                     </GlobalKeyDownRootContextProvider>
-                                </WaitForNavigationContextProvider>
+                                </NavigationContextProvider>
                             </IsMobileContextProvider>
                         </CurrentTimeContextProvider>
                     </ClientInfoContextProvider>

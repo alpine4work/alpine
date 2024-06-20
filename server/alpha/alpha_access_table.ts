@@ -176,9 +176,8 @@ export async function requestAlphaAccess(
             switch (decision.type) {
                 case "Approved": {
                     // TODO(calebmer): Maybe this should have a "success" severity?
-                    displayMessage = errorDisplayMessage`You’re already approved! Try ${errorDisplayMessage.link(
+                    displayMessage = errorDisplayMessage`You’re already approved! Try ${errorDisplayMessage.signInLink(
                         "signing in",
-                        "/sign-in",
                     )} with the email address “${emailAddress}”.`;
                     break;
                 }

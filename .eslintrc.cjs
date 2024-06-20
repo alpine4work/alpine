@@ -3,6 +3,10 @@
 const baseNoRestrictedImports = {
     paths: [
         {
+            name: "assert",
+            message: "Import `assert()` from `~/shared/helpers/control/assert.js`",
+        },
+        {
             name: "react-router",
             importNames: ["useNavigate"],
             message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
@@ -18,8 +22,29 @@ const baseNoRestrictedImports = {
             message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
         },
         {
-            name: "assert",
-            message: "Import `assert()` from `~/shared/helpers/control/assert.js`",
+            name: "react-router",
+            importNames: ["Link"],
+            message: "Import `<Link>` from `~/client/remix/link.js`",
+        },
+        {
+            name: "react-router-dom",
+            importNames: ["Link"],
+            message: "Import `<Link>` from `~/client/remix/link.js`",
+        },
+        {
+            name: "@remix-run/react",
+            importNames: ["Link"],
+            message: "Import `<Link>` from `~/client/remix/link.js`",
+        },
+        {
+            name: "react-aria",
+            importNames: ["FocusRing"],
+            message: "Import `<FocusRing>` from `~/client/design/focus_ring.js`",
+        },
+        {
+            name: "@react-aria/focus",
+            importNames: ["FocusRing"],
+            message: "Import `<FocusRing>` from `~/client/design/focus_ring.js`",
         },
     ],
     patterns: [],

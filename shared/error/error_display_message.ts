@@ -99,3 +99,41 @@ const supportLink = errorDisplayMessage.link(supportEmailAddress, `mailto:${supp
  * A link to our support email address.
  */
 errorDisplayMessage.supportLink = supportLink;
+
+/**
+ * A sign in link. Sign in links in error messages add `?to` to the URL so
+ * once the user finishes signing in we navigate them to the route they were
+ * trying to access.
+ */
+function signInLink(text: string) {
+    return errorDisplayMessage.link(text, signInLink.url);
+}
+
+signInLink.url = "/sign-in";
+errorDisplayMessage.signInLink = signInLink;
+
+/**
+ * A sign out link. Sign out links in error messages get special handling so
+ * they actually sign the account out in our native mobile app. Instead of
+ * opening the link in the mobile browser which is the default for links in our
+ * native mobile app.
+ */
+function signOutLink(text: string) {
+    return errorDisplayMessage.link(text, signOutLink.url);
+}
+
+signOutLink.url = "/sign-out";
+errorDisplayMessage.signOutLink = signOutLink;
+
+/**
+ * A space switcher link. Space switcher links in error messages get special
+ * handling so they open the switch space route in our native mobile app.
+ * Instead of opening the link in the mobile web browser which is the default
+ * for links in our native mobile app.
+ */
+function switchSpaceLink(text: string) {
+    return errorDisplayMessage.link(text, switchSpaceLink.url);
+}
+
+switchSpaceLink.url = "/switch-space";
+errorDisplayMessage.switchSpaceLink = switchSpaceLink;

@@ -1,6 +1,7 @@
-import {Memo, ReactNode, createContext, useCallback, useContext, useEffect, useRef} from "react";
+import {Memo, ReactNode, createContext, useContext, useEffect, useMemo, useRef} from "react";
 import {
     NavigateOptions,
+    NavigateFunction as OriginalNavigateFunction,
     To,
     useLocation,
     // This is the file which implements our `useNavigate()` wrapper.
@@ -37,56 +38,21 @@ export interface NavigateFunction {
     (delta: number): SafeFloatingPromise<void>;
 }
 
-/**
- * A wrapper around [`useNavigate()` from React Router][1] that:
- *
- * - Doesn't throw when used in Jest unit tests
- * - Returns a promise that resolves when the navigation has completed
- * - Provides hooks for hijacking navigation (e.g. the peek stack wants to open
- *   up URLs in a peek)
- *
- * [1]: https://reactrouter.com/en/main/hooks/use-navigate
- */
-export function useNavigate(): Memo<NavigateFunction> {
-    const originalNavigate = useNavigateWithJestFallback();
-    const waitForNextNavigation = useContext(WaitForNavigationContext);
-    const onNavigate = useContext(NavigationEventContext);
+export type OnNavigateFunction = (
+    to: To,
+    options?: NavigateOptions,
+) => {stopPropagation?: boolean} & (
+    | {preventDefault: false}
+    | {preventDefault: true; promise: Promise<void>}
+);
 
-    // Throw if we don't have our parent context unless we're in tests. In unit
-    // tests we allow the component to render but throw when you try to call the
-    // navigate function.
-    if (waitForNextNavigation === null && !import.meta.jest)
-        throw new InternalError(
-            "Must render in a `<WaitForNavigationContext>` to use this navigation function",
-        );
-
-    // TODO(calebmer): The new `@remix-run/router` implementation returns a promise
-    // from its `navigate()` function. Can we use that instead of watching the
-    // transition here?
-    const navigate = useCallback(
-        (to: To | number, options?: NavigateOptions & {stopPropagation?: boolean}) => {
-            if (waitForNextNavigation === null) return unsupportedNavigateForTest();
-
-            if (typeof to === "number") {
-                originalNavigate(to);
-                return waitForNextNavigation();
-            }
-
-            if (!options?.stopPropagation) {
-                const result = onNavigate?.(to, options);
-                if (result?.preventDefault) return result.promise;
-            }
-
-            originalNavigate(to, options);
-            return waitForNextNavigation();
-        },
-        [onNavigate, originalNavigate, waitForNextNavigation],
+function unsupportedNavigateForTest(): never {
+    throw new UnimplementedError(
+        "Can't navigate in Jest unit tests without a `<Router>` component and a `<RootNavigationContextProvider>` component",
     );
-
-    return navigate as Memo<NavigateFunction>;
 }
 
-function useNavigateWithJestFallback() {
+function useOriginalNavigateWithJestFallback() {
     try {
         return useOriginalNavigate();
     } catch (error) {
@@ -103,15 +69,112 @@ function useNavigateWithJestFallback() {
     }
 }
 
-function unsupportedNavigateForTest(): never {
-    throw new UnimplementedError(
-        "Can't navigate in Jest unit tests without a `<Router>` component and a `<WaitForNavigationContext>` component",
+function createNavigateFunction(
+    originalNavigate: OriginalNavigateFunction,
+    waitForNextNavigation: (() => Promise<void>) | undefined,
+    onNavigate: OnNavigateFunction | undefined,
+) {
+    return ((to: To | number, options?: NavigateOptions & {stopPropagation?: boolean}) => {
+        if (waitForNextNavigation === undefined) return unsupportedNavigateForTest();
+
+        if (typeof to === "number") {
+            originalNavigate(to);
+            return waitForNextNavigation();
+        }
+
+        if (!options?.stopPropagation) {
+            const result = onNavigate?.(to, options);
+            if (result?.preventDefault) return result.promise;
+        }
+
+        originalNavigate(to, options);
+        return waitForNextNavigation();
+    }) as NavigateFunction;
+}
+
+/**
+ * A wrapper around [`useNavigate()` from React Router][1] that:
+ *
+ * - Doesn't throw when used in Jest unit tests
+ * - Returns a promise that resolves when the navigation has completed
+ * - Provides hooks for hijacking navigation (e.g. the peek stack wants to open
+ *   up URLs in a peek)
+ *
+ * [1]: https://reactrouter.com/en/main/hooks/use-navigate
+ */
+export function useNavigate(): Memo<NavigateFunction> {
+    // The navigation function changes when we're in a peek. Since a peek uses a
+    // different `react-router` context.
+    const originalNavigate = useOriginalNavigateWithJestFallback();
+
+    const context = useContext(NavigationContext);
+
+    // Throw if we don't have our parent context unless we're in tests. In unit
+    // tests we allow the component to render but throw when you try to call the
+    // navigate function.
+    if (context === null && !import.meta.jest) {
+        throw new InternalError(
+            "Must render in a `<RootNavigationContextProvider>` to use this navigation function",
+        );
+    }
+
+    return useMemo(
+        () =>
+            createNavigateFunction(
+                originalNavigate,
+                context?.waitForNextNavigation,
+                context?.onNavigate,
+            ),
+        [context, originalNavigate],
     );
 }
 
-const WaitForNavigationContext = createContext<(() => Promise<void>) | null>(null);
+/**
+ * Use the root `navigate()` function. Ignores any
+ * `<NavigationEventContextProvider>`s and `<PeekRemixEmbed>` navigation
+ * listeners.
+ */
+export function useRootNavigate(): Memo<NavigateFunction> {
+    const context = useContext(NavigationContext);
 
-export function WaitForNavigationContextProvider({children}: {children?: ReactNode}) {
+    // Throw if we don't have our parent context unless we're in tests. In unit
+    // tests we allow the component to render but throw when you try to call the
+    // navigate function.
+    if (context === null && !import.meta.jest) {
+        throw new InternalError(
+            "Must render in a `<RootNavigationContextProvider>` to use this navigation function",
+        );
+    }
+
+    return useMemo(
+        () =>
+            createNavigateFunction(
+                context?.rootOriginalNavigate ?? unsupportedNavigateForTest,
+                context?.waitForNextNavigation,
+                context?.onNavigate,
+            ),
+        [context],
+    );
+}
+
+type NavigationContext = {
+    readonly rootOriginalNavigate: OriginalNavigateFunction;
+    readonly waitForNextNavigation: () => Promise<void>;
+    readonly onNavigate: OnNavigateFunction | undefined;
+};
+
+const NavigationContext = createContext<NavigationContext | null>(null);
+
+/**
+ * Sets up the navigation context. Primarily resolves the promises returned by
+ * `navigate()` by observing the `location` at the position of this context
+ * provider in the tree. So should be rendered at the root of a react router
+ * route (we render in `root.tsx` and `s.$spaceId.peek.tsx` since peeks create
+ * their own react routers).
+ */
+export function NavigationContextProvider({children}: {children?: ReactNode}) {
+    const parentContext = useContext(NavigationContext);
+    const originalNavigate = useOriginalNavigate();
     const location = useLocation();
     const isMounted = useIsMounted();
 
@@ -166,107 +229,67 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
     }, [isMounted]);
 
     return (
-        <WaitForNavigationContext.Provider value={waitForNextNavigation}>
+        <NavigationContext.Provider
+            value={useMemo(
+                () => ({
+                    rootOriginalNavigate: parentContext?.rootOriginalNavigate ?? originalNavigate,
+                    waitForNextNavigation,
+                    onNavigate: parentContext?.onNavigate,
+                }),
+                [originalNavigate, parentContext, waitForNextNavigation],
+            )}
+        >
             {children}
-        </WaitForNavigationContext.Provider>
+        </NavigationContext.Provider>
     );
 }
-
-const NavigationEventContext = createContext<Memo<
-    (
-        to: To,
-        options?: NavigateOptions,
-    ) => {stopPropagation?: boolean} & (
-        | {preventDefault: false}
-        | {preventDefault: true; promise: Promise<void>}
-    )
-> | null>(null);
 
 /**
  * Context provider which allows you to handle navigation events with custom
  * behavior. For example, opening a peek instead of navigating to a new page.
  */
 export function NavigationEventContextProvider({
-    onNavigate,
+    onNavigate: onNavigateFromProps,
     children,
 }: {
-    onNavigate: Memo<
-        (
-            to: To,
-            options?: NavigateOptions,
-        ) =>
-            | ({stopPropagation?: boolean} & (
-                  | {preventDefault: false}
-                  | {preventDefault: true; promise: Promise<void>}
-              ))
-            | void
-    >;
+    onNavigate: OnNavigateFunction;
     children?: ReactNode;
 }) {
-    const parentOnNavigate = useContext(NavigationEventContext);
+    const parentContext = useContext(NavigationContext);
 
-    return (
-        <NavigationEventContext.Provider
-            value={useCallback(
-                (
-                    to: To,
-                    options?: NavigateOptions,
-                ): {stopPropagation?: boolean} & (
-                    | {preventDefault: false}
-                    | {preventDefault: true; promise: Promise<void>}
-                ) => {
-                    const result = onNavigate(to, options) ?? {preventDefault: false};
-                    if (result.stopPropagation) return result;
-
-                    if (!parentOnNavigate) return result;
-
-                    const parentResult = parentOnNavigate(to, options);
-
-                    if (!result.preventDefault && !parentResult.preventDefault) {
-                        return parentResult;
-                    } else {
-                        return {
-                            stopPropagation: parentResult.stopPropagation,
-                            preventDefault: true,
-                            promise: runAllPromises([
-                                result.preventDefault ? result.promise : null,
-                                parentResult.preventDefault ? parentResult.promise : null,
-                            ]).then(() => {}),
-                        };
-                    }
-                },
-                [onNavigate, parentOnNavigate],
-            )}
-        >
-            {children}
-        </NavigationEventContext.Provider>
-    );
-}
-
-const RootNavigationContext = createContext<Memo<NavigateFunction> | null>(null);
-
-/**
- * Use the root `navigate()` function. Ignores any
- * `<NavigationEventContextProvider>`s and `<PeekRemixEmbed>` navigation
- * listeners.
- */
-export function useRootNavigate(): Memo<NavigateFunction> {
-    const navigate = useContext(RootNavigationContext);
-
-    if (navigate === null && !import.meta.jest)
+    if (parentContext === null) {
         throw new InternalError(
             "Must render in a `<RootNavigationContextProvider>` to use this navigation function",
         );
+    }
 
-    return navigate ?? (unsupportedNavigateForTest as any as Memo<NavigateFunction>);
-}
+    const onNavigate: OnNavigateFunction = useEvent((to, options) => {
+        const result = onNavigateFromProps(to, options) ?? {preventDefault: false};
+        if (result.stopPropagation) return result;
 
-export function RootNavigationContextProvider({children}: {children?: ReactNode}) {
-    if (useContext(RootNavigationContext))
-        throw new InternalError("Can't nest `<RootNavigationContextProvider>` components");
+        if (!parentContext.onNavigate) return result;
 
-    const navigate = useNavigate();
+        const parentResult = parentContext.onNavigate(to, options);
+
+        if (!result.preventDefault && !parentResult.preventDefault) {
+            return parentResult;
+        } else {
+            return {
+                stopPropagation: parentResult.stopPropagation,
+                preventDefault: true,
+                promise: runAllPromises([
+                    result.preventDefault ? result.promise : null,
+                    parentResult.preventDefault ? parentResult.promise : null,
+                ]).then(() => {}),
+            };
+        }
+    });
+
     return (
-        <RootNavigationContext.Provider value={navigate}>{children}</RootNavigationContext.Provider>
+        <NavigationContext.Provider
+            value={useMemo(() => ({...parentContext, onNavigate}), [onNavigate, parentContext])}
+        >
+            {children}
+        </NavigationContext.Provider>
     );
 }

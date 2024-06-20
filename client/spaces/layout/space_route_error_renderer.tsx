@@ -37,7 +37,12 @@ export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
     return (
         <Box width="full" paddingY="safe-area-inset">
             {isMobile && (
-                <Box height={navigationBarHeight} paddingX={mobileNavigationBarGap}>
+                <Box
+                    height={navigationBarHeight}
+                    paddingX={mobileNavigationBarGap}
+                    display="flex"
+                    alignItems="center"
+                >
                     {!isTabRootLocation && (
                         <IconButton
                             size="base"

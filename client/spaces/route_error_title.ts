@@ -31,6 +31,7 @@ const errorTitleByRouteId: {
     "routes/s.$spaceId.tasks._index": "Couldn’t open tasks",
     "routes/s.$spaceId.tasks.collections.$collectionId": "Couldn’t open tasks",
     "routes/s.$spaceId.tasks.view": "Couldn’t open tasks",
+    "routes/switch-space": "Couldn’t open menu",
 };
 
 export function getRouteIdsWithDefinedErrorTitleForTest() {
@@ -49,7 +50,7 @@ export function getRouteIdsWithDefinedErrorTitleForTest() {
  */
 export function getRouteErrorTitle(routeId: string | null): string {
     const errorTitle = routeId ? errorTitleByRouteId[routeId.replace(".peek.", ".")] : undefined;
-    return errorTitle ?? "Couldn’t show content";
+    return errorTitle ?? "Couldn’t open page";
 }
 
 /**

@@ -1130,9 +1130,13 @@ export async function getInbox(
  * Get all of the session actor's inboxes for all the spaces they're in.
  * Inboxes are stored in the same DynamoDB partition so it's one DynamoDB query
  * to load them all.
+ *
+ * You must provide a list of the account's `SpaceId`s so we can filter out
+ * inboxes for spaces the actor has lost access to.
  */
 export async function getOurAccountInboxes(
     context: ServerSessionActionContext,
+    spaceIds: ReadonlySet<SpaceId>,
 ): Promise<ReadonlyArray<DynamoGeneralRealtimeItem<InboxModel>>> {
     const inboxes = await parallelMapAsyncIterableToArray(
         InboxTable.query(context, {
@@ -1151,7 +1155,7 @@ export async function getOurAccountInboxes(
             // Confirm the account is still a member of this space. If an account is
             // removed from a space we don't clean up their inbox item in case they're
             // re-added.
-            if (!(await isAccountMemberOfSpace(context, item.spaceId, item.accountId))) return null;
+            if (!spaceIds.has(item.spaceId)) return null;
 
             return InboxTable.buildRealtimeItem(context, item);
         },

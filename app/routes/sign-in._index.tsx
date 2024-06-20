@@ -1,4 +1,3 @@
-import {Link} from "@remix-run/react";
 import {json, redirect} from "@remix-run/router";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useState} from "react";
@@ -9,7 +8,7 @@ import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {Link} from "~/client/remix/link.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
@@ -19,7 +18,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: "Sign in to Cyberworlds"}];
@@ -95,8 +94,6 @@ export default function SignInPage() {
     const [emailAddress, setEmailAddress] = useState("");
     const isFormValid = emailAddress.length > 0 && emailAddress.includes("@");
 
-    const {isNativeMobile} = useClientInfo();
-
     const fetcher = useFetcherWithSchema(ActionSchema);
 
     const [dismissedFetcherData, setDismissedFetcherData] = useState<SchemaType<
@@ -171,18 +168,7 @@ export default function SignInPage() {
                 <Box paddingTop="2" borderTop="grey-10">
                     Don’t have an account yet?
                     <br />
-                    <FocusRing>
-                        <Link
-                            to="/"
-                            className={contentSchemaStyles.linkClassName}
-                            // We don't support the home page in the native mobile app. So open in a
-                            // new tab.
-                            target={isNativeMobile ? "_blank" : undefined}
-                            rel={isNativeMobile ? "noreferrer" : undefined}
-                        >
-                            Request access
-                        </Link>
-                    </FocusRing>
+                    <Link url="/">Request access</Link>
                 </Box>
             </main>
         </Box>

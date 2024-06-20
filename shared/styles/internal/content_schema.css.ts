@@ -901,7 +901,7 @@ function blendColors(color1: string, color2: string): string {
 }
 
 export const linkClassName = style({
-    color: colorSchemeVars["theme-60-const"],
+    color: colorSchemeVars["theme-60"],
     // Don't change the caret color when your selector is in a link.
     caretColor: colorSchemeVars["grey-100"],
     textDecorationLine: "underline",
@@ -916,7 +916,7 @@ export const linkClassName = style({
     fontFeatureSettings: '"calt" off',
     selectors: {
         [`${darkColorSchemeSelector} &`]: {
-            color: colorSchemeVars["theme-30-const"],
+            color: colorSchemeVars["theme-70"],
         },
         // Inert links use a `<span>` element.
         "a&": {
@@ -931,7 +931,16 @@ export const linkClassName = style({
 });
 
 export const linkPressedClassName = style({
-    color: colorSchemeVars["theme-60-opacity-60"],
+    selectors: {
+        // Increase the precedence to beat `color` on `linkClassName`.
+        [`&${linkClassName}`]: {
+            color: colorSchemeVars["theme-60-opacity-60"],
+        },
+        // Increase the precedence to beat `color` on `linkClassName`.
+        [`${darkColorSchemeSelector} &${linkClassName}`]: {
+            color: colorSchemeVars["theme-70-opacity-60"],
+        },
+    },
 });
 
 // In dark mode, highlighted link text color is a little too dark. So brighten
