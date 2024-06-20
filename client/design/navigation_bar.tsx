@@ -1519,7 +1519,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         animationControlsRef.current ??= new Set();
         animationControlsRef.current.add(animationControls);
 
-        animationControls.finished.finally(() => {
+        void animationControls.finished.finally(() => {
             animationControlsRef.current?.delete(animationControls);
             if (animationControlsRef.current && animationControlsRef.current.size === 0) {
                 animationControlsRef.current = null;

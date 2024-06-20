@@ -232,6 +232,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         guard isMain else { return }
 
         resetTabBar(
+            navigationController,
             scrollView: scrollView,
             navigationEntry: navigationEntry,
             isAnimated: isAnimated
@@ -244,11 +245,17 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         hasMainScrollView: Bool
     ) {
         if !hasMainScrollView {
-            resetTabBar(scrollView: nil, navigationEntry: navigationEntry, isAnimated: true)
+            resetTabBar(
+                navigationController,
+                scrollView: nil,
+                navigationEntry: navigationEntry,
+                isAnimated: true
+            )
         }
     }
 
     private func resetTabBar(
+        _ navigationController: WebNavigationController,
         scrollView: UIScrollView?,
         navigationEntry: WebNavigationEntry,
         isAnimated: Bool
@@ -268,18 +275,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         let restoredTabBarState = navigationEntry.tabBarState
 
-        let restoredNavigationBarScrollOffset: Double? =
-            if let restoredTabBarState = restoredTabBarState {
-                max(
-                    0,
-                    min(
-                        restoredTabBarState.lastScrollOffset
-                            - restoredTabBarState.lastNavigationBarTopOffset,
-                        navigationBarHeight
-                    )
-                )
-            } else { nil }
-
         mainNavigationEntry?.tabBarState = WebNavigationEntry.TabBarState(
             lastScrollOffset: lastScrollOffset,
             lastScrollHeight: lastScrollHeight,
@@ -287,18 +282,20 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             lastNavigationBarTopOffset: lastNavigationBarTopOffset
         )
 
-        lastScrollOffset = scrollOffset
-        lastScrollHeight = scrollHeight
+        lastScrollOffset = restoredTabBarState?.lastScrollOffset ?? scrollOffset
+        lastScrollHeight = restoredTabBarState?.lastScrollHeight ?? scrollHeight
         lastScrollDirection =
             restoredTabBarState?.lastScrollDirection
             ?? (scrollOffset > navigationBarHeight ? .up : .down)
-        lastNavigationBarTopOffset = scrollOffset - (restoredNavigationBarScrollOffset ?? 0)
+        lastNavigationBarTopOffset = restoredTabBarState?.lastNavigationBarTopOffset ?? scrollOffset
 
         scrollDebounceTimeout?.invalidate()
         scrollDebounceTimeout = nil
 
         mainScrollView = scrollView
         mainNavigationEntry = navigationEntry
+
+        let hasScrollOffsetChanged = lastScrollOffset != scrollOffset
 
         // Reset tab bar offset when we get a new main scroll view. This happens:
         //
@@ -324,7 +321,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 let newTabBarIsHidden =
                     isWebDisablingTabBar || navigationBarScrollOffset >= navigationBarHeight
 
-                if !isAnimated {
+                if !isAnimated || hasScrollOffsetChanged {
                     tabBar.frame.origin.y = tabBarFrameOriginY
                     if !isWebDisablingTabBar {
                         webNavigationController.setTabBarScrollOffset(
@@ -386,6 +383,13 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                     )
                 }
             }
+        }
+
+        // If the scroll offset changed while the scroll view was unmounted, then run
+        // our scroll event handler to update the tab bar's state according to the new
+        // scroll.
+        if hasScrollOffsetChanged, let scrollView = scrollView {
+            webNavigationController(navigationController, didScrollWebScrollView: scrollView)
         }
     }
 
