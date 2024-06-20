@@ -27,7 +27,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateId, isId} from "~/shared/id/id.js";
+import {Id, generateId, isId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -61,6 +61,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorFloaterStatePlugin(),
         contentEditorReferencesPlugin(references, reduceReferences),
         contentEditorQuickUndoPlugin(),
+        contentEditorRetypedInputRulePlugin(),
     ];
 }
 
@@ -821,3 +822,81 @@ export const contentEditorQuickUndoCommand: Command = (state, dispatch) => {
 
     return false;
 };
+
+type ContentEditorRetypedInputRuleState = {
+    readonly inputRuleId: Id;
+    readonly replacementStart: number;
+    readonly replacementString: string;
+    readonly replacedString: string;
+};
+
+const contentEditorRetypedInputRulePluginKey =
+    new PluginKey<ContentEditorRetypedInputRuleState | null>("contentEditorRetypedInputRule");
+
+function contentEditorRetypedInputRulePlugin() {
+    return new Plugin<ContentEditorRetypedInputRuleState | null>({
+        key: contentEditorRetypedInputRulePluginKey,
+        state: {
+            init: () => null,
+            apply: (transaction, state) => {
+                const newState = transaction.getMeta(contentEditorRetypedInputRulePluginKey);
+                if (newState) return newState;
+
+                if (!state) return null;
+
+                const selection = transaction.selection;
+
+                const replacementStart = transaction.mapping.map(state.replacementStart);
+
+                const replacementEnd =
+                    replacementStart +
+                    Math.max(state.replacementString.length, state.replacedString.length);
+
+                const isSelectionInBounds =
+                    replacementStart <= selection.from &&
+                    selection.from <= replacementEnd &&
+                    replacementStart <= selection.to &&
+                    selection.to <= replacementEnd;
+
+                // If the selection is out-of-bounds of the replacement, clear state.
+                if (!isSelectionInBounds) return null;
+
+                const retypedString = transaction.doc.textBetween(replacementStart, selection.to);
+
+                // The retyped string must be the same as the string our input rule replaced in
+                // order for our retyping state to prevent the input rule from being applied
+                // again.
+                if (
+                    !state.replacedString.startsWith(retypedString) &&
+                    !state.replacementString.startsWith(retypedString)
+                ) {
+                    return null;
+                }
+
+                return replacementStart !== state.replacementStart
+                    ? {...state, replacementStart}
+                    : state;
+            },
+        },
+    });
+}
+
+/**
+ * When an input rule is applied, keep track of whether the user retypes the
+ * exact same input rule. If they do then we don't want to apply the input rule
+ * a second time.
+ */
+export function trackContentEditorRetypedInputRule(
+    transaction: Transaction,
+    state: ContentEditorRetypedInputRuleState,
+): Transaction {
+    return transaction.setMeta(contentEditorRetypedInputRulePluginKey, state);
+}
+
+/**
+ * Is the user retyping the input rule with this `Id`? If true then we
+ * shouldn't apply the input rule a second time.
+ */
+export function isContentEditorRetypingInputRule(state: EditorState, inputRuleId: Id): boolean {
+    return contentEditorRetypedInputRulePluginKey.getState(state)?.inputRuleId === inputRuleId;
+}

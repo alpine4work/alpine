@@ -1,12 +1,32 @@
 import {InputRule, inputRules} from "prosemirror-inputrules";
 import {EditorState} from "prosemirror-state";
+import {
+    isContentEditorRetypingInputRule,
+    trackContentEditorRetypedInputRule,
+} from "~/client/content/content_editor_state.js";
+import {generateId} from "~/shared/id/id.js";
 
-// Forked from ProseMirror's `stringHandler` except adds logic to not apply
-// input rule in code block.
-//
-// https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/inputrules.ts#L53-L68
-function createStringHandlerWithoutCodeBlock(string: string) {
+/**
+ * Forked from [ProseMirror's default input rule `stringHandler`][1] with a
+ * couple additions.
+ *
+ * - Doesn't apply the input rule in a code block.
+ *
+ * - If the input rule is applied, then the user deletes it and retypes the
+ *   exact same string then we don't apply the input rule again. This is
+ *   essential on mobile where the user can't press cmd-z to quick undo the
+ *   input rule.
+ *
+ * [1]: https://github.com/ProseMirror/prosemirror-inputrules/blob/8433778a3ce4e45c0188341b72fd71da3a440b5b/src/inputrules.ts#L53-L68
+ */
+function createStandardStringHandler(string: string) {
+    const inputRuleId = generateId();
+
     return (state: EditorState, match: RegExpMatchArray, start: number, end: number) => {
+        if (isContentEditorRetypingInputRule(state, inputRuleId)) {
+            return null;
+        }
+
         // If we are inside a code block, we do not want smart quotes
         const isInCodeBlockLine = state.selection.$from.node().type.name === "codeBlockLine";
         if (isInCodeBlockLine) {
@@ -24,16 +44,27 @@ function createStringHandlerWithoutCodeBlock(string: string) {
                 start = end;
             }
         }
-        return state.tr.insertText(insert, start, end);
+
+        let transaction = state.tr.insertText(insert, start, end);
+
+        transaction = trackContentEditorRetypedInputRule(transaction, {
+            inputRuleId,
+            replacementStart: start,
+            replacementString: insert,
+            replacedString: match[1] ?? match[0],
+        });
+
+        return transaction;
     };
 }
 
 /**
  * Create an `InputRule` with a standard configuration for our content editor.
- * Namely input rules shouldn't apply in code blocks.
+ *
+ * See `createStandardStringHandler()` for more information.
  */
 function createStandardInputRule(regExp: RegExp, string: string) {
-    return new InputRule(regExp, createStringHandlerWithoutCodeBlock(string));
+    return new InputRule(regExp, createStandardStringHandler(string));
 }
 
 export function addSharedContentEditorInputRules(rules: Array<InputRule>) {

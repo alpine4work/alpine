@@ -2697,6 +2697,48 @@ test("`++` becomes 👍 but not after text", async () => {
     expect(getDoc().toString()).toEqual('doc(paragraph("test++"))');
 });
 
+test("input rule will not apply a second time if deleted then retyped", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("++");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("👍"))');
+
+    dispatch(state => state.tr.delete(state.selection.from - 2, state.selection.from));
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("++");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("++"))');
+});
+
+test("input rule retype detection is cancelled if another character is typed", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("++");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("👍"))');
+
+    await simulateTyping(" x");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("👍 x"))');
+
+    dispatch(state => state.tr.delete(state.selection.from - 2, state.selection.from));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("👍"))');
+
+    dispatch(state => state.tr.delete(state.selection.from - 2, state.selection.from));
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    await simulateTyping("++");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("👍"))');
+});
+
 test("will paste normal text", async () => {
     render(<TestContentEditor />);
 
