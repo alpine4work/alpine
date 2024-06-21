@@ -22,6 +22,8 @@ export function assert(condition: unknown, message?: string): asserts condition 
             message ? `Assertion failure: ${message}` : "Assertion failure",
         );
 
+        console.trace("Assertion failure");
+
         // Inlined from `omitFromStackTrace()` since this is a performance critical
         // function. Excludes the `assert()` stack frame from the error's stack for
         // better debugging.

@@ -663,17 +663,19 @@ function DocumentCommentThreadListView(
             } else {
                 isJumpingToCommentRef.current = true;
 
-                Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
-                    isJumpingToCommentRef.current = false;
+                void Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(
+                    () => {
+                        isJumpingToCommentRef.current = false;
 
-                    view.scrollToIndex(scrollToIndex, {withAnchor: true});
+                        view.scrollToIndex(scrollToIndex, {withAnchor: true});
 
-                    setHighlightComment({
-                        commentThreadId,
-                        commentIndex,
-                        shouldHighlightRef: {current: true},
-                    });
-                });
+                        setHighlightComment({
+                            commentThreadId,
+                            commentIndex,
+                            shouldHighlightRef: {current: true},
+                        });
+                    },
+                );
             }
         },
     );
@@ -746,10 +748,11 @@ function DocumentCommentThreadListView(
                     const anchorPosition = {
                         top: Math.max(oldVisibleRect.top, anchorPositionTop),
                         bottom: Math.min(
-                            Math.max(oldVisibleRect.bottom, anchorPositionTop),
+                            oldVisibleRect.bottom,
                             anchorPositionTop + position.height,
                         ),
                     };
+                    anchorPosition.bottom = Math.max(anchorPosition.top, anchorPosition.bottom);
 
                     return {
                         top: anchorPositionTop,

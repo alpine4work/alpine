@@ -176,8 +176,6 @@ export function createNativeMobileRouterWithoutInitialization(
         },
         enableScrollRestoration: routerBase.enableScrollRestoration.bind(routerBase),
         navigate: (...args) => {
-            console.log("NAVIGATE", args);
-
             // If no `tab` is provided in state, then use the current `tab` from
             // `router.state.location` since that's the location the user currently sees.
             //

@@ -669,7 +669,7 @@ function PostListView(
         } else {
             isJumpingToPostCommentRef.current = true;
 
-            Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
+            void Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
                 isJumpingToPostCommentRef.current = false;
 
                 view.scrollToIndex(scrollToIndex, {withAnchor: true});
@@ -765,10 +765,11 @@ function PostListView(
                     const anchorPosition = {
                         top: Math.max(oldVisibleRect.top, anchorPositionTop),
                         bottom: Math.min(
-                            Math.max(oldVisibleRect.bottom, anchorPositionTop),
+                            oldVisibleRect.bottom,
                             anchorPositionTop + position.height,
                         ),
                     };
+                    anchorPosition.bottom = Math.max(anchorPosition.top, anchorPosition.bottom);
 
                     return {
                         top: anchorPositionTop,

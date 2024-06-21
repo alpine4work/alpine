@@ -24,8 +24,9 @@ import {
 } from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -37,7 +38,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {spinAnimationClassName} from "~/shared/styles/styles.js";
+import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 
@@ -127,7 +128,7 @@ export function TaskGridViewMobileKeyboardToolbar({
 }
 
 export function TaskGridViewMobileKeyboardToolbarContainer({
-    portalRef: externalPortalRef,
+    portalRef,
 }: {
     portalRef: Ref<HTMLDivElement>;
 }) {
@@ -138,28 +139,31 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
     );
 
     const toolbarRef = useRef<HTMLDivElement>(null);
-    const portalRef = useRef<HTMLDivElement>(null);
 
     const id = useId();
 
     const [isVisible, setIsVisible] = useState(false);
 
-    useEffect(() => {
-        // If the `rootPortalElement` changes this effect needs to rerun since
-        // `portalRef` will be different.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        rootPortalElement;
+    const hasInitiallyMountedRef = useRef(false);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
 
-        const portalElement = assertExists(portalRef.current);
+        // Create a portal element that's disconnected from the DOM. We'll add it to
+        // the DOM if a child is portaled in.
+        const portalElement = document.createElement("div");
 
-        // Check if while waiting to mount the portal element got child nodes.
-        setIsVisible(!!portalElement.firstElementChild);
+        portalElement.className = sprinkles({
+            position: "absolute",
+            inset: "0",
+        });
+
+        assignRef(portalRef, portalElement);
 
         let isCancelled = false;
         let isUpdateScheduled = false;
 
-        const observer = new MutationObserver(records => {
+        const observer = new MutationObserver(() => {
             if (isUpdateScheduled) return;
             isUpdateScheduled = true;
 
@@ -170,11 +174,25 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
 
                 isUpdateScheduled = false;
 
-                // Make sure we synchronously re-render so the default, disabled, content is
-                // hidden in the same paint.
-                flushSync(() => {
-                    setIsVisible(!!portalElement.firstElementChild);
-                });
+                const isVisible = !!portalElement.firstElementChild;
+
+                if (!isVisible && toolbarRef.current) {
+                    const toolbarElement = toolbarRef.current;
+                    if (toolbarElement.contains(portalElement)) {
+                        toolbarElement.firstElementChild!.removeChild(portalElement);
+                    }
+                }
+
+                // Make sure we synchronously re-render so our `appendChild()`/`removeChild()`
+                // is performed in the same paint.
+                flushSync(() => setIsVisible(isVisible));
+
+                if (isVisible) {
+                    const toolbarElement = assertExists(toolbarRef.current);
+                    if (!toolbarElement.contains(portalElement)) {
+                        toolbarElement.firstElementChild!.appendChild(portalElement);
+                    }
+                }
             });
         });
 
@@ -184,7 +202,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
             isCancelled = true;
             observer.disconnect();
         };
-    }, [rootPortalElement]);
+    }, [portalRef]);
 
     const [isCompletelyHiddenFromState, setIsCompletelyHidden] = useState(true);
     const isCompletelyHidden = isCompletelyHiddenFromState && !isVisible;
@@ -261,6 +279,8 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
 
     useRegisterBottomBarMobileKeyboardToolbarFrame({isDisabled: isCompletelyHidden});
     useWebMobileKeyboardToolbarSafeAreaInsetBottom({isVisible: !isCompletelyHidden});
+
+    if (isCompletelyHidden) return null;
 
     return createPortal(
         <Box
@@ -354,11 +374,8 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                     event.preventDefault();
                 }}
             >
-                <Box
-                    ref={useMergedRefs(portalRef, externalPortalRef)}
-                    position="absolute"
-                    inset="0"
-                />
+                {/* `portalElement` is added here when we render the toolbar. */}
+
                 {!isVisible && (
                     <Box position="absolute" inset="0">
                         <TaskGridViewMobileKeyboardToolbarContent

@@ -370,7 +370,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
                 // If the user is continuously scrolling up then assume the user will keep
                 // scrolling up. On iOS a momentum scroll animation may be running. We don't
-                // want to interrupt the continuous scroll with our fall back scroll which also
+                // want to interrupt the continuous scroll with our fallback scroll which also
                 // scrolls us up.
                 //
                 // This happens on iOS when the user scrolls up to dismiss the keyboard. The
