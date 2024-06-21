@@ -557,6 +557,10 @@ function TaskAssigneeInput(
                 // Prefer rendering the overlay above the input on mobile since the keyboard
                 // will open below the input causing an overlay rendered below to jump up.
                 placement={isMobile ? "top-start" : "bottom-start"}
+                // The overlay blocks interaction with everything below it, except the element
+                // we're targeting (the combobox input).
+                isBlocking={true}
+                shouldBlockingCoverExcludeTarget={true}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskAssigneeInputListBox

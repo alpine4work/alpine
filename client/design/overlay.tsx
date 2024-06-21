@@ -156,6 +156,16 @@ export type OverlayProps = {
     isBlocking?: boolean;
 
     /**
+     * Should the blocking cover element leave some room for the target element?
+     * That way you can interact with the target element but nothing else. Useful
+     * for comboboxes where you want clicking outside the combobox to close the
+     * overlay (but not trigger hover states or the click target of whatever's
+     * underneath) but the user should still be able to select text within the
+     * combobox.
+     */
+    shouldBlockingCoverExcludeTarget?: boolean;
+
+    /**
      * The element our overlay content will be rendered around. Must
      * provide a ref to an HTML element or we will throw an error.
      *
@@ -193,7 +203,7 @@ function Overlay(
     {
         isVisible = false,
         placement,
-        fallbackPlacements: _fallbackPlacements,
+        fallbackPlacements: unstableFallbackPlacements,
         overlay: actualOverlay,
         offset,
         offsetAlong,
@@ -201,6 +211,7 @@ function Overlay(
         sameWidth = false,
         sameHeight = false,
         isBlocking = false,
+        shouldBlockingCoverExcludeTarget = false,
         children,
         targetElement,
     }: OverlayProps,
@@ -214,11 +225,11 @@ function Overlay(
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
-    const fallbackPlacements = useStableJsonValue(_fallbackPlacements ?? null);
+    const fallbackPlacements = useStableJsonValue(unstableFallbackPlacements ?? null);
 
     const overlayRef = useRef<HTMLDivElement>(null);
     const popperRef = useRef<Instance | null>(null);
-    const blockingCoverRef = useRef<HTMLDivElement>(null);
+    const blockingCoverRef = useRef<OverlayBlockingCoverRef>(null);
 
     useImperativeHandle(
         ref,
@@ -236,8 +247,8 @@ function Overlay(
         ? overlaySink.getRootBlockingPortalElement
         : overlaySink.getPortalElement;
 
-    const [_portalElement, setPortalElement] = useState(getPortalElement);
-    let portalElement = _portalElement;
+    const [portalElementFromState, setPortalElement] = useState(getPortalElement);
+    let portalElement = portalElementFromState;
 
     // If we are making the overlay visible and we initially read the portal ref as
     // `null` but not the portal ref has a value, update our state without waiting
@@ -278,7 +289,7 @@ function Overlay(
                 "Expected the overlay prop of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
             const overlayElement = overlayRef.current;
-            const blockingCoverElement = isBlocking ? assertExists(blockingCoverRef.current) : null;
+            const blockingCover = isBlocking ? assertExists(blockingCoverRef.current) : null;
 
             const getOptions = () => {
                 // Getting the value of 1rem without subscribing so that all our `<Overlay>`
@@ -414,6 +425,20 @@ function Overlay(
                                 }px`;
                             },
                         },
+                        ...(isBlocking && shouldBlockingCoverExcludeTarget
+                            ? [
+                                  {
+                                      name: "updateBlockingCover",
+                                      enabled: true,
+                                      phase: "afterWrite" as const,
+                                      fn: ({state}: {state: State}) => {
+                                          assertExists(blockingCover).setTargetRect(
+                                              state.rects.reference,
+                                          );
+                                      },
+                                  },
+                              ]
+                            : []),
                     ],
                 };
             };
@@ -465,8 +490,8 @@ function Overlay(
                 },
             );
 
-            const cleanupBlockingCoverElementAttributes = blockingCoverElement
-                ? setElementAttributesWithCleanup(blockingCoverElement, {
+            const cleanupBlockingCoverElementAttributes = blockingCover
+                ? setElementAttributesWithCleanup(blockingCover.getElement(), {
                       "data-ownedby": originalOverlayElementId
                           ? originalOverlayElementId
                           : `${defaultTargetElementId}-overlay`,
@@ -510,6 +535,7 @@ function Overlay(
             fallbackPlacements,
             offsetAlong,
             offset,
+            shouldBlockingCoverExcludeTarget,
         ],
     );
 
@@ -555,13 +581,9 @@ function Overlay(
                 // scrolling, hover effects, and any other interaction while the context menu
                 // is open.
                 createPortal(
-                    <Box
+                    <OverlayBlockingCover
                         ref={blockingCoverRef}
-                        position="absolute"
-                        top="0"
-                        left="0"
-                        zIndex="-10"
-                        style={{width: "100vw", height: "100vh"}}
+                        shouldExcludeTarget={shouldBlockingCoverExcludeTarget}
                     />,
                     portalElement,
                 )}
@@ -744,6 +766,102 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
         </OverlaySinkContext.Provider>
     );
 }
+
+type OverlayBlockingCoverRef = {
+    getElement(): HTMLDivElement;
+    setTargetRect(targetRect: Rect): void;
+};
+
+const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
+    {shouldExcludeTarget}: {shouldExcludeTarget: boolean},
+    ref: Ref<OverlayBlockingCoverRef>,
+) {
+    const elementRef = useRef<HTMLDivElement>(null);
+
+    const [targetRect, setTargetRect] = useState<Rect | null>(null);
+    if (targetRect && !shouldExcludeTarget) setTargetRect(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            getElement: () => assertExists(elementRef.current),
+            setTargetRect: newTargetRect => {
+                setTargetRect(oldTargetRect => {
+                    if (
+                        oldTargetRect &&
+                        oldTargetRect.width === newTargetRect.width &&
+                        oldTargetRect.height === newTargetRect.height &&
+                        oldTargetRect.x === newTargetRect.x &&
+                        oldTargetRect.y === newTargetRect.y
+                    ) {
+                        return oldTargetRect;
+                    }
+
+                    return newTargetRect;
+                });
+            },
+        }),
+        [],
+    );
+
+    if (!shouldExcludeTarget || !targetRect) {
+        return (
+            <Box
+                ref={elementRef}
+                position="absolute"
+                top="0"
+                left="0"
+                zIndex="-10"
+                style={{width: "100vw", height: "100vh"}}
+            />
+        );
+    } else {
+        return (
+            <Box
+                ref={elementRef}
+                pointerEvents="none"
+                position="absolute"
+                top="0"
+                left="0"
+                zIndex="-10"
+                style={{width: "100vw", height: "100vh"}}
+            >
+                <Box
+                    pointerEvents="auto"
+                    position="absolute"
+                    top="0"
+                    left="0"
+                    right="0"
+                    style={{bottom: `calc(100vh - ${targetRect.y}px)`}}
+                />
+                <Box
+                    pointerEvents="auto"
+                    position="absolute"
+                    bottom="0"
+                    left="0"
+                    right="0"
+                    style={{top: targetRect.y + targetRect.height}}
+                />
+                <Box
+                    pointerEvents="auto"
+                    position="absolute"
+                    top="0"
+                    bottom="0"
+                    left="0"
+                    style={{right: `calc(100vw - ${targetRect.x}px)`}}
+                />
+                <Box
+                    pointerEvents="auto"
+                    position="absolute"
+                    top="0"
+                    bottom="0"
+                    right="0"
+                    style={{left: targetRect.x + targetRect.width}}
+                />
+            </Box>
+        );
+    }
+});
 
 // In Jest tests, create a portal element in the JSDOM `<body>`.
 const overlaySinkContextForTest = import.meta.jest

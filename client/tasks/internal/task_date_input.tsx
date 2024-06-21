@@ -338,6 +338,10 @@ export function TaskDateInput({
                 placement="bottom"
                 fallbackPlacements={isMobile ? emptyArray : undefined}
                 offset={overlayOffset}
+                // The overlay blocks interaction with everything below it, except the element
+                // we're targeting (the date input).
+                isBlocking={true}
+                shouldBlockingCoverExcludeTarget={true}
                 overlay={
                     <div
                         ref={overlayRef}

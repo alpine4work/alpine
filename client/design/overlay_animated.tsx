@@ -211,7 +211,7 @@ function OverlayAnimated(
                 easing: parseCubicBezier(overlayFadeInOutTimingFunction),
             });
 
-            animation.finished.finally(() => {
+            void animation.finished.finally(() => {
                 if (isCancelled) return;
                 setState(prevState => ({...prevState, isAnimating: false}));
             });

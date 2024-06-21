@@ -849,6 +849,10 @@ function TaskCollectionsInput(
                     // `useScrollToAvoidBottomBarsAndMobileKeyboard()` should kick in to make sure
                     // the overlay is visible.
                     fallbackPlacements={!isMobile ? ["top-start"] : []}
+                    // The overlay blocks interaction with everything below it, except the element
+                    // we're targeting (the combobox input).
+                    isBlocking={true}
+                    shouldBlockingCoverExcludeTarget={true}
                     overlay={
                         <Box
                             ref={popoverRef}

@@ -410,6 +410,10 @@ function PostCreatorChannelSelectorInput(
             disableAnimationOut={inputState.disableAnimationOut}
             placement="bottom-start"
             sameWidth={width === "full"}
+            // The overlay blocks interaction with everything below it, except the element
+            // we're targeting (the combobox input).
+            isBlocking={true}
+            shouldBlockingCoverExcludeTarget={true}
             overlay={
                 <Box ref={popoverRef} position="relative">
                     <PostCreatorChannelSelectorListBox
