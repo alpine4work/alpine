@@ -1641,7 +1641,6 @@ function TaskRowView(
                         onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusPreviousCell={focusPreviousCell}
-                        setRowZIndex={setRowZIndex}
                         commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                     />
                 </>

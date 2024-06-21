@@ -13,7 +13,6 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -121,7 +120,6 @@ function TaskRowCollectionsCell(
         onCellKeyDown,
         onCellKeyDownCapture,
         focusPreviousCell,
-        setRowZIndex,
         commitActionTransactionEvenIfGhost,
     }: {
         isReadOnly: boolean;
@@ -132,7 +130,6 @@ function TaskRowCollectionsCell(
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        setRowZIndex: Memo<(zIndex: number) => () => void>;
         commitActionTransactionEvenIfGhost: Memo<
             (
                 getActions: (taskId: TaskId) => Array<TaskAction>,
@@ -216,8 +213,9 @@ function TaskRowCollectionsCell(
         }, [displayCollections, queryFiltersRequiredCollectionIds]);
 
     const cellRef = useRef<HTMLDivElement>(null);
+    const cellOverlayRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
-    const [isFocusWithin, setIsFocusWithin] = useState(false);
+    const [isOverlayOpen, setIsOverlayOpen] = useState(false);
 
     useImperativeHandle(
         ref,
@@ -238,39 +236,19 @@ function TaskRowCollectionsCell(
     const shouldFocusTextInputNextRenderRef = useRef(false);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!isFocusWithin) return;
+        if (!isOverlayOpen) return;
 
         if (!shouldFocusTextInputNextRenderRef.current) return;
         shouldFocusTextInputNextRenderRef.current = false;
 
         if (isReadOnly) return;
 
-        assertExists(cellRef.current?.querySelector("input")).focus();
-    }, [isFocusWithin, isReadOnly]);
-
-    // If collections are expanded then make sure our task row renders on top of
-    // all other task rows.
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (!isFocusWithin) return;
-
-        return setRowZIndex(40);
-    }, [isFocusWithin, setRowZIndex]);
+        assertExists(cellOverlayRef.current?.querySelector("input")).focus();
+    }, [isOverlayOpen, isReadOnly]);
 
     return (
         <div
-            ref={useMergedRefs<HTMLDivElement>(
-                cellRef,
-                hoverRef,
-                useOutsideInteraction(() => {
-                    // `flushSync()` since we want to stop rendering the overlay at the same time as
-                    // the `<FocusRing>`.
-                    if (isFocusWithin) {
-                        flushSync(() => {
-                            setIsFocusWithin(false);
-                        });
-                    }
-                }),
-            )}
+            ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
             data-testid={
                 process.env.NODE_ENV !== "production" ? "TaskRowCollectionsCell" : undefined
             }
@@ -280,7 +258,7 @@ function TaskRowCollectionsCell(
                 cellClassName,
             )}
             style={{width: taskRowViewCollectionsColumnWidth}}
-            onFocus={() => setIsFocusWithin(true)}
+            onFocus={() => setIsOverlayOpen(true)}
             onKeyDown={event => {
                 switch (event.key) {
                     case "Backspace":
@@ -325,7 +303,7 @@ function TaskRowCollectionsCell(
                 }
             }}
         >
-            {!isFocusWithin ? (
+            {!isOverlayOpen ? (
                 displayCollections.length === 0 ? (
                     !isReadOnly && (
                         <div
@@ -411,6 +389,7 @@ function TaskRowCollectionsCell(
                 )
             ) : (
                 <TaskRowCollectionsCellOverlay
+                    ref={cellOverlayRef}
                     isReadOnly={isReadOnly}
                     query={query}
                     undoManager={undoManager}
@@ -419,6 +398,11 @@ function TaskRowCollectionsCell(
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
                     commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
+                    onClose={() => {
+                        // `flushSync()` since we want to stop rendering the overlay at the same time as
+                        // the `<FocusRing>`.
+                        flushSync(() => setIsOverlayOpen(false));
+                    }}
                 />
             )}
         </div>

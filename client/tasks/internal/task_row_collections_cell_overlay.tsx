@@ -1,7 +1,10 @@
-import {Memo, RefObject} from "react";
+import {Memo, Ref, RefObject, forwardRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
+import {Overlay} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
@@ -20,79 +23,112 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
-export function TaskRowCollectionsCellOverlay({
-    isReadOnly,
-    query,
-    undoManager,
-    affinityManager,
-    task,
-    focusPreviousCell,
-    cellRef,
-    commitActionTransactionEvenIfGhost,
-}: {
-    isReadOnly: boolean;
-    query: TaskClientQuery;
-    undoManager: TaskClientStoreUndoManager;
-    affinityManager: TaskClientStoreSearchAffinityManager;
-    task: TaskModel | null;
-    focusPreviousCell: () => void;
-    cellRef: RefObject<HTMLDivElement>;
-    commitActionTransactionEvenIfGhost: Memo<
-        (
-            getActions: (taskId: TaskId) => Array<TaskAction>,
-            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
-        ) => void
-    >;
-}) {
+const TaskRowCollectionsCellOverlayForwardRef = forwardRef(TaskRowCollectionsCellOverlay);
+export {TaskRowCollectionsCellOverlayForwardRef as TaskRowCollectionsCellOverlay};
+
+function TaskRowCollectionsCellOverlay(
+    {
+        isReadOnly,
+        query,
+        undoManager,
+        affinityManager,
+        task,
+        focusPreviousCell,
+        cellRef,
+        commitActionTransactionEvenIfGhost,
+        onClose,
+    }: {
+        isReadOnly: boolean;
+        query: TaskClientQuery;
+        undoManager: TaskClientStoreUndoManager;
+        affinityManager: TaskClientStoreSearchAffinityManager;
+        task: TaskModel | null;
+        focusPreviousCell: () => void;
+        cellRef: RefObject<HTMLDivElement>;
+        commitActionTransactionEvenIfGhost: Memo<
+            (
+                getActions: (taskId: TaskId) => Array<TaskAction>,
+                options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+            ) => void
+        >;
+        onClose: () => void;
+    },
+    ref: Ref<HTMLDivElement>,
+) {
     const [isChildFocusRingVisible, childFocusRingTargetRef] = useIsChildFocusRingVisible();
 
     return (
-        <Box
-            ref={childFocusRingTargetRef}
-            position="absolute"
-            zIndex="30"
-            top="0"
-            right="0.5"
-            borderRadius="sm"
-            boxShadow="elevation-20"
+        <Overlay
+            isVisible={true}
+            placement="bottom-start"
+            fallbackPlacements={[]}
+            offset={`-${taskRowViewMinHeight}`}
+            offsetAlong="-3"
+            // Don't allow interaction with anything below the cell overlay.
+            isBlocking={true}
+            overlay={
+                <Box
+                    ref={useMergedRefs<HTMLDivElement>(ref, childFocusRingTargetRef)}
+                    position="relative"
+                    borderRadius="sm"
+                    boxShadow="elevation-20"
+                >
+                    <Box
+                        ref={useMergedRefs<HTMLDivElement>(
+                            useScrollbar(),
+                            useOutsideInteraction(event => {
+                                // Make sure the click event which closes our blocking cover doesn't trigger
+                                // the click handler for some other element.
+                                //
+                                // Without this, if you've opened say a priority input in task grid view (you
+                                // must have opened it at least once first so the editable version is mounted),
+                                // then you open this overlay, then you click on the priority input to close
+                                // the overlay it'll open the priority input! Since the click event falls
+                                // through.
+                                event.preventDefault();
+
+                                onClose();
+                            }),
+                        )}
+                        position="relative"
+                        backgroundColor="grey-0"
+                        overflowY="scroll"
+                        borderRadius="sm"
+                        style={{
+                            width: taskRowViewCollectionsColumnCellOverlayWidth,
+                            // We add an extra 1px of padding to the top to render on top of the row's
+                            // `box-shadow` border.
+                            minHeight: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
+                            maxHeight: spacing["48"],
+                            // The focus ring is rendered on the inner `<div>` so it renders on top of the
+                            // elevation shadow.
+                            boxShadow: !isChildFocusRingVisible
+                                ? `0 0 0 2px ${colorSchemeVars["theme-30-const"]}`
+                                : undefined,
+                        }}
+                    >
+                        <TaskCollectionsInput
+                            isReadOnly={isReadOnly}
+                            shouldNotRenderInput={isReadOnly}
+                            aria-label="Collections"
+                            referencesSubscription={query}
+                            undoManager={undoManager}
+                            affinityManager={affinityManager}
+                            task={task}
+                            areMarginsClickable={true}
+                            paddingX="3"
+                            paddingY="3"
+                            // Keyboard navigation in grid view is not done with the tab key.
+                            isTabbable={false}
+                            onArrowLeftLeaveKeyDown={focusPreviousCell}
+                            onReturnFocus={() => assertExists(cellRef.current).focus()}
+                            commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
+                        />
+                    </Box>
+                </Box>
+            }
         >
-            <Box
-                ref={useScrollbar()}
-                position="relative"
-                backgroundColor="grey-0"
-                overflowY="scroll"
-                borderRadius="sm"
-                style={{
-                    width: taskRowViewCollectionsColumnCellOverlayWidth,
-                    // We add an extra 1px of padding to the top to render on top of the row's
-                    // `box-shadow` border.
-                    minHeight: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
-                    maxHeight: spacing["48"],
-                    // The focus ring is rendered on the inner `<div>` so it renders on top of the
-                    // elevation shadow.
-                    boxShadow: !isChildFocusRingVisible
-                        ? `0 0 0 2px ${colorSchemeVars["theme-30-const"]}`
-                        : undefined,
-                }}
-            >
-                <TaskCollectionsInput
-                    isReadOnly={isReadOnly}
-                    shouldNotRenderInput={isReadOnly}
-                    aria-label="Collections"
-                    referencesSubscription={query}
-                    undoManager={undoManager}
-                    affinityManager={affinityManager}
-                    task={task}
-                    areMarginsClickable={true}
-                    paddingX="3"
-                    paddingY="3"
-                    // Keyboard navigation in grid view is not done with the tab key.
-                    isTabbable={false}
-                    onArrowLeftLeaveKeyDown={focusPreviousCell}
-                    onReturnFocus={() => assertExists(cellRef.current).focus()}
-                    commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
-                />
-            </Box>
-        </Box>
+            <Box width="full" height={taskRowViewMinHeight} />
+        </Overlay>
     );
 }
