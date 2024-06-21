@@ -27,6 +27,7 @@ import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -1443,41 +1444,56 @@ function TaskDetailViewDenseField({
     const labelId = useId();
     const valueRef = useRef<HTMLDivElement>(null);
 
+    const minHeight = "4";
+
+    const touchSlop = useTouchSlop(minHeight);
+
     return (
         // Doesn't have a parent to horizontally align elements since we layout fields
         // with CSS grid.
         <>
             <span
-                id={labelId}
                 className={sprinkles({
                     display: "block",
                     maxWidth: "24",
-                    fontSize: taskDetailViewFieldLabelFontSize,
-                    fontStyle: "truncate",
-                    color: "grey-60",
+                    minHeight,
                 })}
-                // As an affordance for mouse users, when the label is clicked we focus
-                // the first element in the input.
-                onClick={() => {
-                    let element = getNextFocusableElementIfExists(null, {
-                        withinElement: assertExists(valueRef.current),
-                    });
-
-                    // Look specifically for text input elements. This is important for
-                    // `<TaskCollectionsInput>` since we want to focus the "+ Add" text input not a
-                    // collection chip.
-                    while (!isTextInputElement(element)) {
-                        element = getNextFocusableElementIfExists(element, {
+            >
+                <span
+                    id={labelId}
+                    className={sprinkles({
+                        display: "block",
+                        width: "full",
+                        height: touchSlop.sizeWithSlop,
+                        paddingY: touchSlop.slop,
+                        marginY: `-${touchSlop.slop}`,
+                        fontSize: taskDetailViewFieldLabelFontSize,
+                        fontStyle: "truncate",
+                        color: "grey-60",
+                    })}
+                    // As an affordance for mouse users, when the label is clicked we focus
+                    // the first element in the input.
+                    onClick={() => {
+                        let element = getNextFocusableElementIfExists(null, {
                             withinElement: assertExists(valueRef.current),
                         });
-                    }
 
-                    element?.focus();
-                }}
-            >
-                {label}
+                        // Look specifically for text input elements. This is important for
+                        // `<TaskCollectionsInput>` since we want to focus the "+ Add" text input not a
+                        // collection chip.
+                        while (!isTextInputElement(element)) {
+                            element = getNextFocusableElementIfExists(element, {
+                                withinElement: assertExists(valueRef.current),
+                            });
+                        }
+
+                        element?.focus();
+                    }}
+                >
+                    {label}
+                </span>
             </span>
-            <Box ref={valueRef} minHeight="4">
+            <Box ref={valueRef} minHeight={minHeight}>
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
         </>

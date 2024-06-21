@@ -25,6 +25,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -716,6 +717,9 @@ function TaskCollectionsInput(
         },
     });
 
+    const inputHeight = "4";
+    const inputTouchSlop = useTouchSlop(inputHeight);
+
     return (
         <Box
             ref={containerRef}
@@ -851,16 +855,23 @@ function TaskCollectionsInput(
                 >
                     <Box
                         maxWidth="full"
-                        overflow="hidden"
                         display="flex"
                         alignItems="center"
                         gap="2"
+                        style={{
+                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                            // have `min-width: auto` which extends with content.
+                            // https://stackoverflow.com/a/66689926/1568890
+                            minWidth: 0,
+                        }}
                     >
                         <Box
                             position="relative"
                             zIndex="0"
                             maxWidth="full"
-                            overflow="hidden"
+                            height={inputTouchSlop.sizeWithSlop}
+                            paddingY={inputTouchSlop.slop}
+                            marginY={`-${inputTouchSlop.slop}`}
                             // The width of this element is determined by nested text boxes when `inline`.
                             // The `<input>` then uses the parent width as its own width.
                             //
@@ -931,6 +942,7 @@ function TaskCollectionsInput(
                                             inset: "0",
                                             display: "inline-block",
                                             backgroundColor: "transparent",
+                                            borderRadius: "none",
                                         }),
                                     )}
                                     style={{
