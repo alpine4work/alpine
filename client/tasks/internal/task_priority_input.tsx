@@ -200,7 +200,25 @@ function TaskPriorityInput(
 
         onFocus: () => {
             // Open the combobox on focus.
-            comboBoxState.open();
+            //
+            // Wait an animation frame before opening the combobox and make sure we're
+            // still focused.
+            //
+            // In Chrome, if the user focuses an element then leaves to another app (e.g.
+            // clicks into the inspector panel) then clicks back into the page Chrome will
+            // `blur` when the user clicks out then dispatch `focus` + `blur` when the user
+            // clicks back in. We don't want to open the combo box if Chrome is dispatching
+            // `focus` + `blur` in rapid succession when the user refocuses the window
+            // since it looks janky to open then animate shut.
+            requestAnimationFrame(() => {
+                if (!inputRef.current) return;
+                const inputElement = inputRef.current;
+
+                if (document.activeElement === inputElement) {
+                    // Open the combobox on focus.
+                    comboBoxState.open();
+                }
+            });
 
             // When focused, switch to a typing state.
             setInputState(inputState => {
