@@ -1928,6 +1928,12 @@ export function useTaskGridViewVirtualizedList({
                     }
                 }
 
+                // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text
+                // near the end of the title input then we want to scroll to the user's
+                // selection. Not the full element's container.
+                const selectionRect = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
+                if (selectionRect) return selectionRect;
+
                 return activeRect;
             },
             [getAnchorPosition, viewRef],
