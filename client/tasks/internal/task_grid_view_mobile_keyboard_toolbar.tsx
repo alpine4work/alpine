@@ -18,7 +18,10 @@ import {
 } from "~/client/design/mobile_bottom_bar.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {
+    useRegisterBottomBarMobileKeyboardToolbarFrame,
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom,
+} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -246,7 +249,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
                 },
             );
 
-            animation.finished.finally(() => {
+            void animation.finished.finally(() => {
                 setIsCompletelyHidden(true);
             });
         } else {
@@ -257,6 +260,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
     }, [isCompletelyHiddenFromState, isVisible]);
 
     useRegisterBottomBarMobileKeyboardToolbarFrame({isDisabled: isCompletelyHidden});
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom({isVisible: !isCompletelyHidden});
 
     return createPortal(
         <Box

@@ -83,7 +83,7 @@ export function TaskNotepadView({
 }) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
-    const {isAppleDevice} = useClientInfo();
+    const {isAppleDevice, isNativeMobile} = useClientInfo();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -443,12 +443,17 @@ export function TaskNotepadView({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
+        // Don't initially focus the first task unless we're in our native mobile
+        // app since iOS will only open the keyboard as a result of user interaction.
+        // So it's a little weird to open the keyboard toolbar but not the keyboard.
+        if (isMobile && !isNativeMobile) return;
+
         if (!shouldInitiallyFocusTopGhostTask) return;
 
         return scheduleAfterNavigationAnimation(() => {
             focusGridViewStart();
         });
-    }, [focusGridViewStart, shouldInitiallyFocusTopGhostTask]);
+    }, [focusGridViewStart, isMobile, isNativeMobile, shouldInitiallyFocusTopGhostTask]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         isDisabled: !isMobile,

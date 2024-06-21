@@ -14,7 +14,6 @@ import {
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {throwIfRendering} from "~/client/helpers/lifecycle/throw_if_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
@@ -254,8 +253,6 @@ export function useRegisterBottomBarFrame<Element extends HTMLElement>(
         isReplacingOtherBottomBar,
         withMobileKeyboardToolbar,
     ]);
-
-    useWebMobileKeyboardToolbarSafeAreaInsetBottom(isDisabled || !withMobileKeyboardToolbar);
 }
 
 /**
@@ -310,38 +307,42 @@ export function useRegisterBottomBarMobileKeyboardToolbarFrame({
             });
         };
     }, [context, isDisabled, isInert]);
-
-    useWebMobileKeyboardToolbarSafeAreaInsetBottom(isDisabled);
 }
 
 let webMobileKeyboardToolbarSafeAreaInsetBottomCount = 0;
 
-function useWebMobileKeyboardToolbarSafeAreaInsetBottom(isDisabled: boolean) {
+/**
+ * If we're in the web mobile app, we want to add safe area inset bottom when
+ * we've animated our mobile keyboard toolbar up so it doesn't cover content.
+ *
+ * If on mobile web you're animating a keyboard toolbar up/down then you must
+ * call this hook in addition to
+ * `useRegisterBottomBarMobileKeyboardToolbarFrame()` or
+ * `useRegisterBottomBarFrame()` with the state boolean you use to tell if the
+ * keyboard toolbar is visible or not.
+ */
+export function useWebMobileKeyboardToolbarSafeAreaInsetBottom({isVisible}: {isVisible: boolean}) {
     useEffect(() => {
-        if (isDisabled) return;
         if (NativeMobileBridge) return;
+        if (!isVisible) return;
 
-        return subscribeToMobileKeyboardFrameChange(({oldKeyboardHeight, newKeyboardHeight}) => {
-            if (!(oldKeyboardHeight > 0) && newKeyboardHeight > 0) {
-                if (webMobileKeyboardToolbarSafeAreaInsetBottomCount === 0) {
-                    document.documentElement.style.setProperty(
-                        "--safe-area-inset-bottom",
-                        spacing[mobileBottomBarKeyboardToolbarHeight],
-                    );
-                }
+        if (webMobileKeyboardToolbarSafeAreaInsetBottomCount === 0) {
+            document.documentElement.style.setProperty(
+                "--safe-area-inset-bottom",
+                spacing[mobileBottomBarKeyboardToolbarHeight],
+            );
+        }
 
-                webMobileKeyboardToolbarSafeAreaInsetBottomCount += 1;
+        webMobileKeyboardToolbarSafeAreaInsetBottomCount += 1;
+
+        return () => {
+            webMobileKeyboardToolbarSafeAreaInsetBottomCount -= 1;
+
+            if (webMobileKeyboardToolbarSafeAreaInsetBottomCount === 0) {
+                document.documentElement.style.removeProperty("--safe-area-inset-bottom");
             }
-
-            if (oldKeyboardHeight > 0 && !(newKeyboardHeight > 0)) {
-                webMobileKeyboardToolbarSafeAreaInsetBottomCount -= 1;
-
-                if (webMobileKeyboardToolbarSafeAreaInsetBottomCount === 0) {
-                    document.documentElement.style.removeProperty("--safe-area-inset-bottom");
-                }
-            }
-        });
-    }, [isDisabled]);
+        };
+    }, [isVisible]);
 }
 
 /**

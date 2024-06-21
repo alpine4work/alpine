@@ -39,7 +39,10 @@ import {
     useIsBehindMobileFullScreenModal,
 } from "~/client/design/mobile_full_screen_modal.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
-import {useRegisterBottomBarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {
+    useRegisterBottomBarFrame,
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom,
+} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -327,43 +330,68 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         isDisabled: !isMobile || !isBottomBar,
     });
 
+    const [isKeyboardToolbarCompletelyHiddenFromState, setIsKeyboardToolbarCompletelyHidden] =
+        useState(true);
+    const isKeyboardToolbarCompletelyHidden =
+        isKeyboardToolbarCompletelyHiddenFromState && !isKeyboardToolbarVisible;
+    if (isKeyboardToolbarCompletelyHidden !== isKeyboardToolbarCompletelyHiddenFromState)
+        setIsKeyboardToolbarCompletelyHidden(isKeyboardToolbarCompletelyHidden);
+
     const lastIsKeyboardToolbarVisibleRef = useRef(isKeyboardToolbarVisible);
     useEffect(() => {
-        if (NativeMobileBridge) return;
-
         if (lastIsKeyboardToolbarVisibleRef.current === isKeyboardToolbarVisible) return;
         lastIsKeyboardToolbarVisibleRef.current = isKeyboardToolbarVisible;
 
         const inputElement = assertExists(inputRef.current);
 
         if (isKeyboardToolbarVisible) {
-            animate(
-                inputElement,
-                {
-                    y: [0, -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening()],
-                },
-                {
-                    duration: 0.2,
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
-            );
+            if (NativeMobileBridge) {
+                // Noop...
+            } else {
+                animate(
+                    inputElement,
+                    {
+                        y: [
+                            0,
+                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
+                        ],
+                    },
+                    {
+                        duration: 0.2,
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
+                );
+            }
         } else {
-            animate(
-                inputElement,
-                {
-                    y: [-mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(), 0],
-                },
-                {
-                    duration: 0.2,
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
-            );
+            if (NativeMobileBridge) {
+                NativeMobileBridge.keyboard.scheduleAfterAnimation(() => {
+                    setIsKeyboardToolbarCompletelyHidden(true);
+                });
+            } else {
+                const animation = animate(
+                    inputElement,
+                    {
+                        y: [
+                            -mobileBottomBarKeyboardToolbarHeightRem * getRemPxWithoutListening(),
+                            0,
+                        ],
+                    },
+                    {
+                        duration: 0.2,
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
+                );
+
+                void animation.finished.finally(() => {
+                    setIsKeyboardToolbarCompletelyHidden(true);
+                });
+            }
         }
     }, [isKeyboardToolbarVisible]);
 
@@ -424,6 +452,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         withMobileKeyboardToolbar: true,
         isReplacingOtherBottomBar,
     });
+
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom({isVisible: !isKeyboardToolbarCompletelyHidden});
 
     const [linkModalState, setLinkModalState] = useState<ContentEditorMobileLinkModalState | null>(
         null,

@@ -39,7 +39,10 @@ import {
     mobileBottomBarKeyboardToolbarHeightRem,
 } from "~/client/design/mobile_bottom_bar.js";
 import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
-import {useRegisterBottomBarMobileKeyboardToolbarFrame} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {
+    useRegisterBottomBarMobileKeyboardToolbarFrame,
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom,
+} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -172,6 +175,7 @@ export function ContentEditorMobileKeyboardToolbar({
     }, [isSubstituteOpen, isMounted]);
 
     useRegisterBottomBarMobileKeyboardToolbarFrame({isDisabled: !isToolbarRendered});
+    useWebMobileKeyboardToolbarSafeAreaInsetBottom({isVisible: isToolbarRendered});
 
     const wordSelectionIfEmpty = useMemo(
         () => expandEmptySelectionAroundWord(state.doc, state.selection),
