@@ -517,7 +517,7 @@ function TaskAssigneeInput(
                 //
                 // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
                 height: isMobile ? "9" : avatarSize,
-                marginTop: insetMarginY ? `-${insetMarginY}` : undefined,
+                marginY: insetMarginY ? `-${insetMarginY}` : undefined,
                 marginLeft: avatarSize === "5" ? "-0.5" : undefined,
             })}
             onKeyDown={event => {

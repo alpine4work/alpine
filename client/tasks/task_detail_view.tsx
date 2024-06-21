@@ -1477,7 +1477,7 @@ function TaskDetailViewDenseField({
             >
                 {label}
             </span>
-            <Box ref={valueRef} height="4">
+            <Box ref={valueRef} minHeight="4">
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
         </>
