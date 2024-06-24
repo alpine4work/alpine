@@ -401,6 +401,7 @@ function TaskRowCollectionsCell(
                     onClose={() => {
                         // `flushSync()` since we want to stop rendering the overlay at the same time as
                         // the `<FocusRing>`.
+                        assertExists(cellRef.current).blur();
                         flushSync(() => setIsOverlayOpen(false));
                     }}
                 />
