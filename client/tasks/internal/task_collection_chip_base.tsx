@@ -74,7 +74,8 @@ const colorDotClassNameByColor = new DefaultMap((color: Sprinkles["color"]) =>
 const nameClassName = sprinkles({fontStyle: "truncate"});
 
 const removeButtonContainerClassName = sprinkles({
-    marginRight: "-1",
+    marginLeft: "0.5",
+    marginRight: {mobile: "-1", desktop: "-1.5"},
 });
 
 function TaskCollectionChipBase(
@@ -160,23 +161,26 @@ function TaskCollectionChipBase(
             >
                 {name}
             </div>
-            {onRemove && (
-                <div className={removeButtonContainerClassName}>
-                    <IconButton
-                        size={isMobile && !withDesktopLayout ? "md" : "xs"}
-                        variant="quiet-above-grey-5-background"
-                        borderRadius="sm"
-                        // The user focuses the pill as a whole and hits the delete key to delete using
-                        // the keyboard.
-                        isTabbable={false}
-                        description="Remove"
-                        withoutTooltip={true}
-                        onPress={onRemove}
-                    >
-                        <X size={isMobile && !withDesktopLayout ? spacing["3"] : spacing["2.5"]} />
-                    </IconButton>
-                </div>
-            )}
+            {onRemove &&
+                // If we're on mobile but `withDesktopLayout` is true then never render the
+                // remove button since it would be too small.
+                !(isMobile && withDesktopLayout) && (
+                    <div className={removeButtonContainerClassName}>
+                        <IconButton
+                            size={isMobile ? "md" : "xs"}
+                            variant="quiet-above-grey-5-background"
+                            borderRadius={taskCollectionChipBorderRadius}
+                            // The user focuses the pill as a whole and hits the delete key to delete using
+                            // the keyboard.
+                            isTabbable={false}
+                            description="Remove"
+                            withoutTooltip={true}
+                            onPress={onRemove}
+                        >
+                            <X size={isMobile ? spacing["3"] : spacing["2.5"]} />
+                        </IconButton>
+                    </div>
+                )}
         </div>
     );
 }
