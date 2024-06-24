@@ -1913,7 +1913,19 @@ export function useTaskGridViewVirtualizedList({
                 const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
                 if (ariaControlsAttribute) {
                     const ariaControls = ariaControlsAttribute.split(" ")[0]!;
-                    const controlsElement = document.getElementById(ariaControls);
+                    let controlsElement = document.getElementById(ariaControls);
+
+                    // Support the case where our `listbox` is a `<ul>` wrapped in a `<div>` with
+                    // `overflow-y: auto`. We should use the size of the wrapping `<div>` not the
+                    // `<ul>`. Generally, perhaps we should call some kind of `getScrollParent()`
+                    // function.
+                    if (
+                        controlsElement?.parentElement &&
+                        getComputedStyle(controlsElement).overflowY === "visible" &&
+                        getComputedStyle(controlsElement.parentElement).overflowY !== "visible"
+                    ) {
+                        controlsElement = controlsElement.parentElement;
+                    }
 
                     if (controlsElement) {
                         const controlsRect = controlsElement.getBoundingClientRect();

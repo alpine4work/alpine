@@ -1,6 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {useOverlayRootBlockingPortalElement} from "~/client/design/overlay.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
@@ -31,29 +30,32 @@ export function useIsTextInputFocused({isDisabled = false}: {isDisabled?: boolea
     isDisabled ||= isInert;
 
     const isInitialAppRender = useIsInitialAppRender();
-    const rootBlockingPortalElement = useOverlayRootBlockingPortalElement();
 
-    const getIsTextInputFocused = useCallback(
-        (focusedElement: Element | null) => {
-            return (
-                focusedElement instanceof Element &&
-                isTextInputElement(focusedElement) &&
-                // Don't show "Done" button if the focused text input is in the blocking
-                // overlay container. Since any press outside the blocking overlay will unfocus
-                // the element (by closing the overlay). Furthermore, if we showed the done
-                // button it wouldn't be visible.
-                //
-                // We added this for the assignee task filter on mobile (and the collection
-                // task filter). It has a search input in a blocking overlay. We don't want to
-                // show the "Done" button while the search input is focused.
-                //
-                // TODO(calebmer): Maybe we should abstract this so this logic only applies to
-                // the "Done" button. Through like a `shouldIgnore` function or something.
-                !rootBlockingPortalElement?.contains(document.activeElement)
-            );
-        },
-        [rootBlockingPortalElement],
-    );
+    const getIsTextInputFocused = useCallback((focusedElement: Element | null) => {
+        if (!(focusedElement instanceof Element)) return false;
+        if (!isTextInputElement(focusedElement)) return false;
+
+        // Don't show "Done" button if the focused text input has an autocomplete list.
+        // These inputs come with an overlay and so dismissing the input means clicking
+        // outside of the overlay. Since the interaction for dismissing the keyboard
+        // for the input is obvious we don't show a "Done" button. Also because often
+        // autocomplete inputs have a blocking cover (they set `isBlocking={true}` on
+        // their `<Overlay>`) you wouldn't be able to interact with the "Done" button
+        // anyway.
+        //
+        // We added this for the assignee task filter on mobile (and the collection
+        // task filter). It has a search input in a blocking overlay. We don't want to
+        // show the "Done" button while the search input is focused. We also want this
+        // to apply to inputs like `<TaskAssigneeInput>` in a detail view.
+        //
+        // TODO(calebmer): Maybe we should abstract this so this logic only applies to
+        // the "Done" button. Through like a `shouldIgnore` function or something.
+        const ariaAutocompleteAttribute = focusedElement.getAttribute("aria-autocomplete");
+        if (ariaAutocompleteAttribute === "list") return false;
+        if (ariaAutocompleteAttribute === "both") return false;
+
+        return true;
+    }, []);
 
     const [isTextInputFocusedFromState, setIsTextInputFocused] = useState(
         // If the component remounts after initial render, check the current active
