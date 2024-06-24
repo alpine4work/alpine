@@ -433,10 +433,13 @@ function TaskPriorityInput(
                 // Prefer rendering the overlay above the input on mobile since the keyboard
                 // will open below the input causing an overlay rendered below to jump up.
                 placement={isMobile ? "top-start" : "bottom-start"}
-                // The overlay blocks interaction with everything below it, except the element
-                // we're targeting (the combobox input).
+                // The overlay blocks interaction with everything outside the overlay. Except
+                // the combobox input. We still want to render the overlay in our current
+                // overlay scope so that it animates smoothly with scroll animations (important
+                // on mobile when we need to avoid the keyboard).
                 isBlocking={true}
-                shouldBlockingCoverExcludeTarget={true}
+                withoutRootBlockingScope={true}
+                withoutBlockingTarget={true}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskPriorityInputListBox

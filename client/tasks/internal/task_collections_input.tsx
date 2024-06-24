@@ -509,9 +509,10 @@ function TaskCollectionsInput(
         if (!comboBoxState.isOpen) return;
 
         const run = () => {
+            const inputElement = assertExists(inputRef.current);
             const popoverElement = assertExists(popoverRef.current);
 
-            let scrollableElement: HTMLElement | null = popoverElement.parentElement;
+            let scrollableElement: HTMLElement | null = inputElement.parentElement;
             while (scrollableElement !== null) {
                 const {overflowY} = getComputedStyle(scrollableElement);
 
@@ -849,10 +850,13 @@ function TaskCollectionsInput(
                     // `useScrollToAvoidBottomBarsAndMobileKeyboard()` should kick in to make sure
                     // the overlay is visible.
                     fallbackPlacements={!isMobile ? ["top-start"] : []}
-                    // The overlay blocks interaction with everything below it, except the element
-                    // we're targeting (the combobox input).
+                    // The overlay blocks interaction with everything outside the overlay. Except
+                    // the combobox input. We still want to render the overlay in our current
+                    // overlay scope so that it animates smoothly with scroll animations (important
+                    // on mobile when we need to avoid the keyboard).
                     isBlocking={true}
-                    shouldBlockingCoverExcludeTarget={true}
+                    withoutRootBlockingScope={true}
+                    withoutBlockingTarget={true}
                     overlay={
                         <Box
                             ref={popoverRef}

@@ -413,7 +413,7 @@ function PostCreatorChannelSelectorInput(
             // The overlay blocks interaction with everything below it, except the element
             // we're targeting (the combobox input).
             isBlocking={true}
-            shouldBlockingCoverExcludeTarget={true}
+            withoutBlockingTarget={true}
             overlay={
                 <Box ref={popoverRef} position="relative">
                     <PostCreatorChannelSelectorListBox

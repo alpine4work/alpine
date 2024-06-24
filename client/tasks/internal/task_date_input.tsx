@@ -129,9 +129,10 @@ export function TaskDateInput({
         if (!isEditing) return;
 
         const run = () => {
+            const inputElement = assertExists(inputRef.current);
             const overlayElement = assertExists(overlayRef.current);
 
-            let scrollableElement: HTMLElement | null = overlayElement.parentElement;
+            let scrollableElement: HTMLElement | null = inputElement.parentElement;
             while (scrollableElement !== null) {
                 const {overflowY} = getComputedStyle(scrollableElement);
 
@@ -338,10 +339,13 @@ export function TaskDateInput({
                 placement="bottom"
                 fallbackPlacements={isMobile ? emptyArray : undefined}
                 offset={overlayOffset}
-                // The overlay blocks interaction with everything below it, except the element
-                // we're targeting (the date input).
+                // The overlay blocks interaction with everything outside the overlay. Except
+                // the date input. We still want to render the overlay in our current
+                // overlay scope so that it animates smoothly with scroll animations (important
+                // on mobile when we need to avoid the keyboard).
                 isBlocking={true}
-                shouldBlockingCoverExcludeTarget={true}
+                withoutRootBlockingScope={true}
+                withoutBlockingTarget={true}
                 overlay={
                     <div
                         ref={overlayRef}

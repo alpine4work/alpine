@@ -1,4 +1,5 @@
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {disableScrollInteractions} from "~/client/helpers/disable_scroll_interactions.js";
 
 /**
  * Disable the default scroll behavior when touch moves on a non-scrollable
@@ -13,14 +14,16 @@ import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
  *   Disabling default scroll means scroll events are stopped.
  *
  * With default scroll disabled, if you have an `overflow-y: scroll` element
- * it's still scrollable.
+ * or `overflow-x: scroll` element they're still scrollable. We only disable
+ * scrolling for elements which shouldn't be scrollable according to CSS but
+ * the browser still wants to dispatch scroll events for.
  *
  * IMPORTANT: Works by adding a `{passive: false}` `touchmove` event handler.
  * This is bad for performance! Only disabled default scroll if absolutely
  * necessary and only in the states where it's necessary.
  */
-export function disableMobileWebKitDefaultScroll(): () => void {
-    if (!isMobileWebKit) return () => {};
+export function disableMobileWebKitDefaultScroll() {
+    if (!isMobileWebKit) return;
 
     let initialTouches: Array<Touch> = [];
     let isHorizontalScrollGesture: boolean | null = null;
@@ -30,11 +33,10 @@ export function disableMobileWebKitDefaultScroll(): () => void {
         isHorizontalScrollGesture = null;
     };
 
-    const handleTouchMove = (event: TouchEvent) => {
-        if (!(event.target instanceof Node)) {
-            event.preventDefault();
-            return;
-        }
+    document.addEventListener("touchstart", handleTouchStart, {passive: false});
+
+    const cleanup = disableScrollInteractions(document.body, (event, targetScrollableParent) => {
+        if (event instanceof WheelEvent) return true;
 
         // Try to infer if native iOS will interpret this as a horizontal scroll
         // gesture.
@@ -52,85 +54,21 @@ export function disableMobileWebKitDefaultScroll(): () => void {
                     Math.abs(initialTouches[0]!.clientY - touches[0]!.clientY);
         }
 
-        // We cache the scrollable parent for the event target because this handler
-        // needs to run very fast given `{passive: false}` is set. Otherwise
-        // interaction performance (e.g. scroll performance) will be hurt.
-        let scrollableParent = scrollableParentCache.get(event.target);
-        if (scrollableParent === undefined) {
-            scrollableParent = getScrollableParent(event.target);
-            scrollableParentCache.set(event.target, scrollableParent);
-        }
+        const hasScrollableOverflowXParent = !!targetScrollableParent?.overflowX;
+        const hasScrollableOverflowYParent = !!targetScrollableParent?.overflowY;
 
-        const hasScrollableOverflowXParent =
-            scrollableParent &&
-            (scrollableParent.overflowX === "scroll" ||
-                (scrollableParent.overflowX === "auto" &&
-                    scrollableParent.element.scrollWidth > scrollableParent.element.clientWidth));
-
-        const hasScrollableOverflowYParent =
-            scrollableParent &&
-            (scrollableParent.overflowY === "scroll" ||
-                (scrollableParent.overflowY === "auto" &&
-                    scrollableParent.element.scrollHeight > scrollableParent.element.clientHeight));
-
-        const shouldAllowEvent =
+        return (
             hasScrollableOverflowYParent ||
             // Make sure we don't break horizontal scrolling. If we're in a horizontally
             // scrollable element, allow horizontal scroll gestures. Vertical scroll
             // gestures are still problematic when the iOS keyboard is open so we still
             // need to prevent vertical scrolls.
-            (hasScrollableOverflowXParent && isHorizontalScrollGesture);
+            (hasScrollableOverflowXParent && isHorizontalScrollGesture)
+        );
+    });
 
-        if (!shouldAllowEvent) {
-            event.preventDefault();
-            return;
-        }
-    };
-
-    const scrollableParentCache = new WeakMap<
-        Node,
-        {
-            element: HTMLElement;
-            overflowX: string;
-            overflowY: string;
-        } | null
-    >();
-
-    const getScrollableParent = (
-        node: Node,
-    ): {
-        element: HTMLElement;
-        overflowX: string;
-        overflowY: string;
-    } | null => {
-        let element = node instanceof HTMLElement ? node : node.parentElement;
-
-        while (element) {
-            const {position, overflowX, overflowY} = getComputedStyle(element);
-
-            if (
-                overflowX === "scroll" ||
-                overflowX === "auto" ||
-                overflowY === "scroll" ||
-                overflowY === "auto"
-            ) {
-                return {
-                    element,
-                    overflowX,
-                    overflowY,
-                };
-            }
-
-            element = position === "fixed" ? document.body : element.parentElement;
-        }
-
-        return null;
-    };
-
-    document.addEventListener("touchstart", handleTouchStart, {passive: false});
-    document.addEventListener("touchmove", handleTouchMove, {passive: false});
     return () => {
         document.removeEventListener("touchstart", handleTouchStart);
-        document.removeEventListener("touchmove", handleTouchMove);
+        cleanup();
     };
 }

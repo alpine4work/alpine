@@ -15,13 +15,14 @@ import {
     useRef,
     useState,
 } from "react";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {disableScrollInteractions} from "~/client/helpers/disable_scroll_interactions.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -42,6 +43,7 @@ import {
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
 
 /**
@@ -156,14 +158,35 @@ export type OverlayProps = {
     isBlocking?: boolean;
 
     /**
-     * Should the blocking cover element leave some room for the target element?
-     * That way you can interact with the target element but nothing else. Useful
-     * for comboboxes where you want clicking outside the combobox to close the
-     * overlay (but not trigger hover states or the click target of whatever's
+     * When `isBlocking` is true if you don't want to render in the root overlay
+     * boundary and instead render in the current overlay scope you may set this to
+     * true.
+     *
+     * Useful if you have a scroll animation and you want your overlay to
+     * animate smoothly with the scroll. Or if you want to contain your blocking
+     * overlay to some element instead of allowing it to break out of the element.
+     *
+     * We'll still render a cover across the entire DOM to prevent interaction with
+     * other elements but the cover will cut out the overlay's area so you can
+     * interact with the overlay.
+     *
+     * Defaults to `false`.
+     */
+    withoutRootBlockingScope?: boolean;
+
+    /**
+     * When `isBlocking` is true should the target element still be interactive?
+     * That way you can interact with the target element, the overlay element, but
+     * nothing else because of the blocking cover.
+     *
+     * Useful for comboboxes where you want clicking outside the combobox to close
+     * the overlay (but not trigger hover states or the click target of whatever's
      * underneath) but the user should still be able to select text within the
      * combobox.
+     *
+     * Defaults to `false`.
      */
-    shouldBlockingCoverExcludeTarget?: boolean;
+    withoutBlockingTarget?: boolean;
 
     /**
      * The element our overlay content will be rendered around. Must
@@ -211,7 +234,8 @@ function Overlay(
         sameWidth = false,
         sameHeight = false,
         isBlocking = false,
-        shouldBlockingCoverExcludeTarget = false,
+        withoutRootBlockingScope = false,
+        withoutBlockingTarget = false,
         children,
         targetElement,
     }: OverlayProps,
@@ -243,21 +267,42 @@ function Overlay(
 
     const defaultTargetElementId = useId();
 
-    const getPortalElement = isBlocking
-        ? overlaySink.getRootBlockingPortalElement
-        : overlaySink.getPortalElement;
+    const getPortalElement =
+        isBlocking && !withoutRootBlockingScope
+            ? overlaySink.getRootBlockingPortalElement
+            : overlaySink.getPortalElement;
 
-    const [portalElementFromState, setPortalElement] = useState(getPortalElement);
-    let portalElement = portalElementFromState;
+    const getBlockingCoverPortalElement = isBlocking
+        ? overlaySink.getRootBlockingPortalElement
+        : null;
+
+    const [elementState, setElementState] = useState<{
+        portalElement: HTMLDivElement | null;
+        blockingCoverPortalElement: HTMLDivElement | null;
+    }>(() => ({
+        portalElement: getPortalElement(),
+        blockingCoverPortalElement: getBlockingCoverPortalElement?.() ?? null,
+    }));
+
+    let {portalElement, blockingCoverPortalElement} = elementState;
 
     // If we are making the overlay visible and we initially read the portal ref as
     // `null` but not the portal ref has a value, update our state without waiting
     // for an effect.
-    if (isVisible && portalElement === null) {
+    if (
+        isVisible &&
+        (portalElement === null ||
+            (blockingCoverPortalElement === null && getBlockingCoverPortalElement !== null))
+    ) {
         const currentPortalElement = getPortalElement();
-        if (currentPortalElement !== null) {
-            portalElement = currentPortalElement;
-            setPortalElement(currentPortalElement);
+        const currentBlockingCoverPortalElement = getBlockingCoverPortalElement?.() ?? null;
+
+        if (currentPortalElement !== null || currentBlockingCoverPortalElement !== null) {
+            if (currentPortalElement !== null) portalElement = currentPortalElement;
+            if (currentBlockingCoverPortalElement !== null)
+                blockingCoverPortalElement = currentBlockingCoverPortalElement;
+
+            setElementState({portalElement, blockingCoverPortalElement});
         }
     }
 
@@ -270,8 +315,12 @@ function Overlay(
     // effect here to prevent flashes.
     useEffect(() => {
         if (!isVisible) return;
-        setPortalElement(getPortalElement);
-    }, [getPortalElement, isVisible]);
+
+        setElementState({
+            portalElement: getPortalElement(),
+            blockingCoverPortalElement: getBlockingCoverPortalElement?.() ?? null,
+        });
+    }, [getBlockingCoverPortalElement, getPortalElement, isVisible]);
 
     const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
 
@@ -425,109 +474,189 @@ function Overlay(
                                 }px`;
                             },
                         },
-                        ...(isBlocking && shouldBlockingCoverExcludeTarget
-                            ? [
-                                  {
-                                      name: "updateBlockingCover",
-                                      enabled: true,
-                                      phase: "afterWrite" as const,
-                                      fn: ({state}: {state: State}) => {
-                                          assertExists(blockingCover).setTargetRect(
-                                              state.rects.reference,
-                                          );
-                                      },
-                                  },
-                              ]
-                            : []),
+                        {
+                            name: "updateBlockingCoverRead",
+                            enabled:
+                                isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
+                            phase: "read" as const,
+                            fn: ({state}: {state: State}) => {
+                                const scrollParent =
+                                    state.scrollParents.popper[0] instanceof HTMLElement
+                                        ? state.scrollParents.popper[0]
+                                        : null;
+                                if (!scrollParent) return;
+
+                                const scrollParentRect = scrollParent.getBoundingClientRect();
+
+                                state.modifiersData.updateBlockingCoverRead = {
+                                    scrollParentRect: {
+                                        x: scrollParentRect.x - scrollParent.scrollLeft,
+                                        y: scrollParentRect.y - scrollParent.scrollTop,
+                                        width: scrollParentRect.width,
+                                        height: scrollParentRect.height,
+                                    },
+                                };
+                            },
+                        },
+                        {
+                            name: "updateBlockingCoverWrite",
+                            enabled:
+                                isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
+                            phase: "write" as const,
+                            fn: ({state}: {state: State}) => {
+                                const scrollParentRect: Rect | undefined =
+                                    state.modifiersData.updateBlockingCoverRead?.scrollParentRect;
+
+                                const rects = {
+                                    target: {
+                                        width: state.rects.reference.width,
+                                        height: state.rects.reference.height,
+                                        x: state.rects.reference.x + (scrollParentRect?.x ?? 0),
+                                        y: state.rects.reference.y + (scrollParentRect?.y ?? 0),
+                                    },
+                                    overlay: {
+                                        width: state.rects.popper.width,
+                                        height: state.rects.popper.height,
+                                        x:
+                                            (state.modifiersData.popperOffsets?.x ?? 0) +
+                                            (scrollParentRect?.x ?? 0),
+                                        y:
+                                            (state.modifiersData.popperOffsets?.y ?? 0) +
+                                            (scrollParentRect?.y ?? 0),
+                                    },
+                                };
+
+                                if (isCreatingPopper) {
+                                    assertExists(blockingCover).setRects(rects);
+                                } else {
+                                    flushSync(() => {
+                                        assertExists(blockingCover).setRects(rects);
+                                    });
+                                }
+                            },
+                            // If `isBlocking` is true and `withoutRootBlockingScope` is true then we need
+                            // to make sure scrolling in the overlay element won't end up scrolling the
+                            // overlay's scrollable parent. We do this by attaching event listeners that'll
+                            // call `event.preventDefault()` when the user tries to scroll.
+                            //
+                            // Try removing this then scrolling a blocking overlay which can't scroll (e.g.
+                            // the task priority input). Scrolling on the priority input will scroll the
+                            // view whereas scrolling on the blocking cover will do nothing.
+                            effect: ({state}: {state: State}) => {
+                                if (!withoutRootBlockingScope) return;
+
+                                const scrollParent =
+                                    state.scrollParents.popper[0] instanceof HTMLElement
+                                        ? state.scrollParents.popper[0]
+                                        : null;
+                                if (!scrollParent) return;
+
+                                return disableScrollInteractions(
+                                    scrollParent,
+                                    (event, targetScrollableParent) =>
+                                        targetScrollableParent !== null &&
+                                        overlayRef.current !== null &&
+                                        overlayRef.current.contains(targetScrollableParent.element),
+                                );
+                            },
+                        },
                     ],
                 };
             };
 
-            // The Popper library was deprecated and replaced with Floating UI.
-            // Functionality-wise, Popper is still working great for us. The Popper
-            // documentation lives on here:
-            // https://popper.js.org/docs/v2/
-            const popper = createPopper(targetElement, overlayElement, getOptions());
+            let isCreatingPopper = true;
+            try {
+                // The Popper library was deprecated and replaced with Floating UI.
+                // Functionality-wise, Popper is still working great for us. The Popper
+                // documentation lives on here:
+                // https://popper.js.org/docs/v2/
+                const popper = createPopper(targetElement, overlayElement, getOptions());
 
-            popperRef.current = popper;
+                popperRef.current = popper;
 
-            // Make sure Popper is positioned correctly. We find that sometimes after
-            // parameter updates (e.g. `placement` changes), Popper won't have the
-            // right position.
-            popper.forceUpdate();
+                // Make sure Popper is positioned correctly. We find that sometimes after
+                // parameter updates (e.g. `placement` changes), Popper won't have the
+                // right position.
+                popper.forceUpdate();
 
-            // Update the overlay placement if the target element resizes.
-            const handleResize = () => popper.forceUpdate();
-            addResizeListenerForElement(targetElement, handleResize);
+                // Update the overlay placement if the target element resizes.
+                const handleResize = () => popper.forceUpdate();
+                addResizeListenerForElement(targetElement, handleResize);
 
-            // If we're using `sameWidth` or `sameHeight` then calling
-            // `popper.forceUpdate()` after a resize will cause the overlay element to
-            // resize. It's ok if resize listeners don't fire on the overlay element after
-            // this.
-            if (sameWidth || sameHeight) {
-                addSuppressResizeLoopErrorNotificationForElement(targetElement);
-            }
-
-            const originalTargetElementId = targetElement.id;
-            const originalOverlayElementId = overlayElement.id;
-
-            const cleanupTargetElementAttributes = setElementAttributesWithCleanup(targetElement, {
-                id: !originalTargetElementId ? defaultTargetElementId : undefined,
-
-                "aria-owns": originalOverlayElementId
-                    ? originalOverlayElementId
-                    : `${defaultTargetElementId}-overlay`,
-            });
-
-            const cleanupOverlayElementAttributes = setElementAttributesWithCleanup(
-                overlayElement,
-                {
-                    id: !originalOverlayElementId ? `${defaultTargetElementId}-overlay` : undefined,
-
-                    "data-ownedby": originalTargetElementId
-                        ? originalTargetElementId
-                        : defaultTargetElementId,
-                },
-            );
-
-            const cleanupBlockingCoverElementAttributes = blockingCover
-                ? setElementAttributesWithCleanup(blockingCover.getElement(), {
-                      "data-ownedby": originalOverlayElementId
-                          ? originalOverlayElementId
-                          : `${defaultTargetElementId}-overlay`,
-                  })
-                : null;
-
-            // If the mobile keyboard frame changes while our overlay is visible then
-            // update the overlay's options with the new covered height (read in
-            // `getOptions()`).
-            const unsubscribeFromMobileKeyboardFrameChange = subscribeToMobileKeyboardFrameChange(
-                () => {
-                    void popper.setOptions(getOptions());
-                },
-            );
-
-            return () => {
-                popperRef.current = null;
-                popper.destroy();
-                removeResizeListenerForElement(targetElement, handleResize);
+                // If we're using `sameWidth` or `sameHeight` then calling
+                // `popper.forceUpdate()` after a resize will cause the overlay element to
+                // resize. It's ok if resize listeners don't fire on the overlay element after
+                // this.
                 if (sameWidth || sameHeight) {
-                    removeSuppressResizeLoopErrorNotificationForElement(targetElement);
+                    addSuppressResizeLoopErrorNotificationForElement(targetElement);
                 }
-                cleanupTargetElementAttributes();
-                cleanupOverlayElementAttributes();
-                cleanupBlockingCoverElementAttributes?.();
-                unsubscribeFromMobileKeyboardFrameChange();
-            };
+
+                const originalTargetElementId = targetElement.id;
+                const originalOverlayElementId = overlayElement.id;
+
+                const cleanupTargetElementAttributes = setElementAttributesWithCleanup(
+                    targetElement,
+                    {
+                        id: !originalTargetElementId ? defaultTargetElementId : undefined,
+
+                        "aria-owns": originalOverlayElementId
+                            ? originalOverlayElementId
+                            : `${defaultTargetElementId}-overlay`,
+                    },
+                );
+
+                const cleanupOverlayElementAttributes = setElementAttributesWithCleanup(
+                    overlayElement,
+                    {
+                        id: !originalOverlayElementId
+                            ? `${defaultTargetElementId}-overlay`
+                            : undefined,
+
+                        "data-ownedby": originalTargetElementId
+                            ? originalTargetElementId
+                            : defaultTargetElementId,
+                    },
+                );
+
+                const cleanupBlockingCoverElementAttributes = blockingCover
+                    ? setElementAttributesWithCleanup(blockingCover.getElement(), {
+                          "data-ownedby": originalOverlayElementId
+                              ? originalOverlayElementId
+                              : `${defaultTargetElementId}-overlay`,
+                      })
+                    : null;
+
+                // If the mobile keyboard frame changes while our overlay is visible then
+                // update the overlay's options with the new covered height (read in
+                // `getOptions()`).
+                const unsubscribeFromMobileKeyboardFrameChange =
+                    subscribeToMobileKeyboardFrameChange(() => {
+                        void popper.setOptions(getOptions());
+                    });
+
+                return () => {
+                    popperRef.current = null;
+                    popper.destroy();
+                    removeResizeListenerForElement(targetElement, handleResize);
+                    if (sameWidth || sameHeight) {
+                        removeSuppressResizeLoopErrorNotificationForElement(targetElement);
+                    }
+                    cleanupTargetElementAttributes();
+                    cleanupOverlayElementAttributes();
+                    cleanupBlockingCoverElementAttributes?.();
+                    unsubscribeFromMobileKeyboardFrameChange();
+                };
+            } finally {
+                isCreatingPopper = false;
+            }
         },
         [
             isVisible,
             portalElement,
             isBlocking,
-            sameWidth,
             sameHeight,
-            defaultTargetElementId,
             getCurrentCoveredHeight,
+            sameWidth,
             overlaySink.insetLeft,
             overlaySink.insetRight,
             placement,
@@ -535,7 +664,9 @@ function Overlay(
             fallbackPlacements,
             offsetAlong,
             offset,
-            shouldBlockingCoverExcludeTarget,
+            withoutRootBlockingScope,
+            withoutBlockingTarget,
+            defaultTargetElementId,
         ],
     );
 
@@ -549,6 +680,7 @@ function Overlay(
     // Update popper every React re-render.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!isVisible) return;
+
         // Run in a microtask so that parent effects run before we update the
         // popper position.
         scheduleMicrotask(() => {
@@ -576,16 +708,17 @@ function Overlay(
                 )}
             {isVisible &&
                 isBlocking &&
-                portalElement &&
+                blockingCoverPortalElement &&
                 // When we have a blocking overlay add a cover to the document to prevent
                 // scrolling, hover effects, and any other interaction while the context menu
                 // is open.
                 createPortal(
                     <OverlayBlockingCover
                         ref={blockingCoverRef}
-                        shouldExcludeTarget={shouldBlockingCoverExcludeTarget}
+                        shouldExcludeTarget={withoutBlockingTarget}
+                        shouldExcludeOverlay={withoutRootBlockingScope}
                     />,
-                    portalElement,
+                    blockingCoverPortalElement,
                 )}
             {useElementWithRef(children, useLifecycleRef(targetLifecycleRef))}
         </>
@@ -769,42 +902,88 @@ function BlockingOverlayScopeContextProvider({children}: {children: ReactNode}) 
 
 type OverlayBlockingCoverRef = {
     getElement(): HTMLDivElement;
-    setTargetRect(targetRect: Rect): void;
+    setRects(rects: {target: Rect; overlay: Rect}): void;
 };
 
+const shouldDebugOverlayBlockingCover = false;
+
+// Only allow `shouldDebugOverlayBlockingCover` to be true in development.
+if (process.env.NODE_ENV !== "development") {
+    assert(!shouldDebugOverlayBlockingCover);
+}
+
 const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
-    {shouldExcludeTarget}: {shouldExcludeTarget: boolean},
+    {
+        shouldExcludeTarget,
+        shouldExcludeOverlay,
+    }: {
+        shouldExcludeTarget: boolean;
+        shouldExcludeOverlay: boolean;
+    },
     ref: Ref<OverlayBlockingCoverRef>,
 ) {
     const elementRef = useRef<HTMLDivElement>(null);
 
-    const [targetRect, setTargetRect] = useState<Rect | null>(null);
-    if (targetRect && !shouldExcludeTarget) setTargetRect(null);
+    const [rectFromState, setRects] = useState<{target: Rect; overlay: Rect} | null>(null);
+    let rects = rectFromState;
+    if (rectFromState && !shouldExcludeTarget && !shouldExcludeOverlay) {
+        rects = null;
+        setRects(null);
+    }
+
+    const coverRects = useMemo(() => {
+        if (!rects) return null;
+
+        let coverRects = [new Rectangle(0, 0, Infinity, Infinity)];
+
+        if (shouldExcludeTarget) {
+            coverRects = coverRects.flatMap(coverRect =>
+                coverRect.difference(Rectangle.from(rects!.target)),
+            );
+        }
+
+        if (shouldExcludeOverlay) {
+            coverRects = coverRects.flatMap(coverRect =>
+                coverRect.difference(Rectangle.from(rects!.overlay)),
+            );
+        }
+
+        return coverRects;
+    }, [rects, shouldExcludeOverlay, shouldExcludeTarget]);
 
     useImperativeHandle(
         ref,
         () => ({
             getElement: () => assertExists(elementRef.current),
-            setTargetRect: newTargetRect => {
-                setTargetRect(oldTargetRect => {
+            setRects: newRects => {
+                const {target: newTargetRect, overlay: newOverlayRect} = newRects;
+
+                setRects(oldRects => {
+                    if (!oldRects) return newRects;
+
+                    const {target: oldTargetRect, overlay: oldOverlayRect} = oldRects;
+
                     if (
-                        oldTargetRect &&
                         oldTargetRect.width === newTargetRect.width &&
                         oldTargetRect.height === newTargetRect.height &&
                         oldTargetRect.x === newTargetRect.x &&
-                        oldTargetRect.y === newTargetRect.y
+                        oldTargetRect.y === newTargetRect.y &&
+                        oldOverlayRect.width === newOverlayRect.width &&
+                        oldOverlayRect.height === newOverlayRect.height &&
+                        oldOverlayRect.x === newOverlayRect.x &&
+                        oldOverlayRect.y === newOverlayRect.y
                     ) {
-                        return oldTargetRect;
+                        return oldRects;
                     }
 
-                    return newTargetRect;
+                    return newRects;
                 });
             },
         }),
         [],
     );
 
-    if (!shouldExcludeTarget || !targetRect) {
+    if (!coverRects) {
         return (
             <Box
                 ref={elementRef}
@@ -826,38 +1005,25 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                 zIndex="-10"
                 style={{width: "100vw", height: "100vh"}}
             >
-                <Box
-                    pointerEvents="auto"
-                    position="absolute"
-                    top="0"
-                    left="0"
-                    right="0"
-                    style={{bottom: `calc(100vh - ${targetRect.y}px)`}}
-                />
-                <Box
-                    pointerEvents="auto"
-                    position="absolute"
-                    bottom="0"
-                    left="0"
-                    right="0"
-                    style={{top: targetRect.y + targetRect.height}}
-                />
-                <Box
-                    pointerEvents="auto"
-                    position="absolute"
-                    top="0"
-                    bottom="0"
-                    left="0"
-                    style={{right: `calc(100vw - ${targetRect.x}px)`}}
-                />
-                <Box
-                    pointerEvents="auto"
-                    position="absolute"
-                    top="0"
-                    bottom="0"
-                    right="0"
-                    style={{left: targetRect.x + targetRect.width}}
-                />
+                {coverRects.map((coverRect, i) => (
+                    <Box
+                        key={i}
+                        pointerEvents="auto"
+                        position="absolute"
+                        opacity={shouldDebugOverlayBlockingCover ? "50" : undefined}
+                        backgroundColor={shouldDebugOverlayBlockingCover ? "red-10" : undefined}
+                        style={{
+                            top: isFinite(coverRect.top) ? `${coverRect.top}px` : "100vh",
+                            bottom: isFinite(coverRect.bottom)
+                                ? `calc(100vh - ${coverRect.bottom}px)`
+                                : "0",
+                            left: isFinite(coverRect.left) ? `${coverRect.left}px` : "100vw",
+                            right: isFinite(coverRect.right)
+                                ? `calc(100vw - ${coverRect.right}px)`
+                                : "0",
+                        }}
+                    />
+                ))}
             </Box>
         );
     }
