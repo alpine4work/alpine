@@ -587,7 +587,11 @@ function Overlay(
                 // `popper.forceUpdate()` after a resize will cause the overlay element to
                 // resize. It's ok if resize listeners don't fire on the overlay element after
                 // this.
-                if (sameWidth || sameHeight) {
+                if (
+                    sameWidth ||
+                    sameHeight ||
+                    (isBlocking && (withoutRootBlockingScope || withoutBlockingTarget))
+                ) {
                     addSuppressResizeLoopErrorNotificationForElement(targetElement);
                 }
 
@@ -638,7 +642,11 @@ function Overlay(
                     popperRef.current = null;
                     popper.destroy();
                     removeResizeListenerForElement(targetElement, handleResize);
-                    if (sameWidth || sameHeight) {
+                    if (
+                        sameWidth ||
+                        sameHeight ||
+                        (isBlocking && (withoutRootBlockingScope || withoutBlockingTarget))
+                    ) {
                         removeSuppressResizeLoopErrorNotificationForElement(targetElement);
                     }
                     cleanupTargetElementAttributes();
