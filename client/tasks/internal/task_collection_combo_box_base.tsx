@@ -308,9 +308,8 @@ export function TaskCollectionComboBoxListBox({
 
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
-            <ul
-                {...listBoxProps}
-                ref={useMergedRefs(listBoxRef, useScrollbar())}
+            <div
+                ref={useScrollbar()}
                 className={sprinkles({
                     position: "relative",
                     flexGrow: "1",
@@ -320,57 +319,59 @@ export function TaskCollectionComboBoxListBox({
                     display: shouldShowInstructionalPlaceholder ? "none" : undefined,
                 })}
             >
-                {comboBoxState.collection.size === 0 ? (
-                    <Box
-                        padding="1.5"
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        style={{
-                            height: addRemLengths(
-                                spacing["1.5"],
-                                fontSizes["75"].lineHeight,
-                                fontSizes["50"].lineHeight,
-                                spacing["1.5"],
-                            ),
-                        }}
-                    >
-                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
-                    </Box>
-                ) : itemsWithoutCreateCollectionButton.length === 0 ? (
-                    // Mimic the structure of a `<TaskCollectionOption>`
-                    <Box padding="1.5" display="flex" alignItems="flex-start" gap="1.5">
+                <ul {...listBoxProps} ref={listBoxRef}>
+                    {comboBoxState.collection.size === 0 ? (
                         <Box
-                            flexShrink="0"
-                            height="4"
+                            padding="1.5"
                             display="flex"
                             justifyContent="center"
                             alignItems="center"
+                            style={{
+                                height: addRemLengths(
+                                    spacing["1.5"],
+                                    fontSizes["75"].lineHeight,
+                                    fontSizes["50"].lineHeight,
+                                    spacing["1.5"],
+                                ),
+                            }}
                         >
+                            <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                        </Box>
+                    ) : itemsWithoutCreateCollectionButton.length === 0 ? (
+                        // Mimic the structure of a `<TaskCollectionOption>`
+                        <Box padding="1.5" display="flex" alignItems="flex-start" gap="1.5">
                             <Box
-                                width="3"
-                                height="3"
-                                color={taskCollectionOptionSecondaryTextColor}
+                                flexShrink="0"
+                                height="4"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
                             >
-                                {!shouldHideNoResultsIcon && (
-                                    <MagnifyingGlass size={spacing["3"]} />
-                                )}
+                                <Box
+                                    width="3"
+                                    height="3"
+                                    color={taskCollectionOptionSecondaryTextColor}
+                                >
+                                    {!shouldHideNoResultsIcon && (
+                                        <MagnifyingGlass size={spacing["3"]} />
+                                    )}
+                                </Box>
+                            </Box>
+                            <Box>
+                                <Box
+                                    fontStyle="truncate"
+                                    color={taskCollectionOptionSecondaryTextColor}
+                                >
+                                    No results
+                                </Box>
+                                <Box style={{height: fontSizes["50"].lineHeight}}></Box>
                             </Box>
                         </Box>
-                        <Box>
-                            <Box
-                                fontStyle="truncate"
-                                color={taskCollectionOptionSecondaryTextColor}
-                            >
-                                No results
-                            </Box>
-                            <Box style={{height: fontSizes["50"].lineHeight}}></Box>
-                        </Box>
-                    </Box>
-                ) : (
-                    itemsWithoutCreateCollectionButton
-                )}
-            </ul>
+                    ) : (
+                        itemsWithoutCreateCollectionButton
+                    )}
+                </ul>
+            </div>
             {shouldShowInstructionalPlaceholder ? (
                 <TaskCollectionComboBoxInstructionalPlaceholder
                     createCollectionButton={

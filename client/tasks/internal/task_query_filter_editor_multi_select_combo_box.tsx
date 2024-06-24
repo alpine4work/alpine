@@ -362,9 +362,8 @@ function TaskQueryFilterEditorMultiSelectListBox({
     const {listBoxProps} = useListBox({..._listBoxProps, autoFocus: false}, listState, listBoxRef);
 
     return (
-        <ul
-            {...listBoxProps}
-            ref={useMergedRefs(listBoxRef, useScrollbar())}
+        <div
+            ref={useScrollbar()}
             className={sprinkles({
                 position: "relative",
                 flexGrow: "1",
@@ -373,28 +372,46 @@ function TaskQueryFilterEditorMultiSelectListBox({
                 overflowY: "auto",
             })}
         >
-            {useMemo(() => {
-                // The list of collection items shouldn't need to re-render whenever the
-                // combobox opens, closes, or animates. Hence the `useMemo()`.
-                return listState.collection.size === 0 ? (
-                    <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">
-                        <Box padding="0.5">
-                            <MagnifyingGlass size={spacing["4"]} />
+            <ul
+                {...listBoxProps}
+                ref={listBoxRef}
+                className={sprinkles({
+                    position: "relative",
+                    flexGrow: "1",
+                    padding: "1",
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                })}
+            >
+                {useMemo(() => {
+                    // The list of collection items shouldn't need to re-render whenever the
+                    // combobox opens, closes, or animates. Hence the `useMemo()`.
+                    return listState.collection.size === 0 ? (
+                        <Box
+                            padding="1.5"
+                            display="flex"
+                            alignItems="center"
+                            gap="1.5"
+                            color="grey-70"
+                        >
+                            <Box padding="0.5">
+                                <MagnifyingGlass size={spacing["4"]} />
+                            </Box>
+                            <Box>No results</Box>
                         </Box>
-                        <Box>No results</Box>
-                    </Box>
-                ) : (
-                    Array.from(listState.collection, item => (
-                        <TaskQueryFilterEditorMultiSelectListBoxOption
-                            key={item.key}
-                            listState={listState}
-                            item={item}
-                            optionCheckboxMarginTop={optionCheckboxMarginTop}
-                        />
-                    ))
-                );
-            }, [listState, optionCheckboxMarginTop])}
-        </ul>
+                    ) : (
+                        Array.from(listState.collection, item => (
+                            <TaskQueryFilterEditorMultiSelectListBoxOption
+                                key={item.key}
+                                listState={listState}
+                                item={item}
+                                optionCheckboxMarginTop={optionCheckboxMarginTop}
+                            />
+                        ))
+                    );
+                }, [listState, optionCheckboxMarginTop])}
+            </ul>
+        </div>
     );
 }
 

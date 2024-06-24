@@ -776,9 +776,8 @@ function ChatAccountPickerListBox({
     const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
 
     return (
-        <ul
-            {...listBoxProps}
-            ref={useMergedRefs(listBoxRef, useScrollbar())}
+        <div
+            ref={useScrollbar()}
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
@@ -794,30 +793,32 @@ function ChatAccountPickerListBox({
                 }),
             )}
         >
-            {comboBoxState.collection.size === 0 ? (
-                <Box
-                    paddingX="1.5"
-                    paddingY="1.5"
-                    display="flex"
-                    alignItems="center"
-                    gap="2"
-                    color="grey-70"
-                >
-                    <Box padding="1">
-                        <MagnifyingGlass size={spacing["4"]} />
+            <ul {...listBoxProps} ref={listBoxRef}>
+                {comboBoxState.collection.size === 0 ? (
+                    <Box
+                        paddingX="1.5"
+                        paddingY="1.5"
+                        display="flex"
+                        alignItems="center"
+                        gap="2"
+                        color="grey-70"
+                    >
+                        <Box padding="1">
+                            <MagnifyingGlass size={spacing["4"]} />
+                        </Box>
+                        <Box>No results</Box>
                     </Box>
-                    <Box>No results</Box>
-                </Box>
-            ) : (
-                Array.from(comboBoxState.collection, item => (
-                    <ChatAccountPickerListBoxOption
-                        key={item.key}
-                        comboBoxState={comboBoxState}
-                        item={item}
-                    />
-                ))
-            )}
-        </ul>
+                ) : (
+                    Array.from(comboBoxState.collection, item => (
+                        <ChatAccountPickerListBoxOption
+                            key={item.key}
+                            comboBoxState={comboBoxState}
+                            item={item}
+                        />
+                    ))
+                )}
+            </ul>
+        </div>
     );
 }
 
