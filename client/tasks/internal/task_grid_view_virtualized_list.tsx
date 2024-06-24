@@ -255,7 +255,7 @@ export function useTaskGridViewVirtualizedList({
     withoutDecorativeGhostRowsIfEmpty = false,
     initiallyWithTopGhostTaskRow = false,
     onApplyUndoStackEntry,
-    getAnchorPosition,
+    getAnchorPosition: getAnchorPositionFromProps,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef>;
@@ -1044,6 +1044,92 @@ export function useTaskGridViewVirtualizedList({
     };
 
     /* ========================================================================== *\
+     *                              Mobile Scrolling                              *
+    \* ========================================================================== */
+
+    const getAnchorPosition = useCallback(
+        (oldVisibleRect: {top: number; bottom: number}): {top: number; height: number} | null => {
+            const anchorPositionFromProps = getAnchorPositionFromProps?.(oldVisibleRect);
+            if (anchorPositionFromProps) return anchorPositionFromProps;
+
+            const {activeElement} = document;
+            const viewContentElement = assertExists(viewRef.current).getContentElement();
+
+            if (
+                !(activeElement instanceof Element) ||
+                !isElementOwnedBy(viewContentElement, activeElement)
+            ) {
+                return null;
+            }
+
+            // `<TaskDateInput>` and `<TaskCollectionsInput>` handle their own scrolling
+            // when focused since they need to make sure their overlays are visible on
+            // screen even when the keyboard is already open. So don't adjust to avoid the
+            // keyboard if we're focusing one of those components. See those components for
+            // their custom scroll to avoid keyboard implementation.
+            if (activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)) {
+                return null;
+            }
+
+            const activeRect = activeElement.getBoundingClientRect();
+
+            // If we focused on a listbox, scroll to make sure the element the listbox
+            // controls is visible. For example, the collections combobox opened by the
+            // collection filter (`<TaskQueryCollectionsFilterOperationEditor>`).
+            const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
+            if (ariaControlsAttribute) {
+                const ariaControls = ariaControlsAttribute.split(" ")[0]!;
+                let controlsElement = document.getElementById(ariaControls);
+
+                // Support the case where our `listbox` is a `<ul>` wrapped in a `<div>` with
+                // `overflow-y: auto`. We should use the size of the wrapping `<div>` not the
+                // `<ul>`. Generally, perhaps we should call some kind of `getScrollParent()`
+                // function.
+                if (
+                    controlsElement?.parentElement &&
+                    getComputedStyle(controlsElement).overflowY === "visible" &&
+                    getComputedStyle(controlsElement.parentElement).overflowY !== "visible"
+                ) {
+                    controlsElement = controlsElement.parentElement;
+                }
+
+                if (controlsElement) {
+                    const controlsRect = controlsElement.getBoundingClientRect();
+
+                    const top = Math.min(activeRect.top, controlsRect.top);
+                    const bottom = Math.max(activeRect.bottom, controlsRect.bottom);
+
+                    return {
+                        top,
+                        height: bottom - top,
+                    };
+                }
+            }
+
+            // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text
+            // near the end of the title input then we want to scroll to the user's
+            // selection. Not the full element's container.
+            if (activeElement instanceof HTMLElement && activeElement.contentEditable === "true") {
+                const selectionRect = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
+
+                // If the selection has a zero rect, return the active element's rect.
+                if (selectionRect && (selectionRect.width !== 0 || selectionRect.height !== 0)) {
+                    return selectionRect;
+                }
+            }
+
+            return activeRect;
+        },
+        [getAnchorPositionFromProps, viewRef],
+    );
+
+    // When the keyboard opens, make sure we scroll so that whatever's focused
+    // stays in view. (e.g. The text title input.)
+    const {getVisibleRect} = useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
+        getAnchorPosition,
+    });
+
+    /* ========================================================================== *\
      *                                   Events                                   *
     \* ========================================================================== */
 
@@ -1522,6 +1608,31 @@ export function useTaskGridViewVirtualizedList({
                 setZIndex();
             };
         },
+
+        scrollToAnchorPosition: () => {
+            const scrollableElement = assertExists(viewRef.current).getElement();
+            const visibleRect = getVisibleRect();
+
+            const anchorPosition = getAnchorPosition(visibleRect);
+            if (!anchorPosition) return;
+
+            const viewportHeight = document.documentElement.getBoundingClientRect().height;
+            const anchorBottom = anchorPosition.top + anchorPosition.height;
+
+            const clearanceBottom =
+                viewportHeight -
+                visibleRect.bottom -
+                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+
+            if (anchorBottom <= clearanceBottom) return;
+
+            const scrollDelta = anchorBottom - clearanceBottom;
+
+            scrollableElement.scrollTo({
+                top: scrollableElement.scrollTop + scrollDelta,
+                behavior: "smooth",
+            });
+        },
     });
 
     /* ========================================================================== *\
@@ -1870,97 +1981,6 @@ export function useTaskGridViewVirtualizedList({
             }
         };
     }, [animationState.animations, events]);
-
-    /* ========================================================================== *\
-     *                              Mobile Scrolling                              *
-    \* ========================================================================== */
-
-    // When the keyboard opens, make sure we scroll so that whatever's focused
-    // stays in view. (e.g. The text title input.)
-    useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
-        getAnchorPosition: useCallback(
-            oldVisibleRect => {
-                const anchorPositionFromProps = getAnchorPosition?.(oldVisibleRect);
-                if (anchorPositionFromProps) return anchorPositionFromProps;
-
-                const {activeElement} = document;
-                const viewContentElement = assertExists(viewRef.current).getContentElement();
-
-                if (
-                    !(activeElement instanceof Element) ||
-                    !isElementOwnedBy(viewContentElement, activeElement)
-                ) {
-                    return null;
-                }
-
-                // `<TaskDateInput>` and `<TaskCollectionsInput>` handle their own scrolling
-                // when focused since they need to make sure their overlays are visible on
-                // screen even when the keyboard is already open. So don't adjust to avoid the
-                // keyboard if we're focusing one of those components. See those components for
-                // their custom scroll to avoid keyboard implementation.
-                if (
-                    activeElement.classList.contains(tasksStyles.dateInputTextSegmentClassName) ||
-                    activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)
-                ) {
-                    return null;
-                }
-
-                const activeRect = activeElement.getBoundingClientRect();
-
-                // If we focused on a listbox, scroll to make sure the element the listbox
-                // controls is visible. For example, the collections combobox opened by the
-                // collection filter (`<TaskQueryCollectionsFilterOperationEditor>`).
-                const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
-                if (ariaControlsAttribute) {
-                    const ariaControls = ariaControlsAttribute.split(" ")[0]!;
-                    let controlsElement = document.getElementById(ariaControls);
-
-                    // Support the case where our `listbox` is a `<ul>` wrapped in a `<div>` with
-                    // `overflow-y: auto`. We should use the size of the wrapping `<div>` not the
-                    // `<ul>`. Generally, perhaps we should call some kind of `getScrollParent()`
-                    // function.
-                    if (
-                        controlsElement?.parentElement &&
-                        getComputedStyle(controlsElement).overflowY === "visible" &&
-                        getComputedStyle(controlsElement.parentElement).overflowY !== "visible"
-                    ) {
-                        controlsElement = controlsElement.parentElement;
-                    }
-
-                    if (controlsElement) {
-                        const controlsRect = controlsElement.getBoundingClientRect();
-
-                        const top = Math.min(activeRect.top, controlsRect.top);
-                        const bottom = Math.max(activeRect.bottom, controlsRect.bottom);
-
-                        return {
-                            top,
-                            height: bottom - top,
-                        };
-                    }
-                }
-
-                // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text
-                // near the end of the title input then we want to scroll to the user's
-                // selection. Not the full element's container.
-                if (
-                    activeElement instanceof HTMLElement &&
-                    activeElement.contentEditable === "true"
-                ) {
-                    const selectionRect = window
-                        .getSelection()
-                        ?.getRangeAt(0)
-                        .getBoundingClientRect();
-                    if (selectionRect) {
-                        return selectionRect;
-                    }
-                }
-
-                return activeRect;
-            },
-            [getAnchorPosition, viewRef],
-        ),
-    });
 
     /* ========================================================================== *\
      *                               Item Rendering                               *
@@ -2435,6 +2455,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
     readonly scrollLastVisiblePageDownTaskIntoView: () => Promise<TaskRowViewRef | null>;
     readonly setTaskRowZIndex: (gridKey: TaskGridViewTaskKey, zIndex: number) => () => void;
+    readonly scrollToAnchorPosition: () => void;
 }>;
 
 export function getTaskGridViewColumnHeaderWithControlsHeight(
@@ -3732,6 +3753,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 [events, gridKey],
             )}
             mobileKeyboardToolbarPortalRef={mobileKeyboardToolbarPortalRef}
+            scrollToAnchorPosition={events.scrollToAnchorPosition}
         />
     );
 });

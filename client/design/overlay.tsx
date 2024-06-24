@@ -19,7 +19,10 @@ import {createPortal, flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
+import {
+    getElementSafeAreaInsetTopPx,
+    getElementWindowSafeAreaInsetBottomPx,
+} from "~/client/design/safe_area_inset.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {disableScrollInteractions} from "~/client/helpers/disable_scroll_interactions.js";
@@ -37,6 +40,7 @@ import {
     RemLength,
     Spacing,
     convertRemLengthToPx,
+    isSpacing,
     parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing.js";
@@ -131,6 +135,25 @@ export type OverlayProps = {
      * Defaults to `true`.
      */
     preventOverflow?: boolean;
+
+    /**
+     * Space at the bottom of the screen we consider to be "overflow" area. That is
+     * if an overlay is placed in this area the overlay will flip to a fallback
+     * placement to avoid rendering in the area.
+     *
+     * Useful if on mobile your overlay is open when the software keyboard is open.
+     * You can set some overflow bottom to ensure the overlay won't render in
+     * keyboard space even when the keyboard is closed. So when the keyboard opens
+     * the overlay won't jump around.
+     *
+     * Bottom safe area is added to this value but NOT bottom bar height.
+     *
+     * By default, this will use the mobile keyboard's height if the keyboard is
+     * open. That default isn't enough if you're opening an overlay at the same
+     * time the keyboard is opening. Since your overlay may open before the
+     * keyboard animation causing your overlay to jump around.
+     */
+    overflowBottom?: Spacing | RemLength;
 
     /**
      * Makes the overlay width the same width as the content the overlay is
@@ -231,6 +254,7 @@ function Overlay(
         offset,
         offsetAlong,
         preventOverflow = true,
+        overflowBottom,
         sameWidth = false,
         sameHeight = false,
         isBlocking = false,
@@ -349,7 +373,19 @@ function Overlay(
 
                 const padding = {
                     top: sameHeight ? 0 : paddingPx + getElementSafeAreaInsetTopPx(targetElement),
-                    bottom: sameHeight ? 0 : paddingPx + getCurrentCoveredHeight(),
+                    bottom: sameHeight
+                        ? 0
+                        : paddingPx +
+                          (overflowBottom === undefined
+                              ? getCurrentCoveredHeight()
+                              : getElementWindowSafeAreaInsetBottomPx(targetElement) +
+                                parseRemLengthNumber(
+                                    isSpacing(overflowBottom)
+                                        ? spacing[overflowBottom]
+                                        : overflowBottom,
+                                ) *
+                                    remPx),
+
                     left: sameWidth
                         ? 0
                         : paddingPx +
@@ -478,7 +514,8 @@ function Overlay(
                             name: "updateBlockingCoverRead",
                             enabled:
                                 isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
-                            phase: "read" as const,
+                            phase: "main" as const,
+                            requires: ["hide"],
                             fn: ({state}: {state: State}) => {
                                 const scrollParent =
                                     state.scrollParents.popper[0] instanceof HTMLElement
@@ -663,6 +700,7 @@ function Overlay(
             portalElement,
             isBlocking,
             sameHeight,
+            overflowBottom,
             getCurrentCoveredHeight,
             sameWidth,
             overlaySink.insetLeft,

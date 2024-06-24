@@ -36,6 +36,7 @@ export function TaskDateInputText({
     onDateChange,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
+    overlayId,
     isReadOnly,
     isEditing,
     shouldIncludeCalendarIcon,
@@ -53,6 +54,7 @@ export function TaskDateInputText({
     onDateChange: (date: CalendarDate | null) => void;
     "aria-label"?: string;
     "aria-labelledby"?: string;
+    overlayId: string;
     isReadOnly: boolean;
     isEditing: boolean;
     shouldIncludeCalendarIcon: boolean;
@@ -248,6 +250,7 @@ export function TaskDateInputText({
                             state={state}
                             segment={segment}
                             areAllSegmentsPlaceholders={areAllSegmentsPlaceholders}
+                            overlayId={overlayId}
                             flexGrow={flexGrow}
                             paddingLeft={paddingLeft}
                             paddingRight={paddingRight}
@@ -383,6 +386,7 @@ function TaskDateInputTextSegment({
     state,
     segment,
     areAllSegmentsPlaceholders,
+    overlayId,
     flexGrow,
     paddingLeft,
     paddingRight,
@@ -397,6 +401,7 @@ function TaskDateInputTextSegment({
     state: DateFieldState;
     segment: DateSegment;
     areAllSegmentsPlaceholders: boolean;
+    overlayId: string;
     flexGrow: "1" | undefined;
     paddingLeft: "0" | "0.5" | "1" | "1.5" | undefined;
     paddingRight: "0" | "0.5" | "1" | "1.5" | undefined;
@@ -461,6 +466,7 @@ function TaskDateInputTextSegment({
                 {...segmentProps}
                 ref={ref}
                 tabIndex={!isTabbable ? -1 : segmentProps.tabIndex}
+                aria-controls={overlayId}
                 className={classNames(
                     tasksStyles.dateInputTextSegmentClassName,
                     sprinkles({

@@ -73,6 +73,7 @@ export function TaskGridViewMobileKeyboardToolbar({
     focusAssigneeInput,
     focusPriorityInput,
     focusDueDateInput,
+    scrollToAnchorPosition,
 }: {
     portalRef: RefObject<HTMLDivElement>;
     maxGridExpandableTaskDepth: number;
@@ -86,6 +87,7 @@ export function TaskGridViewMobileKeyboardToolbar({
     focusAssigneeInput: () => void;
     focusPriorityInput: () => void;
     focusDueDateInput: () => void;
+    scrollToAnchorPosition: () => void;
 }) {
     const portalElement = assertExists(
         portalRef.current,
@@ -116,11 +118,20 @@ export function TaskGridViewMobileKeyboardToolbar({
                     : null
             }
             isAssigneeActive={!!task?.getAssignee()}
-            onAssigneePress={focusAssigneeInput}
+            onAssigneePress={() => {
+                focusAssigneeInput();
+                scrollToAnchorPosition();
+            }}
             isPriorityActive={!!task?.getPriority()}
-            onPriorityPress={focusPriorityInput}
+            onPriorityPress={() => {
+                focusPriorityInput();
+                scrollToAnchorPosition();
+            }}
             isDueDateActive={!!task?.getDueDate()}
-            onDueDatePress={focusDueDateInput}
+            onDueDatePress={() => {
+                focusDueDateInput();
+                scrollToAnchorPosition();
+            }}
             onOpenPress={task ? () => navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`) : null}
         />,
         portalElement,

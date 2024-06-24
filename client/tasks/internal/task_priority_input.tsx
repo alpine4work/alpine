@@ -433,6 +433,13 @@ function TaskPriorityInput(
                 isBlocking={true}
                 withoutRootBlockingScope={true}
                 withoutBlockingTarget={true}
+                // Set a constant `overflowBottom` value instead of relying on the current
+                // keyboard height (which will be updated asynchronously after `isEditing` is
+                // true). This stops the overlay placement from jumping around while the
+                // keyboard opens. The value was calculated based on the keyboard height in
+                // iOS. We may need to change this constant if the keyboard height for iOS
+                // changes or the Android keyboard height is bigger.
+                overflowBottom={isMobile ? "64" : undefined}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskPriorityInputListBox

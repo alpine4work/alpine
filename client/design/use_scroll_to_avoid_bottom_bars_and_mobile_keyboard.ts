@@ -843,4 +843,61 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
         scrollableRef,
         subscribeToBottomBarFrameChange,
     ]);
+
+    return {
+        getVisibleRect: useCallback(() => {
+            const viewportHeight = document.documentElement.getBoundingClientRect().height;
+
+            const scrollable = assertExists(scrollableRef.current);
+            const scrollableElement: HTMLElement =
+                "getElement" in scrollable ? scrollable.getElement() : scrollable;
+
+            const remPx = getRemPxWithoutListening();
+
+            const currentScrollableRect = scrollableElement.getBoundingClientRect();
+            const currentBottomBarHeight = getCurrentBottomBarHeight();
+
+            const {top: currentScrollableTop, bottom: currentOriginalScrollableBottom} =
+                currentScrollableRect;
+
+            const scrollableInsetBottomPx =
+                typeof scrollableInsetBottom === "string"
+                    ? convertRemLengthToPx(scrollableInsetBottom, remPx)
+                    : scrollableInsetBottom;
+
+            const currentScrollableBottom =
+                currentOriginalScrollableBottom - scrollableInsetBottomPx;
+
+            const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
+                document.documentElement,
+            );
+
+            const tabBarHeight =
+                NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
+                    ? NativeMobileBridge.tabBar.height -
+                      NativeMobileBridge.tabBar.getDeferredScrollOffset()
+                    : 0;
+
+            // Considers:
+            //
+            // - Keyboard height
+            // - Bottom bar height
+            // - Safe area height
+            // - Tab bar height
+            const currentCoveredHeight =
+                Math.max(currentMobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
+                currentBottomBarHeight[
+                    currentMobileKeyboardHeight > 0
+                        ? "visibleMobileKeyboard"
+                        : "hiddenMobileKeyboard"
+                ];
+
+            const currentCoveredBottom = viewportHeight - currentCoveredHeight;
+
+            return {
+                top: Math.min(currentScrollableTop, currentCoveredBottom),
+                bottom: Math.min(currentScrollableBottom, currentCoveredBottom),
+            };
+        }, [getCurrentBottomBarHeight, scrollableInsetBottom, scrollableRef]),
+    };
 }

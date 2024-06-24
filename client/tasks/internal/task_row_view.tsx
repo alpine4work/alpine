@@ -331,6 +331,7 @@ function TaskRowView(
         pushRedoStackYDocEntry,
         setRowZIndex,
         mobileKeyboardToolbarPortalRef,
+        scrollToAnchorPosition,
     }: {
         capabilities: TaskGridViewCapabilities;
         maxGridExpandableTaskDepth: number;
@@ -394,6 +395,7 @@ function TaskRowView(
         pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
         mobileKeyboardToolbarPortalRef: RefObject<HTMLDivElement>;
+        scrollToAnchorPosition: () => void;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
@@ -1749,6 +1751,7 @@ function TaskRowView(
                         if (!capabilities.hasDenseFields) return;
                         assertExists(denseFieldsRef.current).focusDueDateInput();
                     }}
+                    scrollToAnchorPosition={scrollToAnchorPosition}
                 />
             )}
             {taskCloseConfirmationState && (
