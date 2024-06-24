@@ -11,7 +11,6 @@ import {
     useState,
 } from "react";
 import {useComboBox} from "react-aria";
-import {flushSync} from "react-dom";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
@@ -201,29 +200,7 @@ function TaskPriorityInput(
 
         onFocus: () => {
             // Open the combobox on focus.
-            //
-            // Wait an animation frame before opening the combobox and make sure we're
-            // still focused.
-            //
-            // In Chrome, if the user focuses an element then leaves to another app (e.g.
-            // clicks into the inspector panel) then clicks back into the page Chrome will
-            // `blur` when the user clicks out then dispatch `focus` + `blur` when the user
-            // clicks back in. We don't want to open the combo box if Chrome is dispatching
-            // `focus` + `blur` in rapid succession when the user refocuses the window
-            // since it looks janky to open then animate shut.
-            requestAnimationFrame(() => {
-                if (!inputRef.current) return;
-                const inputElement = inputRef.current;
-
-                if (document.activeElement === inputElement) {
-                    // Open the combobox on focus.
-                    //
-                    // `flushSync()` since this is in response to a user interaction. React would be
-                    // able to use the right priority if we set state directly in `onFocus` but
-                    // since we've deferred we need to set the right priority ourselves.
-                    flushSync(() => comboBoxState.open());
-                }
-            });
+            comboBoxState.open();
 
             // When focused, switch to a typing state.
             setInputState(inputState => {
@@ -239,7 +216,18 @@ function TaskPriorityInput(
             });
         },
 
-        onBlur: () => {
+        onBlur: event => {
+            // Chrome dispatches a "fake" blur event when the user has an element focused
+            // but then clicks on another window, focusing that window but leaving our
+            // current window visible. `blur` is dispatched but `document.activeElement`
+            // doesn't change!
+            //
+            // Detect this case. If we receive a `blur` event but `document.activeElement`
+            // hasn't changed then escalate to a real blur.
+            if (event.target === document.activeElement) {
+                event.target.blur();
+            }
+
             // When unfocused, switch back to a selection state discarding any typed value.
             setInputState(inputState => {
                 if (inputState.type === "Selection") return inputState;
