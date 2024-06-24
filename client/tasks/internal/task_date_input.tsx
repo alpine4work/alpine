@@ -251,9 +251,10 @@ export function TaskDateInput({
                 // Focusing is a direct user interaction so don't animate. To focus out the
                 // user clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
-                // Prefer rendering the overlay above the input on mobile since the keyboard
-                // will open below the input causing an overlay rendered below to jump up.
-                placement={isMobile ? "top" : "bottom"}
+                // Prefer rendering below the input, even on mobile. On mobile we might
+                // incorrectly think there's enough space above when in fact we'd be
+                // conflicting with the navigation bar.
+                placement="bottom"
                 offset={overlayOffset}
                 // The overlay blocks interaction with everything outside the overlay. Except
                 // the date input. We still want to render the overlay in our current

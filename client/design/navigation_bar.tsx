@@ -94,7 +94,11 @@ export function getNavigationBarHeightRemWithoutListening(): number {
 }
 
 export function getNavigationBarHeightPxWithoutListening(): number {
-    return getNavigationBarHeightRemWithoutListening() * getRemPxWithoutListening();
+    if (getIsMobileWithoutListening()) {
+        return mobileNavigationBarHeightRem * remPxByPlatform.mobile;
+    } else {
+        return desktopNavigationBarHeightRem * remPxByPlatform.desktop;
+    }
 }
 
 {

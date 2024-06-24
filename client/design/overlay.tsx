@@ -41,7 +41,6 @@ import {
     Spacing,
     convertRemLengthToPx,
     isSpacing,
-    parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -379,24 +378,23 @@ function Overlay(
                           (overflowBottom === undefined
                               ? getCurrentCoveredHeight()
                               : getElementWindowSafeAreaInsetBottomPx(targetElement) +
-                                parseRemLengthNumber(
+                                convertRemLengthToPx(
                                     isSpacing(overflowBottom)
                                         ? spacing[overflowBottom]
                                         : overflowBottom,
-                                ) *
-                                    remPx),
-
+                                    remPx,
+                                )),
                     left: sameWidth
                         ? 0
                         : paddingPx +
                           (typeof overlaySink.insetLeft === "string"
-                              ? parseRemLengthNumber(overlaySink.insetLeft) * remPx
+                              ? convertRemLengthToPx(overlaySink.insetLeft, remPx)
                               : overlaySink.insetLeft ?? 0),
                     right: sameWidth
                         ? 0
                         : paddingPx +
                           (typeof overlaySink.insetRight === "string"
-                              ? parseRemLengthNumber(overlaySink.insetRight) * remPx
+                              ? convertRemLengthToPx(overlaySink.insetRight, remPx)
                               : overlaySink.insetRight ?? 0),
                 };
 

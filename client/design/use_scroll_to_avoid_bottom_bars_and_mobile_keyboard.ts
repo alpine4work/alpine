@@ -5,7 +5,10 @@ import {
     dispatchNavigationBarPrepareSmoothScrollTo,
     getNavigationBarHeightPxWithoutListening,
 } from "~/client/design/navigation_bar.js";
-import {getElementWindowSafeAreaInsetBottomPx} from "~/client/design/safe_area_inset.js";
+import {
+    getElementSafeAreaInsetTopPx,
+    getElementWindowSafeAreaInsetBottomPx,
+} from "~/client/design/safe_area_inset.js";
 import {
     useGetCurrentBottomBarHeight,
     useSubscribeToBottomBarFrameChange,
@@ -263,6 +266,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             if (wasBottomBarMounted || wasBottomBarUnmounted) return;
 
             const remPx = getRemPxWithoutListening();
+            const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
@@ -297,6 +301,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             const oldScrollableBottom = oldOriginalScrollableBottom - scrollableInsetBottomPx;
             const newScrollableBottom = newOriginalScrollableBottom - scrollableInsetBottomPx;
 
+            const safeAreaInsetTop = getElementSafeAreaInsetTopPx(document.documentElement);
             const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
                 document.documentElement,
             );
@@ -322,7 +327,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             const oldCoveredBottom = viewportHeight - oldCoveredHeight;
 
             const oldVisibleRect = {
-                top: Math.min(oldScrollableTop, oldCoveredBottom),
+                top: Math.min(
+                    Math.max(oldScrollableTop, safeAreaInsetTop + navigationBarHeight),
+                    oldCoveredBottom,
+                ),
                 bottom: Math.min(oldScrollableBottom, oldCoveredBottom),
             };
 
@@ -341,7 +349,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             const newCoveredBottom = viewportHeight - newCoveredHeight;
 
             const newVisibleRect = {
-                top: Math.min(newScrollableTop, newCoveredBottom),
+                top: Math.min(
+                    Math.max(newScrollableTop, safeAreaInsetTop + navigationBarHeight),
+                    newCoveredBottom,
+                ),
                 bottom: Math.min(newScrollableBottom, newCoveredBottom),
             };
             const originalNewVisibleRect = newVisibleRect;
@@ -546,6 +557,30 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // Rounding gives us consistent scroll deltas as the keyboard opens and closes.
             let scrollDelta = Math.round(anchorPositionY - newAnchorPositionY);
 
+            // Hardcoded `spacing["1"]`.
+            const spacing1Px = 0.25 * remPx;
+
+            // If this `scrollDelta` would put the top of our anchor outside the visible rect
+            // (into navigation bar space) then set the `scrollDelta` so our anchor is just
+            // below the visible rect's top.
+            //
+            // We don't allow scrolling more than if `anchorPositionYPercent` had been 1.
+            //
+            // NOTE(calebmer): Added this to make sure `<TaskDateInput>`s calendar is
+            // consistently kept onscreen when the keyboard opens. Previously this scroll
+            // would push it offscreen.
+            if (anchorPosition.top - scrollDelta < newVisibleRect.top + spacing1Px) {
+                const minScrollDelta = Math.round(
+                    anchorPositionY -
+                        (newVisibleRect.top + (newVisibleRect.bottom - newVisibleRect.top)),
+                );
+
+                scrollDelta = Math.max(
+                    minScrollDelta,
+                    anchorPosition.top - (newVisibleRect.top + spacing1Px),
+                );
+            }
+
             // Make sure if the bottom of the anchor is offscreen, we scroll enough to
             // bring it into the new visible rect. Even if our original layout calculation
             // undershoots a little. This may happen with large anchors (e.g. task date
@@ -571,12 +606,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             ) {
                 scrollDelta = Math.max(
                     scrollDelta,
-                    Math.round(
-                        anchorPositionBottom -
-                            newVisibleRect.bottom +
-                            // Hardcoded `spacing["1"]`
-                            0.25 * remPx,
-                    ),
+                    Math.round(anchorPositionBottom - newVisibleRect.bottom + spacing1Px),
                 );
             }
 
@@ -626,8 +656,6 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     scrollDelta = -0.1;
                 }
             }
-
-            const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
 
             // NOTE(calebmer, 2024-03-18): This `recoveringScrollDelta` business isn't the
             // most principled. I imagine it will need adapting over time. I added it for
@@ -724,7 +752,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 const newCoveredBottom = viewportHeight - newCoveredHeight;
 
                 const newVisibleRect = {
-                    top: Math.min(newScrollableTop, newCoveredBottom),
+                    top: originalNewVisibleRect.top,
                     bottom: Math.min(newScrollableBottom, newCoveredBottom),
                 };
 
@@ -735,6 +763,18 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // Rounding gives us consistent scroll deltas as the keyboard opens and closes.
                 let scrollDelta = Math.round(anchorPositionY - newAnchorPositionY);
 
+                if (anchorPosition.top - scrollDelta < newVisibleRect.top + spacing1Px) {
+                    const minScrollDelta = Math.round(
+                        anchorPositionY -
+                            (newVisibleRect.top + (newVisibleRect.bottom - newVisibleRect.top)),
+                    );
+
+                    scrollDelta = Math.max(
+                        minScrollDelta,
+                        anchorPosition.top - (newVisibleRect.top + spacing1Px),
+                    );
+                }
+
                 if (
                     oldMobileKeyboardHeight !== newMobileKeyboardHeight &&
                     anchorPositionBottom > newVisibleRect.bottom &&
@@ -742,12 +782,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 ) {
                     scrollDelta = Math.max(
                         scrollDelta,
-                        Math.round(
-                            anchorPositionBottom -
-                                newVisibleRect.bottom +
-                                // Hardcoded `spacing["1"]`
-                                0.25 * remPx,
-                        ),
+                        Math.round(anchorPositionBottom - newVisibleRect.bottom + spacing1Px),
                     );
                 }
 
@@ -853,6 +888,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 "getElement" in scrollable ? scrollable.getElement() : scrollable;
 
             const remPx = getRemPxWithoutListening();
+            const navigationBarHeight = getNavigationBarHeightPxWithoutListening();
 
             const currentScrollableRect = scrollableElement.getBoundingClientRect();
             const currentBottomBarHeight = getCurrentBottomBarHeight();
@@ -872,6 +908,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 document.documentElement,
             );
 
+            const safeAreaInsetTop = getElementSafeAreaInsetTopPx(document.documentElement);
             const tabBarHeight =
                 NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
                     ? NativeMobileBridge.tabBar.height -
@@ -895,7 +932,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             const currentCoveredBottom = viewportHeight - currentCoveredHeight;
 
             return {
-                top: Math.min(currentScrollableTop, currentCoveredBottom),
+                top: Math.min(
+                    Math.max(currentScrollableTop, safeAreaInsetTop + navigationBarHeight),
+                    currentCoveredBottom,
+                ),
                 bottom: Math.min(currentScrollableBottom, currentCoveredBottom),
             };
         }, [getCurrentBottomBarHeight, scrollableInsetBottom, scrollableRef]),
