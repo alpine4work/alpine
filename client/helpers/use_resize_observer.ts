@@ -110,13 +110,13 @@ function createResizeObserver() {
             // eslint-disable-next-line no-console
             console.error(
                 "Resized element(s) that generated the below ResizeObserver error:",
-                Array.from(
-                    filterIterable(
-                        lastEntryTargets,
-                        entryTarget =>
-                            !suppressingResizeLoopErrorNotificationForElements.has(entryTarget),
-                    ),
-                ),
+                Array.from(lastEntryTargets, entryTarget => [
+                    entryTarget,
+                    {
+                        suppressed:
+                            suppressingResizeLoopErrorNotificationForElements.has(entryTarget),
+                    },
+                ]),
             );
         }
     };
