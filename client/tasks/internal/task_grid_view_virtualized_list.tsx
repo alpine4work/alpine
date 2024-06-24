@@ -1912,8 +1912,8 @@ export function useTaskGridViewVirtualizedList({
                 // collection filter (`<TaskQueryCollectionsFilterOperationEditor>`).
                 const ariaControlsAttribute = activeElement.getAttribute("aria-controls");
                 if (ariaControlsAttribute) {
-                    const ariaOwns = ariaControlsAttribute.split(" ")[0]!;
-                    const controlsElement = document.getElementById(ariaOwns);
+                    const ariaControls = ariaControlsAttribute.split(" ")[0]!;
+                    const controlsElement = document.getElementById(ariaControls);
 
                     if (controlsElement) {
                         const controlsRect = controlsElement.getBoundingClientRect();
@@ -1931,8 +1931,18 @@ export function useTaskGridViewVirtualizedList({
                 // If this is a multiline `<TaskRowTitleInput>` and the user taps on some text
                 // near the end of the title input then we want to scroll to the user's
                 // selection. Not the full element's container.
-                const selectionRect = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
-                if (selectionRect) return selectionRect;
+                if (
+                    activeElement instanceof HTMLElement &&
+                    activeElement.contentEditable === "true"
+                ) {
+                    const selectionRect = window
+                        .getSelection()
+                        ?.getRangeAt(0)
+                        .getBoundingClientRect();
+                    if (selectionRect) {
+                        return selectionRect;
+                    }
+                }
 
                 return activeRect;
             },

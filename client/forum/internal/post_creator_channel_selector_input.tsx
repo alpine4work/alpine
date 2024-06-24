@@ -16,6 +16,7 @@ import {
     useState,
 } from "react";
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
+import {flushSync} from "react-dom";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -291,7 +292,11 @@ function PostCreatorChannelSelectorInput(
 
                 if (document.activeElement === inputElement) {
                     // Open the combobox on focus.
-                    comboBoxState.open();
+                    //
+                    // `flushSync()` since this is in response to a user interaction. React would be
+                    // able to use the right priority if we set state directly in `onFocus` but
+                    // since we've deferred we need to set the right priority ourselves.
+                    flushSync(() => comboBoxState.open());
                 }
             });
 

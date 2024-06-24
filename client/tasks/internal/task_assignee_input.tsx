@@ -11,6 +11,7 @@ import {
     useState,
 } from "react";
 import {useComboBox} from "react-aria";
+import {flushSync} from "react-dom";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
@@ -302,7 +303,11 @@ function TaskAssigneeInput(
 
                 if (document.activeElement === inputElement) {
                     // Open the combobox on focus.
-                    comboBoxState.open();
+                    //
+                    // `flushSync()` since this is in response to a user interaction. React would be
+                    // able to use the right priority if we set state directly in `onFocus` but
+                    // since we've deferred we need to set the right priority ourselves.
+                    flushSync(() => comboBoxState.open());
                 }
             });
 

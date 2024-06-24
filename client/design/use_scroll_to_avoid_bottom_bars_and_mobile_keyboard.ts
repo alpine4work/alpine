@@ -666,6 +666,8 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     : tabBarHeight;
 
             if (tabBarHeightAfterScroll === tabBarHeight) {
+                if (scrollDelta === 0) return;
+
                 const newScrollTop = scrollableElement.scrollTop + scrollDelta;
 
                 // Prepare navigation bar scroll direction state for a smooth scroll animation
@@ -758,6 +760,8 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 if (recoveringScrollDelta) {
                     scrollDelta += recoveringScrollDelta.scrollDeltaDifference;
                 }
+
+                if (scrollDelta === 0) return;
 
                 const newScrollTop = scrollableElement.scrollTop + scrollDelta;
 
