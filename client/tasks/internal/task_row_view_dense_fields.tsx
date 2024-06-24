@@ -245,7 +245,8 @@ function TaskRowViewDenseFields(
                 // I find some negative `marginTop` helps the fields feel optically aligned.
                 // Since above us is text, not a divider line.
                 marginTop="-0.5"
-                paddingBottom="2.5"
+                height="7"
+                paddingBottom="3"
                 className={!isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined}
                 {...useOutOfBoundsClickSelection({
                     isDisabled: isReadOnly,

@@ -524,13 +524,7 @@ function TaskAssigneeInput(
         [],
     );
 
-    const insetMarginY = isMobile
-        ? avatarSize === "5"
-            ? "2.5"
-            : "2"
-        : avatarSize === "5"
-        ? "0.5"
-        : undefined;
+    const insetMarginY = isMobile ? "2.5" : avatarSize === "5" ? "0.5" : undefined;
 
     return (
         <div
