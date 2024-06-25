@@ -719,6 +719,7 @@ function Overlay(
             portalElement,
             isBlocking,
             sameHeight,
+            overflowTop,
             overflowBottom,
             getCurrentCoveredHeight,
             sameWidth,

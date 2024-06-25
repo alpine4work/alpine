@@ -315,12 +315,26 @@ function TaskAssigneeInput(
                 event.target.blur();
             }
 
+            // If we're focusing an element with a popup (`role="combobox"` [implicitly has
+            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly
+            // focused element will probably open its popup.
+            //
+            // This happens when you have this input open then switch to another input by
+            // tapping in `<TaskGridViewMobileKeyboardToolbar>`.
+            //
+            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+            const disableAnimationOut =
+                event.relatedTarget instanceof HTMLElement
+                    ? (event.relatedTarget.ariaHasPopup ??
+                          (event.relatedTarget.role === "combobox" ? "listbox" : null)) !== null
+                    : false;
+
             // When unfocused, switch back to a selection state discarding any typed value.
             setInputState(inputState => {
                 if (inputState.type === "Selection") return inputState;
                 return {
                     type: "Selection",
-                    disableAnimationOut: false,
+                    disableAnimationOut,
                     shouldBlurRef: {current: false},
                 };
             });

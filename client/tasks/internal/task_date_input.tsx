@@ -33,6 +33,29 @@ import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
+type TaskDateInputFocusState =
+    | {
+          readonly isFocusWithinInput: false;
+          readonly isFocusWithinOverlay: false;
+          readonly disableAnimationOut: boolean;
+      }
+    | {
+          readonly isFocusWithinInput: true;
+          readonly isFocusWithinOverlay: boolean;
+          readonly disableAnimationOut: false;
+      }
+    | {
+          readonly isFocusWithinInput: boolean;
+          readonly isFocusWithinOverlay: true;
+          readonly disableAnimationOut: false;
+      };
+
+const initialTaskDateInputFocusState: TaskDateInputFocusState = {
+    isFocusWithinInput: false,
+    isFocusWithinOverlay: false,
+    disableAnimationOut: false,
+};
+
 /**
  * The date field displays the formatted date we show everywhere but when
  * you click or focus we reveal a text input where you can type the date in
@@ -100,10 +123,10 @@ export function TaskDateInput({
         [currentDate, date, locale, shouldFormatAroundToday, timeZone],
     );
 
-    const [isFocusWithinInput, setIsFocusWithinInput] = useState(false);
-    const [isFocusWithinOverlay, setIsFocusWithinOverlay] = useState(false);
+    const [focusState, setFocusState] = useState(initialTaskDateInputFocusState);
 
-    const isEditing = !isReadOnly && (isFocusWithinInput || isFocusWithinOverlay);
+    const isEditing =
+        !isReadOnly && (focusState.isFocusWithinInput || focusState.isFocusWithinOverlay);
 
     const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
 
@@ -249,6 +272,7 @@ export function TaskDateInput({
             )}
             <OverlayAnimated
                 isVisible={isEditing}
+                disableAnimationOut={focusState.disableAnimationOut}
                 // Focusing is a direct user interaction so don't animate. To focus out the
                 // user clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
@@ -291,7 +315,20 @@ export function TaskDateInput({
                             // `<FocusRing>` updates are run with immediate priority. Make sure this update
                             // is as well so we see both update in the same render.
                             runWithImmediatePriority(() => {
-                                setIsFocusWithinOverlay(event.currentTarget.contains(event.target));
+                                const isFocusWithinOverlay = event.currentTarget.contains(
+                                    event.target,
+                                );
+
+                                setFocusState((focusState): TaskDateInputFocusState => {
+                                    if (focusState.isFocusWithinOverlay === isFocusWithinOverlay)
+                                        return focusState;
+
+                                    return {
+                                        ...focusState,
+                                        isFocusWithinOverlay,
+                                        disableAnimationOut: false,
+                                    };
+                                });
                             });
                         }}
                         onBlur={event => {
@@ -306,12 +343,51 @@ export function TaskDateInput({
                                 event.target.blur();
                             }
 
+                            // If we're focusing an element with a popup (`role="combobox"` [implicitly has
+                            // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly
+                            // focused element will probably open its popup.
+                            //
+                            // This happens when you have this input open then switch to another input by
+                            // tapping in `<TaskGridViewMobileKeyboardToolbar>`.
+                            //
+                            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+                            const disableAnimationOut =
+                                event.relatedTarget instanceof HTMLElement
+                                    ? (event.relatedTarget.ariaHasPopup ??
+                                          (event.relatedTarget.role === "combobox"
+                                              ? "listbox"
+                                              : null)) !== null
+                                    : false;
+
                             // `<FocusRing>` updates are run with immediate priority. Make sure this update
                             // is as well so we see both update in the same render.
                             runWithImmediatePriority(() => {
-                                setIsFocusWithinOverlay(
-                                    event.currentTarget.contains(event.relatedTarget),
+                                const isFocusWithinOverlay = event.currentTarget.contains(
+                                    event.relatedTarget,
                                 );
+
+                                setFocusState((focusState): TaskDateInputFocusState => {
+                                    if (focusState.isFocusWithinOverlay === isFocusWithinOverlay)
+                                        return focusState;
+
+                                    if (
+                                        !isFocusWithinOverlay &&
+                                        !focusState.isFocusWithinInput &&
+                                        disableAnimationOut
+                                    ) {
+                                        return {
+                                            isFocusWithinOverlay,
+                                            isFocusWithinInput: focusState.isFocusWithinInput,
+                                            disableAnimationOut: true,
+                                        };
+                                    } else {
+                                        return {
+                                            ...focusState,
+                                            isFocusWithinOverlay,
+                                            disableAnimationOut: false,
+                                        };
+                                    }
+                                });
                             });
                         }}
                     >
@@ -333,7 +409,18 @@ export function TaskDateInput({
                         // `<FocusRing>` updates are run with immediate priority. Make sure this updates
                         // with immediate priority as well so we see both update in the same render.
                         runWithImmediatePriority(() => {
-                            setIsFocusWithinInput(event.currentTarget.contains(event.target));
+                            const isFocusWithinInput = event.currentTarget.contains(event.target);
+
+                            setFocusState((focusState): TaskDateInputFocusState => {
+                                if (focusState.isFocusWithinInput === isFocusWithinInput)
+                                    return focusState;
+
+                                return {
+                                    ...focusState,
+                                    isFocusWithinInput,
+                                    disableAnimationOut: false,
+                                };
+                            });
                         });
                     }}
                     onBlur={event => {
@@ -348,12 +435,51 @@ export function TaskDateInput({
                             event.target.blur();
                         }
 
+                        // If we're focusing an element with a popup (`role="combobox"` [implicitly has
+                        // `aria-haspopup="listbox"`][1]) then don't animate out. Since the newly
+                        // focused element will probably open its popup.
+                        //
+                        // This happens when you have this input open then switch to another input by
+                        // tapping in `<TaskGridViewMobileKeyboardToolbar>`.
+                        //
+                        // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+                        const disableAnimationOut =
+                            event.relatedTarget instanceof HTMLElement
+                                ? (event.relatedTarget.ariaHasPopup ??
+                                      (event.relatedTarget.role === "combobox"
+                                          ? "listbox"
+                                          : null)) !== null
+                                : false;
+
                         // `<FocusRing>` updates are run with immediate priority. Make sure this updates
                         // with immediate priority as well so we see both update in the same render.
                         runWithImmediatePriority(() => {
-                            setIsFocusWithinInput(
-                                event.currentTarget.contains(event.relatedTarget),
+                            const isFocusWithinInput = event.currentTarget.contains(
+                                event.relatedTarget,
                             );
+
+                            setFocusState((focusState): TaskDateInputFocusState => {
+                                if (focusState.isFocusWithinInput === isFocusWithinInput)
+                                    return focusState;
+
+                                if (
+                                    !isFocusWithinInput &&
+                                    !focusState.isFocusWithinOverlay &&
+                                    disableAnimationOut
+                                ) {
+                                    return {
+                                        isFocusWithinInput,
+                                        isFocusWithinOverlay: focusState.isFocusWithinOverlay,
+                                        disableAnimationOut: true,
+                                    };
+                                } else {
+                                    return {
+                                        ...focusState,
+                                        isFocusWithinInput,
+                                        disableAnimationOut: false,
+                                    };
+                                }
+                            });
                         });
                     }}
                 >
@@ -362,7 +488,7 @@ export function TaskDateInput({
                         onDateChange={onDateChange}
                         aria-label={ariaLabel}
                         aria-labelledby={ariaLabelledBy}
-                        overlayId={overlayId}
+                        overlayId={isEditing ? overlayId : null}
                         isReadOnly={isReadOnly}
                         isEditing={isEditing}
                         shouldIncludeCalendarIcon={shouldIncludeCalendarIcon}
