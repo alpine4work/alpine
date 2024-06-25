@@ -25,7 +25,6 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
-import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
@@ -678,6 +677,7 @@ function TaskCollectionsInput(
                 <Box
                     ref={collectionRefs[index]}
                     overflow="hidden"
+                    height={taskCollectionChipHeight}
                     // Chips have a height of 5 (on desktop, 7 on mobile) but a single-line field
                     // input should have a height of 4. Use negative margin to position correctly.
                     marginY={{desktop: "-0.5", mobile: "-1.5"}}
@@ -773,8 +773,12 @@ function TaskCollectionsInput(
             {createCollectionInputState.isVisible && (
                 <Box
                     overflow="hidden"
-                    marginY="-0.5"
+                    height={taskCollectionChipHeight}
+                    // Chips have a height of 5 (on desktop, 7 on mobile) but a single-line field
+                    // input should have a height of 4. Use negative margin to position correctly.
+                    marginY={{desktop: "-0.5", mobile: "-1.5"}}
                     marginLeft="-0.5"
+                    borderRadius={taskCollectionChipBorderRadius}
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                 >
                     <TaskCollectionInputCreateCollectionInput
@@ -842,7 +846,8 @@ function TaskCollectionsInput(
             {!shouldNotRenderInput && (
                 <OverlayAnimated
                     isVisible={comboBoxState.isOpen}
-                    offset={defaultTooltipOffset}
+                    // Mobile collection chips are bigger so add more offset.
+                    offset={isMobile ? "2.5" : "1.5"}
                     disableAnimationIn={true}
                     disableAnimationOut={
                         inputState.type === "Unfocused" && inputState.disableAnimationOut
@@ -1095,6 +1100,9 @@ function TaskCollectionInputCreateCollectionInput({
                                 className={sprinkles({
                                     height: taskCollectionChipHeight,
                                     backgroundColor: "transparent",
+                                })}
+                                textClassName={sprinkles({
+                                    paddingRight: "1",
                                 })}
                                 placeholder={inputPlaceholder}
                                 value={inputValue}
