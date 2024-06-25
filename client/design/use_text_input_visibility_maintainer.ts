@@ -141,8 +141,23 @@ export function useTextInputVisibilityMaintainer() {
 
             const remPx = getRemPxWithoutListening();
 
-            inputRect.top -= marginYRem * remPx;
-            inputRect.bottom += marginYRem * remPx;
+            // Only add margin for elements that don't have a popup (`role="combobox"`
+            // [implicitly has `aria-haspopup="listbox"`][1]). For elements with popups
+            // we've likely already carefully scrolled them into view considering the
+            // height of their popup. We may need to place the element close to the
+            // keyboard if the popup is large.
+            //
+            // This is the case for `<TaskAssigneeInput>` and `<TaskPriorityInput>` in task
+            // dense fields on mobile. They're carefully scrolled so that we can also
+            // properly render `<TaskDateInput>` if the user switches to it.
+            //
+            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+            const hasPopUp =
+                targetElement.ariaHasPopup ??
+                (targetElement.role === "combobox" ? "listbox" : null);
+
+            inputRect.top -= (hasPopUp === null ? marginYRem : 0) * remPx;
+            inputRect.bottom += (hasPopUp === null ? marginYRem : 0) * remPx;
 
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
 
