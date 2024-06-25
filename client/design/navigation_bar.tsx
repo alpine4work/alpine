@@ -1703,6 +1703,27 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         // Safari) renders an accessory view with the input that comes with a done
         // button.
         isDisabled: !isMobile || !isNativeMobile || withoutFocusedTextInputDoneButton,
+
+        ignore: useCallback((element: Element) => {
+            // Don't show "Done" button if the focused text input has a popup
+            // (`role="combobox"` [implicitly has `aria-haspopup="listbox"`][1]). These
+            // inputs come with an overlay and so dismissing the input means clicking
+            // outside of the overlay. Since the interaction for dismissing the keyboard
+            // for the input is obvious we don't show a "Done" button. Also because often
+            // autocomplete inputs have a blocking cover (they set `isBlocking={true}` on
+            // their `<Overlay>`) you wouldn't be able to interact with the "Done" button
+            // anyway.
+            //
+            // We added this for the assignee task filter on mobile (and the collection
+            // task filter). It has a search input in a blocking overlay. We don't want to
+            // show the "Done" button while the search input is focused. We also want this
+            // to apply to inputs like `<TaskAssigneeInput>` in a detail view.
+            //
+            // [1]: https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-haspopup
+            const ariaHasPopup =
+                element.ariaHasPopup ?? (element.role === "combobox" ? "listbox" : null);
+            return ariaHasPopup !== null;
+        }, []),
     });
 
     useImperativeHandle(
