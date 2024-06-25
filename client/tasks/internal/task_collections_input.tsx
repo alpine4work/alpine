@@ -494,7 +494,7 @@ function TaskCollectionsInput(
 
     const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
 
-    // When our calendar overlay opens on mobile we need to scroll it into view if
+    // When our collections input opens on mobile we need to scroll it into view if
     // it's rendered offscreen.
     //
     // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task

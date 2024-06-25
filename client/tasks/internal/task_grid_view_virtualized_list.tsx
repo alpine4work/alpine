@@ -1071,7 +1071,10 @@ export function useTaskGridViewVirtualizedList({
             // screen even when the keyboard is already open. So don't adjust to avoid the
             // keyboard if we're focusing one of those components. See those components for
             // their custom scroll to avoid keyboard implementation.
-            if (activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)) {
+            if (
+                activeElement.classList.contains(tasksStyles.dateInputTextSegmentClassName) ||
+                activeElement.classList.contains(tasksStyles.collectionsInputAddInputClassName)
+            ) {
                 return null;
             }
 

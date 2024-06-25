@@ -1,12 +1,18 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
-import {useId, useMemo, useRef, useState} from "react";
+import {useEffect, useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {
+    getNavigationBarHeightPxWithoutListening,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -14,7 +20,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
-import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
@@ -129,6 +135,109 @@ export function TaskDateInput({
         !isReadOnly && (focusState.isFocusWithinInput || focusState.isFocusWithinOverlay);
 
     const insetMarginY = height === "full" ? undefined : isMobile ? "2.5" : undefined;
+
+    const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
+
+    // When our calendar overlay opens on mobile we need to scroll it into view if
+    // it's rendered offscreen.
+    //
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` does nothing when the task
+    // date input is focused. Since that hooks is designed to avoid the mobile
+    // keyboard when the mobile keyboard opens. However, if the mobile keyboard is
+    // already open and the user focuses a date input then we still need to scroll
+    // the date input into view. Instead of competing with
+    // `useScrollToAvoidBottomBarsAndMobileKeyboard()` we fully implement scroll
+    // logic for when the date input is focused here.
+    //
+    // We have a hook that does basically the same thing in
+    // `<TaskDateInput>`. If you make a change here you should also probably make a
+    // change there.
+    const lastIsEditingRef = useRef(isEditing);
+    useEffect(() => {
+        if (lastIsEditingRef.current === isEditing) return;
+        lastIsEditingRef.current = isEditing;
+
+        if (!isMobile) return;
+        if (!isEditing) return;
+
+        const run = () => {
+            const inputElement = assertExists(inputRef.current);
+            const overlayElement = assertExists(overlayRef.current);
+
+            let scrollableElement: HTMLElement | null = inputElement.parentElement;
+            while (scrollableElement !== null) {
+                const {overflowY} = getComputedStyle(scrollableElement);
+
+                // We found our scrollable element!
+                if (overflowY === "scroll" || overflowY === "auto") break;
+
+                scrollableElement = scrollableElement.parentElement;
+            }
+
+            if (scrollableElement === null) return;
+
+            const inputRect = inputElement.getBoundingClientRect();
+            const overlayRect = overlayElement.getBoundingClientRect();
+            const viewportHeight = document.documentElement.getBoundingClientRect().height;
+
+            const top = Math.min(inputRect.top, overlayRect.top);
+            const bottom = Math.max(inputRect.bottom, overlayRect.bottom);
+
+            const clearanceTop =
+                getElementSafeAreaInsetTopPx(scrollableElement) +
+                getNavigationBarHeightPxWithoutListening() +
+                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+
+            if (top < clearanceTop) {
+                const scrollDelta = top - clearanceTop;
+
+                scrollableElement.scrollTo({
+                    top: scrollableElement.scrollTop + scrollDelta,
+                    behavior: "smooth",
+                });
+                return;
+            }
+
+            const clearanceBottom =
+                viewportHeight -
+                getCurrentCoveredHeight() -
+                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+
+            if (bottom > clearanceBottom) {
+                const scrollDelta = bottom - clearanceBottom;
+
+                scrollableElement.scrollTo({
+                    top: scrollableElement.scrollTop + scrollDelta,
+                    behavior: "smooth",
+                });
+                return;
+            }
+        };
+
+        let isCancelled = false;
+
+        // This effect needs to run after `NativeMobileBridge` calls
+        // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
+        // avoid the keyboard. In testing it seems like
+        // `keyboard.subscribeToFrameChange` is consistently called after double
+        // `requestAnimationFrame()` (which ensures we finish the current animation
+        // frame).
+        //
+        // NOTE(calebmer): I don't know enough about how WebKit does cross-thread
+        // communication to know if it's a guarantee that we'll always get
+        // `keyboard.subscribeToFrameChange` within two animation frames. Maybe as a
+        // fallback we should wait for 2 request animation frames AND ~50ms?
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (isCancelled) return;
+                run();
+            });
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [getCurrentCoveredHeight, isEditing, isMobile]);
 
     const {pressProps: previewPressProps} = usePress({
         // Preview doesn't receive focus.
@@ -276,10 +385,9 @@ export function TaskDateInput({
                 // Focusing is a direct user interaction so don't animate. To focus out the
                 // user clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
-                // Prefer rendering below the input, even on mobile. On mobile we might
-                // incorrectly think there's enough space above when in fact we'd be
-                // conflicting with the navigation bar.
-                placement="bottom"
+                // Prefer rendering the overlay above the input on mobile since the keyboard
+                // will open below the input causing an overlay rendered below to jump up.
+                placement={isMobile ? "top" : "bottom"}
                 offset={overlayOffset}
                 // The overlay blocks interaction with everything outside the overlay. Except
                 // the date input. We still want to render the overlay in our current

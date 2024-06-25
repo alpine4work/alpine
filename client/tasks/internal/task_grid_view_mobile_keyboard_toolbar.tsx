@@ -119,17 +119,26 @@ export function TaskGridViewMobileKeyboardToolbar({
             }
             isAssigneeActive={!!task?.getAssignee()}
             onAssigneePress={() => {
-                focusAssigneeInput();
+                // `flushSync()` so React re-renders with an open overlay which influences the
+                // anchor position read by `scrollToAnchorPosition()`.
+                flushSync(() => focusAssigneeInput());
+
                 scrollToAnchorPosition();
             }}
             isPriorityActive={!!task?.getPriority()}
             onPriorityPress={() => {
-                focusPriorityInput();
+                // `flushSync()` so React re-renders with an open overlay which influences the
+                // anchor position read by `scrollToAnchorPosition()`.
+                flushSync(() => focusPriorityInput());
+
                 scrollToAnchorPosition();
             }}
             isDueDateActive={!!task?.getDueDate()}
             onDueDatePress={() => {
-                focusDueDateInput();
+                // `flushSync()` so React re-renders with an open overlay which influences the
+                // anchor position read by `scrollToAnchorPosition()`.
+                flushSync(() => focusDueDateInput());
+
                 scrollToAnchorPosition();
             }}
             onOpenPress={task ? () => navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`) : null}
