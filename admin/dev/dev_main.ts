@@ -274,7 +274,8 @@ const lastDependencyBazelPackagePathsByTarget = new Map<string, ReadonlySet<stri
 
 const watcher = chokidar.watch(workspacePath, {
     ignoreInitial: true,
-    ignored: /(^|\/)(node_modules|bazel-[^/]+|\.git|\.DS_Store)(\/|$)/,
+    // `.build` is the Swift build directory for Swift's VSCode integration.
+    ignored: /(^|\/)(node_modules|bazel-[^/]+|\.git|\.DS_Store|\.build)(\/|$)/,
 });
 
 watcher.on("add", processFileUpdate);
