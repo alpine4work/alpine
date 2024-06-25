@@ -136,9 +136,9 @@ export function MessageViewTouchLightbox<
     // Our blur can't cover the tab bar (which is rendered in native code) so
     // disable the tab bar while the lightbox is open.
     useEffect(() => {
-        NativeMobileBridge?.tabBar.disable({isAnimated: true});
+        NativeMobileBridge?.tabBar.hide({isAnimated: true});
         return () => {
-            NativeMobileBridge?.tabBar.enable({isAnimated: true});
+            NativeMobileBridge?.tabBar.unhide({isAnimated: true});
         };
     }, []);
 

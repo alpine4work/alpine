@@ -106,7 +106,7 @@ export function useGetCurrentCoveredHeight(): Memo<() => number> {
         const mobileKeyboardHeight = currentMobileKeyboardHeight;
 
         const tabBarHeight =
-            NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
+            NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
                 ? NativeMobileBridge.tabBar.height -
                   NativeMobileBridge.tabBar.getDeferredScrollOffset()
                 : 0;
@@ -307,7 +307,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             );
 
             const tabBarHeight =
-                NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
+                NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
                     ? NativeMobileBridge.tabBar.height -
                       NativeMobileBridge.tabBar.getDeferredScrollOffset()
                     : 0;
@@ -685,7 +685,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // If our scroll will cause the tab bar to fully hide or fully reveal then
             // compute a new scroll delta considering the tab bar's new state.
             const tabBarHeightAfterScroll =
-                NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
+                NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
                     ? -scrollDelta >= navigationBarHeight
                         ? NativeMobileBridge.tabBar.height
                         : scrollDelta >= navigationBarHeight
@@ -913,7 +913,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
             const safeAreaInsetTop = getElementSafeAreaInsetTopPx(document.documentElement);
             const tabBarHeight =
-                NativeMobileBridge && !NativeMobileBridge.tabBar.isDisabled()
+                NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
                     ? NativeMobileBridge.tabBar.height -
                       NativeMobileBridge.tabBar.getDeferredScrollOffset()
                     : 0;

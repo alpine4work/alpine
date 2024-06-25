@@ -1431,14 +1431,14 @@ export function DocumentContentEditor({
         if (isInertNativeMobileRoute || !withMobileLayout || !sidebarState.isOpen) {
             if (hasDisabledNativeMobileTabBarRef.current) {
                 hasDisabledNativeMobileTabBarRef.current = false;
-                NativeMobileBridge.tabBar.enable({isAnimated: true});
+                NativeMobileBridge.tabBar.unhide({isAnimated: true});
             }
             return;
         }
 
         if (!hasDisabledNativeMobileTabBarRef.current) {
             hasDisabledNativeMobileTabBarRef.current = true;
-            NativeMobileBridge.tabBar.disable({isAnimated: false});
+            NativeMobileBridge.tabBar.hide({isAnimated: false});
         }
 
         return () => {
@@ -1446,7 +1446,7 @@ export function DocumentContentEditor({
             if (!isMounted()) {
                 if (hasDisabledNativeMobileTabBarRef.current) {
                     hasDisabledNativeMobileTabBarRef.current = false;
-                    NativeMobileBridge!.tabBar.enable({isAnimated: true});
+                    NativeMobileBridge!.tabBar.unhide({isAnimated: true});
                 }
             }
         };
@@ -2284,7 +2284,7 @@ function DocumentContentEditorSidebar({
                                 pinnedCommentInputRef={pinnedCommentInputRef}
                                 // We disable the tab bar while a comment thread is open to get more vertical
                                 // space. This changes how our component should handle safe area insets.
-                                isNativeMobileTabBarDisabled={isNativeMobile && withMobileLayout}
+                                isNativeMobileTabBarHidden={isNativeMobile && withMobileLayout}
                                 // When on mobile, add some background slop so we can easily animate our
                                 // comment thread list view to the full screen size.
                                 backgroundSlopBottomIfPinnedCommentInput={

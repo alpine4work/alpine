@@ -518,29 +518,29 @@ export const NativeMobileBridge: {
         getDeferredScrollOffset(): number;
 
         /**
-         * Is the tab bar disabled by web code? So either `tabBar.disable()`
+         * Is the tab bar hidden by web code? So either `tabBar.hide()`
          * was called or `keyboard.prepareForSubstitute()` was called.
          *
          * Will return true otherwise. So the tab bar may be hidden if the user has
          * scrolled down but this function won't report that.
          */
-        isDisabled(): boolean;
+        isHidden(): boolean;
 
         /**
-         * Hide the tab bar. The tab bar will only be show again once `enable()`
-         * is called. If there are multiple calls to `disable()` you need that
-         * many calls to `enable()` to reveal the tab bar again.
+         * Hide the tab bar. The tab bar will only be show again once `unhide()`
+         * is called. If there are multiple calls to `hide()` you need that
+         * many calls to `unhide()` to reveal the tab bar again.
          *
-         * This function is dangerous! You must remember to call `enable()` or
+         * This function is dangerous! You must remember to call `unhide()` or
          * else the app will feel broken as the user won't be able to access the tab
          * bar.
          */
-        disable(options?: {isAnimated: boolean}): void;
+        hide(options?: {isAnimated: boolean}): void;
 
         /**
-         * Show the tab bar after it was hidden by `disable()`.
+         * Show the tab bar after it was hidden by `hide()`.
          */
-        enable(options?: {isAnimated: boolean}): void;
+        unhide(options?: {isAnimated: boolean}): void;
 
         /**
          * Clears any notification badge on the inbox tab in the native mobile app. If

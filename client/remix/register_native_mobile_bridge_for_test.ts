@@ -67,15 +67,15 @@ export const NativeMobileBridgeForTest: typeof NativeMobileBridge & {
         // Tab bar height on iOS is 49 points.
         height: 50,
         getDeferredScrollOffset: () => 0,
-        isDisabled: () => false,
-        disable: () => {
+        isHidden: () => false,
+        hide: () => {
             throw new UnimplementedError(
-                "`NativeMobileBridge.tabBar.disable()` is unimplemented in tests",
+                "`NativeMobileBridge.tabBar.hide()` is unimplemented in tests",
             );
         },
-        enable: () => {
+        unhide: () => {
             throw new UnimplementedError(
-                "`NativeMobileBridge.tabBar.enable()` is unimplemented in tests",
+                "`NativeMobileBridge.tabBar.unhide()` is unimplemented in tests",
             );
         },
         clearInboxNotificationBadge: () => {},

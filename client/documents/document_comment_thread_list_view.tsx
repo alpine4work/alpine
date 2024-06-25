@@ -236,7 +236,7 @@ function DocumentCommentThreadListView(
         navigationBar,
         withSafeAreaInsetTop = false,
         pinnedCommentInputRef,
-        isNativeMobileTabBarDisabled = false,
+        isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
     }: {
         withMobileLayout: boolean;
@@ -311,10 +311,10 @@ function DocumentCommentThreadListView(
         pinnedCommentInputRef?: Ref<MessageInputRef>;
 
         /**
-         * Have we called `NativeMobileBridge.tabBar.disable()`? If true then we need
+         * Have we called `NativeMobileBridge.tabBar.hide()`? If true then we need
          * to handle safe area a bit differently.
          */
-        isNativeMobileTabBarDisabled?: boolean;
+        isNativeMobileTabBarHidden?: boolean;
 
         /**
          * Add some background slop if there's a pinned comment input.
@@ -974,7 +974,7 @@ function DocumentCommentThreadListView(
                             // threads rendered on top of a document since the native tab bar is hidden in
                             // this case.
                             index === tree.getItemCount() - 2
-                                ? isNativeMobileTabBarDisabled
+                                ? isNativeMobileTabBarHidden
                                     ? backgroundSlopBottomIfPinnedCommentInput
                                         ? `calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px) + ${backgroundSlopBottomIfPinnedCommentInput})`
                                         : "calc(var(--keyboard-safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))"
@@ -1194,7 +1194,7 @@ function DocumentCommentThreadListView(
             messageEditing,
             highlightComment,
             handleJumpToComment,
-            isNativeMobileTabBarDisabled,
+            isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
             space.id,
             replyingToCommentIndexByCommentThreadId,
