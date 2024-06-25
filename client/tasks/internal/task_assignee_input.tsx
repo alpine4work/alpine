@@ -107,6 +107,7 @@ function TaskAssigneeInput(
         color = "grey-100",
         avatarSize = "5",
         shouldDisplayShortName,
+        withoutBlurAfterSelection,
         isTabbable = true,
         onArrowLeftLeaveKeyDown,
         onArrowRightLeaveKeyDown,
@@ -119,6 +120,7 @@ function TaskAssigneeInput(
         color?: "grey-100" | "grey-60";
         avatarSize?: "5" | "4";
         shouldDisplayShortName?: boolean;
+        withoutBlurAfterSelection?: boolean;
         isTabbable?: boolean;
         onArrowLeftLeaveKeyDown?: () => void;
         onArrowRightLeaveKeyDown?: () => void;
@@ -422,7 +424,7 @@ function TaskAssigneeInput(
             }
 
             // Keep focus in the input if we're using a keyboard interaction modality.
-            if (getInteractionModality() !== "pointer") {
+            if (getInteractionModality() !== "pointer" || withoutBlurAfterSelection) {
                 setInputState(inputState => {
                     if (inputState.type !== "Typing") return inputState;
                     return {

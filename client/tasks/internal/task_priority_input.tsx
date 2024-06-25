@@ -92,6 +92,7 @@ function TaskPriorityInput(
         priority,
         onPriorityChange,
         shouldHighlightUrgent,
+        withoutBlurAfterSelection,
         isReadOnly,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
@@ -103,6 +104,7 @@ function TaskPriorityInput(
         priority: TaskPriority | null;
         onPriorityChange: (priority: TaskPriority | null) => void;
         shouldHighlightUrgent: boolean;
+        withoutBlurAfterSelection?: boolean;
         isReadOnly?: boolean;
         "aria-label"?: string;
         "aria-labelledby"?: string;
@@ -312,7 +314,7 @@ function TaskPriorityInput(
             }
 
             // Keep focus in the input if we're using a keyboard interaction modality.
-            if (getInteractionModality() !== "pointer") {
+            if (getInteractionModality() !== "pointer" || withoutBlurAfterSelection) {
                 setInputState(inputState => {
                     if (inputState.type !== "Typing") return inputState;
                     return {
