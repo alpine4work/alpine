@@ -28,7 +28,7 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -41,6 +41,50 @@ const taskDateInputCalendarDaySizeRem = parseRemLengthNumber(spacing[taskDateInp
 const taskDateInputCalendarWeekDayHeight = "6";
 const taskDateInputCalendarWeekDayHeightRem = parseRemLengthNumber(
     spacing[taskDateInputCalendarWeekDayHeight],
+);
+
+const mobileTaskDateInputCalendarWeeksHeightRem = taskDateInputCalendarDaySizeRem * 5.25;
+const desktopTaskDateInputCalendarWeeksHeightRem = taskDateInputCalendarDaySizeRem * 6;
+
+const taskDateInputCalendarPadding = {desktop: "3", mobile: "2.5"} as const;
+const taskDateInputCalendarPaddingBottom = {desktop: "2", mobile: "1.5"} as const;
+
+const taskDateInputCalendarHeaderHeight = {desktop: "6", mobile: "5"} as const;
+const taskDateInputCalendarHeaderMarginBottom = {desktop: "3", mobile: "1.5"} as const;
+
+const taskDateInputFooterMarginTop = {desktop: "3", mobile: "1"} as const;
+const taskDateInputFooterPaddingTop = {desktop: "2", mobile: "1.5"} as const;
+const taskDateInputFooterButtonHeight = "5";
+
+const desktopTaskDateInputFooterHeight = addRemLengths(
+    spacing[taskDateInputFooterButtonHeight],
+    spacing[taskDateInputFooterPaddingTop.desktop],
+);
+const mobileTaskDateInputFooterHeight = addRemLengths(
+    spacing[taskDateInputFooterButtonHeight],
+    spacing[taskDateInputFooterPaddingTop.mobile],
+);
+
+export const mobileTaskDateInputCalendarHeight = addRemLengths(
+    spacing[taskDateInputCalendarPadding.mobile],
+    spacing[taskDateInputCalendarHeaderHeight.mobile],
+    spacing[taskDateInputCalendarHeaderMarginBottom.mobile],
+    spacing[taskDateInputCalendarWeekDayHeight],
+    `${mobileTaskDateInputCalendarWeeksHeightRem}rem`,
+    spacing[taskDateInputFooterMarginTop.mobile],
+    mobileTaskDateInputFooterHeight,
+    spacing[taskDateInputCalendarPaddingBottom.mobile],
+);
+
+export const desktopTaskDateInputCalendarHeight = addRemLengths(
+    spacing[taskDateInputCalendarPadding.desktop],
+    spacing[taskDateInputCalendarHeaderHeight.desktop],
+    spacing[taskDateInputCalendarHeaderMarginBottom.desktop],
+    spacing[taskDateInputCalendarWeekDayHeight],
+    `${desktopTaskDateInputCalendarWeeksHeightRem}rem`,
+    spacing[taskDateInputFooterMarginTop.desktop],
+    desktopTaskDateInputFooterHeight,
+    spacing[taskDateInputCalendarPaddingBottom.desktop],
 );
 
 export function TaskDateInputCalendar({
@@ -145,23 +189,35 @@ export function TaskDateInputCalendar({
     // between 5-6 weeks long with 5 being more common (a rare February may be
     // exactly 4 weeks long like February 2015). So size weeks based on the number
     // of weeks in the month.
-    const calendarHeightRem = isMobile
-        ? taskDateInputCalendarDaySizeRem * 5.25
-        : taskDateInputCalendarDaySizeRem * 6;
     const weekHeightRem = isMobile
-        ? calendarHeightRem / maxWeeksInMonth
+        ? mobileTaskDateInputCalendarWeeksHeightRem / maxWeeksInMonth
         : taskDateInputCalendarDaySizeRem;
 
     return (
-        <Box {...calendarDomProps} paddingX="3" paddingTop="3" paddingBottom="2">
-            <Box display="flex" alignItems="center" paddingBottom="3">
+        <Box
+            {...calendarDomProps}
+            paddingX={taskDateInputCalendarPadding}
+            paddingTop={taskDateInputCalendarPadding}
+            paddingBottom={taskDateInputCalendarPaddingBottom}
+            style={{
+                height: isMobile
+                    ? mobileTaskDateInputCalendarHeight
+                    : desktopTaskDateInputCalendarHeight,
+            }}
+        >
+            <Box
+                display="flex"
+                alignItems="center"
+                height={taskDateInputCalendarHeaderHeight}
+                marginBottom={taskDateInputCalendarHeaderMarginBottom}
+            >
                 <IconButton
                     // Not focusable since when clicked we don't want to unfocus the text input.
                     // Particularly on mobile. All keyboard interactivity is done through the text
                     // input. The calendar is purely a pointer affordance for convenience.
                     isFocusable={false}
                     variant="quiet"
-                    size="md"
+                    size={!isMobile ? "md" : "sm"}
                     withoutTooltip
                     description={assertExists(prevButtonProps["aria-label"])}
                     isDisabled={assertExists(prevButtonProps["isDisabled"])}
@@ -171,14 +227,24 @@ export function TaskDateInputCalendar({
                 >
                     <CaretLeft />
                 </IconButton>
-                <Box flexGrow="1" textAlign="center" fontStyle="semi-bold">
+                <Box
+                    flexGrow="1"
+                    textAlign="center"
+                    fontSize={{mobile: "50", desktop: "75"}}
+                    fontStyle="semi-bold"
+                >
                     {monthDateFormatter.format(actualStartDate1.toDate(timeZone))}
                 </Box>
                 {actualStartDate2 && (
                     <>
                         <Spacer space="4" />
                         <Spacer space="4" />
-                        <Box flexGrow="1" textAlign="center" fontStyle="semi-bold">
+                        <Box
+                            flexGrow="1"
+                            textAlign="center"
+                            fontSize={{mobile: "50", desktop: "75"}}
+                            fontStyle="semi-bold"
+                        >
                             {monthDateFormatter.format(actualStartDate2.toDate(timeZone))}
                         </Box>
                     </>
@@ -189,7 +255,7 @@ export function TaskDateInputCalendar({
                     // input. The calendar is purely a pointer affordance for convenience.
                     isFocusable={false}
                     variant="quiet"
-                    size="md"
+                    size={!isMobile ? "md" : "sm"}
                     withoutTooltip
                     description={assertExists(nextButtonProps["aria-label"])}
                     isDisabled={assertExists(nextButtonProps["isDisabled"])}
@@ -203,7 +269,14 @@ export function TaskDateInputCalendar({
             <Box
                 display="flex"
                 gap="3"
-                style={{height: `${taskDateInputCalendarWeekDayHeightRem + calendarHeightRem}rem`}}
+                style={{
+                    height: `${
+                        taskDateInputCalendarWeekDayHeightRem +
+                        (isMobile
+                            ? mobileTaskDateInputCalendarWeeksHeightRem
+                            : desktopTaskDateInputCalendarWeeksHeightRem)
+                    }rem`,
+                }}
             >
                 <Box>
                     <TaskDateInputCalendarGrid
@@ -229,11 +302,16 @@ export function TaskDateInputCalendar({
                 )}
             </Box>
             <Box
-                marginTop="3"
-                paddingTop="2"
+                marginTop={taskDateInputFooterMarginTop}
+                paddingTop={taskDateInputFooterPaddingTop}
                 borderTop="grey-5"
                 display="flex"
                 justifyContent="flex-end"
+                style={{
+                    height: isMobile
+                        ? mobileTaskDateInputFooterHeight
+                        : desktopTaskDateInputFooterHeight,
+                }}
             >
                 <Button
                     // Not focusable since when clicked we don't want to unfocus the text input.
@@ -241,7 +319,7 @@ export function TaskDateInputCalendar({
                     // input. The calendar is purely a pointer affordance for convenience.
                     isFocusable={false}
                     variant="quiet"
-                    height="5"
+                    height={taskDateInputFooterButtonHeight}
                     paddingX="2"
                     onPress={() => onDateChange(null)}
                 >

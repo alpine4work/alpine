@@ -48,6 +48,10 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {
+    desktopTaskDateInputCalendarHeight,
+    mobileTaskDateInputCalendarHeight,
+} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewMobileKeyboardToolbarContainer} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
@@ -1096,8 +1100,27 @@ export function useTaskGridViewVirtualizedList({
                 if (controlsElement) {
                     const controlsRect = controlsElement.getBoundingClientRect();
 
-                    const top = Math.min(activeRect.top, controlsRect.top);
-                    const bottom = Math.max(activeRect.bottom, controlsRect.bottom);
+                    // For our anchor position, if there's an open control treat the control as
+                    // having a minimum height equal to `<TaskDateInputCalendar>`. This way in dense
+                    // fields on mobile if we open a priority or assignee input then a calendar
+                    // input, we'll have scrolled to preserve enough onscreen space for the calendar
+                    // should it open next.
+                    const calendarHeightPx = convertRemLengthToPx(
+                        isMobile
+                            ? mobileTaskDateInputCalendarHeight
+                            : desktopTaskDateInputCalendarHeight,
+                        getRemPxWithoutListening(),
+                    );
+
+                    const top =
+                        controlsRect.top < activeRect.top
+                            ? Math.min(controlsRect.top, controlsRect.bottom - calendarHeightPx)
+                            : activeRect.top;
+
+                    const bottom =
+                        controlsRect.bottom > activeRect.bottom
+                            ? Math.max(controlsRect.bottom, controlsRect.top + calendarHeightPx)
+                            : activeRect.bottom;
 
                     return {
                         top,
@@ -1120,7 +1143,7 @@ export function useTaskGridViewVirtualizedList({
 
             return activeRect;
         },
-        [getAnchorPositionFromProps, viewRef],
+        [getAnchorPositionFromProps, isMobile, viewRef],
     );
 
     // When the keyboard opens, make sure we scroll so that whatever's focused
