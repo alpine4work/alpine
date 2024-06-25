@@ -42,9 +42,29 @@ export function subscribeToMobileKeyboardFrameChange(
 ): () => void {
     if (!isMobileKeyboardFrameChangeEnabled) return () => {};
 
-    return NativeMobileBridge
-        ? NativeMobileBridge.keyboard.subscribeToFrameChange(listener)
-        : (mobileKeyboardFrameChangeEmitter ??= new EventEmitter()).subscribe(listener);
+    if (!NativeMobileBridge) {
+        return (mobileKeyboardFrameChangeEmitter ??= new EventEmitter()).subscribe(listener);
+    } else {
+        return NativeMobileBridge.keyboard.subscribeToFrameChange(event => {
+            // Wait an animation frame before calling keyboard frame change listeners. Our
+            // native code emits this event BEFORE our web code processes the `focus`
+            // event. The `focus` event may mount some native mobile bottom bars. By
+            // waiting for the animation frame, we let the `focus` event run and let our
+            // native code process it (which may include updating safe area inset CSS
+            // variables).
+            //
+            // This fixes a bug in task grid views where when you have many tasks, scroll
+            // to the bottom, and tap the bottom ghost task we'd scroll up but the bottom
+            // ghost task wouldn't be completely visible. Since scrolling was clipped
+            // because `--safe-area-inset-bottom` hadn't been updated to account for the
+            // task keyboard toolbar.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    listener(event);
+                });
+            });
+        });
+    }
 }
 
 /**

@@ -829,6 +829,9 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             ({oldKeyboardHeight, newKeyboardHeight, shouldScroll, isAnimated}) => {
                 if (!shouldScroll) return;
 
+                // Sometimes, native dispatches a noop keyboard frame change.
+                if (oldKeyboardHeight === newKeyboardHeight) return;
+
                 const currentBottomBarHeight = getCurrentBottomBarHeight();
 
                 scroll({
