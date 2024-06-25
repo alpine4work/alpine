@@ -892,6 +892,15 @@ function useMobileWebKitKeyboardSupport() {
         };
 
         const actuallyHandleResize = () => {
+            // iOS will scroll the `html` element when the software keyboard opens even
+            // though we have `html, body { overflow: hidden }` set. Immediately unset the
+            // scroll.
+            //
+            // While our `scroll` event should cleanup `scrollTop`, we set `scrollTop = 0`
+            // here too to make sure any subscribers to our keyboard frame change don't
+            // observe the wrong `scrollTop`.
+            document.documentElement.scrollTop = 0;
+
             // Since the resize may be a part of an animation, immediately update the
             // view height.
             flushSync(() => {

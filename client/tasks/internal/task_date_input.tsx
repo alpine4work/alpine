@@ -15,8 +15,10 @@ import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
@@ -163,8 +165,15 @@ export function TaskDateInput({
         if (!isMobile) return;
         if (!isEditing) return;
 
+        const overlayElement = assertExists(overlayRef.current);
+        const overlayRectForMobileWebKit =
+            isMobileWebKit && !NativeMobileBridge ? overlayElement.getBoundingClientRect() : null;
+
         const run = () => {
-            const inputElement = assertExists(inputRef.current);
+            // If component has unmounted, don't continue.
+            if (!inputRef.current) return;
+
+            const inputElement = inputRef.current;
             const overlayElement = assertExists(overlayRef.current);
 
             let scrollableElement: HTMLElement | null = inputElement.parentElement;
@@ -180,8 +189,15 @@ export function TaskDateInput({
             if (scrollableElement === null) return;
 
             const inputRect = inputElement.getBoundingClientRect();
-            const overlayRect = overlayElement.getBoundingClientRect();
-            const viewportHeight = document.documentElement.getBoundingClientRect().height;
+            const viewportRect = document.documentElement.getBoundingClientRect();
+
+            // NOTE(calebmer, #mobile-webkit-weirdness): For some reason, and I have truly
+            // no idea, in Safari (but not in the native app!) when we call
+            // `getBoundingClientRect()` for overlay here it gives us the position before
+            // Popper.js positioning is applied. But if we call `getBoundingClientRect()`
+            // directly in the effect all is fine...
+            const overlayRect =
+                overlayRectForMobileWebKit ?? overlayElement.getBoundingClientRect();
 
             const top = Math.min(inputRect.top, overlayRect.top);
             const bottom = Math.max(inputRect.bottom, overlayRect.bottom);
@@ -202,7 +218,7 @@ export function TaskDateInput({
             }
 
             const clearanceBottom =
-                viewportHeight -
+                viewportRect.height -
                 getCurrentCoveredHeight() -
                 convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
 
@@ -221,19 +237,16 @@ export function TaskDateInput({
         // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
         // avoid the keyboard.
         const cleanup = subscribeToMobileKeyboardFrameChange(() => {
+            cleanup();
             timeout.clear();
             run();
         });
 
         const timeout = createTimeout(() => {
             cleanup();
+            timeout.clear();
             run();
         }, perceivedAsInstantLimitMs);
-
-        return () => {
-            cleanup();
-            timeout.clear();
-        };
     }, [getCurrentCoveredHeight, isEditing, isMobile]);
 
     const {pressProps: previewPressProps} = usePress({

@@ -1,5 +1,6 @@
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {disableScrollInteractions} from "~/client/helpers/disable_scroll_interactions.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 
 /**
  * Disable the default scroll behavior when touch moves on a non-scrollable
@@ -23,7 +24,7 @@ import {disableScrollInteractions} from "~/client/helpers/disable_scroll_interac
  * necessary and only in the states where it's necessary.
  */
 export function disableMobileWebKitDefaultScroll() {
-    if (!isMobileWebKit) return;
+    if (!isMobileWebKit) return noop;
 
     let initialTouches: Array<Touch> = [];
     let isHorizontalScrollGesture: boolean | null = null;

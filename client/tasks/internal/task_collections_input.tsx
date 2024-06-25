@@ -28,11 +28,13 @@ import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useTouchSlop} from "~/client/design/use_touch_slop.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -518,8 +520,15 @@ function TaskCollectionsInput(
         if (!isMobile) return;
         if (!comboBoxState.isOpen) return;
 
+        const popoverElement = assertExists(popoverRef.current);
+        const popoverRectForMobileWebKit =
+            isMobileWebKit && !NativeMobileBridge ? popoverElement.getBoundingClientRect() : null;
+
         const run = () => {
-            const inputElement = assertExists(inputRef.current);
+            // If component has unmounted, don't continue.
+            if (!inputRef.current) return;
+
+            const inputElement = inputRef.current;
             const popoverElement = assertExists(popoverRef.current);
 
             let scrollableElement: HTMLElement | null = inputElement.parentElement;
@@ -534,8 +543,15 @@ function TaskCollectionsInput(
 
             if (scrollableElement === null) return;
 
-            const popoverRect = popoverElement.getBoundingClientRect();
             const viewportHeight = document.documentElement.getBoundingClientRect().height;
+
+            // NOTE(calebmer, #mobile-webkit-weirdness): For some reason, and I have truly
+            // no idea, in Safari (but not in the native app!) when we call
+            // `getBoundingClientRect()` for overlay here it gives us the position before
+            // Popper.js positioning is applied. But if we call `getBoundingClientRect()`
+            // directly in the effect all is fine...
+            const popoverRect =
+                popoverRectForMobileWebKit ?? popoverElement.getBoundingClientRect();
 
             const clearanceBottom =
                 viewportHeight -
@@ -556,19 +572,16 @@ function TaskCollectionsInput(
         // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
         // avoid the keyboard.
         const cleanup = subscribeToMobileKeyboardFrameChange(() => {
+            cleanup();
             timeout.clear();
             run();
         });
 
         const timeout = createTimeout(() => {
             cleanup();
+            timeout.clear();
             run();
         }, perceivedAsInstantLimitMs);
-
-        return () => {
-            cleanup();
-            timeout.clear();
-        };
     }, [comboBoxState.isOpen, getCurrentCoveredHeight, isMobile]);
 
     const inputPlaceholder = "Add";
