@@ -408,6 +408,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         let touchState: {
             gesture: "Reply" | "Other" | null;
             hasReplyGestureActivated: boolean;
+            isReplyGestureDisabled: boolean;
             initialClientX: number;
             initialClientY: number;
             longTouchTimeout: Timeout | null;
@@ -432,14 +433,30 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 return;
             }
 
-            // If the user is touching a link, then a long press won't open the lightbox.
-            // Instead it will open the link.
+            let isReplyGestureDisabled = false;
+
             if (event.target instanceof HTMLElement) {
                 let element: HTMLElement | null = event.target;
-                while (element) {
+                while (element && messageElement.contains(element)) {
+                    // If the user is touching a link, then a long press won't open the lightbox.
+                    // Instead it will open the link.
                     if (element.classList.contains(contentSchemaStyles.linkClassName)) {
                         return;
                     }
+
+                    const {overflowX} = getComputedStyle(element);
+
+                    // If the user is touching a horizontally scrollable element (e.g. a code
+                    // block) then disable the reply gesture if it's been scrolled since swiping
+                    // horizontally should scroll. Not reply.
+                    if (
+                        (overflowX === "scroll" ||
+                            (overflowX === "auto" && element.scrollWidth > element.clientWidth)) &&
+                        element.scrollLeft > 0
+                    ) {
+                        isReplyGestureDisabled = true;
+                    }
+
                     element = element.parentElement;
                 }
             }
@@ -481,6 +498,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             touchState = {
                 gesture: null,
                 hasReplyGestureActivated: false,
+                isReplyGestureDisabled,
                 initialClientX: touch.clientX,
                 initialClientY: touch.clientY,
                 longTouchTimeout,
@@ -515,6 +533,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 if (touchState.gesture === null) {
                     if (Math.abs(touch.clientX - touchState.initialClientX) >= 10) {
                         if (touch.clientX < touchState.initialClientX) {
+                            touchState.gesture = "Other";
+                        } else if (touchState.isReplyGestureDisabled) {
                             touchState.gesture = "Other";
                         } else {
                             touchState.gesture = "Reply";
