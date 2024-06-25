@@ -11,6 +11,8 @@ import {
 } from "~/client/design/navigation_bar.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
+import {subscribeToMobileKeyboardFrameChange} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useGetCurrentCoveredHeight} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
@@ -21,6 +23,7 @@ import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
 import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
@@ -214,28 +217,22 @@ export function TaskDateInput({
             }
         };
 
-        let isCancelled = false;
-
         // This effect needs to run after `NativeMobileBridge` calls
         // `keyboard.subscribeToFrameChange` subscribers. That way we can properly
-        // avoid the keyboard. In testing it seems like
-        // `keyboard.subscribeToFrameChange` is consistently called after double
-        // `requestAnimationFrame()` (which ensures we finish the current animation
-        // frame).
-        //
-        // NOTE(calebmer): I don't know enough about how WebKit does cross-thread
-        // communication to know if it's a guarantee that we'll always get
-        // `keyboard.subscribeToFrameChange` within two animation frames. Maybe as a
-        // fallback we should wait for 2 request animation frames AND ~50ms?
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                if (isCancelled) return;
-                run();
-            });
+        // avoid the keyboard.
+        const cleanup = subscribeToMobileKeyboardFrameChange(() => {
+            timeout.clear();
+            run();
         });
 
+        const timeout = createTimeout(() => {
+            cleanup();
+            run();
+        }, perceivedAsInstantLimitMs);
+
         return () => {
-            isCancelled = true;
+            cleanup();
+            timeout.clear();
         };
     }, [getCurrentCoveredHeight, isEditing, isMobile]);
 
