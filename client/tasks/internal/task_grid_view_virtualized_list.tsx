@@ -1616,13 +1616,10 @@ export function useTaskGridViewVirtualizedList({
             const anchorPosition = getAnchorPosition(visibleRect);
             if (!anchorPosition) return;
 
-            const viewportHeight = document.documentElement.getBoundingClientRect().height;
             const anchorBottom = anchorPosition.top + anchorPosition.height;
 
             const clearanceBottom =
-                viewportHeight -
-                visibleRect.bottom -
-                convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
+                visibleRect.bottom - convertRemLengthToPx(spacing["1"], getRemPxWithoutListening());
 
             if (anchorBottom <= clearanceBottom) return;
 
