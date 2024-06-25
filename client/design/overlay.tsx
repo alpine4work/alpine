@@ -136,6 +136,17 @@ export type OverlayProps = {
     preventOverflow?: boolean;
 
     /**
+     * Space at the top of the screen we consider to be "overflow" area. That is
+     * if an overlay is placed in this area the overlay will flip to a fallback
+     * placement to avoid rendering in the area.
+     *
+     * Useful if you want your overlay to avoid the navigation bar's area.
+     *
+     * Top safe area is added to this value.
+     */
+    overflowTop?: Spacing | RemLength;
+
+    /**
      * Space at the bottom of the screen we consider to be "overflow" area. That is
      * if an overlay is placed in this area the overlay will flip to a fallback
      * placement to avoid rendering in the area.
@@ -253,6 +264,7 @@ function Overlay(
         offset,
         offsetAlong,
         preventOverflow = true,
+        overflowTop,
         overflowBottom,
         sameWidth = false,
         sameHeight = false,
@@ -371,7 +383,16 @@ function Overlay(
                 const paddingPx = convertRemLengthToPx(spacing["1"], remPx);
 
                 const padding = {
-                    top: sameHeight ? 0 : paddingPx + getElementSafeAreaInsetTopPx(targetElement),
+                    top: sameHeight
+                        ? 0
+                        : paddingPx +
+                          getElementSafeAreaInsetTopPx(targetElement) +
+                          (overflowTop !== undefined
+                              ? convertRemLengthToPx(
+                                    isSpacing(overflowTop) ? spacing[overflowTop] : overflowTop,
+                                    remPx,
+                                )
+                              : 0),
                     bottom: sameHeight
                         ? 0
                         : paddingPx +

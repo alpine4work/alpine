@@ -151,7 +151,7 @@ function Button(
         // TODO(calebmer): Instead of having separate `paddingX`, `height`, and
         // `fontSize` we should probably put together size presets that look nice like
         // `<IconButton>`'s `size` prop?
-        fontSize?: "75" | "100";
+        fontSize?: "50" | "75" | "100";
 
         /**
          * Amount of border radius to apply to the left of the button. Defaults to

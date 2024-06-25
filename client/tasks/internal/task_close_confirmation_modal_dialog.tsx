@@ -30,7 +30,7 @@ export function TaskCloseConfirmationModalDialog({
 
     return (
         <ModalDialog
-            title="Mark task closed?"
+            title="Mark task as closed?"
             description={`This task has ${childTaskCountPrettyNumber} that will stay open if this task is closed.`}
             primaryButtonLabel="Mark closed"
             primaryButtonPressErrorTitle="Couldn’t mark task as closed"

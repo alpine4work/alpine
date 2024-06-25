@@ -47,22 +47,23 @@ const mobileTaskDateInputCalendarWeeksHeightRem = taskDateInputCalendarDaySizeRe
 const desktopTaskDateInputCalendarWeeksHeightRem = taskDateInputCalendarDaySizeRem * 6;
 
 const taskDateInputCalendarPadding = {desktop: "3", mobile: "2.5"} as const;
-const taskDateInputCalendarPaddingBottom = {desktop: "2", mobile: "1.5"} as const;
 
 const taskDateInputCalendarHeaderHeight = {desktop: "6", mobile: "5"} as const;
-const taskDateInputCalendarHeaderMarginBottom = {desktop: "3", mobile: "1.5"} as const;
+const taskDateInputCalendarHeaderMarginBottom = {desktop: "3", mobile: "1"} as const;
 
-const taskDateInputFooterMarginTop = {desktop: "3", mobile: "1"} as const;
-const taskDateInputFooterPaddingTop = {desktop: "2", mobile: "1.5"} as const;
+const taskDateInputFooterMarginTop = {desktop: "3", mobile: "0"} as const;
+const taskDateInputFooterPaddingY = {desktop: "2", mobile: "1"} as const;
 const taskDateInputFooterButtonHeight = "5";
 
 const desktopTaskDateInputFooterHeight = addRemLengths(
+    spacing[taskDateInputFooterPaddingY.desktop],
     spacing[taskDateInputFooterButtonHeight],
-    spacing[taskDateInputFooterPaddingTop.desktop],
+    spacing[taskDateInputFooterPaddingY.desktop],
 );
 const mobileTaskDateInputFooterHeight = addRemLengths(
+    spacing[taskDateInputFooterPaddingY.mobile],
     spacing[taskDateInputFooterButtonHeight],
-    spacing[taskDateInputFooterPaddingTop.mobile],
+    spacing[taskDateInputFooterPaddingY.mobile],
 );
 
 export const mobileTaskDateInputCalendarHeight = addRemLengths(
@@ -73,7 +74,6 @@ export const mobileTaskDateInputCalendarHeight = addRemLengths(
     `${mobileTaskDateInputCalendarWeeksHeightRem}rem`,
     spacing[taskDateInputFooterMarginTop.mobile],
     mobileTaskDateInputFooterHeight,
-    spacing[taskDateInputCalendarPaddingBottom.mobile],
 );
 
 export const desktopTaskDateInputCalendarHeight = addRemLengths(
@@ -84,7 +84,6 @@ export const desktopTaskDateInputCalendarHeight = addRemLengths(
     `${desktopTaskDateInputCalendarWeeksHeightRem}rem`,
     spacing[taskDateInputFooterMarginTop.desktop],
     desktopTaskDateInputFooterHeight,
-    spacing[taskDateInputCalendarPaddingBottom.desktop],
 );
 
 export function TaskDateInputCalendar({
@@ -198,7 +197,6 @@ export function TaskDateInputCalendar({
             {...calendarDomProps}
             paddingX={taskDateInputCalendarPadding}
             paddingTop={taskDateInputCalendarPadding}
-            paddingBottom={taskDateInputCalendarPaddingBottom}
             style={{
                 height: isMobile
                     ? mobileTaskDateInputCalendarHeight
@@ -303,7 +301,7 @@ export function TaskDateInputCalendar({
             </Box>
             <Box
                 marginTop={taskDateInputFooterMarginTop}
-                paddingTop={taskDateInputFooterPaddingTop}
+                paddingY={taskDateInputFooterPaddingY}
                 borderTop="grey-5"
                 display="flex"
                 justifyContent="flex-end"
@@ -321,6 +319,7 @@ export function TaskDateInputCalendar({
                     variant="quiet"
                     height={taskDateInputFooterButtonHeight}
                     paddingX="2"
+                    fontSize={isMobile ? "50" : "75"}
                     onPress={() => onDateChange(null)}
                 >
                     Clear
