@@ -312,6 +312,11 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                       NativeMobileBridge.tabBar.getDeferredScrollOffset()
                     : 0;
 
+            const oldBottomBarResolvedHeight =
+                oldBottomBarHeight[
+                    oldMobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
+                ];
+
             // Considers:
             //
             // - Keyboard height
@@ -320,9 +325,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // - Tab bar height
             const oldCoveredHeight =
                 Math.max(oldMobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
-                oldBottomBarHeight[
-                    oldMobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
-                ];
+                oldBottomBarResolvedHeight;
 
             const oldCoveredBottom = viewportHeight - oldCoveredHeight;
 
@@ -334,6 +337,11 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 bottom: Math.min(oldScrollableBottom, oldCoveredBottom),
             };
 
+            const newBottomBarResolvedHeight =
+                newBottomBarHeight[
+                    newMobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
+                ];
+
             // Considers:
             //
             // - Keyboard height
@@ -342,9 +350,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // - Tab bar height
             const newCoveredHeight =
                 Math.max(newMobileKeyboardHeight, windowSafeAreaInsetBottom + tabBarHeight) +
-                newBottomBarHeight[
-                    newMobileKeyboardHeight > 0 ? "visibleMobileKeyboard" : "hiddenMobileKeyboard"
-                ];
+                newBottomBarResolvedHeight;
 
             const newCoveredBottom = viewportHeight - newCoveredHeight;
 
@@ -640,7 +646,44 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 scrollableElement.scrollTop + scrollableElement.clientHeight ===
                     scrollableElement.scrollHeight
             ) {
-                scrollDelta += currentScrollableRect.height - lastScrollableRect.height;
+                const oldBottomBarKeyboardToolbarHeight =
+                    oldMobileKeyboardHeight > 0
+                        ? oldBottomBarHeight.visibleMobileKeyboard -
+                          oldBottomBarHeight.hiddenMobileKeyboard
+                        : 0;
+
+                const newBottomBarKeyboardToolbarHeight =
+                    newMobileKeyboardHeight > 0
+                        ? newBottomBarHeight.visibleMobileKeyboard -
+                          newBottomBarHeight.hiddenMobileKeyboard
+                        : 0;
+
+                // If some `--safe-area-inset-bottom` was removed then the browser will
+                // automatically adjust scroll according to the removed safe area. Ideally we'd
+                // be able to compare old safe area to new safe area (like we compare
+                // scrollable rects) instead we're making an assumption to guess the safe
+                // area difference in some cases.
+                //
+                // We assume that the keyboard toolbar height corresponds to safe area added to
+                // the view. When a keyboard toolbar is visible, there's some safe area and
+                // when it's hidden the safe area is removed.
+                //
+                // This fixes a bug in a mobile web chat view in Safari. Try opening a chat
+                // with many messages, scrolling to the bottom, focusing the message input then
+                // hitting "Done" in Safari's UI to close the message input. If this is 0 then
+                // the scroll will cover some content we expected to be uncovered. [Video of
+                // the bug being fixed][1].
+                //
+                // [1]: https://gist.github.com/calebmer/2d38b89fe933a69071f638bc349f4606
+                const bottomBarKeyboardToolbarHeightDifference = Math.max(
+                    0,
+                    oldBottomBarKeyboardToolbarHeight - newBottomBarKeyboardToolbarHeight,
+                );
+
+                scrollDelta +=
+                    currentScrollableRect.height -
+                    lastScrollableRect.height +
+                    bottomBarKeyboardToolbarHeightDifference;
 
                 // NOTE(calebmer, #mobile-webkit-weirdness): So mobile WebKit doesn't do the
                 // automatic scroll adjustment until the user or JavaScript initiates a scroll.
