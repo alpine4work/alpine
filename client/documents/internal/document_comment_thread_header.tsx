@@ -7,6 +7,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
@@ -66,6 +67,9 @@ export function DocumentCommentThreadHeader({
                 );
             },
         );
+
+        // Reward the user with haptic feedback when they resolve a comment thread.
+        NativeMobileBridge?.haptic.playLightImpact();
     };
 
     const {isPressed, pressProps} = usePress({

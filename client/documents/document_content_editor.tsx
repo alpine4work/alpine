@@ -10,7 +10,17 @@ import {
     X,
 } from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
-import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {
+    Memo,
+    Ref,
+    RefObject,
+    useCallback,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
@@ -141,7 +151,7 @@ type DocumentContentEditorSidebarMobileState =
     | {
           readonly isFullScreen: true;
           readonly animationState: "Expanding" | "Contracting" | null;
-          readonly shouldFocusCommentInputRef: {current: boolean};
+          readonly onAnimationFinishedRef: {current: (() => void) | null};
       };
 
 type DocumentContentEditorSidebarTransition = {
@@ -776,10 +786,11 @@ export function DocumentContentEditor({
             sidebarState.isOpen &&
             sidebarState.mobileState.isFullScreen &&
             sidebarState.mobileState.animationState === null &&
-            sidebarState.mobileState.shouldFocusCommentInputRef.current
+            sidebarState.mobileState.onAnimationFinishedRef.current
         ) {
-            sidebarState.mobileState.shouldFocusCommentInputRef.current = false;
-            pinnedCommentInputRef.current?.focus();
+            const onAnimationFinished = sidebarState.mobileState.onAnimationFinishedRef.current;
+            sidebarState.mobileState.onAnimationFinishedRef.current = null;
+            onAnimationFinished();
         }
     }, [sidebarState]);
 
@@ -820,7 +831,6 @@ export function DocumentContentEditor({
      *                     Comment thread sidebar navigation                      *
     \* ========================================================================== */
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const openCommentThread = useEvent((commentThreadId: DocumentCommentThreadId) => {
         // If this comment thread is already open or in the process of opening then
         // don't open it again.
@@ -967,13 +977,16 @@ export function DocumentContentEditor({
                     return;
                 }
 
+                // We still want to call `clear()` to clear replying state and editing state.
+                pinnedCommentInputRef.current?.clear();
+
                 run();
             },
             onSidebarMobileFullScreenExpand: ({
-                shouldFocusCommentInput,
+                onAnimationFinished,
             }: {
-                shouldFocusCommentInput: boolean;
-            }) => {
+                onAnimationFinished?: () => void;
+            } = {}) => {
                 setSidebarState(sidebarState => {
                     if (!sidebarState.isOpen) return sidebarState;
                     if (sidebarState.mobileState.isFullScreen) return sidebarState;
@@ -983,12 +996,14 @@ export function DocumentContentEditor({
                         mobileState: {
                             isFullScreen: true,
                             animationState: "Expanding",
-                            shouldFocusCommentInputRef: {current: shouldFocusCommentInput},
+                            onAnimationFinishedRef: {current: onAnimationFinished ?? null},
                         },
                     };
                 });
             },
             onSidebarMobileFullScreenContract: () => {
+                pinnedCommentInputRef.current?.blur();
+
                 const run = () => {
                     setSidebarState(sidebarState => {
                         if (!sidebarState.isOpen) return sidebarState;
@@ -1018,6 +1033,9 @@ export function DocumentContentEditor({
                     setMobileDiscardSidebarCommentInputModalState({onDiscard: run});
                     return;
                 }
+
+                // We still want to call `clear()` to clear replying state and editing state.
+                pinnedCommentInputRef.current?.clear();
 
                 run();
             },
@@ -1717,6 +1735,9 @@ export function DocumentContentEditor({
                                     isMobile={isMobile}
                                     withMobileLayout={withMobileLayout}
                                     mobileState={sidebarState.mobileState}
+                                    onSidebarMobileFullScreenExpand={
+                                        onSidebarMobileFullScreenExpand
+                                    }
                                     onSidebarMobileFullScreenContract={
                                         onSidebarMobileFullScreenContract
                                     }
@@ -1766,9 +1787,7 @@ export function DocumentContentEditor({
                                                 event.target !== editorElement &&
                                                 !editorElement.contains(event.target)
                                             ) {
-                                                onSidebarMobileFullScreenExpand({
-                                                    shouldFocusCommentInput: false,
-                                                });
+                                                onSidebarMobileFullScreenExpand();
                                             }
                                         }}
                                     >
@@ -1793,7 +1812,9 @@ export function DocumentContentEditor({
                                                 }}
                                                 onPointerDown={() => {
                                                     onSidebarMobileFullScreenExpand({
-                                                        shouldFocusCommentInput: true,
+                                                        onAnimationFinished: () => {
+                                                            pinnedCommentInputRef.current?.focus();
+                                                        },
                                                     });
                                                 }}
                                             >
@@ -1967,6 +1988,7 @@ function DocumentContentEditorSidebar({
     isMobile,
     withMobileLayout,
     mobileState,
+    onSidebarMobileFullScreenExpand,
     onSidebarMobileFullScreenContract,
     commentThreadId,
     onCommentThreadSnippetPress,
@@ -1981,12 +2003,13 @@ function DocumentContentEditorSidebar({
     onClose,
     openCommentThread,
 }: {
-    pinnedCommentInputRef: Ref<MessageInputRef>;
+    pinnedCommentInputRef: RefObject<MessageInputRef>;
     documentId: DocumentId;
     content: DocumentContentWithReferences;
     isMobile: boolean;
     withMobileLayout: boolean;
     mobileState: DocumentContentEditorSidebarMobileState;
+    onSidebarMobileFullScreenExpand: Memo<(options?: {onAnimationFinished?: () => void}) => void>;
     onSidebarMobileFullScreenContract: Memo<() => void>;
     commentThreadId: DocumentCommentThreadId;
     onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
@@ -2226,6 +2249,8 @@ function DocumentContentEditorSidebar({
                 {header}
                 {useMemo(
                     () =>
+                        // TODO(calebmer): Ideally this would render shimmers instead of a loading
+                        // spinner.
                         initialDataResult.isPending || !initialDataResult.value ? (
                             <Box
                                 flexGrow="1"
@@ -2294,6 +2319,20 @@ function DocumentContentEditorSidebar({
                                         ? spacing[documentContentEditorMobileSidebarInsetTop]
                                         : undefined
                                 }
+                                // If we're focusing the pinned comment input because the user swiped to reply
+                                // to a comment then we first need to make sure our sidebar is full screen,
+                                // then we can focus the input after that animation finishes.
+                                onBeforePinnedCommentInputFocusFromReplyOrEditingChange={() => {
+                                    if (mobileState.isFullScreen) return;
+
+                                    onSidebarMobileFullScreenExpand({
+                                        onAnimationFinished: () => {
+                                            pinnedCommentInputRef.current?.focus();
+                                        },
+                                    });
+
+                                    return {preventDefault: true};
+                                }}
                             />
                         ),
                     [
@@ -2308,6 +2347,7 @@ function DocumentContentEditorSidebar({
                         isNativeMobile,
                         mobileState,
                         onCommentThreadSnippetPress,
+                        onSidebarMobileFullScreenExpand,
                         pinnedCommentInputRef,
                         procedures,
                         subscribeToCommentThreadEvents,

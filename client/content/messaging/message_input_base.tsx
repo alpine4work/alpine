@@ -128,6 +128,7 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     withMobileMaxHeight?: boolean;
     onFocus?: () => void;
     onBlur?: () => void;
+    onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
     onArrowUp?: (event: KeyboardEvent) => void;
 };
 
@@ -173,6 +174,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         withMobileMaxHeight,
         onFocus,
         onBlur,
+        onBeforeFocusFromReplyOrEditingChange: onBeforeFocusFromReplyOrEditingChangeProp,
         onArrowUp,
         sendButtonVerb = messageEditingForThisInput ? "Save" : "Send",
         placeholder = `${
@@ -203,6 +205,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     );
 
     const clear = useEvent(() => {
+        onClearReplyingToMessage?.();
+        messageEditingForThisInput?.dispatch({type: "CancelEditing"});
         onChange(ContentEditorState.create(emptyMessageContentWithReferences));
     });
 
@@ -236,6 +240,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         };
     }, [isEditingMessage, replyingToMessageProp, messageStartOfSentenceNoun]);
 
+    const onBeforeFocusFromReplyOrEditingChange = useEvent(
+        onBeforeFocusFromReplyOrEditingChangeProp,
+    );
+
     // Focus the message input whenever the message we're replying to changes. Or
     // if we start editing the message.
     const focusKey =
@@ -251,6 +259,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
         if (focusKey === null) return;
 
+        const result = onBeforeFocusFromReplyOrEditingChange?.();
+        if (result?.preventDefault) return;
+
         // Make sure we've finished painting the change causing us to focus before
         // actually focusing the editor.
         //
@@ -265,7 +276,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 editor.focus();
             });
         });
-    }, [focusKey]);
+    }, [focusKey, onBeforeFocusFromReplyOrEditingChange]);
 
     const isSendButtonDisabled =
         isSendButtonDisabledProp || (!isEditingMessage && isContentEmpty(state.getDoc()));

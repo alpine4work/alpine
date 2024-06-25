@@ -236,6 +236,7 @@ function DocumentCommentThreadListView(
         navigationBar,
         withSafeAreaInsetTop = false,
         pinnedCommentInputRef,
+        onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
     }: {
@@ -309,6 +310,18 @@ function DocumentCommentThreadListView(
          * mobile layout and there's only one comment thread.
          */
         pinnedCommentInputRef?: Ref<MessageInputRef>;
+
+        /**
+         * If we're about to focus our pinned comment input in response to the user
+         * asking to reply to a comment or edit a comment then we call this function.
+         * You can stop focusing by returning `preventDefault: true`.
+         *
+         * Useful for `<DocumentContentEditor>` where we need to expand the comment
+         * sidebar before we can allow the user to write a comment.
+         */
+        onBeforePinnedCommentInputFocusFromReplyOrEditingChange?: () => {
+            preventDefault: boolean;
+        } | void;
 
         /**
          * Have we called `NativeMobileBridge.tabBar.hide()`? If true then we need
@@ -1328,6 +1341,9 @@ function DocumentCommentThreadListView(
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                                 paddingX={paddingX}
                                 withMobileMaxHeight={withCommentInputMobileMaxHeight}
+                                onBeforeFocusFromReplyOrEditingChange={
+                                    onBeforePinnedCommentInputFocusFromReplyOrEditingChange
+                                }
                             />
                         );
                     })()}

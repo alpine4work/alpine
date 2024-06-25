@@ -62,6 +62,9 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     } | null>;
     paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight?: boolean;
+    onFocus?: () => void;
+    onBlur?: () => void;
+    onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
 };
 
 const MessageInputForwardRef = forwardRef(MessageInput) as <
@@ -94,6 +97,9 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         restoreStateRef,
         paddingX = screenPaddingX,
         withMobileMaxHeight,
+        onFocus,
+        onBlur,
+        onBeforeFocusFromReplyOrEditingChange,
     }: MessageInputProps<RoomKey, Message>,
     externalRef: Ref<MessageInputRef>,
 ) {
@@ -296,10 +302,13 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 withMobileMaxHeight={withMobileMaxHeight}
                 onFocus={() => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
+                    onFocus?.();
                 }}
                 onBlur={() => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = false;
+                    onBlur?.();
                 }}
+                onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}
                 onArrowUp={event => {
                     if (messageEditingForThisInput) return;
 

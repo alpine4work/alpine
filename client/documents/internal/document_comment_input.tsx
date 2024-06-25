@@ -40,6 +40,8 @@ export function DocumentCommentInput({
     subscribeToCommentThreadEvents,
     paddingX,
     withMobileMaxHeight,
+    onFocus,
+    onBeforeFocusFromReplyOrEditingChange,
 }: {
     withMobileLayout: boolean;
     isStickyPositioned: boolean;
@@ -66,6 +68,8 @@ export function DocumentCommentInput({
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     paddingX: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     withMobileMaxHeight: boolean;
+    onFocus?: () => void;
+    onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
 }) {
     const reporter = useReporter();
 
@@ -223,6 +227,8 @@ export function DocumentCommentInput({
             }}
             paddingX={paddingX}
             withMobileMaxHeight={withMobileMaxHeight}
+            onFocus={onFocus}
+            onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}
         />
     );
 }

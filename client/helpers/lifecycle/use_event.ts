@@ -32,9 +32,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export function useEvent<Args extends Array<unknown>, Return>(
     event: (...args: Args) => Return,
 ): Memo<(...args: Args) => Return>;
-export function useEvent<Args extends Array<unknown>>(
-    event: ((...args: Args) => void) | undefined,
-): Memo<(...args: Args) => void>;
+export function useEvent<Args extends Array<unknown>, Return>(
+    event: ((...args: Args) => Return) | undefined,
+): Memo<(...args: Args) => Return | undefined>;
 export function useEvent<Args extends Array<unknown>>(
     event: ((...args: Args) => void) | undefined,
 ): Memo<(...args: Args) => unknown> {
