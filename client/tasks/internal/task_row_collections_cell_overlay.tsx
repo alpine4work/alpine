@@ -69,6 +69,11 @@ function TaskRowCollectionsCellOverlay(
             overlay={
                 <Box
                     ref={useMergedRefs<HTMLDivElement>(ref, childFocusRingTargetRef)}
+                    data-testid={
+                        process.env.NODE_ENV !== "production"
+                            ? "TaskRowCollectionsCellOverlay"
+                            : undefined
+                    }
                     position="relative"
                     borderRadius="sm"
                     boxShadow="elevation-20"

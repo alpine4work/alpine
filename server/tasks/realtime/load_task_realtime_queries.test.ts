@@ -438,7 +438,7 @@ test("fails if account is removed from space", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 });
 
 test("fails if one query is unauthorized and one is authorized", async () => {

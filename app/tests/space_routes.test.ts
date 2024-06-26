@@ -40,5 +40,9 @@ test("every space route has an error title in `client/spaces/route_error_title.t
     // Sanity check: Make sure we found some routes.
     expect(spaceRouteIds.length).toBeGreaterThan(0);
 
-    expect(spaceRouteIds.sort()).toEqual(getRouteIdsWithDefinedErrorTitleForTest().sort());
+    expect(spaceRouteIds.sort()).toEqual(
+        getRouteIdsWithDefinedErrorTitleForTest()
+            .sort()
+            .filter(routeId => routeId.startsWith("routes/s.$spaceId.")),
+    );
 });

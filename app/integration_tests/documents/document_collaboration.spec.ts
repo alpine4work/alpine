@@ -234,6 +234,10 @@ test("can write collaboratively at the same time in a document", async ({
         const characters = new Map<string, number>();
 
         for (const character of string) {
+            // Ignore zero width space (https://graphemica.com/200B) inserted by
+            // `<ContentEditor>`.
+            if (character === "\u200B") continue;
+
             const count = getOrSetDefaultMapValue(characters, character, () => 0);
             characters.set(character, count + 1);
         }

@@ -11871,7 +11871,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
     });
 
     test("can't update a task's title in the context of the wrong space", async () => {
@@ -11919,7 +11919,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
     });
 
     test("can't update a collection's name in the context of the wrong space", async () => {

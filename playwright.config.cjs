@@ -2,7 +2,7 @@
 
 const {devices, defineConfig} = require("@playwright/test");
 
-const timeout = 30 * 1000;
+const timeout = 20 * 1000;
 const actionTimeout = 5 * 1000;
 
 module.exports = defineConfig({

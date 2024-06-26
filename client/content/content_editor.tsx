@@ -2043,15 +2043,6 @@ const addEmojiDecorations = createProsemirrorIncrementalReducer<DecorationSet>(n
     };
 });
 
-const sentenceBreakElement = new Lazy(() => {
-    const sentenceBreakElement = document.createElement("span");
-    sentenceBreakElement.ariaHidden = "true";
-    sentenceBreakElement.style.visibility = "false";
-    sentenceBreakElement.style.width = "0px";
-    sentenceBreakElement.appendChild(document.createTextNode("\u200B"));
-    return sentenceBreakElement;
-});
-
 // NOTE(calebmer, #mobile-webkit-weirdness): This is a hack to fix a bug in
 // mobile WebKit (iOS). If you have the following in a content editor (e.g.
 // post creator) where `|` is your cursor:
@@ -2110,6 +2101,22 @@ function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
     if (!node.isTextblock || node.type.name !== "paragraph") return decorations;
 
     return decorations.add(state.doc, [
-        Decoration.widget($pos.end(depth), sentenceBreakElement.get()),
+        Decoration.widget(
+            $pos.end(depth),
+            () => {
+                const sentenceBreakElement = document.createElement("span");
+                sentenceBreakElement.ariaHidden = "true";
+                sentenceBreakElement.style.visibility = "false";
+                sentenceBreakElement.style.width = "0px";
+                sentenceBreakElement.appendChild(
+                    document.createTextNode(
+                        // zero width space (https://graphemica.com/200B)
+                        "\u200B",
+                    ),
+                );
+                return sentenceBreakElement;
+            },
+            {key: "sentenceBreak"},
+        ),
     ]);
 }

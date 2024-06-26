@@ -508,7 +508,7 @@ test("undo/redo can bring back a task you lost access to with a lease", async ({
     await expect(taskLocator9.getByRole("textbox", {name: "Title"})).toHaveText("Task 9");
 
     await taskLocator3.getByTestId("TaskRowCollectionsCell").focus();
-    await taskLocator3.getByTestId("TaskRowCollectionsCell").getByLabel("Remove").click();
+    await page.getByTestId("TaskRowCollectionsCellOverlay").getByLabel("Remove").click();
 
     await expectTaskRowViewPriority(taskLocator1, "High");
     await expectTaskRowViewPriority(taskLocator2, "High");

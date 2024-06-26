@@ -529,6 +529,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expect(page.getByRole("group", {name: "Due date"})).toHaveText("7/12/2000");
 
     await page.getByRole("button", {name: "Clear"}).click();
+    await page.locator("*:focus").blur();
 
     await page.getByTestId("TaskDetailViewMain").getByRole("textbox", {name: "Title"}).click();
 

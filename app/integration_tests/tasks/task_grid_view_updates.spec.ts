@@ -669,6 +669,7 @@ test("can update due date", async ({page, context: browserContext}) => {
     await expectTaskGridView(page, [[true, "test", "", "", "7/12/2000"]]);
 
     await page.getByRole("button", {name: "Clear"}).click();
+    await page.locator("*:focus").blur();
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByRole("textbox", {name: "Title"}).click();
 
@@ -829,14 +830,20 @@ test("can update collections", async ({page, context: browserContext}) => {
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowCollectionsCell").click();
 
-    await page.getByTestId(`TaskRowView:${task.id}`).getByLabel("Collections").focus();
+    const overlayLocator = page.getByTestId("TaskRowCollectionsCellOverlay");
+
+    await overlayLocator.getByLabel("Collections").focus();
 
     await page.keyboard.type("test2");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeVisible();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeVisible();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
+    await expect(overlayLocator.getByText("+1")).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
 
@@ -850,16 +857,20 @@ test("can update collections", async ({page, context: browserContext}) => {
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowCollectionsCell").click();
 
-    await page.getByTestId(`TaskRowView:${task.id}`).getByLabel("Collections").focus();
+    await overlayLocator.getByLabel("Collections").focus();
 
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await page.keyboard.type("test3");
     await page.keyboard.press("Enter");
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeVisible();
+    await expect(overlayLocator.getByText("test3")).toBeVisible();
+    await expect(overlayLocator.getByText("+1")).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
 
     await page.keyboard.press("Escape");
@@ -872,114 +883,96 @@ test("can update collections", async ({page, context: browserContext}) => {
 
     await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowCollectionsCell").click();
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
-
-    await page
-        .getByTestId(`TaskRowView:${task.id}`)
-        .getByTestId("TaskRowCollectionsCell")
-        .getByLabel("Remove")
-        .nth(1)
-        .click();
-
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
-
-    await page
-        .getByTestId(`TaskRowView:${task.id}`)
-        .getByTestId("TaskRowCollectionsCell")
-        .getByLabel("Remove")
-        .nth(1)
-        .click();
-
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeVisible();
+    await expect(overlayLocator.getByText("test3")).toBeVisible();
+    await expect(overlayLocator.getByText("+1")).toBeHidden();
+    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
 
+    await overlayLocator.getByLabel("Remove").nth(1).click();
+
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeVisible();
+
+    await overlayLocator.getByLabel("Remove").nth(1).click();
+
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
+
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await page.getByTestId(`TaskRowView:${task.id}`).getByLabel("Collections").focus();
+    await overlayLocator.getByLabel("Collections").focus();
 
     await page.keyboard.press("Backspace");
 
     await expectTaskGridView(page, []);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeHidden();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
 
     await page.keyboard.press(`${modifier}+z`);
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
 
     await page.keyboard.press(`${modifier}+z`);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeVisible();
 
     await page.keyboard.press(`${modifier}+Shift+z`);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
 
     await page.keyboard.press(`${modifier}+Shift+z`);
 
     await expectTaskGridView(page, []);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeHidden();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
 
     await page.keyboard.press(`${modifier}+z`);
 
     await expectTaskGridView(page, [[true, "test"]]);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
 
     await page.keyboard.press(`${modifier}+z`);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeVisible();
 
     await page.keyboard.press(`${modifier}+z`);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeVisible();
+    await expect(overlayLocator.getByText("test3")).toBeVisible();
 
     await page.keyboard.press(`${modifier}+z`);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeVisible();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
 
     await page.keyboard.press(`${modifier}+z`);
 
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test1")).toBeVisible();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test2")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
-    await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
+    await expect(overlayLocator.getByText("test1")).toBeVisible();
+    await expect(overlayLocator.getByText("test2")).toBeHidden();
+    await expect(overlayLocator.getByText("test3")).toBeHidden();
 });

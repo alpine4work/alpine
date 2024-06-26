@@ -566,7 +566,7 @@ test("can not send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
@@ -584,7 +584,7 @@ test("can not send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 });
 
 test("can not send messages to self in a different space", async () => {
@@ -597,7 +597,7 @@ test("can not send messages to self in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
@@ -606,7 +606,7 @@ test("can not send messages to self in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 });
 
 test("can send message to account in multiple spaces", async () => {

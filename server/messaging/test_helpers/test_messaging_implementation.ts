@@ -284,7 +284,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * When the user doesn't have access to a space, it's typically caught by
      * a `authorizeSpaceAccess()` which throws a `PermissionDeniedError` with
-     * a message of "Account does not have access to space". However, sometimes
+     * a message of "Account doesn't have access to space". However, sometimes
      * a different error message maybe used when account doesn't have access to
      * a space. This property allows us to configure what error message the
      * test suite expects when the account doesn't have access to a space.
@@ -330,7 +330,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         updateMessageContent,
         deleteMessage,
         backfillMessages,
-        spacePermissionDeniedErrorMessage = "Account does not have access to space",
+        spacePermissionDeniedErrorMessage = "Account doesn't have access to space",
     }: TestMessagingImplementation<RoomKey>,
 ) {
     const space = createTestSpace(context);

@@ -8811,7 +8811,7 @@ describe("Comments", () => {
         }
     });
 
-    test("can't unresolve comment thread if there's no `addMarksAfterRemoveAll` step", async () => {
+    test("can unresolve comment thread if there's no `addMarksAfterRemoveAll` step", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -8878,25 +8878,39 @@ describe("Comments", () => {
                 ranges: [range],
             });
 
-            await expect(
-                updateDocumentContent(session.action(), {
-                    id: document.id,
-                    version: resolvedCommentThreadRanges.version,
-                    steps: [
-                        new AddMarkStep(
-                            range.from,
-                            range.to,
-                            schema.marks.comment.create({commentThreadId: commentThread.id}),
-                        ),
-                    ],
-                    unresolveCommentThreadIds: [commentThread.id],
-                    clientId: generateId(),
+            const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
+                id: document.id,
+                version: resolvedCommentThreadRanges.version,
+                steps: [
+                    new AddMarkStep(
+                        range.from,
+                        range.to,
+                        schema.marks.comment.create({commentThreadId: commentThread.id}),
+                    ),
+                ],
+                unresolveCommentThreadIds: [commentThread.id],
+                clientId: generateId(),
+            });
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
                 }),
-            ).rejects.toThrow(InvalidArgumentError);
+            );
         }
     });
 
-    test("can't unresolve comment thread if there's an `addMarksAfterRemoveAll` step for the wrong comment thread", async () => {
+    test("can unresolve comment thread if there's an `addMarksAfterRemoveAll` step for the wrong comment thread", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
 
@@ -8963,20 +8977,34 @@ describe("Comments", () => {
                 ranges: [range],
             });
 
-            await expect(
-                updateDocumentContent(session.action(), {
-                    id: document.id,
-                    version: resolvedCommentThreadRanges.version,
-                    steps: [
-                        new AddMarksAfterRemoveAllStep(
-                            schema.marks.comment.create({commentThreadId: generateId()}),
-                            resolvedCommentThreadRanges.ranges,
-                        ),
-                    ],
-                    unresolveCommentThreadIds: [commentThread.id],
-                    clientId: generateId(),
+            const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
+                id: document.id,
+                version: resolvedCommentThreadRanges.version,
+                steps: [
+                    new AddMarksAfterRemoveAllStep(
+                        schema.marks.comment.create({commentThreadId: generateId()}),
+                        resolvedCommentThreadRanges.ranges,
+                    ),
+                ],
+                unresolveCommentThreadIds: [commentThread.id],
+                clientId: generateId(),
+            });
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
                 }),
-            ).rejects.toThrow(InvalidArgumentError);
+            );
         }
     });
 
