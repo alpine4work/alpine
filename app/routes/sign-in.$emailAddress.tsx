@@ -1,4 +1,4 @@
-import {useNavigate, useParams} from "@remix-run/react";
+import {useParams} from "@remix-run/react";
 import {json, redirect} from "@remix-run/router";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {ArrowLeft} from "phosphor-react";
@@ -14,6 +14,7 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {attemptOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";

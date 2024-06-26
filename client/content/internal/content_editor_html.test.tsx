@@ -304,7 +304,7 @@ function expectClipboardRoundtripToWork() {
     const {container, unmount} = render(<TestContentEditor />);
 
     // eslint-disable-next-line testing-library/no-node-access
-    fireEvent.paste(container.firstElementChild!.firstElementChild as any, {
+    fireEvent.paste((container as any).firstElementChild.firstElementChild, {
         clipboardData: {
             getData: (type: string) => {
                 return type === "text/html" ? copiedHtml : null;
@@ -313,7 +313,7 @@ function expectClipboardRoundtripToWork() {
     });
 
     // eslint-disable-next-line testing-library/no-node-access
-    const pastedDoc = getEditorViewForTest(container.firstElementChild as any).state.doc;
+    const pastedDoc = getEditorViewForTest((container as any).firstElementChild).state.doc;
 
     expect(pastedDoc.toString()).toEqual(copiedDoc.toString());
 

@@ -93,7 +93,7 @@ export async function action({request, context}: LoaderArgs) {
         const messageUrlMatch = message.match(getUrlRegExp());
         if (messageUrlMatch)
             throw new InvalidArgumentError("URLs not allowed in message", {
-                displayMessage: errorDisplayMessage`Can not request access if your message includes a URL. We have this restriction to prevent automated spam bots from submitting the form. Remove “${messageUrlMatch[0]!}” from your message and try again.`,
+                displayMessage: errorDisplayMessage`Can not request access if your message includes a URL. We have this restriction to prevent automated spam bots from submitting the form. Remove “${messageUrlMatch[0]}” from your message and try again.`,
             });
 
         await requestAlphaAccess(context, {

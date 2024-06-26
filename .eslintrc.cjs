@@ -8,33 +8,21 @@ const baseNoRestrictedImports = {
         },
         {
             name: "react-router",
-            importNames: ["useNavigate"],
-            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
+            importNames: ["useNavigate", "Link"],
+            message:
+                "Import `useNavigate()` from `~/client/remix/use_navigate.js` and `<Link>` from `~/client/design/link.js`",
         },
         {
             name: "react-router-dom",
-            importNames: ["useNavigate"],
-            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
+            importNames: ["useNavigate", "Link"],
+            message:
+                "Import `useNavigate()` from `~/client/remix/use_navigate.js` and `<Link>` from `~/client/design/link.js`",
         },
         {
             name: "@remix-run/react",
-            importNames: ["useNavigate"],
-            message: "Import `useNavigate()` from `~/client/remix/use_navigate.js`",
-        },
-        {
-            name: "react-router",
-            importNames: ["Link"],
-            message: "Import `<Link>` from `~/client/remix/link.js`",
-        },
-        {
-            name: "react-router-dom",
-            importNames: ["Link"],
-            message: "Import `<Link>` from `~/client/remix/link.js`",
-        },
-        {
-            name: "@remix-run/react",
-            importNames: ["Link"],
-            message: "Import `<Link>` from `~/client/remix/link.js`",
+            importNames: ["useNavigate", "Link"],
+            message:
+                "Import `useNavigate()` from `~/client/remix/use_navigate.js` and `<Link>` from `~/client/design/link.js`",
         },
         {
             name: "react-aria",

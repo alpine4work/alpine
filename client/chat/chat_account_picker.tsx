@@ -22,7 +22,6 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -36,6 +35,7 @@ import {
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {
     addRemLengths,
     parseRemLengthNumber,
