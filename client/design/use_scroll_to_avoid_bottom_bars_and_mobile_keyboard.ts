@@ -9,6 +9,7 @@ import {
     getElementSafeAreaInsetTopPx,
     getElementWindowSafeAreaInsetBottomPx,
 } from "~/client/design/safe_area_inset.js";
+import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {
     useGetCurrentBottomBarHeight,
     useSubscribeToBottomBarFrameChange,
@@ -200,6 +201,18 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             "getElement" in scrollable ? scrollable.getElement() : scrollable;
 
         let lastScrollableRect = scrollableElement.getBoundingClientRect();
+
+        // If we're performing a navigation animation (e.g. peek is opening) then
+        // measure the scrollable rect again after the animation has finished.
+        //
+        // This fixes a bug where if you open a notification peek from the inbox
+        // overlay we'll think `lastScrollableRect` is offscreen ultimately causing
+        // `scrollDelta` to be NaN. Try opening a chat peek from the inbox overlay then
+        // typing in the message input such that the message input grows. Because
+        // `scrollDelta` is NaN this will scroll you to the top of the peek.
+        scheduleAfterNavigationAnimation(() => {
+            lastScrollableRect = scrollableElement.getBoundingClientRect();
+        });
 
         const handleResize = () => {
             // Update our last scrollable rect right before the next paint.
