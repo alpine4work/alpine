@@ -5,10 +5,9 @@ import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticat
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
+import {Link} from "~/client/design/link.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {Link} from "~/client/remix/link.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";

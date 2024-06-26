@@ -4960,7 +4960,6 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
             | "taskId"
             | "lastChangeTime"
             | "nextCommentIndex"
-            | "lastChangeTime"
             | "commentCountByAuthorId"
             | "mentionCountByAccountId"
         >;

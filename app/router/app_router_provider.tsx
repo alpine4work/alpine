@@ -1,4 +1,4 @@
-import {Router as RemixRouter, RouterState, RouterSubscriber} from "@remix-run/router";
+import {Action, Router as RemixRouter, RouterState, RouterSubscriber} from "@remix-run/router";
 import {
     startTransition,
     useCallback,
@@ -167,7 +167,7 @@ export function AppRouterProvider({
         if (lastLocationKeyForInsertionEffectRef.current === state.location.key) return;
         lastLocationKeyForInsertionEffectRef.current = state.location.key;
 
-        if (state.historyAction === "PUSH") {
+        if (state.historyAction === Action.Push) {
             if (state.location.state?.isTabSwitch) {
                 NativeMobileBridge?.navigation.prepareSwitchTab(
                     getLocationNativeMobileTab(state.location),
@@ -179,7 +179,7 @@ export function AppRouterProvider({
                 // own span.
                 NativeMobileBridge?.navigation.preparePush();
             }
-        } else if (state.historyAction === "POP") {
+        } else if (state.historyAction === Action.Pop) {
             if (state.location.state?.isTabSwitch) {
                 NativeMobileBridge?.navigation.prepareSwitchTab(
                     getLocationNativeMobileTab(state.location),
@@ -191,7 +191,7 @@ export function AppRouterProvider({
             } else {
                 NativeMobileBridge?.navigation.prepareExternalPop();
             }
-        } else if (state.historyAction === "REPLACE") {
+        } else if (state.historyAction === Action.Replace) {
             if (state.location.state?.withPushAnimation) {
                 NativeMobileBridge?.navigation.prepareReplaceWithPushAnimation();
             }
@@ -220,7 +220,7 @@ export function AppRouterProvider({
 
                 const url = new URL(router.createHref(state.location), window.location.href);
 
-                if (state.historyAction === "PUSH") {
+                if (state.historyAction === Action.Push) {
                     if (state.location.state?.isTabSwitch) {
                         NativeMobileBridge?.navigation.switchTab(
                             getLocationNativeMobileTab(state.location),
@@ -229,7 +229,7 @@ export function AppRouterProvider({
                     } else {
                         NativeMobileBridge.navigation.push(url);
                     }
-                } else if (state.historyAction === "POP") {
+                } else if (state.historyAction === Action.Pop) {
                     if (state.location.state?.isTabSwitch) {
                         NativeMobileBridge?.navigation.switchTab(
                             getLocationNativeMobileTab(state.location),
@@ -240,7 +240,7 @@ export function AppRouterProvider({
                     } else {
                         NativeMobileBridge.navigation.externalPop();
                     }
-                } else if (state.historyAction === "REPLACE") {
+                } else if (state.historyAction === Action.Replace) {
                     if (state.location.state?.withPushAnimation) {
                         NativeMobileBridge?.navigation.replaceWithPushAnimation(url);
                     } else {

@@ -328,7 +328,7 @@ afterCommitTaskActionTransactionEventEmitterForTest?.subscribe(({processPromise}
     assert(processTaskActionTransactionPromisesForTest);
 
     processTaskActionTransactionPromisesForTest.add(processPromise);
-    processPromise.finally(() => {
+    void processPromise.finally(() => {
         processTaskActionTransactionPromisesForTest.delete(processPromise);
     });
 });

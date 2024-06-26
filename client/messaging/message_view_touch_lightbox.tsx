@@ -191,7 +191,7 @@ export function MessageViewTouchLightbox<
             ],
         ]);
 
-        animation.finished.finally(() => {
+        void animation.finished.finally(() => {
             setHasOpenTranslateYAnimationFinished(true);
         });
     }, []);

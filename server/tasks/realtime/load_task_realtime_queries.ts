@@ -275,6 +275,7 @@ export async function loadTaskRealtimeQueries(
         });
 
         if (extraQueryPromises.length === 0) {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             extraQueryPromises = childrenQueryPromises;
         } else {
             for (const extraQuery of childrenQueryPromises) {

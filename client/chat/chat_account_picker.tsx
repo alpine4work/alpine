@@ -15,7 +15,6 @@ import {
     useState,
 } from "react";
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
-import {flushSync} from "react-dom";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
@@ -27,7 +26,6 @@ import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";

@@ -62,7 +62,7 @@ afterEach(() => {
     errors = [];
 
     if (previousErrors.length > 0) {
-        throw InternalError.from(previousErrors[0]!, "Received error");
+        throw InternalError.from(previousErrors[0], "Received error");
     }
 
     const previousRetainedTaskIds = retainedTaskIds;

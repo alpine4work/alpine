@@ -73,7 +73,7 @@ test("can't update task from a different space", async () => {
                 },
             ],
         ),
-    ).rejects.toThrowError(new FailedPreconditionError("Space mismatch"));
+    ).rejects.toThrow(new FailedPreconditionError("Space mismatch"));
 
     await expect(
         indexTaskActionTransactionAssumingItsCommitted(
@@ -92,7 +92,7 @@ test("can't update task from a different space", async () => {
                 },
             ],
         ),
-    ).rejects.toThrowError(PermissionDeniedError);
+    ).rejects.toThrow(PermissionDeniedError);
 
     await indexTaskActionTransactionAssumingItsCommitted(
         context.systemAction(space.id),
@@ -154,7 +154,7 @@ test("can't update collection from a different space", async () => {
                 },
             ],
         ),
-    ).rejects.toThrowError(new FailedPreconditionError("Space mismatch"));
+    ).rejects.toThrow(new FailedPreconditionError("Space mismatch"));
 
     await expect(
         indexTaskActionTransactionAssumingItsCommitted(
@@ -173,7 +173,7 @@ test("can't update collection from a different space", async () => {
                 },
             ],
         ),
-    ).rejects.toThrowError(PermissionDeniedError);
+    ).rejects.toThrow(PermissionDeniedError);
 
     await indexTaskActionTransactionAssumingItsCommitted(
         context.systemAction(space.id),

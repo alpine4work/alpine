@@ -99,7 +99,7 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
                             console.error(promise.deadlineExceededError);
                         }, 5000);
 
-                        promise.finally(() => clearTimeout(timeoutId));
+                        void promise.finally(() => clearTimeout(timeoutId));
                     }
 
                     try {

@@ -2,7 +2,6 @@ import {RefCallback, useCallback, useState} from "react";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 

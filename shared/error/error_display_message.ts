@@ -109,8 +109,17 @@ function signInLink(text: string) {
     return errorDisplayMessage.link(text, signInLink.url);
 }
 
+// Can't import `shared/helpers` from this file so inline the `cast()`
+// function here.
+function cast<Type>(value: Type): Type {
+    return value;
+}
+
 signInLink.url = "/sign-in";
-errorDisplayMessage.signInLink = signInLink;
+
+errorDisplayMessage.signInLink = cast<
+    ((text: string) => ErrorDisplayMessageLinkSegment) & {readonly url: string}
+>(signInLink);
 
 /**
  * A sign out link. Sign out links in error messages get special handling so
@@ -123,7 +132,10 @@ function signOutLink(text: string) {
 }
 
 signOutLink.url = "/sign-out";
-errorDisplayMessage.signOutLink = signOutLink;
+
+errorDisplayMessage.signOutLink = cast<
+    ((text: string) => ErrorDisplayMessageLinkSegment) & {readonly url: string}
+>(signOutLink);
 
 /**
  * A space switcher link. Space switcher links in error messages get special
@@ -136,4 +148,7 @@ function switchSpaceLink(text: string) {
 }
 
 switchSpaceLink.url = "/switch-space";
-errorDisplayMessage.switchSpaceLink = switchSpaceLink;
+
+errorDisplayMessage.switchSpaceLink = cast<
+    ((text: string) => ErrorDisplayMessageLinkSegment) & {readonly url: string}
+>(switchSpaceLink);

@@ -391,7 +391,7 @@ export class TaskRealtimeQuery {
             limit,
             promise: this._loadMoreTasks(context, limit),
         };
-        this._loadingState.promise.finally(() => (this._loadingState = null));
+        void this._loadingState.promise.finally(() => (this._loadingState = null));
 
         return this._loadingState.promise;
     }

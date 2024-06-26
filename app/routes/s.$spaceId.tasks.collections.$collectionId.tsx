@@ -442,7 +442,6 @@ function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean
         collectionSubscription ? `TaskCollection:${collectionSubscription.collectionId}` : null,
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const createCollection = useEvent(async (name: string) => {
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.set("create", name);

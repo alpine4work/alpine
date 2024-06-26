@@ -204,7 +204,6 @@ export function useMessageEditing<RoomKey extends string>({
         ) => MessageEditingState<RoomKey>
     >(reduce, {isEditing: false});
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const onUpdateMessageContent = useEvent(_onUpdateMessageContent);
 
     useEffect(() => {

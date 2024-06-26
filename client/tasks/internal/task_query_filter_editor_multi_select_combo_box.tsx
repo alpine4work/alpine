@@ -20,7 +20,6 @@ import {
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";

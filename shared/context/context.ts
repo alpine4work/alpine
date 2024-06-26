@@ -212,7 +212,7 @@ export const Context: ContextStatic = {
                     if (currentTaskPromises.length === 0) {
                         context.destroy();
                     } else {
-                        Promise.allSettled(currentTaskPromises).finally(loop);
+                        void Promise.allSettled(currentTaskPromises).finally(loop);
                     }
                 };
 
@@ -271,7 +271,7 @@ export const Context: ContextStatic = {
                     if (currentTaskPromises.length === 0) {
                         context.destroy();
                     } else {
-                        Promise.allSettled(currentTaskPromises).finally(loop);
+                        void Promise.allSettled(currentTaskPromises).finally(loop);
                     }
                 };
 
@@ -435,7 +435,7 @@ const ContextImplementation = class Context {
                     if (currentTaskPromises.length === 0) {
                         newContext.destroy();
                     } else {
-                        Promise.allSettled(currentTaskPromises).finally(loop);
+                        void Promise.allSettled(currentTaskPromises).finally(loop);
                     }
                 };
 
@@ -494,7 +494,7 @@ const ContextImplementation = class Context {
                     if (currentTaskPromises.length === 0) {
                         newContext.destroy();
                     } else {
-                        Promise.allSettled(currentTaskPromises).finally(loop);
+                        void Promise.allSettled(currentTaskPromises).finally(loop);
                     }
                 };
 

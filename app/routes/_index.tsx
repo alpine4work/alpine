@@ -8,12 +8,11 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
 import {InlineAlert} from "~/client/design/inline_alert.js";
+import {Link} from "~/client/design/link.js";
 import {MultilineTextInput} from "~/client/design/multiline_text_input.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {Link} from "~/client/remix/link.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";

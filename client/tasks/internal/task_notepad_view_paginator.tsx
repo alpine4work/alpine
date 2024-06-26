@@ -35,7 +35,6 @@ export function TaskNotepadViewPaginator({
 }) {
     const isMobile = useIsMobile();
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     onNotepadPageIdSelect = useEvent(onNotepadPageIdSelect);
 
     const context = useAppContext();

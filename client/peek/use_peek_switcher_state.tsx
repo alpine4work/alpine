@@ -155,7 +155,6 @@ export function usePeekSwitcherState<Extra>({
     );
 
     const switchPeek = useEvent(
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         (peekData: {spacePath: string; extra: Extra} | null): Promise<void> => {
             if (!peekData) {
                 setPeekState({
@@ -264,7 +263,7 @@ export function usePeekSwitcherState<Extra>({
 
         holdPeekTransitionPromisesRef.current.add(actualPromise);
 
-        promise.finally(() => {
+        void promise.finally(() => {
             holdPeekTransitionPromisesRef.current.delete(actualPromise);
         });
     });

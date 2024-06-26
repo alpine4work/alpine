@@ -701,7 +701,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             validate: hasValidations
                 ? value => {
                       for (let i = 0; i < elementSchemas.length; i++) {
-                          elementSchemas[i]!.validate?.(value[i]!);
+                          elementSchemas[i]!.validate?.(value[i]);
                       }
                   }
                 : null,

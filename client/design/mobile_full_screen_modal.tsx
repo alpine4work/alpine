@@ -262,7 +262,7 @@ export function MobileFullScreenModal({
 
                     trackNavigationAnimationStart();
 
-                    animation.finished.finally(() => {
+                    void animation.finished.finally(() => {
                         trackNavigationAnimationFinish();
                         setAnimation(null);
                     });
@@ -284,7 +284,7 @@ export function MobileFullScreenModal({
 
                     trackNavigationAnimationStart();
 
-                    animation.finished.finally(() => {
+                    void animation.finished.finally(() => {
                         trackNavigationAnimationFinish();
                         onClose();
                     });

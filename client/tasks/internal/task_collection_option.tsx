@@ -9,7 +9,7 @@ import {spinAnimationClassName} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 
-export const taskCollectionOptionSecondaryTextColor = "grey-40" as const;
+export const taskCollectionOptionSecondaryTextColor = "grey-40";
 
 export function TaskCollectionOption({
     collectionResult,

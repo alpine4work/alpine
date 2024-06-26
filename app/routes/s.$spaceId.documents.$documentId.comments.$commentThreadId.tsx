@@ -1,7 +1,6 @@
 import {useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {useReporter} from "~/client/design/reporter.js";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";

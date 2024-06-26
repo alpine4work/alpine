@@ -1874,7 +1874,7 @@ export class TaskClientStoreInternal {
 
         return {
             finally: callback => {
-                commitPromise.finally(callback);
+                void commitPromise.finally(callback);
             },
         };
     }
@@ -2029,7 +2029,7 @@ export class TaskClientStoreInternal {
 
                 return {
                     finally: callback => {
-                        commitPromise.finally(callback);
+                        void commitPromise.finally(callback);
                     },
                 };
             },

@@ -26,7 +26,7 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
     constructor(
         executor: (
             resolve: (value: Value | PromiseLike<Value>) => void,
-            reject: (error: unknown | PromiseLike<unknown>) => void,
+            reject: (error: unknown) => void,
         ) => void,
     ) {
         this._state = {status: "pending"};
@@ -160,7 +160,7 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
         });
     }
 
-    static reject(error: unknown | PromiseLike<unknown>): PromiseImmediate<never> {
+    static reject(error: unknown): PromiseImmediate<never> {
         return new PromiseImmediate((resolve, reject) => {
             reject(error);
         });

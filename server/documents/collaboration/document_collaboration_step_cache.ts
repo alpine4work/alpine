@@ -148,7 +148,7 @@ export class DocumentCollaborationStepCache {
 
         // If when the promise resolves, our load state is still the current load state
         // then clear the load state.
-        ourLoadOldStepsState.promise.finally(() => {
+        void ourLoadOldStepsState.promise.finally(() => {
             if (this._loadOldStepsState === ourLoadOldStepsState) {
                 this._loadOldStepsState = null;
             }

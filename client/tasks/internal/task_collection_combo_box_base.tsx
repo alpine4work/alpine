@@ -9,7 +9,6 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";

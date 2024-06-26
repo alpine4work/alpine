@@ -176,7 +176,6 @@ export function usePostEditing({
         (state: PostEditingState, action: PostEditingAction) => PostEditingState
     >(reduce, {isEditing: false});
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const onUpdatePostContent = useEvent(_onUpdatePostContent);
 
     useEffect(() => {

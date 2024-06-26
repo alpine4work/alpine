@@ -10,7 +10,6 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     TaskAssigneeInputItem,

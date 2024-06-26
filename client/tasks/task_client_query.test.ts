@@ -143,7 +143,7 @@ afterEach(() => {
     errors = [];
 
     if (previousError.length > 0) {
-        throw InternalError.from(previousError[0]!, "Received error");
+        throw InternalError.from(previousError[0], "Received error");
     }
 });
 

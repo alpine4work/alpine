@@ -259,6 +259,15 @@ module.exports = {
                 // `this` aliasing is useful when working with immutable classes.
                 "@typescript-eslint/no-this-alias": "off",
 
+                // Namespaces can be a useful feature in certain cases. Don't disallow them. ES
+                // Modules are the clear default in our codebase, let developers reach for
+                // advanced tools as they need them.
+                "@typescript-eslint/no-namespace": "off",
+
+                // This is catching stringification of `Id`. It's perfectly fine to stringify
+                // an `Id` or any other opaque string type.
+                "@typescript-eslint/no-base-to-string": "off",
+
                 // Remove `{}` and `object` from the ban types rule. The default lint rule
                 // is too picky.
                 //

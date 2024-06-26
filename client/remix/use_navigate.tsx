@@ -41,10 +41,12 @@ export interface NavigateFunction {
 export type OnNavigateFunction = (
     to: To,
     options?: NavigateOptions,
-) => {stopPropagation?: boolean} & (
-    | {preventDefault: false}
-    | {preventDefault: true; promise: Promise<void>}
-);
+) =>
+    | ({stopPropagation?: boolean} & (
+          | {preventDefault: false}
+          | {preventDefault: true; promise: Promise<void>}
+      ))
+    | void;
 
 function unsupportedNavigateForTest(): never {
     throw new UnimplementedError(
@@ -199,7 +201,6 @@ export function NavigationContextProvider({children}: {children?: ReactNode}) {
         );
     }, [location]);
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const waitForNextNavigation = useEvent((): Promise<void> => {
         // Resolve immediately if this component has since unmounted.
         if (!isMounted()) return Promise.resolve();
@@ -271,15 +272,15 @@ export function NavigationEventContextProvider({
 
         const parentResult = parentContext.onNavigate(to, options);
 
-        if (!result.preventDefault && !parentResult.preventDefault) {
+        if (!result.preventDefault && !parentResult?.preventDefault) {
             return parentResult;
         } else {
             return {
-                stopPropagation: parentResult.stopPropagation,
+                stopPropagation: parentResult?.stopPropagation,
                 preventDefault: true,
                 promise: runAllPromises([
                     result.preventDefault ? result.promise : null,
-                    parentResult.preventDefault ? parentResult.promise : null,
+                    parentResult?.preventDefault ? parentResult.promise : null,
                 ]).then(() => {}),
             };
         }

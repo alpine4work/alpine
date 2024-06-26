@@ -3,7 +3,7 @@ import {createPath} from "@remix-run/router";
 import {Fragment, useEffect, useRef} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {Link} from "~/client/remix/link.js";
+import {Link} from "~/client/design/link.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {ErrorBase} from "~/shared/error/error.js";

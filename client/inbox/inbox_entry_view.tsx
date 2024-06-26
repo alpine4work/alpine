@@ -227,7 +227,6 @@ export function InboxEntryView({
 
     const touchSwipeIconRef = useRef<HTMLDivElement>(null);
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const onArchiveEvent = useEvent(onArchive);
 
     useEffect(() => {

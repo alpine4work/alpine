@@ -120,7 +120,7 @@ type DynamoGeneralRealtimePrivatePartitionItem = DynamoTableSchemaTypes.Partitio
 type DynamoGeneralRealtimePrivatePartitionEvent =
     DynamoGeneralRealtimePrivatePartitionItem["eventTransaction"][number];
 
-const dynamoGeneralRealtimePrivatePartitionName = "Realtime" as const;
+const dynamoGeneralRealtimePrivatePartitionName = "Realtime";
 
 const dynamoGeneralRealtimePrivatePartitionConfig = {
     name: dynamoGeneralRealtimePrivatePartitionName,

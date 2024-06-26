@@ -14,8 +14,8 @@ import {contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles.j
 export const messageInputMinHeight: RemLength = "3.875rem";
 
 export const messageViewBubbleMinWidth: Spacing = "6";
-export const messageViewBubbleBorderRadius = "2xl" as const;
-export const messageViewBubbleMergedBorderRadius = "base" as const;
+export const messageViewBubbleBorderRadius = "2xl";
+export const messageViewBubbleMergedBorderRadius = "base";
 export const messageViewBubblePaddingX: Spacing = "1";
 export const messageViewBubblePaddingY: Spacing = "2";
 

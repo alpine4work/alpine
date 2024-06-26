@@ -167,7 +167,7 @@ test("can not create a document with invalid format", async () => {
             spaceId: space.id,
             content,
         }),
-    ).rejects.toThrowError(InvalidArgumentError);
+    ).rejects.toThrow(InvalidArgumentError);
 });
 
 test("can not idempotently create a document twice", async () => {
@@ -1345,7 +1345,7 @@ test("if a document was deleted in the database then the cache will pick that up
             steps: [new ReplaceStep(4, 4, textSlice("b"))],
             clientId: generateId(),
         });
-    }).rejects.toThrowError(NotFoundError);
+    }).rejects.toThrow(NotFoundError);
 
     expect(getCount()).toEqual(1);
 });

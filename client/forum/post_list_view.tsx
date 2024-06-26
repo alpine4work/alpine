@@ -531,7 +531,6 @@ function PostListView(
     }, [posts, tryLoadingMoreData]);
 
     const loadInitialPostComments = useEvent(
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (item: PostListPostContentItem): Promise<void> => {
             // If we're already loading, don't try to load more comments.
             if (isLoadingRef.current) return;

@@ -4,7 +4,6 @@ import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
-import {useReporter} from "~/client/design/reporter.js";
 import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,

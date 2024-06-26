@@ -191,7 +191,6 @@ export function useDocumentContentEditorWebSocket(
 
     const createDocumentPromiseRef = useRef<Promise<void> | null>(null);
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const ensureCreateDocument = useEvent(async () => {
         if (clientState.type === "Exists") return;
         if (createDocumentPromiseRef.current) return;

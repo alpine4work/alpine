@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
-
 import {Ref, forwardRef, useCallback, useRef} from "react";
 import {chatMessagingViewHeader} from "~/client/chat/chat_view.js";
 import {useAppContext} from "~/client/context/app_context.js";

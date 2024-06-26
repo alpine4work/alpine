@@ -1,4 +1,3 @@
-import {undo} from "prosemirror-history";
 import {TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback} from "react";

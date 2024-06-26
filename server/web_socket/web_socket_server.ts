@@ -954,7 +954,7 @@ class WebSocketServerConnectionWrapper<
                                 // We want to skip authorization when sending the `Pong` message. We should
                                 // only authorize if the connection is actively being used.
                                 case "Ping": {
-                                    const messageType = "Pong" as const;
+                                    const messageType = "Pong";
 
                                     this._dangerouslySendRawMessageEvenWhenSoftClosedWithoutAuthorization(
                                         context,
@@ -1008,7 +1008,7 @@ class WebSocketServerConnectionWrapper<
                                     })();
 
                                     this._pendingProcedureRequestPromises.add(promise);
-                                    promise.finally(() =>
+                                    void promise.finally(() =>
                                         this._pendingProcedureRequestPromises.delete(promise),
                                     );
 
@@ -1214,7 +1214,7 @@ class WebSocketServerConnectionWrapper<
                     // If authorization failed then we should close the WebSocket connection with an
                     // error. This tells clients they shouldn't retry connecting to the WebSocket.
                     error => {
-                        const messageType = "ClosingWithError" as const;
+                        const messageType = "ClosingWithError";
 
                         this._dangerouslySendRawMessageEvenWhenSoftClosedWithoutAuthorization(
                             context,
@@ -1409,7 +1409,7 @@ class WebSocketServerConnectionWrapper<
 
         // Let the client know we're soft closing if they don't know already...
         if (!this._isSoftClosed) {
-            const messageType = "SoftCloseWhileWaitingForProcedureResponses" as const;
+            const messageType = "SoftCloseWhileWaitingForProcedureResponses";
 
             this._dangerouslySendRawMessageEvenWhenSoftClosedWithoutAuthorization(
                 context,

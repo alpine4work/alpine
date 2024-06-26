@@ -46,7 +46,7 @@ test("can not request alpha access twice", async () => {
             emailAddress: await validateEmailAddress(context, `test.${id}@test.cyberworlds.dev`),
             message: "Hello, world!",
         });
-    }).rejects.toThrowError(FailedPreconditionError);
+    }).rejects.toThrow(FailedPreconditionError);
 });
 
 test('can request alpha twice with "+" extension email trick', async () => {
@@ -74,5 +74,5 @@ test("can not request alpha access for an account that already exists", async ()
             emailAddress: account.emailAddress,
             message: "Hello, world!",
         });
-    }).rejects.toThrowError(FailedPreconditionError);
+    }).rejects.toThrow(FailedPreconditionError);
 });

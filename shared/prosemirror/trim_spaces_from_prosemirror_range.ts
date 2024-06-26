@@ -13,8 +13,8 @@ export function trimSpacesFromProsemirrorRange(
     const $to = parentNode.resolve(range.to);
     const firstNode = $from.nodeAfter;
     const lastNode = $to.nodeBefore;
-    const spaceStart = firstNode && firstNode.isText ? /^\s*/.exec(firstNode.text!)![0]!.length : 0;
-    const spaceEnd = lastNode && lastNode.isText ? /\s*$/.exec(lastNode.text!)![0]!.length : 0;
+    const spaceStart = firstNode && firstNode.isText ? /^\s*/.exec(firstNode.text!)![0].length : 0;
+    const spaceEnd = lastNode && lastNode.isText ? /\s*$/.exec(lastNode.text!)![0].length : 0;
     if (from + spaceStart < to) {
         from += spaceStart;
         to -= spaceEnd;

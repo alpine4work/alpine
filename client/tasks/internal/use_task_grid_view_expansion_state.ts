@@ -463,7 +463,7 @@ export function useTaskGridViewExpansionState({
 
                         // If the children queries are not loaded, wait a bit to try and avoid showing
                         // a loading spinner if the network responds fast.
-                        Promise.race([
+                        void Promise.race([
                             queriesLoadPromise,
                             wait(delayLoadingIndicatorLimitMs),
                         ]).finally(actuallyExpand);

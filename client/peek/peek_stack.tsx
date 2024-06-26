@@ -318,7 +318,6 @@ function PeekStackContextProvider(
 
     const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const push = useEvent(async (to: To, {focus = false}: {focus?: boolean} = {}) => {
         const path = resolvePath(to, dataRouterContext.router.state.location.pathname);
         const peekPath = convertSpacePathToPeekPath(path);

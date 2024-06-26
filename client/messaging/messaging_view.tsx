@@ -510,7 +510,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         } else {
             isJumpingToMessageRef.current = true;
 
-            Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
+            void Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
                 isJumpingToMessageRef.current = false;
 
                 view.scrollToIndex(scrollToIndex, {withAnchor: true});
