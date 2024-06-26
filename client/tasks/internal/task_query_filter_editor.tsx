@@ -380,11 +380,11 @@ function TaskQueryFilterEditorBase({
             {withMobileLayout && <Box flexGrow="1" />}
             <Box
                 flexShrink="0"
-                paddingLeft="1.5"
+                paddingLeft={withMobileLayout ? "1.5" : "1"}
                 style={{
                     // Subtract 1px from our right padding since that's the border width. That
                     // will give us good margin on all sides of the button.
-                    paddingRight: `calc(${spacing[withMobileLayout ? "1.5" : "1"]} - 1px)`,
+                    paddingRight: `calc(${spacing[withMobileLayout ? "1.5" : "0.5"]} - 1px)`,
                 }}
             >
                 <IconButton
