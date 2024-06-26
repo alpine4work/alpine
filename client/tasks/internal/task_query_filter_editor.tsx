@@ -3,6 +3,7 @@ import {ReactNode, Ref} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {TaskQueryDisplayStatusFilterOperationEditor} from "~/client/tasks/internal/task_query_display_status_filter_operation_editor.js";
 import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/internal/task_query_filter_account_operation_editor.js";
@@ -15,7 +16,6 @@ import {
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/internal/task_query_priority_filter_operation_editor.js";
 import {TaskQueryTitleFilterOperationEditor} from "~/client/tasks/internal/task_query_title_filter_operation_editor.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";

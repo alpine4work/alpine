@@ -8,6 +8,11 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {ShareButton} from "~/client/design/share_button.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskCollectionViewDesktopHeaderName,
     TaskCollectionViewDesktopHeaderNameRef,
@@ -16,11 +21,6 @@ import {
     TaskQueryViewCustomizationBar,
     desktopTaskQueryViewCustomizationBarMarginY,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
-import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
-import {
-    TaskClientStore,
-    TaskClientStoreSearchAffinityManager,
-} from "~/client/tasks/task_client_store.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";

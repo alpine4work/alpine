@@ -1,12 +1,12 @@
 import {CalendarDate} from "@internationalized/date";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
-import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
     setShouldDisableCommitTaskActionTransactionMutexForTest,
-} from "~/client/tasks/task_client_store.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {

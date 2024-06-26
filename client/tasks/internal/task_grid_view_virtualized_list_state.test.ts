@@ -1,10 +1,10 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskGridViewVirtualizedListState,
     TaskGridViewVirtualizedListStateItem,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";

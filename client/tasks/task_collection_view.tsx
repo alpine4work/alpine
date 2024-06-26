@@ -28,6 +28,12 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
@@ -52,12 +58,6 @@ import {
     TaskQueryViewCustomizationMobileSectionRef,
 } from "~/client/tasks/internal/task_query_view_customization_mobile_section.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStore,
-    TaskClientStoreSearchAffinityManager,
-} from "~/client/tasks/task_client_store.js";
 import {TaskCollectionMobileEditor} from "~/client/tasks/task_collection_mobile_editor.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";

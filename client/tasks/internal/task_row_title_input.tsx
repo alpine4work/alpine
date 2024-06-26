@@ -30,6 +30,8 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {
@@ -38,8 +40,6 @@ import {
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";

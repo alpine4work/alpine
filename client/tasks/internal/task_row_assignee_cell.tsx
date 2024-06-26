@@ -18,13 +18,13 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskAssigneeInput,
     TaskAssigneeInputRef,
 } from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

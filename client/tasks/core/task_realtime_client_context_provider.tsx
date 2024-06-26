@@ -13,14 +13,14 @@ import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {unwrapLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {
     TaskRealtimeClient,
     unknownTaskQueryFromServerRetentionPeriodMs,
-} from "~/client/tasks/task_realtime_client.js";
+} from "~/client/tasks/core/task_realtime_client.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";

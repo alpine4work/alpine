@@ -39,12 +39,18 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+    TaskClientStoreUpdateTitleActionTransactionBuilder,
+} from "~/client/tasks/core/task_client_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewMobileKeyboardToolbar} from "~/client/tasks/internal/task_grid_view_mobile_keyboard_toolbar.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
-import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskRowAssigneeCell,
     TaskRowAssigneeCellRef,
@@ -75,12 +81,6 @@ import {
 } from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-    TaskClientStoreUpdateTitleActionTransactionBuilder,
-} from "~/client/tasks/task_client_store.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     RemLength,

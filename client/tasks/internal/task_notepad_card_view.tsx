@@ -23,13 +23,13 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskCardViewContent} from "~/client/tasks/internal/task_card_view_content.js";
 import {TaskCloseConfirmationModalDialog} from "~/client/tasks/internal/task_close_confirmation_modal_dialog.js";
 import {taskNotepadViewActiveSectionCardTranslateDurationMs} from "~/client/tasks/internal/task_notepad_view_active_section.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,

@@ -1,12 +1,12 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
-} from "~/client/tasks/task_client_store.js";
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {TaskId} from "~/shared/id/types/id_types.js";

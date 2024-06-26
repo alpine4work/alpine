@@ -20,15 +20,15 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

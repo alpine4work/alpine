@@ -10,10 +10,13 @@ import {undefinedStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {getClientInfoWithoutListening, useBrowserId} from "~/client/remix/client_info_context.js";
+import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStore,
+    getParentTaskIdIfChildrenQuery,
+} from "~/client/tasks/core/task_client_store.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore, getParentTaskIdIfChildrenQuery} from "~/client/tasks/task_client_store.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

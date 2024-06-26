@@ -10,6 +10,11 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {
@@ -25,11 +30,6 @@ import {
     taskNotepadViewPaginatorHeight,
 } from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStore,
-    TaskClientStoreSearchAffinityManager,
-} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,

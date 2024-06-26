@@ -2,7 +2,7 @@ import {getAccountClientStoreForClient} from "~/client/accounts/account_client_s
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
-} from "~/client/tasks/task_client_store.js";
+} from "~/client/tasks/core/task_client_store.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {

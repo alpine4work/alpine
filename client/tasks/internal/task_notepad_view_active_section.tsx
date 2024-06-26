@@ -10,12 +10,12 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskNotepadCardView} from "~/client/tasks/internal/task_notepad_card_view.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,

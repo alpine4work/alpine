@@ -37,6 +37,7 @@ ts_project(
         "//client/icons",
         "//client/peek",
         "//client/spaces",
+        "//client/tasks/core",
         "//client/tracer",
         "//client/virtualized",
         "//shared/helpers",

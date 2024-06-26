@@ -40,6 +40,12 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {
     computeTaskEntryAccess,
     createTaskEntryAccessStore,
@@ -73,12 +79,6 @@ import {
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/task_client_store.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,

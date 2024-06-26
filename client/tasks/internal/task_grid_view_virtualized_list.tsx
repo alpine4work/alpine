@@ -45,6 +45,17 @@ import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/clien
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint,
+    isDisablingTaskGridViewAnimationsForTaskId,
+    isIndiscriminatelyDisablingAllTaskGridViewAnimations,
+} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -74,12 +85,6 @@ import {
     TaskUndoStackEntry,
     useTaskUndoStackState,
 } from "~/client/tasks/internal/use_task_undo_stack_state.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStore,
-    TaskClientStoreSearchAffinityManager,
-    TaskClientStoreUndoManager,
-} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     useHasTaskGridViewDndContext,
@@ -100,7 +105,6 @@ import {
 import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -204,37 +208,6 @@ export function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormaliz
         firstSort.type === "NotepadPagePosition" ||
         firstSort.type === "AssigneeActivePosition"
     );
-}
-
-let indiscriminatelyDisableAllTaskGridViewAnimations = false;
-const disableTaskGridViewAnimationsForTaskIds = new Set<TaskId>();
-
-/**
- * Disable animations on the provided `TaskId` until the next browser paint.
- * This only works if you have (or will have) an immediate React render queued
- * up before the next paint.
- */
-export function disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId: TaskId) {
-    disableTaskGridViewAnimationsForTaskIds.add(taskId);
-    scheduleAfterNextBrowserPaint(() => {
-        disableTaskGridViewAnimationsForTaskIds.delete(taskId);
-    });
-}
-
-/**
- * Disable all animations in task grid views until the next browser paint. This
- * only works if you have (or will have) an immediate React render queued up before
- * the next paint.
- *
- * Since this disables ALL animations, generally prefer using
- * `disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint()` to target
- * specific tasks.
- */
-export function indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint() {
-    indiscriminatelyDisableAllTaskGridViewAnimations = true;
-    scheduleAfterNextBrowserPaint(() => {
-        indiscriminatelyDisableAllTaskGridViewAnimations = false;
-    });
 }
 
 const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, Id>();
@@ -1677,9 +1650,9 @@ export function useTaskGridViewVirtualizedList({
 
         let newAnimations: Array<TaskGridViewVirtualizedListAnimation> | null = null;
 
-        if (!indiscriminatelyDisableAllTaskGridViewAnimations) {
+        if (!isIndiscriminatelyDisablingAllTaskGridViewAnimations()) {
             for (const animation of animations) {
-                if (!disableTaskGridViewAnimationsForTaskIds.has(animation.taskId)) {
+                if (!isDisablingTaskGridViewAnimationsForTaskId(animation.taskId)) {
                     newAnimations ??= [...animationState.animations];
                     newAnimations.push(animation);
                 }

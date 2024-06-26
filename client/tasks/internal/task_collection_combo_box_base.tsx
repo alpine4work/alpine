@@ -13,6 +13,7 @@ import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskCollectionComboBoxCreateCollectionOption} from "~/client/tasks/internal/task_collection_combo_box_create_collection_option.js";
 import {TaskCollectionComboBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collection_combo_box_instructional_placeholder.js";
 import {
@@ -20,7 +21,6 @@ import {
     taskCollectionOptionSecondaryTextColor,
 } from "~/client/tasks/internal/task_collection_option.js";
 import {useSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";

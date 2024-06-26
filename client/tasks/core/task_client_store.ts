@@ -1,19 +1,19 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
+import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {
     TaskUndoActions,
     createTaskUndoActionsIfPossible,
-} from "~/client/tasks/internal/create_task_undo_actions_if_possible.js";
-import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
-import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
+} from "~/client/tasks/core/create_task_undo_actions_if_possible.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
+import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/core/task_client_query.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {Context} from "~/shared/context/context.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";

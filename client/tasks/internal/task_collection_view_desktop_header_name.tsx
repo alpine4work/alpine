@@ -28,7 +28,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
-} from "~/client/tasks/task_client_store.js";
+} from "~/client/tasks/core/task_client_store.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";

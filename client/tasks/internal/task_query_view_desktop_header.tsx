@@ -6,6 +6,7 @@ import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -15,7 +16,6 @@ import {
     TaskQueryViewDesktopHeaderName,
     TaskQueryViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {

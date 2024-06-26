@@ -4,8 +4,8 @@ import {
     TaskClientStore,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
-} from "~/client/tasks/task_client_store.js";
-import {TaskClientTaskReferencesSubscriptionBase} from "~/client/tasks/task_client_task_references_subscription_base.js";
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientTaskReferencesSubscriptionBase} from "~/client/tasks/core/task_client_task_references_subscription_base.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 

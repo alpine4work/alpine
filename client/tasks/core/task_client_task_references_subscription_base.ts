@@ -3,7 +3,7 @@ import {
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
     TaskClientStoreTaskEntry,
-} from "~/client/tasks/task_client_store.js";
+} from "~/client/tasks/core/task_client_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

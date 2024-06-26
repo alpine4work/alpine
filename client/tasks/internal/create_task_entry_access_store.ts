@@ -1,12 +1,12 @@
 import jsonStableStringify from "json-stable-stringify";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreCollectionEntry,
     TaskClientStoreTaskEntry,
-} from "~/client/tasks/task_client_store.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";

@@ -4,7 +4,7 @@ import {
     TaskClientStore,
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
-} from "~/client/tasks/task_client_store.js";
+} from "~/client/tasks/core/task_client_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 

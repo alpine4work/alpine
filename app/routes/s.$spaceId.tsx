@@ -58,7 +58,7 @@ import {SpaceContextProvider} from "~/client/spaces/space_context.js";
 import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
-} from "~/client/tasks/task_realtime_client_context_provider.js";
+} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

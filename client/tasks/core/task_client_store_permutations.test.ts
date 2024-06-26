@@ -1,5 +1,5 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";

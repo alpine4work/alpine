@@ -3,7 +3,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_affinity_low_intent_update_interaction.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchAffinityId} from "~/shared/search/search_affinity_id.js";
 

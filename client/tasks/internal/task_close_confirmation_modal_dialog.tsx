@@ -2,7 +2,7 @@ import {useMemo} from "react";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 

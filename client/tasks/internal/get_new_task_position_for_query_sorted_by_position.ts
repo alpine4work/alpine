@@ -1,4 +1,4 @@
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {
     HybridLogicalTime,

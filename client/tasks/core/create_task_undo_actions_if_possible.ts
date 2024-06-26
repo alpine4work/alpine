@@ -1,7 +1,7 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {Store} from "~/client/helpers/store/store.js";
-import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
-import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
+import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
+import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

@@ -21,6 +21,11 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchAffinityManager,
+} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskAccess,
     getTaskCollectionEntryAccess,
@@ -49,11 +54,6 @@ import {
     defaultTaskQueryViewName,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStore,
-    TaskClientStoreSearchAffinityManager,
-} from "~/client/tasks/task_client_store.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,

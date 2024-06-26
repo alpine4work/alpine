@@ -5,12 +5,12 @@ import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interac
 import {Overlay} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
-} from "~/client/tasks/task_client_store.js";
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";

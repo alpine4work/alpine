@@ -9,7 +9,7 @@ import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_da
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -54,7 +54,6 @@ export function TaskNotepadViewPaginator({
         shouldIncludeSeconds: true,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const createNotepadPage = useEvent(async () => {
         const synchronizedSystemClock = await getSynchronizedSystemClock();
 

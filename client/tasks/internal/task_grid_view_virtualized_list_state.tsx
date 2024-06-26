@@ -6,7 +6,7 @@ import createTree, {
 import {ConstStore, nullStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";

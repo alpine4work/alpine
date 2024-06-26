@@ -11,12 +11,12 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
     TaskClientStoreUndoManager,
-} from "~/client/tasks/task_client_store.js";
+} from "~/client/tasks/core/task_client_store.js";
+import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
