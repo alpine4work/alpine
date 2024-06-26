@@ -100,7 +100,7 @@ export function SpaceLayoutSideBarInboxOverlay({
                 </Box>
             </Box>
             {initialEntriesResult.isPending ? (
-                <Box flexGrow="1" width="full" height="full" overflow="hidden" padding="1">
+                <Box flexGrow="1" width="full" height="full" overflow="hidden" paddingY="1">
                     <InboxEntryShimmer titleRagRight="0" subtitleRagRight="8" />
                     <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
                     <InboxEntryShimmer titleRagRight="4" subtitleRagRight="6" />
