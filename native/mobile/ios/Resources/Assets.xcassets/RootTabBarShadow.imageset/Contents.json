@@ -1,18 +1,18 @@
 {
     "images": [
         {
-            "filename": "RootTabBarShadow.png",
             "idiom": "universal",
+            "filename": "RootTabBarShadow.png",
             "scale": "1x"
         },
         {
-            "filename": "RootTabBarShadow_2x.png",
             "idiom": "universal",
+            "filename": "RootTabBarShadow@2x.png",
             "scale": "2x"
         },
         {
-            "filename": "RootTabBarShadow_3x.png",
             "idiom": "universal",
+            "filename": "RootTabBarShadow@3x.png",
             "scale": "3x"
         }
     ],

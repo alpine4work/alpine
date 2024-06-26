@@ -177,6 +177,7 @@ config_setting(
 
 ios_application(
     name = "app",
+    app_icons = ["//native/mobile/ios/Resources/Assets.xcassets:AppIcon.appiconset"],
     bundle_id = "inc.alpine.mobile.app",
     bundle_name = "Alpine",
     entitlements = select({

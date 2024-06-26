@@ -7,6 +7,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 filegroup(
     name = "Assets.xcassets",
     srcs = [
+        "AppIcon.appiconset",
         "Colors/Contents.json",
         "Contents.json",
         "Icons/Contents.json",
@@ -14,6 +15,12 @@ filegroup(
         ":color_assets",
         ":icon_assets",
     ],
+    visibility = ["//native/mobile/ios:__subpackages__"],
+)
+
+filegroup(
+    name = "AppIcon.appiconset",
+    srcs = glob(["AppIcon.appiconset/**/*"]),
     visibility = ["//native/mobile/ios:__subpackages__"],
 )
 
