@@ -15,7 +15,10 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {attemptOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
+import {
+    appleReviewerAccountEmailAddress,
+    attemptOneTimePasswordSignIn,
+} from "~/server/accounts/accounts_table.js";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -106,7 +109,13 @@ export async function action({request, context, params}: LoaderArgs) {
             // them to a space switcher?
             const configuration = await getAlphaConfiguration(context);
 
-            if (!configuration.defaultSpaceId) {
+            // Route the Apple reviewer to their space...
+            const spaceId =
+                emailAddress === appleReviewerAccountEmailAddress
+                    ? configuration.appleReviewerSpaceId ?? configuration.defaultSpaceId
+                    : configuration.defaultSpaceId;
+
+            if (!spaceId) {
                 throw new InternalError(
                     "Expected `defaultSpaceId` in alpha configuration to sign in on mobile",
                 );
@@ -114,7 +123,7 @@ export async function action({request, context, params}: LoaderArgs) {
 
             const url = new URL("cyberworlds://sign-in/finish");
 
-            url.searchParams.set("spaceId", configuration.defaultSpaceId);
+            url.searchParams.set("spaceId", spaceId);
 
             url.searchParams.set(
                 "session",

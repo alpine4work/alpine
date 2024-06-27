@@ -63,28 +63,31 @@ export class TestAccount {
         return new TestAccount(context, accountId, account.initialData.name);
     }
 
+    private _generateEmailAddress() {
+        const emailAddressNumber = this._emailAddressCount;
+        this._emailAddressCount += 1;
+
+        return `account.${this.id}${
+            emailAddressNumber > 0 ? `.${emailAddressNumber + 1}` : ""
+        }@test.cyberworlds.dev`;
+    }
+
     /**
      * Adds an email address to this account. If you call this multiple times then
      * the account will have multiple email addresses it may sign in with.
      */
-    public async createEmailAddress(): Promise<EmailAddress> {
-        const emailAddressNumber = this._emailAddressCount;
-        this._emailAddressCount += 1;
-
-        const emailAddress = await validateEmailAddress(
-            this.context,
-            `account.${this.id}${
-                emailAddressNumber > 0 ? `.${emailAddressNumber + 1}` : ""
-            }@test.cyberworlds.dev`,
-        );
+    public async createEmailAddress(
+        emailAddress: string = this._generateEmailAddress(),
+    ): Promise<EmailAddress> {
+        const actualEmailAddress = await validateEmailAddress(this.context, emailAddress);
 
         await createAccountEmailAddressForTest(this.context, {
             accountId: this.id,
-            emailAddress,
+            emailAddress: actualEmailAddress,
             isEmailAddressVerified: true,
         });
 
-        return emailAddress;
+        return actualEmailAddress;
     }
 
     public async get(): Promise<AccountModelWithoutSpace> {

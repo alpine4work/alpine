@@ -41,6 +41,27 @@ import {
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+/**
+ * The email address we provide to Apple that lets a reviewer sign into our
+ * app and try it out.
+ *
+ * Try to special case as little as possible for this email address!
+ */
+export const appleReviewerAccountEmailAddress = "apple.reviewer@alpine.inc" as EmailAddress;
+
+/**
+ * This is a secret string shared between our company and Apple. An Apple
+ * reviewer may use this string to log into a space made just for them. It's
+ * not that big a deal if the strong leaks. All the account has access to is
+ * their own space.
+ */
+const appleReviewerAccountPassword = "968706";
+
+export function getAppleReviewerAccountPasswordForTest() {
+    assert(import.meta.jest);
+    return appleReviewerAccountPassword;
+}
+
 const AccountsTable = DynamoTableSchema.new({
     name: "Accounts",
     partitions: [
@@ -523,7 +544,13 @@ export async function regenerateOneTimePasswordSignIn(
     emailAddress: EmailAddress,
 ): Promise<void> {
     const generatedTime = new Date();
-    const password = generateOneTimePassword();
+
+    // The Apple reviewer gets the same constant password every time since they
+    // don't have access to the email address (we control the email address).
+    const password =
+        emailAddress === appleReviewerAccountEmailAddress
+            ? appleReviewerAccountPassword
+            : generateOneTimePassword();
 
     await AccountsTable.updateItem(
         context,

@@ -1,4 +1,5 @@
 import {
+    appleReviewerAccountEmailAddress,
     attemptOneTimePasswordSignIn,
     captureOneTimePasswordSignInEmailsForTest,
     createAccountEmailAddressForTest,
@@ -7,6 +8,7 @@ import {
     getAccountByEmailAddressAsAdmin,
     getAccountByIdAsAdmin,
     getAccountEmailAddressForTest,
+    getAppleReviewerAccountPasswordForTest,
     regenerateOneTimePasswordSignIn,
     rewindAccountEmailAddressOneTimePasswordSignInStateTimeForTest,
 } from "~/server/accounts/accounts_table.js";
@@ -15,6 +17,7 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
     FailedPreconditionError,
@@ -25,6 +28,8 @@ import {
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+
+const appleReviewerAccountPassword = getAppleReviewerAccountPasswordForTest();
 
 const context = createTestContext();
 const space1 = createTestSpace(context);
@@ -1050,4 +1055,92 @@ test("can get any account by email address as admin", async () => {
     await expect(
         getAccountByEmailAddressAsAdmin(adminSession.action(), emailAddress3b),
     ).resolves.toEqual(await session3.account.get());
+});
+
+test("can't login with apple reviewer's password", async () => {
+    const account = await createTestAccount();
+
+    expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(undefined);
+
+    await expect(
+        attemptOneTimePasswordSignIn(
+            context,
+            account.emailAddress,
+            appleReviewerAccountPassword,
+            sessionInfo,
+        ),
+    ).rejects.toThrow(new FailedPreconditionError("Missing one time password"));
+
+    const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedAction(),
+            account.emailAddress,
+        );
+    });
+
+    expect(oneTimePasswordLoginEmails.length).toEqual(1);
+    const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
+
+    await expect(
+        attemptOneTimePasswordSignIn(
+            context,
+            account.emailAddress,
+            appleReviewerAccountPassword,
+            sessionInfo,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
+
+    await attemptOneTimePasswordSignIn(context, account.emailAddress, oneTimePassword, sessionInfo);
+});
+
+test("apple reviewer always has the same password", async () => {
+    const account = await TestAccount.create(context);
+
+    await account.createEmailAddress(appleReviewerAccountEmailAddress);
+
+    await expect(
+        attemptOneTimePasswordSignIn(
+            context,
+            appleReviewerAccountEmailAddress,
+            "XXXXXX",
+            sessionInfo,
+        ),
+    ).rejects.toThrow(new FailedPreconditionError("Missing one time password"));
+
+    await expect(
+        attemptOneTimePasswordSignIn(
+            context,
+            appleReviewerAccountEmailAddress,
+            appleReviewerAccountPassword,
+            sessionInfo,
+        ),
+    ).rejects.toThrow(new FailedPreconditionError("Missing one time password"));
+
+    const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedAction(),
+            appleReviewerAccountEmailAddress,
+        );
+    });
+
+    expect(oneTimePasswordLoginEmails.length).toEqual(1);
+    const oneTimePassword = oneTimePasswordLoginEmails[0]!.oneTimePassword;
+
+    expect(oneTimePassword).toEqual(appleReviewerAccountPassword);
+
+    await expect(
+        attemptOneTimePasswordSignIn(
+            context,
+            appleReviewerAccountEmailAddress,
+            "XXXXXX",
+            sessionInfo,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Incorrect one time password"));
+
+    await attemptOneTimePasswordSignIn(
+        context,
+        appleReviewerAccountEmailAddress,
+        oneTimePassword,
+        sessionInfo,
+    );
 });

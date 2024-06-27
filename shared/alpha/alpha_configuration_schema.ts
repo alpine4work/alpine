@@ -15,4 +15,9 @@ export const AlphaConfigurationSchema = Schema.object({
      * document URL that serves as an index page.
      */
     authenticatedHomeUrl: Schema.string.matches(/^\/[a-zA-Z0-9_\-/%?=&]*$/).optional(),
+
+    /**
+     * The `SpaceId` to send the Apple reviewer to.
+     */
+    appleReviewerSpaceId: Schema.id<SpaceId>().optional(),
 });
