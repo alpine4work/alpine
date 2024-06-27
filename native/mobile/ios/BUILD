@@ -150,7 +150,7 @@ swift_library(
         ":dbg_compilation_mode": ["DBG_COMPILATION_MODE"],
         ":opt_compilation_mode": ["OPT_COMPILATION_MODE"],
     }) + select({
-        ":provisioning_profile_default": [],
+        ":default_provisioning_profile": [],
         "//conditions:default": ["PROVISIONING_PROFILE"],
     }),
     module_name = "Cyberworlds",
@@ -162,16 +162,24 @@ string_flag(
 )
 
 config_setting(
-    name = "provisioning_profile_local",
+    name = "local_provisioning_profile",
     flag_values = {
         ":provisioning_profile": "local",
     },
 )
 
 config_setting(
-    name = "provisioning_profile_default",
+    name = "default_provisioning_profile",
     flag_values = {
         ":provisioning_profile": "default",
+    },
+)
+
+config_setting(
+    name = "local_provisioning_profile_and_production_run_environment",
+    flag_values = {
+        ":provisioning_profile": "local",
+        ":run_environment": "production",
     },
 )
 
@@ -181,8 +189,9 @@ ios_application(
     bundle_id = "inc.alpine.mobile.app",
     bundle_name = "Alpine",
     entitlements = select({
-        ":provisioning_profile_local": "Resources/Entitlements.entitlements",
-        "//conditions:default": "Resources/EntitlementsWithoutProvisioningProfile.entitlements",
+        ":local_provisioning_profile_and_production_run_environment": "Resources/Entitlements/ProductionEntitlements.entitlements",
+        ":local_provisioning_profile": "Resources/Entitlements/DevelopmentEntitlements.entitlements",
+        "//conditions:default": "Resources/Entitlements/DevelopmentEntitlementsWithoutProvisioningProfile.entitlements",
     }),
     families = [
         "iphone",
@@ -197,7 +206,8 @@ ios_application(
     # bazel build //native/mobile/ios:app --//native/mobile/ios:provisioning_profile=local
     # ```
     provisioning_profile = select({
-        ":provisioning_profile_local": "Resources/LocalProvisioningProfile.mobileprovision",
+        ":local_provisioning_profile_and_production_run_environment": "Resources/LocalProductionProvisioningProfile.mobileprovision",
+        ":local_provisioning_profile": "Resources/LocalDevelopmentProvisioningProfile.mobileprovision",
         "//conditions:default": None,
     }),
     visibility = ["//visibility:public"],

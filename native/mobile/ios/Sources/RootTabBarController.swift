@@ -49,7 +49,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // signed in we remember their `localStorage`, cookies, etc.
         let websiteDataStore = WKWebsiteDataStore.default()
 
-        let sessionCookieProperties: [HTTPCookiePropertyKey: Any] = [
+        let baseSessionCookieProperties: [HTTPCookiePropertyKey: Any] = [
             .name: "session", .value: session.token,
             .domain: WebNavigationController.baseUrl.host()!, .path: "/",
             // iOS doesn't have a constant for the `HttpOnly` key so manually initialize.
@@ -59,7 +59,13 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         ]
 
         #if PRODUCTION_RUN_ENVIRONMENT
-            sessionCookieProperties[.secure] = true
+            let newSessionCookieProperties: [HTTPCookiePropertyKey: Any] = [.secure: true]
+
+            let sessionCookieProperties = baseSessionCookieProperties.merging(
+                newSessionCookieProperties
+            ) { (_, newValue) in newValue }
+        #else
+            let sessionCookieProperties = baseSessionCookieProperties
         #endif
 
         // This cookie needs to be the same as the session cookie created in

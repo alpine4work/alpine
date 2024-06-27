@@ -8,11 +8,11 @@ This will build and launch the app in a simulator:
 bazel run //native/mobile/ios:app
 ```
 
-## Build the app for a device
+## Build the app for a development device
 
 First ask @calebmer to create you a provisioning profile from the company's Apple Developer Account.
 Once you have your provisioning profile move it to
-`native/mobile/ios/Resources/LocalProvisioningProfile.mobileprovision`.
+`native/mobile/ios/Resources/LocalDevelopmentProvisioningProfile.mobileprovision`.
 
 Then build with:
 
@@ -33,3 +33,39 @@ final command that’ll run.
 The easiest way to install the app is to launch Xcode then go to “Windows > Devices and Simulators”.
 Then under apps click the plus button and find the `.ipa` file you just built (should be at
 `bazel-bin/native/mobile/ios/app.ipa`).
+
+## Build the app for production
+
+To distribute the app in the Apple app store, you need to:
+
+1. Build the app for production
+2. Upload the app to Apple
+
+To build the app for production run:
+
+```
+bazel build //native/mobile/ios:app \
+    --compilation_mode=opt \
+    --ios_multi_cpus=arm64 \
+    --apple_generate_dsym \
+    --define=apple.add_debugger_entitlement=no \
+    --//native/mobile/ios:run_environment=production \
+    --//native/mobile/ios:provisioning_profile=local \
+    --//native/mobile/ios:base_url=httsp://cyberworlds.dev
+```
+
+Run the following command to upload the app to Apple. You'll be prompted for a username and
+password. The username is the email associated with your Apple ID. The password should be an
+app-specific password. To generate an app-specific password log into
+[https://appleid.apple.com](https://appleid.apple.com).
+
+```
+echo -n "Username: " && read username && \
+echo -n "Password: " && read password && \
+xcrun altool \
+    --upload-app \
+    --type ios \
+    -file bazel-bin/native/mobile/ios/app.ipa \
+    -u "$username" \
+    -p "$password"
+```

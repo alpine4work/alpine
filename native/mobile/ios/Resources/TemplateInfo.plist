@@ -22,12 +22,19 @@
     <true/>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
-        <string>armv7</string>
+        <string>arm64</string>
     </array>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>
+    <!--
+    TODO(calebmer): We should eventually remove this when we add proper support for
+    iPad. For now this means we don't need to support other interface orientations.
+    See this StackOverflow post: https://stackoverflow.com/a/32941136/1568890
+    -->
+    <key>UIRequiresFullScreen</key>
+    <true/>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

@@ -2,4 +2,4 @@
 /App.xcodeproj
 
 # Local provisioning profile.
-/Resources/LocalProvisioningProfile*.mobileprovision
+/Resources/Local*ProvisioningProfile*.mobileprovision
