@@ -20,6 +20,7 @@ import {
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -358,11 +359,20 @@ function TaskQueryFilterEditorMultiSelectListBox({
     listBoxProps: AriaListBoxOptions<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
     optionCheckboxMarginTop: Spacing | null;
 }) {
-    const {listBoxProps} = useListBox({..._listBoxProps, autoFocus: false}, listState, listBoxRef);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const {listBoxProps} = useListBox(
+        {..._listBoxProps, autoFocus: false, scrollRef},
+        listState,
+        listBoxRef,
+    );
 
     return (
         <div
-            ref={useScrollbar()}
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
+            // doesn't need to add a resize listener to every child. This means we need to
+            // provide `useListBox()` a `scrollRef` if we want to scroll to the
+            // focused option.
+            ref={useMergedRefs(useScrollbar(), scrollRef)}
             className={sprinkles({
                 position: "relative",
                 flexGrow: "1",

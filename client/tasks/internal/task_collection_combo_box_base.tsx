@@ -9,6 +9,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
@@ -259,10 +260,9 @@ export function TaskCollectionComboBoxListBox({
     autoFocus?: boolean;
     shouldHideNoResultsIcon?: boolean;
 }) {
+    const scrollRef = useRef<HTMLDivElement>(null);
     const {listBoxProps} = useListBox(
-        autoFocus !== undefined && autoFocus !== _listBoxProps.autoFocus
-            ? {..._listBoxProps, autoFocus}
-            : _listBoxProps,
+        {..._listBoxProps, autoFocus: autoFocus ?? _listBoxProps.autoFocus, scrollRef},
         comboBoxState,
         listBoxRef,
     );
@@ -308,7 +308,11 @@ export function TaskCollectionComboBoxListBox({
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
             <div
-                ref={useScrollbar()}
+                // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
+                // doesn't need to add a resize listener to every child. This means we need to
+                // provide `useListBox()` a `scrollRef` if we want to scroll to the
+                // focused option.
+                ref={useMergedRefs(scrollRef, useScrollbar())}
                 className={sprinkles({
                     position: "relative",
                     flexGrow: "1",

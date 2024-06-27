@@ -104,10 +104,21 @@ index 5e89551ad2ab07490e1b0821ceec28e78169bd12..2b461b17b5dcaf7051abf3f88ec56c94
  }
  
 diff --git a/dist/types.d.ts b/dist/types.d.ts
-index 017141b501c493c791774fa497cb265d5f4e5815..3222bc89988d89f77ca80f8a8e5015f8ad8ab3c2 100644
+index 017141b501c493c791774fa497cb265d5f4e5815..60e0e62cc03727e5b1f4d5c951d708a24db9d8f5 100644
 --- a/dist/types.d.ts
 +++ b/dist/types.d.ts
-@@ -63,6 +63,8 @@ export interface OptionAria extends SelectableItemStates {
+@@ -44,6 +44,10 @@ export interface AriaListBoxOptions<T> extends Omit<AriaListBoxProps<T>, 'childr
+      * @default 'override'
+      */
+     linkBehavior?: 'action' | 'selection' | 'override';
++    // NOTE(calebmer): `useSelectableCollection()` (which this hook ends up
++    // calling) takes a `scrollRef` option. We want to configure this option when
++    // we call `useListBox()` so make sure it's present in the types.
++    scrollRef?: RefObject<HTMLElement>;
+ }
+ /**
+  * Provides the behavior and accessibility implementation for a listbox component.
+@@ -63,6 +67,8 @@ export interface OptionAria extends SelectableItemStates {
      isFocused: boolean;
      /** Whether the option is keyboard focused. */
      isFocusVisible: boolean;
@@ -116,7 +127,7 @@ index 017141b501c493c791774fa497cb265d5f4e5815..3222bc89988d89f77ca80f8a8e5015f8
  }
  export interface AriaOptionProps {
      /**
-@@ -99,6 +101,9 @@ export interface AriaOptionProps {
+@@ -99,6 +105,9 @@ export interface AriaOptionProps {
       * @deprecated
       */
      shouldUseVirtualFocus?: boolean;
@@ -126,6 +137,22 @@ index 017141b501c493c791774fa497cb265d5f4e5815..3222bc89988d89f77ca80f8a8e5015f8
  }
  /**
   * Provides the behavior and accessibility implementation for an option in a listbox.
+diff --git a/src/useListBox.ts b/src/useListBox.ts
+index e5ac0c19bf88549ec7ac3a09fc43ca34f056090a..3d0bd874cd4f0938cfd571b9e4b9d355741b592b 100644
+--- a/src/useListBox.ts
++++ b/src/useListBox.ts
+@@ -56,6 +56,11 @@ export interface AriaListBoxOptions<T> extends Omit<AriaListBoxProps<T>, 'childr
+    * @default 'override'
+    */
+   linkBehavior?: 'action' | 'selection' | 'override'
++
++  // NOTE(calebmer): `useSelectableCollection()` (which this hook ends up
++  // calling) takes a `scrollRef` option. We want to configure this option when
++  // we call `useListBox()` so make sure it's present in the types.
++  scrollRef?: RefObject<HTMLElement>;
+ }
+ 
+ /**
 diff --git a/src/useOption.ts b/src/useOption.ts
 index 574e6801467e9d0ceb289695c95c343985f1ac1c..faec5ec32f241fcaf53f2ec1ec1bbf504937d0e7 100644
 --- a/src/useOption.ts

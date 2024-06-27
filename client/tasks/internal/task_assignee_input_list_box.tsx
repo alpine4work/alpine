@@ -10,6 +10,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     TaskAssigneeInputItem,
@@ -34,11 +35,16 @@ export function TaskAssigneeInputListBox({
 }) {
     const isMobile = useIsMobile();
 
-    const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const {listBoxProps} = useListBox({..._listBoxProps, scrollRef}, comboBoxState, listBoxRef);
 
     return (
         <div
-            ref={useScrollbar()}
+            // `useScrollbar()` is on a `<div>` wrapping the `<ul>` so `useScrollbar()`
+            // doesn't need to add a resize listener to every child. This means we need to
+            // provide `useListBox()` a `scrollRef` if we want to scroll to the
+            // focused option.
+            ref={useMergedRefs(scrollRef, useScrollbar())}
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({

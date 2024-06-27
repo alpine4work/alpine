@@ -363,59 +363,78 @@ export function ContentEditorMentionFloater({
                         maxHeight: isMobile ? "10rem" : spacing["64"],
                     }}
                 >
-                    {isLoading && shouldShowLoadingIndicatorIfLoading ? (
-                        <Box paddingX="1.5" paddingY="1.5" display="flex" justifyContent="center">
-                            <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
-                        </Box>
-                    ) : !searchedAccountDatas || searchedAccountDatas.length === 0 ? (
-                        <Box
-                            paddingX="1.5"
-                            paddingY="1.5"
-                            display="flex"
-                            alignItems="center"
-                            gap="2"
-                            color="grey-70"
-                        >
-                            <Box padding="1">
-                                <MagnifyingGlass size={spacing["4"]} />
+                    <Box
+                    // Container div which:
+                    //
+                    // 1. Means `useScrollbar()` doesn't insert an item after our last element
+                    //    messing up our scroll logic. See `!itemElement.nextSibling` check in
+                    //    scroll layout effect above.
+                    //
+                    // 2. Means `useScrollbar()` on the parent `<Box>` doesn't need to add a resize
+                    //    listener to each account.
+                    >
+                        {isLoading && shouldShowLoadingIndicatorIfLoading ? (
+                            <Box
+                                paddingX="1.5"
+                                paddingY="1.5"
+                                display="flex"
+                                justifyContent="center"
+                            >
+                                <SpinnerGap
+                                    className={spinAnimationClassName}
+                                    size={spacing["4"]}
+                                />
                             </Box>
-                            <Box>No results</Box>
-                        </Box>
-                    ) : (
-                        searchedAccountDatas?.map((accountData, index) => (
-                            <ContentEditorMentionAccountItem
-                                key={accountData.id}
-                                accountData={accountData}
-                                menuRef={menuRef}
-                                isClosing={isClosing}
-                                isFocusVisible={selectionState.isFocusVisible}
-                                isSelected={selectionState.index === index}
-                                onSelect={() =>
-                                    setSelectionState({
-                                        searchQuery,
-                                        index,
-                                        isFocusVisible: getIsFocusVisible(),
-                                    })
-                                }
-                                onDeselect={() =>
-                                    setSelectionState(selectionState => {
-                                        if (
-                                            selectionState.searchQuery !== searchQuery ||
-                                            selectionState.index !== index
-                                        ) {
-                                            return selectionState;
-                                        }
-                                        return {
+                        ) : !searchedAccountDatas || searchedAccountDatas.length === 0 ? (
+                            <Box
+                                paddingX="1.5"
+                                paddingY="1.5"
+                                display="flex"
+                                alignItems="center"
+                                gap="2"
+                                color="grey-70"
+                            >
+                                <Box padding="1">
+                                    <MagnifyingGlass size={spacing["4"]} />
+                                </Box>
+                                <Box>No results</Box>
+                            </Box>
+                        ) : (
+                            searchedAccountDatas?.map((accountData, index) => (
+                                <ContentEditorMentionAccountItem
+                                    key={accountData.id}
+                                    accountData={accountData}
+                                    menuRef={menuRef}
+                                    isClosing={isClosing}
+                                    isFocusVisible={selectionState.isFocusVisible}
+                                    isSelected={selectionState.index === index}
+                                    onSelect={() =>
+                                        setSelectionState({
                                             searchQuery,
-                                            index: null,
-                                            isFocusVisible: false,
-                                        };
-                                    })
-                                }
-                                onPress={() => saveMention(accountData)}
-                            />
-                        ))
-                    )}
+                                            index,
+                                            isFocusVisible: getIsFocusVisible(),
+                                        })
+                                    }
+                                    onDeselect={() =>
+                                        setSelectionState(selectionState => {
+                                            if (
+                                                selectionState.searchQuery !== searchQuery ||
+                                                selectionState.index !== index
+                                            ) {
+                                                return selectionState;
+                                            }
+                                            return {
+                                                searchQuery,
+                                                index: null,
+                                                isFocusVisible: false,
+                                            };
+                                        })
+                                    }
+                                    onPress={() => saveMention(accountData)}
+                                />
+                            ))
+                        )}
+                    </Box>
                 </Box>
             }
         >
