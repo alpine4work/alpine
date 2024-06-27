@@ -1,8 +1,11 @@
-import {useCallback, useEffect} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {useReporter} from "~/client/design/reporter.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -12,6 +15,7 @@ import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_me
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
+import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/task_detail_notes_content_editor_web_socket_client.js";
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -224,6 +228,21 @@ export default function TaskRoute({
             new URL(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`, window.location.href),
         [taskId, spaceId],
     );
+    const context = useAppContext();
+    const reporter = useReporter();
+    const events = useEvents({
+        getContext: () => context,
+        getReporter: () => reporter,
+    });
+
+    const [notesClient, setNotesClient] = useState(() => {
+        return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+            taskId,
+            initialNotesVersion,
+            initialNotesContent,
+            displayError: (title, error) => events.getReporter().displayError(title, error),
+        });
+    });
 
     return (
         <Box
@@ -246,6 +265,8 @@ export default function TaskRoute({
                     initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
                     initialNotesVersion={initialNotesVersion}
                     initialNotesContent={initialNotesContent}
+                    notesClient={notesClient}
+                    setNotesClient={setNotesClient}
                 />
             </TaskGridViewDndContext>
             {!withMobileLayout && (

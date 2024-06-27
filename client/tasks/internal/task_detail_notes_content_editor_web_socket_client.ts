@@ -11,15 +11,23 @@ import {
 import {AppContext} from "~/client/context/app_context.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {WebSocketClient, WebSocketClientState} from "~/client/web_socket/web_socket_client.js";
+import {
+    WebSocketClient,
+    WebSocketClientProcedures,
+    WebSocketClientState,
+} from "~/client/web_socket/web_socket_client.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
+import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
 type TaskNotesContentEditorState = CollaborativeContentEditorState<
     TaskNotesContentWithReferences,
@@ -39,6 +47,13 @@ type TaskNotesContentEditorExtraAction = {
     readonly type: "Reset";
     readonly state: TaskNotesContentEditorState;
 };
+
+export type TaskDetailNotesContentEditorWebSocketClientProcedures = Pick<
+    WebSocketClientProcedures<
+        WebSocketProtocolProceduresType<typeof TaskNotesCollaborationProtocol>
+    >,
+    (typeof TaskDetailNotesContentEditorWebSocketClient.procedureNames)[number]
+>;
 
 const reduceCollaborativeContentEditorState = createCollaborativeContentEditorStateReducer<
     TaskNotesContentWithReferences,
@@ -63,11 +78,25 @@ const reduceCollaborativeContentEditorState = createCollaborativeContentEditorSt
  */
 export class TaskDetailNotesContentEditorWebSocketClient {
     public readonly taskId: TaskId;
+    public static readonly procedureNames = [
+        "backfillComments",
+        "createComment",
+        "updateCommentContent",
+        "deleteComment",
+        "startTypingInCommentInput",
+        "stopTypingInCommentInput",
+    ] as const satisfies ReadonlyArray<
+        keyof WebSocketClientProcedures<
+            WebSocketProtocolProceduresType<typeof TaskNotesCollaborationProtocol>
+        >
+    >;
     private readonly _displayError: (title: string, error: unknown) => void;
     private readonly _getContext: () => AppContext;
     private readonly _client: WebSocketClient<typeof TaskNotesCollaborationProtocol>;
     private readonly _state: ValueStore<TaskNotesContentEditorState>;
     private _disconnect: (() => void) | null = null;
+
+    public readonly procedures: TaskDetailNotesContentEditorWebSocketClientProcedures;
 
     public get state(): Store<TaskNotesContentEditorState> {
         return this._state;
@@ -108,6 +137,11 @@ export class TaskDetailNotesContentEditorWebSocketClient {
             }),
         );
         this._displayError = displayError;
+
+        this.procedures = pickObject(
+            this._client.procedures,
+            TaskDetailNotesContentEditorWebSocketClient.procedureNames,
+        );
     }
 
     private _dispatchBatch(actions: ReadonlyArray<TaskNotesContentEditorAction>) {
@@ -329,5 +363,15 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         }
 
         this.connect();
+    }
+
+    public subscribeToCommentEvents(
+        subscriber: (message: MessagingRealtimeEvent<TaskCommentModel>) => void,
+    ) {
+        return this._client.subscribeToEvents(event => {
+            if (event.type === "Comments") {
+                subscriber(event.event);
+            }
+        });
     }
 }

@@ -65,6 +65,7 @@ import {
 } from "~/client/tasks/internal/task_collections_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
+import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/task_detail_notes_content_editor_web_socket_client.js";
 import {
     TaskDetailNotesField,
     TaskDetailNotesFieldRef,
@@ -133,6 +134,8 @@ export function TaskDetailView({
     initialChildrenGridViewExpansionState,
     initialNotesVersion,
     initialNotesContent,
+    notesClient,
+    setNotesClient,
 }: {
     withMobileLayout: boolean;
     taskSubscription: TaskClientTaskSubscription;
@@ -141,6 +144,10 @@ export function TaskDetailView({
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
+    notesClient: TaskDetailNotesContentEditorWebSocketClient;
+    setNotesClient: React.Dispatch<
+        React.SetStateAction<TaskDetailNotesContentEditorWebSocketClient>
+    >;
 }) {
     const isMobile = useIsMobile();
     const navigate = useNavigate();
@@ -825,6 +832,8 @@ export function TaskDetailView({
                                             isDueDateInputVisible={dueDateInputState.isVisible}
                                             setDueDateInputState={setDueDateInputState}
                                             focusDueDateInput={focusDueDateInput}
+                                            notesClient={notesClient}
+                                            setNotesClient={setNotesClient}
                                         />
                                     ),
                                 };
@@ -950,6 +959,8 @@ function TaskDetailViewMain(
         isDueDateInputVisible,
         setDueDateInputState,
         focusDueDateInput,
+        notesClient,
+        setNotesClient,
     }: {
         withMobileLayout: boolean;
         taskSubscription: TaskClientTaskSubscription;
@@ -975,6 +986,10 @@ function TaskDetailViewMain(
         isDueDateInputVisible: boolean;
         setDueDateInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
         focusDueDateInput: Memo<(options: {preventScroll: boolean}) => void>;
+        notesClient: TaskDetailNotesContentEditorWebSocketClient;
+        setNotesClient: React.Dispatch<
+            React.SetStateAction<TaskDetailNotesContentEditorWebSocketClient>
+        >;
     },
     ref: Ref<TaskDetailViewMainRef>,
 ) {
@@ -1398,6 +1413,8 @@ function TaskDetailViewMain(
                     pushUndoStackEntry={pushUndoStackEntry}
                     pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                     pushRedoStackEntry={pushRedoStackEntry}
+                    notesClient={notesClient}
+                    setNotesClient={setNotesClient}
                 />
                 {showSubtasks ? (
                     <>

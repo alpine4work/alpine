@@ -51,6 +51,8 @@ function TaskDetailNotesField(
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
+        notesClient,
+        setNotesClient,
     }: {
         withMobileLayout: boolean;
         taskId: TaskId;
@@ -60,6 +62,10 @@ function TaskDetailNotesField(
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
         pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+        notesClient: TaskDetailNotesContentEditorWebSocketClient;
+        setNotesClient: React.Dispatch<
+            React.SetStateAction<TaskDetailNotesContentEditorWebSocketClient>
+        >;
     },
     ref: Ref<TaskDetailNotesFieldRef>,
 ) {
@@ -91,18 +97,18 @@ function TaskDetailNotesField(
         [isReadOnly],
     );
 
-    const [client, setClient] = useState(() => {
-        return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
-            taskId,
-            initialNotesVersion,
-            initialNotesContent,
-            displayError: (title, error) => events.getReporter().displayError(title, error),
-        });
-    });
+    // const [client, setClient] = useState(() => {
+    //     return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+    //         taskId,
+    //         initialNotesVersion,
+    //         initialNotesContent,
+    //         displayError: (title, error) => events.getReporter().displayError(title, error),
+    //     });
+    // });
 
     // Re-initialize state if the `TaskId` changes.
-    if (client.taskId !== taskId) {
-        setClient(() => {
+    if (notesClient.taskId !== taskId) {
+        setNotesClient(() => {
             return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
                 taskId,
                 initialNotesVersion,
@@ -117,18 +123,21 @@ function TaskDetailNotesField(
     useEffect(() => {
         if (!shouldConnect) return;
 
-        client.connect();
+        notesClient.connect();
         return () => {
-            client.disconnect();
+            notesClient.disconnect();
         };
-    }, [client, shouldConnect]);
+    }, [notesClient, shouldConnect]);
 
-    const state = useStore(client.state);
-    const webSocketState = useStore(client.webSocketState);
+    const state = useStore(notesClient.state);
+    const webSocketState = useStore(notesClient.webSocketState);
 
     // Show the "Lost connection" error dialog if any error occurs in our WebSocket
     // connection.
-    useWebSocketErrorDialog(client, webSocketState?.hasError ? webSocketState : state.errorState);
+    useWebSocketErrorDialog(
+        notesClient,
+        webSocketState?.hasError ? webSocketState : state.errorState,
+    );
 
     return (
         <Box>
@@ -171,7 +180,7 @@ function TaskDetailNotesField(
                             aria-labelledby={labelId}
                             withMobileLayout={withMobileLayout}
                             state={state.editorState}
-                            onChange={state => client.changeEditorState(state)}
+                            onChange={state => notesClient.changeEditorState(state)}
                             placeholder="Add more details…"
                             className={classNames(
                                 tasksStyles.detailNotesContentEditorClassName,
