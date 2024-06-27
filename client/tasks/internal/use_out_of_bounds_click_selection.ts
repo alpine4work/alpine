@@ -1,4 +1,4 @@
-import {MouseEvent, useRef} from "react";
+import {DragEvent, MouseEvent, PointerEvent, useRef} from "react";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 
 /**
@@ -15,51 +15,89 @@ export function useOutOfBoundsClickSelection({
     accept = event => event.target === event.currentTarget,
 }: {
     isDisabled?: boolean;
-    onSelect: () => void;
+    onSelect: (event: PointerEvent | MouseEvent) => void;
     onSelectAll: () => void;
     accept?: (event: MouseEvent) => boolean;
 }): {
-    onClick: (event: MouseEvent) => void;
+    onPointerDown: (event: PointerEvent) => void;
+    onPointerUp: (event: PointerEvent) => void;
+    onPointerLeave: (event: PointerEvent) => void;
+    onPointerCancel: (event: PointerEvent) => void;
+    onDragStart: (event: DragEvent) => void;
     onDoubleClick: (event: MouseEvent) => void;
-    onMouseDown: (event: MouseEvent) => void;
     onContextMenu: (event: MouseEvent) => void;
 } {
+    const isPointerDownAndOverRef = useRef(false);
     const lastDoubleClickTimeRef = useRef<number | null>(null);
 
     return {
-        onMouseDown: event => {
+        onPointerDown: event => {
+            if (event.button !== 0) return;
+
             if (isDisabled) return;
             if (!accept(event)) return;
 
-            if (
-                lastDoubleClickTimeRef.current === null ||
-                Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
-            ) {
-                // If we are the child of a focusable element, don't focus our parent
-                // after `mousedown`.
-                event.preventDefault();
+            isPointerDownAndOverRef.current = true;
 
-                onSelect();
-            } else {
-                // `mousedown` will unfocus whatever is focused. If the user is actively
-                // double, triple, whatever clicking don't unfocus.
-                event.preventDefault();
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType === "mouse") {
+                if (
+                    lastDoubleClickTimeRef.current === null ||
+                    Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
+                ) {
+                    // If we are the child of a focusable element, don't focus our parent
+                    // after `mousedown`.
+                    event.preventDefault();
 
-                lastDoubleClickTimeRef.current = Date.now();
+                    onSelect(event);
+                } else {
+                    // `mousedown` will unfocus whatever is focused. If the user is actively
+                    // double, triple, whatever clicking don't unfocus.
+                    event.preventDefault();
+
+                    lastDoubleClickTimeRef.current = Date.now();
+                }
             }
         },
-        onClick: event => {
-            if (isDisabled) return;
-            if (!accept(event)) return;
+        onPointerUp: event => {
+            const wasPointerDownAndOver = isPointerDownAndOverRef.current;
+            isPointerDownAndOverRef.current = false;
 
-            if (
-                lastDoubleClickTimeRef.current === null ||
-                Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
-            ) {
-                onSelect();
-            } else {
-                lastDoubleClickTimeRef.current = Date.now();
+            if (!wasPointerDownAndOver) return;
+            if (isDisabled) return;
+
+            // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
+            // touch. Because a touch press gesture might actually be a scroll. If the user
+            // starts scrolling that cancels our press.
+            if (event.pointerType !== "mouse") {
+                if (
+                    lastDoubleClickTimeRef.current === null ||
+                    Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
+                ) {
+                    // If we are the child of a focusable element, don't focus our parent
+                    // after `mousedown`.
+                    event.preventDefault();
+
+                    onSelect(event);
+                } else {
+                    // `mousedown` will unfocus whatever is focused. If the user is actively
+                    // double, triple, whatever clicking don't unfocus.
+                    event.preventDefault();
+
+                    lastDoubleClickTimeRef.current = Date.now();
+                }
             }
+        },
+        onPointerLeave: () => {
+            isPointerDownAndOverRef.current = false;
+        },
+        onPointerCancel: () => {
+            isPointerDownAndOverRef.current = false;
+        },
+        onDragStart: () => {
+            isPointerDownAndOverRef.current = false;
         },
         onDoubleClick: event => {
             if (isDisabled) return;
@@ -81,7 +119,7 @@ export function useOutOfBoundsClickSelection({
             if (isDisabled) return;
             if (!accept(event)) return;
 
-            onSelect();
+            onSelect(event);
         },
     };
 }

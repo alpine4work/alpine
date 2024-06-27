@@ -1,3 +1,4 @@
+import {useGlobalListeners} from "@react-aria/utils";
 import classNames from "classnames";
 import {CaretLeft, Lock} from "phosphor-react";
 import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
@@ -503,6 +504,9 @@ function TaskRowTitleInput(
             callback();
         }
     });
+
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const {addGlobalListener, removeAllGlobalListeners} = useGlobalListeners();
 
     // We initially consider ourselves to be fully scrolled to the left and to the
     // right. This means on server-render we won't see gradients. They will flash
@@ -1408,7 +1412,69 @@ function TaskRowTitleInput(
                 }}
                 {...useOutOfBoundsClickSelection({
                     isDisabled: capabilities.isReadOnly,
-                    onSelect: focusEnd,
+                    onSelect: event => {
+                        focusEnd();
+
+                        if (!("pointerType" in event)) return;
+                        if (event.pointerType !== "mouse") return;
+
+                        // If the user clicks in the out of bounds area and starts dragging we manually
+                        // implement updating the selection with their drag. Since the browser won't do
+                        // it for us given we're manually focusing the input.
+                        //
+                        // We don't do this for all out of bounds areas since it's intuitive that other
+                        // out of bounds areas might not be editable. We want to create the illusion of
+                        // editability on hover but it's ok if drag to select doesn't work since the
+                        // user will typically drag to select on actual text.
+                        //
+                        // However, the area to the right of the task title users definitely expect to
+                        // be an editable area! So we need to respect their drag to select assumptions.
+                        addGlobalListener(document, "pointermove", event => {
+                            if (viewRef.current.isReady === false) return;
+
+                            const {view} = viewRef.current;
+
+                            // Selection must be at the end of the doc.
+                            if (view.state.selection.anchor < view.state.doc.nodeSize - 2) return;
+
+                            const result = view.posAtCoords({
+                                left: event.clientX,
+                                top: event.clientY,
+                            });
+
+                            let newHead: number;
+
+                            if (result !== null) {
+                                newHead = result.pos;
+                            } else {
+                                const viewRect = view.dom.getBoundingClientRect();
+
+                                if (
+                                    event.clientY <= viewRect.top ||
+                                    event.clientX <= viewRect.left
+                                ) {
+                                    newHead = 0;
+                                } else {
+                                    newHead = view.state.selection.anchor;
+                                }
+                            }
+
+                            if (newHead !== view.state.selection.head) {
+                                view.dispatch(
+                                    view.state.tr.setSelection(
+                                        new TextSelection(
+                                            view.state.selection.$anchor,
+                                            view.state.doc.resolve(newHead),
+                                        ),
+                                    ),
+                                );
+                            }
+                        });
+
+                        addGlobalListener(document, "pointerup", removeAllGlobalListeners);
+                        addGlobalListener(document, "pointercancel", removeAllGlobalListeners);
+                        addGlobalListener(document, "dragstart", removeAllGlobalListeners);
+                    },
                     onSelectAll: focusAll,
                 })}
             >
