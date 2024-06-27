@@ -87,7 +87,7 @@ export class DynamoClientInternal {
         // eslint-disable-next-line no-global-fetch
         const response = await fetch(request).catch(error => {
             // Classify network errors as the `Unavailable` status code.
-            throw UnavailableError.from(error, undefined);
+            throw new UnavailableError(error instanceof Error ? error.message : String(error));
         });
 
         const output: any = await response.json();

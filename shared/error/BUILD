@@ -33,6 +33,7 @@ ts_project(
     deps = [
         ":error_core",
         "//shared/helpers",
+        "//shared/id",
         "//shared/schema",
     ],
 )

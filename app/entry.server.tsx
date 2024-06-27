@@ -9,7 +9,6 @@ import {isErrorCode} from "~/shared/error/error_code.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
 
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.
@@ -50,9 +49,7 @@ export default async function handleRequest(
             span.addException(renderedErrors[0]);
 
             for (const renderedError of renderedErrors.slice(1)) {
-                span.log("React server rendered error", {
-                    exception: getExceptionTracerEventData(renderedError),
-                });
+                span.logException("React server rendered error", renderedError);
             }
         }
 

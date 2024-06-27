@@ -5,6 +5,7 @@ import {
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {
@@ -47,6 +48,14 @@ const DateStringSchema = Schema.string.transform<DateString>({
         return string;
     },
 });
+
+const TracerEventExceptionDataBaseSchema = {
+    type: IdentifierStringSchema,
+    isSystem: Schema.enum([true]),
+    message: Schema.string,
+    stacktrace: Schema.string,
+    displayMessage: Schema.string,
+};
 
 /**
  * Schemas for all the properties in `TracerEventFullData`. This is in `server`
@@ -139,11 +148,17 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         fetchDurationMs: Schema.float,
     },
     exception: {
-        type: IdentifierStringSchema,
-        isSystem: Schema.boolean,
-        message: Schema.string,
-        stacktrace: Schema.string,
-        displayMessage: Schema.string,
+        ...TracerEventExceptionDataBaseSchema,
+        isOriginal: Schema.enum([true]),
+        original: {
+            time: DateStringSchema,
+            traceId: Schema.id<TraceId>(),
+            spanId: Schema.id<TraceSpanId>(),
+        },
+        cause: {
+            ...TracerEventExceptionDataBaseSchema,
+            cause: TracerEventExceptionDataBaseSchema,
+        },
     },
     common: {
         count: Schema.integer,

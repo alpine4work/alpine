@@ -26,7 +26,7 @@ export type SchemaSerializedScalarValueDescription =
     | {readonly type: "Bytes"}
     | {readonly type: "Date"}
     | {readonly type: "Value"; readonly value: null | boolean | number | string}
-    | {readonly type: "Enum"; readonly values: ReadonlyArray<string | number>};
+    | {readonly type: "Enum"; readonly values: ReadonlyArray<string | number | boolean>};
 
 // Schema descriptions which are composed of multiple recursively nested
 // schema descriptions.

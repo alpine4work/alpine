@@ -128,6 +128,23 @@ export type TracerEventFullData = TracerEventData & {
     };
 };
 
+export type TracerEventExceptionDataBase = {
+    /** The type of an exception. Always one of our `ErrorCode` types. */
+    readonly type?: string;
+
+    /** Is this a system error? `true` if yes, undefined if not. */
+    readonly isSystem?: true;
+
+    /** The exception message. */
+    readonly message?: string;
+
+    /** A stack trace for our error. */
+    readonly stacktrace?: string;
+
+    /** The `ErrorDisplayMessage` if one exists with any sensitive text redacted. */
+    readonly displayMessage?: string;
+};
+
 /**
  * The data present in an event logged by our tracer.
  */
@@ -321,21 +338,39 @@ export type TracerEventData = {
      *
      * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
      */
-    readonly exception?: {
-        /** The type of an exception. Always one of our `ErrorCode` types. */
-        readonly type?: string;
+    readonly exception?: TracerEventExceptionDataBase & {
+        /**
+         * Is this an original exception? True if this is the first span we're adding
+         * this exception to and undefined if this exception has been propagated.
+         */
+        readonly isOriginal?: true;
 
-        /** Is this a system error? `true` if yes, undefined if not. */
-        readonly isSystem?: boolean;
+        /**
+         * If this error was propagated (`isOriginal` is undefined) then this
+         * identifies the trace/span the exception was originally thrown in.
+         *
+         * If `traceId` is not set but `spanId` is set then `traceId` is implicitly the
+         * same as the span's `traceId`.
+         *
+         * If we're in a different trace then `time` will be set. `time` is the start
+         * time of the original span for this exception. It's necessary to [load the
+         * trace via URL][1].
+         *
+         * [1]: https://docs.honeycomb.io/investigate/collaborate/share-trace/
+         */
+        readonly original?: {
+            readonly time?: DateString;
+            readonly traceId?: TraceId;
+            readonly spanId?: TraceSpanId;
+        };
 
-        /** The exception message. */
-        readonly message?: string;
-
-        /** A stack trace for our error. */
-        readonly stacktrace?: string;
-
-        /** The `ErrorDisplayMessage` if one exists with any sensitive text redacted. */
-        readonly displayMessage?: string;
+        /**
+         * If this error was caused by another error, we'll include the cause's
+         * information here nested underneath. Can include up to two causes.
+         */
+        readonly cause?: TracerEventExceptionDataBase & {
+            readonly cause?: TracerEventExceptionDataBase;
+        };
     };
 
     /**

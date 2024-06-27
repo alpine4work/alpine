@@ -1,8 +1,9 @@
+import {getErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";
 import {Clock} from "~/shared/helpers/clock/clock.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
+import {getTracerEventExceptionData} from "~/shared/tracer/helpers/get_tracer_event_exception_data.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
@@ -326,9 +327,15 @@ export class TracerRoot extends TracerBase {
             console.error(`${name}:`, error);
         }
 
+        const originalSpan = getErrorOriginalTracerSpan(error);
+
         this.log(name, {
             ...data,
-            exception: getExceptionTracerEventData(error),
+            exception: getTracerEventExceptionData(
+                null,
+                error,
+                originalSpan ? {isOriginal: false, originalSpan} : {isOriginal: true},
+            ),
         });
     }
 }

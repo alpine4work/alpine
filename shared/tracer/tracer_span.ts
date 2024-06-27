@@ -1,4 +1,5 @@
 import {InternalError} from "~/shared/error/error.js";
+import {getOrSetErrorOriginalTracerSpan} from "~/shared/error/error_original_tracer_span.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
@@ -8,7 +9,7 @@ import {
     TracerEventFlatData,
     buildTracerEventFlatData,
 } from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
+import {getTracerEventExceptionData} from "~/shared/tracer/helpers/get_tracer_event_exception_data.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -267,7 +268,15 @@ export class TracerSpan extends TracerBase {
      */
     public addException(error: unknown) {
         this.addData({
-            exception: getExceptionTracerEventData(error),
+            exception: getTracerEventExceptionData(
+                this.traceId,
+                error,
+                getOrSetErrorOriginalTracerSpan(error, () => ({
+                    time: new Date(this._startTime),
+                    traceId: this.traceId,
+                    spanId: this._spanId,
+                })),
+            ),
         });
     }
 
@@ -466,6 +475,24 @@ export class TracerSpan extends TracerBase {
                 this._propagatedEventFlatData,
             ),
         );
+    }
+
+    /**
+     * Log an exception in the span. Useful if you've already called
+     * `addException()` and need to report another exception with the span.
+     */
+    public logException(name: string, error: unknown) {
+        this.log(name, {
+            exception: getTracerEventExceptionData(
+                this.traceId,
+                error,
+                getOrSetErrorOriginalTracerSpan(error, () => ({
+                    time: new Date(this._startTime),
+                    traceId: this.traceId,
+                    spanId: this._spanId,
+                })),
+            ),
+        });
     }
 
     /**
