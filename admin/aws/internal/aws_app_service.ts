@@ -13,6 +13,7 @@ import {
 } from "aws-cdk-lib/aws-ecs";
 import {ApplicationLoadBalancer, ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {Bucket, BucketEncryption} from "aws-cdk-lib/aws-s3";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -275,6 +276,14 @@ export class AwsAppService extends Construct {
             vpc,
             internetFacing: true,
         });
+
+        // TODO(calebmer): Enabling access logs to debug 502s when we deploy. I don't
+        // think we need this logging long term. We receive some traces from Cloudflare
+        // every request. Once we've fixed the 502s we can remove this logging.
+        const loadBalancerAccessLogsBucket = new Bucket(this, "LoadBalancerAccessLogsBucket", {
+            encryption: BucketEncryption.S3_MANAGED,
+        });
+        loadBalancer.logAccessLogs(loadBalancerAccessLogsBucket);
 
         const listener = loadBalancer.addListener("Listener", {
             protocol: ApplicationProtocol.HTTPS,
