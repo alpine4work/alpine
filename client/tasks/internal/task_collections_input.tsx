@@ -13,6 +13,7 @@ import {
     useState,
 } from "react";
 import {useComboBox} from "react-aria";
+import {flushSync} from "react-dom";
 import {ComboBoxStateOptions, useComboBoxState} from "react-stately";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -770,6 +771,14 @@ function TaskCollectionsInput(
             columnGap="2.5"
             paddingX={paddingX}
             paddingY={paddingY}
+            onBlur={event => {
+                if (
+                    !event.relatedTarget ||
+                    !isElementOwnedBy(event.currentTarget, event.relatedTarget)
+                ) {
+                    onReturnFocus?.();
+                }
+            }}
         >
             {!isReadOnly && areMarginsClickable && (
                 <div

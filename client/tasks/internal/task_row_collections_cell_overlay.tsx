@@ -1,7 +1,7 @@
 import {Memo, Ref, RefObject, forwardRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
-import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -81,7 +81,7 @@ function TaskRowCollectionsCellOverlay(
                     <Box
                         ref={useMergedRefs<HTMLDivElement>(
                             useScrollbar(),
-                            useOutsideInteraction(event => {
+                            useOutsidePress(event => {
                                 // Make sure the click event which closes our blocking cover doesn't trigger
                                 // the click handler for some other element.
                                 //
@@ -126,7 +126,10 @@ function TaskRowCollectionsCellOverlay(
                             // Keyboard navigation in grid view is not done with the tab key.
                             isTabbable={false}
                             onArrowLeftLeaveKeyDown={focusPreviousCell}
-                            onReturnFocus={() => assertExists(cellRef.current).focus()}
+                            onReturnFocus={() => {
+                                assertExists(cellRef.current).focus();
+                                return {preventDefault: true};
+                            }}
                             commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                         />
                     </Box>

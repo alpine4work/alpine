@@ -11,7 +11,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {flushSync} from "react-dom";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -31,6 +30,7 @@ import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_co
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -215,16 +215,33 @@ function TaskRowCollectionsCell(
     const cellRef = useRef<HTMLDivElement>(null);
     const cellOverlayRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
-    const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+    const [isFocusWithin, setIsFocusWithin] = useState(false);
+
+    const getIsFocusWithin = () =>
+        !!document.activeElement &&
+        isElementOwnedBy(assertExists(cellRef.current), document.activeElement);
+
+    const handleFocusChange = () => {
+        // Wait a microtask to make sure `document.activeElement` is updated. It may
+        // not be updated in `onFocus` or `onBlur`.
+        scheduleMicrotask(() => {
+            setIsFocusWithin(getIsFocusWithin());
+        });
+    };
 
     useImperativeHandle(
         ref,
         () => ({
             focusCell: () => assertExists(cellRef.current).focus(),
             focusCellInputStart: () => {
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(cellRef.current),
-                })?.focus();
+                if (!getIsFocusWithin()) {
+                    shouldFocusStartNextRenderRef.current = true;
+                    assertExists(cellRef.current).focus();
+                } else {
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: assertExists(cellOverlayRef.current),
+                    })?.focus();
+                }
             },
             isFocusWithinCell: () =>
                 !!document.activeElement &&
@@ -234,9 +251,10 @@ function TaskRowCollectionsCell(
     );
 
     const shouldFocusTextInputNextRenderRef = useRef(false);
+    const shouldFocusStartNextRenderRef = useRef(false);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (!isOverlayOpen) return;
+        if (!isFocusWithin) return;
 
         if (!shouldFocusTextInputNextRenderRef.current) return;
         shouldFocusTextInputNextRenderRef.current = false;
@@ -244,7 +262,20 @@ function TaskRowCollectionsCell(
         if (isReadOnly) return;
 
         assertExists(cellOverlayRef.current?.querySelector("input")).focus();
-    }, [isOverlayOpen, isReadOnly]);
+    }, [isFocusWithin, isReadOnly]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isFocusWithin) return;
+
+        if (!shouldFocusStartNextRenderRef.current) return;
+        shouldFocusStartNextRenderRef.current = false;
+
+        if (isReadOnly) return;
+
+        getNextFocusableElementIfExists(null, {
+            withinElement: assertExists(cellOverlayRef.current),
+        })?.focus();
+    }, [isFocusWithin, isReadOnly]);
 
     return (
         <div
@@ -258,7 +289,8 @@ function TaskRowCollectionsCell(
                 cellClassName,
             )}
             style={{width: taskRowViewCollectionsColumnWidth}}
-            onFocus={() => setIsOverlayOpen(true)}
+            onFocus={handleFocusChange}
+            onBlur={handleFocusChange}
             onKeyDown={event => {
                 switch (event.key) {
                     case "Backspace":
@@ -297,13 +329,15 @@ function TaskRowCollectionsCell(
             onPointerDown={event => {
                 if (event.target === event.currentTarget) {
                     event.preventDefault();
-                    shouldFocusTextInputNextRenderRef.current =
-                        displayCollections.length <= previewDisplayCollections.length;
-                    assertExists(cellRef.current).focus();
+
+                    if (!isFocusWithin) {
+                        shouldFocusTextInputNextRenderRef.current = displayCollections.length === 0;
+                        assertExists(cellRef.current).focus();
+                    }
                 }
             }}
         >
-            {!isOverlayOpen ? (
+            {!isFocusWithin ? (
                 displayCollections.length === 0 ? (
                     !isReadOnly && (
                         <div
@@ -398,12 +432,7 @@ function TaskRowCollectionsCell(
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
                     commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
-                    onClose={() => {
-                        // `flushSync()` since we want to stop rendering the overlay at the same time as
-                        // the `<FocusRing>`.
-                        assertExists(cellRef.current).blur();
-                        flushSync(() => setIsOverlayOpen(false));
-                    }}
+                    onClose={() => assertExists(cellRef.current).blur()}
                 />
             )}
         </div>
