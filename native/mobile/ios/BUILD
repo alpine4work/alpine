@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
+load("@build_bazel_rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 load(
     "@rules_xcodeproj//xcodeproj:defs.bzl",
@@ -183,6 +184,12 @@ config_setting(
     },
 )
 
+apple_bundle_version(
+    name = "app_version",
+    build_version = "1.0.1",
+    short_version_string = "1.0",
+)
+
 ios_application(
     name = "app",
     app_icons = ["//native/mobile/ios/Resources/Assets.xcassets:AppIcon.appiconset"],
@@ -210,6 +217,7 @@ ios_application(
         ":local_provisioning_profile": "Resources/LocalDevelopmentProvisioningProfile.mobileprovision",
         "//conditions:default": None,
     }),
+    version = ":app_version",
     visibility = ["//visibility:public"],
     deps = [":lib"],
 )
