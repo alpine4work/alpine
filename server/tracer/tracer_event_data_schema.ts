@@ -139,9 +139,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         fetchDurationMs: Schema.float,
     },
     exception: {
+        type: IdentifierStringSchema,
+        isSystem: Schema.boolean,
         message: Schema.string,
         stacktrace: Schema.string,
-        type: IdentifierStringSchema,
         displayMessage: Schema.string,
     },
     common: {

@@ -322,14 +322,17 @@ export type TracerEventData = {
      * [1]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
      */
     readonly exception?: {
+        /** The type of an exception. Always one of our `ErrorCode` types. */
+        readonly type?: string;
+
+        /** Is this a system error? `true` if yes, undefined if not. */
+        readonly isSystem?: boolean;
+
         /** The exception message. */
         readonly message?: string;
 
         /** A stack trace for our error. */
         readonly stacktrace?: string;
-
-        /** The type of an exception. Always one of our `ErrorCode` types. */
-        readonly type?: string;
 
         /** The `ErrorDisplayMessage` if one exists with any sensitive text redacted. */
         readonly displayMessage?: string;
