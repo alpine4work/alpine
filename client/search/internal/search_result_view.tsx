@@ -292,7 +292,6 @@ type SearchResultTypeDisplay = {
 // should also change it there.
 function getSearchResultTypeDisplay(resultId: SearchResultId): SearchResultTypeDisplay {
     switch (resultId) {
-        case "CreateChat":
         case "CreateChatMessage": {
             return {icon: <ChatBrandIcon />};
         }

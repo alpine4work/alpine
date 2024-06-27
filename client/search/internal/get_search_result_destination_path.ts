@@ -16,7 +16,6 @@ export function getSearchResultDestinationPath(
     const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${searchKey}`);
 
     switch (resultId) {
-        case "CreateChat":
         case "CreateChatMessage": {
             return `/s/${spaceId}/chat/new`;
         }

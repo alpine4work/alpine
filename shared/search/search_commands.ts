@@ -15,7 +15,6 @@ const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
  * notepad accumulates affinity points when you view it or add tasks to it.
  */
 export type SearchCommandId =
-    | "CreateChat"
     | "CreateChatMessage"
     | "CreatePost"
     | "CreateChannel"
@@ -41,10 +40,6 @@ type SearchCommand = {
 const searchCommandById: {
     [Key in SearchCommandId]: SearchCommand;
 } = {
-    CreateChat: {
-        title: "Create chat",
-        otherHitTexts: ["new chat"],
-    },
     CreateChatMessage: {
         title: "Send chat message",
         otherHitTexts: [
@@ -55,6 +50,10 @@ const searchCommandById: {
             "send message",
             "create message",
             "new message",
+            "chat",
+            "send chat",
+            "create chat",
+            "new chat",
         ],
     },
     CreatePost: {
