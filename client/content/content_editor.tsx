@@ -752,6 +752,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // It's also inconsistent with `<input>`s which don't have spellcheck on by
                 // default.
                 //
+                // In iOS, however, the native spellchecker is _essential_ for proper
+                // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
+                // spell check results show up inline instead of requiring a right click (which
+                // we override).
+                //
                 // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
                 // spellchecker.
                 //
@@ -760,7 +765,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // spellings. But if we have our own right-click menu we can't show the correct
                 // spellings there so we only show a permanent red squiggle which is bad. I
                 // think the best answer here is to build our own spellchecker eventually.
-                spellcheck: "false",
+                ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
             },
 
             domParser: ContentEditorDomParser.fromSchema(schema),
