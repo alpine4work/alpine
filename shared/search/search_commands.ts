@@ -47,7 +47,15 @@ const searchCommandById: {
     },
     CreateChatMessage: {
         title: "Send chat message",
-        otherHitTexts: ["send message", "create chat message", "new chat message"],
+        otherHitTexts: [
+            "chat message",
+            "create chat message",
+            "new chat message",
+            "message",
+            "send message",
+            "create message",
+            "new message",
+        ],
     },
     CreatePost: {
         title: "Create post",
@@ -68,10 +76,10 @@ const searchCommandById: {
     CreateTaskCollection: {
         title: "Create task collection",
         otherHitTexts: [
-            "create collection",
             "task collection",
-            "collection",
             "new task collection",
+            "collection",
+            "create collection",
             "new collection",
         ],
     },
