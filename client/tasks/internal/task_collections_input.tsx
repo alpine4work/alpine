@@ -70,6 +70,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -497,6 +498,79 @@ function TaskCollectionsInput(
                         }
                         break;
                     }
+                    // If the user presses `ArrowUp` they probably got here by pressing `ArrowDown`
+                    // on a collection chip. `ArrowUp` will return them to the previous collection
+                    // chip if they're pressing Cmd-ArrowUp or they don't currently have a selected
+                    // option.
+                    case "ArrowUp": {
+                        if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const collectionChipElement = collectionRefs[0]?.current
+                                ?.firstElementChild as HTMLElement | undefined;
+                            collectionChipElement?.focus();
+                            break;
+                        } else if (!inputProps["aria-activedescendant"]) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const currentRect = event.target.getBoundingClientRect();
+                            const currentCenter = Rectangle.from(currentRect).center();
+
+                            const candidates: Array<{
+                                distance: number;
+                                rect: DOMRect;
+                                element: HTMLElement;
+                            }> = [];
+
+                            for (let i = collectionRefs.length - 1; i >= 0; i--) {
+                                const collectionRef = collectionRefs[i]!;
+
+                                const element = collectionRef.current?.firstElementChild as
+                                    | HTMLElement
+                                    | undefined;
+                                if (!element) continue;
+
+                                const rect = element.getBoundingClientRect();
+                                if (!(Math.round(rect.bottom) <= Math.round(currentRect.top)))
+                                    continue;
+
+                                const distance = Rectangle.from(rect)
+                                    .center()
+                                    .distanceTo(currentCenter);
+
+                                if (candidates.length === 0) {
+                                    candidates.push({distance, rect, element});
+                                } else {
+                                    const lastCandidate = candidates[candidates.length - 1]!;
+
+                                    // Break once we're on a new line of collection elements.
+                                    if (
+                                        Math.round(lastCandidate.rect.bottom) !==
+                                        Math.round(rect.bottom)
+                                    ) {
+                                        break;
+                                    }
+
+                                    candidates.push({distance, rect, element});
+                                }
+                            }
+
+                            candidates.sort((a, b) => a.distance - b.distance);
+
+                            if (candidates.length > 0) {
+                                candidates[0]!.element.focus();
+                            } else {
+                                // If there are no candidates for navigating up, focus the first element.
+                                const collectionChipElement = collectionRefs[0]?.current
+                                    ?.firstElementChild as HTMLElement | undefined;
+                                collectionChipElement?.focus();
+                            }
+                            break;
+                        }
+                        break;
+                    }
                 }
             },
         },
@@ -647,6 +721,7 @@ function TaskCollectionsInput(
                 case "ArrowRight": {
                     event.preventDefault();
                     event.stopPropagation();
+
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         inputRef.current?.focus();
                     } else if (index + 1 < collectionRefs.length) {
@@ -655,6 +730,156 @@ function TaskCollectionsInput(
                         collectionChipElement?.focus();
                     } else {
                         inputRef.current?.focus();
+                    }
+                    break;
+                }
+                // Navigate to the collection chip directly below this one. If there are
+                // multiple collection chips below this one then we pick the one closest to our
+                // current collection chip.
+                case "ArrowDown": {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                        inputRef.current?.focus();
+                        break;
+                    }
+
+                    const currentElement = collectionRefs[index]?.current?.firstElementChild as
+                        | HTMLElement
+                        | undefined;
+                    if (!currentElement) break;
+
+                    const currentRect = currentElement.getBoundingClientRect();
+                    const currentCenter = Rectangle.from(currentRect).center();
+
+                    const candidates: Array<{
+                        distance: number;
+                        rect: DOMRect;
+                        element: HTMLElement;
+                    }> = [];
+
+                    for (const collectionRef of collectionRefs.slice(index + 1)) {
+                        const element = collectionRef.current?.firstElementChild as
+                            | HTMLElement
+                            | undefined;
+                        if (!element) continue;
+
+                        const rect = element.getBoundingClientRect();
+                        if (!(Math.round(rect.top) >= Math.round(currentRect.bottom))) continue;
+
+                        const distance = Rectangle.from(rect).center().distanceTo(currentCenter);
+
+                        if (candidates.length === 0) {
+                            candidates.push({distance, rect, element});
+                        } else {
+                            const lastCandidate = candidates[candidates.length - 1]!;
+
+                            // Break once we're on a new line of collection elements.
+                            if (Math.round(lastCandidate.rect.top) !== Math.round(rect.top)) break;
+
+                            candidates.push({distance, rect, element});
+                        }
+                    }
+
+                    // Add the input to our `candidates` array so it can be navigated to with
+                    // `ArrowUp`/`ArrowDown`.
+                    if (inputRef.current) {
+                        const element = inputRef.current;
+                        const rect = element.getBoundingClientRect();
+
+                        if (Math.round(rect.top) >= Math.round(currentRect.bottom)) {
+                            const distance = Rectangle.from(rect)
+                                .center()
+                                .distanceTo(currentCenter);
+
+                            if (candidates.length === 0) {
+                                candidates.push({distance, rect, element});
+                            } else {
+                                const lastCandidate = candidates[candidates.length - 1]!;
+
+                                // Break once we're on a new line of collection elements.
+                                if (Math.round(lastCandidate.rect.top) === Math.round(rect.top)) {
+                                    candidates.push({distance, rect, element});
+                                }
+                            }
+                        }
+                    }
+
+                    candidates.sort((a, b) => a.distance - b.distance);
+
+                    if (candidates.length > 0) {
+                        candidates[0]!.element.focus();
+                    } else {
+                        // If there are no candidates for navigating down, focus the last element.
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+                // Navigate to the collection chip directly above this one. If there are
+                // multiple collection chips above this one then we pick the one closest to our
+                // current collection chip.
+                case "ArrowUp": {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (isAppleDevice ? event.metaKey : event.ctrlKey) {
+                        const collectionChipElement = collectionRefs[0]?.current
+                            ?.firstElementChild as HTMLElement | undefined;
+                        collectionChipElement?.focus();
+                        break;
+                    }
+
+                    const currentElement = collectionRefs[index]?.current?.firstElementChild as
+                        | HTMLElement
+                        | undefined;
+                    if (!currentElement) break;
+
+                    const currentRect = currentElement.getBoundingClientRect();
+                    const currentCenter = Rectangle.from(currentRect).center();
+
+                    const candidates: Array<{
+                        distance: number;
+                        rect: DOMRect;
+                        element: HTMLElement;
+                    }> = [];
+
+                    const slicedCollectionRefs = collectionRefs.slice(0, index);
+                    for (let i = slicedCollectionRefs.length - 1; i >= 0; i--) {
+                        const collectionRef = slicedCollectionRefs[i]!;
+
+                        const element = collectionRef.current?.firstElementChild as
+                            | HTMLElement
+                            | undefined;
+                        if (!element) continue;
+
+                        const rect = element.getBoundingClientRect();
+                        if (!(Math.round(rect.bottom) <= Math.round(currentRect.top))) continue;
+
+                        const distance = Rectangle.from(rect).center().distanceTo(currentCenter);
+
+                        if (candidates.length === 0) {
+                            candidates.push({distance, rect, element});
+                        } else {
+                            const lastCandidate = candidates[candidates.length - 1]!;
+
+                            // Break once we're on a new line of collection elements.
+                            if (Math.round(lastCandidate.rect.bottom) !== Math.round(rect.bottom))
+                                break;
+
+                            candidates.push({distance, rect, element});
+                        }
+                    }
+
+                    candidates.sort((a, b) => a.distance - b.distance);
+
+                    if (candidates.length > 0) {
+                        candidates[0]!.element.focus();
+                    } else {
+                        // If there are no candidates for navigating up, focus the first element.
+                        const collectionChipElement = collectionRefs[0]?.current
+                            ?.firstElementChild as HTMLElement | undefined;
+                        collectionChipElement?.focus();
                     }
                     break;
                 }
@@ -1001,7 +1226,7 @@ function TaskCollectionsInput(
                             >
                                 {inputState.value}
                             </Box>
-                            <FocusRing>
+                            <FocusRing insetY={inputTouchSlop.slop}>
                                 <input
                                     {...inputProps}
                                     ref={inputRef}

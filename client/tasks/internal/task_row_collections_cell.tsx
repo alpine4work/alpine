@@ -11,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -432,7 +433,13 @@ function TaskRowCollectionsCell(
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
                     commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
-                    onClose={() => assertExists(cellRef.current).blur()}
+                    onClose={() => {
+                        assertExists(cellRef.current).blur();
+
+                        // Make sure we immediately un-render so `onReturnFocus` in
+                        // `<TaskCollectionsInput>` won't put focus back on our cell.
+                        flushSync(() => setIsFocusWithin(false));
+                    }}
                 />
             )}
         </div>

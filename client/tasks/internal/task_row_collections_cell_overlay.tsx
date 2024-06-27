@@ -1,4 +1,5 @@
 import {Memo, Ref, RefObject, forwardRef} from "react";
+import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
@@ -125,10 +126,12 @@ function TaskRowCollectionsCellOverlay(
                             paddingY="3"
                             // Keyboard navigation in grid view is not done with the tab key.
                             isTabbable={false}
-                            onArrowLeftLeaveKeyDown={focusPreviousCell}
+                            onArrowLeftLeaveKeyDown={() => {
+                                onClose();
+                                focusPreviousCell();
+                            }}
                             onReturnFocus={() => {
                                 assertExists(cellRef.current).focus();
-                                return {preventDefault: true};
                             }}
                             commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                         />

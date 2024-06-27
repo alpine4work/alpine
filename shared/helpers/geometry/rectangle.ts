@@ -1,3 +1,5 @@
+import {Vector2} from "~/shared/helpers/geometry/vector2.js";
+
 /**
  * A [rectangle][1]. In Euclidean plane geometry, a rectangle is a four-sided
  * polygon with four right angles.
@@ -45,6 +47,10 @@ export class Rectangle {
 
     public get right() {
         return this.x + this.width;
+    }
+
+    public center() {
+        return new Vector2(this.x + this.width / 2, this.y + this.height / 2);
     }
 
     public equals(other: Rectangle): boolean {
