@@ -312,44 +312,47 @@ function TaskCollectionsInput(
                     ),
                 );
 
-                commitActionTransactionEvenIfGhost(
-                    taskId => [
-                        {
-                            type: "UpdateTask",
-                            time: store.clock.now(),
-                            taskId,
-                            taskAction: {
-                                type: "AddCollection",
-                                collectionId,
-                                orderKey: generateOrderKeyBetween(
-                                    collections.getLastOrderKey(),
-                                    null,
-                                ),
+                // `flushSync()` so the `commitActionTransaction()` call (which updates some
+                // `useSyncExternalStore()`s) and React state updates render together and we
+                // don't get UI tearing.
+                flushSync(() => {
+                    if (shouldReturnFocusToInput) {
+                        setInputState(inputState => {
+                            if (inputState.type === "Unfocused") return inputState;
+                            return {type: "Focused", value: ""};
+                        });
+                    } else {
+                        setInputState(inputState => {
+                            if (inputState.type === "Unfocused") return inputState;
+                            return {type: "Unfocused", value: "", disableAnimationOut: true};
+                        });
+
+                        assertExists(inputRef.current).blur();
+                    }
+
+                    commitActionTransactionEvenIfGhost(
+                        taskId => [
+                            {
+                                type: "UpdateTask",
+                                time: store.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "AddCollection",
+                                    collectionId,
+                                    orderKey: generateOrderKeyBetween(
+                                        collections.getLastOrderKey(),
+                                        null,
+                                    ),
+                                },
                             },
+                        ],
+                        {
+                            // Provide the collection model to the store. It might be out of date. The
+                            // server will backfill the new collection once our action has been committed.
+                            referencedCollections: [item.collectionResult.collection],
                         },
-                    ],
-                    {
-                        // Provide the collection model to the store. It might be out of date. The
-                        // server will backfill the new collection once our action has been committed.
-                        referencedCollections: [item.collectionResult.collection],
-                    },
-                );
-
-                if (shouldReturnFocusToInput) {
-                    setInputState(inputState => {
-                        if (inputState.type === "Unfocused") return inputState;
-                        return {type: "Focused", value: ""};
-                    });
-                } else {
-                    setInputState(inputState => {
-                        if (inputState.type === "Unfocused") return inputState;
-                        return {type: "Unfocused", value: "", disableAnimationOut: true};
-                    });
-
-                    assertExists(inputRef.current).blur();
-
-                    onReturnFocus?.();
-                }
+                    );
+                });
             }
 
             if (key === "CreateCollection") {
@@ -368,53 +371,56 @@ function TaskCollectionsInput(
                 } else {
                     const collectionId = generateId<TaskCollectionId>();
 
-                    commitActionTransactionEvenIfGhost(taskId => [
-                        {
-                            type: "UpdateCollection",
-                            time: store.clock.now(),
-                            collectionId,
-                            collectionAction: {
-                                type: "Create",
-                                creatorId: currentAccount.id,
-                                name: inputState.value,
-                                accessPolicy: {
-                                    accountGrantById: new Map([
-                                        [currentAccount.id, {level: "Manage"}],
-                                    ]),
-                                    defaultGrant: null,
+                    // `flushSync()` so the `commitActionTransaction()` call (which updates some
+                    // `useSyncExternalStore()`s) and React state updates render together and we
+                    // don't get UI tearing.
+                    flushSync(() => {
+                        if (shouldReturnFocusToInput) {
+                            setInputState(inputState => {
+                                if (inputState.type === "Unfocused") return inputState;
+                                return {type: "Focused", value: ""};
+                            });
+                        } else {
+                            setInputState(inputState => {
+                                if (inputState.type === "Unfocused") return inputState;
+                                return {type: "Unfocused", value: "", disableAnimationOut: true};
+                            });
+
+                            assertExists(inputRef.current).blur();
+                        }
+
+                        commitActionTransactionEvenIfGhost(taskId => [
+                            {
+                                type: "UpdateCollection",
+                                time: store.clock.now(),
+                                collectionId,
+                                collectionAction: {
+                                    type: "Create",
+                                    creatorId: currentAccount.id,
+                                    name: inputState.value,
+                                    accessPolicy: {
+                                        accountGrantById: new Map([
+                                            [currentAccount.id, {level: "Manage"}],
+                                        ]),
+                                        defaultGrant: null,
+                                    },
                                 },
                             },
-                        },
-                        {
-                            type: "UpdateTask",
-                            time: store.clock.now(),
-                            taskId,
-                            taskAction: {
-                                type: "AddCollection",
-                                collectionId,
-                                orderKey: generateOrderKeyBetween(
-                                    collections.getLastOrderKey(),
-                                    null,
-                                ),
+                            {
+                                type: "UpdateTask",
+                                time: store.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "AddCollection",
+                                    collectionId,
+                                    orderKey: generateOrderKeyBetween(
+                                        collections.getLastOrderKey(),
+                                        null,
+                                    ),
+                                },
                             },
-                        },
-                    ]);
-
-                    if (shouldReturnFocusToInput) {
-                        setInputState(inputState => {
-                            if (inputState.type === "Unfocused") return inputState;
-                            return {type: "Focused", value: ""};
-                        });
-                    } else {
-                        setInputState(inputState => {
-                            if (inputState.type === "Unfocused") return inputState;
-                            return {type: "Unfocused", value: "", disableAnimationOut: true};
-                        });
-
-                        assertExists(inputRef.current).blur();
-
-                        onReturnFocus?.();
-                    }
+                        ]);
+                    });
                 }
             }
         },
