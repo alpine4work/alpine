@@ -70,6 +70,7 @@ import {
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
@@ -300,6 +301,7 @@ function PeekStackContextProvider(
 
     const reporter = useReporter();
     const isMobile = useIsMobile();
+    const {space} = useSpaceContext();
 
     const stackRef = useRef<PeekStackRef>(null);
     const peekStackGlobalKeyDownManualContextRef =
@@ -531,6 +533,14 @@ function PeekStackContextProvider(
                             dataRouterContext.router.routes,
                             path.pathname ?? "/",
                         );
+
+                        // Don't open a peek if the path is for a different space.
+                        if (
+                            peekRouteMatches[peekRouteMatches.length - 1]?.params.spaceId !==
+                            space.id
+                        ) {
+                            return;
+                        }
 
                         // So sometimes we have routes like that look like this:
                         //

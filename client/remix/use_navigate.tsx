@@ -153,7 +153,7 @@ export function useRootNavigate(): Memo<NavigateFunction> {
             createNavigateFunction(
                 context?.rootOriginalNavigate ?? unsupportedNavigateForTest,
                 context?.waitForNextNavigation,
-                context?.onNavigate,
+                undefined,
             ),
         [context],
     );
