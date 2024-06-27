@@ -13,6 +13,7 @@ ts_project(
         "//server/dynamo/test_helpers:__pkg__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/client-sqs",
         "//:node_modules/fs-extra",
         "//admin/helpers",
         "//server/helpers/node",
