@@ -79,7 +79,7 @@ export default function CreateRoute() {
                     description="Keep track of work to do later"
                     pressErrorTitle="Couldn’t open tasks"
                     onPress={async () => {
-                        await rootNavigate(`/s/${space.id}/tasks?focus=create`);
+                        await rootNavigate(`/s/${space.id}/tasks?focus=new`);
                     }}
                 />
                 <MobileSettingsRow

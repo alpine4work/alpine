@@ -406,18 +406,6 @@ export function useTaskGridViewVirtualizedList({
 
     const reactId = useId();
 
-    const [topGhostTaskId, setTopGhostTaskId] = useState(() => {
-        if (!initiallyWithTopGhostTaskRow) return null;
-        if (!initialAppRenderId) return generateId<TaskId>();
-
-        // If this is the initial app render, generate a stable `Id` that's consistent
-        // across the client and server. We need the `reactId` as well to disambiguate
-        // in case multiple grid views were rendered (could happen if we server peeks
-        // someday).
-        const stableRandom = new StableRandom(`TaskGridViewVirtualizedList-${initialAppRenderId}`);
-        return unsafelyGenerateStableId<TaskId>(stableRandom, `${reactId}-topGhostTaskId`);
-    });
-
     const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
         (rootQuery: TaskClientQuery | undefined) => {
             if (!rootQuery) return null;
@@ -465,6 +453,19 @@ export function useTaskGridViewVirtualizedList({
 
     const isRootQueryNull = rootQuery === null;
     const isRootQueryManuallySorted = isTaskQueryManuallySorted(rootQuery?.sorts ?? emptyArray);
+
+    const [topGhostTaskId, setTopGhostTaskId] = useState(() => {
+        if (!initiallyWithTopGhostTaskRow) return null;
+        if (!isRootQueryManuallySorted) return null;
+        if (!initialAppRenderId) return generateId<TaskId>();
+
+        // If this is the initial app render, generate a stable `Id` that's consistent
+        // across the client and server. We need the `reactId` as well to disambiguate
+        // in case multiple grid views were rendered (could happen if we server peeks
+        // someday).
+        const stableRandom = new StableRandom(`TaskGridViewVirtualizedList-${initialAppRenderId}`);
+        return unsafelyGenerateStableId<TaskId>(stableRandom, `${reactId}-topGhostTaskId`);
+    });
 
     // Consider a null `rootQuery` as a fully loaded empty query.
     const loadedState = useStore(rootQuery?.loadedStateStore ?? null) ?? "FullyLoaded";

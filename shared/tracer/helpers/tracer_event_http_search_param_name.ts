@@ -17,6 +17,9 @@ type TracerEventHttpSearchParamNameMap = {
     // Specifies what in the route should receive focus after navigation
     // completes.
     focus: true;
+    // Some routes accept this parameter as a way to configure extra UI to show
+    // when the route opens.
+    show: true;
     // Specifies where in the route we should initially scroll to after navigation
     // completes.
     scroll: true;
@@ -41,6 +44,7 @@ type TracerEventHttpSearchParamNameMap = {
 const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     create: true,
     focus: true,
+    show: true,
     scroll: true,
     consistency: true,
     message: true,
@@ -71,6 +75,7 @@ export const tracerEventHttpSearchParamNameByServiceName: {
     AppService: new Set([
         "create",
         "focus",
+        "show",
         "scroll",
         "consistency",
         "message",

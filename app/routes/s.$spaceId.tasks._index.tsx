@@ -203,9 +203,11 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     const currentUrl = new URL(_currentUrl);
     const nextUrl = new URL(_nextUrl);
 
-    // Used to initially focus the document:
     nextUrl.searchParams.delete("focus");
     currentUrl.searchParams.delete("focus");
+
+    nextUrl.searchParams.delete("show");
+    currentUrl.searchParams.delete("show");
 
     return nextUrl.toString() !== currentUrl.toString();
 };
@@ -226,13 +228,15 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
 
     const affinityManager = useTaskClientStoreSearchAffinityManager("TaskNotepad");
 
-    const [shouldInitiallyFocusTopGhostTask] = useState(searchParams.get("focus") === "create");
+    const [shouldInitiallyFocusTopGhostTask] = useState(searchParams.get("focus") === "new");
+    const [shouldInitiallyShowTopGhostTask] = useState(searchParams.get("show") === "new");
 
     // Remove the `focus` search param.
     useEffect(() => {
-        if (searchParams.has("focus")) {
+        if (searchParams.has("focus") || searchParams.has("show")) {
             const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.delete("focus");
+            newSearchParams.delete("show");
             setSearchParams(newSearchParams, {replace: true});
         }
     }, [searchParams, setSearchParams]);
@@ -266,6 +270,7 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
                     });
                 }}
                 shouldInitiallyFocusTopGhostTask={shouldInitiallyFocusTopGhostTask}
+                shouldInitiallyShowTopGhostTask={shouldInitiallyShowTopGhostTask}
             />
         </TaskGridViewDndContext>
     );

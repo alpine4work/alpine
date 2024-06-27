@@ -54,7 +54,7 @@ export function getSearchResultDestinationPath(
         }
         case "CreateTask":
         case "TaskNotepad": {
-            return `/s/${spaceId}/tasks`;
+            return `/s/${spaceId}/tasks?show=new`;
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount": {
             const nameSearchParam = encodeURIComponent("Tasks I’ve created");
@@ -207,7 +207,7 @@ function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): 
             return `/s/${spaceId}/tasks/${entityId.taskId}`;
         }
         case "TaskCollection": {
-            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
+            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}?show=new`;
         }
         case "TaskComment": {
             // TODO(#task-comments): https://cyberworlds.dev/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/gj7bnv44em5dhcaqzfcaxn7ta8

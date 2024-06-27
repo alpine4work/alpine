@@ -67,6 +67,7 @@ export function TaskNotepadView({
     allNotepadPageIds: allNotepadPageIdsWithoutNewNotepadPageIds,
     onActiveNotepadPageIdChange,
     shouldInitiallyFocusTopGhostTask,
+    shouldInitiallyShowTopGhostTask,
 }: {
     withMobileLayout: boolean;
     store: TaskClientStore;
@@ -80,6 +81,7 @@ export function TaskNotepadView({
     allNotepadPageIds: TaskNotepadPageIdCompressedSet;
     onActiveNotepadPageIdChange: (notepadPageId: TaskNotepadPageId) => void;
     shouldInitiallyFocusTopGhostTask: boolean;
+    shouldInitiallyShowTopGhostTask: boolean;
 }) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
@@ -370,7 +372,8 @@ export function TaskNotepadView({
         query: queryState.activeQuery.query,
         affinityManager,
         viewRef: gridViewRef,
-        initiallyWithTopGhostTaskRow: shouldInitiallyFocusTopGhostTask,
+        initiallyWithTopGhostTaskRow:
+            shouldInitiallyFocusTopGhostTask || shouldInitiallyShowTopGhostTask,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time = store.clock.now();
 
