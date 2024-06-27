@@ -62,6 +62,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorReferencesPlugin(references, reduceReferences),
         contentEditorQuickUndoPlugin(),
         contentEditorRetypedInputRulePlugin(),
+        contentEditorIsContinuouslyTypingPlugin(),
     ];
 }
 
@@ -899,4 +900,42 @@ export function trackContentEditorRetypedInputRule(
  */
 export function isContentEditorRetypingInputRule(state: EditorState, inputRuleId: Id): boolean {
     return contentEditorRetypedInputRulePluginKey.getState(state)?.inputRuleId === inputRuleId;
+}
+
+const contentEditorIsContinuouslyTypingPluginKey = new PluginKey<boolean>(
+    "contentEditorIsContinuouslyTyping",
+);
+
+/**
+ * Plugin that detects if a user is continuously typing in their content
+ * editor. True if the user is typing and false when the user finishes typing.
+ * Will be false if the user is only moving their selection around.
+ */
+function contentEditorIsContinuouslyTypingPlugin() {
+    return new Plugin<boolean>({
+        key: contentEditorIsContinuouslyTypingPluginKey,
+        state: {
+            init: () => false,
+            apply: (transaction, isContinuouslyTyping, oldState, newState) => {
+                // Ignore transactions that aren't added to undo/redo history. This is a
+                // heuristic for edits made not by our user. For example, [collaborative edits
+                // set `addToHistory` to false][1].
+                //
+                // [1]: https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L150
+                if (transaction.getMeta("addToHistory") === false) return isContinuouslyTyping;
+
+                if (oldState.selection.from !== oldState.selection.to) return false;
+                if (newState.selection.from !== newState.selection.to) return false;
+
+                const selectionDifference = newState.selection.from - oldState.selection.from;
+                const nodeSizeDifference = newState.doc.nodeSize - oldState.doc.nodeSize;
+
+                return selectionDifference === nodeSizeDifference;
+            },
+        },
+    });
+}
+
+export function isContinuouslyTypingInContentEditor(state: EditorState): boolean {
+    return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
 }

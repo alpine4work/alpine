@@ -17,6 +17,7 @@ import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
+import {isContinuouslyTypingInContentEditor} from "~/client/content/content_editor_state.js";
 import {openMentionFloaterMetaKey} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
@@ -177,11 +178,6 @@ export function ContentEditorMobileKeyboardToolbar({
     useRegisterBottomBarMobileKeyboardToolbarFrame({isDisabled: !isToolbarRendered});
     useWebMobileKeyboardToolbarSafeAreaInsetBottom({isVisible: isToolbarRendered});
 
-    const wordSelectionIfEmpty = useMemo(
-        () => expandEmptySelectionAroundWord(state.doc, state.selection),
-        [state.doc, state.selection],
-    );
-
     const {isBoldActive, isItalicActive} = useMemo(() => {
         const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
 
@@ -227,14 +223,6 @@ export function ContentEditorMobileKeyboardToolbar({
             (isUnorderedListItemActive || isOrderedListItemActive || isCheckListItemActive) &&
             dedentListItemCommand(state),
         [isCheckListItemActive, isOrderedListItemActive, isUnorderedListItemActive, state],
-    );
-
-    const commentSelection = useMemo(
-        () =>
-            schema.marks.comment
-                ? expandSelectionAroundMark(state.doc, state.selection, "comment")
-                : null,
-        [schema, state],
     );
 
     return (
@@ -425,33 +413,11 @@ export function ContentEditorMobileKeyboardToolbar({
                                 </>
                             )}
                             {schema.marks.comment && (
-                                <ContentEditorMobileKeyboardToolbarButton
-                                    label="Comment"
-                                    dividerLeft
-                                    isActive={!!commentSelection}
-                                    isDisabled={
-                                        state.selection.from === state.selection.to &&
-                                        !wordSelectionIfEmpty
-                                    }
-                                    onPress={() => {
-                                        if (commentSelection) {
-                                            void openCommentThread?.(
-                                                assertId<DocumentCommentThreadId>(
-                                                    commentSelection.mark.attrs.commentThreadId,
-                                                ),
-                                            );
-                                            return;
-                                        }
-
-                                        onCommentInputOpen(
-                                            // Set the selection after the comment input opens so the mobile selection
-                                            // renderer doesn't flash in/out.
-                                            wordSelectionIfEmpty,
-                                        );
-                                    }}
-                                >
-                                    <ChatCircleText />
-                                </ContentEditorMobileKeyboardToolbarButton>
+                                <ContentEditorMobileKeyboardToolbarCommentButton
+                                    state={state}
+                                    openCommentThread={openCommentThread}
+                                    onCommentInputOpen={onCommentInputOpen}
+                                />
                             )}
                             <ContentEditorMobileKeyboardToolbarButton
                                 label="More"
@@ -597,6 +563,63 @@ function ContentEditorMobileKeyboardToolbarButton({
                 </Box>
             )}
         </>
+    );
+}
+
+function ContentEditorMobileKeyboardToolbarCommentButton({
+    state,
+    openCommentThread,
+    onCommentInputOpen,
+}: {
+    state: EditorState & {schema: ContentProsemirrorSchema};
+    openCommentThread: ((commentThreadId: DocumentCommentThreadId) => Promise<void>) | undefined;
+    onCommentInputOpen: (setSelection?: TextSelection | null) => void;
+}) {
+    const {schema} = state;
+
+    const commentSelection = useMemo(
+        () =>
+            schema.marks.comment
+                ? expandSelectionAroundMark(state.doc, state.selection, "comment")
+                : null,
+        [schema, state],
+    );
+
+    const wordSelectionIfEmpty = useMemo(
+        () =>
+            // Disable the comment button when the user is continuously typing. So we don't
+            // keep flashing the comment input on and off.
+            !isContinuouslyTypingInContentEditor(state)
+                ? expandEmptySelectionAroundWord(state.doc, state.selection)
+                : null,
+        [state],
+    );
+
+    return (
+        <ContentEditorMobileKeyboardToolbarButton
+            label="Comment"
+            dividerLeft
+            isActive={!!commentSelection}
+            isDisabled={state.selection.from === state.selection.to && !wordSelectionIfEmpty}
+            onPress={() => {
+                if (commentSelection) {
+                    void openCommentThread?.(
+                        assertId<DocumentCommentThreadId>(
+                            commentSelection.mark.attrs.commentThreadId,
+                        ),
+                    );
+                    return;
+                }
+
+                onCommentInputOpen(
+                    // Set the selection after the comment input opens so the mobile selection
+                    // renderer doesn't flash in/out.
+                    wordSelectionIfEmpty,
+                );
+            }}
+        >
+            <ChatCircleText />
+        </ContentEditorMobileKeyboardToolbarButton>
     );
 }
 
