@@ -196,7 +196,13 @@ function TaskStatusButton(
     const className = isMobile ? mobileClassNameBySize[size] : desktopClassNameBySize[size];
 
     return (
-        <FocusRing inset={isMobile ? mobileTouchSlopBySpacing[size].slop : undefined}>
+        <FocusRing
+            inset={
+                isMobile
+                    ? mobileTouchSlopBySpacing[size].slop
+                    : desktopTouchSlopBySpacing[size].slop
+            }
+        >
             {isFocusable ? (
                 <button
                     {...mergeProps(buttonProps, {onKeyDownCapture})}
