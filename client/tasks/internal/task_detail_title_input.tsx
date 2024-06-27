@@ -4,11 +4,11 @@ import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useCallback, useImperativeHandle, useInsertionEffect, useRef} from "react";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin} from "y-prosemirror";
 import * as Y from "yjs";
-import {buildSharedContentEditorKeymapPlugin} from "~/client/content/add_shared_content_editor_keymap_commands.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -124,12 +124,14 @@ function TaskDetailTitleInput(
                         doc: titleRef.current.getProsemirrorNode(),
                         plugins: [
                             ySyncPlugin(titleYDoc.getXmlFragment("doc")),
-                            buildSharedContentEditorInputRulesPlugin(),
-                            buildSharedContentEditorKeymapPlugin(),
+
                             // We install the Y.js undo plugin but we don't install the `undo`/`redo`
                             // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
                             // registers us with our global undo stack.
                             yUndoPlugin({undoManager: titleYDoc.getUndoManager()}),
+
+                            buildSharedContentEditorInputRulesPlugin(),
+                            buildTaskTitleInputKeymapPlugin(),
                         ],
                     }),
 
