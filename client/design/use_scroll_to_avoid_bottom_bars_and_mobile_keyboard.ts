@@ -3,6 +3,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
     dispatchNavigationBarPrepareSmoothScrollTo,
+    flushNavigationBarScrollEvent,
     getNavigationBarHeightPxWithoutListening,
 } from "~/client/design/navigation_bar.js";
 import {
@@ -460,6 +461,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     top: newScrollTop,
                     behavior: isAnimated ? "smooth" : "instant",
                 });
+
+                if (!isAnimated) {
+                    flushNavigationBarScrollEvent(scrollableElement);
+                }
             };
 
             const anchorPosition = getAnchorPosition(oldVisibleRect);
@@ -770,6 +775,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     behavior: isAnimated ? "smooth" : "instant",
                 });
 
+                if (!isAnimated) {
+                    flushNavigationBarScrollEvent(scrollableElement);
+                }
+
                 const maxScrollTop =
                     scrollableElement.scrollHeight - scrollableElement.clientHeight;
 
@@ -791,6 +800,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                             top: newScrollTop,
                             behavior: "instant",
                         });
+
+                        if (!isAnimated) {
+                            flushNavigationBarScrollEvent(scrollableElement);
+                        }
                     });
                 }
             } else {
@@ -871,6 +884,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     top: newScrollTop,
                     behavior: isAnimated ? "smooth" : "instant",
                 });
+
+                if (!isAnimated) {
+                    flushNavigationBarScrollEvent(scrollableElement);
+                }
 
                 if (scrollDelta < originalScrollDelta) {
                     recoverableScrollDelta = {

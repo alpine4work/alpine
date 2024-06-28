@@ -1,3 +1,5 @@
+import "~/client/helpers/events/register_scroll_event_debugger.js";
+
 import {AnimationControls, timeline} from "motion";
 import {ArrowLeft, DotsThreeVertical} from "phosphor-react";
 import {
@@ -18,7 +20,7 @@ import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {IconButton, IconButtonSize} from "~/client/design/icon_button.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
@@ -798,6 +800,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     );
 
     const lastScrollOffsetRef = useRef(0);
+    const lastClientHeightRef = useRef(0);
     const lastScrollHeightRef = useRef(0);
     const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
@@ -919,6 +922,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 const lastIsNavigationBarTitleVisible = lastIsNavigationBarTitleVisibleRef.current;
 
                 lastScrollOffsetRef.current = scrollOffset;
+                lastClientHeightRef.current = element.clientHeight;
                 lastScrollHeightRef.current = element.scrollHeight;
                 // Initialize scroll direction to `Up` if the scroll view has initially
                 // scrolled since we've observed some janky when immediately scrolling up after
@@ -1049,27 +1053,40 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 const lastScrollOffset = lastScrollOffsetRef.current;
                 lastScrollOffsetRef.current = scrollOffset;
 
+                const lastClientHeight = lastClientHeightRef.current;
+                lastClientHeightRef.current = clientHeight;
+
                 const lastScrollHeight = lastScrollHeightRef.current;
                 lastScrollHeightRef.current = scrollHeight;
 
-                // Edge case: If we resized and scrolled down at the same time (and scrolled
-                // the same amount we resized) then we don't want our navigation bar's scroll
-                // offset to change.
+                // - Edge case 1: If our scroll content resized and scrolled down at the same
+                //   time (and scrolled the same amount we resized) then we don't want our
+                //   navigation bar's scroll offset to change.
                 //
-                // This happens when the typing indicator appears then disappears. Try going to
-                // a chat then typing in another tab to show the typing indicator, wait for it
-                // to disappear, then type again. Do this a couple times. When the typing
-                // indicator appears the view scrolls down to show it. We don't want that
-                // scroll down to hide our tab bar.
+                //   This happens when the typing indicator appears then disappears. Try going
+                //   to a chat then typing in another tab to show the typing indicator, wait
+                //   for it to disappear, then type again. Do this a couple times. When the
+                //   typing indicator appears the view scrolls down to show it. We don't want
+                //   that scroll down to hide our tab bar.
+                //
+                // - Edge case 2: If our scroll view resized and scrolled down at the same time
+                //   (and scrolled the same amount we resized) then we don't want our
+                //   navigation bar's scroll offset to change.
+                //
+                //   This happens when you're typing in the message input and there's a
+                //   navigation bar. When the message input grows we want the navigation bar to
+                //   stay as it is instead of jumping around.
                 //
                 // Ideally this logic would run only after a resize and before the resize
                 // paints to the screen, but web code doesn't have a good way to listen for
                 // scroll view content resize. (Whereas in iOS native code we can use KVO to
                 // listen to `contentSize` on `UIScrollView`.)
                 if (
-                    scrollHeight > lastScrollHeight &&
                     scrollOffset > lastScrollOffset &&
-                    scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight
+                    ((scrollHeight > lastScrollHeight &&
+                        scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight) ||
+                        (clientHeight < lastClientHeight &&
+                            scrollOffset - lastScrollOffset <= lastClientHeight - clientHeight))
                 ) {
                     // Also perform the scroll direction change here.
                     const scrollDirection = "Down";

@@ -3106,17 +3106,20 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     @objc class TabBarState: NSObject {
         let lastScrollOffset: Double
+        let lastClientHeight: Double
         let lastScrollHeight: Double
         let lastScrollDirection: RootTabBarController.ScrollDirection
         let lastNavigationBarTopOffset: Double
 
         init(
             lastScrollOffset: Double,
+            lastClientHeight: Double,
             lastScrollHeight: Double,
             lastScrollDirection: RootTabBarController.ScrollDirection,
             lastNavigationBarTopOffset: Double
         ) {
             self.lastScrollOffset = lastScrollOffset
+            self.lastClientHeight = lastClientHeight
             self.lastScrollHeight = lastScrollHeight
             self.lastScrollDirection = lastScrollDirection
             self.lastNavigationBarTopOffset = lastNavigationBarTopOffset

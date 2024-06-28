@@ -17,6 +17,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     private weak var mainScrollView: UIScrollView?
     private weak var mainNavigationEntry: WebNavigationEntry?
     private var lastScrollOffset = 0.0
+    private var lastClientHeight = 0.0
     private var lastScrollHeight = 0.0
     private var lastScrollDirection = ScrollDirection.down
     private var lastNavigationBarTopOffset = 0.0
@@ -275,9 +276,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // `webNavigationController(didScroll:)` for more information on why we call
         // `max()` and `round()`.
         var scrollOffset: Double = 0
+        var clientHeight: Double = 0
         var scrollHeight: Double = 0
         if let scrollView = scrollView {
             scrollOffset = max(0, round(scrollView.contentOffset.y))
+            clientHeight = round(scrollView.bounds.height)
             scrollHeight = round(scrollView.contentSize.height)
         }
 
@@ -285,12 +288,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         mainNavigationEntry?.tabBarState = WebNavigationEntry.TabBarState(
             lastScrollOffset: lastScrollOffset,
+            lastClientHeight: lastClientHeight,
             lastScrollHeight: lastScrollHeight,
             lastScrollDirection: lastScrollDirection,
             lastNavigationBarTopOffset: lastNavigationBarTopOffset
         )
 
         lastScrollOffset = restoredTabBarState?.lastScrollOffset ?? scrollOffset
+        lastClientHeight = restoredTabBarState?.lastClientHeight ?? clientHeight
         lastScrollHeight = restoredTabBarState?.lastScrollHeight ?? scrollHeight
         lastScrollDirection =
             restoredTabBarState?.lastScrollDirection
@@ -425,8 +430,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // the reason, ignore scroll events that repeat a scroll offset.
         if scrollOffset == self.lastScrollOffset { return }
 
+        let clientHeight = round(scrollView.bounds.height)
         let scrollHeight = round(scrollView.contentSize.height)
-        let clientHeight = round(scrollView.frame.height)
 
         // Immediately finish any animations when scrolling begins.
         tabBar.layer.removeAllAnimations()
@@ -434,25 +439,39 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         let lastScrollOffset = self.lastScrollOffset
         self.lastScrollOffset = scrollOffset
 
+        let lastClientHeight = self.lastClientHeight
+        self.lastClientHeight = clientHeight
+
         let lastScrollHeight = self.lastScrollHeight
         self.lastScrollHeight = scrollHeight
 
-        // Edge case: If we resized and scrolled down at the same time (and scrolled
-        // the same amount we resized) then we don't want our navigation bar's scroll
-        // offset to change.
+        // - Edge case 1: If our scroll content resized and scrolled down at the same
+        //   time (and scrolled the same amount we resized) then we don't want our
+        //   navigation bar's scroll offset to change.
         //
-        // This happens when the typing indicator appears then disappears. Try going to
-        // a chat then typing in another tab to show the typing indicator, wait for it
-        // to disappear, then type again. Do this a couple times. When the typing
-        // indicator appears the view scrolls down to show it. We don't want that
-        // scroll down to hide our tab bar.
+        //   This happens when the typing indicator appears then disappears. Try going
+        //   to a chat then typing in another tab to show the typing indicator, wait
+        //   for it to disappear, then type again. Do this a couple times. When the
+        //   typing indicator appears the view scrolls down to show it. We don't want
+        //   that scroll down to hide our tab bar.
+        //
+        // - Edge case 2: If our scroll view resized and scrolled down at the same time
+        //   (and scrolled the same amount we resized) then we don't want our
+        //   navigation bar's scroll offset to change.
+        //
+        //   This happens when you're typing in the message input and there's a
+        //   navigation bar. When the message input grows we want the navigation bar to
+        //   stay as it is instead of jumping around.
         //
         // Ideally this logic would run only after a resize and before the resize
         // paints to the screen, but web code doesn't have a good way to listen for
         // scroll view content resize. (Whereas in iOS native code we can use KVO to
         // listen to `contentSize` on `UIScrollView`.)
-        if scrollHeight > lastScrollHeight && scrollOffset > lastScrollOffset
-            && scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight
+        if scrollOffset > lastScrollOffset
+            && ((scrollHeight > lastScrollHeight
+                && scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight)
+                || (clientHeight < lastClientHeight
+                    && scrollOffset - lastScrollOffset <= lastClientHeight - clientHeight))
         {
             // Also perform the scroll direction change here.
             self.lastScrollDirection = .down
