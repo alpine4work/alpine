@@ -6,6 +6,7 @@ import {ySyncPlugin, ySyncPluginKey, yUndoPlugin} from "y-prosemirror";
 import * as Y from "yjs";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
@@ -146,6 +147,11 @@ function TaskDetailTitleInput(
                         // It's also inconsistent with `<input>`s which don't have spellcheck on by
                         // default.
                         //
+                        // In iOS, however, the native spellchecker is _essential_ for proper
+                        // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
+                        // spell check results show up inline instead of requiring a right click (which
+                        // we override).
+                        //
                         // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
                         // spellchecker.
                         //
@@ -154,7 +160,7 @@ function TaskDetailTitleInput(
                         // spellings. But if we have our own right-click menu we can't show the correct
                         // spellings there so we only show a permanent red squiggle which is bad. I
                         // think the best answer here is to build our own spellchecker eventually.
-                        spellcheck: "false",
+                        ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
                     },
 
                     dispatchTransaction: transaction => {
