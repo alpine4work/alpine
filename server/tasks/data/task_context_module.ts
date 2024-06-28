@@ -7,6 +7,7 @@ import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/dat
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
@@ -27,6 +28,7 @@ import {
     AccountId,
     SpaceId,
     TaskActionTransactionId,
+    TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
@@ -299,7 +301,7 @@ export class TaskContextModule extends TaskContextModuleBase {
             `http://${host}/${spaceId}/loadQueries`,
             {
                 serviceName: "TaskRealtimeService",
-                route: `/:spaceId/loadQueries`,
+                route: "/:spaceId/loadQueries",
                 method: "POST",
                 headers: {
                     authorization: `bearer ${token}`,
@@ -316,6 +318,63 @@ export class TaskContextModule extends TaskContextModuleBase {
                 }
 
                 return TaskRealtimeLoadQueriesOutputSchema.deserialize(body);
+            },
+        );
+    }
+
+    /**
+     * Get a task without any dependencies (doesn't load parent tasks, task
+     * collections, or accounts referenced by the task). If you want to load a task
+     * with its dependencies you may call `loadQueries()` and only pass a single
+     * `TaskId`.
+     *
+     * We execute our queries in a running `TaskRealtimeService` instance for the
+     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
+     * up `TaskRealtimeService` so when our client connects via WebSocket the data
+     * it needs is already loaded.
+     */
+    public async getTaskWithoutDependencies(
+        this: TaskContextModule &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSessionActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        taskId: TaskId,
+    ): Promise<SchemaType<typeof TaskRealtimeGetTaskWithoutDependenciesOutputSchema>> {
+        const [host, token] = await runAllPromises([
+            this.router.getStickySessionHost(
+                this._context,
+                spaceId,
+                this._context.actor.getSessionId(),
+            ),
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
+                type: "Session",
+                sessionId: this._context.actor.getSessionId(),
+                accountId: this._context.actor.getAccountId(),
+            }),
+        ]);
+
+        return fetchWithTracer(
+            this._context.tracer.getTracer(),
+            `http://${host}/${spaceId}/getTaskWithoutDependencies/${taskId}`,
+            {
+                serviceName: "TaskRealtimeService",
+                route: "/:spaceId/getTaskWithoutDependencies/:taskId",
+                method: "GET",
+                headers: {authorization: `bearer ${token}`},
+            },
+            async response => {
+                const body: {ok: true} | {ok: false; error: SchemaSerializedValue} =
+                    await response.json();
+
+                if (!body.ok) {
+                    throw ErrorSchema.deserialize(body.error);
+                }
+
+                return TaskRealtimeGetTaskWithoutDependenciesOutputSchema.deserialize(body);
             },
         );
     }

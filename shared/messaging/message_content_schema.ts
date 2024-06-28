@@ -58,12 +58,12 @@ export const emptyMessageContent = MessageContentProsemirrorSchema.node("doc", {
     MessageContentProsemirrorSchema.node("paragraph"),
 ]) as MessageContent;
 
-export type MessageContentWithReferences = SchemaType<typeof MessageContentWithReferencesSchema>;
-
 export const MessageContentWithReferencesSchema = Schema.object({
     doc: MessageContentSchema,
     references: ContentReferencesSchema,
 });
+
+export type MessageContentWithReferences = SchemaType<typeof MessageContentWithReferencesSchema>;
 
 export const emptyMessageContentWithReferences: MessageContentWithReferences = {
     doc: emptyMessageContent,

@@ -52,7 +52,7 @@ export default function HomeRoute() {
             withMobileLayout={isMobile}
             title="Home"
             withoutDisappearingTitle={true}
-            titleJustifyContents="center"
+            titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
             // This is a route for a root tab in our mobile app so don't show the back
             // button. It wouldn't work.

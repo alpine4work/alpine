@@ -53,6 +53,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {
@@ -4054,6 +4055,111 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     }
 }
 
+async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
+    context: ServerActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: TaskCollectionAccessLevel,
+    process: (options: {
+        spaceId: SpaceId;
+        createdTime: HybridLogicalTime;
+        commentsSummaryItem: TaskCommentsSummaryItem | null;
+        notesItem: TaskNotesItem | null;
+    }) => Promise<Value>,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<Value> {
+    let item: TaskEssentialAttributesItem | null = null;
+    let commentsSummaryItem: TaskCommentsSummaryItem | null = null;
+    let notesItem: TaskNotesItem | null = null;
+
+    for await (const currentItem of TaskTable.query(context, {
+        partitionKey: {
+            partitionType: "Task",
+            taskId,
+        },
+        startSortKey: {
+            sortRangeType: "EssentialAttributes",
+        },
+        endSortKey: {
+            sortRangeType: "Notes",
+        },
+        limit: "All",
+        consistency,
+    })) {
+        if (currentItem.sortRangeType === "EssentialAttributes") {
+            item = currentItem;
+        } else if (currentItem.sortRangeType === "CommentsSummary") {
+            commentsSummaryItem = currentItem;
+        } else if (currentItem.sortRangeType === "Notes") {
+            notesItem = currentItem;
+        }
+    }
+
+    if (!item) {
+        throw new NotFoundError("Task not found");
+    }
+
+    // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
+    // the same `TaskId` later.
+    TaskItemAuthorizationCache.set(context, taskId, item);
+
+    switch (context.actor.type) {
+        case "System": {
+            const [, value] = await runAllPromises([
+                authorizeSpaceAccess(context, item.spaceId),
+                process({
+                    spaceId: item.spaceId,
+                    createdTime: item.createdTime,
+                    commentsSummaryItem,
+                    notesItem,
+                }),
+            ]);
+
+            return value;
+        }
+        case "Session": {
+            const [hasAccess, value] = await runAllPromises([
+                isTaskItemAccessAuthorized(
+                    context,
+                    context.actor.getAccountId(),
+                    item,
+                    expectedAccessLevel,
+                    {
+                        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+                        getCollectionItem: collectionId =>
+                            getTaskCollectionItemForAuthorization(
+                                context as ServerSessionActionContext,
+                                collectionId,
+                                null,
+                            ),
+                    },
+                ),
+                process({
+                    spaceId: item.spaceId,
+                    createdTime: item.createdTime,
+                    commentsSummaryItem,
+                    notesItem,
+                }),
+            ]);
+
+            if (!hasAccess) {
+                throw new PermissionDeniedError(
+                    quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                    {
+                        displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                            item,
+                            expectedAccessLevel,
+                        ),
+                    },
+                );
+            }
+
+            return value;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+}
+
 /**
  * Tests if the context's actor is allowed to access the provided task item
  * with the provided access level. Throws an error if access is unauthorized.
@@ -4668,6 +4774,88 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
         otherReferencedComments: otherReferencedComments.sort(
             (comment1, comment2) => comment1.index - comment2.index,
         ),
+    };
+}
+
+/**
+ * Efficiently load a task's notes and initial comments at the same time.
+ */
+export async function getTaskNotesContentAndInitialComments(
+    context: ServerSessionActionContext,
+    {taskId, commentsLimit}: {taskId: TaskId; commentsLimit: number},
+): Promise<{
+    notes: {
+        version: number;
+        content: TaskNotesContentWithReferences;
+    };
+    initialComments: {
+        commentCount: number;
+        comments: ReadonlyArray<TaskCommentModel>;
+        otherReferencedComments: ReadonlyArray<TaskCommentModel>;
+        lastCommentChangeTime: Date | null;
+    };
+}> {
+    const spaceIdPromiseResolver = createPromiseResolver<SpaceId>();
+
+    const [{notes, commentsSummaryItem}, {comments, otherReferencedComments}] =
+        await runAllPromises([
+            authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
+                context,
+                taskId,
+                "Comment",
+                async ({spaceId, notesItem, commentsSummaryItem}) => {
+                    spaceIdPromiseResolver.resolve(spaceId);
+
+                    return {
+                        notes: {
+                            version: notesItem?.version ?? 0,
+                            content: {
+                                doc: notesItem?.content ?? emptyTaskNotesContent,
+                                references: await getContentReferencesForNode(
+                                    context,
+                                    spaceId,
+                                    notesItem?.content ?? emptyTaskNotesContent,
+                                ),
+                            },
+                        },
+                        commentsSummaryItem,
+                    };
+                },
+            ).finally(() => {
+                // Make sure the promise resolver doesn't hang forever waiting for a `SpaceId`
+                // in failure scenarios.
+                if (!spaceIdPromiseResolver.isSettled()) {
+                    spaceIdPromiseResolver.reject(new NotFoundError("Space not found"));
+                }
+            }),
+            getTaskCommentsFromEndAssumingAuthorizedTask(context, {
+                taskId,
+                getSpaceId: () => spaceIdPromiseResolver.promise,
+                limit: commentsLimit,
+                afterCommentIndex: null,
+                beforeCommentIndex: null,
+            }),
+        ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        notes,
+        initialComments: {
+            commentCount: Math.max(
+                reduceIterable(
+                    commentsSummaryItem?.commentCountByAuthorId.values() ?? [],
+                    (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                    0,
+                ),
+                // Make sure `commentCount` is consistent with `comments` in case of eventual
+                // consistency race conditions.
+                lastCommentIndex + 1,
+            ),
+            comments,
+            otherReferencedComments,
+            lastCommentChangeTime: commentsSummaryItem?.lastChangeTime ?? null,
+        },
     };
 }
 
@@ -5437,7 +5625,7 @@ export async function getTaskNotepadPageIds(
  * Get the current notes content for some task without the `ContentReferences`
  * needed to render.
  */
-export async function getTaskNotesContentWithoutReferences(
+export function getTaskNotesContentWithoutReferences(
     context: ServerActionContext,
     taskId: TaskId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
@@ -5447,32 +5635,25 @@ export async function getTaskNotesContentWithoutReferences(
     content: TaskNotesContent;
     stepCountByNonCreatorAccountId: TaskStepCountByAccountId;
 }> {
-    const [{spaceId}, notesItem] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "View", null),
-        TaskTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Task",
-                sortRangeType: "Notes",
-                taskId,
-            },
-            {consistency},
-        ),
-    ]);
-
-    return {
-        spaceId,
-        version: notesItem?.version ?? 0,
-        content: notesItem?.content ?? emptyTaskNotesContent,
-        stepCountByNonCreatorAccountId:
-            notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map()),
-    };
+    return authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
+        context,
+        taskId,
+        "View",
+        async ({spaceId, notesItem}) => ({
+            spaceId,
+            version: notesItem?.version ?? 0,
+            content: notesItem?.content ?? emptyTaskNotesContent,
+            stepCountByNonCreatorAccountId:
+                notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map()),
+        }),
+        {consistency},
+    );
 }
 
 /**
  * Get the current notes content for some task.
  */
-export async function getTaskNotesContent(
+export function getTaskNotesContent(
     context: ServerActionContext,
     taskId: TaskId,
 ): Promise<{
@@ -5480,18 +5661,23 @@ export async function getTaskNotesContent(
     version: number;
     content: TaskNotesContentWithReferences;
 }> {
-    const {spaceId, version, content} = await getTaskNotesContentWithoutReferences(context, taskId);
-
-    const contentReferences = await getContentReferencesForNode(context, spaceId, content);
-
-    return {
-        spaceId,
-        version,
-        content: {
-            doc: content,
-            references: contentReferences,
-        },
-    };
+    return authorizeTaskAccessAndGetCommentsSummaryAndNotesItems(
+        context,
+        taskId,
+        "View",
+        async ({spaceId, notesItem}) => ({
+            spaceId,
+            version: notesItem?.version ?? 0,
+            content: {
+                doc: notesItem?.content ?? emptyTaskNotesContent,
+                references: await getContentReferencesForNode(
+                    context,
+                    spaceId,
+                    notesItem?.content ?? emptyTaskNotesContent,
+                ),
+            },
+        }),
+    );
 }
 
 /**

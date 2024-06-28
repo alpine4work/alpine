@@ -16,12 +16,12 @@ import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_po
  *
  * We also need to convert the task to a `TaskModel`.
  *
- * If null is passed in for `accountId` we wipe all potentially private data
- * from the task as a safety precaution. This may not be what you want if
+ * If null is passed in for `actorAccountId` we wipe all potentially private
+ * data from the task as a safety precaution. This may not be what you want if
  * you're using a system context.
  */
 export function prepareTaskForClient(
-    accountId: AccountId | null,
+    actorAccountId: AccountId | null,
     task: TaskIndexDocBase & {id: TaskId},
 ): TaskModel {
     return new TaskModel({
@@ -80,7 +80,7 @@ export function prepareTaskForClient(
         positionByAccountIdAndNotepadPageId: reduceIterable(
             filterIterable(
                 task.notepadPages.raw.positionById.actualEntries(),
-                ([key]) => accountId !== null && key.startsWith(accountId),
+                ([key]) => actorAccountId !== null && key.startsWith(actorAccountId),
             ),
             (positionById, [key, {value, version}]) =>
                 value !== null
@@ -100,7 +100,7 @@ export function prepareTaskForClient(
         // aren't allowed to see.
         assigneeActivePosition:
             task.rawAssigneeActivePosition.value &&
-            task.rawAssigneeActivePosition.value.accountId !== accountId
+            task.rawAssigneeActivePosition.value.accountId !== actorAccountId
                 ? new TaskAssigneeActivePositionRegister(
                       null,
                       maxHybridLogicalTime(

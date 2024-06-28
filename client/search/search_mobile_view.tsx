@@ -63,7 +63,7 @@ export function SearchMobileView({
         withMobileLayout: isMobile,
         title: "Search",
         withoutDisappearingTitle: true,
-        titleJustifyContents: "center",
+        titleJustifyContent: "center",
         desktopMaxWidth: maxWidth,
         // This is a route for a root tab in our mobile app so don't show the back
         // button. It wouldn't work.

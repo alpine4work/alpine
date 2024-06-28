@@ -210,8 +210,7 @@ function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): 
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}?show=new`;
         }
         case "TaskComment": {
-            // TODO(#task-comments): https://cyberworlds.dev/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/gj7bnv44em5dhcaqzfcaxn7ta8
-            throw new UnimplementedError("TODO");
+            return `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
         }
         default:
             throw exhaustive(entityId);

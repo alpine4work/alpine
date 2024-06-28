@@ -33,6 +33,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContent,
+    getTaskNotesContentAndInitialComments,
     getTaskNotesContentWithoutReferences,
     updateTaskCommentContent,
     updateTaskNotesContent,
@@ -15431,6 +15432,14 @@ test("gets notes for task without notes", async () => {
             references: emptyContentReferences,
         },
     });
+
+    expect(await getTaskNotesContentWithoutReferences(session.action(), task.id)).toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            version: 0,
+            content: emptyTaskNotesContent,
+        }),
+    );
 });
 
 test("can't get notes for task that doesn't exist", async () => {
@@ -15440,6 +15449,10 @@ test("can't get notes for task that doesn't exist", async () => {
     await expect(getTaskNotesContent(session.action(), generateId())).rejects.toThrow(
         NotFoundError,
     );
+
+    await expect(
+        getTaskNotesContentWithoutReferences(session.action(), generateId()),
+    ).rejects.toThrow(NotFoundError);
 });
 
 test("can't get notes for task in the wrong space", async () => {
@@ -15455,6 +15468,10 @@ test("can't get notes for task in the wrong space", async () => {
     await expect(getTaskNotesContent(otherSession.action(), task.id)).rejects.toThrow(
         PermissionDeniedError,
     );
+
+    await expect(
+        getTaskNotesContentWithoutReferences(otherSession.action(), task.id),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can get notes for task in public collection", async () => {
@@ -15474,6 +15491,14 @@ test("can get notes for task in public collection", async () => {
             references: emptyContentReferences,
         },
     });
+
+    expect(await getTaskNotesContentWithoutReferences(session2.action(), task.id)).toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            version: 0,
+            content: emptyTaskNotesContent,
+        }),
+    );
 });
 
 test("can't get notes for task in private collection", async () => {
@@ -15488,6 +15513,50 @@ test("can't get notes for task in private collection", async () => {
     await expect(getTaskNotesContent(session2.action(), task.id)).rejects.toThrow(
         PermissionDeniedError,
     );
+
+    await expect(getTaskNotesContentWithoutReferences(session2.action(), task.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("gets notes as system action", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    expect(await getTaskNotesContent(space.systemAction(), task.id)).toEqual({
+        spaceId: space.id,
+        version: 0,
+        content: {
+            doc: emptyTaskNotesContent,
+            references: emptyContentReferences,
+        },
+    });
+
+    expect(await getTaskNotesContentWithoutReferences(space.systemAction(), task.id)).toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            version: 0,
+            content: emptyTaskNotesContent,
+        }),
+    );
+});
+
+test("can't get notes as the wrong system action", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const task = await TestTask.create(session);
+
+    await expect(getTaskNotesContent(otherSpace.systemAction(), task.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        getTaskNotesContentWithoutReferences(otherSpace.systemAction(), task.id),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can update task notes", async () => {
@@ -15536,6 +15605,14 @@ test("can update task notes", async () => {
             references: emptyContentReferences,
         },
     });
+
+    expect(await getTaskNotesContentWithoutReferences(session.action(), task.id)).toEqual(
+        expect.objectContaining({
+            spaceId: space.id,
+            version: 3,
+            content: schema.node("doc", null, schema.node("paragraph", null, [schema.text("abc")])),
+        }),
+    );
 });
 
 test("can't update task notes that don't exist", async () => {
@@ -19125,6 +19202,120 @@ test("throws error for users that only have view access when trying to get task 
             limit: 10,
             afterCommentIndex: 0,
             beforeCommentIndex: 2,
+        }),
+    ).resolves.not.toBeNull();
+});
+
+test("throws error for users that only have view access when trying to get initial task comments", async () => {
+    const space = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    const content1 = createSimpleMessageContent("test1");
+    const firstTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content1,
+    };
+
+    const content2 = createSimpleMessageContent("test2");
+    const secondTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content2,
+    };
+
+    const content3 = createSimpleMessageContent("test3");
+    const thirdTaskCommentDetails = {
+        taskId: task.id,
+        parentCommentIndex: null,
+        content: content3,
+    };
+
+    await createTaskComment(context.action(creatorSession), firstTaskCommentDetails);
+    await createTaskComment(context.action(creatorSession), secondTaskCommentDetails);
+    await createTaskComment(context.action(creatorSession), thirdTaskCommentDetails);
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await task.updateAssignee(creatorSession, assigneeSession);
+
+    await expect(
+        getTaskNotesContentAndInitialComments(assigneeSession.action(), {
+            taskId: task.id,
+            commentsLimit: 10,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskNotesContentAndInitialComments(unauthorizedSession.action(), {
+            taskId: task.id,
+            commentsLimit: 10,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getTaskNotesContentAndInitialComments(viewerSession.action(), {
+            taskId: task.id,
+            commentsLimit: 10,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getTaskNotesContentAndInitialComments(commenterSession.action(), {
+            taskId: task.id,
+            commentsLimit: 10,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskNotesContentAndInitialComments(editorSession.action(), {
+            taskId: task.id,
+            commentsLimit: 10,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskNotesContentAndInitialComments(manageSession.action(), {
+            taskId: task.id,
+            commentsLimit: 10,
+        }),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getTaskNotesContentAndInitialComments(creatorSession.action(), {
+            taskId: task.id,
+            commentsLimit: 10,
         }),
     ).resolves.not.toBeNull();
 });

@@ -14,9 +14,9 @@ import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
 import {PostCommentBrandIcon} from "~/client/icons/brand/post_comment_brand_icon.js";
 import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
+import {TaskCommentBrandIcon} from "~/client/icons/brand/task_comment_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
@@ -379,8 +379,7 @@ function getSearchResultTypeDisplayForEntity(
             return {icon: <TaskCollectionBrandIcon />};
         }
         case "TaskComment": {
-            // TODO(#task-comments): https://cyberworlds.dev/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/hwrag125qwf6yh51mde442z92c
-            throw new UnimplementedError("TODO");
+            return {icon: <TaskCommentBrandIcon />, isAccountMediaAuthor: true};
         }
         default:
             throw exhaustive(type);

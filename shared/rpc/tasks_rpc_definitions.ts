@@ -140,6 +140,38 @@ export const searchTaskCollections = defineRpc({
     },
 });
 
+export const getTaskCommentsFromStart = defineRpc({
+    name: "getTaskCommentsFromStart",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        limit: Schema.integer,
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
+    },
+    output: {
+        commentCount: Schema.integer,
+        comments: Schema.array(TaskCommentModel.schema()),
+        otherReferencedComments: Schema.array(TaskCommentModel.schema()),
+        lastCommentChangeTime: Schema.date.nullable(),
+    },
+});
+
+export const getTaskCommentsFromEnd = defineRpc({
+    name: "getTaskCommentsFromEnd",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        limit: Schema.integer,
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
+    },
+    output: {
+        commentCount: Schema.integer,
+        comments: Schema.array(TaskCommentModel.schema()),
+        otherReferencedComments: Schema.array(TaskCommentModel.schema()),
+        lastCommentChangeTime: Schema.date.nullable(),
+    },
+});
+
 export const createTaskComment = defineRpc({
     name: "createTaskComment",
     input: {

@@ -1,18 +1,25 @@
-import {useEffect} from "react";
+import {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
+import {useSearchParams} from "react-router-dom";
 import {useTaskClientStoreSearchAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {
+    getTaskNotesContent,
+    getTaskNotesContentAndInitialComments,
+} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -20,6 +27,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferencesSchema} from "~/shared/tasks/task_notes_content_schema.js";
@@ -27,11 +35,20 @@ import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_f
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 
+// Maintain same sidebar width as used in document comment sidebar
+const taskDetailViewCommentSidebarWidth = "96";
+
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,
     childrenGridViewExpansionState: TaskGridViewExpansionStateSchema,
     notesVersion: Schema.integer,
     notesContent: TaskNotesContentWithReferencesSchema,
+    initialComments: Schema.object({
+        commentCount: Schema.integer,
+        lastCommentChangeTime: Schema.date.nullable(),
+        comments: Schema.array(TaskCommentModel.schema()),
+        otherReferencedComments: Schema.array(TaskCommentModel.schema()),
+    }).nullable(),
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleText}}) => [
@@ -40,9 +57,11 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleTe
 
 export async function loader({params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
-
-    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
+    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+
+    const clientInfo = context.loader.getClientInfo();
+    const isMobile = getInitialAppRenderIsMobile(clientInfo);
 
     const childrenQuery: {
         limit: number;
@@ -78,15 +97,25 @@ export async function loader({params, context: _context}: LoaderArgs) {
         shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
     };
 
-    const [{queries, extraQueries, updateEvent}, {version: notesVersion, content: notesContent}] =
-        await runAllPromises([
-            context.tasks.loadQueries(spaceId, {
-                queries: [childrenQuery],
-                taskIds: [taskId],
-                collectionIds: [],
-            }),
-            getTaskNotesContent(context, taskId),
-        ]);
+    const [
+        {queries, extraQueries, updateEvent},
+        {
+            notes: {version: notesVersion, content: notesContent},
+            initialComments,
+        },
+    ] = await runAllPromises([
+        context.tasks.loadQueries(spaceId, {
+            queries: [childrenQuery],
+            taskIds: [taskId],
+            collectionIds: [],
+        }),
+        isMobile
+            ? getTaskNotesContent(context, taskId).then(notes => ({notes, initialComments: null}))
+            : getTaskNotesContentAndInitialComments(context, {
+                  taskId,
+                  commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+              }),
+    ]);
 
     const backfillTask = updateEvent.backfillTasks.find(
         (
@@ -103,6 +132,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
             childrenGridViewExpansionState: childrenQueryOutput.gridViewExpansionState,
             notesVersion,
             notesContent,
+            initialComments,
         },
         {
             propagateEventData: {
@@ -126,20 +156,30 @@ export async function loader({params, context: _context}: LoaderArgs) {
     );
 }
 
-export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
-    const {taskId} = useParams();
+export default function TaskRoute({
+    withMobileLayout: withMobileLayoutProp = false,
+}: {
+    withMobileLayout?: boolean;
+}) {
+    const {taskId, spaceId} = useParams();
+    const [searchParams] = useSearchParams();
     assert(taskId && isId<TaskId>(taskId));
+    assert(spaceId && isId<SpaceId>(spaceId));
 
     const {
         childrenGridViewExpansionState,
         notesVersion: initialNotesVersion,
         notesContent: initialNotesContent,
+        initialComments,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [childrenQuery],
         taskSubscriptions: [taskSubscription],
     } = useTaskStoreLoaderDataWithoutRetaining();
     assert(childrenQuery && taskSubscription);
+
+    const isMobile = useIsMobile();
+    const withMobileLayout = withMobileLayoutProp || isMobile;
 
     // Retain our queries so they aren't destroyed while we're using them.
     useEffect(() => {
@@ -174,7 +214,16 @@ export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?
         return taskSubscription.taskEntryStore.subscribe(update);
     }, [taskSubscription.taskEntryStore, updateMetaTitle]);
 
+    const commentIndexString = searchParams.get("comment");
+    const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
+
     const affinityManager = useTaskClientStoreSearchAffinityManager(`Task:${taskId}`);
+
+    const getCommentUrl = useCallback(
+        (commentIndex: number) =>
+            new URL(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`, window.location.href),
+        [taskId, spaceId],
+    );
 
     return (
         <Box
@@ -184,6 +233,7 @@ export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?
             zIndex="0"
             display="flex"
             justifyContent="center"
+            flexDirection="row"
         >
             <TaskGridViewDndContext store={taskSubscription.store}>
                 <TaskDetailView
@@ -198,6 +248,24 @@ export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?
                     initialNotesContent={initialNotesContent}
                 />
             </TaskGridViewDndContext>
+            {!withMobileLayout && (
+                <Box
+                    flexShrink="0"
+                    borderLeft="grey-10"
+                    width={taskDetailViewCommentSidebarWidth}
+                    height="full"
+                    overflow="hidden"
+                >
+                    <TaskCommentsView
+                        key={taskId}
+                        taskId={taskId}
+                        withMobileLayout={withMobileLayout}
+                        initialComments={initialComments}
+                        initialScrollToCommentIndex={commentIndex}
+                        getCommentUrl={getCommentUrl}
+                    />
+                </Box>
+            )}
         </Box>
     );
 }

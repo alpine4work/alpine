@@ -30,12 +30,14 @@ import {
     authorizeSpaceAccess,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
+import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
@@ -64,7 +66,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
@@ -78,7 +80,12 @@ type TaskRealtimeServiceRoute =
     | {readonly type: "NotFound"}
     | {readonly type: "Main"; readonly spaceId: SpaceId}
     | {readonly type: "ApplyActionTransaction"; readonly spaceId: SpaceId}
-    | {readonly type: "LoadQueries"; readonly spaceId: SpaceId};
+    | {readonly type: "LoadQueries"; readonly spaceId: SpaceId}
+    | {
+          readonly type: "GetTaskWithoutDependencies";
+          readonly spaceId: SpaceId;
+          readonly taskId: TaskId;
+      };
 
 runService({
     serviceName: "TaskRealtimeService",
@@ -206,8 +213,7 @@ runService({
 
         const handleRequest = async (
             request: Request,
-            url: URL,
-            route: TaskRealtimeServiceRoute & {spaceId: SpaceId},
+            route: Exclude<TaskRealtimeServiceRoute, {type: "HealthCheck"} | {type: "NotFound"}>,
             span: TracerSpan,
         ): Promise<Response | void> => {
             const {spaceId} = route;
@@ -358,8 +364,55 @@ runService({
                         },
                     );
                 }
+                case "GetTaskWithoutDependencies": {
+                    if (request.method !== "GET") {
+                        throw new InvalidArgumentError(
+                            quote`Invalid request method ${request.method}`,
+                        );
+                    }
+
+                    if (actorContextModule.serviceName !== "AppService") {
+                        throw new PermissionDeniedError("Only `AppService` can load queries");
+                    }
+
+                    if (!(actorContextModule instanceof DynamoSessionActorContextModule)) {
+                        throw new PermissionDeniedError("Only session actors can load queries");
+                    }
+
+                    return baseContext.with({actor: actorContextModule}, async context => {
+                        await server.authorizeTaskAccess(context, spaceId, route.taskId, "View");
+
+                        return dangerouslyEscalateToSystemContext(
+                            context,
+                            spaceId,
+                            async context => {
+                                const task = await server.getTask(context, spaceId, route.taskId);
+
+                                const taskModel = prepareTaskForClient(
+                                    actorContextModule.getAccountId(),
+                                    task,
+                                );
+
+                                return new Response(
+                                    JSON.stringify(
+                                        TaskRealtimeGetTaskWithoutDependenciesOutputSchema.serialize(
+                                            {
+                                                ok: true,
+                                                task: taskModel,
+                                            },
+                                        ),
+                                    ),
+                                    {
+                                        status: 200,
+                                        headers: {"content-type": "application/json"},
+                                    },
+                                );
+                            },
+                        );
+                    });
+                }
                 default:
-                    throw new NotFoundError("Route not found");
+                    throw exhaustive(route);
             }
         };
 
@@ -395,6 +448,22 @@ runService({
 
                         return ["/:spaceId/loadQueries", {type: "LoadQueries", spaceId}];
                     }
+                    case "getTaskWithoutDependencies": {
+                        if (pathnameSegments.length !== 3) return ["/*", {type: "NotFound"}];
+
+                        if (!pathnameSegments[2] || !isId<TaskId>(pathnameSegments[2])) {
+                            return ["/*", {type: "NotFound"}];
+                        }
+
+                        return [
+                            "/:spaceId/getTaskWithoutDependencies/:taskId",
+                            {
+                                type: "GetTaskWithoutDependencies",
+                                spaceId,
+                                taskId: pathnameSegments[2],
+                            },
+                        ];
+                    }
                     default:
                         return ["/*", {type: "NotFound"}];
                 }
@@ -423,7 +492,7 @@ runService({
                 }
 
                 const result = await captureResultPromise(() =>
-                    handleRequest(request, url, route, span),
+                    handleRequest(request, route, span),
                 );
 
                 if (result.ok) {

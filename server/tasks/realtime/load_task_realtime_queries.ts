@@ -106,7 +106,7 @@ export async function loadTaskRealtimeQueries(
     }>;
     updateEvent: TaskRealtimeUpdateEvent;
 }> {
-    const accountId = context.actor.getAccountId();
+    const actorAccountId = context.actor.getAccountId();
 
     const defaultAuthorizationStateVersion: HybridLogicalTime = [Date.now(), 0];
 
@@ -132,7 +132,7 @@ export async function loadTaskRealtimeQueries(
 
                 const isAccessAuthorized = await isTaskIndexDocAccessAuthorized(
                     context,
-                    accountId,
+                    actorAccountId,
                     task,
                     "View",
                     {
@@ -167,7 +167,7 @@ export async function loadTaskRealtimeQueries(
 
                 const isAccessAuthorized = await isTaskCollectionIndexDocAccessAuthorized(
                     context,
-                    accountId,
+                    actorAccountId,
                     collection,
                     "View",
                 );
@@ -258,7 +258,7 @@ export async function loadTaskRealtimeQueries(
         const childrenQueryPromises = getTaskGridViewExpansionStateChildrenQueries(context, {
             server,
             spaceId,
-            accountId,
+            accountId: actorAccountId,
             limit,
             tasks,
             gridViewExpansionState,
@@ -381,7 +381,7 @@ export async function loadTaskRealtimeQueries(
     const backfillTasks = Array.from(
         concatIterables<TaskRealtimeUpdateEventBackfillTask>(
             mapIterable(backfillAuthorizedTaskSet, task => {
-                const taskModel = prepareTaskForClient(accountId, task);
+                const taskModel = prepareTaskForClient(actorAccountId, task);
 
                 collectReferencedAccountIdsFromTaskModelData(accountIds, taskModel.rawData);
 

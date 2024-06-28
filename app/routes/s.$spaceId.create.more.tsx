@@ -27,7 +27,7 @@ export default function CreateMoreRoute() {
             withMobileLayout={isMobile}
             title="Create"
             withoutDisappearingTitle={true}
-            titleJustifyContents="center"
+            titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">

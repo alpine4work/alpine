@@ -62,7 +62,7 @@ export function InboxMobileView({
         withMobileLayout: true,
         title: filter === "New" ? "Inbox" : "Inbox (old)",
         withoutDisappearingTitle: true,
-        titleJustifyContents: "center",
+        titleJustifyContent: "center",
         // This is a route for a root tab in our mobile app so don't show the back
         // button. It wouldn't work.
         withoutMobileBackButton: true,

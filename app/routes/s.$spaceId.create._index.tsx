@@ -34,7 +34,7 @@ export default function CreateRoute() {
             withMobileLayout={isMobile}
             title="Create"
             withoutDisappearingTitle={true}
-            titleJustifyContents="center"
+            titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
             // This is a route for a root tab in our mobile app so don't show the back
             // button. It wouldn't work.

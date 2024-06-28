@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {CaretRight, IconContext, Lock, Trash} from "phosphor-react";
+import {CaretRight, ChatCircleDots, IconContext, Lock, Trash} from "phosphor-react";
 import {redo as redoCommand, undo as undoCommand} from "prosemirror-history";
 import {
     Memo,
@@ -23,6 +23,7 @@ import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {IconButtonSize} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -95,6 +96,7 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     contentSchemaStyles,
     invertSelectionColorsClassName,
+    pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
 import {
@@ -705,11 +707,23 @@ export function TaskDetailView({
         undoManager,
     ]);
 
+    const openTaskCommentsExtraAction = withMobileLayout
+        ? {
+              icon: <ChatCircleDots />,
+              description: "Open comments",
+              onPress: async () => {
+                  await navigate(`/s/${spaceId}/tasks/${taskId}/comments`);
+              },
+              pressErrorTitle: "Couldn't open comments",
+          }
+        : undefined;
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         withMobileLayout,
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         titleBoundaryRef: titleInputElementRef,
         menuActions: contextMenuActions,
+        extraIconButton: openTaskCommentsExtraAction,
         desktopMaxWidth: taskDetailViewMaxWidth,
         desktopControls: (
             <TaskDetailViewStatusButton

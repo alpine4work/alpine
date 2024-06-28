@@ -516,7 +516,7 @@ export class TaskRealtimeServer {
      * Will use in-memory tasks/collections when available and otherwise will load
      * from DynamoDB.
      */
-    public authorizeQueryAccess(
+    public async authorizeQueryAccess(
         context: ServerSessionActionContext,
         {
             spaceId,
@@ -528,7 +528,7 @@ export class TaskRealtimeServer {
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
         },
     ) {
-        return runAllPromises([
+        await runAllPromises([
             // Authorize space access in parallel...
             authorizeSpaceAccess(context, spaceId),
 
@@ -555,13 +555,13 @@ export class TaskRealtimeServer {
      * Will use in-memory tasks/collections when available and otherwise will load
      * from DynamoDB.
      */
-    public authorizeTaskAccess(
+    public async authorizeTaskAccess(
         context: ServerSessionActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
-        return runAllPromises([
+        await runAllPromises([
             // Authorize space access in parallel...
             authorizeSpaceAccess(context, spaceId),
 
@@ -581,13 +581,13 @@ export class TaskRealtimeServer {
      * Will use in-memory tasks/collections when available and otherwise will load
      * from DynamoDB.
      */
-    public authorizeCollectionAccess(
+    public async authorizeCollectionAccess(
         context: ServerSessionActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
-        return runAllPromises([
+        await runAllPromises([
             // Authorize space access in parallel...
             authorizeSpaceAccess(context, spaceId),
 

@@ -16,6 +16,7 @@ import {
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -217,6 +218,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         getMessageUrl,
         inputRestoreStateRef,
         roomDisplayedCreatedTime,
+        elementRef,
+        extraChildren,
+        scrollbarInsetTop,
     }: {
         withMobileLayout: boolean;
 
@@ -371,6 +375,29 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * always render a time divider.
          */
         roomDisplayedCreatedTime?: Date;
+
+        /**
+         * If you want to attach a ref to the scroll view DOM element instead of
+         * `VirtualizedScrollViewRef` then you may use this prop.
+         */
+        elementRef?: Ref<HTMLDivElement>;
+
+        /**
+         * Extra children to always render in our virtualized scroll view. Useful if
+         * you want to render extra sticky content.
+         *
+         * The children are rendered in a container with no pointer events. So you need
+         * to add `pointerEvents: "auto"` on elements you want to be interactive with
+         * a pointer.
+         */
+        extraChildren?: ReactNode;
+
+        /**
+         * Inset the scrollbar by this many pixels. If both
+         * `scrollbarInsetTopItemIndex` and `scrollbarInsetTop` are set then
+         * `scrollbarInsetTop` wins.
+         */
+        scrollbarInsetTop?: ScrollbarInsetDynamic;
     },
     ref: Ref<MessagingViewRef>,
 ) {
@@ -630,7 +657,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
-        index => {
+        (index: number) => {
             const item = state.getItem(index);
 
             switch (item.type) {
@@ -701,14 +728,18 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             >
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={elementRef}
+                    renderItem={renderItem}
+                    extraChildren={extraChildren}
                     initialScrollOffset={initialScrollOffset}
                     bufferedItemHeight={bufferedMessageViewHeight}
                     itemCount={state.getItemCount()}
-                    renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
+                    scrollbarInsetTop={scrollbarInsetTop}
                 />
                 <MessageInput
                     ref={inputRef}
+                    messageNoun={messageNoun}
                     withMobileLayout={withMobileLayout}
                     messages={state.messages}
                     isMessageCreationDisabled={isMessageCreationDisabled}

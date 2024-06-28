@@ -18,7 +18,7 @@ import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {IconButton} from "~/client/design/icon_button.js";
+import {IconButton, IconButtonSize} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
@@ -380,11 +380,24 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     replaceActions?: ReactNode;
 
     /**
+     * If provided, allows for another action and icon button in the navigation
+     * bar's content. Rendered with the `<IconButton>` component. Allows us to
+     * configure a subset of the `<IconButton>`'s props, but not modify
+     * size or layout.
+     */
+    extraIconButton?: {
+        icon: ReactNode;
+        description: string;
+        pressErrorTitle: string;
+        onPress: () => Promise<void>;
+    };
+
+    /**
      * How do we justify title contents? Defaults to `center` on mobile and
      * `flex-start` on desktop. Override if you want the same behavior on both
      * platforms.
      */
-    titleJustifyContents?: "center" | "flex-start";
+    titleJustifyContent?: "center" | "flex-start";
 
     /**
      * Only rendered on desktop (not mobile).
@@ -539,7 +552,8 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton,
     stickyBanner,
     replaceActions,
-    titleJustifyContents,
+    extraIconButton,
+    titleJustifyContent,
     desktopControls = null,
     desktopMaxWidth,
     desktopTitleMaxWidth,
@@ -660,7 +674,8 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             shareButton={shareButton}
             stickyBanner={stickyBanner}
             replaceActions={replaceActions}
-            titleJustifyContents={titleJustifyContents}
+            extraIconButton={extraIconButton}
+            titleJustifyContent={titleJustifyContent}
             desktopControls={desktopControls}
             desktopMaxWidth={desktopMaxWidth}
             desktopTitleMaxWidth={desktopTitleMaxWidth}
@@ -717,7 +732,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton,
     stickyBanner,
     replaceActions,
-    titleJustifyContents,
+    extraIconButton,
+    titleJustifyContent,
     desktopControls,
     desktopMaxWidth,
     desktopTitleMaxWidth,
@@ -745,7 +761,13 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     shareButton: {} | undefined;
     stickyBanner: ReactNode;
     replaceActions: ReactNode;
-    titleJustifyContents: "center" | "flex-start" | undefined;
+    extraIconButton?: {
+        icon: ReactNode;
+        description: string;
+        pressErrorTitle: string;
+        onPress: () => Promise<void>;
+    };
+    titleJustifyContent: "center" | "flex-start" | undefined;
     desktopControls: ReactNode;
     desktopMaxWidth: Spacing | RemLength | undefined;
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
@@ -1624,7 +1646,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             menuActions={menuActions}
                             shareButton={shareButton}
                             replaceActions={replaceActions}
-                            titleJustifyContents={titleJustifyContents}
+                            extraIconButton={extraIconButton}
+                            titleJustifyContent={titleJustifyContent}
                             desktopControls={desktopControls}
                             desktopMaxWidth={desktopMaxWidth}
                             desktopTitleMaxWidth={desktopTitleMaxWidth}
@@ -1658,7 +1681,8 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions = emptyArray,
         shareButton,
         replaceActions,
-        titleJustifyContents,
+        extraIconButton,
+        titleJustifyContent,
         desktopControls,
         desktopMaxWidth: desktopMaxWidthProp,
         desktopTitleMaxWidth: desktopTitleMaxWidthProp,
@@ -1676,7 +1700,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: {};
         replaceActions?: ReactNode;
-        titleJustifyContents?: "center" | "flex-start";
+        extraIconButton?: {
+            icon: ReactNode;
+            pressErrorTitle: string;
+            description: string;
+            onPress: () => Promise<void>;
+        };
+        titleJustifyContent?: "center" | "flex-start";
         desktopControls?: ReactNode;
         desktopMaxWidth?: Spacing | RemLength;
         desktopTitleMaxWidth?: Spacing | RemLength;
@@ -1693,7 +1723,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const navigate = useNavigate();
     const reporter = useReporter();
 
-    titleJustifyContents ??= isMobile ? "center" : "flex-start";
+    titleJustifyContent ??= isMobile ? "center" : "flex-start";
 
     const contentRef = useRef<HTMLDivElement>(null);
     const titleRef = useRef<HTMLDivElement>(null);
@@ -1753,7 +1783,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     const hasLeftActions: boolean = isMobile && (!!onMobileCancel || !withoutMobileBackButton);
 
     const hasRightActions: boolean =
-        !!replaceActions || !!shareButton || isTextInputFocused || menuActions.length > 0;
+        !!replaceActions ||
+        !!shareButton ||
+        isTextInputFocused ||
+        menuActions.length > 0 ||
+        !!extraIconButton;
 
     return (
         <Box
@@ -1824,7 +1858,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                               }}
                           />
                       )}
-                {titleJustifyContents === "center" && !replaceActions && isTextInputFocused && (
+                {titleJustifyContent === "center" && !replaceActions && isTextInputFocused && (
                     // This spacer keeps the title centered when the done button is visible if the
                     // title is small enough to still fit in the center. If the title is longer then
                     // this spacer will shrink to give the title space.
@@ -1843,12 +1877,12 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                     paddingLeft={
                         desktopTitleMaxWidth === undefined &&
                         !isMobile &&
-                        titleJustifyContents !== "center"
+                        titleJustifyContent !== "center"
                             ? "5"
                             : undefined
                     }
                     display="flex"
-                    justifyContent={titleJustifyContents}
+                    justifyContent={titleJustifyContent}
                     alignItems="center"
                     gap="3"
                     style={{
@@ -1905,7 +1939,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     ? `-${desktopTitleLeftSlop}`
                                     : undefined
                             }
-                            textAlign={subtitle && isMobile ? "center" : undefined}
+                            textAlign={
+                                subtitle && (isMobile || titleJustifyContent === "center")
+                                    ? "center"
+                                    : undefined
+                            }
                         >
                             {title}
                         </Box>
@@ -1931,7 +1969,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         display="flex"
                         justifyContent="flex-end"
                         alignItems="center"
-                        gap={isMobile ? "0.5" : "2"}
+                        gap="1"
                         // Gives children `pointer-events: initial` so the user can interact with them.
                         className={pointerEventsNoneNotInheritedClassName}
                         style={{
@@ -1946,7 +1984,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                         ) : (
                             <>
                                 {shareButton && !withMobileLayout && (
-                                    <Box paddingRight="3">
+                                    <Box paddingRight="4">
                                         <ShareButton />
                                     </Box>
                                 )}
@@ -1976,35 +2014,48 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                         </Button>
                                     </Box>
                                 ) : (
-                                    (menuActions.length > 0 ||
-                                        (shareButton && withMobileLayout)) && (
-                                        <MenuButton
-                                            placement="bottom-end"
-                                            actions={
-                                                shareButton && withMobileLayout
-                                                    ? [
-                                                          [createShareMenuItem(reporter)],
-                                                          ...menuActions,
-                                                      ]
-                                                    : menuActions
-                                            }
-                                        >
+                                    <>
+                                        {extraIconButton && (
                                             <IconButton
+                                                description={extraIconButton.description}
                                                 size={isMobile ? "base" : "md"}
-                                                description="More"
+                                                pressErrorTitle={extraIconButton.pressErrorTitle}
                                                 withoutTooltip={true}
+                                                onPress={extraIconButton.onPress}
                                             >
-                                                <DotsThreeVertical
-                                                // Vertical dots create better visual balance on mobile because:
-                                                //
-                                                // 1. On mobile we have a back button on the left and we want this button to
-                                                //    look aligned with that
-                                                // 2. The title might be truncated with ellipsis which looks like horizontal
-                                                //    dots
-                                                />
+                                                {extraIconButton.icon}
                                             </IconButton>
-                                        </MenuButton>
-                                    )
+                                        )}
+                                        {(menuActions.length > 0 ||
+                                            (shareButton && withMobileLayout)) && (
+                                            <MenuButton
+                                                placement="bottom-end"
+                                                actions={
+                                                    shareButton && withMobileLayout
+                                                        ? [
+                                                              [createShareMenuItem(reporter)],
+                                                              ...menuActions,
+                                                          ]
+                                                        : menuActions
+                                                }
+                                            >
+                                                <IconButton
+                                                    size={isMobile ? "base" : "md"}
+                                                    description="More"
+                                                    withoutTooltip={true}
+                                                >
+                                                    <DotsThreeVertical
+                                                    // Vertical dots create better visual balance on mobile because:
+                                                    //
+                                                    // 1. On mobile we have a back button on the left and we want this button to
+                                                    //    look aligned with that
+                                                    // 2. The title might be truncated with ellipsis which looks like horizontal
+                                                    //    dots
+                                                    />
+                                                </IconButton>
+                                            </MenuButton>
+                                        )}
+                                    </>
                                 )}
                             </>
                         )}
