@@ -69,18 +69,18 @@ const requestTimeoutMs = 10_000;
  *    production certificate since you'll be committing this certificate to
  *    git.
  *
- * 4. Download the file and name it `apns_development.cer`. Double click the
+ * 4. Download the file and name it `aps_development.cer`. Double click the
  *    file to install it in Keychain Access.
  *
  * 5. Find the certificate in Keychain Access. In Keychain Access the
  *    certificate should have a child private key. Right click on the private
- *    key and export it as a `.p12` file. Name it `apns_development.p12`.
+ *    key and export it as a `.p12` file. Name it `aps_development.p12`.
  *
  * 6. Create a certificate `.pem` file with:
- *    `openssl x509 -in apns_development.cer -out apns_development_certificate.pem`
+ *    `openssl x509 -in aps_development.cer -out apns_development_certificate.pem`
  *
  * 7. Create a key `.pem` file with:
- *    `openssl pkcs12 -in apns_development.p12 -out apns_development_certificate_private_key.pem -nocerts -nodes -legacy`
+ *    `openssl pkcs12 -in aps_development.p12 -out apns_development_certificate_private_key.pem -nocerts -nodes -legacy`
  *
  * [1]: https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns
  * [2]: https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns
@@ -342,7 +342,10 @@ export class ApnsConnection {
                     ? String(Math.floor(expirationTime.getTime() / 1000))
                     : undefined,
                 "apns-priority": String(priority),
-                "apns-topic": "inc.alpine.mobile.app",
+                "apns-topic":
+                    process.env.NODE_ENV === "production"
+                        ? "inc.alpine.mobile.app"
+                        : "dev.cyberworlds.mobile.app",
                 "apns-collapse-id": collapseId,
             };
 

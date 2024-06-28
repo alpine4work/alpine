@@ -193,7 +193,12 @@ apple_bundle_version(
 ios_application(
     name = "app",
     app_icons = ["//native/mobile/ios/Resources/Assets.xcassets:AppIcon.appiconset"],
-    bundle_id = "inc.alpine.mobile.app",
+    bundle_id = select({
+        ":local_provisioning_profile_and_production_run_environment": "inc.alpine.mobile.app",
+        # Different `bundle_id` in development so we can have a development version and
+        # production version installed on a device at the same time.
+        "//conditions:default": "dev.cyberworlds.mobile.app",
+    }),
     bundle_name = "Alpine",
     entitlements = select({
         ":local_provisioning_profile_and_production_run_environment": "Resources/Entitlements/ProductionEntitlements.entitlements",
