@@ -43,7 +43,7 @@ const buttonClassName = sprinkles({
     paddingRight: "0.5",
     paddingY: buttonPaddingY,
     gap: "1",
-    borderRadius: "base",
+    borderRadius: "1",
     fontSize: buttonFontSize,
 });
 

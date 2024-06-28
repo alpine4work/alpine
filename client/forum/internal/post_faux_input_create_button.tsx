@@ -55,7 +55,7 @@ export function PostFauxInputCreateButton({
                 overflow="hidden"
                 padding="2.5"
                 boxShadow="elevation-5-with-grey-10-border"
-                borderRadius="md"
+                borderRadius="1.5"
                 display="flex"
                 alignItems="center"
                 // This is meant to be a fake text input so show text cursor to sell the
@@ -89,7 +89,7 @@ export function PostFauxInputCreateButton({
                     minWidth="16"
                     backgroundColor="theme-40-const"
                     color="grey-0-const"
-                    borderRadius="base"
+                    borderRadius="1"
                     display="flex"
                     justifyContent="center"
                     alignItems="center"

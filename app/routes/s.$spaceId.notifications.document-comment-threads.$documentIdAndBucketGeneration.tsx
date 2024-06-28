@@ -13,7 +13,11 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    getInitialAppRenderIsMobile,
+    getIsMobileWithoutListening,
+    useIsMobile,
+} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -92,7 +96,12 @@ export async function loader({params, request, context: unauthenticatedContext}:
                 documentId,
                 bucketGeneration,
                 commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-                commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
+                commentThreadCountAgainstLimit:
+                    documentCommentThreadCountAgainstLimit[
+                        getInitialAppRenderIsMobile(context.loader.getClientInfo())
+                            ? "mobile"
+                            : "desktop"
+                    ],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {
@@ -240,11 +249,18 @@ function DocumentNewCommentThreadsRouteInner({
 
         const remPx = getRemPxWithoutListening();
         const virtualizationWindowHeightPx = getVirtualizationWindowHeight(listView.getHeight());
-        const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, remPx);
+        const messageViewMinHeightPx = convertRemLengthToPx(
+            messageViewMinHeight[isMobile ? "mobile" : "desktop"],
+            remPx,
+        );
 
         const loadCommentCount =
             Math.max(20, Math.ceil(virtualizationWindowHeightPx / messageViewMinHeightPx)) -
-            Math.floor(documentCommentThreadCountAgainstLimit);
+            Math.floor(
+                documentCommentThreadCountAgainstLimit[
+                    getIsMobileWithoutListening() ? "mobile" : "desktop"
+                ],
+            );
 
         if (
             initialCommentThreadResult.comments.length <

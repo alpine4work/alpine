@@ -441,7 +441,7 @@ function TaskCollectionComboBoxListBoxOption({
                 className={sprinkles({
                     width: "full",
                     padding: "1.5",
-                    borderRadius: "base",
+                    borderRadius: "1",
                     color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}

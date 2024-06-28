@@ -215,7 +215,7 @@ function TaskQueryViewCustomizationBar(
                         <Box
                             className={greyElevated2ClassName}
                             overflow="hidden"
-                            borderRadius="md"
+                            borderRadius="1.5"
                             backgroundColor="grey-0"
                             boxShadow="elevation-20"
                         >

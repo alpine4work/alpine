@@ -76,7 +76,7 @@ function TaskRowCollectionsCellOverlay(
                             : undefined
                     }
                     position="relative"
-                    borderRadius="sm"
+                    borderRadius="0.5"
                     boxShadow="elevation-20"
                 >
                     <Box
@@ -99,7 +99,7 @@ function TaskRowCollectionsCellOverlay(
                         position="relative"
                         backgroundColor="grey-0"
                         overflowY="scroll"
-                        borderRadius="sm"
+                        borderRadius="0.5"
                         style={{
                             width: taskRowViewCollectionsColumnCellOverlayWidth,
                             // We add an extra 1px of padding to the top to render on top of the row's

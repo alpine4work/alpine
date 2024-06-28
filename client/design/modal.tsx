@@ -33,7 +33,7 @@ export function Modal({
     maxWidth = defaultModalMaxWidth,
     height = "auto",
     maxHeight = "full",
-    borderRadius = "md",
+    borderRadius = "1.5",
     withoutOpenAnimation,
     withoutCloseAnimation,
     withoutCloseButton,
@@ -86,7 +86,7 @@ export function Modal({
      */
     maxHeight?: Spacing | RemLength | "full";
 
-    borderRadius?: "md" | "lg";
+    borderRadius?: "1.5" | "2";
 
     /**
      * The modal will never animate when opening if set to true. Otherwise we fade

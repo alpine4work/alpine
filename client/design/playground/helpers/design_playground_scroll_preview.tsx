@@ -55,7 +55,7 @@ export function DesignPlaygroundScrollPreview({
             width="full"
             height="128"
             border="grey-10"
-            borderRadius="base"
+            borderRadius="1"
             overflow="scroll"
         >
             <Box

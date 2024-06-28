@@ -587,7 +587,7 @@ function TaskRowViewDragOverlay({
                         minWidth="48"
                         maxWidth={{desktop: "128", mobile: "64"}}
                         paddingX="3"
-                        borderRadius="md"
+                        borderRadius="1.5"
                         boxShadow="elevation-30"
                         backgroundColor="grey-0"
                         position="relative"

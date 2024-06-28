@@ -49,7 +49,7 @@ export function TaskAssigneeInputListBox({
                 greyElevated2ClassName,
                 sprinkles({
                     position: "relative",
-                    borderRadius: "md",
+                    borderRadius: "1.5",
                     padding: "1",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
@@ -128,7 +128,7 @@ function TaskAssigneeInputListBoxOption({
                 className={sprinkles({
                     width: "full",
                     padding: "1.5",
-                    borderRadius: "base",
+                    borderRadius: "1",
                     color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}

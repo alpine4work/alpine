@@ -74,7 +74,6 @@ import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensi
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {isMessageContentSchema} from "~/shared/content/is_message_content_schema.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -92,14 +91,15 @@ import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/share
 
 const {
     docClassName,
-    messageDocClassName,
     emptyBodyClassName,
     emptyTitleClassName,
     linkClassName,
     commentClassName,
     phantomSelectionClassName,
     emojiClassName,
-    withMobileLayoutClassName,
+    withMobileLayoutDocClassName,
+    compactDocClassName,
+    extraCompactDocClassName,
 } = contentSchemaStyles;
 
 const {
@@ -234,6 +234,18 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * `withMobileLayout` is true on desktop.
      */
     withMobileLayout: boolean;
+
+    /**
+     * Should this content be rendered with our compact rendering? Compact
+     * rendering reduces some margins so content can be closer together.
+     */
+    isCompact?: boolean;
+
+    /**
+     * Should this content be rendered with our extra compact render? Extra compact
+     * rendering implies `isCompact` and decreases the paragraph font size.
+     */
+    isExtraCompact?: boolean;
 
     /**
      * The current state of our content editor.
@@ -434,6 +446,8 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
 
 function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     withMobileLayout,
+    isCompact,
+    isExtraCompact,
     state,
     placeholder,
     className,
@@ -496,6 +510,8 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
         <div className={classNames(containerClassName, customContainerClassName)}>
             <ContentView
                 withMobileLayout={withMobileLayout}
+                isCompact={isCompact}
+                isExtraCompact={isExtraCompact}
                 content={state.getContent()}
                 placeholder={placeholder}
                 className={className}
@@ -528,6 +544,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         className,
         containerClassName: customContainerClassName,
         withMobileLayout: withMobileLayoutProp = false,
+        isCompact = false,
+        isExtraCompact = false,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         "aria-label": ariaLabel,
@@ -1245,8 +1263,9 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const classList = classNames(
             docClassName,
-            withMobileLayout ? withMobileLayoutClassName : undefined,
-            isMessageContentSchema(view.state.doc.type.schema) ? messageDocClassName : undefined,
+            withMobileLayout ? withMobileLayoutDocClassName : undefined,
+            isCompact || isExtraCompact ? compactDocClassName : undefined,
+            isExtraCompact ? extraCompactDocClassName : undefined,
             className,
         ).split(" ");
         viewElement.classList.add(...classList);
@@ -1254,7 +1273,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             viewElement.classList.remove(...classList);
         };
-    }, [className, withMobileLayout]);
+    }, [className, isCompact, isExtraCompact, withMobileLayout]);
 
     // Adds the `emptyTitleClassName` class if the editor document is empty and
     // removes the class when the editor document is not empty.

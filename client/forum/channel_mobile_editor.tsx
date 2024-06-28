@@ -132,7 +132,7 @@ export function ChannelMobileEditor({
             );
 
             const paragraphLineHeight = convertRemLengthToPx(
-                contentSchemaStyles.paragraphLineHeight,
+                contentSchemaStyles.paragraphFontSize.lineHeight,
                 getRemPxWithoutListening(),
             );
 
@@ -188,10 +188,11 @@ export function ChannelMobileEditor({
                             Description
                         </label>
                         <FocusRing offset="border" isVisibleWhenFocusWithin>
-                            <Box border="grey-20" borderRadius="base">
+                            <Box border="grey-20" borderRadius="1">
                                 <ContentEditor
                                     ref={descriptionEditorRef}
                                     aria-labelledby={descriptionLabelId}
+                                    isCompact={true}
                                     withMobileLayout={true}
                                     state={descriptionState}
                                     onChange={(state, transaction) => {

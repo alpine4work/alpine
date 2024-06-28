@@ -519,7 +519,7 @@ export const Menu = forwardRef(function Menu(
                     maxHeight: maxHeight,
                     overflowX: "hidden",
                     overflowY: "auto",
-                    borderRadius: "md",
+                    borderRadius: "1.5",
                     padding: "1",
                     backgroundColor: "grey-0",
                     // On mobile, increase the distance of a menu from the underlying content.
@@ -1004,7 +1004,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 height={height}
                 paddingX="2"
                 paddingY={itemPaddingY}
-                borderRadius="base"
+                borderRadius="1"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
                 // seems silly to call attention to the destructive action with color.
                 color={isVisuallyDisabled ? "grey-40" : "grey-100"}
@@ -1198,7 +1198,7 @@ function MenuCustomItem({
                           tabIndex: -1,
                       }
                     : {})}
-                borderRadius="base"
+                borderRadius="1"
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
@@ -1623,7 +1623,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                     height={height}
                     paddingX="2"
                     paddingY={itemPaddingY}
-                    borderRadius="base"
+                    borderRadius="1"
                     color="grey-100"
                     backgroundColor={
                         isPressed || isHoverTrianglePressed

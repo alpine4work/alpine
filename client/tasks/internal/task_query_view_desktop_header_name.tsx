@@ -135,7 +135,7 @@ function TaskQueryViewDesktopHeaderNameEditor({
                         onChange={event => setName(event.currentTarget.value)}
                         className={sprinkles({
                             paddingY: "1",
-                            borderRadius: "base",
+                            borderRadius: "1",
                         })}
                         style={{
                             boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,

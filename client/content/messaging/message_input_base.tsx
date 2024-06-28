@@ -503,6 +503,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     // slow animations in an iOS emulator and open the keyboard.
     const bottomBarBackgroundSlopBottom = spacing["96"];
 
+    const avatarPaddingY = messageInputAccountAvatarPaddingY[isMobile ? "mobile" : "desktop"];
+
     return (
         <Box
             ref={inputContainerRef}
@@ -775,6 +777,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                     <ContentView
                                                         isInert={true}
                                                         isTruncated={true}
+                                                        isCompact={true}
+                                                        isExtraCompact={isMobile}
                                                         withMobileLayout={withMobileLayout}
                                                         content={replyingToMessage.truncatedContent}
                                                     />
@@ -791,8 +795,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 <Box
                                     width={messageInputAccountAvatarSize}
                                     style={{
-                                        paddingTop: messageInputAccountAvatarPaddingY,
-                                        paddingBottom: messageInputAccountAvatarPaddingY,
+                                        paddingTop: avatarPaddingY,
+                                        paddingBottom: avatarPaddingY,
                                     }}
                                 >
                                     <AccountAvatar
@@ -809,14 +813,18 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 backgroundColor="grey-0"
                                 borderRadius={messageViewBubbleBorderRadius}
                                 style={{
-                                    minHeight: messageViewBubbleMinHeight,
+                                    minHeight:
+                                        messageViewBubbleMinHeight[isMobile ? "mobile" : "desktop"],
                                     boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                                 }}
                             >
                                 <Box
                                     ref={useScrollbar({
-                                        insetTop: borderRadius[messageViewBubbleBorderRadius],
-                                        insetBottom: borderRadius[messageViewBubbleBorderRadius],
+                                        insetY: borderRadius[
+                                            messageViewBubbleBorderRadius[
+                                                isMobile ? "mobile" : "desktop"
+                                            ]
+                                        ],
                                     })}
                                     maxHeight={isMobile || withMobileMaxHeight ? "48" : "96"}
                                     position="relative"
@@ -825,6 +833,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                 >
                                     <ContentEditor
                                         ref={editorRef}
+                                        isCompact={true}
+                                        isExtraCompact={isMobile}
                                         withMobileLayout={withMobileLayout}
                                         state={state}
                                         onChange={(state, transaction) => {
@@ -863,8 +873,8 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                             <Box
                                 width={messageInputAccountAvatarSize}
                                 style={{
-                                    paddingTop: messageInputAccountAvatarPaddingY,
-                                    paddingBottom: messageInputAccountAvatarPaddingY,
+                                    paddingTop: avatarPaddingY,
+                                    paddingBottom: avatarPaddingY,
                                 }}
                             >
                                 <IconButton

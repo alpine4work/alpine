@@ -4,7 +4,7 @@ import {
     desktopTitlePaddingTop,
     mobileLayoutTitlePaddingTop,
     mobilePlatformTitlePaddingTop,
-    withMobileLayoutClassName,
+    withMobileLayoutDocClassName,
 } from "~/shared/styles/internal/content_schema.css.js";
 
 export const blobsClassName = style({
@@ -19,14 +19,14 @@ export const blobsClassName = style({
         [mobilePlatformMediaQuery]: {
             top: `calc(${mobilePlatformTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
             selectors: {
-                [`${withMobileLayoutClassName} &`]: {
+                [`${withMobileLayoutDocClassName} &`]: {
                     top: `calc(${mobilePlatformTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
                 },
             },
         },
     },
     selectors: {
-        [`${withMobileLayoutClassName} &`]: {
+        [`${withMobileLayoutDocClassName} &`]: {
             top: `calc(${mobileLayoutTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
         },
     },

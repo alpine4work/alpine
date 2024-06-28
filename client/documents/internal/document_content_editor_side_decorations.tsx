@@ -131,7 +131,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
             alignItems="center"
             gap="1.5"
             paddingRight="0.5"
-            borderRadius="md"
+            borderRadius="1.5"
             style={{
                 top: markTop,
                 right: `calc(50% + ${contentSchemaStyles.defaultBlockMaxWidth} / 2)`,

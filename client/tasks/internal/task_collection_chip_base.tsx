@@ -15,7 +15,7 @@ export const taskCollectionChipHeight: {desktop: Spacing; mobile: Spacing} = {
     mobile: "7",
 };
 export const taskCollectionChipPaddingY: Spacing = "0.5";
-export const taskCollectionChipBorderRadius = "base";
+export const taskCollectionChipBorderRadius = "1";
 
 const TaskCollectionChipBaseForwardRef = forwardRef(TaskCollectionChipBase);
 export {TaskCollectionChipBaseForwardRef as TaskCollectionChipBase};

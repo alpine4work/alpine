@@ -1008,7 +1008,7 @@ function PostListView(
                                 : item.type === "OptimisticPostComment"
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
-                        minHeight: messageViewMinHeight,
+                        minHeight: messageViewMinHeight[isMobile ? "mobile" : "desktop"],
                         renderAdditionalItemIndexes: !isSingleLayoutWithPinnedCommentInput
                             ? [item.postCommentInputItemIndex]
                             : [],
@@ -1419,7 +1419,7 @@ function PostListView(
                                                     borderLeftWidth: "thick",
                                                     borderBottom: "grey-5",
                                                     borderBottomWidth: "thick",
-                                                    borderBottomLeftRadius: "lg",
+                                                    borderBottomLeftRadius: "2",
                                                 })}
                                                 style={{
                                                     left: `calc(${

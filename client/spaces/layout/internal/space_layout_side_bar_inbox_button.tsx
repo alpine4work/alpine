@@ -196,7 +196,7 @@ export function SpaceLayoutSideBarInboxButton({
                 <Box
                     width={inboxEntryWidth}
                     height={spaceLayoutSideBarInboxOverlayHeight}
-                    borderRadius="md"
+                    borderRadius="1.5"
                     backgroundColor="grey-0"
                     boxShadow="elevation-20"
                     display="flex"

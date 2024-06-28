@@ -11,6 +11,7 @@ import {
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
+    subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
@@ -65,8 +66,6 @@ import {
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
 // Allow changing styles for `MessageContent`.
-
-export const paragraphLineHeight = "1.375rem";
 
 const blockPaddingXSpacing = "2";
 export {blockPaddingXSpacing as blockPaddingX};
@@ -123,18 +122,31 @@ export const docClassName = style({
     fontFeatureSettings: '"liga" 0',
 });
 
-export const messageDocClassName = style({
+export const withMobileLayoutDocClassName = style({});
+
+export const compactDocClassName = style({
     vars: {
-        // Slightly smaller paragraph margins in messages while completely
-        // disappearing. This makes bullet points in a message bubble look better.
+        // Slightly smaller paragraph margins in messages. This makes bullet points in
+        // a message bubble look better.
         [paragraphMarginVar]: spacing["1.5"],
         // Pull in list items so they're not so far from the edge of the message
         // bubble.
-        [listItemOffsetVar]: `-${spacing["2.5"]}`,
+        [listItemOffsetVar]: `-${spacing["2"]}`,
     },
 });
 
-export const withMobileLayoutClassName = style({});
+export const extraCompactDocClassName = style({
+    selectors: {
+        // Double selector so we override `compactDocClassName`.
+        "&&": {
+            vars: {
+                // Slightly smaller paragraph margins in messages. This makes bullet points in
+                // a message bubble look better.
+                [paragraphMarginVar]: spacing["1"],
+            },
+        },
+    },
+});
 
 const blockStyles = {
     width: "100%",
@@ -151,7 +163,18 @@ export const paragraphFontSize: {
     lineHeight: RemLength;
 } = {
     ...fontSizes["100"],
-    lineHeight: paragraphLineHeight,
+    lineHeight: "1.375rem",
+};
+
+export const extraCompactParagraphFontSize: {
+    fontSize: string;
+    letterSpacing: string;
+    lineHeight: RemLength;
+} = {
+    ...fontSizes["100-extra-compact"],
+    // Extra compact font size has less relative line height compared to regular
+    // font size.
+    lineHeight: "1.175rem",
 };
 
 export const paragraphClassName = style({
@@ -165,6 +188,12 @@ export const paragraphClassName = style({
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    selectors: {
+        [`${extraCompactDocClassName} &`]: {
+            ...extraCompactParagraphFontSize,
+            minHeight: extraCompactParagraphFontSize.lineHeight,
+        },
+    },
 });
 
 // Header sizes are smaller on mobile than desktop because mobile has less
@@ -201,7 +230,7 @@ const headingMarginVars = createGlobalTheme(":root", {
     heading4TopMargin: spacing[desktopHeading4TopMargin],
 });
 
-globalStyle(withMobileLayoutClassName, {
+globalStyle(withMobileLayoutDocClassName, {
     vars: assignVars(headingMarginVars, {
         heading1TopMargin: spacing[mobileHeading1TopMargin],
         heading2TopMargin: spacing[mobileHeading2TopMargin],
@@ -253,7 +282,7 @@ export const titleClassName = style({
             paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
             minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
             selectors: {
-                [`${withMobileLayoutClassName} &`]: {
+                [`${withMobileLayoutDocClassName} &`]: {
                     ...mobileTitleFontSize,
                     paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
                     minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
@@ -262,7 +291,7 @@ export const titleClassName = style({
         },
     },
     selectors: {
-        [`${withMobileLayoutClassName} &`]: {
+        [`${withMobileLayoutDocClassName} &`]: {
             ...mobileTitleFontSize,
             paddingTop: `calc(${mobileLayoutTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
             minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileLayoutTitlePaddingTop})`,
@@ -282,7 +311,7 @@ export const headingLevel1ClassName = style({
         [mobilePlatformMediaQuery]: {...mobileHeadingLevel1FontSize},
     },
     selectors: {
-        [`${withMobileLayoutClassName} &`]: {...mobileHeadingLevel1FontSize},
+        [`${withMobileLayoutDocClassName} &`]: {...mobileHeadingLevel1FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
 });
@@ -299,7 +328,7 @@ export const headingLevel2ClassName = style({
         [mobilePlatformMediaQuery]: {...mobileHeadingLevel2FontSize},
     },
     selectors: {
-        [`${withMobileLayoutClassName} &`]: {...mobileHeadingLevel2FontSize},
+        [`${withMobileLayoutDocClassName} &`]: {...mobileHeadingLevel2FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
@@ -317,7 +346,7 @@ export const headingLevel3ClassName = style({
         [mobilePlatformMediaQuery]: {...mobileHeadingLevel3FontSize},
     },
     selectors: {
-        [`${withMobileLayoutClassName} &`]: {...mobileHeadingLevel3FontSize},
+        [`${withMobileLayoutDocClassName} &`]: {...mobileHeadingLevel3FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel2ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
@@ -420,7 +449,17 @@ export const listItemClassName = style({
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
 });
 
-export const bulletListItemBulletTop = "0.5rem";
+export const bulletListItemBulletTop: RemLength = `${
+    parseRemLengthNumber(
+        subtractRemLengths(paragraphFontSize.lineHeight, bulletListItemBulletSize),
+    ) / 2
+}rem`;
+
+const extraCompactBulletListItemBulletTop: RemLength = `${
+    parseRemLengthNumber(
+        subtractRemLengths(extraCompactParagraphFontSize.lineHeight, bulletListItemBulletSize),
+    ) / 2
+}rem`;
 
 export const bulletListItemBulletLeft = `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
     parseRemLengthNumber(listItemIndentation) / 2 -
@@ -440,6 +479,9 @@ export const bulletListItemClassName = style({
             top: bulletListItemBulletTop,
             left: bulletListItemBulletLeft,
         },
+        [`${extraCompactDocClassName} &::before`]: {
+            top: extraCompactBulletListItemBulletTop,
+        },
     },
 });
 
@@ -455,6 +497,9 @@ export const orderedListItemClassName = style({
             transform: "translateX(-100%)",
             ...paragraphFontSize,
             fontVariantNumeric: "tabular-nums",
+        },
+        [`${extraCompactDocClassName} &::before`]: {
+            ...extraCompactParagraphFontSize,
         },
     },
 });
@@ -474,7 +519,7 @@ export const checkListItemContentClassName = style({});
 export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
     top: `${
-        (parseRemLengthNumber(paragraphLineHeight) -
+        (parseRemLengthNumber(paragraphFontSize.lineHeight) -
             parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
         2
     }rem`,
@@ -492,7 +537,7 @@ export const checkListItemCheckboxContainerClassName = style({
     "@media": {
         [mobilePlatformMediaQuery]: {
             top: `${
-                (parseRemLengthNumber(paragraphLineHeight) -
+                (parseRemLengthNumber(paragraphFontSize.lineHeight) -
                     parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
                 2
             }rem`,
@@ -502,6 +547,24 @@ export const checkListItemCheckboxContainerClassName = style({
                     parseRemLengthNumber(spacing["1"]) * 2) /
                     2
             }rem + ${listItemOffsetVar})`,
+        },
+    },
+    selectors: {
+        [`${extraCompactDocClassName} &`]: {
+            top: `${
+                (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
+                    parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
+                2
+            }rem`,
+            "@media": {
+                [mobilePlatformMediaQuery]: {
+                    top: `${
+                        (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
+                            parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
+                        2
+                    }rem`,
+                },
+            },
         },
     },
 });
@@ -582,7 +645,7 @@ export const dividerClassName = style({
         },
     },
     selectors: {
-        [`${withMobileLayoutClassName} &`]: {
+        [`${withMobileLayoutDocClassName} &`]: {
             marginTop: spacing[mobileHeading1TopMargin],
             marginBottom: spacing[mobileHeading1TopMargin],
         },
@@ -748,7 +811,7 @@ export const commentClassName = style({
 // in a bottom sheet and disables interactivity with the document. Since
 // clicking a comment is a more disruptive state shift in mobile layouts, we
 // find it useful to give a pointer cursor affordance.
-globalStyle(`${withMobileLayoutClassName} ${commentClassName}`, {
+globalStyle(`${withMobileLayoutDocClassName} ${commentClassName}`, {
     cursor: "pointer",
 });
 
@@ -993,7 +1056,7 @@ export const currentAccountMentionClassName = style({
             right: `-${spacing["0.5"]}`,
             backgroundColor: colorSchemeVars["theme-10"],
             opacity: currentAccountMentionBackgroundOpacity,
-            borderRadius: borderRadius["base"],
+            borderRadius: borderRadius["1"],
         },
         [`${darkColorSchemeSelector} &`]: {
             color: colorSchemeVars["theme-80"],

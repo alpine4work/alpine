@@ -146,7 +146,7 @@ export function DocumentCommentThreadPreview({
                 // affordance. It's not clear that the preview is clickable unlike a button.
                 cursor="pointer"
                 boxShadow="elevation-5-with-grey-10-border"
-                borderRadius="md"
+                borderRadius="1.5"
                 overflow="hidden"
                 {...(buttonProps as any)}
             >

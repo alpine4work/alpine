@@ -33,7 +33,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -71,7 +71,10 @@ export const messagingViewMarginBottom = `calc(${messagingViewMarginBottomCalcEx
  * Get the initial number of messages to load.
  */
 export function getInitialLoadMessageCount(clientInfo: ClientInfo) {
-    return getInitialVirtualizedScrollViewRenderedItemCount(clientInfo, messageViewMinHeight);
+    return getInitialVirtualizedScrollViewRenderedItemCount(
+        clientInfo,
+        messageViewMinHeight[getInitialAppRenderIsMobile(clientInfo) ? "mobile" : "desktop"],
+    );
 }
 
 type MessagingViewStateItem<Message extends MessageModel> =
@@ -669,6 +672,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 }
                 default: {
                     return renderMessageListItem({
+                        isMobile,
                         withMobileLayout,
                         messageNoun,
                         messageStartOfSentenceNoun,
@@ -704,6 +708,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
+            isMobile,
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
@@ -801,6 +806,7 @@ export function renderMessageListItem<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 >({
+    isMobile,
     withMobileLayout,
     messageNoun,
     messageStartOfSentenceNoun,
@@ -821,6 +827,7 @@ export function renderMessageListItem<
     paddingX,
     render: customRender,
 }: {
+    isMobile: boolean;
     withMobileLayout: boolean;
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -933,7 +940,7 @@ export function renderMessageListItem<
                         : item.type === "Loaded" || item.type === "Optimistic"
                         ? `Message:${item.messageIndex}`
                         : `UnloadedMessage:${item.messageIndex}`,
-                minHeight: messageViewMinHeight,
+                minHeight: messageViewMinHeight[isMobile ? "mobile" : "desktop"],
                 withManualLayout: true,
                 render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
                     if (!customRender) {
@@ -941,7 +948,8 @@ export function renderMessageListItem<
                             <div
                                 ref={ref}
                                 style={{
-                                    minHeight: messageViewMinHeight,
+                                    minHeight:
+                                        messageViewMinHeight[isMobile ? "mobile" : "desktop"],
                                     ...(shouldRenderWithRelativePositioning
                                         ? {position: "relative"}
                                         : {

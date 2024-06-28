@@ -56,7 +56,7 @@ export function TaskQuerySortsEditor({
                 paddingX="3"
                 display="flex"
                 alignItems="center"
-                borderRadius="base"
+                borderRadius="1"
                 color="grey-40"
                 fontSize="50"
                 style={{boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-5"]}`}}
@@ -404,7 +404,7 @@ function TaskQuerySortsEditorRowBase({
                         : "elevation-30"
                     : undefined
             }
-            borderRadius={withMobileLayout || isDragOverlay ? "base" : undefined}
+            borderRadius={withMobileLayout || isDragOverlay ? "1" : undefined}
             style={{
                 transform: sortableTransform
                     ? `translate(${sortableTransform.x}px, ${sortableTransform.y}px)`
@@ -466,7 +466,7 @@ function TaskQuerySortsEditorRowBase({
                 </button>
                 <IconButton
                     size={withMobileLayout ? "md" : "xs"}
-                    borderRadius={withMobileLayout ? "sm" : undefined}
+                    borderRadius={withMobileLayout ? "0.5" : undefined}
                     description="Delete"
                     withoutTooltip={true}
                     onPress={onDelete}

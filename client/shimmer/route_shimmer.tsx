@@ -241,7 +241,7 @@ function RouteShimmer({
                             flexShrink="0"
                             className={pulseAnimationClassName}
                             height="6"
-                            borderRadius="base"
+                            borderRadius="1"
                             backgroundColor="grey-10"
                         >
                             <Box opacity="0">
@@ -320,14 +320,14 @@ function ChannelRouteShimmer() {
                     height={postFauxInputCreateButtonHeight}
                     padding="2.5"
                     boxShadow="elevation-5-with-grey-10-border"
-                    borderRadius="md"
+                    borderRadius="1.5"
                 >
                     <Box
                         paddingX="2"
                         height="7"
                         minWidth="16"
                         backgroundColor="grey-10"
-                        borderRadius="base"
+                        borderRadius="1"
                         display="flex"
                         justifyContent="center"
                         alignItems="center"
@@ -550,7 +550,7 @@ function MessageInputShimmer() {
                     flexGrow="1"
                     border="grey-10"
                     borderRadius={messageViewBubbleBorderRadius}
-                    style={{height: messageViewBubbleMinHeight}}
+                    style={{height: messageViewBubbleMinHeight[isMobile ? "mobile" : "desktop"]}}
                 />
                 <Box
                     className={pulseAnimationClassName}
@@ -754,7 +754,7 @@ function DocumentCommentThreadRouteShimmer() {
                             className={pulseAnimationClassName}
                             width="full"
                             height={documentCommentThreadPreviewHeight}
-                            borderRadius="md"
+                            borderRadius="1.5"
                             border="grey-10"
                         />
                     </Box>
@@ -890,7 +890,7 @@ function MoreRouteShimmer() {
                             width="16"
                             height="16"
                             backgroundColor="grey-10"
-                            borderRadius="base"
+                            borderRadius="1"
                         />
                         <TextShimmer fontSize="100" width="14" />
                         <Spacer space="0.5" />
@@ -982,7 +982,7 @@ function MoreSwitchSpaceSettingsRowShimmer({
                     width="8"
                     height="8"
                     backgroundColor="grey-10"
-                    borderRadius="base"
+                    borderRadius="1"
                 />
             </Box>
             <TextShimmer fontSize="100" width="32" ragRight={ragRight} />
@@ -1468,7 +1468,7 @@ function TaskQueryRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) 
                             width="full"
                             height={taskQueryViewCustomizationMobileSectionOptionHeight}
                             border="grey-5"
-                            borderRadius="base"
+                            borderRadius="1"
                         />
                         <Box height={taskQueryViewCustomizationMobileSectionGap} />
                         <Box
@@ -1487,7 +1487,7 @@ function TaskQueryRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) 
                             width="full"
                             height={taskQueryViewCustomizationMobileSectionOptionHeight}
                             border="grey-5"
-                            borderRadius="base"
+                            borderRadius="1"
                         />
                     </Box>
                 ) : (
@@ -1556,7 +1556,7 @@ function TaskNotepadRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}
                             flexShrink="0"
                             maxWidth={taskCardViewMaxWidth}
                             border="grey-5"
-                            borderRadius="lg"
+                            borderRadius="2"
                             style={{
                                 width: cardWidthStyle,
                                 height: taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
@@ -1566,7 +1566,7 @@ function TaskNotepadRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}
                             flexShrink="0"
                             maxWidth={taskCardViewMaxWidth}
                             border="grey-5"
-                            borderRadius="lg"
+                            borderRadius="2"
                             style={{
                                 width: cardWidthStyle,
                                 height: taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
@@ -1576,7 +1576,7 @@ function TaskNotepadRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}
                             flexShrink="0"
                             maxWidth={taskCardViewMaxWidth}
                             border="grey-5"
-                            borderRadius="lg"
+                            borderRadius="2"
                             style={{
                                 width: cardWidthStyle,
                                 height: taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,

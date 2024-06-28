@@ -226,7 +226,7 @@ function ContentEditorMobileKeyboardSubstitute(
             left="0"
             right="0"
             backgroundColor="grey-0"
-            borderTopRadius="xl"
+            borderTopRadius="3"
             boxShadow="elevation-40-from-bottom"
             overflow="hidden"
             style={{
@@ -619,7 +619,7 @@ function ContentEditorMobileKeyboardSubstituteButton({
                 display="flex"
                 alignItems="center"
                 gap="2.5"
-                borderRadius="md"
+                borderRadius="1.5"
                 color={isPressed || isActive ? "grey-100" : "grey-70"}
                 backgroundColor={
                     isPressedAndActive
@@ -740,7 +740,7 @@ function ContentEditorMobileKeyboardSubstituteHighlightSelectorButton({
             {...pressProps}
             flexGrow="1"
             backgroundColor={highlightColor ? colorByHighlightColor[highlightColor] : undefined}
-            borderRadius="lg"
+            borderRadius="2"
             position="relative"
             zIndex="0"
             overflow="hidden"

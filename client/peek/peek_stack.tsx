@@ -947,7 +947,7 @@ function PeekStackOverlay({
     const renderPopClickOverlay = (offset: number) => (
         <Box
             position="absolute"
-            borderTopRightRadius="md"
+            borderTopRightRadius="1.5"
             style={{
                 height: peekHeight,
                 width: peekUnderlayOffset,
@@ -1252,7 +1252,7 @@ function PeekStackOverlay({
                     ref={overlayRef}
                     data-testid="PeekStackOverlay"
                     overflow="hidden"
-                    borderTopRadius="md"
+                    borderTopRadius="1.5"
                     boxShadow={index === 0 ? "elevation-40" : "elevation-30"}
                     backgroundColor="grey-0"
                     className={greyElevated1ClassName}

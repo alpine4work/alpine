@@ -1,5 +1,6 @@
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MessageList} from "~/client/messaging/message_list.js";
+import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -62,7 +63,10 @@ export function tryLoadingMessages<Message extends MessageModel>({
 
     const remPx = getRemPxWithoutListening();
     const virtualizationWindowHeightPx = getVirtualizationWindowHeight(viewHeight);
-    const messageViewMinHeightPx = convertRemLengthToPx(messageViewMinHeight, remPx);
+    const messageViewMinHeightPx = convertRemLengthToPx(
+        messageViewMinHeight[getIsMobileWithoutListening() ? "mobile" : "desktop"],
+        remPx,
+    );
 
     // Load enough items to fill the virtualization window once. This gives the
     // user some space to scroll and read before we need to load more messages.

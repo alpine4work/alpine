@@ -776,7 +776,7 @@ function ChatAccountPickerListBox({
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
-                    borderRadius: "md",
+                    borderRadius: "1.5",
                     padding: "1",
                     marginX: "2",
                     backgroundColor: "grey-0",
@@ -857,7 +857,7 @@ function ChatAccountPickerListBoxOption({
                     width: "full",
                     paddingX: "1.5",
                     paddingY: "1.5",
-                    borderRadius: "base",
+                    borderRadius: "1",
                     color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}

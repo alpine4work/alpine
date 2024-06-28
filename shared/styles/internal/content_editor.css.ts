@@ -6,7 +6,7 @@ import {
     highlightClassNameByColor,
     linkClassName,
     mentionClassName,
-    withMobileLayoutClassName,
+    withMobileLayoutDocClassName,
 } from "~/shared/styles/internal/content_schema.css.js";
 
 // The CSS for setting `min-height: 100%` here is pretty annoying. We set
@@ -82,9 +82,12 @@ globalStyle(`${shiftKeyOrAltKeyDownClassName} a${linkClassName}`, {
     cursor: "inherit",
 });
 
-globalStyle(`${withMobileLayoutClassName} ${shiftKeyOrAltKeyDownClassName} ${commentClassName}`, {
-    cursor: "inherit",
-});
+globalStyle(
+    `${withMobileLayoutDocClassName} ${shiftKeyOrAltKeyDownClassName} ${commentClassName}`,
+    {
+        cursor: "inherit",
+    },
+);
 
 // TODO(calebmer): I feel like we should have some kind of style here to make
 // it clear where the end of the mention is? Or modify the mention logic so we

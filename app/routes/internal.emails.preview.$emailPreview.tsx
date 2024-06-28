@@ -180,7 +180,7 @@ export default function EmailPreviewPage() {
                         </Box>
                     )}
                     <Box flexGrow="1" />
-                    <Box display="flex" border="grey-10" borderRadius="base" overflow="hidden">
+                    <Box display="flex" border="grey-10" borderRadius="1" overflow="hidden">
                         <ViewSwitcherButton
                             description="Desktop view"
                             isActive={view === "desktop"}

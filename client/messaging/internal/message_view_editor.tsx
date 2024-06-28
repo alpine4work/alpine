@@ -8,6 +8,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
@@ -147,6 +148,8 @@ function MessageContentEditor({
     onCancel: () => void;
     onSave: () => void;
 }) {
+    const isMobile = useIsMobile();
+
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const hasInitiallyMountedRef = useRef(false);
@@ -174,6 +177,8 @@ function MessageContentEditor({
     return (
         <ContentEditor
             ref={editorRef}
+            isCompact={true}
+            isExtraCompact={isMobile}
             withMobileLayout={withMobileLayout}
             state={state}
             onChange={(state, transaction) => {

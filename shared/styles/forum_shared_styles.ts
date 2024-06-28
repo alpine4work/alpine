@@ -105,7 +105,7 @@ export const mobileLayoutPostContentViewNavigationBarSpaceRemIfSingleLayoutWithP
 
 const postContentViewMinHeightWithoutHeaderBase = addRemLengths(
     spacing[postContentViewInnerMarginY],
-    contentSchemaStyles.paragraphLineHeight,
+    contentSchemaStyles.paragraphFontSize.lineHeight,
     spacing[postContentViewInnerMarginY],
     spacing[postContentViewFooterHeight],
 );

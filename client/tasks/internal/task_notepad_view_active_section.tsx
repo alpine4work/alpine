@@ -415,7 +415,7 @@ function TaskNotepadViewActiveSection({
                                     height="full"
                                     maxWidth={taskCardViewMaxWidth}
                                     flexShrink="0"
-                                    borderRadius="lg"
+                                    borderRadius="2"
                                     className={pressOpacityOverlayClassName}
                                     style={{
                                         width: cardWidthStyle,
@@ -621,7 +621,7 @@ function TaskNotepadViewActiveSectionPlaceholderCard({
             flexShrink="0"
             maxWidth={taskCardViewMaxWidth}
             minHeight="full"
-            borderRadius="lg"
+            borderRadius="2"
             style={{
                 width: widthStyle,
                 // Use a box shadow for the border since cards use elevation for their border
@@ -653,7 +653,7 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
             zIndex="-20"
             maxWidth={taskCardViewMaxWidth}
             minHeight="full"
-            borderRadius="lg"
+            borderRadius="2"
             overflow="hidden"
             style={{
                 width: widthStyle,
@@ -691,7 +691,7 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
                     left="0"
                     width="64"
                     height="64"
-                    borderRadius="xl"
+                    borderRadius="3"
                     boxShadow="elevation-20"
                     padding="4"
                     display="flex"
@@ -736,7 +736,7 @@ function TaskNotepadViewActiveSectionCardShimmer({
             flexShrink="0"
             maxWidth={taskCardViewMaxWidth}
             minHeight="full"
-            borderRadius="lg"
+            borderRadius="2"
             backgroundColor="grey-5"
             style={{
                 width: widthStyle,
@@ -793,7 +793,7 @@ function TaskNotepadViewActiveSectionTruncatedExplainerCard({
             flexShrink="0"
             maxWidth={taskCardViewMaxWidth}
             minHeight="full"
-            borderRadius="lg"
+            borderRadius="2"
             padding="4"
             display="flex"
             flexDirection="column"

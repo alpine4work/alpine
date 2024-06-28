@@ -155,9 +155,9 @@ function Button(
 
         /**
          * Amount of border radius to apply to the left of the button. Defaults to
-         * `base`. Only really used to remove border radius.
+         * `1`. Only really used to remove border radius.
          */
-        borderRightRadius?: "base" | "none";
+        borderRightRadius?: "1" | "none";
 
         /**
          * What to set `flexShrink` to. Defaults to 0.
@@ -215,7 +215,7 @@ function Button(
         height = "7",
         iconGap = "1",
         fontSize = "75",
-        borderRightRadius = "base",
+        borderRightRadius = "1",
         flexShrink = "0",
         isTabbable = true,
         isFocusable = true,
@@ -533,7 +533,7 @@ function Button(
                         height: touchSlop.sizeWithSlop,
                         paddingY: touchSlop.slop,
                         marginY: `-${touchSlop.slop}`,
-                        borderRadius: "base",
+                        borderRadius: "1",
                         // If this button is in a `display: flex` element, don't shrink the button based
                         // on other contents.
                         flexShrink,
@@ -564,7 +564,7 @@ function Button(
                         width: fullWidth ? "full" : undefined,
                         paddingX,
                         fontSize,
-                        borderLeftRadius: "base",
+                        borderLeftRadius: "1",
                         borderRightRadius,
                     })}
                     style={{

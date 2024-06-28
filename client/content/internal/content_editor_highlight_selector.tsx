@@ -96,7 +96,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
             className={greyElevated2ClassName}
             color="grey-100"
             backgroundColor="grey-0"
-            borderRadius="md"
+            borderRadius="1.5"
             boxShadow="elevation-20"
             role="toolbar"
             aria-label="Highlight color selector"
@@ -276,7 +276,7 @@ function ContentEditorHighlightSelectorButton({
                     <FocusRing isVisible={isVisible} offset="border">
                         <Box
                             padding="1"
-                            borderRadius="base"
+                            borderRadius="1"
                             backgroundColor={
                                 isPressedAndActive
                                     ? "grey-20"
@@ -293,7 +293,7 @@ function ContentEditorHighlightSelectorButton({
                                 alignItems="center"
                                 width="4"
                                 height="4"
-                                borderRadius="sm"
+                                borderRadius="0.5"
                                 color="grey-100"
                                 backgroundColor={
                                     highlightColor

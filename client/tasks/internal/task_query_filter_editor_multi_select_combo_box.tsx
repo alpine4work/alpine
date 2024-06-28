@@ -85,7 +85,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
                     width="64"
                     maxHeight={withMobileLayout ? "64" : "96"}
                     overflow="hidden"
-                    borderRadius="md"
+                    borderRadius="1.5"
                     backgroundColor="grey-0"
                     boxShadow="elevation-20"
                     display="flex"
@@ -132,7 +132,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
                                     : isHovered || isVisible
                                     ? "grey-5"
                                     : undefined,
-                                borderRadius: "sm",
+                                borderRadius: "0.5",
                             })}
                         >
                             {preview}
@@ -277,7 +277,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                             paddingLeft: "7",
                             paddingRight: shouldShowSearchLoadingIndicator ? "7" : "2.5",
                             backgroundColor: "transparent",
-                            borderTopRadius: "md",
+                            borderTopRadius: "1.5",
                             borderBottomRadius: "none",
                             borderBottom: "grey-10",
                         })}
@@ -463,7 +463,7 @@ function TaskQueryFilterEditorMultiSelectListBoxOption({
                 className={sprinkles({
                     width: "full",
                     padding: "1.5",
-                    borderRadius: "base",
+                    borderRadius: "1",
                     color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                     display: "flex",

@@ -64,7 +64,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
                 ref={optionRef}
                 width="full"
                 padding="1.5"
-                borderRadius="base"
+                borderRadius="1"
                 color={isQuiet ? "grey-100" : "grey-0"}
                 backgroundColor={
                     isQuiet

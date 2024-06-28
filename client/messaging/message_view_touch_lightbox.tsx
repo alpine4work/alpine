@@ -23,6 +23,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_view_menu_created_time.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     addRemLengths,
@@ -94,6 +95,7 @@ export function MessageViewTouchLightbox<
     getMessageUrl: (messageIndex: number) => URL;
     onClose: () => void;
 }) {
+    const isMobile = useIsMobile();
     const {space, currentAccount} = useSpaceContext();
     const rootPortalElement = assertExists(
         useOverlayRootPortalElement(),
@@ -330,6 +332,8 @@ export function MessageViewTouchLightbox<
                         <ContentView
                             isInert={true}
                             isTruncated={true}
+                            isCompact={true}
+                            isExtraCompact={isMobile}
                             withUserSelectNone={true}
                             // Only rendered on mobile layouts.
                             withMobileLayout={true}
@@ -340,7 +344,7 @@ export function MessageViewTouchLightbox<
                 </div>
             </Box>
         );
-    }, [messageStartOfSentenceNoun, messageTextForBigEmojiMessage, parentMessage]);
+    }, [isMobile, messageStartOfSentenceNoun, messageTextForBigEmojiMessage, parentMessage]);
 
     const menuActions: Array<Array<MenuAction>> = [];
 
@@ -552,6 +556,8 @@ export function MessageViewTouchLightbox<
                         >
                             <ContentView
                                 isInert={true}
+                                isCompact={true}
+                                isExtraCompact={isMobile}
                                 withUserSelectNone={true}
                                 className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                                 // Only rendered on mobile layouts.

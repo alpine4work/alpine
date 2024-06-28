@@ -894,7 +894,7 @@ function Tooltip(
                             fontSize="50"
                             color="grey-100"
                             backgroundColor="grey-0"
-                            borderRadius="sm"
+                            borderRadius="0.5"
                             boxShadow="elevation-20"
                             className={classNames(
                                 greyElevated2ClassName,

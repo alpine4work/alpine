@@ -238,6 +238,18 @@ export const fontSizesByPlatform = {
             lineHeight: "1rem",
         },
     },
+    "100-extra-compact": {
+        desktop: {
+            fontSize: 13,
+            letterSpacing: "-0.0032em",
+            lineHeight: "1.25rem",
+        },
+        mobile: {
+            fontSize: 16,
+            letterSpacing: "-0.011em",
+            lineHeight: "1.25rem",
+        },
+    },
     "100": {
         desktop: {
             fontSize: 14,

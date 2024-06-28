@@ -430,7 +430,7 @@ function TaskQueryFilterDateOperationEditorDate({
                     right="0"
                     style={{top: 1, bottom: 1}}
                     backgroundColor="grey-5"
-                    borderRadius="sm"
+                    borderRadius="0.5"
                     pointerEvents="none"
                 />
             )}
@@ -628,7 +628,7 @@ function TaskQueryFilterDateOperationEditorDurationCount({
                     right="0"
                     style={{top: 1, bottom: 1}}
                     backgroundColor="grey-5"
-                    borderRadius="sm"
+                    borderRadius="0.5"
                     pointerEvents="none"
                 />
             )}

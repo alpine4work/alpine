@@ -421,7 +421,7 @@ export function TaskDateInput({
                         className={classNames(
                             greyElevated2ClassName,
                             sprinkles({
-                                borderRadius: "md",
+                                borderRadius: "1.5",
                                 backgroundColor: "grey-0",
                                 boxShadow: "elevation-20",
                             }),

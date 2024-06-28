@@ -5,13 +5,13 @@ export type BorderRadius = keyof typeof borderRadius;
  */
 export const borderRadius = {
     none: "0rem",
-    sm: "0.125rem",
-    base: "0.25rem",
-    md: "0.375rem",
-    lg: "0.5rem",
-    // Half of `spacing["6"]` which is our `<MessageView>` minimum width. We use
-    // this for message view bubbles.
-    xl: "0.75rem",
-    "2xl": "1rem",
+    "0.5": "0.125rem",
+    "1": "0.25rem",
+    "1.5": "0.375rem",
+    "2": "0.5rem",
+    "2.5": "0.625rem",
+    "3": "0.75rem",
+    "3.5": "0.875rem",
+    "4": "1rem",
     full: "9999px",
 } as const;

@@ -113,6 +113,7 @@ function ChannelViewHeaderMobileDescription({
     return (
         <Box paddingY="1">
             <ContentView
+                isCompact={true}
                 // Only rendered in mobile layouts.
                 withMobileLayout={true}
                 content={
@@ -222,7 +223,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
                 <Box
                     id={editorId}
                     paddingY="1"
-                    borderRadius="md"
+                    borderRadius="1.5"
                     style={{
                         // Use box shadow to draw the border so it doesn't add 1px to layout like
                         // `border` CSS would.
@@ -238,6 +239,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
+                        isCompact={true}
                         // Only rendered in mobile layouts.
                         withMobileLayout={true}
                         state={state}

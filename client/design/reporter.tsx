@@ -602,7 +602,7 @@ function ToastView({
             maxWidth="128"
             className={greyElevated2ClassName}
             backgroundColor="grey-0"
-            borderRadius="base"
+            borderRadius="1"
             boxShadow="elevation-30"
             display="flex"
         >

@@ -382,7 +382,7 @@ function OneTimePasswordDigit({isPlaceholder}: {isPlaceholder: boolean}) {
         <Box
             flexGrow="1"
             height="full"
-            borderRadius="base"
+            borderRadius="1"
             border="grey-5"
             borderWidth="thick"
             display="flex"

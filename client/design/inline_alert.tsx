@@ -61,7 +61,7 @@ export function InlineAlert({
             padding="4"
             border={color}
             borderWidth="thick"
-            borderRadius="base"
+            borderRadius="1"
         >
             <Box position="absolute" top="1" right="1">
                 <IconButton

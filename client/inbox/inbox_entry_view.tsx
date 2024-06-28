@@ -553,7 +553,7 @@ export function InboxEntryView({
                         position="absolute"
                         inset="0"
                         zIndex="-10"
-                        borderRadius={marginX !== "0" ? "md" : undefined}
+                        borderRadius={marginX !== "0" ? "1.5" : undefined}
                         backgroundColor={backgroundColor}
                         style={{
                             // Make sure background covers border of the entry below.

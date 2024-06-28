@@ -654,7 +654,7 @@ function TaskGridViewMobileKeyboardToolbarButton({
                             ? "grey-10"
                             : undefined
                     }
-                    borderRadius="md"
+                    borderRadius="1.5"
                     display="flex"
                     justifyContent="center"
                     alignItems="center"

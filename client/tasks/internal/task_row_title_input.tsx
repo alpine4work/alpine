@@ -71,7 +71,7 @@ const taskRowTitleInputSingleLineHeightRem = parseRemLengthNumber(
 
 export const taskRowTitleInputPaddingY: RemLength = `${
     (parseRemLengthNumber(spacing[taskRowViewMinHeight]) -
-        parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight)) /
+        parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight)) /
     2
 }rem`;
 

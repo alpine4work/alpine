@@ -11,7 +11,7 @@ export function TaskCheckbox({isChecked}: {isChecked: boolean}) {
             width="3"
             height="3"
             border={!isChecked ? "grey-20" : undefined}
-            borderRadius="sm"
+            borderRadius="0.5"
             backgroundColor={!isChecked ? "grey-0" : "grey-90"}
             display="flex"
             justifyContent="center"

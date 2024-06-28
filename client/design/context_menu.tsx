@@ -623,7 +623,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                 greyElevated2ClassName,
                 sprinkles({
                     minWidth: menuSizeConstants.base.desktop.width,
-                    borderRadius: "md",
+                    borderRadius: "1.5",
                     padding: "1",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",

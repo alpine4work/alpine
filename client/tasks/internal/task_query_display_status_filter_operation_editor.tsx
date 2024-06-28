@@ -291,7 +291,7 @@ export function TaskQueryDisplayStatusFilterOperationEditor({
                                         : isHovered || isVisible
                                         ? "grey-5"
                                         : undefined,
-                                    borderRadius: "sm",
+                                    borderRadius: "0.5",
                                 })}
                             >
                                 {statuses.length === 0 ? (

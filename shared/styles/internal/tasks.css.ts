@@ -4,7 +4,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
 import {
     defaultParagraphMargin,
-    paragraphLineHeight,
+    paragraphFontSize,
 } from "~/shared/styles/internal/content_schema.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
@@ -174,7 +174,7 @@ export const rowTitleInputMultilineAfterClassName = style({
 });
 
 export const detailNotesContentEditorMinHeight = `${
-    parseRemLengthNumber(paragraphLineHeight) * 2 +
+    parseRemLengthNumber(paragraphFontSize.lineHeight) * 2 +
     parseRemLengthNumber(spacing[defaultParagraphMargin]) * 1
 }rem`;
 

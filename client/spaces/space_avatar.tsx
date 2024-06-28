@@ -4,7 +4,7 @@ import {Box} from "~/client/design/box.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-export const spaceAvatarBorderRadius = "base";
+export const spaceAvatarBorderRadius = "1";
 
 export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
     return (

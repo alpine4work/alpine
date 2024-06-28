@@ -5,6 +5,7 @@ import {flushNavigationBarScrollEvent} from "~/client/design/navigation_bar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
+import {getIsMobileWithoutListening} from "~/client/remix/use_is_mobile.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -131,7 +132,11 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             if (
                 scrollDelta <=
                 newItemsHeight +
-                    convertRemLengthToPx(messageViewMinHeight, getRemPxWithoutListening()) * 4
+                    convertRemLengthToPx(
+                        messageViewMinHeight[getIsMobileWithoutListening() ? "mobile" : "desktop"],
+                        getRemPxWithoutListening(),
+                    ) *
+                        4
             ) {
                 view.setScrollOffset(newScrollOffset);
                 flushNavigationBarScrollEvent(view.getElement());

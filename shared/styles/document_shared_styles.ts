@@ -1,4 +1,5 @@
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
     messageInputMinHeight,
     messageViewMinHeight,
@@ -23,7 +24,10 @@ export const documentCommentThreadHeaderMinHeight = addRemLengths(
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
 );
 
-export const documentCommentThreadCountAgainstLimit =
-    parseRemLengthNumber(
-        addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight),
-    ) / parseRemLengthNumber(messageViewMinHeight);
+export const documentCommentThreadCountAgainstLimit = mapObjectValues(
+    messageViewMinHeight,
+    messageViewMinHeight =>
+        parseRemLengthNumber(
+            addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight),
+        ) / parseRemLengthNumber(messageViewMinHeight),
+);

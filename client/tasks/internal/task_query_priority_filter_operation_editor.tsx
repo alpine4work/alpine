@@ -235,7 +235,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                                         zIndex: "20",
                                         right: "0",
                                         width: "2",
-                                        borderRightRadius: "sm",
+                                        borderRightRadius: "0.5",
                                     })}
                                     style={{
                                         top: 1,
@@ -266,7 +266,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                                         : isHovered || isVisible
                                         ? "grey-5"
                                         : undefined,
-                                    borderRadius: "sm",
+                                    borderRadius: "0.5",
                                 })}
                             >
                                 {priorities.length === 0 ? (

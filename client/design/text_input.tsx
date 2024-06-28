@@ -115,7 +115,7 @@ export const textInputClassName = sprinkles({
     border: "grey-20",
     backgroundColor: "grey-0",
     color: "grey-100",
-    borderRadius: "base",
+    borderRadius: "1",
 });
 
 /**
@@ -197,7 +197,7 @@ function TextInput(
                     ref={useMergedRefs(ref, inputRef)}
                     className={sprinkles({
                         border: "grey-20",
-                        borderRadius: "base",
+                        borderRadius: "1",
                         display: "block",
                         width: "full",
                         height: ({"75": "7", "100": "9", "200": "10"} as const)[fontSize],

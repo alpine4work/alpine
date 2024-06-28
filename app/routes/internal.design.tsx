@@ -23,56 +23,56 @@ export default function DesignPlaygroundRoute() {
                     display="flex"
                     justifyContent="center"
                     gap="12"
-                    borderRadius="base"
+                    borderRadius="1"
                     backgroundColor="grey-5"
                 >
                     <Box
                         backgroundColor="grey-0"
                         width="32"
                         height="32"
-                        borderRadius="base"
+                        borderRadius="1"
                         boxShadow="elevation-5"
                     />
                     <Box
                         backgroundColor="grey-0"
                         width="32"
                         height="32"
-                        borderRadius="base"
+                        borderRadius="1"
                         boxShadow="elevation-10"
                     />
                     <Box
                         backgroundColor="grey-0"
                         width="32"
                         height="32"
-                        borderRadius="base"
+                        borderRadius="1"
                         boxShadow="elevation-20"
                     />
                     <Box
                         backgroundColor="grey-0"
                         width="32"
                         height="32"
-                        borderRadius="base"
+                        borderRadius="1"
                         boxShadow="elevation-30"
                     />
                     <Box
                         backgroundColor="grey-0"
                         width="32"
                         height="32"
-                        borderRadius="base"
+                        borderRadius="1"
                         boxShadow="elevation-40"
                     />
                     <Box
                         backgroundColor="grey-0"
                         width="32"
                         height="32"
-                        borderRadius="base"
+                        borderRadius="1"
                         boxShadow="elevation-50"
                     />
                     <Box
                         backgroundColor="grey-0"
                         width="32"
                         height="32"
-                        borderRadius="base"
+                        borderRadius="1"
                         boxShadow="elevation-60"
                     />
                 </Box>

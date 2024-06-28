@@ -573,7 +573,7 @@ function PostContentViewEditor({
         <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
             <Box
                 id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
-                borderRadius="md"
+                borderRadius="1.5"
                 style={{
                     // Use box shadow to draw the border so it doesn't add 1px to layout like
                     // `border` CSS would.

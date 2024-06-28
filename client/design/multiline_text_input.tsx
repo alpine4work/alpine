@@ -73,7 +73,7 @@ export function MultilineTextInput({
                         minHeight: "16",
                         border: "grey-20",
                         backgroundColor: "grey-0",
-                        borderRadius: "base",
+                        borderRadius: "1",
                     })}
                     style={{resize: "none"}}
                     id={id}

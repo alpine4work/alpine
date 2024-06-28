@@ -1366,7 +1366,7 @@ export function DocumentContentEditor({
             const coords = editor.coordsAtPos(editorState.getSelection().from);
 
             const paragraphLineHeight = convertRemLengthToPx(
-                contentSchemaStyles.paragraphLineHeight,
+                contentSchemaStyles.paragraphFontSize.lineHeight,
                 getRemPxWithoutListening(),
             );
 
@@ -1717,7 +1717,7 @@ export function DocumentContentEditor({
                                 height="full"
                                 borderLeft={!withMobileLayout ? "grey-10" : undefined}
                                 backgroundColor="grey-0"
-                                borderTopRadius={!withMobileLayout ? undefined : "xl"}
+                                borderTopRadius={!withMobileLayout ? undefined : "3"}
                                 boxShadow={
                                     !withMobileLayout ? undefined : "elevation-40-from-bottom"
                                 }
@@ -1807,7 +1807,10 @@ export function DocumentContentEditor({
                                                 // If the user has a mouse, make this feel like a text input.
                                                 cursor="text"
                                                 style={{
-                                                    minHeight: messageViewBubbleMinHeight,
+                                                    minHeight:
+                                                        messageViewBubbleMinHeight[
+                                                            isMobile ? "mobile" : "desktop"
+                                                        ],
                                                     boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                                                 }}
                                                 onPointerDown={() => {
@@ -1837,9 +1840,13 @@ export function DocumentContentEditor({
                                                     width={messageInputAccountAvatarSize}
                                                     style={{
                                                         paddingTop:
-                                                            messageInputAccountAvatarPaddingY,
+                                                            messageInputAccountAvatarPaddingY[
+                                                                isMobile ? "mobile" : "desktop"
+                                                            ],
                                                         paddingBottom:
-                                                            messageInputAccountAvatarPaddingY,
+                                                            messageInputAccountAvatarPaddingY[
+                                                                isMobile ? "mobile" : "desktop"
+                                                            ],
                                                     }}
                                                 >
                                                     <Box

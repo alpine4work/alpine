@@ -366,7 +366,7 @@ function TaskQueryFilterEditorBase({
             height={withMobileLayout ? "9" : desktopTaskQueryFilterEditorHeight}
             display="flex"
             alignItems="center"
-            borderRadius="base"
+            borderRadius="1"
             border="grey-10"
         >
             <Box
@@ -391,7 +391,7 @@ function TaskQueryFilterEditorBase({
                     size={withMobileLayout ? "md" : "xs"}
                     description="Remove"
                     withoutTooltip
-                    borderRadius="sm"
+                    borderRadius="0.5"
                     onPress={onFilterRemove}
                 >
                     <X />

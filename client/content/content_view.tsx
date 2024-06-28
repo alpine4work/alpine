@@ -16,7 +16,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {isMessageContentSchema} from "~/shared/content/is_message_content_schema.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -28,14 +27,15 @@ import {contentSchemaStyles, contentViewStyles} from "~/shared/styles/styles.js"
 
 const {
     docClassName,
-    messageDocClassName,
     linkClassName,
     linkPressedClassName,
     emptyTitleClassName,
     emptyBodyClassName,
     paragraphClassName,
     emojiClassName,
-    withMobileLayoutClassName,
+    withMobileLayoutDocClassName,
+    compactDocClassName,
+    extraCompactDocClassName,
 } = contentSchemaStyles;
 
 /**
@@ -52,6 +52,8 @@ export function ContentView({
     "aria-labelledby": ariaLabelledBy,
     isInert,
     isTruncated,
+    isCompact,
+    isExtraCompact,
     shouldHighlightComment,
     withUserSelectNone,
     onSeeMoreContent,
@@ -102,6 +104,18 @@ export function ContentView({
      * text overflows?
      */
     isTruncated?: boolean;
+
+    /**
+     * Should this content be rendered with our compact rendering? Compact
+     * rendering reduces some margins so content can be closer together.
+     */
+    isCompact?: boolean;
+
+    /**
+     * Should this content be rendered with our extra compact render? Extra compact
+     * rendering implies `isCompact` and decreases the paragraph font size.
+     */
+    isExtraCompact?: boolean;
 
     /**
      * Should we highlight the provided comment thread? By default the content view
@@ -554,10 +568,9 @@ export function ContentView({
                 ref={ref}
                 className={classNames(
                     docClassName,
-                    withMobileLayout ? withMobileLayoutClassName : undefined,
-                    isMessageContentSchema(content.doc.type.schema)
-                        ? messageDocClassName
-                        : undefined,
+                    withMobileLayout ? withMobileLayoutDocClassName : undefined,
+                    isCompact || isExtraCompact ? compactDocClassName : undefined,
+                    isExtraCompact ? extraCompactDocClassName : undefined,
                     className,
                     isTitleEmpty && emptyTitleClassName,
                     isBodyEmpty && emptyBodyClassName,

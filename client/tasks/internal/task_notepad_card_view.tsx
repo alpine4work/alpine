@@ -194,7 +194,7 @@ function TaskNotepadCardView({
                     overflow="hidden"
                     backgroundColor="grey-0"
                     boxShadow="elevation-30-with-grey-10-border"
-                    borderRadius="lg"
+                    borderRadius="2"
                     pointerEvents="none"
                     // On mobile since there are so few active cards onscreen at a time, we make the drag overlay
                     opacity={isMobile ? "80" : undefined}
@@ -414,7 +414,7 @@ function TaskNotepadCardView({
                         overflow="hidden"
                         backgroundColor="grey-0"
                         boxShadow="elevation-5-with-grey-10-border"
-                        borderRadius="lg"
+                        borderRadius="2"
                         opacity={isDragging ? "0" : undefined}
                         pointerEvents={isDragging ? "none" : undefined}
                         style={{
@@ -440,7 +440,7 @@ function TaskNotepadCardView({
                                     inset: 3,
                                     // Nested border radius calculated with:
                                     // https://www.30secondsofcode.org/css/s/nested-border-radius/
-                                    borderRadius: `calc(${borderRadius.lg} - 3px)`,
+                                    borderRadius: `calc(${borderRadius["2"]} - 3px)`,
                                 }}
                             />
                         )}

@@ -896,7 +896,7 @@ function TaskQueryViewInstructionalPlaceholder({
                         paddingX="2"
                         gap="2"
                         border="grey-10"
-                        borderRadius="base"
+                        borderRadius="1"
                     >
                         <Box>Creator</Box>
                         <Box color="grey-60">is</Box>
@@ -945,7 +945,7 @@ function TaskQueryViewInstructionalPlaceholder({
                         paddingX="2"
                         gap="2"
                         border="grey-10"
-                        borderRadius="base"
+                        borderRadius="1"
                     >
                         <Box>Assignee</Box>
                         <Box color="grey-60">is</Box>
@@ -994,7 +994,7 @@ function TaskQueryViewInstructionalPlaceholder({
                         paddingX="2"
                         gap="2"
                         border="grey-10"
-                        borderRadius="base"
+                        borderRadius="1"
                     >
                         <Box>Collections</Box>
                         <Box color="grey-60">has</Box>

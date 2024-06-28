@@ -437,7 +437,7 @@ function PostCreatorChannelSelectorInput(
                             height: "full",
                             fontSize: "75",
                             backgroundColor: "transparent",
-                            borderRadius: "base",
+                            borderRadius: "1",
                             // Typically text input borders are `grey-20` but I felt like that was too heavy
                             // for this input rendered inline with the post header.
                             border: "grey-10",
@@ -560,7 +560,7 @@ function PostCreatorChannelSelectorListBox({
                 greyElevated2ClassName,
                 sprinkles({
                     position: "relative",
-                    borderRadius: "md",
+                    borderRadius: "1.5",
                     padding: "1",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
@@ -656,7 +656,7 @@ function PostCreatorChannelSelectorListBoxOption({
                 className={sprinkles({
                     width: "full",
                     padding: "2",
-                    borderRadius: "base",
+                    borderRadius: "1",
                     color: "grey-100",
                     backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                 })}

@@ -18,9 +18,11 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -47,15 +49,15 @@ const contentEditorCommentInputFloaterPaddingY = "2.5";
 
 const contentEditorCommentInputFloaterPaddingYDifferenceRem =
     parseRemLengthNumber(spacing[contentEditorCommentInputFloaterPaddingY]) -
-    parseRemLengthNumber(spacing[messageViewBubblePaddingY]);
+    parseRemLengthNumber(spacing[messageViewBubblePaddingY.desktop]);
 
 const contentEditorCommentInputFloaterMinHeight: RemLength = `${
-    parseRemLengthNumber(messageViewBubbleMinHeight) +
+    parseRemLengthNumber(messageViewBubbleMinHeight.desktop) +
     contentEditorCommentInputFloaterPaddingYDifferenceRem * 2
 }rem`;
 
 const contentEditorCommentInputFloaterAccountAvatarPaddingY: RemLength = `${
-    parseRemLengthNumber(messageInputAccountAvatarPaddingY) +
+    parseRemLengthNumber(messageInputAccountAvatarPaddingY.desktop) +
     contentEditorCommentInputFloaterPaddingYDifferenceRem
 }rem`;
 
@@ -72,6 +74,12 @@ export function ContentEditorCommentInputFloater({
     range: {from: number; to: number};
     onClose: () => void;
 }) {
+    // We use desktop measurements for `contentEditorCommentInputFloaterMinHeight`
+    // and `contentEditorCommentInputFloaterAccountAvatarPaddingY` so assert this
+    // component isn't rendered on mobile.
+    const isMobile = useIsMobile();
+    assert(!isMobile);
+
     const overlayRef = useRef<OverlayRef>(null);
 
     const [isClosing, setIsClosing] = useState(false);
@@ -231,7 +239,9 @@ function ContentEditorCommentInput({
                 borderRadius={messageViewBubbleBorderRadius}
                 boxShadow="elevation-20"
                 className={greyElevated2ClassName}
-                style={{paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY}}
+                style={{
+                    paddingRight: contentEditorCommentInputFloaterAccountAvatarPaddingY,
+                }}
                 onKeyDown={event => {
                     if (event.key === "Escape") {
                         event.preventDefault();
@@ -286,6 +296,9 @@ function ContentEditorCommentInput({
                         >
                             <ContentEditor
                                 ref={editorRef}
+                                isCompact={true}
+                                // Never rendered on mobile so never extra compact.
+                                isExtraCompact={false}
                                 withMobileLayout={withMobileLayout}
                                 state={commentState}
                                 onChange={setCommentState}

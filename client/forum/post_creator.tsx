@@ -246,7 +246,7 @@ export function PostCreator({
             const coords = editor.coordsAtPos(editorState.getSelection().from);
 
             const paragraphLineHeight = convertRemLengthToPx(
-                contentSchemaStyles.paragraphLineHeight,
+                contentSchemaStyles.paragraphFontSize.lineHeight,
                 getRemPxWithoutListening(),
             );
 

@@ -78,7 +78,7 @@ export function ContentEditorLinkInput({
             className={greyElevated2ClassName}
             color="grey-100"
             backgroundColor="grey-0"
-            borderRadius="md"
+            borderRadius="1.5"
             boxShadow="elevation-20"
             position="relative"
             onKeyDown={event => {
@@ -187,7 +187,7 @@ function ContentEditorLinkInputClearButton({
                             alignItems: "center",
                             width: "5",
                             height: "5",
-                            borderRadius: "base",
+                            borderRadius: "1",
                             color: isPressed ? "grey-100" : "grey-70",
                             backgroundColor: isPressed
                                 ? "grey-10"
@@ -244,7 +244,7 @@ function ContentEditorLinkInputSaveButton({
                             alignItems: "center",
                             paddingX: "1.5",
                             height: "5",
-                            borderRadius: "base",
+                            borderRadius: "1",
                             color: isPressed ? "grey-100" : "grey-70",
                             backgroundColor: isPressed
                                 ? "grey-10"

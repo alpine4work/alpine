@@ -9,7 +9,6 @@ import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_i
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {isMessageContentSchema} from "~/shared/content/is_message_content_schema.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -26,7 +25,6 @@ import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {
     docClassName,
-    messageDocClassName,
     checkListItemCheckboxContainerClassName,
     checkListItemCheckboxClassName,
     checkListItemContentClassName,
@@ -50,10 +48,7 @@ export function renderContentToHtmlStore(
     },
 ): Store<string> {
     return renderContentFragmentToHtmlStore(content, options).map(fragmentHtml => {
-        return `<div class="${classNames(
-            docClassName,
-            isMessageContentSchema(content.doc.type.schema) ? messageDocClassName : undefined,
-        )}">${fragmentHtml}</div>`;
+        return `<div class="${docClassName}">${fragmentHtml}</div>`;
     });
 }
 

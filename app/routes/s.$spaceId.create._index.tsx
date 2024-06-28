@@ -167,15 +167,15 @@ function CreateRouteButton({
             <Box
                 position="absolute"
                 zIndex="-10"
-                borderRadius="base"
+                borderRadius="1"
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
                 style={{
                     // Cover the previous button's border bottom. If the top border is rendered by
                     // our element then we don't need to go into the above sibling element's space.
                     top: withBorderTop ? 0 : -1,
                     bottom: 0,
-                    left: `-${borderRadius.base}`,
-                    right: `-${borderRadius.base}`,
+                    left: `-${borderRadius["1"]}`,
+                    right: `-${borderRadius["1"]}`,
                 }}
             />
             <Box flexShrink="0">

@@ -126,7 +126,7 @@ export function SearchResultView({
                         position="absolute"
                         inset="0"
                         zIndex="-10"
-                        borderRadius={marginX !== "0" ? "md" : undefined}
+                        borderRadius={marginX !== "0" ? "1.5" : undefined}
                         backgroundColor={isPressed ? "grey-10" : "grey-5"}
                         style={{
                             // Make sure background covers border of the entry below.
@@ -489,7 +489,7 @@ function SearchResultViewExplainDebugWidget({
                     className={greyElevated2ClassName}
                     position="relative"
                     backgroundColor="grey-0"
-                    borderRadius="md"
+                    borderRadius="1.5"
                     boxShadow="elevation-20"
                     width="128"
                     minHeight="64"
@@ -515,7 +515,7 @@ function SearchResultViewExplainDebugWidget({
                     color: "green-90",
                     paddingX: "1",
                     paddingY: "0.5",
-                    borderRadius: "base",
+                    borderRadius: "1",
                     // Communicate to the developer they can interact with this.
                     cursor: "pointer",
                 })}

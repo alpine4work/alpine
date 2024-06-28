@@ -1133,7 +1133,7 @@ function TaskCollectionsInput(
                             ref={popoverRef}
                             className={greyElevated2ClassName}
                             position="relative"
-                            borderRadius="md"
+                            borderRadius="1.5"
                             backgroundColor="grey-0"
                             boxShadow="elevation-20"
                             width="64"

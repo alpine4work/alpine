@@ -395,7 +395,7 @@ function MessageInputMobileKeyboardToolbarButton({
                             ? "grey-5"
                             : undefined
                     }
-                    borderRadius="md"
+                    borderRadius="1.5"
                     display="flex"
                     justifyContent="center"
                     alignItems="center"

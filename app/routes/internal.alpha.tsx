@@ -171,7 +171,7 @@ function AlphaAccessRequest({
     const context = useAppContext();
 
     return (
-        <Box padding="3" borderRadius="base" border="grey-10">
+        <Box padding="3" borderRadius="1" border="grey-10">
             <Box marginBottom="3" paddingBottom="3" borderBottom="grey-10" display="flex" gap="2">
                 <Box flexGrow="1" fontStyle="bold" fontSize="300" userSelect="text">
                     {request.emailAddress}

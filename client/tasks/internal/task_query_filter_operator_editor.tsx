@@ -50,7 +50,7 @@ export function TaskQueryFilterOperatorEditor({
                                     : isHovered || isVisible
                                     ? "grey-5"
                                     : undefined,
-                                borderRadius: "sm",
+                                borderRadius: "0.5",
                                 fontStyle: "truncate",
                                 color: "grey-60",
                             })}

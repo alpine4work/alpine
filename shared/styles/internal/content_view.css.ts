@@ -1,6 +1,8 @@
 import {globalStyle, style} from "@vanilla-extract/css";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
 import {
+    extraCompactDocClassName,
+    extraCompactParagraphFontSize,
     paragraphClassName,
     paragraphFontSize,
 } from "~/shared/styles/internal/content_schema.css.js";
@@ -34,6 +36,11 @@ export const seeButtonClassName = style({
     ...fontStyles["semi-bold"],
     cursor: "pointer",
     userSelect: "none",
+    selectors: {
+        [`${extraCompactDocClassName} &`]: {
+            ...extraCompactParagraphFontSize,
+        },
+    },
 });
 
 export const seeButtonPressedClassName = style({

@@ -352,7 +352,7 @@ export function ContentEditorMentionFloater({
                     // while animating.
                     overflowX="hidden"
                     overflowY={!isClosing ? "auto" : "hidden"}
-                    borderRadius="md"
+                    borderRadius="1.5"
                     padding="1"
                     className={greyElevated2ClassName}
                     backgroundColor="grey-0"
@@ -538,7 +538,7 @@ function ContentEditorMentionAccountItem({
                 ref={itemRef}
                 paddingX="1.5"
                 paddingY="1.5"
-                borderRadius="base"
+                borderRadius="1"
                 display="flex"
                 alignItems="center"
                 gap="2"

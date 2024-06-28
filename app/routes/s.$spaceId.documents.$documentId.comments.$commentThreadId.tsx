@@ -7,7 +7,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
@@ -59,7 +59,12 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 documentId,
                 commentThreadIds: [commentThreadId],
                 commentLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-                commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
+                commentThreadCountAgainstLimit:
+                    documentCommentThreadCountAgainstLimit[
+                        getInitialAppRenderIsMobile(context.loader.getClientInfo())
+                            ? "mobile"
+                            : "desktop"
+                    ],
             }),
             url.searchParams.get("inbox") === "show"
                 ? getInboxEntry(context, {

@@ -6,7 +6,7 @@ import {contentSchemaStyles, fontSizes, pulseAnimationClassName} from "~/shared/
 
 export const contentParagraphShimmerFontSize = {
     ...fontSizes["50"],
-    lineHeight: contentSchemaStyles.paragraphLineHeight,
+    lineHeight: contentSchemaStyles.paragraphFontSize.lineHeight,
 } as const;
 
 export function ContentParagraphShimmer1() {

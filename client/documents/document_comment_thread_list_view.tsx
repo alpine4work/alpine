@@ -934,6 +934,7 @@ function DocumentCommentThreadListView(
                         DocumentCommentRoomKey,
                         DocumentCommentModel
                     >({
+                        isMobile,
                         withMobileLayout,
                         messageNoun: "comment",
                         messages: item.comments,
@@ -1204,6 +1205,7 @@ function DocumentCommentThreadListView(
             content.references,
             onCommentThreadSnippetPress,
             procedures,
+            isMobile,
             messageEditing,
             highlightComment,
             handleJumpToComment,

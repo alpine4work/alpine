@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {differenceInMinutes} from "date-fns";
 import {timeline} from "motion";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
@@ -75,8 +76,6 @@ import {
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/shared/styles/styles.js";
-
-const {paragraphFontSize} = contentSchemaStyles;
 
 /**
  * The buffered height we use for virtualized message views.
@@ -792,6 +791,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 })}
             >
                 <ContentView
+                    isCompact={true}
+                    isExtraCompact={isMobile}
                     withMobileLayout={withMobileLayout}
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdatedTime}
@@ -802,6 +803,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
+        isMobile,
         message.payload,
         messageTextForBigEmojiMessage,
         shouldMergeWithNextMessage,
@@ -842,7 +844,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         color: "grey-40",
                         fontSize: "75",
                     })}
-                    style={{lineHeight: paragraphFontSize.lineHeight}}
+                    style={{
+                        lineHeight: isMobile
+                            ? contentSchemaStyles.extraCompactParagraphFontSize.lineHeight
+                            : contentSchemaStyles.paragraphFontSize.lineHeight,
+                    }}
                 >
                     {`${messageStartOfSentenceNoun} deleted`}
                 </div>
@@ -850,6 +856,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [
         canPrimaryInputHover,
+        isMobile,
         message.payload.type,
         messageStartOfSentenceNoun,
         shouldMergeWithNextMessage,
@@ -978,6 +985,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     withMobileLayout={withMobileLayout}
                                     isInert={true}
                                     isTruncated={true}
+                                    isCompact={true}
+                                    isExtraCompact={isMobile}
                                     withUserSelectNone={true}
                                     content={truncatedContent}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}

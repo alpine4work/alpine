@@ -490,7 +490,7 @@ function ContentEditorPointerToolbarOverlay({
                         paddingRight="0.5"
                         color="grey-100"
                         backgroundColor="grey-0"
-                        borderRadius="md"
+                        borderRadius="1.5"
                         boxShadow="elevation-20"
                         className={classNames(
                             greyElevated2ClassName,
@@ -909,7 +909,7 @@ function ContentEditorPointerToolbarButton({
                 >
                     <Box
                         padding="1"
-                        borderRadius="base"
+                        borderRadius="1"
                         color={isPressed || isActive ? "grey-100" : "grey-70"}
                         backgroundColor={
                             isPressedAndActive

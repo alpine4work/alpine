@@ -168,7 +168,12 @@ function MessageShimmer(
                             style={{
                                 height: `${
                                     heightLines *
-                                    parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight)
+                                    parseRemLengthNumber(
+                                        isMobile
+                                            ? contentSchemaStyles.extraCompactParagraphFontSize
+                                                  .lineHeight
+                                            : contentSchemaStyles.paragraphFontSize.lineHeight,
+                                    )
                                 }rem`,
                             }}
                         />

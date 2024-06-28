@@ -82,7 +82,7 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
             <Box
                 style={{aspectRatio: `${aspectRatio}`}}
                 boxShadow="elevation-10"
-                borderRadius="base"
+                borderRadius="1"
                 overflow="hidden"
                 position="relative"
                 flex="auto"
