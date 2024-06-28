@@ -455,7 +455,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         //   typing indicator appears the view scrolls down to show it. We don't want
         //   that scroll down to hide our tab bar.
         //
-        // - Edge case 2: If our scroll view resized and scrolled down at the same time
+        // - Edge case 2: If our scroll view resized and scrolled at the same time
         //   (and scrolled the same amount we resized) then we don't want our
         //   navigation bar's scroll offset to change.
         //
@@ -467,14 +467,15 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // paints to the screen, but web code doesn't have a good way to listen for
         // scroll view content resize. (Whereas in iOS native code we can use KVO to
         // listen to `contentSize` on `UIScrollView`.)
-        if scrollOffset > lastScrollOffset
-            && ((scrollHeight > lastScrollHeight
-                && scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight)
-                || (clientHeight < lastClientHeight
-                    && scrollOffset - lastScrollOffset <= lastClientHeight - clientHeight))
+        if (scrollHeight > lastScrollHeight && scrollOffset > lastScrollOffset
+            && scrollOffset - lastScrollOffset <= scrollHeight - lastScrollHeight)
+            || (clientHeight < lastClientHeight && scrollOffset > lastScrollOffset
+                && scrollOffset - lastScrollOffset <= lastClientHeight - clientHeight)
+            || (clientHeight > lastClientHeight && scrollOffset < lastScrollOffset
+                && lastScrollOffset - scrollOffset <= clientHeight - lastClientHeight)
         {
             // Also perform the scroll direction change here.
-            self.lastScrollDirection = .down
+            self.lastScrollDirection = scrollOffset > lastScrollOffset ? .down : .up
 
             let lastNavigationBarScrollOffset = max(
                 0,
