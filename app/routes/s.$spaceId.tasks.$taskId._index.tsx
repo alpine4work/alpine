@@ -7,17 +7,26 @@ import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+<<<<<<< Updated upstream:app/routes/s.$spaceId.tasks.$taskId._index.tsx
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+=======
+import {useStore} from "~/client/helpers/store/use_store.js";
+>>>>>>> Stashed changes:app/routes/s.$spaceId.tasks.$taskId.tsx
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+<<<<<<< Updated upstream:app/routes/s.$spaceId.tasks.$taskId._index.tsx
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/task_detail_notes_content_editor_web_socket_client.js";
+=======
+import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
+>>>>>>> Stashed changes:app/routes/s.$spaceId.tasks.$taskId.tsx
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
+import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
@@ -243,6 +252,38 @@ export default function TaskRoute({
             displayError: (title, error) => events.getReporter().displayError(title, error),
         });
     });
+
+    // Re-initialize state if the `TaskId` changes.
+    if (notesClient.taskId !== taskId) {
+        setNotesClient(() => {
+            return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+                taskId,
+                initialNotesVersion,
+                initialNotesContent,
+                displayError: (title, error) => events.getReporter().displayError(title, error),
+            });
+        });
+    }
+
+    const [shouldConnect] = useState(true);
+
+    useEffect(() => {
+        if (!shouldConnect) return;
+
+        notesClient.connect();
+        return () => {
+            notesClient.disconnect();
+        };
+    }, [notesClient, shouldConnect]);
+
+    const webSocketState = useStore(notesClient.webSocketState);
+
+    // Show the "Lost connection" error dialog if any error occurs in our WebSocket
+    // connection.
+    useWebSocketErrorDialog(
+        notesClient,
+        webSocketState?.hasError ? webSocketState : state.errorState,
+    );
 
     return (
         <Box
