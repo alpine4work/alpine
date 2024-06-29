@@ -7,23 +7,16 @@ import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-<<<<<<< Updated upstream:app/routes/s.$spaceId.tasks.$taskId._index.tsx
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-=======
 import {useStore} from "~/client/helpers/store/use_store.js";
->>>>>>> Stashed changes:app/routes/s.$spaceId.tasks.$taskId.tsx
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-<<<<<<< Updated upstream:app/routes/s.$spaceId.tasks.$taskId._index.tsx
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
-import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/task_detail_notes_content_editor_web_socket_client.js";
-=======
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
->>>>>>> Stashed changes:app/routes/s.$spaceId.tasks.$taskId.tsx
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
