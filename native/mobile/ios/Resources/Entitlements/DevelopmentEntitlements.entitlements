@@ -9,6 +9,10 @@
         <string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string>
     </array>
     <key>aps-environment</key>
-	<string>development</string>
+    <string>development</string>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:cyberworlds.dev</string>
+    </array>
 </dict>
 </plist>
