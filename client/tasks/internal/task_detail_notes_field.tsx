@@ -2,11 +2,8 @@ import classNames from "classnames";
 import {Memo, Ref, forwardRef, useId, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {useReporter} from "~/client/design/reporter.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
@@ -51,9 +48,7 @@ function TaskDetailNotesField(
     },
     ref: Ref<TaskDetailNotesFieldRef>,
 ) {
-    const context = useAppContext();
     const isMobile = useIsMobile();
-    const reporter = useReporter();
 
     const labelId = useId();
     const editorRef = useRef<ContentEditorRef<TaskNotesContentWithReferences>>(null);

@@ -860,6 +860,8 @@ export function TaskDetailView({
                             focusPriorityInput,
                             dueDateInputState.isVisible,
                             focusDueDateInput,
+                            notesClient,
+                            setNotesClient,
                         ],
                     )}
                     onRenderedRangeChange={range => {
@@ -1407,14 +1409,11 @@ function TaskDetailViewMain(
                     ref={notesFieldRef}
                     withMobileLayout={withMobileLayout}
                     taskId={taskId}
-                    initialNotesVersion={initialNotesVersion}
-                    initialNotesContent={initialNotesContent}
                     isReadOnly={isReadOnly}
                     pushUndoStackEntry={pushUndoStackEntry}
                     pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                     pushRedoStackEntry={pushRedoStackEntry}
                     notesClient={notesClient}
-                    setNotesClient={setNotesClient}
                 />
                 {showSubtasks ? (
                     <>

@@ -7,8 +7,8 @@ import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -318,6 +318,7 @@ export default function TaskRoute({
                         initialComments={initialComments}
                         initialScrollToCommentIndex={commentIndex}
                         getCommentUrl={getCommentUrl}
+                        notesClient={notesClient}
                     />
                 </Box>
             )}

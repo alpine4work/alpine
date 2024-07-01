@@ -11,6 +11,7 @@ import {
 } from "~/client/messaging/messaging_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -41,6 +42,7 @@ type TaskCommentsViewProps = {
     initialScrollToCommentIndex: number | null;
     getCommentUrl: Memo<(messageIndex: number) => URL>;
     initialComments: TaskCommentsViewInitialComments | null;
+    notesClient: TaskDetailNotesContentEditorWebSocketClient;
     scrollViewRef?: Ref<HTMLDivElement>;
     extraChildren?: ReactNode;
     scrollbarInsetTop?: ScrollbarInsetDynamic;
@@ -52,6 +54,7 @@ export function TaskCommentsView({
     initialScrollToCommentIndex,
     getCommentUrl,
     initialComments: initialCommentsFromProps,
+    notesClient,
     scrollViewRef,
     extraChildren,
     scrollbarInsetTop,
@@ -205,7 +208,7 @@ export function TaskCommentsView({
                 newOtherReferencedComments: newOtherReferencedMessages,
                 commentChangesResult: messageChangesResult,
                 typingStateByConnectionId,
-            } = await procedures.backfillComments({
+            } = await notesClient.procedures.backfillComments({
                 clientCommentCount,
                 clientLastCommentChangeTime,
                 newCommentLimit,
@@ -220,36 +223,36 @@ export function TaskCommentsView({
                 typingStateByConnectionId,
             };
         },
-        [procedures],
+        [notesClient.procedures],
     );
 
     const createMessage = useCallback(
         (input: {content: MessageContent; parentMessageIndex: number | null}) => {
-            return procedures.createComment({
+            return notesClient.procedures.createComment({
                 content: input.content,
                 parentCommentIndex: input.parentMessageIndex,
             });
         },
-        [procedures],
+        [notesClient.procedures],
     );
 
     const updateMessageContent = useCallback(
         (input: {messageIndex: number; content: MessageContent}) => {
-            return procedures.updateCommentContent({
+            return notesClient.procedures.updateCommentContent({
                 commentIndex: input.messageIndex,
                 content: input.content,
             });
         },
-        [procedures],
+        [notesClient.procedures],
     );
 
     const deleteMessage = useCallback(
         (input: {messageIndex: number}) => {
-            return procedures.deleteComment({
+            return notesClient.procedures.deleteComment({
                 commentIndex: input.messageIndex,
             });
         },
-        [procedures],
+        [notesClient.procedures],
     );
 
     const subscribeToEventsCallback = useCallback(
@@ -302,8 +305,8 @@ export function TaskCommentsView({
                 createMessage={createMessage}
                 updateMessageContent={updateMessageContent}
                 deleteMessage={deleteMessage}
-                startTypingInMessageInput={procedures.startTypingInCommentInput}
-                stopTypingInMessageInput={procedures.stopTypingInCommentInput}
+                startTypingInMessageInput={notesClient.procedures.startTypingInCommentInput}
+                stopTypingInMessageInput={notesClient.procedures.stopTypingInCommentInput}
                 isConnected={isConnected}
                 subscribeToEvents={subscribeToEventsCallback}
                 getMessageUrl={getCommentUrl}
