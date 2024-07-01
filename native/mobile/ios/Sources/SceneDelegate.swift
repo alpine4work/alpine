@@ -10,11 +10,13 @@ protocol SceneDelegateRootController: UIViewController {
 
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets)
     func sceneDelegateWillRemove(_ sceneDelegate: SceneDelegate)
+    func sceneDelegateDidAdd(_ sceneDelegate: SceneDelegate)
 }
 
 class SceneDelegate: NSObject, UIWindowSceneDelegate {
     private struct State {
         let window: UIWindow
+        let rootWrapperViewController: SceneDelegateRootWrapperController
         var rootViewController: SceneDelegateRootController
     }
 
@@ -102,14 +104,23 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             "Setting root view controller: \(type(of: rootViewController).description(), privacy: .public)"
         )
 
+        let rootWrapperViewController = SceneDelegateRootWrapperController()
+
         let window = UIWindow(frame: windowScene.coordinateSpace.bounds)
         window.windowScene = windowScene
-        window.rootViewController = rootViewController
+        window.rootViewController = rootWrapperViewController
         window.makeKeyAndVisible()
 
         rootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
 
-        state = State(window: window, rootViewController: rootViewController)
+        rootWrapperViewController.addChild(rootViewController)
+        rootWrapperViewController.view.addSubview(rootViewController.view)
+
+        state = State(
+            window: window,
+            rootWrapperViewController: rootWrapperViewController,
+            rootViewController: rootViewController
+        )
 
         notificationRequestObservation = AppDelegate.shared.observe(
             \.notificationRequest,
@@ -229,9 +240,9 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         _ newRootViewController: SceneDelegateRootController,
         animated: Bool
     ) {
-        guard let window = self.state?.window else { return }
+        guard let state = self.state else { return }
 
-        newRootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
+        newRootViewController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
 
         let oldRootViewController = self.state!.rootViewController
 
@@ -239,24 +250,45 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         // If this is called after our web process has terminated, we shouldn't reload!
         oldRootViewController.sceneDelegateWillRemove(self)
 
+        // Temporarily we'll have both the new root view controller and the old root
+        // view controller in `rootWrapperViewController`. In order for `WKWebView` to
+        // render and call `requestAnimationFrame()` it must be a child of `UIWindow`
+        // so we must add the new view controller to the view hiearchy while waiting
+        // for it to load. Once we finish loading, `isHidden` will be set to false and
+        // the old root view controller will be removed from
+        // `rootWrapperViewController`.
+        newRootViewController.view.isHidden = true
+        state.rootWrapperViewController.addChild(newRootViewController)
+        state.rootWrapperViewController.view.addSubview(newRootViewController.view)
+
         let action = { [weak self] in
-            guard let this = self, this.state?.window == window else { return }
+            guard let this = self, this.state?.window == state.window else { return }
+
+            logger.info(
+                "Setting root view controller: \(type(of: newRootViewController).description(), privacy: .public)"
+            )
 
             if !animated {
                 this.state!.rootViewController = newRootViewController
-                window.rootViewController = newRootViewController
+
+                oldRootViewController.view.removeFromSuperview()
+                oldRootViewController.removeFromParent()
+                newRootViewController.view.isHidden = false
+
+                newRootViewController.sceneDelegateDidAdd(this)
             } else {
                 UIView.transition(
-                    with: window,
+                    with: state.window,
                     duration: 0.35,
                     options: [.transitionFlipFromLeft],
                     animations: {
-                        logger.info(
-                            "Setting root view controller: \(type(of: newRootViewController).description(), privacy: .public)"
-                        )
-
                         this.state!.rootViewController = newRootViewController
-                        window.rootViewController = newRootViewController
+
+                        oldRootViewController.view.removeFromSuperview()
+                        oldRootViewController.removeFromParent()
+                        newRootViewController.view.isHidden = false
+
+                        newRootViewController.sceneDelegateDidAdd(this)
                     },
                     completion: { (_) in
                         let oldRootViewControllerRetainCount =
@@ -326,4 +358,9 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             )
         }
     }
+}
+
+class SceneDelegateRootWrapperController: UIViewController {
+    init() { super.init(nibName: nil, bundle: nil) }
+    required init?(coder: NSCoder) { fatalError("Unimplemented") }
 }

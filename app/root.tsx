@@ -517,11 +517,11 @@ export default function Root() {
                     // This script intentionally runs before React hydration since we can
                     // immediately show the server rendered HTML to the user.
                     //
-                    // Inline implementation of `scheduleAfterNextBrowserPaint()`. We want to let
+                    // Wrapped in a double `requestAnimationFrame()`. We want to let
                     // native know we're ready after the browser paints so we don't have a flash of
                     // unstyled content. Or a flash of the old content in case we're reloading.
                     dangerouslySetInnerHTML={{
-                        __html: "if (window.__NativeMobileBridge) { const channel = new MessageChannel(); channel.port1.onmessage = () => window.__NativeMobileBridge.health.ready(); channel.port2.postMessage(undefined) }",
+                        __html: "if (window.__NativeMobileBridge) { requestAnimationFrame(() => requestAnimationFrame(() => window.__NativeMobileBridge.health.ready())); }",
                     }}
                 />
                 <Scripts />

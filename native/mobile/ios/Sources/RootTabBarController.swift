@@ -180,6 +180,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         webNavigationController.sceneDelegateWillRemove(sceneDelegate)
     }
 
+    func sceneDelegateDidAdd(_ sceneDelegate: SceneDelegate) {
+        webNavigationController.sceneDelegateDidAdd(sceneDelegate)
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         // Wait until the user is logged in to ask for authorization to send push
         // notifications.

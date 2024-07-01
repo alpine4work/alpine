@@ -2428,6 +2428,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// way to let us know we're about to render a new `WebNavigationController`.
     func sceneDelegateWillRemove(_ sceneDelegate: SceneDelegate) { willSceneDelegateRemove = true }
 
+    func sceneDelegateDidAdd(_ sceneDelegate: SceneDelegate) {
+        (topViewController! as! WebNavigationEntryController).sceneDelegateDidAdd(sceneDelegate)
+    }
+
     @objc private func sceneDidActivate(notification: NSNotification) {
         lastSceneDidActivateNotificationTime = DispatchTime.now()
 
@@ -3256,9 +3260,18 @@ private class WebNavigationEntryController: UIViewController {
     private unowned let webNavigationController: WebNavigationController
     private var loadingIndicatorTimer: Timer?
     private var loadingIndicatorTimerGeneration: Int = 0
-    private var hasViewAppeared: Bool = false
+    private var didViewAppear: Bool = false
     private var willViewDisappear: Bool = false
     private var shouldPresentLoadingIndicator = false
+
+    private var isAnySuperviewHidden: Bool {
+        var superview = view.superview
+        while let currentSuperview = superview {
+            if currentSuperview.isHidden { return true }
+            superview = currentSuperview.superview
+        }
+        return false
+    }
 
     // Presentation style needs to be over fullscreen because:
     //
@@ -3451,12 +3464,14 @@ private class WebNavigationEntryController: UIViewController {
         webView?.frame = view.bounds
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        hasViewAppeared = true
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        didViewAppear = true
         willViewDisappear = false
 
-        if shouldPresentLoadingIndicator && !webNavigationController.didSceneEnterBackground {
+        if shouldPresentLoadingIndicator && !webNavigationController.didSceneEnterBackground
+            && !isAnySuperviewHidden
+        {
             shouldPresentLoadingIndicator = false
             clearLoadingIndicatorTimer()
             presentLoadingIndicator()
@@ -3473,7 +3488,7 @@ private class WebNavigationEntryController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        hasViewAppeared = false
+        didViewAppear = false
         willViewDisappear = false
         clearLoadingIndicatorTimer()
 
@@ -3482,7 +3497,21 @@ private class WebNavigationEntryController: UIViewController {
     }
 
     @objc private func sceneDidActivate(notification: NSNotification) {
-        if shouldPresentLoadingIndicator && hasViewAppeared {
+        if shouldPresentLoadingIndicator && didViewAppear && !isAnySuperviewHidden {
+            shouldPresentLoadingIndicator = false
+            clearLoadingIndicatorTimer()
+            presentLoadingIndicator()
+        } else {
+            resetLoadingIndicatorTimer()
+        }
+    }
+
+    /// We expect `isAnySuperviewHidden` to change from true to false when
+    /// `sceneDelegateDidAdd()` is called.
+    fileprivate func sceneDelegateDidAdd(_ sceneDelegate: SceneDelegate) {
+        if shouldPresentLoadingIndicator && didViewAppear
+            && !webNavigationController.didSceneEnterBackground
+        {
             shouldPresentLoadingIndicator = false
             clearLoadingIndicatorTimer()
             presentLoadingIndicator()
@@ -3516,7 +3545,8 @@ private class WebNavigationEntryController: UIViewController {
         if hasWebView { return }
 
         // Don't show loading indicator if our entry isn't visible.
-        if !hasViewAppeared || willViewDisappear || webNavigationController.didSceneEnterBackground
+        if !didViewAppear || willViewDisappear || webNavigationController.didSceneEnterBackground
+            || isAnySuperviewHidden
         {
             return
         }
@@ -3588,7 +3618,8 @@ private class WebNavigationEntryController: UIViewController {
     }
 
     private func presentLoadingIndicator() {
-        if !hasViewAppeared || willViewDisappear || webNavigationController.didSceneEnterBackground
+        if !didViewAppear || willViewDisappear || webNavigationController.didSceneEnterBackground
+            || isAnySuperviewHidden
         {
             shouldPresentLoadingIndicator = true
             return
