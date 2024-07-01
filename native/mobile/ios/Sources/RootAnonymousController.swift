@@ -7,13 +7,14 @@ class RootAnonymousController: WebNavigationController, SceneDelegateRootControl
 
     private let signIn: (String, String) -> Void
 
-    init(signIn: @escaping (String, String) -> Void) {
+    init(scene: UIScene, signIn: @escaping (String, String) -> Void) {
         self.signIn = signIn
 
         let initialPath = "/sign-in"
 
         super
             .init(
+                scene: scene,
                 initialTab: .home,
                 initialPath: initialPath,
                 // There is no tab navigation in an anonymous view. The user shouldn't be able

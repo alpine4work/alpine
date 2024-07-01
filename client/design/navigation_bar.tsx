@@ -1,5 +1,3 @@
-import "~/client/helpers/events/register_scroll_event_debugger.js";
-
 import {AnimationControls, timeline} from "motion";
 import {ArrowLeft, DotsThreeVertical} from "phosphor-react";
 import {

@@ -112,6 +112,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         "(?:^|\\?|&)inbox=show(?:&|$)"
     )
 
+    fileprivate weak var scene: UIScene?
     private let initialPathByTab: InitialPathByTab
     private let webConfiguration: WKWebViewConfiguration
     private let weakScriptMessageHandler: WeakScriptMessageHandler
@@ -186,20 +187,20 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         readyTime: nil,
         lastPingTime: nil,
         provisionalNavigation: nil,
-        isHealthy: true
+        isHealthy: true,
+        shouldSuppressUnhealthyAlert: false
     ) {
         didSet {
             let newValue = webViewHealthState
 
-            if (oldValue.isLoading || oldValue.isHealthy)
-                != (newValue.isLoading || newValue.isHealthy) && !newValue.isHealthy
-            {
+            if oldValue.isHealthy != newValue.isHealthy && !newValue.isHealthy {
                 logger.error(
                     "Web view is unhealthy after not receiving a ping for \(newValue.lastPingTime?.distance(to: DispatchTime.now()).toSeconds() ?? Double.nan, privacy: .public)s"
                 )
             }
 
             if oldValue.isLoading != newValue.isLoading || oldValue.isHealthy != newValue.isHealthy
+                || oldValue.shouldSuppressUnhealthyAlert != newValue.shouldSuppressUnhealthyAlert
                 || (oldValue.navigationError == nil) != (newValue.navigationError == nil)
             {
                 ((modalPresentedViewController ?? topViewController)
@@ -226,6 +227,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         var provisionalNavigation: WKNavigation?
         var navigationError: (any Error)?
         var isHealthy: Bool
+        var shouldSuppressUnhealthyAlert: Bool
 
         var isLoading: Bool { provisionalNavigation != nil || readyTime == nil }
     }
@@ -394,7 +396,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var keyboardWillHideCallCount: UInt = 0
     private var keyboardWillHideAnimationTimer: Timer?
 
-    private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
+    private var willSceneDelegateRemove = false
+    fileprivate var didSceneEnterBackground = false
+    private var lastSceneDidActivateNotificationTime: DispatchTime?
 
     private var theme10Color = UIColor(named: "indigo-10")!
     private var theme20Color = UIColor(named: "indigo-20")!
@@ -529,11 +533,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasAddedMainScrollViewWhilePreparingNavigation = false
 
     init(
+        scene: UIScene,
         initialTab: Tab,
         initialPath: String,
         initialPathByTab: InitialPathByTab,
         websiteDataStore: WKWebsiteDataStore
     ) {
+        self.scene = scene
+
         let initialUrl = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
 
         logger.info("Initializing at: \(initialUrl.absoluteString, privacy: .public)")
@@ -655,12 +662,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
 
-        // Health checks consider the application healthy from when it becomes active.
+        // Subscribe to scene foreground/background notifications. So we can prepare
+        // for WebKit suspending our web process.
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(applicationDidBecomeActive(notification:)),
-            name: UIApplication.didBecomeActiveNotification,
-            object: nil
+            selector: #selector(sceneDidActivate(notification:)),
+            name: UIScene.didActivateNotification,
+            object: scene
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sceneDidEnterBackground(notification:)),
+            name: UIScene.didEnterBackgroundNotification,
+            object: scene
         )
 
         let request = URLRequest(url: initialUrl)
@@ -734,11 +748,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
 
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIApplication.didBecomeActiveNotification,
-            object: nil
-        )
+        if let scene = scene {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UIScene.didEnterBackgroundNotification,
+                object: scene
+            )
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UIScene.didActivateNotification,
+                object: scene
+            )
+        }
     }
 
     private func initWebView() {
@@ -872,7 +893,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 return
             }
 
-            if UIApplication.shared.applicationState == .background {
+            // If we've already marked the web view as unhealthy, we don't need to check
+            // ping times anymore.
+            guard this.webViewHealthState.isHealthy else { return }
+
+            if this.didSceneEnterBackground {
                 // This hopefully keeps the web view alive for 30s after the app's been
                 // backgrounded. So if the user quickly switches to another app then back we
                 // won't lose their state. It's unfortunate we only get 30s before we lose the
@@ -882,9 +907,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // We believe this should work based on [this radar issue][1] and [this
                 // StackOverflow answer][2] but have not extensively tested ourselves.
                 //
-                // JavaScript timeouts and intervals are paused while the application is
-                // backgrounded. Which is why we don't look at the ping time.
-                //
                 // We believe in [WebKit's source code `XPCConnectionTerminationWatchdog`][3]
                 // is what's keeping our process alive. XPC standing for cross-process
                 // communication.
@@ -892,44 +914,62 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // [1]: https://openradar.appspot.com/7739943
                 // [2]: https://stackoverflow.com/a/40739474/1568890
                 // [3]: https://github.com/WebKit/WebKit/blob/5d6df46811480fb26abf29a0e34dc90ef720927e/Source/WebKit/UIProcess/Cocoa/AuxiliaryProcessProxyCocoa.mm#L70-L73
-                this.webView.evaluateJavaScript(
-                    "setTimeout(() => { window.__keepAliveCount = (window.__keepAliveCount || 0) + 1 }, 10000)"
-                )
-            } else if let lastPingTime = this.webViewHealthState.lastPingTime {
+                this.webView.evaluateJavaScript("1 + 1")
+            }
+
+            if let lastPingTime = this.webViewHealthState.lastPingTime {
                 let currentTime = DispatchTime.now()
 
                 if lastPingTime.distance(to: currentTime).toSeconds() > 1 {
                     // When backgrounded we may stop receiving pings from the web view. So when our
                     // application becomes active again, wait a bit for pings from the web view to
                     // resume.
-                    let hasApplicationRecentlyBecameActive =
-                        if let notificationTime = this
-                            .lastApplicationDidBecomeActiveNotificationTime
-                        {
-                            notificationTime > lastPingTime
-                                && notificationTime.distance(to: currentTime).toSeconds() <= 2
+                    let hasApplicationRecentlyBecomeActive =
+                        if let sceneDidActivateTime = this.lastSceneDidActivateNotificationTime {
+                            sceneDidActivateTime > lastPingTime
+                                && sceneDidActivateTime.distance(to: currentTime).toSeconds() <= 2
                         } else { false }
 
-                    if !hasApplicationRecentlyBecameActive {
-                        this.webViewHealthState.isHealthy = false
+                    if !hasApplicationRecentlyBecomeActive {
+                        // We can't assign to `webViewHealthState.isHealthy` and
+                        // `webViewHealthState.shouldSuppressUnhealthyAlert` individually since
+                        // `didSet` should only run once.
+                        this.webViewHealthState = WebViewHealthState(
+                            readyTime: this.webViewHealthState.readyTime,
+                            lastPingTime: this.webViewHealthState.lastPingTime,
+                            provisionalNavigation: this.webViewHealthState.provisionalNavigation,
+                            isHealthy: false,
+                            // Suppress unhealthy alert until we've activated again.
+                            shouldSuppressUnhealthyAlert: this.didSceneEnterBackground
+                        )
                     }
                 }
             } else if let readyTime = this.webViewHealthState.readyTime {
                 let currentTime = DispatchTime.now()
 
-                let hasReadyTimeExpired = readyTime.distance(to: currentTime).toSeconds() > 5
+                if readyTime.distance(to: currentTime).toSeconds() > 5 {
+                    // When backgrounded we may stop receiving pings from the web view. So when our
+                    // application becomes active again, wait a bit for pings from the web view to
+                    // resume.
+                    let hasApplicationRecentlyBecomeActive =
+                        if let sceneDidActivateTime = this.lastSceneDidActivateNotificationTime {
+                            sceneDidActivateTime > readyTime
+                                && sceneDidActivateTime.distance(to: currentTime).toSeconds() <= 2
+                        } else { false }
 
-                // When backgrounded we may stop receiving pings from the web view. So when our
-                // application becomes active again, wait a bit for pings from the web view to
-                // resume.
-                let hasApplicationRecentlyBecameActive =
-                    if let notificationTime = this.lastApplicationDidBecomeActiveNotificationTime {
-                        notificationTime > readyTime
-                            && notificationTime.distance(to: currentTime).toSeconds() <= 2
-                    } else { false }
-
-                if hasReadyTimeExpired && !hasApplicationRecentlyBecameActive {
-                    this.webViewHealthState.isHealthy = false
+                    if !hasApplicationRecentlyBecomeActive {
+                        // We can't assign to `webViewHealthState.isHealthy` and
+                        // `webViewHealthState.shouldSuppressUnhealthyAlert` individually since
+                        // `didSet` should only run once.
+                        this.webViewHealthState = WebViewHealthState(
+                            readyTime: this.webViewHealthState.readyTime,
+                            lastPingTime: this.webViewHealthState.lastPingTime,
+                            provisionalNavigation: this.webViewHealthState.provisionalNavigation,
+                            isHealthy: false,
+                            // Suppress unhealthy alert until we've activated again.
+                            shouldSuppressUnhealthyAlert: this.didSceneEnterBackground
+                        )
+                    }
                 }
             }
         }
@@ -975,7 +1015,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             readyTime: nil,
             lastPingTime: nil,
             provisionalNavigation: nil,
-            isHealthy: true
+            isHealthy: true,
+            shouldSuppressUnhealthyAlert: false
         )
 
         webView.load(URLRequest(url: url))
@@ -1040,12 +1081,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         if webViewHealthState.provisionalNavigation === navigation {
             // Reset health state now that we have a new navigation.
-            webViewHealthState.readyTime = nil
-            webViewHealthState.lastPingTime = nil
-            webViewHealthState.isHealthy = true
-            webViewHealthState.navigationError = nil
-
-            webViewHealthState.provisionalNavigation = nil
+            webViewHealthState = WebViewHealthState(
+                readyTime: nil,
+                lastPingTime: nil,
+                provisionalNavigation: nil,
+                navigationError: nil,
+                isHealthy: true,
+                shouldSuppressUnhealthyAlert: false
+            )
         }
 
         hasInitialWebViewNavigationCommit = true
@@ -1094,6 +1137,35 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         if webViewHealthState.provisionalNavigation === navigation {
             webViewHealthState.navigationError = error
+        }
+    }
+
+    // To test this, if you're running the app in a simulator run the following
+    // command:
+    //
+    // ```
+    // kill $(pgrep -P $(pgrep launchd_sim) 'com.apple.WebKit.WebContent')
+    // ```
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        logger.info("Web process terminated")
+
+        // If the web process terminated while in the foreground, reload and carry on.
+        // If it terminated while in the background we need to wait for the app to be
+        // foregrounded before reloading.
+        if !didSceneEnterBackground {
+            webView.reload()
+        } else {
+            // We can't assign to `webViewHealthState.isHealthy` and
+            // `webViewHealthState.shouldSuppressUnhealthyAlert` individually since
+            // `didSet` should only run once.
+            webViewHealthState = WebViewHealthState(
+                readyTime: webViewHealthState.readyTime,
+                lastPingTime: webViewHealthState.lastPingTime,
+                provisionalNavigation: webViewHealthState.provisionalNavigation,
+                isHealthy: false,
+                // Suppress unhealthy alert until we've activated again.
+                shouldSuppressUnhealthyAlert: true
+            )
         }
     }
 
@@ -1342,10 +1414,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         } else if messageBody == "navigation.externalPop" {
             cleanupModalPresentedViewController()
 
-            logger.info(
-                "External pop navigation to: \((self.topViewController! as! WebNavigationEntryController).url.absoluteString, privacy: .public)"
-            )
-
             webDelegate?.webNavigationController?(
                 self,
                 didNavigate: (topViewController! as! WebNavigationEntryController).entry,
@@ -1365,12 +1433,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             //
             // See how we handle `prepareExternalPop()` for more information.
             if !isNavigationAnimating {
+                logger.info(
+                    "External pop navigation to: \((self.topViewController! as! WebNavigationEntryController).url.absoluteString, privacy: .public)"
+                )
+
                 (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
             } else {
-                ((viewControllers.count > 1
-                    ? viewControllers[viewControllers.count - 2] : topViewController!)
-                    as! WebNavigationEntryController)
-                    .moveWebViewInto(webView)
+                let viewController =
+                    ((viewControllers.count > 1
+                        ? viewControllers[viewControllers.count - 2] : topViewController!)
+                        as! WebNavigationEntryController)
+
+                logger.info(
+                    "External pop navigation to: \(viewController.url.absoluteString, privacy: .public)"
+                )
+
+                viewController.moveWebViewInto(webView)
 
                 super.popViewController(animated: true)
 
@@ -2346,8 +2424,48 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         updateAllWebMaskedViewMasks()
     }
 
-    @objc private func applicationDidBecomeActive(notification: NSNotification) {
-        lastApplicationDidBecomeActiveNotificationTime = DispatchTime.now()
+    /// Called by our `SceneDelegate` class after `setRootViewController()` as a
+    /// way to let us know we're about to render a new `WebNavigationController`.
+    func sceneDelegateWillRemove(_ sceneDelegate: SceneDelegate) { willSceneDelegateRemove = true }
+
+    @objc private func sceneDidActivate(notification: NSNotification) {
+        lastSceneDidActivateNotificationTime = DispatchTime.now()
+
+        // If the web view was terminated while we were in the background, reload the
+        // web view when the app is foregrounded again. Once the reload is done the web
+        // view will be moved back into the top view controller.
+        if !webViewHealthState.isHealthy {
+            // If `SceneDelegate` is about to set a new root view controller and our web
+            // view has been terminated then don't reload, keep the snapshot view. Instead
+            // a new root view controller instance will become visible arrive and this view
+            // controller will be deinitialized.
+            if !willSceneDelegateRemove {
+                logger.info(
+                    "Reloading upon activating after web process became unhealthy in background"
+                )
+
+                webView.reload()
+            }
+        } else if didSceneEnterBackground {
+            didSceneEnterBackground = false
+
+            (topViewController! as! WebNavigationEntryController)
+                .moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(
+                    webView,
+                    healthState: webViewHealthState
+                )
+        }
+    }
+
+    @objc private func sceneDidEnterBackground(notification: NSNotification) {
+        logger.info("Entering background")
+
+        didSceneEnterBackground = true
+
+        // When the application is backgrounded, make sure to render a snapshot view.
+        // So when the application opens back up we don't have a white screen due to
+        // the web view having been terminated.
+        (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
     }
 
     private func getSafeAreaInsets(withoutPreserving: Bool = false) -> UIEdgeInsets {
@@ -3134,6 +3252,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 private class WebNavigationEntryController: UIViewController {
     let entry: WebNavigationEntry
     var url: URL
+    private weak var scene: UIScene?
     private unowned let webNavigationController: WebNavigationController
     private var loadingIndicatorTimer: Timer?
     private var loadingIndicatorTimerGeneration: Int = 0
@@ -3162,6 +3281,7 @@ private class WebNavigationEntryController: UIViewController {
     ) {
         self.entry = entry
         self.url = url
+        self.scene = webNavigationController.scene
         self.webNavigationController = webNavigationController
 
         super.init(nibName: nil, bundle: nil)
@@ -3174,9 +3294,28 @@ private class WebNavigationEntryController: UIViewController {
         extendedLayoutIncludesOpaqueBars = true
 
         moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(webView, healthState: healthState)
+
+        if let scene = webNavigationController.scene {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(sceneDidActivate(notification:)),
+                name: UIScene.didActivateNotification,
+                object: scene
+            )
+        }
     }
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
+
+    deinit {
+        if let scene = scene {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UIScene.didActivateNotification,
+                object: scene
+            )
+        }
+    }
 
     func moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(
         _ webView: WKWebView,
@@ -3210,7 +3349,7 @@ private class WebNavigationEntryController: UIViewController {
         } else if !healthState.isHealthy {
             replaceWebViewWithSnapshotView()
             clearLoadingIndicatorTimer()
-            presentUnhealthyAlert()
+            if !healthState.shouldSuppressUnhealthyAlert { presentUnhealthyAlert() }
         } else {
             moveWebViewInto(webView)
         }
@@ -3317,7 +3456,7 @@ private class WebNavigationEntryController: UIViewController {
         hasViewAppeared = true
         willViewDisappear = false
 
-        if shouldPresentLoadingIndicator {
+        if shouldPresentLoadingIndicator && !webNavigationController.didSceneEnterBackground {
             shouldPresentLoadingIndicator = false
             clearLoadingIndicatorTimer()
             presentLoadingIndicator()
@@ -3340,6 +3479,16 @@ private class WebNavigationEntryController: UIViewController {
 
         shouldPresentLoadingIndicator = presentedViewController is WebLoadingIndicatorController
         if shouldPresentLoadingIndicator { dismiss(animated: false) }
+    }
+
+    @objc private func sceneDidActivate(notification: NSNotification) {
+        if shouldPresentLoadingIndicator && hasViewAppeared {
+            shouldPresentLoadingIndicator = false
+            clearLoadingIndicatorTimer()
+            presentLoadingIndicator()
+        } else {
+            resetLoadingIndicatorTimer()
+        }
     }
 
     private func clearLoadingIndicatorTimer() {
@@ -3367,7 +3516,10 @@ private class WebNavigationEntryController: UIViewController {
         if hasWebView { return }
 
         // Don't show loading indicator if our entry isn't visible.
-        if !hasViewAppeared || willViewDisappear { return }
+        if !hasViewAppeared || willViewDisappear || webNavigationController.didSceneEnterBackground
+        {
+            return
+        }
 
         // If there's a modal view controller (that's not ourself), don't show
         // loading indicator. Since our view is hidden under the modal.
@@ -3413,6 +3565,14 @@ private class WebNavigationEntryController: UIViewController {
     }
 
     private func startLoadingIndicatorTimer() {
+        // If there are no subviews (no web view and no snapshot view) immediately show
+        // the loading indicator because otherwise the user will be staring at a blank
+        // screen which is no good.
+        if view.subviews.count == 0 {
+            presentLoadingIndicator()
+            return
+        }
+
         loadingIndicatorTimer = Timer.scheduledTimer(
             withTimeInterval: delayScreenTransitionLoadingIndicatorLimitSeconds,
             repeats: false
@@ -3428,7 +3588,8 @@ private class WebNavigationEntryController: UIViewController {
     }
 
     private func presentLoadingIndicator() {
-        if !hasViewAppeared || willViewDisappear {
+        if !hasViewAppeared || willViewDisappear || webNavigationController.didSceneEnterBackground
+        {
             shouldPresentLoadingIndicator = true
             return
         }

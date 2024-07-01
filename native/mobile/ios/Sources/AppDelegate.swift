@@ -54,6 +54,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         logger.info("Finished launching application")
 
+        // In development mode, don't let the screen sleep. This makes developing
+        // easier since the developer doesn't have to keep tapping their screen to wake
+        // it up.
+        #if DEVELOPMENT_RUN_ENVIRONMENT
+            application.isIdleTimerDisabled = true
+        #endif
+
         return true
     }
 

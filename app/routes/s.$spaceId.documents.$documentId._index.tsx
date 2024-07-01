@@ -41,8 +41,8 @@ const LoaderSchema = Schema.object({
     }).nullable(),
 });
 
-export async function loader({params, context: _context, request}: LoaderArgs) {
-    const context = (await _context.actor.authenticate()).actor.authorizeSession();
+export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 
     const url = new URL(request.url);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);

@@ -9,6 +9,7 @@ protocol SceneDelegateRootController: UIViewController {
     var webNavigationController: WebNavigationController { get }
 
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets)
+    func sceneDelegateWillRemove(_ sceneDelegate: SceneDelegate)
 }
 
 class SceneDelegate: NSObject, UIWindowSceneDelegate {
@@ -38,15 +39,6 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         }
     }
 
-    func sceneDidBecomeActive(_ scene: UIScene) {
-        // In development mode, don't let the screen sleep. This makes developing
-        // easier since the developer doesn't have to keep tapping their screen to wake
-        // it up.
-        #if DEVELOPMENT_RUN_ENVIRONMENT
-            UIApplication.shared.isIdleTimerDisabled = true
-        #endif
-    }
-
     func scene(
         _ scene: UIScene,
         willConnectTo session: UISceneSession,
@@ -69,27 +61,41 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
                     } else { session }
 
                 rootViewController = RootTabBarController(
+                    scene: scene,
                     session: session,
-                    signOut: { [weak self] in self?.signOut() },
-                    switchSpace: { [weak self] (spaceId, session) in
-                        self?.switchSpace(spaceId: spaceId, session: session)
+                    signOut: { [weak self, weak scene] in
+                        guard let scene = scene else { return }
+                        self?.signOut(scene)
+                    },
+                    switchSpace: { [weak self, weak scene] (spaceId, session) in
+                        guard let scene = scene else { return }
+                        self?.switchSpace(scene, spaceId: spaceId, session: session)
                     },
                     initialTab: .inbox,
                     initialPath: notificationRequest.entryPath
                 )
             } else {
                 rootViewController = RootTabBarController(
+                    scene: scene,
                     session: session,
-                    signOut: { [weak self] in self?.signOut() },
-                    switchSpace: { [weak self] (spaceId, session) in
-                        self?.switchSpace(spaceId: spaceId, session: session)
+                    signOut: { [weak self, weak scene] in
+                        guard let scene = scene else { return }
+                        self?.signOut(scene)
+                    },
+                    switchSpace: { [weak self, weak scene] (spaceId, session) in
+                        guard let scene = scene else { return }
+                        self?.switchSpace(scene, spaceId: spaceId, session: session)
                     }
                 )
             }
         } else {
-            rootViewController = RootAnonymousController(signIn: { [weak self] (token, spaceId) in
-                self?.signIn(token: token, spaceId: spaceId)
-            })
+            rootViewController = RootAnonymousController(
+                scene: scene,
+                signIn: { [weak self, weak scene] (token, spaceId) in
+                    guard let scene = scene else { return }
+                    self?.signIn(scene, token: token, spaceId: spaceId)
+                }
+            )
         }
 
         logger.info(
@@ -128,10 +134,15 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
             this.setRootViewController(
                 RootTabBarController(
+                    scene: scene,
                     session: session,
-                    signOut: { [weak self] in self?.signOut() },
-                    switchSpace: { [weak self] (spaceId, session) in
-                        self?.switchSpace(spaceId: spaceId, session: session)
+                    signOut: { [weak self, weak scene] in
+                        guard let scene = scene else { return }
+                        self?.signOut(scene)
+                    },
+                    switchSpace: { [weak self, weak scene] (spaceId, session) in
+                        guard let scene = scene else { return }
+                        self?.switchSpace(scene, spaceId: spaceId, session: session)
                     },
                     initialTab: .inbox,
                     initialPath: notificationRequest.entryPath
@@ -146,6 +157,8 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         self.state = nil
     }
 
+    var isFirst = true
+
     func windowScene(
         _ windowScene: UIWindowScene,
         didUpdate previousCoordinateSpace: UICoordinateSpace,
@@ -157,41 +170,55 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         state.rootViewController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
     }
 
-    private func signIn(token: String, spaceId: String) {
+    private func signIn(_ scene: UIScene, token: String, spaceId: String) {
         // Save session to keychain and `SpaceId` to user defaults. On next launch of
         // the app the user will still be signed in and will return to the last space
         // they were in.
         let session = Session.set(token: token, spaceId: spaceId)
 
         let newRootViewController = RootTabBarController(
+            scene: scene,
             session: session,
-            signOut: { [weak self] in self?.signOut() },
-            switchSpace: { [weak self] (spaceId, session) in
-                self?.switchSpace(spaceId: spaceId, session: session)
+            signOut: { [weak self, weak scene] in
+                guard let scene = scene else { return }
+                self?.signOut(scene)
+            },
+            switchSpace: { [weak self, weak scene] (spaceId, session) in
+                guard let scene = scene else { return }
+                self?.switchSpace(scene, spaceId: spaceId, session: session)
             }
         )
 
         setRootViewController(newRootViewController, animated: true)
     }
 
-    private func signOut() {
+    private func signOut(_ scene: UIScene) {
         Session.delete()
 
-        let newRootViewController = RootAnonymousController(signIn: {
-            [weak self] (token, spaceId) in self?.signIn(token: token, spaceId: spaceId)
-        })
+        let newRootViewController = RootAnonymousController(
+            scene: scene,
+            signIn: { [weak self, weak scene] (token, spaceId) in
+                guard let scene = scene else { return }
+                self?.signIn(scene, token: token, spaceId: spaceId)
+            }
+        )
 
         setRootViewController(newRootViewController, animated: true)
     }
 
-    private func switchSpace(spaceId: String, session: Session) {
+    private func switchSpace(_ scene: UIScene, spaceId: String, session: Session) {
         let session = Session.set(token: session.token, spaceId: spaceId)
 
         let newRootViewController = RootTabBarController(
+            scene: scene,
             session: session,
-            signOut: { [weak self] in self?.signOut() },
-            switchSpace: { [weak self] (spaceId, session) in
-                self?.switchSpace(spaceId: spaceId, session: session)
+            signOut: { [weak self, weak scene] in
+                guard let scene = scene else { return }
+                self?.signOut(scene)
+            },
+            switchSpace: { [weak self, weak scene] (spaceId, session) in
+                guard let scene = scene else { return }
+                self?.switchSpace(scene, spaceId: spaceId, session: session)
             }
         )
 
@@ -207,6 +234,10 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         newRootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
 
         let oldRootViewController = self.state!.rootViewController
+
+        // Notify our root view controller that `SceneDelegate` is about to remove it.
+        // If this is called after our web process has terminated, we shouldn't reload!
+        oldRootViewController.sceneDelegateWillRemove(self)
 
         let action = { [weak self] in
             guard let this = self, this.state?.window == window else { return }
@@ -243,14 +274,22 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         if !newRootViewController.webNavigationController.isLoading {
             action()
         }
-        // Race to see whether `delayScreenTransitionLoadingIndicatorLimitSeconds`
+        // Race to see whether `extraLongDelayScreenTransitionLoadingIndicatorLimitSeconds`
         // completes first or `isLoading` is set to false first.
         else {
             let transitionStateId = nextTransitionStateId
             nextTransitionStateId += 1
 
             let timer = Timer.scheduledTimer(
-                withTimeInterval: delayScreenTransitionLoadingIndicatorLimitSeconds,
+                // Use our "extra long" delay since when the view controller is switching
+                // either:
+                //
+                // 1. There's an inline loading indicator (sign in/out and switching spaces
+                //    have inline loading indicators).
+                // 2. The user is opening the app from a push notification or deep link so
+                //    they're expecting app startup. We want to show the old snapshot during
+                //    this time.
+                withTimeInterval: extraLongDelayScreenTransitionLoadingIndicatorLimitSeconds,
                 repeats: false
             ) { [weak self] _ in
                 guard let this = self else { return }

@@ -36,6 +36,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     private struct DisabledTabBarState { let isHidden: Bool }
 
     init(
+        scene: UIScene,
         session: Session,
         signOut: @escaping () -> Void,
         switchSpace: @escaping (String, Session) -> Void,
@@ -80,6 +81,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         websiteDataStore.httpCookieStore.setCookie(sessionCookie)
 
         webNavigationController = WebNavigationController(
+            scene: scene,
             initialTab: initialTab,
             initialPath: initialPath ?? "/s/\(session.spaceId)",
             initialPathByTab: WebNavigationController.InitialPathByTab(
@@ -172,6 +174,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
         webNavigationController.setWindowSafeAreaInsets(windowSafeAreaInsets)
+    }
+
+    func sceneDelegateWillRemove(_ sceneDelegate: SceneDelegate) {
+        webNavigationController.sceneDelegateWillRemove(sceneDelegate)
     }
 
     override func viewDidAppear(_ animated: Bool) {
