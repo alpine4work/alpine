@@ -1976,7 +1976,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                 color="grey-50"
                                 fontStyle="truncate"
                                 userSelect={!isMobile ? "text" : undefined}
-                                textAlign={!isMobile ? undefined : "center"}
+                                textAlign={isMobile ? "center" : "left"}
                             >
                                 {subtitle}
                             </Box>

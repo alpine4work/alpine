@@ -1,7 +1,8 @@
-import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, ReactNode, Ref, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {
     MessagingView,
@@ -36,20 +37,24 @@ type TaskCommentsViewInitialComments = {
 
 type TaskCommentsViewProps = {
     taskId: TaskId;
-    taskTitleWithoutRealtime?: string;
     withMobileLayout: boolean;
     initialScrollToCommentIndex: number | null;
     getCommentUrl: Memo<(messageIndex: number) => URL>;
     initialComments: TaskCommentsViewInitialComments | null;
+    scrollViewRef?: Ref<HTMLDivElement>;
+    extraChildren?: ReactNode;
+    scrollbarInsetTop?: ScrollbarInsetDynamic;
 };
 
 export function TaskCommentsView({
     taskId,
-    taskTitleWithoutRealtime,
     withMobileLayout,
     initialScrollToCommentIndex,
     getCommentUrl,
     initialComments: initialCommentsFromProps,
+    scrollViewRef,
+    extraChildren,
+    scrollbarInsetTop,
 }: TaskCommentsViewProps) {
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef>(null);
@@ -116,16 +121,6 @@ export function TaskCommentsView({
         if (initialScrollToCommentIndex !== null)
             messaging.jumpToMessageIndex(initialScrollToCommentIndex);
     }, [initialScrollToCommentIndex, initialComments]);
-
-    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        withMobileLayout,
-        title: taskTitleWithoutRealtime,
-        subtitle: "Comments",
-        withoutDisappearingTitle: true,
-        isDisabled: !withMobileLayout,
-        replaceActions: null,
-        titleJustifyContent: "center",
-    });
 
     const header = useMemo(() => {
         if (!withMobileLayout) {
@@ -288,7 +283,7 @@ export function TaskCommentsView({
             <MessagingView
                 ref={messagingRef}
                 elementRef={scrollViewRef}
-                extraChildren={navigationBar}
+                extraChildren={extraChildren}
                 scrollbarInsetTop={scrollbarInsetTop}
                 withMobileLayout={withMobileLayout}
                 initialScrollOffset="bottom"

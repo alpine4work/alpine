@@ -1,6 +1,8 @@
 import {useParams, useSearchParams} from "@remix-run/react";
 import {redirect} from "@remix-run/router";
 import {useCallback, useEffect} from "react";
+import {usePress} from "react-aria";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -14,6 +16,7 @@ import {getTaskCommentsFromEnd} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
@@ -104,6 +107,23 @@ export default function TaskCommentsRoute({
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
 
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        withMobileLayout,
+        title: <TaskCommentsViewHeaderTitle spaceId={spaceId} taskId={taskId} title={taskTitle} />,
+        subtitle: "Comments",
+        withoutDisappearingTitle: true,
+        isDisabled: !withMobileLayout,
+        replaceActions: null,
+        menuActions: [
+            {
+                label: "Open task",
+                pressErrorTitle: "Couldn't open task",
+                onPress: () => navigate(`/s/${spaceId}/tasks/${taskId}/`),
+            },
+        ],
+        titleJustifyContent: !isMobile ? "flex-start" : "center",
+    });
+
     useEffect(() => {
         if (withMobileLayout) return;
 
@@ -120,7 +140,6 @@ export default function TaskCommentsRoute({
         <TaskCommentsView
             key={taskId}
             taskId={taskId}
-            taskTitleWithoutRealtime={taskTitle}
             withMobileLayout={withMobileLayout}
             initialComments={{
                 commentCount,
@@ -137,6 +156,49 @@ export default function TaskCommentsRoute({
                     ),
                 [taskId, spaceId],
             )}
+            scrollViewRef={scrollViewRef}
+            navigationBar={navigationBar}
+            scrollbarInsetTop={scrollbarInsetTop}
         />
+    );
+}
+
+function TaskCommentsViewHeaderTitle({
+    title,
+    spaceId,
+    taskId,
+}: {
+    title: string;
+    spaceId: SpaceId;
+    taskId: TaskId;
+}) {
+    const navigate = useNavigate();
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            navigate(`/s/${spaceId}/tasks/${taskId}`, {
+                stopPropagation: true,
+            });
+        },
+    });
+
+    return (
+        <a
+            {...pressProps}
+            className={sprinkles({
+                // This design has a weak link affordance so use a pointer cursor to make it
+                // clear this text is clickable.
+                cursor: "pointer",
+                opacity: isPressed ? "60" : undefined,
+            })}
+            href={`/s/${spaceId}/tasks/${taskId}`}
+            onClick={event => {
+                // Custom link navigation handling...
+                event.preventDefault();
+
+                pressProps.onClick?.(event);
+            }}
+        >
+            {title}
+        </a>
     );
 }
