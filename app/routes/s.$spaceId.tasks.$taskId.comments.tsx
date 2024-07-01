@@ -157,7 +157,7 @@ export default function TaskCommentsRoute({
                 [taskId, spaceId],
             )}
             scrollViewRef={scrollViewRef}
-            navigationBar={navigationBar}
+            extraChildren={navigationBar}
             scrollbarInsetTop={scrollbarInsetTop}
         />
     );
