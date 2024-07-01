@@ -8,6 +8,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
+import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -70,6 +71,8 @@ function TaskDetailNotesField(
     );
 
     const state = useStore(notesClient.state);
+
+    useWebSocketErrorDialog(notesClient, state.errorState);
 
     return (
         <Box>

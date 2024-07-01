@@ -273,10 +273,7 @@ export default function TaskRoute({
 
     // Show the "Lost connection" error dialog if any error occurs in our WebSocket
     // connection.
-    useWebSocketErrorDialog(
-        notesClient,
-        webSocketState?.hasError ? webSocketState : state.errorState,
-    );
+    useWebSocketErrorDialog(notesClient, webSocketState);
 
     return (
         <Box
