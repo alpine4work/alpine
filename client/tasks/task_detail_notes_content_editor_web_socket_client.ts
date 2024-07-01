@@ -265,7 +265,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                     });
                     break;
                 }
-                // (maximchen) We do not care about task comments when processing task notes
+                // NOTE(maximchen) We do not care about task comments when processing task notes
                 case "Comments": {
                     break;
                 }
@@ -326,9 +326,20 @@ export class TaskDetailNotesContentEditorWebSocketClient {
                         clientId: state.pendingSendableSteps.clientId,
                     })
                     .catch(error => {
+                        // If we're connected when an error occurs then this isn't a network related
+                        // issue. Present the error to the user. If we're disconnected when an error
+                        // occurs silently log and we want to retry when the WebSocket reconnects.
+                        if (this._client.state.getSnapshot().isConnected) {
+                            this._dispatch({type: "Error", error});
+                            return;
+                        }
+
                         this._getContext()
                             .tracer.getRoot()
-                            .logUncaughtException("Couldn't update content", error);
+                            .logUncaughtException(
+                                "Couldn't update content after disconnect",
+                                error,
+                            );
 
                         // Next time we send updates, we'll silently retry updating content if another
                         // `updateContent()` call hasn't happened in the meantime.
