@@ -4,13 +4,36 @@ import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import React, {useState} from "react";
+import {useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {TestSpaceContextProvider} from "~/client/spaces/space_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
+
+const createdTime = new Date();
+
+const space = new SpaceModel({
+    id: generateId(),
+    name: "Test Space",
+});
+
+const currentAccount = new AccountModel({
+    id: generateId(),
+    version: 0,
+    name: "Test Account",
+    nameVersion: 0,
+    space: {
+        version: 0,
+        joinedTime: createdTime,
+        wasRemoved: false,
+    },
+});
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
@@ -19,13 +42,16 @@ function TestContentEditor() {
             references: emptyContentReferences,
         }),
     );
+
     return (
-        <ContentEditor
-            aria-label="Test"
-            withMobileLayout={false}
-            state={state}
-            onChange={setState}
-        />
+        <TestSpaceContextProvider space={space} currentAccount={currentAccount}>
+            <ContentEditor
+                aria-label="Test"
+                withMobileLayout={false}
+                state={state}
+                onChange={setState}
+            />
+        </TestSpaceContextProvider>
     );
 }
 
@@ -141,6 +167,22 @@ function tabKeyboardEvent({
         code: "Tab",
         key: "Tab",
         keyCode: 9,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function arrowLeftKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "ArrowLeft",
+        key: "ArrowLeft",
+        keyCode: 37,
         metaKey,
         shiftKey,
     };
@@ -3559,4 +3601,112 @@ test("pressing backspace within code block indentation", async () => {
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("   test")))');
     fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("   test")))');
+});
+
+test("pressing command-left within code block goes to start of line excluding indentation", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 2, head: 2});
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    ")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      ")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 8, head: 8});
+
+    await simulateTyping("test");
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 12, head: 12});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 8, head: 8});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 2, head: 2});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 8, head: 8});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(10))));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 10, head: 10});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 8, head: 8});
+});
+
+test("pressing command-shift-left within code block goes to start of line excluding indentation and selects", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 2, head: 2});
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    ")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      ")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 8, head: 8});
+
+    await simulateTyping("test");
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 12, head: 12});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true, shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 12, head: 8});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true, shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 12, head: 2});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true, shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 12, head: 8});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(10))));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 10, head: 10});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent({metaKey: true, shiftKey: true}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 10, head: 8});
 });

@@ -530,6 +530,7 @@ export function buildContentEditorKeymapPlugin(
 
             while (childNodeIndex < node.childCount && textIndex < textLengthUntilSelection) {
                 const childNode = node.child(childNodeIndex);
+                if (!childNode.isText) return false;
 
                 const indentationText = childNode.text!.slice(
                     0,
@@ -881,12 +882,12 @@ export function buildContentEditorKeymapPlugin(
                         if (node.type.name !== "codeBlockLine") return;
 
                         const codeBlockLineIndentationStart = pos + removedCharacters + 1;
-                        const codeBlocklineIndentationEnd =
+                        const codeBlockLineIndentationEnd =
                             codeBlockLineIndentationStart + contentCodeBlockIndentationSpaceCount;
 
                         const lineText = transaction.doc.textBetween(
                             codeBlockLineIndentationStart,
-                            codeBlocklineIndentationEnd,
+                            codeBlockLineIndentationEnd,
                         );
 
                         // If lineText does not start with spaces don't de-dent
@@ -936,6 +937,7 @@ export function buildContentEditorKeymapPlugin(
 
         const parentNode = $from.node($from.depth - 1);
         const currentNode = $from.node();
+
         // 2. Check if the selection is a codeBlockLine and within codeBlock
         if (currentNode.type.name === "codeBlockLine" && parentNode.type.name === "codeBlock") {
             const paragraphNode = schema.nodes.paragraph;
@@ -955,6 +957,139 @@ export function buildContentEditorKeymapPlugin(
         }
 
         return false;
+    });
+
+    // In a code block, if you hit the line start shortcut, it should go to the
+    // start of the line excluding indentation spaces. For example if this is a
+    // code block and your cursor is `|`:
+    //
+    // ```
+    //     test|
+    // ```
+    //
+    // Hitting Command-Left should go to:
+    //
+    // ```
+    //     |test
+    // ```
+    //
+    // Hitting Command-Left again should now go to the start of the line:
+    //
+    // ```
+    // |    test
+    // ```
+    //
+    // Then hitting Command-Left a third time should go back to the start of the
+    // code line (this alternating pattern is what VS Code does, it's convenient if
+    // you accidentally hit Command-Left a second time).
+    //
+    // ```
+    //     |test
+    // ```
+    keys.set("Mod-ArrowLeft", (state, dispatch) => {
+        const {$from} = state.selection;
+
+        const fromNode = $from.node();
+        if (fromNode.type.name !== "codeBlockLine") return false;
+
+        const fromNodeStartPos = $from.start();
+        const fromRelativePos = $from.pos - fromNodeStartPos;
+
+        let indentationTextLength = 0;
+
+        for (let childNodeIndex = 0; childNodeIndex < fromNode.childCount; childNodeIndex++) {
+            const childNode = fromNode.child(childNodeIndex);
+            if (!childNode.isText) break;
+
+            for (let i = 0; i < childNode.text!.length; i++) {
+                if (childNode.text![i] !== " ") {
+                    break;
+                }
+                indentationTextLength++;
+                if (fromRelativePos !== 0 && fromRelativePos <= indentationTextLength) {
+                    dispatch?.(
+                        state.tr.setSelection(
+                            new TextSelection(state.doc.resolve(fromNodeStartPos)),
+                        ),
+                    );
+                    return true;
+                }
+            }
+        }
+
+        dispatch?.(
+            state.tr.setSelection(
+                new TextSelection(state.doc.resolve(fromNodeStartPos + indentationTextLength)),
+            ),
+        );
+        return true;
+    });
+
+    // In a code block, if you hit the line start shortcut, it should go to the
+    // start of the line excluding indentation spaces. If you also hold shift then
+    // it should select the text in between your existing cursor and the new
+    // location. For example if this is a code block and your cursor is `|`:
+    //
+    // ```
+    //     test|
+    // ```
+    //
+    // Hitting Command-Shift-Left should go to:
+    //
+    // ```
+    //     |test|
+    // ```
+    //
+    // Hitting Command-Shift-Left again should now go to the start of the line:
+    //
+    // ```
+    // |    test|
+    // ```
+    //
+    // Then hitting Command-Shift-Left a third time should go back to the start of
+    // the code line (this alternating pattern is what VS Code does, it's
+    // convenient if you accidentally hit Command-Shift-Left a second time).
+    //
+    // ```
+    //     |test|
+    // ```
+    keys.set("Mod-Shift-ArrowLeft", (state, dispatch) => {
+        const {$from, $to} = state.selection;
+
+        const fromNode = $from.node();
+        if (fromNode.type.name !== "codeBlockLine") return false;
+
+        const fromNodeStartPos = $from.start();
+        const fromRelativePos = $from.pos - fromNodeStartPos;
+
+        let indentationTextLength = 0;
+        if (fromRelativePos !== 0 && fromRelativePos <= indentationTextLength) return false;
+
+        for (let childNodeIndex = 0; childNodeIndex < fromNode.childCount; childNodeIndex++) {
+            const childNode = fromNode.child(childNodeIndex);
+
+            for (let i = 0; i < childNode.text!.length; i++) {
+                if (childNode.text![i] !== " ") {
+                    break;
+                }
+                indentationTextLength++;
+                if (fromRelativePos !== 0 && fromRelativePos <= indentationTextLength) {
+                    dispatch?.(
+                        state.tr.setSelection(
+                            new TextSelection($to, state.doc.resolve(fromNodeStartPos)),
+                        ),
+                    );
+                    return true;
+                }
+            }
+        }
+
+        dispatch?.(
+            state.tr.setSelection(
+                new TextSelection($to, state.doc.resolve(fromNodeStartPos + indentationTextLength)),
+            ),
+        );
+        return true;
     });
 
     keys.set("Mod-a", selectAll);

@@ -69,7 +69,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -606,9 +606,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const navigateRef = useRef(navigate);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
-    const spaceContext =
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        !import.meta.jest ? useSpaceContext() : null;
+    const spaceContext = useSpaceContextIfExists();
     const spaceContextRef = useRef(spaceContext);
     useInsertionEffect(() => {
         propsRef.current = props;

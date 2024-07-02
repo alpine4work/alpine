@@ -2,6 +2,7 @@ import {Memo, ReactNode, createContext, useContext, useMemo} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
@@ -87,6 +88,30 @@ export function SpaceContextProvider({
             >
                 {children}
             </MyAccountWebSocket.Provider>
+        </SpaceContext.Provider>
+    );
+}
+
+/**
+ * Space context provider for use in tests. Only provides space context. Does
+ * not connect to my account WebSocket or manage any other space state.
+ */
+export function TestSpaceContextProvider({
+    space,
+    currentAccount,
+    children,
+}: {
+    space: SpaceModel;
+    currentAccount: AccountModel;
+    children?: ReactNode;
+}) {
+    assert(import.meta.jest);
+
+    return (
+        <SpaceContext.Provider
+            value={useMemo(() => ({space, currentAccount}), [currentAccount, space])}
+        >
+            {children}
         </SpaceContext.Provider>
     );
 }

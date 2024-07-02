@@ -22,11 +22,21 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
     // `@` opens a mention search/selector interface
     rules.push(
-        new InputRule(/(?:^|\s)@$/, state =>
-            state.tr
+        new InputRule(/(?:^|\s)@$/, state => {
+            const {$from, $to} = state.selection;
+
+            // Don't open the mention floater if we're in a code block.
+            if (
+                $from.node().type.name === "codeBlockLine" ||
+                $to.node().type.name === "codeBlockLine"
+            ) {
+                return null;
+            }
+
+            return state.tr
                 .replaceSelectionWith(schema.text("@"))
-                .setMeta(openMentionFloaterMetaKey, true),
-        ),
+                .setMeta(openMentionFloaterMetaKey, true);
+        }),
     );
 
     // `# `, `## `, or `### ` creates a heading
