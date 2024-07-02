@@ -19,7 +19,8 @@ import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
-import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
+import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
+import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -687,6 +688,9 @@ function TaskRowTitleInput(
 
                             buildSharedContentEditorInputRulesPlugin(),
                             buildTaskTitleInputKeymapPlugin(),
+
+                            // Our shared keymap commands use this plugin.
+                            sharedContentEditorTrackSelectionWithinPlugin(),
                         ],
                     }),
 

@@ -1,12 +1,11 @@
-import {deleteSelection} from "prosemirror-commands";
+import {chainCommands, deleteSelection} from "prosemirror-commands";
 import {keydownHandler} from "prosemirror-keymap";
 import {Command, Plugin} from "prosemirror-state";
-import {addSharedContentEditorKeymapCommands} from "~/client/content/add_shared_content_editor_keymap_commands.js";
+import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 
 export function buildTaskTitleInputKeymapPlugin() {
     const keys = new Map<string, Command>();
-    addSharedContentEditorKeymapCommands(keys);
 
     // By default, ProseMirror doesn't handle the backspace key when the selection
     // is `AllSelection`. Which'll happen if the user double clicks in the margin
@@ -31,6 +30,20 @@ export function buildTaskTitleInputKeymapPlugin() {
         keys.set("Alt-Delete", deleteSelection);
         keys.set("Ctrl-h", deleteSelection);
         keys.set("Ctrl-d", deleteSelection);
+    }
+
+    {
+        const sharedKeys = new Map<string, Command>();
+        addSharedContentEditorKeymapCommands(sharedKeys);
+
+        for (const [key, sharedCommand] of sharedKeys) {
+            const command = keys.get(key);
+            if (command === undefined) {
+                keys.set(key, sharedCommand);
+            } else {
+                keys.set(key, chainCommands(sharedCommand, command));
+            }
+        }
     }
 
     const handleKeyDown = keydownHandler(Object.fromEntries(keys));

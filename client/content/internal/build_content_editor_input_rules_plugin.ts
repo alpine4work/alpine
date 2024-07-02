@@ -7,7 +7,7 @@ import {
 import {MarkType, NodeType} from "prosemirror-model";
 import {TextSelection} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
-import {addSharedContentEditorInputRules} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
+import {addSharedContentEditorInputRules} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

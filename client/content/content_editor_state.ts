@@ -17,6 +17,7 @@ import {
     ContentEditorFloaterState,
     initialContentEditorFloaterState,
 } from "~/client/content/internal/content_editor_floater.js";
+import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {
     ContentReferences,
     ContentWithReferences,
@@ -63,6 +64,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorQuickUndoPlugin(),
         contentEditorRetypedInputRulePlugin(),
         contentEditorIsContinuouslyTypingPlugin(),
+        sharedContentEditorTrackSelectionWithinPlugin(),
     ];
 }
 

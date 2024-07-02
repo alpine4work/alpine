@@ -4,7 +4,8 @@ import {EditorView} from "prosemirror-view";
 import {Ref, forwardRef, useCallback, useImperativeHandle, useInsertionEffect, useRef} from "react";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin} from "y-prosemirror";
 import * as Y from "yjs";
-import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/build_shared_content_editor_input_rules_plugin.js";
+import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
+import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -133,6 +134,9 @@ function TaskDetailTitleInput(
 
                             buildSharedContentEditorInputRulesPlugin(),
                             buildTaskTitleInputKeymapPlugin(),
+
+                            // Our shared keymap commands use this plugin.
+                            sharedContentEditorTrackSelectionWithinPlugin(),
                         ],
                     }),
 

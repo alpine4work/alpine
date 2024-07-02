@@ -15,7 +15,7 @@ import {keydownHandler} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {addSharedContentEditorKeymapCommands} from "~/client/content/add_shared_content_editor_keymap_commands.js";
+import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {
@@ -1180,7 +1180,20 @@ export function buildContentEditorKeymapPlugin(
         keys.set("Ctrl-d", deleteCommand);
     }
 
-    addSharedContentEditorKeymapCommands(keys);
+    {
+        const sharedKeys = new Map<string, Command>();
+        addSharedContentEditorKeymapCommands(sharedKeys);
+
+        for (const [key, sharedCommand] of sharedKeys) {
+            const command = keys.get(key);
+            if (command === undefined) {
+                keys.set(key, sharedCommand);
+            } else {
+                keys.set(key, chainCommands(sharedCommand, command));
+            }
+        }
+    }
+
     const handleKeyDown = keydownHandler(Object.fromEntries(keys));
 
     return new Plugin({

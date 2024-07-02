@@ -11,7 +11,9 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
@@ -96,10 +98,52 @@ function charKeyboardEvent({
     shiftKey?: boolean;
 }) {
     assert(key.length === 1 && key === key.toLowerCase());
+
+    let code: string;
+    let keyCode: number;
+    if (/^[a-z]$/.test(key)) {
+        code = `Key${key.toUpperCase()}`;
+        keyCode = key.charCodeAt(0) - 32;
+    } else if (key === "(") {
+        code = "Digit9";
+        keyCode = 57;
+        shiftKey = true;
+    } else if (key === ")") {
+        code = "Digit0";
+        keyCode = 48;
+        shiftKey = true;
+    } else if (key === "[") {
+        code = "BracketLeft";
+        keyCode = 219;
+        shiftKey = false;
+    } else if (key === "]") {
+        code = "BracketRight";
+        keyCode = 221;
+        shiftKey = false;
+    } else if (key === "{") {
+        code = "BracketLeft";
+        keyCode = 219;
+        shiftKey = true;
+    } else if (key === "}") {
+        code = "BracketRight";
+        keyCode = 221;
+        shiftKey = true;
+    } else if (key === "'") {
+        code = "Quote";
+        keyCode = 222;
+        shiftKey = false;
+    } else if (key === '"') {
+        code = "Quote";
+        keyCode = 222;
+        shiftKey = true;
+    } else {
+        throw new InternalError(quote`Unsupported key ${key}`);
+    }
+
     return {
-        code: `Key${key.toUpperCase()}`,
+        code,
         key: shiftKey ? key.toUpperCase() : key,
-        keyCode: key.charCodeAt(0) - 32,
+        keyCode,
         metaKey,
         shiftKey,
     };
@@ -3709,4 +3753,352 @@ test("pressing command-shift-left within code block goes to start of line exclud
 
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
     expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 10, head: 8});
+});
+
+test("auto balances `(` when typed", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("(())"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("((()))"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("(())"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("([])"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("([{}])"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("([])"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("auto balances `[` when typed", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[]"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[[]]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[[[]]]"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[[]]"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[]"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test("auto balances `{` when typed", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{{}}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{{{}}}"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{{}}"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+});
+
+test('auto balances `"` when typed', async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: '"'}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("“”“”"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    // Second quote isn't deleted since JSDOM doesn't support default keyboard
+    // event handlers. Seeing no keymap handler run is interesting enough to test.
+    expect(getDoc().toString()).toEqual('doc(paragraph("“”"))');
+});
+
+test("doesn't add extra punctuation after auto balancing `(`", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: ")"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: ")"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    // First parentheses isn't deleted since JSDOM doesn't support default keyboard
+    // event handlers. We're testing the parentheses itself isn't removed.
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()()"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()(())"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()((()))"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: ")"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()((()))"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: ")"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()((()))"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()((())())"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: ")"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("()()((())())"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: ")"}));
+});
+
+test("doesn't add extra punctuation after auto balancing `[`", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][]"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    // First parentheses isn't deleted since JSDOM doesn't support default keyboard
+    // event handlers. We're testing the parentheses itself isn't removed.
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][][]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][][[]]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][][[[]]]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][][[[]]]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][][[[]]]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][][[[]][]]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("[][][[[]][]]"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]"}));
+});
+
+test("doesn't add extra punctuation after auto balancing `{`", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}"))');
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    // First parentheses isn't deleted since JSDOM doesn't support default keyboard
+    // event handlers. We're testing the parentheses itself isn't removed.
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{{}}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{{{}}}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{{{}}}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{{{}}}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{{{}}{}}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{{{}}{}}"))');
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
 });

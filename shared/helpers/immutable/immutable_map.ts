@@ -148,6 +148,41 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
     }
 
     /**
+     * Update every value in the immutable map. If the update function returns
+     * `undefined` then the entry is removed from the map.
+     *
+     * Completes in O(log(n)) time.
+     *
+     * If every new value is equal to the corresponding old value then we will
+     * return the immutable map as-is as an optimization.
+     */
+    public updateEvery(
+        update: (value: Value, key: Key) => Value | undefined,
+    ): ImmutableMap<Key, Value> {
+        let tree = this._tree;
+        let iterator = this._tree.begin;
+
+        while (iterator.valid) {
+            const key = iterator.key!;
+            const oldValue = iterator.value!;
+            const newValue = update(oldValue, key);
+
+            if (newValue === undefined) {
+                tree = iterator.remove();
+                iterator = tree.gt(key);
+            } else if (!Object.is(oldValue, newValue)) {
+                tree = iterator.update(newValue);
+                iterator = tree.gt(key);
+            } else {
+                iterator.next();
+            }
+        }
+
+        if (tree === this._tree) return this;
+        return new ImmutableMap(tree);
+    }
+
+    /**
      * Returns a new map with the entry associated with the passed key removed.
      * The old map is unchanged.
      *
