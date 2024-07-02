@@ -1,6 +1,7 @@
 import {keydownHandler} from "prosemirror-keymap";
 import {EditorState, Plugin, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
+import {setContentEditorQuickUndo} from "~/client/content/content_editor_state.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 type Command = (
@@ -11,11 +12,11 @@ type Command = (
 
 function getPunctuation(
     punctuation: "(" | "{" | "[" | '"' | "'",
-    isCodeBlock: boolean,
+    isInCodeBlock: boolean,
 ): {openingPunctuation: string; closingPunctuation: string} {
     // If we are in a code block, we do not want smart quotations to wrap
     // our content
-    if (isCodeBlock) {
+    if (isInCodeBlock) {
         switch (punctuation) {
             case "(":
                 return {openingPunctuation: "(", closingPunctuation: ")"};
@@ -56,24 +57,69 @@ function wrapWithPunctuation(punctuation: "(" | "{" | "[" | '"' | "'"): Command 
 
         // This checks if the selection spans across content nodes
         if (nodeFrom !== nodeTo) return false;
-        if ($from.pos === $to.pos) return false;
 
-        const isCodeBlock = nodeFrom.type.name === "codeBlockLine";
+        const isInCodeBlock = nodeFrom.type.name === "codeBlockLine";
 
-        const {openingPunctuation, closingPunctuation} = getPunctuation(punctuation, isCodeBlock);
+        if ($from.pos === $to.pos) {
+            const isInCode = $from.marks().some(mark => mark.type.name === "code");
 
-        const tr = state.tr;
-        tr.insertText(openingPunctuation, $from.pos);
-        tr.insertText(closingPunctuation, $to.pos + 1);
+            // If we are in a code block then create a matching bracket since we assume the
+            // user wants balanced brackets. Arguably, we should always create balanced
+            // brackets? Even in regular text? Users rarely type `(` without wanting `)`.
+            if (isInCodeBlock || isInCode) {
+                if (dispatch) {
+                    const {openingPunctuation, closingPunctuation} = getPunctuation(
+                        punctuation,
+                        true,
+                    );
 
-        dispatch?.(
-            tr.setSelection(
-                new TextSelection(
-                    tr.doc.resolve(state.selection.from + 1),
-                    tr.doc.resolve(state.selection.to + 1),
+                    let transaction = state.tr;
+                    transaction.insertText(openingPunctuation + closingPunctuation, $from.pos);
+
+                    transaction.setSelection(
+                        new TextSelection(transaction.doc.resolve($from.pos + 1)),
+                    );
+
+                    transaction = setContentEditorQuickUndo(
+                        transaction,
+                        "Backspace",
+                        $from.pos,
+                        (state, dispatch, pos) => {
+                            const text = state.doc.textBetween(pos, pos + 2);
+                            if (text !== openingPunctuation + closingPunctuation) return false;
+
+                            dispatch?.(state.tr.deleteRange(pos, pos + 2));
+                            return true;
+                        },
+                    );
+
+                    dispatch(transaction);
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        if (dispatch) {
+            const {openingPunctuation, closingPunctuation} = getPunctuation(
+                punctuation,
+                isInCodeBlock,
+            );
+
+            const transaction = state.tr;
+            transaction.insertText(openingPunctuation, $from.pos);
+            transaction.insertText(closingPunctuation, $to.pos + 1);
+
+            dispatch(
+                transaction.setSelection(
+                    new TextSelection(
+                        transaction.doc.resolve($from.pos + 1),
+                        transaction.doc.resolve($to.pos + 1),
+                    ),
                 ),
-            ),
-        );
+            );
+        }
 
         return true;
     };

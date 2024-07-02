@@ -775,24 +775,46 @@ export function reduceContentReferences(
     }
 }
 
-const contentEditorQuickUndoPluginKey = new PluginKey<Transaction | null>("contentEditorQuickUndo");
+type ContentEditorQuickUndoPluginState = {
+    readonly key: "Mod-z" | "Backspace";
+    readonly pos: number;
+    readonly command: (
+        state: EditorState,
+        dispatch: ((transaction: Transaction) => void) | undefined,
+        pos: number,
+    ) => boolean;
+};
+
+const contentEditorQuickUndoPluginKey = new PluginKey<ContentEditorQuickUndoPluginState | null>(
+    "contentEditorQuickUndo",
+);
 
 function contentEditorQuickUndoPlugin() {
-    return new Plugin<Transaction | null>({
+    return new Plugin<ContentEditorQuickUndoPluginState | null>({
         key: contentEditorQuickUndoPluginKey,
         state: {
             init: () => null,
-            apply: (transaction, quickUndoTransaction) => {
-                const newQuickUndoTransaction = transaction.getMeta(
-                    contentEditorQuickUndoPluginKey,
-                );
-                if (newQuickUndoTransaction) return newQuickUndoTransaction;
+            apply: (transaction, quickUndoState) => {
+                const newQuickUndoState = transaction.getMeta(contentEditorQuickUndoPluginKey);
+                if (newQuickUndoState) return newQuickUndoState;
+
+                // Ignore transactions that aren't added to undo/redo history. This is a
+                // heuristic for edits made not by our user. For example, [collaborative edits
+                // set `addToHistory` to false][1].
+                //
+                // [1]: https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L150
+                if (transaction.getMeta("addToHistory") === false) {
+                    if (!quickUndoState) return null;
+
+                    const newPos = transaction.mapping.map(quickUndoState.pos);
+                    if (newPos === quickUndoState.pos) return quickUndoState;
+
+                    return {...quickUndoState, pos: newPos};
+                }
 
                 // If the selection moved or document changed then throw away our quick undo.
                 // It might not work anymore on the new document.
-                return transaction.selectionSet || transaction.docChanged
-                    ? null
-                    : quickUndoTransaction;
+                return transaction.selectionSet || transaction.docChanged ? null : quickUndoState;
             },
         },
     });
@@ -806,23 +828,29 @@ function contentEditorQuickUndoPlugin() {
  */
 export function setContentEditorQuickUndo(
     transaction: Transaction,
-    quickUndoTransaction: Transaction,
+    key: "Mod-z" | "Backspace",
+    pos: number,
+    command: (
+        state: EditorState,
+        dispatch: ((transaction: Transaction) => void) | undefined,
+        pos: number,
+    ) => boolean,
 ): Transaction {
-    return transaction.setMeta(contentEditorQuickUndoPluginKey, quickUndoTransaction);
+    return transaction.setMeta(contentEditorQuickUndoPluginKey, {key, pos, command});
 }
 
 /**
  * If there is a quick undo entry then execute it.
  */
-export const contentEditorQuickUndoCommand: Command = (state, dispatch) => {
-    const quickUndoTransaction = contentEditorQuickUndoPluginKey.getState(state);
-    if (quickUndoTransaction) {
-        dispatch?.(quickUndoTransaction);
-        return true;
-    }
+export const contentEditorQuickUndoCommand: (key: "Mod-z" | "Backspace") => Command =
+    key => (state, dispatch) => {
+        const quickUndoState = contentEditorQuickUndoPluginKey.getState(state);
+        if (quickUndoState?.key === key) {
+            return quickUndoState.command(state, dispatch, quickUndoState.pos);
+        }
 
-    return false;
-};
+        return false;
+    };
 
 type ContentEditorRetypedInputRuleState = {
     readonly inputRuleId: Id;

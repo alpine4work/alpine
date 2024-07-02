@@ -190,7 +190,21 @@ export function ContentEditorMentionFloater({
 
             transaction = setContentEditorQuickUndo(
                 transaction,
-                state.apply(transaction).tr.setNodeAttribute(range.from, "mention", newMention),
+                "Mod-z",
+                range.from,
+                (state, dispatch, pos) => {
+                    // If `pos` no longer represents the mention, return.
+                    const $pos = state.doc.resolve(pos);
+
+                    const node = $pos.node();
+                    if (node.childCount === 0) return false;
+
+                    const childNode = node.child($pos.index());
+                    if (childNode.type.name !== "mention") return false;
+
+                    dispatch?.(state.tr.setNodeAttribute(pos, "mention", newMention));
+                    return true;
+                },
             );
         }
 

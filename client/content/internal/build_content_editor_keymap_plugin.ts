@@ -67,7 +67,7 @@ export function buildContentEditorKeymapPlugin(
 ) {
     const keys = new Map<string, Command>();
 
-    const quickUndoCommand = chainCommands(contentEditorQuickUndoCommand, undoInputRule);
+    const quickUndoCommand = chainCommands(contentEditorQuickUndoCommand("Mod-z"), undoInputRule);
 
     // History
     if (!disableUndoKeyboardShortcuts) {
@@ -250,6 +250,9 @@ export function buildContentEditorKeymapPlugin(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
         deleteSelection,
+
+        // Run quick undos triggered with `Backspace`.
+        contentEditorQuickUndoCommand("Backspace"),
 
         // If "Backspace" is pressed in an empty non-paragraph textblock (like a
         // header) then we want to convert that textblock back to a paragraph.
