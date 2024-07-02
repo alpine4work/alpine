@@ -26,12 +26,15 @@ import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/in
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 
 type Command = (
     state: EditorState,
     transact?: (tr: Transaction) => void,
     view?: EditorView,
 ) => boolean;
+
+const contentCodeBlockIndentationSpaceCount = 2;
 
 function isNodeSpacesOnly(node: Node): boolean {
     for (let i = 0; i < node.childCount; i++) {
@@ -57,7 +60,6 @@ function indentationToRemove(lineText: string): number {
 export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 export const openCommentInputFloaterMetaKey = "openCommentInputFloater";
-const contentCodeBlockIndentationSpaceCount = 2;
 
 export function buildContentEditorKeymapPlugin(
     schema: ContentProsemirrorSchema,
@@ -444,6 +446,116 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
+        // If you hit backspace in a code block line within indentation spaces for the
+        // line, we want to delete a level of indentation instead of deleting a single
+        // character. If you want unaligned indentation you may insert a space back
+        // with the space key.
+        //
+        // ### Example 1
+        //
+        // For example, say the following is a code block and your cursor is `|`:
+        //
+        // ```
+        //     |test
+        // ```
+        //
+        // Pressing backspace will delete two spaces:
+        //
+        // ```
+        //   |test
+        // ```
+        //
+        // Pressing backspace again will delete two more spaces:
+        //
+        // ```
+        // |test
+        // ```
+        //
+        // ### Example 2
+        //
+        // If your cursor is somewhere inside the indentation it also deletes two
+        // spaces, for example:
+        //
+        // ```
+        //   |  test
+        // ```
+        //
+        // Becomes:
+        //
+        // ```
+        //   |  test
+        // ```
+        //
+        // ### Example 3
+        //
+        // We align deletes to the nearest indentation level. If you cursor is three
+        // spaces in we delete only one space instead of two, this:
+        //
+        // ```
+        //    |  test
+        // ```
+        //
+        // Becomes:
+        //
+        // ```
+        //   |  test
+        // ```
+        //
+        // ### Example 4
+        //
+        // We do not delete spaces after text. This:
+        //
+        // ```
+        //     test  |
+        // ```
+        //
+        // ...after backspace deletes only one space not two:
+        //
+        // ```
+        //     test |
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+
+            if ($from.pos !== $to.pos) return false;
+
+            const node = $from.node();
+            if (node.type.name !== "codeBlockLine") return false;
+
+            const textLengthUntilSelection = $from.pos - $from.start();
+            if (textLengthUntilSelection === 0) return false;
+
+            let childNodeIndex = 0;
+            let textIndex = 0;
+
+            while (childNodeIndex < node.childCount && textIndex < textLengthUntilSelection) {
+                const childNode = node.child(childNodeIndex);
+
+                const indentationText = childNode.text!.slice(
+                    0,
+                    textLengthUntilSelection - textIndex,
+                );
+                if (/[^ ]/.test(indentationText)) return false;
+
+                childNodeIndex += 1;
+                textIndex += indentationText.length;
+            }
+
+            if (textIndex !== textLengthUntilSelection) return false;
+
+            const newTextLengthUntilSelection =
+                (Math.ceil(textLengthUntilSelection / contentCodeBlockIndentationSpaceCount) - 1) *
+                contentCodeBlockIndentationSpaceCount;
+
+            dispatch?.(
+                state.tr.deleteRange(
+                    $from.pos - (textLengthUntilSelection - newTextLengthUntilSelection),
+                    $from.pos,
+                ),
+            );
+            return true;
+        },
+
         // If the cursor is at the beginning of a block and the user presses
         // backspace then join with the prior block.
         joinBackward,
@@ -652,13 +764,16 @@ export function buildContentEditorKeymapPlugin(
 
                 if (!isSelectionInsideSameCodeBlock) return false;
 
-                const spaces = "  ";
-
                 if (dispatch) {
                     const transaction = state.tr;
                     const lineStartPos = $from.start($from.depth);
                     let addedChars = 0;
                     let newSelectionTo = to;
+
+                    const spaces = createArrayWithLength(
+                        contentCodeBlockIndentationSpaceCount,
+                        () => " ",
+                    ).join("");
 
                     // If there is no selection and the cursor is in a empty code block line or
                     // in between content inside of a code block line, we still want to insert

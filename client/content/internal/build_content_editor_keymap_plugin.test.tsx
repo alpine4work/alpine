@@ -3496,3 +3496,67 @@ test("pressing delete at the end of a paragraph in a quote block brings the next
 
     expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("foobar")))');
 });
+
+test("pressing backspace in code block will delete one level of indentation", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine, codeBlockLine("  ")))');
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine, codeBlockLine("    ")))');
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine, codeBlockLine("      ")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine, codeBlockLine("    ")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine, codeBlockLine("  ")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+});
+
+test("pressing backspace in code block will align to nearest indentation level", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ")))');
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    ")))');
+    await simulateTyping(" ");
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("     ")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    ")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+});
+
+test("pressing backspace within code block indentation", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ")))');
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("    ")))');
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      ")))');
+    await simulateTyping("test");
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("      test")))');
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("     test")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("   test")))');
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("   test")))');
+});
