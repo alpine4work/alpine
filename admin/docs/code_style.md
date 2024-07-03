@@ -309,6 +309,83 @@ variable is used. You don't write the type of the variable where it's used, just
 include some of the type name in the variable name it is clear wherever the variable is used what
 type of thing you're interacting with.
 
+### Prefer named arguments over positional arguments beyond four arguments
+
+Most languages have syntax for functions with positional arguments and functions with named
+arguments. The difference primarily is in how the function is called.
+
+When calling a function with positional arguments there's no context on what the arguments are at
+the function call site:
+
+```ts
+myFunction(42, true, "hi");
+```
+
+When calling a function with named arguments there is context on what the arguments are at the
+function call site:
+
+```ts
+myFunction({foo: 42, bar: true, qux: "hi"});
+```
+
+You may also sometimes mix positional arguments and named arguments:
+
+```ts
+myFunction(context, null, {foo: 42, bar: true, qux: "hi"});
+```
+
+After about four arguments (or two arguments with the same type) generally prefer using named
+arguments over positional arguments. This is a recommendation, use your judgement for what's best
+for your function.
+
+Based on this recommendation, these functions with positional arguments are acceptable:
+
+```ts
+myFunction(42);
+myFunction(42, true);
+```
+
+But these functions are not. One has more than four arguments and the other has multiple arguments
+of the same type (`number`):
+
+```ts
+// 5 arguments
+myFunction(true, myVariable, 42, "hello", null);
+
+// 3 number arguments
+myFunction(2, 0, 8);
+```
+
+Instead write:
+
+```ts
+// 5 arguments
+myFunction({foo: true, bar: myVariable, qux: 42, buz: "hello", baz: null});
+
+// 3 number arguments
+myFunction({x: 2, y: 0, z: 8});
+```
+
+**Why?** Named arguments help when reading code. When looking at a function's call site it's easier
+to interpret what the purpose of each argument is. Especially when you have multiple arguments of
+the same type, it's easy to get confused about which position means what. To take an example from
+our task system, is the first argument the `assignerId: AccountId` or `assigneeId: AccountId`?
+
+A popular pattern in our codebase is to use positional arguments for the first 2–3 “essential”
+arguments then use an options object. For example, many functions in our backend use this pattern:
+
+```ts
+async function getPost(
+    context: ServerActionContext,
+    id: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+) {
+    // ...
+}
+```
+
+By convention, the options object is named `options` and is optional if possible.
+
 ## Comments
 
 ### Code comments should be 80 characters in length
