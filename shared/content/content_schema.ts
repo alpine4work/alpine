@@ -55,13 +55,19 @@ const {
 /**
  * The maximum level of indentation for a list item.
  */
-export const maxListItemIndentation = 5;
+export const maxContentListItemIndentation = 5;
 
-export const ContentSchemaListItemIndentSchema = Schema.integer.min(0).max(maxListItemIndentation);
+export const ContentSchemaListItemIndentSchema = Schema.integer
+    .min(0)
+    .max(maxContentListItemIndentation);
 
 export function clampListItemIndentation(indent: unknown): number {
-    return typeof indent === "number" ? clamp(0, Math.floor(indent), maxListItemIndentation) : 0;
+    return typeof indent === "number"
+        ? clamp(0, Math.floor(indent), maxContentListItemIndentation)
+        : 0;
 }
+
+export const contentCodeBlockIndentationSpaceCount = 2;
 
 /**
  * TypeScript convenience function for creating a `SchemaSpec`. Forces us to

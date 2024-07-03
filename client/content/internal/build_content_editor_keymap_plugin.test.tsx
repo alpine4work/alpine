@@ -2,6 +2,7 @@
 
 import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
+import {Node as ProsemirrorNode} from "prosemirror-model";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {useState} from "react";
@@ -10,13 +11,18 @@ import {ContentEditor, getEditorViewForTest} from "~/client/content/content_edit
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentWithoutTitleContentProsemirrorSchema,
+    emptyDocumentWithoutTitleContent,
+} from "~/shared/documents/document_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+
+const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 const createdTime = new Date();
 
@@ -37,10 +43,14 @@ const currentAccount = new AccountModel({
     },
 });
 
-function TestContentEditor() {
+function TestContentEditor({
+    initialContent = emptyDocumentWithoutTitleContent,
+}: {
+    initialContent?: ProsemirrorNode;
+}) {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: emptyDocumentWithoutTitleContent,
+            doc: initialContent,
             references: emptyContentReferences,
         }),
     );
@@ -4101,4 +4111,337 @@ test("doesn't add extra punctuation after auto balancing `{`", async () => {
     expect(getDoc().toString()).toEqual('doc(paragraph("{}{}{{{}}{}}"))');
 
     fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
+});
+
+test("pressing enter will reuse current indentation level in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test1");
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test1")))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  ")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  "), codeBlockLine("  ")))',
+    );
+
+    await simulateTyping("test2");
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  "), codeBlockLine("    test2")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  "), codeBlockLine("    test2"), codeBlockLine("    ")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  "), codeBlockLine("    test2"), codeBlockLine("      ")))',
+    );
+
+    await simulateTyping("test3");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  "), codeBlockLine("    test2"), codeBlockLine("      test3")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  "), codeBlockLine("    test2"), codeBlockLine("      test3"), codeBlockLine("      ")))',
+    );
+
+    await simulateTyping("test4");
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  "), codeBlockLine("    test2"), codeBlockLine("      test3"), codeBlockLine("      test4")))',
+    );
+});
+
+test("pressing enter will add indentation level if in `()` in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ()")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 5, head: 5});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ("), codeBlockLine("    "), codeBlockLine("  )")))',
+    );
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 11, head: 11});
+});
+
+test("pressing enter will add indentation level if in `[]` in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  []")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 5, head: 5});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ["), codeBlockLine("    "), codeBlockLine("  ]")))',
+    );
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 11, head: 11});
+});
+
+test("pressing enter will add indentation level if in `{}` in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  {}")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 5, head: 5});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    "), codeBlockLine("  }")))',
+    );
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 11, head: 11});
+});
+
+test("pressing enter won't add indentation level if after `()` in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "("}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ()")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 5, head: 5});
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: ")"}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  ()")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ()"), codeBlockLine("  ")))',
+    );
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 10, head: 10});
+});
+
+test("pressing enter won't add indentation level if after `[]` in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "["}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  []")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 5, head: 5});
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "]"}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  []")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  []"), codeBlockLine("  ")))',
+    );
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 10, head: 10});
+});
+
+test("pressing enter won't add indentation level if after `{}` in code block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "{"}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  {}")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 5, head: 5});
+
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "}"}));
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  {}")))');
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {}"), codeBlockLine("  ")))',
+    );
+    expect(getEditor().state.selection.toJSON()).toEqual({type: "text", anchor: 10, head: 10});
+});
+
+test("pressing enter will match the indentation level if after unbalanced `(` in code block", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  (")]),
+                    schema.node("codeBlockLine", null, [schema.text("       test")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ("), codeBlockLine("       test")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ("), codeBlockLine("       "), codeBlockLine("       test")))',
+    );
+});
+
+test("pressing enter will match the indentation level if after unbalanced `[` in code block", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  [")]),
+                    schema.node("codeBlockLine", null, [schema.text("       test")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ["), codeBlockLine("       test")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ["), codeBlockLine("       "), codeBlockLine("       test")))',
+    );
+});
+
+test("pressing enter will match the indentation level if after unbalanced `{` in code block", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, [schema.text("       test")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("       test")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("       "), codeBlockLine("       test")))',
+    );
+});
+
+test("pressing enter will add to the indentation level if after unbalanced `(` in code block", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  (")]),
+                    schema.node("codeBlockLine", null, [schema.text("  )")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ("), codeBlockLine("  )")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ("), codeBlockLine("    "), codeBlockLine("  )")))',
+    );
+});
+
+test("pressing enter will add to the indentation level if after unbalanced `[` in code block", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  [")]),
+                    schema.node("codeBlockLine", null, [schema.text("  ]")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ["), codeBlockLine("  ]")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ["), codeBlockLine("    "), codeBlockLine("  ]")))',
+    );
+});
+
+test("pressing enter will add to the indentation level if after unbalanced `{` in code block", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, [schema.text("  }")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("  }")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    "), codeBlockLine("  }")))',
+    );
 });

@@ -15,7 +15,6 @@ import {keydownHandler} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {
@@ -23,18 +22,19 @@ import {
     indentListItemCommand,
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
+import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {
+    ContentProsemirrorSchema,
+    contentCodeBlockIndentationSpaceCount,
+} from "~/shared/content/content_schema.js";
 
 type Command = (
     state: EditorState,
     transact?: (tr: Transaction) => void,
     view?: EditorView,
 ) => boolean;
-
-const contentCodeBlockIndentationSpaceCount = 2;
 
 function isNodeSpacesOnly(node: Node): boolean {
     for (let i = 0; i < node.childCount; i++) {
@@ -98,7 +98,7 @@ export function buildContentEditorKeymapPlugin(
             // want to use `splitBlock`. `LiftEmptyBlock` behavior splits the
             // `codeBlock` into two separate codeBlocks.
             //
-            // For example(behavior we do not want): if the cursor is at `|`:
+            // For example (behavior we do not want): if the cursor is at `|`:
             //
             // ```
             //  1
@@ -214,10 +214,24 @@ export function buildContentEditorKeymapPlugin(
         // in two.
         (state, dispatch) => {
             const {$from} = state.selection;
-            const node = $from.node();
-            const isSelectionCodeBlockLine = node.type.name === "codeBlockLine";
+            const fromNode = $from.node();
+            const isSelectionInCodeBlockLine = fromNode.type.name === "codeBlockLine";
 
-            if (isSelectionCodeBlockLine) {
+            if (isSelectionInCodeBlockLine) {
+                // If we're in a code block then we want to preserve the indentation level of
+                // the line we're currently on. So if this is a code block and `|` is the
+                // cursor:
+                //
+                // ```
+                //     test|
+                // ```
+                //
+                // Hitting enter should give us:
+                //
+                // ```
+                //     test
+                //     |
+                // ```
                 return splitBlockWithCodeBlockLineLeadingIndentation(state, dispatch);
             } else {
                 return splitBlock(state, dispatch);
@@ -774,10 +788,7 @@ export function buildContentEditorKeymapPlugin(
                     let addedChars = 0;
                     let newSelectionTo = to;
 
-                    const spaces = createArrayWithLength(
-                        contentCodeBlockIndentationSpaceCount,
-                        () => " ",
-                    ).join("");
+                    const spaces = " ".repeat(contentCodeBlockIndentationSpaceCount);
 
                     // If there is no selection and the cursor is in a empty code block line or
                     // in between content inside of a code block line, we still want to insert

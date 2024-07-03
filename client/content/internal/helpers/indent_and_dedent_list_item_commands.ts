@@ -1,5 +1,5 @@
 import {Command} from "prosemirror-state";
-import {maxListItemIndentation} from "~/shared/content/content_schema.js";
+import {maxContentListItemIndentation} from "~/shared/content/content_schema.js";
 
 /**
  * Indent all list items in a selection. Only indents if all the selected
@@ -52,7 +52,7 @@ export const indentListItemCommand: Command = (state, dispatch) => {
 
         // 4. Indent each list item node by one, but don't indent past our max
         // indentation level.
-        const newIndent = Math.min(node.attrs.indent + 1, maxListItemIndentation);
+        const newIndent = Math.min(node.attrs.indent + 1, maxContentListItemIndentation);
 
         const lastNodeIndent = lastNode.attrs.indent + (indented.has(node) ? 1 : 0);
 

@@ -34,9 +34,10 @@
  * THE SOFTWARE.
  */
 
-import {Attrs, ContentMatch, Fragment, Node, NodeType, Slice} from "prosemirror-model";
-import {AllSelection, Command, NodeSelection, TextSelection} from "prosemirror-state";
-import {ReplaceStep, Transform, canSplit} from "prosemirror-transform";
+import {Attrs, ContentMatch, Fragment, Node, NodeType, ResolvedPos, Slice} from "prosemirror-model";
+import {AllSelection, Command, NodeSelection, TextSelection, Transaction} from "prosemirror-state";
+import {ReplaceStep, canSplit} from "prosemirror-transform";
+import {contentCodeBlockIndentationSpaceCount} from "~/shared/content/content_schema.js";
 
 function defaultBlockAt(match: ContentMatch) {
     for (let i = 0; i < match.edgeCount; i++) {
@@ -46,8 +47,160 @@ function defaultBlockAt(match: ContentMatch) {
     return null;
 }
 
+// NOTE: This is the code we added that's not in the forked code.
+// If the node is a code block line, we append to the after fragments.
+// In this case we extract the amount of leading indentation to apply on the
+// new Slice
+function addCodeBlockLineLeadingIndentation(
+    $pos: ResolvedPos,
+    node: Node,
+    after: Fragment,
+): [after: Fragment, afterSelection: Fragment | null] {
+    let iterationPos = $pos.start($pos.depth);
+    let indentationSpaceCount = 0;
+    let hasIndentationEnded = false;
+    const openCountByBracket = {"(": 0, "{": 0, "[": 0};
+    const wouldNextCharacterCloseByBracket = {"(": false, "{": false, "[": false};
+
+    // Calculate up until `pos`:
+    //
+    // 1. Leading indentation space count
+    // 2. Open bracket count, if we have unbalanced brackets we need to use the
+    //    next line's leading indentation
+    let childNodeIndex = 0;
+    while (childNodeIndex < node.childCount) {
+        const childNode = node.child(childNodeIndex);
+        childNodeIndex++;
+        if (!childNode.isText) {
+            iterationPos += childNode.nodeSize;
+            hasIndentationEnded = true;
+            if (iterationPos >= $pos.pos) break;
+            continue;
+        }
+
+        const childNodeText = childNode.text!;
+
+        for (let index = 0; index < childNodeText.length; index++) {
+            const character = childNodeText[index]!;
+
+            if (!hasIndentationEnded) {
+                if (character === " ") {
+                    indentationSpaceCount++;
+                } else {
+                    hasIndentationEnded = true;
+                }
+            }
+
+            switch (character) {
+                case "(":
+                    openCountByBracket["("]++;
+                    break;
+                case ")":
+                    openCountByBracket["("]--;
+                    break;
+                case "{":
+                    openCountByBracket["{"]++;
+                    break;
+                case "}":
+                    openCountByBracket["{"]--;
+                    break;
+                case "[":
+                    openCountByBracket["["]++;
+                    break;
+                case "]":
+                    openCountByBracket["["]--;
+                    break;
+            }
+
+            iterationPos++;
+
+            if (iterationPos >= $pos.pos) {
+                if (index + 1 < childNodeText.length) {
+                    const nextCharacter = childNodeText[index + 1]!;
+
+                    switch (nextCharacter) {
+                        case ")":
+                            wouldNextCharacterCloseByBracket["("] = true;
+                            break;
+                        case "}":
+                            wouldNextCharacterCloseByBracket["{"] = true;
+                            break;
+                        case "]":
+                            wouldNextCharacterCloseByBracket["["] = true;
+                            break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    const isSomeBracketOpen =
+        openCountByBracket["("] > 0 || openCountByBracket["{"] > 0 || openCountByBracket["["] > 0;
+
+    const originalIndentationSpaceCount = indentationSpaceCount;
+
+    // If a bracket is open on this code block line, then let's use the indentation
+    // from the _next_ code block line, not this one.
+    if (isSomeBracketOpen) {
+        const parentNode = $pos.node($pos.depth - 1);
+        const parentNodeIndex = $pos.index($pos.depth - 1);
+
+        let nextIndentationSpaceCount = 0;
+
+        if (parentNodeIndex + 1 < parentNode.childCount) {
+            const nextNode = parentNode.child(parentNodeIndex + 1);
+
+            let nextChildNodeIndex = 0;
+            while (nextChildNodeIndex < nextNode.childCount) {
+                const nextChildNode = nextNode.child(nextChildNodeIndex);
+                nextChildNodeIndex++;
+                if (!nextChildNode.isText) break;
+
+                const nextChildNodeText = nextChildNode.text!;
+
+                for (let i = 0; i < nextChildNodeText.length; i++) {
+                    if (nextChildNodeText[i]! === " ") {
+                        nextIndentationSpaceCount++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (nextIndentationSpaceCount > indentationSpaceCount) {
+            indentationSpaceCount = nextIndentationSpaceCount;
+        } else {
+            indentationSpaceCount += contentCodeBlockIndentationSpaceCount;
+        }
+    }
+
+    if (indentationSpaceCount > 0) {
+        const indentationTextNode = node.type.schema.text(" ".repeat(indentationSpaceCount));
+        after = after.addToEnd(indentationTextNode);
+    }
+
+    let afterSelection: Fragment | null = null;
+    if (
+        (openCountByBracket["("] > 0 && wouldNextCharacterCloseByBracket["("]) ||
+        (openCountByBracket["["] > 0 && wouldNextCharacterCloseByBracket["["]) ||
+        (openCountByBracket["{"] > 0 && wouldNextCharacterCloseByBracket["{"])
+    ) {
+        afterSelection = Fragment.empty;
+        if (originalIndentationSpaceCount > 0) {
+            const indentationTextNode = node.type.schema.text(
+                " ".repeat(originalIndentationSpaceCount),
+            );
+            afterSelection = afterSelection.addToEnd(indentationTextNode);
+        }
+    }
+
+    return [after, afterSelection];
+}
+
 function splitWithCodeBlockLineLeadingIndentation(
-    tr: Transform,
+    tr: Transaction,
     pos: number,
     depth = 1,
     typesAfter?: Array<null | {type: NodeType; attrs?: Attrs | null}>,
@@ -55,20 +208,15 @@ function splitWithCodeBlockLineLeadingIndentation(
     const $pos = tr.doc.resolve(pos);
     let before = Fragment.empty;
     let after = Fragment.empty;
+    let afterSelection: Fragment | null = null;
 
     // NOTE: This is the code that we modified from the fork.
     // If the node is a code block line, we append to the after fragments.
     // In this case we extract the amount of leading
     // indentation to apply on the new Slice
-    const currentNode = $pos.node($pos.depth);
-    if (currentNode.type.name === "codeBlockLine") {
-        const leadingWhiteSpaceMatch = currentNode.textContent.match(/^ +/);
-        const leadingIndentation = leadingWhiteSpaceMatch ? leadingWhiteSpaceMatch[0] : "";
-
-        if (leadingIndentation.length > 0) {
-            const textNode = currentNode.type.schema.text(leadingIndentation);
-            after = after.addToEnd(textNode);
-        }
+    const node = $pos.node($pos.depth);
+    if (node.type.name === "codeBlockLine") {
+        [after, afterSelection] = addCodeBlockLineLeadingIndentation($pos, node, after);
     }
 
     for (let d = $pos.depth, e = $pos.depth - depth, i = depth - 1; d > e; d--, i--) {
@@ -77,9 +225,38 @@ function splitWithCodeBlockLineLeadingIndentation(
         after = Fragment.from(
             typeAfter ? typeAfter.type.create(typeAfter.attrs, after) : $pos.node(d).copy(after),
         );
+        afterSelection =
+            afterSelection !== null
+                ? Fragment.from(
+                      typeAfter
+                          ? typeAfter.type.create(typeAfter.attrs, afterSelection)
+                          : $pos.node(d).copy(afterSelection),
+                  )
+                : null;
     }
 
-    tr.step(new ReplaceStep(pos, pos, new Slice(before.append(after), depth, depth), true));
+    tr.step(
+        new ReplaceStep(
+            pos,
+            pos,
+            new Slice(
+                afterSelection !== null
+                    ? before.append(after).append(afterSelection)
+                    : before.append(after),
+                depth,
+                depth,
+            ),
+            true,
+        ),
+    );
+
+    if (
+        afterSelection !== null &&
+        tr.selection instanceof TextSelection &&
+        tr.selection.from === tr.selection.to
+    ) {
+        tr.setSelection(new TextSelection(tr.doc.resolve(tr.selection.from - afterSelection.size)));
+    }
 }
 
 function splitBlockAsWithCodeBlockLineLeadingIndentation(
@@ -127,8 +304,9 @@ function splitBlockAsWithCodeBlockLineLeadingIndentation(
                     if (
                         deflt &&
                         $from.node(-1).canReplaceWith($first.index(), $first.index() + 1, deflt)
-                    )
+                    ) {
                         tr.setNodeMarkup(tr.mapping.map($from.before()), deflt);
+                    }
                 }
             }
             dispatch(tr.scrollIntoView());
