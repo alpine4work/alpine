@@ -4374,6 +4374,78 @@ test("pressing enter will match the indentation level if after unbalanced `{` in
     );
 });
 
+test("pressing enter will match the indentation level if after unbalanced `(` in code block (being preceded by closing bracket counts as unbalanced)", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  ) else (")]),
+                    schema.node("codeBlockLine", null, [schema.text("       test")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ) else ("), codeBlockLine("       test")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ) else ("), codeBlockLine("       "), codeBlockLine("       test")))',
+    );
+});
+
+test("pressing enter will match the indentation level if after unbalanced `[` in code block (being preceded by closing bracket counts as unbalanced)", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  ] else [")]),
+                    schema.node("codeBlockLine", null, [schema.text("       test")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ] else ["), codeBlockLine("       test")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  ] else ["), codeBlockLine("       "), codeBlockLine("       test")))',
+    );
+});
+
+test("pressing enter will match the indentation level if after unbalanced `{` in code block (being preceded by closing bracket counts as unbalanced)", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  } else {")]),
+                    schema.node("codeBlockLine", null, [schema.text("       test")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  } else {"), codeBlockLine("       test")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(12))));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  } else {"), codeBlockLine("       "), codeBlockLine("       test")))',
+    );
+});
+
 test("pressing enter will add to the indentation level if after unbalanced `(` in code block", async () => {
     render(
         <TestContentEditor

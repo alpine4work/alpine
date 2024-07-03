@@ -96,19 +96,19 @@ function addCodeBlockLineLeadingIndentation(
                     openCountByBracket["("]++;
                     break;
                 case ")":
-                    openCountByBracket["("]--;
+                    if (openCountByBracket["("] > 0) openCountByBracket["("]--;
                     break;
                 case "{":
                     openCountByBracket["{"]++;
                     break;
                 case "}":
-                    openCountByBracket["{"]--;
+                    if (openCountByBracket["{"] > 0) openCountByBracket["{"]--;
                     break;
                 case "[":
                     openCountByBracket["["]++;
                     break;
                 case "]":
-                    openCountByBracket["["]--;
+                    if (openCountByBracket["["] > 0) openCountByBracket["["]--;
                     break;
             }
 
