@@ -449,6 +449,54 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
+        // If the cursor is at the beginning of a block and the user presses
+        // backspace then join with the prior block.
+        joinBackward,
+
+        // NOTE: To be honest, I (Caleb) am not sure what this does, but it is in
+        // the ProseMirror base keymap so I assume it is important.
+        selectNodeBackward,
+    );
+
+    const wordBackspaceCommand: Command = chainCommands(
+        // If we delete before a mention and the mention is not a short mention, update
+        // the mention to a short mention. Another delete will delete the mention.
+        //
+        // For example, if the cursor is at `|`:
+        //
+        // ```
+        // @Caleb Meredith|
+        // ```
+        //
+        // Then you press backspace:
+        //
+        // ```
+        // @Caleb|
+        // ```
+        //
+        // Then you press backspace again:
+        //
+        // ```
+        // |
+        // ```
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+
+            const isSelectionBeforeMentionNode =
+                $from.pos === $to.pos && $from.nodeBefore?.type.name === "mention";
+
+            if (!isSelectionBeforeMentionNode) return false;
+
+            const mention: ContentMention = $from.nodeBefore.attrs.mention;
+            if (mention.isShort) return false;
+
+            if (dispatch) {
+                const newMention: ContentMention = {...mention, isShort: true};
+                dispatch(state.tr.setNodeAttribute($from.pos - 1, "mention", newMention));
+            }
+            return true;
+        },
+
         // If you hit backspace in a code block line within indentation spaces for the
         // line, we want to delete a level of indentation instead of deleting a single
         // character. If you want unaligned indentation you may insert a space back
@@ -557,54 +605,6 @@ export function buildContentEditorKeymapPlugin(
                     $from.pos,
                 ),
             );
-            return true;
-        },
-
-        // If the cursor is at the beginning of a block and the user presses
-        // backspace then join with the prior block.
-        joinBackward,
-
-        // NOTE: To be honest, I (Caleb) am not sure what this does, but it is in
-        // the ProseMirror base keymap so I assume it is important.
-        selectNodeBackward,
-    );
-
-    const wordBackspaceCommand: Command = chainCommands(
-        // If we delete before a mention and the mention is not a short mention, update
-        // the mention to a short mention. Another delete will delete the mention.
-        //
-        // For example, if the cursor is at `|`:
-        //
-        // ```
-        // @Caleb Meredith|
-        // ```
-        //
-        // Then you press backspace:
-        //
-        // ```
-        // @Caleb|
-        // ```
-        //
-        // Then you press backspace again:
-        //
-        // ```
-        // |
-        // ```
-        (state, dispatch) => {
-            const {$from, $to} = state.selection;
-
-            const isSelectionBeforeMentionNode =
-                $from.pos === $to.pos && $from.nodeBefore?.type.name === "mention";
-
-            if (!isSelectionBeforeMentionNode) return false;
-
-            const mention: ContentMention = $from.nodeBefore.attrs.mention;
-            if (mention.isShort) return false;
-
-            if (dispatch) {
-                const newMention: ContentMention = {...mention, isShort: true};
-                dispatch(state.tr.setNodeAttribute($from.pos - 1, "mention", newMention));
-            }
             return true;
         },
 
