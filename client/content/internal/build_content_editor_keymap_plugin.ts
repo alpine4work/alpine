@@ -768,7 +768,7 @@ export function buildContentEditorKeymapPlugin(
             // When the user hits tab inside of a code block line, we insert 2 spaces
             // of indentation to the current selection.
             (state, dispatch) => {
-                const {$from, $to, to, from} = state.selection;
+                const {$from, $to} = state.selection;
                 const fromNode = $from.node();
                 const toNode = $to.node();
                 const fromParentNode = $from.node($from.depth - 1);
@@ -785,15 +785,105 @@ export function buildContentEditorKeymapPlugin(
                 if (dispatch) {
                     const transaction = state.tr;
                     const lineStartPos = $from.start($from.depth);
-                    let addedChars = 0;
-                    let newSelectionTo = to;
-
-                    const spaces = " ".repeat(contentCodeBlockIndentationSpaceCount);
 
                     // If there is no selection and the cursor is in a empty code block line or
                     // in between content inside of a code block line, we still want to insert
                     // indentation to the line start
                     if ($from.pos === $to.pos) {
+                        let minIndentationSpaceCount = 0;
+
+                        let isSelectionInIndentationSpace = true;
+                        for (
+                            let pos = lineStartPos, childNodeIndex = 0;
+                            childNodeIndex < fromNode.childCount;
+                            childNodeIndex++
+                        ) {
+                            const childNode = fromNode.child(childNodeIndex);
+
+                            if (!childNode.isText) {
+                                isSelectionInIndentationSpace = false;
+                                break;
+                            }
+
+                            const text = childNode.text!.slice(0, $from.pos - pos);
+
+                            if (/[^ ]/.test(text)) {
+                                isSelectionInIndentationSpace = false;
+                                break;
+                            }
+
+                            pos += text.length;
+                            if (pos >= $from.pos) break;
+                        }
+
+                        // If the selection is in the line's initial indentation space, then hitting
+                        // tab should go to the maximum indentation of the two adjacent lines.
+                        //
+                        // Get the indentation of the two adjacent lines and adjust
+                        // `minIndentationSpaceCount` so the indentation we add will get us to match
+                        // adjacent line indentation.
+                        if (isSelectionInIndentationSpace) {
+                            const nodeIndex = $from.index($from.depth - 1);
+                            const previousNode =
+                                nodeIndex - 1 >= 0 ? fromParentNode.child(nodeIndex - 1) : null;
+                            const nextNode =
+                                nodeIndex + 1 < fromParentNode.childCount
+                                    ? fromParentNode.child(nodeIndex + 1)
+                                    : null;
+
+                            let previousNodeIndentationSpaceCount = 0;
+                            let nextNodeIndentationSpaceCount = 0;
+
+                            if (previousNode) {
+                                for (
+                                    let childNodeIndex = 0;
+                                    childNodeIndex < previousNode.childCount;
+                                    childNodeIndex++
+                                ) {
+                                    const childNode = previousNode.child(childNodeIndex);
+                                    if (!childNode.isText) break;
+
+                                    const match = childNode.text!.match(/^ +/);
+                                    if (!match) break;
+
+                                    previousNodeIndentationSpaceCount += match[0].length;
+                                    if (match[0].length < childNode.text!.length) break;
+                                }
+                            }
+
+                            if (nextNode) {
+                                for (
+                                    let childNodeIndex = 0;
+                                    childNodeIndex < nextNode.childCount;
+                                    childNodeIndex++
+                                ) {
+                                    const childNode = nextNode.child(childNodeIndex);
+                                    if (!childNode.isText) break;
+
+                                    const match = childNode.text!.match(/^ +/);
+                                    if (!match) break;
+
+                                    nextNodeIndentationSpaceCount += match[0].length;
+                                    if (match[0].length < childNode.text!.length) break;
+                                }
+                            }
+
+                            const adjacentNodesIndentationSpaceCount = Math.max(
+                                previousNodeIndentationSpaceCount,
+                                nextNodeIndentationSpaceCount,
+                            );
+
+                            minIndentationSpaceCount =
+                                adjacentNodesIndentationSpaceCount - ($from.pos - lineStartPos);
+                        }
+
+                        const spaces = " ".repeat(
+                            Math.max(
+                                contentCodeBlockIndentationSpaceCount,
+                                minIndentationSpaceCount,
+                            ),
+                        );
+
                         transaction.insertText(spaces, lineStartPos);
                         const selection = TextSelection.create(
                             transaction.doc,
@@ -801,10 +891,15 @@ export function buildContentEditorKeymapPlugin(
                         );
                         transaction.setSelection(selection);
                     } else {
+                        const spaces = " ".repeat(contentCodeBlockIndentationSpaceCount);
+
+                        let addedChars = 0;
+                        let newSelectionTo = $to.pos;
+
                         // `nodesBetween` lets us loop through each node and find
                         // the node to add spaces. `addedChars` let's us account for inserted spaces to
                         // ensure the subsequent node inserts are positioned accurately.
-                        state.doc.nodesBetween(from, to, (node, pos) => {
+                        state.doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
                             if (node.type.name === "codeBlockLine" && !isNodeSpacesOnly(node)) {
                                 const insertPos = pos + 1 + addedChars;
                                 transaction.insertText(spaces, insertPos);
@@ -815,7 +910,7 @@ export function buildContentEditorKeymapPlugin(
 
                         const selection = TextSelection.create(
                             transaction.doc,
-                            from,
+                            $from.pos,
                             newSelectionTo,
                         );
                         transaction.setSelection(selection);

@@ -4445,3 +4445,195 @@ test("pressing enter will add to the indentation level if after unbalanced `{` i
         'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    "), codeBlockLine("  }")))',
     );
 });
+
+test("pressing tab in code block will first go to the indentation level of max sibling line 1", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, [schema.text("    test1")]),
+                    schema.node("codeBlockLine", null, []),
+                    schema.node("codeBlockLine", null, [schema.text("  }")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine, codeBlockLine("  }")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine("    "), codeBlockLine("  }")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine("      "), codeBlockLine("  }")))',
+    );
+});
+
+test("pressing tab in code block will first go to the indentation level of max sibling line even if there's already a space 1", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, [schema.text("    test1")]),
+                    schema.node("codeBlockLine", null, [schema.text(" ")]),
+                    schema.node("codeBlockLine", null, [schema.text("  }")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine(" "), codeBlockLine("  }")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(19))));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine("    "), codeBlockLine("  }")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine("      "), codeBlockLine("  }")))',
+    );
+});
+
+test("pressing tab in code block will first go to the indentation level of max sibling line unless there's a non-space 1", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, [schema.text("    test1")]),
+                    schema.node("codeBlockLine", null, [schema.text("x")]),
+                    schema.node("codeBlockLine", null, [schema.text("  }")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine("x"), codeBlockLine("  }")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(19))));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine("  x"), codeBlockLine("  }")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    test1"), codeBlockLine("    x"), codeBlockLine("  }")))',
+    );
+});
+
+test("pressing tab in code block will first go to the indentation level of max sibling line 2", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, []),
+                    schema.node("codeBlockLine", null, [schema.text("    test1")]),
+                    schema.node("codeBlockLine", null, [schema.text("  }")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine, codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(7))));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    "), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("      "), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+});
+
+test("pressing tab in code block will first go to the indentation level of max sibling line even if there's already a space 2", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, [schema.text(" ")]),
+                    schema.node("codeBlockLine", null, [schema.text("    test1")]),
+                    schema.node("codeBlockLine", null, [schema.text("  }")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine(" "), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(8))));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    "), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("      "), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+});
+
+test("pressing tab in code block will first go to the indentation level of max sibling line unless there's a non-space 2", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", null, [
+                schema.node("codeBlock", null, [
+                    schema.node("codeBlockLine", null, [schema.text("  {")]),
+                    schema.node("codeBlockLine", null, [schema.text("x")]),
+                    schema.node("codeBlockLine", null, [schema.text("    test1")]),
+                    schema.node("codeBlockLine", null, [schema.text("  }")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("x"), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(8))));
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("  x"), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("    x"), codeBlockLine("    test1"), codeBlockLine("  }")))',
+    );
+});
