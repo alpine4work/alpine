@@ -824,17 +824,19 @@ export function buildContentEditorKeymapPlugin(
                         // adjacent line indentation.
                         if (isSelectionInIndentationSpace) {
                             const nodeIndex = $from.index($from.depth - 1);
-                            const previousNode =
-                                nodeIndex - 1 >= 0 ? fromParentNode.child(nodeIndex - 1) : null;
-                            const nextNode =
-                                nodeIndex + 1 < fromParentNode.childCount
-                                    ? fromParentNode.child(nodeIndex + 1)
-                                    : null;
 
                             let previousNodeIndentationSpaceCount = 0;
                             let nextNodeIndentationSpaceCount = 0;
 
-                            if (previousNode) {
+                            for (
+                                let previousNodeIndex = nodeIndex - 1;
+                                previousNodeIndex >= 0;
+                                previousNodeIndex--
+                            ) {
+                                previousNodeIndentationSpaceCount = 0;
+
+                                const previousNode = fromParentNode.child(previousNodeIndex);
+
                                 for (
                                     let childNodeIndex = 0;
                                     childNodeIndex < previousNode.childCount;
@@ -849,9 +851,23 @@ export function buildContentEditorKeymapPlugin(
                                     previousNodeIndentationSpaceCount += match[0].length;
                                     if (match[0].length < childNode.text!.length) break;
                                 }
+
+                                // If the entire line was white space, try another node.
+                                if (previousNodeIndentationSpaceCount === previousNode.content.size)
+                                    continue;
+
+                                break;
                             }
 
-                            if (nextNode) {
+                            for (
+                                let nextNodeIndex = nodeIndex + 1;
+                                nextNodeIndex < fromParentNode.childCount;
+                                nextNodeIndex++
+                            ) {
+                                nextNodeIndentationSpaceCount = 0;
+
+                                const nextNode = fromParentNode.child(nextNodeIndex);
+
                                 for (
                                     let childNodeIndex = 0;
                                     childNodeIndex < nextNode.childCount;
@@ -866,6 +882,12 @@ export function buildContentEditorKeymapPlugin(
                                     nextNodeIndentationSpaceCount += match[0].length;
                                     if (match[0].length < childNode.text!.length) break;
                                 }
+
+                                // If the entire line was white space, try another node.
+                                if (nextNodeIndentationSpaceCount === nextNode.content.size)
+                                    continue;
+
+                                break;
                             }
 
                             const adjacentNodesIndentationSpaceCount = Math.max(
