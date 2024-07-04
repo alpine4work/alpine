@@ -4775,3 +4775,38 @@ test("pressing tab in code block will first go to the indentation level of max s
         'doc(codeBlock(codeBlockLine("  {"), codeBlockLine("      "), codeBlockLine, codeBlockLine("    test1"), codeBlockLine("  }")))',
     );
 });
+
+test("enter in code block uses adjacent indentation level if there is no indentation", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+
+    fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
+    await simulateTyping("test 1");
+
+    expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test 1")))');
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine("  ")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine("  ")))',
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine))',
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine, codeBlockLine("  ")))',
+    );
+});

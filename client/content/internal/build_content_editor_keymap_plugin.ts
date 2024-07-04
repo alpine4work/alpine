@@ -16,6 +16,7 @@ import {Node} from "prosemirror-model";
 import {EditorState, Plugin, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
+import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {
     dedentListItemCommand,
@@ -823,80 +824,11 @@ export function buildContentEditorKeymapPlugin(
                         // `minIndentationSpaceCount` so the indentation we add will get us to match
                         // adjacent line indentation.
                         if (isSelectionInIndentationSpace) {
-                            const nodeIndex = $from.index($from.depth - 1);
-
-                            let previousNodeIndentationSpaceCount = 0;
-                            let nextNodeIndentationSpaceCount = 0;
-
-                            for (
-                                let previousNodeIndex = nodeIndex - 1;
-                                previousNodeIndex >= 0;
-                                previousNodeIndex--
-                            ) {
-                                previousNodeIndentationSpaceCount = 0;
-
-                                const previousNode = fromParentNode.child(previousNodeIndex);
-
-                                for (
-                                    let childNodeIndex = 0;
-                                    childNodeIndex < previousNode.childCount;
-                                    childNodeIndex++
-                                ) {
-                                    const childNode = previousNode.child(childNodeIndex);
-                                    if (!childNode.isText) break;
-
-                                    const match = childNode.text!.match(/^ +/);
-                                    if (!match) break;
-
-                                    previousNodeIndentationSpaceCount += match[0].length;
-                                    if (match[0].length < childNode.text!.length) break;
-                                }
-
-                                // If the entire line was white space, try another node.
-                                if (previousNodeIndentationSpaceCount === previousNode.content.size)
-                                    continue;
-
-                                break;
-                            }
-
-                            for (
-                                let nextNodeIndex = nodeIndex + 1;
-                                nextNodeIndex < fromParentNode.childCount;
-                                nextNodeIndex++
-                            ) {
-                                nextNodeIndentationSpaceCount = 0;
-
-                                const nextNode = fromParentNode.child(nextNodeIndex);
-
-                                for (
-                                    let childNodeIndex = 0;
-                                    childNodeIndex < nextNode.childCount;
-                                    childNodeIndex++
-                                ) {
-                                    const childNode = nextNode.child(childNodeIndex);
-                                    if (!childNode.isText) break;
-
-                                    const match = childNode.text!.match(/^ +/);
-                                    if (!match) break;
-
-                                    nextNodeIndentationSpaceCount += match[0].length;
-                                    if (match[0].length < childNode.text!.length) break;
-                                }
-
-                                // If the entire line was white space, try another node.
-                                if (nextNodeIndentationSpaceCount === nextNode.content.size)
-                                    continue;
-
-                                break;
-                            }
-
-                            const adjacentNodesIndentationSpaceCount = Math.max(
-                                previousNodeIndentationSpaceCount,
-                                nextNodeIndentationSpaceCount,
-                            );
+                            const adjacentIndentationSpaceCount =
+                                getContentCodeBlockLineAdjacentIndentationSpaceCount($from);
 
                             minIndentationSpaceCount =
-                                adjacentNodesIndentationSpaceCount - ($from.pos - lineStartPos);
+                                adjacentIndentationSpaceCount - ($from.pos - lineStartPos);
                         }
 
                         const spaces = " ".repeat(

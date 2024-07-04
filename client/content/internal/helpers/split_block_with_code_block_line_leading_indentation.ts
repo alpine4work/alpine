@@ -37,6 +37,7 @@
 import {Attrs, ContentMatch, Fragment, Node, NodeType, ResolvedPos, Slice} from "prosemirror-model";
 import {AllSelection, Command, NodeSelection, TextSelection, Transaction} from "prosemirror-state";
 import {ReplaceStep, canSplit} from "prosemirror-transform";
+import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
 import {contentCodeBlockIndentationSpaceCount} from "~/shared/content/content_schema.js";
 
 function defaultBlockAt(match: ContentMatch) {
@@ -140,9 +141,19 @@ function addCodeBlockLineLeadingIndentation(
 
     const originalIndentationSpaceCount = indentationSpaceCount;
 
+    if (!isSomeBracketOpen) {
+        // If the line is only indentation, then use an adjacent indentation space
+        // count.
+        if (!hasIndentationEnded) {
+            indentationSpaceCount = Math.max(
+                indentationSpaceCount,
+                getContentCodeBlockLineAdjacentIndentationSpaceCount($pos),
+            );
+        }
+    }
     // If a bracket is open on this code block line, then let's use the indentation
     // from the _next_ code block line, not this one.
-    if (isSomeBracketOpen) {
+    else {
         const parentNode = $pos.node($pos.depth - 1);
         const parentNodeIndex = $pos.index($pos.depth - 1);
 
