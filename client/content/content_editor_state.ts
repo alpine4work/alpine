@@ -25,9 +25,11 @@ import {
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -65,6 +67,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRetypedInputRulePlugin(),
         contentEditorIsContinuouslyTypingPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
+        contentEditorCleanCodeBlockTrailingSpacePlugin(),
     ];
 }
 
@@ -968,4 +971,82 @@ function contentEditorIsContinuouslyTypingPlugin() {
 
 export function isContinuouslyTypingInContentEditor(state: EditorState): boolean {
     return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
+}
+
+/**
+ * When the user deselects a code block line we want to clear any trailing
+ * space from the code block line. Like VS Code's trim trailing whitespace on
+ * save feature. Except documents aren't saved so we trim when the user leaves
+ * a code block line.
+ *
+ * The user's selection must be entirely in the one code block line and they
+ * must fully leave the code block line. The document may change when the
+ * selection moves (e.g. hitting enter to add a new line) but the code block
+ * line the user is leaving must not change at all to be trimmed.
+ *
+ * Trimming is best effort. There are definitely scenarios where we won't be
+ * able to trim (e.g. user reloads the page so we don't see their selection
+ * leave).
+ *
+ * We are definitely making an assumption here that trailing white space is
+ * irrelevant to a code block example and it feels wrong when present (given
+ * most code editors trim it). These assumptions may not hold to all our users
+ * so we should consider making this configurable.
+ */
+function contentEditorCleanCodeBlockTrailingSpacePlugin() {
+    return new Plugin({
+        appendTransaction: (transactions, oldState, newState) => {
+            const oldFromNode = oldState.selection.$from.node();
+            if (oldFromNode.type.name !== "codeBlockLine") return;
+
+            const oldToNode = oldState.selection.$to.node();
+            if (oldFromNode !== oldToNode) return;
+
+            const oldNode = oldFromNode;
+
+            const oldStartPos = oldState.selection.$from.start();
+            const newStartPos = transactions.reduce(
+                (startPos, transaction) => transaction.mapping.map(startPos),
+                oldStartPos,
+            );
+
+            const $newStartPos = newState.doc.resolve(newStartPos);
+            const newNode = $newStartPos.node();
+            if (!newNode.eq(oldNode)) return;
+
+            const newNodeIndexStack = createArrayWithLength($newStartPos.depth, depth =>
+                $newStartPos.index(depth),
+            );
+
+            // Make sure the selection moved out of the code block line!
+            const newFromNodeIndexStack = createArrayWithLength(
+                newState.selection.$from.depth,
+                depth => newState.selection.$from.index(depth),
+            );
+            if (isDeepEqual(newNodeIndexStack, newFromNodeIndexStack)) return;
+
+            // Make sure the selection moved out of the code block line!
+            const newToNodeIndexStack = createArrayWithLength(newState.selection.$to.depth, depth =>
+                newState.selection.$to.index(depth),
+            );
+            if (isDeepEqual(newNodeIndexStack, newToNodeIndexStack)) return;
+
+            let trailingSpaceCount = 0;
+            for (let i = newNode.childCount - 1; i >= 0; i--) {
+                const childNode = newNode.child(i);
+                if (!childNode.isText) break;
+
+                const match = childNode.text!.match(/ +$/);
+                if (!match) break;
+
+                trailingSpaceCount += match[0].length;
+                if (match[0].length < childNode.text!.length) break;
+            }
+
+            if (trailingSpaceCount === 0) return;
+
+            const oldNodeEnd = $newStartPos.end();
+            return newState.tr.deleteRange(oldNodeEnd - trailingSpaceCount, oldNodeEnd);
+        },
+    });
 }
