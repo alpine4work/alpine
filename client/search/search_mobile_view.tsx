@@ -281,7 +281,16 @@ function SearchMobileViewResult({
 
     const {isPressed, pressProps} = usePress({
         onPress: () => {
-            navigate(getSearchResultDestinationPath(spaceId, result.id, searchKey));
+            navigate(
+                getSearchResultDestinationPath({
+                    spaceId: spaceId,
+                    resultId: result.id,
+                    options: {
+                        searchKey,
+                        withDesktopLayout: false,
+                    },
+                }),
+            );
         },
     });
 

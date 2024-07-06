@@ -8,12 +8,17 @@ import {SearchResultId} from "~/shared/search/search_result.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
-export function getSearchResultDestinationPath(
-    spaceId: SpaceId,
-    resultId: SearchResultId,
-    searchKey: string,
-): string {
-    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${searchKey}`);
+export function getSearchResultDestinationPath({
+    spaceId,
+    resultId,
+    options,
+}: {
+    spaceId: SpaceId;
+    resultId: SearchResultId;
+    options: {searchKey: string; withDesktopLayout: boolean};
+}): string {
+    const getStableRandom = () =>
+        new StableRandom(`getSearchResultDestinationPath:${options.searchKey}`);
 
     switch (resultId) {
         case "CreateChatMessage": {
@@ -167,12 +172,16 @@ export function getSearchResultDestinationPath(
         }
         default: {
             const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchEntityPath(spaceId, entityIdObject);
+            return getSearchEntityPath(spaceId, entityIdObject, options.withDesktopLayout);
         }
     }
 }
 
-function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): string {
+function getSearchEntityPath(
+    spaceId: SpaceId,
+    entityId: SearchEntityIdObject,
+    withDesktopLayout: boolean,
+): string {
     switch (entityId.type) {
         case "Account": {
             // NOTE(calebmer): Eventually I'd like to have a profile page for accounts.
@@ -210,7 +219,9 @@ function getSearchEntityPath(spaceId: SpaceId, entityId: SearchEntityIdObject): 
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}?show=new`;
         }
         case "TaskComment": {
-            return `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
+            return withDesktopLayout
+                ? `/s/${spaceId}/tasks/${entityId.taskId}`
+                : `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
         }
         default:
             throw exhaustive(entityId);

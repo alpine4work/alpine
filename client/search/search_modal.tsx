@@ -256,11 +256,14 @@ export function SearchModal({
                             // items so looping would be disorienting.
                             if (!result) break;
 
-                            const destinationPath = getSearchResultDestinationPath(
-                                space.id,
-                                result.id,
-                                output.key,
-                            );
+                            const destinationPath = getSearchResultDestinationPath({
+                                spaceId: space.id,
+                                resultId: result.id,
+                                options: {
+                                    searchKey: output.key,
+                                    withDesktopLayout: false,
+                                },
+                            });
 
                             void switchPeek({
                                 spacePath: destinationPath,
@@ -556,7 +559,14 @@ function SearchModalResultList({
 
     const handleDoubleClick = useEvent((result: SearchResult) => {
         if (result.id !== selectedPeek?.extra.resultId) {
-            const destinationPath = getSearchResultDestinationPath(space.id, result.id, searchKey);
+            const destinationPath = getSearchResultDestinationPath({
+                spaceId: space.id,
+                resultId: result.id,
+                options: {
+                    searchKey,
+                    withDesktopLayout: true,
+                },
+            });
 
             // If the user double clicked there may be an ongoing pending transition
             // started by `onPressStart`. Don't switch to that transition while we're
@@ -605,11 +615,14 @@ function SearchModalResultList({
                         // its style.
                         onPressStart={() => {
                             if (result.id !== selectedPeek?.extra.resultId) {
-                                const destinationPath = getSearchResultDestinationPath(
-                                    space.id,
-                                    result.id,
-                                    searchKey,
-                                );
+                                const destinationPath = getSearchResultDestinationPath({
+                                    spaceId: space.id,
+                                    resultId: result.id,
+                                    options: {
+                                        searchKey,
+                                        withDesktopLayout: false,
+                                    },
+                                });
 
                                 void switchPeek({
                                     spacePath: destinationPath,
