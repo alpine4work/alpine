@@ -22,7 +22,13 @@ import {
 } from "scheduler";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {ScrollbarInset, ScrollbarInsetDynamic, useScrollbar} from "~/client/design/scrollbar.js";
+import {
+    ScrollbarInset,
+    ScrollbarInsetDynamic,
+    convertScrollbarInsetDynamicToPx,
+    convertScrollbarInsetToPx,
+    useScrollbar,
+} from "~/client/design/scrollbar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -1295,7 +1301,21 @@ function VirtualizedScrollView(
         lastScrollTopRef.current = scrollTop;
     };
 
-    const stateRefCurrent = {state, itemCount, getItemWithoutRender};
+    let scrollbarInsetTop: ScrollbarInsetDynamic | undefined;
+    if (actualScrollbarInsetTop !== undefined) {
+        scrollbarInsetTop = actualScrollbarInsetTop;
+    } else if (scrollbarInsetTopItemIndex !== undefined) {
+        const {offset, height} = state.getPositionByIndex(scrollbarInsetTopItemIndex);
+        scrollbarInsetTop = offset + height;
+    }
+
+    const stateRefCurrent = {
+        state,
+        itemCount,
+        getItemWithoutRender,
+        scrollbarInsetTop,
+        scrollbarInsetBottom,
+    };
     const stateRef = useRef(stateRefCurrent);
     useLayoutEffectWithoutServerSideWarning(() => {
         stateRef.current = stateRefCurrent;
@@ -1603,14 +1623,17 @@ function VirtualizedScrollView(
                 //    `scheduleMicrotask()` wrapper which runs `scrollToIndex()` after the
                 //    React immediately scheduled re-render that updates state.
                 scheduleMicrotask(() => {
-                    const {state, getItemWithoutRender} = stateRef.current;
+                    const {state, getItemWithoutRender, scrollbarInsetTop, scrollbarInsetBottom} =
+                        stateRef.current;
                     const scrollElement = assertExists(scrollRef.current);
 
                     const {scrollOffset, position} = getVirtualizedScrollViewOffsetForScrollToIndex(
                         {
                             state,
                             index,
-                            scrollOffset: scrollElement.scrollTop,
+                            scrollElement,
+                            scrollbarInsetTop,
+                            scrollbarInsetBottom,
                         },
                     );
 
@@ -1745,13 +1768,15 @@ function VirtualizedScrollView(
                     return state.getPositionByKeyIfExists(key);
                 },
                 peekRenderedRangeAfterScrollToIndex: index => {
-                    const state = stateRef.current.state;
+                    const {state, scrollbarInsetTop, scrollbarInsetBottom} = stateRef.current;
                     const scrollElement = assertExists(scrollRef.current);
 
                     const {scrollOffset} = getVirtualizedScrollViewOffsetForScrollToIndex({
                         state,
                         index,
-                        scrollOffset: scrollElement.scrollTop,
+                        scrollElement,
+                        scrollbarInsetTop,
+                        scrollbarInsetBottom,
                     });
 
                     const peekState = state.updateRenderedRange({
@@ -1784,14 +1809,6 @@ function VirtualizedScrollView(
         },
         [],
     );
-
-    let scrollbarInsetTop: ScrollbarInsetDynamic | undefined;
-    if (actualScrollbarInsetTop !== undefined) {
-        scrollbarInsetTop = actualScrollbarInsetTop;
-    } else if (scrollbarInsetTopItemIndex !== undefined) {
-        const {offset, height} = state.getPositionByIndex(scrollbarInsetTopItemIndex);
-        scrollbarInsetTop = offset + height;
-    }
 
     return (
         <>
@@ -1938,15 +1955,36 @@ function updateVirtualizedScrollViewActualStateRenderedRange(
 function getVirtualizedScrollViewOffsetForScrollToIndex({
     state,
     index,
-    scrollOffset,
+    scrollElement,
+    scrollbarInsetTop = 0,
+    scrollbarInsetBottom = 0,
 }: {
     state: VirtualizedScrollViewState;
     index: number;
-    scrollOffset: number;
+    scrollElement: HTMLElement;
+    scrollbarInsetTop: ScrollbarInsetDynamic | undefined;
+    scrollbarInsetBottom: ScrollbarInset | undefined;
 }): {scrollOffset: number; position: {offset: number; height: number}} {
-    const margin = getRemPxWithoutListening();
-    const viewHeight = state.getViewHeight();
+    const remPx = getRemPxWithoutListening();
+    const originalViewHeight = state.getViewHeight();
     const position = state.getPositionByIndex(index);
+    const scrollOffset = scrollElement.scrollTop;
+
+    // Equivalent of `spacing["4"]`
+    const margin = remPx;
+
+    const viewInsetTop = convertScrollbarInsetDynamicToPx(scrollbarInsetTop, remPx, scrollElement);
+    const viewInsetBottom = convertScrollbarInsetToPx(scrollbarInsetBottom, remPx);
+
+    // Modify the view window space for our scroll to exclude scrollbar inset
+    // space.
+    //
+    // Our custom scrollbar is inset as to not cover navigation bars and safe area.
+    // We don't want to scroll an item underneath navigation bars and safe area so
+    // we reuse the scrollbar inset here to avoid this.
+    const viewTop = scrollOffset + viewInsetTop;
+    const viewHeight = originalViewHeight - viewInsetTop - viewInsetBottom;
+    const viewBottom = viewTop + viewHeight;
 
     // NOTE(calebmer): When scrolling to an unmeasured item we won't know the
     // height! This means we may render a large item too far down the view. Maybe
@@ -1961,17 +1999,17 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
 
     // If the item is already partially visible, we make sure it is fully visible
     // and don't scroll anymore.
-    if (areRangesOverlapping(offset, offset + height, scrollOffset, scrollOffset + viewHeight)) {
+    if (areRangesOverlapping(offset, offset + height, viewTop, viewBottom)) {
         // If the item is bigger than the screen, don't change scroll position.
-        if (offset < scrollOffset && offset + height > scrollOffset + viewHeight) {
+        if (offset < viewTop && offset + height > viewBottom) {
             return {scrollOffset, position};
         }
 
-        if (offset < scrollOffset) {
+        if (offset < viewTop) {
             return {scrollOffset: offset - margin, position};
         }
 
-        if (offset + height > scrollOffset + viewHeight) {
+        if (offset + height > viewBottom) {
             return {
                 scrollOffset: offset + height - viewHeight + margin,
                 position,
@@ -1985,12 +2023,12 @@ function getVirtualizedScrollViewOffsetForScrollToIndex({
     // but there is some context surrounding it.
     let newScrollOffset = Math.max(0, offset - viewHeight / 5);
 
-    // If there would be less than one fifth of the screen below the message then
-    // push the message back up.
+    // If there would be less than one fifth of the screen below the item then
+    // push the item back up.
     const viewHeightBelow = newScrollOffset + viewHeight - (offset + height);
     newScrollOffset -= Math.min(0, viewHeightBelow - viewHeight / 5);
 
-    // The top of the message should always be visible.
+    // The top of the item should always be visible.
     newScrollOffset = Math.min(offset - margin, newScrollOffset);
 
     return {scrollOffset: newScrollOffset, position};

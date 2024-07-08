@@ -52,6 +52,24 @@ export const safeAreaOnlyScrollbarInsetTop: ScrollbarInsetDynamic = markMemoIfNo
     {withSafeArea: true},
 ]);
 
+export function convertScrollbarInsetToPx(inset: ScrollbarInset, remPx: number) {
+    return typeof inset === "string" ? parseRemLengthNumber(inset) * remPx : inset;
+}
+
+export function convertScrollbarInsetDynamicToPx(
+    inset: ScrollbarInsetDynamic,
+    remPx: number,
+    element: HTMLElement,
+) {
+    const insetNumber = typeof inset === "object" ? inset[0] : inset;
+    const insetOptions = typeof inset === "object" ? inset[1] : undefined;
+
+    return (
+        convertScrollbarInsetToPx(insetNumber, remPx) +
+        (insetOptions?.withSafeArea ? getElementSafeAreaInsetTopPx(element) : 0)
+    );
+}
+
 /**
  * Duration after scrolling before the scrollbar disappears. We also use this to
  * determine when our navigation bar should animate to fully hidden or fully
@@ -402,9 +420,6 @@ export function initializeScrollbar(
         insetRight?: ScrollbarInset;
     },
 ): () => void {
-    const insetTopNumber = typeof insetTop === "object" ? insetTop[0] : insetTop;
-    const insetTopOptions = typeof insetTop === "object" ? insetTop[1] : undefined;
-
     {
         const {position} = getComputedStyle(element);
 
@@ -617,19 +632,9 @@ export function initializeScrollbar(
 
         const remPx = getRemPxWithoutListening();
 
-        const insetTopPx =
-            (typeof insetTopNumber === "string"
-                ? parseRemLengthNumber(insetTopNumber) * remPx
-                : insetTopNumber) +
-            (insetTopOptions?.withSafeArea ? getElementSafeAreaInsetTopPx(element) : 0);
-
-        const insetBottomPx =
-            typeof insetBottom === "string"
-                ? parseRemLengthNumber(insetBottom) * remPx
-                : insetBottom;
-
-        const insetRightPx =
-            typeof insetRight === "string" ? parseRemLengthNumber(insetRight) * remPx : insetRight;
+        const insetTopPx = convertScrollbarInsetDynamicToPx(insetTop, remPx, element);
+        const insetBottomPx = convertScrollbarInsetToPx(insetBottom, remPx);
+        const insetRightPx = convertScrollbarInsetToPx(insetRight, remPx);
 
         const thumbHeight = Math.max(
             clientHeight * ((clientHeight - insetTopPx - insetBottomPx) / scrollHeight),

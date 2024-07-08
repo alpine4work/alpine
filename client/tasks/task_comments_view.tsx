@@ -138,7 +138,7 @@ export function TaskCommentsView({
                 node: (
                     <>
                         <Box height="safe-area-inset-top" />
-                        <Box marginBottom={"3"} height={navigationBarHeight} />
+                        <Box marginBottom="3" height={navigationBarHeight} />
                     </>
                 ),
             };
