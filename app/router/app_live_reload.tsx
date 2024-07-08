@@ -3,6 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {setRemixIsLiveReloading} from "~/client/remix/is_remix_live_reloading.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -51,6 +52,10 @@ if (process.env.NODE_ENV !== "development") {
 
                 // If we are reloading then keep the message around until the reload finishes.
                 if (event.type === "RELOAD") {
+                    // Disable certain error messages (like WebSocket lost connection) while Remix
+                    // is live reloading...
+                    setRemixIsLiveReloading();
+
                     setMessageState(previousMessageState => {
                         if (previousMessageState === null) return null;
                         return {...previousMessageState, expirationTime: null};

@@ -44,6 +44,7 @@ import {
     desktopNavigationBarHeight,
     mobileNavigationBarHeight,
 } from "~/shared/styles/internal/navigation_bar.css.js";
+import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -376,52 +377,6 @@ export const quoteBlockClassName = style({
     },
 });
 
-const codeBlockIndentation = spacing["4"];
-const codeNumberWidth = spacing["6"];
-const codeBlockMargin = spacing["4"];
-const codeTextIndentation = spacing["10"];
-
-export const codeBlockWrapperClassName = style({
-    ...blockStyles,
-    position: "relative",
-    marginTop: `${codeBlockMargin}`,
-    marginBottom: `${codeBlockMargin}`,
-    padding: codeBlockIndentation,
-    backgroundColor: colorSchemeVars["grey-5"],
-    counterReset: "code-block-line-number",
-});
-
-export const codeBlockClassName = style({
-    display: "block",
-
-    // The reason use `&&&` is to beat the CSS set by ProseMirror since
-    // ProseMirror automatically sets white space to pre-wrap.
-    selectors: {
-        "&&&": {
-            overflowX: "auto",
-            whiteSpace: "pre",
-        },
-    },
-});
-
-export const codeBlockLineClassName = style({
-    display: "block",
-    paddingLeft: codeTextIndentation,
-    position: "relative",
-    counterIncrement: "code-block-line-number",
-    minHeight: "1lh",
-
-    selectors: {
-        "&::before": {
-            content: "counter(code-block-line-number)",
-            position: "absolute",
-            left: "0",
-            textAlign: "right",
-            width: `${codeNumberWidth}`,
-        },
-    },
-});
-
 // NOTE(calebmer): Ordered lists and bullet lists use the same style for all
 // levels of indentation. For example, we don't switch to letters or roman
 // numerals for ordered lists.
@@ -629,12 +584,99 @@ export const checkListItemCheckboxIconClassName = style({
     },
 });
 
+const codeBlockPaddingRight = spacing["3"];
+
+export const codeBlockWrapperClassName = style({
+    ...blockStyles,
+    // Override `blockStyles` `paddingLeft`/`paddingRight`.
+    paddingLeft: undefined,
+    paddingRight: undefined,
+    position: "relative",
+    marginTop: headingMarginVars.heading4TopMargin,
+    marginBottom: headingMarginVars.heading4TopMargin,
+    counterReset: "code-block-line-number",
+    selectors: {
+        // NOCOMMIT:
+        // "&::before": {
+        //     content: '""',
+        //     zIndex: "10",
+        //     position: "absolute",
+        //     top: "0",
+        //     bottom: "0",
+        //     left: "0",
+        //     width: blockPaddingX,
+        //     backgroundColor: "tomato",
+        // },
+        "&::after": {
+            content: '""',
+            zIndex: "10",
+            position: "absolute",
+            top: "0",
+            bottom: "0",
+            right: "0",
+            width: codeBlockPaddingRight,
+            background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+        },
+    },
+});
+
+export const codeBlockClassName = style({
+    display: "block",
+    overflowX: "auto",
+    ...paragraphFontSize,
+    // `fontStyles.code` needs to be second to override `letter-spacing`.
+    ...fontStyles.code,
+    selectors: {
+        // The reason use `&&&` is to beat the CSS set by ProseMirror since
+        // ProseMirror automatically sets white space to pre-wrap.
+        "&&&": {
+            whiteSpace: "pre",
+        },
+        [`${extraCompactDocClassName} &`]: {
+            ...extraCompactParagraphFontSize,
+        },
+    },
+});
+
+export const codeBlockLineClassName = style({
+    position: "relative",
+    counterIncrement: "code-block-line-number",
+    selectors: {
+        "&::before": {
+            content: "counter(code-block-line-number)",
+            float: "left",
+            position: "sticky",
+            top: "0",
+            left: "0",
+            width: `calc(${subtractRemLengths(
+                listItemIndentation,
+                // Optically align code block numbers with ordered list item numbers.
+                "0.25rem",
+            )} + ${listItemOffsetVar})`,
+            textAlign: "right",
+            color: colorSchemeVars["grey-40"],
+            pointerEvents: "none",
+        },
+    },
+});
+
+export const codeBlockLineContentClassName = style({
+    width: "fit-content",
+    paddingLeft: `calc(${addRemLengths(
+        listItemIndentation,
+        blockPaddingX,
+    )} + ${listItemOffsetVar})`,
+    paddingRight: codeBlockPaddingRight,
+    minHeight: "1lh",
+});
+
 export const dividerClassName = style({
     ...blockStyles,
+    // Override `blockStyles` `paddingLeft`/`paddingRight`.
+    paddingLeft: undefined,
+    paddingRight: undefined,
     width: `calc(100% - ${blockPaddingX} * 2)`,
     maxWidth: `calc(${blockMaxWidthVar} - ${blockPaddingX} * 2)`,
-    paddingLeft: 0,
-    paddingRight: 0,
     marginTop: spacing[desktopHeading1TopMargin],
     marginBottom: spacing[desktopHeading1TopMargin],
     borderColor: colorSchemeVars["grey-10"],

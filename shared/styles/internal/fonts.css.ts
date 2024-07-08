@@ -1,9 +1,9 @@
 /**
  * Our body font family is [Inter][1] and our code font family is
- * [Fira Code][2] (with ligatures disabled).
+ * [Commit Mono][2] (with ligatures disabled).
  *
  * [1]: https://rsms.me/inter
- * [2]: https://github.com/tonsky/FiraCode
+ * [2]: https://commitmono.com
  */
 
 import {assignVars, createGlobalTheme, fontFace, globalStyle} from "@vanilla-extract/css";
@@ -20,7 +20,16 @@ export const interFontAscenderPercentage =
 export const interFontDescenderPercentage =
     interFontDescender / (interFontAscender + interFontDescender);
 
-const formatPercentage = (percentage: number) => `${Math.round(percentage * 100 * 1000) / 1000}%`;
+const interXHeight = 1536;
+const interCapHeight = 2048;
+const interEmSize = 2816;
+
+const commitMonoXHeight = 540;
+const commitMonoCapHeight = 700;
+const commitMonoEmSize = 1000;
+
+const formatPercentage = (percentage: number) =>
+    `${Math.round(percentage * 100 * 10 ** 5) / 10 ** 5}%`;
 
 /**
  * The percentage you multiply your `font-size` by to get the height rendered by
@@ -41,12 +50,16 @@ const interFontFace = fontFace({
     descentOverride: formatPercentage(interFontDescenderPercentage),
 });
 
-const firaCodeFontFace = fontFace({
+const commitMonoFontFace = fontFace({
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: "url(/fonts/fira-code.woff2) format('woff2 supports variations'), url(/fonts/fira-code.woff2) format('woff2-variations'), url(/fonts/fira-code.woff2) format('woff2')",
+    src: "url(/fonts/commit-mono.woff2) format('woff2 supports variations'), url(/fonts/commit-mono.woff2) format('woff2-variations'), url(/fonts/commit-mono.woff2) format('woff2')",
     fontWeight: "100 900",
     fontDisplay: "swap",
+    // Make sure the x-height of our monospace font matches the x-height of Inter.
+    sizeAdjust: formatPercentage(
+        interXHeight / interEmSize / (commitMonoXHeight / commitMonoEmSize),
+    ),
     // Give Fira Code the same ascent/descent metrics as Inter. This means
     // `background-color`s, font sizes, line heights, everything set on the two
     // fonts line up when next to each other.
@@ -80,7 +93,7 @@ const fallbackFontFace = fontFace({
 });
 
 const interFontFamily = `${interFontFace}, ${fallbackFontFace}`;
-const firaCodeFontFamily = `${firaCodeFontFace}, ${fallbackFontFace}`;
+const commitMonoFontFamily = `${commitMonoFontFace}, ${fallbackFontFace}`;
 export const emojiFontFamily = emojiFontFace;
 
 /**
@@ -140,22 +153,28 @@ export const fontStyles = {
         fontFeatureSettings: '"calt" off',
     },
     code: {
-        fontFamily: firaCodeFontFamily,
-        fontWeight: 400,
+        fontFamily: commitMonoFontFamily,
+        fontWeight: 350,
         fontStyle: "normal",
-        fontFeatureSettings: '"calt" off',
+        fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
+        // NOCOMMIT: Document why the letter spacing
+        letterSpacing: "-0.02em",
     },
     "code-semi-bold": {
-        fontFamily: firaCodeFontFamily,
+        fontFamily: commitMonoFontFamily,
         fontWeight: 500,
         fontStyle: "normal",
-        fontFeatureSettings: '"calt" off',
+        fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
+        // NOCOMMIT: Document why the letter spacing
+        letterSpacing: "-0.02em",
     },
     "code-bold": {
-        fontFamily: firaCodeFontFamily,
+        fontFamily: commitMonoFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
-        fontFeatureSettings: '"calt" off',
+        fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
+        // NOCOMMIT: Document why the letter spacing
+        letterSpacing: "-0.02em",
     },
     // Styles that truncates text to a single line and shows ellipsis for
     // truncated characters.
@@ -187,10 +206,12 @@ export const fontStyles = {
         whiteSpace: "nowrap",
     },
     "truncate-code": {
-        fontFamily: firaCodeFontFamily,
-        fontWeight: 400,
+        fontFamily: commitMonoFontFamily,
+        fontWeight: 350,
         fontStyle: "normal",
-        fontFeatureSettings: '"calt" off',
+        fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
+        // NOCOMMIT: Document why the letter spacing
+        letterSpacing: "-0.02em",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",

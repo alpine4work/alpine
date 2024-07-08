@@ -50,6 +50,7 @@ const {
     codeBlockWrapperClassName,
     codeBlockClassName,
     codeBlockLineClassName,
+    codeBlockLineContentClassName,
 } = contentSchemaStyles;
 
 /**
@@ -164,20 +165,51 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // TODO(calebmer): Syntax highlighting for code. Allow user to pick the
         // language.
 
-        // TODO(calebmer): Some nice keyboard shortcuts for code editing. For
-        // example, "newline" on a line with indentation should preserve that
-        // indentation. Another example, typing balanced characters (`(`, `{`, `[`)
-        // should add the other side.
+        // TODO(calebmer): A couple keyboard shortcuts I think could still be useful
+        // for code blocks:
+        //
+        // - Pressing Enter on a line with an unbalanced closing bracket should dedent
+        //   the bracket to the opening bracket's line. For example, if your cursor is
+        //   at `|` in a code block and you hit enter right now the newline has 4
+        //   spaces of indentation when it should have 2:
+        //
+        //   ```
+        //   class Tree {
+        //     constructor(
+        //       root|) {
+        //       this.root = root;
+        //     }
+        //   }
+        //   ```
+        //
+        // - Copy/pasting code into a code block should detect the indentation level
+        //   and fix it so user doesn't have to reformat.
 
         // NOTE(maximchen): we remove `code: true` from codeBlock and codeBlock
         // line because, `code: true` defaults white-space property to `pre`
         // which preserves new lines. However, we don't want to keep
         // new lines, only keep spaces.
+        codeBlock: {
+            group: "block",
+            content: "codeBlockLine+",
+            defining: true,
+            toDOM: () => [
+                "pre",
+                {class: codeBlockWrapperClassName},
+                ["code", {class: codeBlockClassName, "data-scrollbar": "false"}, 0],
+            ],
+            parseDOM: createCodeBlockParseRules(),
+        },
+
         codeBlockLine: {
             content: "text*",
             marks: "allowedInCodeBlock",
             defining: true,
-            toDOM: () => ["div", {class: codeBlockLineClassName}, 0],
+            toDOM: () => [
+                "div",
+                {class: codeBlockLineClassName},
+                ["div", {class: codeBlockLineContentClassName}, 0],
+            ],
             // If we're in a code block, parse anything that would have been parsed as a
             // `paragraph` (`<p>` elements or `<div>` elements) as a `codeBlockLine`.
             // That way if you paste multiple lines of plain text into a code block they're
@@ -188,18 +220,6 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 // Make sure the priority is higher than `paragraph` parse rules.
                 priority: parseRule.priority + 50,
             })),
-        },
-
-        codeBlock: {
-            group: "block",
-            content: "codeBlockLine+",
-            defining: true,
-            toDOM: () => [
-                "pre",
-                {class: codeBlockWrapperClassName},
-                ["code", {class: codeBlockClassName}, 0],
-            ],
-            parseDOM: createCodeBlockParseRules(),
         },
 
         // Welcome to the list items! You'll notice that we structure them
