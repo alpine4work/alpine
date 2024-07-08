@@ -4,6 +4,7 @@ import {Box} from "~/client/design/box.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {
     MessagingView,
     MessagingViewRef,
@@ -11,11 +12,9 @@ import {
 } from "~/client/messaging/messaging_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
-import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
+import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -24,10 +23,6 @@ import {
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
-import {
-    TaskNotesCollaborationEvent,
-    TaskNotesCollaborationProtocol,
-} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 
 type TaskCommentsViewInitialComments = {
     commentCount: number;
@@ -42,10 +37,14 @@ type TaskCommentsViewProps = {
     initialScrollToCommentIndex: number | null;
     getCommentUrl: Memo<(messageIndex: number) => URL>;
     initialComments: TaskCommentsViewInitialComments | null;
-    notesClient: TaskDetailNotesContentEditorWebSocketClient;
     scrollViewRef?: Ref<HTMLDivElement>;
     extraChildren?: ReactNode;
     scrollbarInsetTop?: ScrollbarInsetDynamic;
+    isConnected: boolean;
+    procedures: MemoObject<TaskDetailNotesContentEditorWebSocketClientProcedures>;
+    subscribeToEvents: Memo<
+        (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => () => void
+    >;
 };
 
 export function TaskCommentsView({
@@ -54,10 +53,12 @@ export function TaskCommentsView({
     initialScrollToCommentIndex,
     getCommentUrl,
     initialComments: initialCommentsFromProps,
-    notesClient,
     scrollViewRef,
     extraChildren,
     scrollbarInsetTop,
+    isConnected,
+    procedures,
+    subscribeToEvents,
 }: TaskCommentsViewProps) {
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef>(null);
@@ -101,12 +102,6 @@ export function TaskCommentsView({
             },
         );
     }, [initialComments, context, taskId, clientInfo, errorState.hasError]);
-
-    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
-        "TaskNotesCollaborationService",
-        TaskNotesCollaborationProtocol,
-        `/api/durable-objects/task-notes/${taskId}`,
-    );
 
     const hasInitializedRef = useRef(false);
 
@@ -208,7 +203,7 @@ export function TaskCommentsView({
                 newOtherReferencedComments: newOtherReferencedMessages,
                 commentChangesResult: messageChangesResult,
                 typingStateByConnectionId,
-            } = await notesClient.procedures.backfillComments({
+            } = await procedures.backfillComments({
                 clientCommentCount,
                 clientLastCommentChangeTime,
                 newCommentLimit,
@@ -223,60 +218,36 @@ export function TaskCommentsView({
                 typingStateByConnectionId,
             };
         },
-        [notesClient.procedures],
+        [procedures],
     );
 
     const createMessage = useCallback(
         (input: {content: MessageContent; parentMessageIndex: number | null}) => {
-            return notesClient.procedures.createComment({
+            return procedures.createComment({
                 content: input.content,
                 parentCommentIndex: input.parentMessageIndex,
             });
         },
-        [notesClient.procedures],
+        [procedures],
     );
 
     const updateMessageContent = useCallback(
         (input: {messageIndex: number; content: MessageContent}) => {
-            return notesClient.procedures.updateCommentContent({
+            return procedures.updateCommentContent({
                 commentIndex: input.messageIndex,
                 content: input.content,
             });
         },
-        [notesClient.procedures],
+        [procedures],
     );
 
     const deleteMessage = useCallback(
         (input: {messageIndex: number}) => {
-            return notesClient.procedures.deleteComment({
+            return procedures.deleteComment({
                 commentIndex: input.messageIndex,
             });
         },
-        [notesClient.procedures],
-    );
-
-    const subscribeToEventsCallback = useCallback(
-        (subscriber: (message: MessagingRealtimeEvent<TaskCommentModel>) => void) => {
-            const actualSubscriber = (event: TaskNotesCollaborationEvent) => {
-                switch (event.type) {
-                    case "PersistedContent": {
-                        break;
-                    }
-                    case "Comments": {
-                        subscriber(event.event);
-                        break;
-                    }
-                    case "UpdateNotesContentWithoutPersistence": {
-                        break;
-                    }
-                    default:
-                        throw exhaustive(event);
-                }
-            };
-
-            return subscribeToEvents(actualSubscriber);
-        },
-        [subscribeToEvents],
+        [procedures],
     );
 
     if (!initialComments) {
@@ -305,10 +276,10 @@ export function TaskCommentsView({
                 createMessage={createMessage}
                 updateMessageContent={updateMessageContent}
                 deleteMessage={deleteMessage}
-                startTypingInMessageInput={notesClient.procedures.startTypingInCommentInput}
-                stopTypingInMessageInput={notesClient.procedures.stopTypingInCommentInput}
+                startTypingInMessageInput={procedures.startTypingInCommentInput}
+                stopTypingInMessageInput={procedures.stopTypingInCommentInput}
                 isConnected={isConnected}
-                subscribeToEvents={subscribeToEventsCallback}
+                subscribeToEvents={subscribeToEvents}
                 getMessageUrl={getCommentUrl}
             />
         );

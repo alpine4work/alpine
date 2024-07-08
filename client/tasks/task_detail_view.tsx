@@ -23,7 +23,6 @@ import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
-import {IconButtonSize} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
@@ -65,7 +64,6 @@ import {
 } from "~/client/tasks/internal/task_collections_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
-import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {
     TaskDetailNotesField,
     TaskDetailNotesFieldRef,
@@ -81,6 +79,7 @@ import {
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
+import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -97,7 +96,6 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     contentSchemaStyles,
     invertSelectionColorsClassName,
-    pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
 import {
@@ -132,22 +130,14 @@ export function TaskDetailView({
     childrenQuery,
     affinityManager,
     initialChildrenGridViewExpansionState,
-    initialNotesVersion,
-    initialNotesContent,
     notesClient,
-    setNotesClient,
 }: {
     withMobileLayout: boolean;
     taskSubscription: TaskClientTaskSubscription;
     childrenQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
-    initialNotesVersion: number;
-    initialNotesContent: TaskNotesContentWithReferences;
     notesClient: TaskDetailNotesContentEditorWebSocketClient;
-    setNotesClient: React.Dispatch<
-        React.SetStateAction<TaskDetailNotesContentEditorWebSocketClient>
-    >;
 }) {
     const isMobile = useIsMobile();
     const navigate = useNavigate();
@@ -812,8 +802,6 @@ export function TaskDetailView({
                                             taskSubscription={taskSubscription}
                                             undoManager={undoManager}
                                             affinityManager={affinityManager}
-                                            initialNotesVersion={initialNotesVersion}
-                                            initialNotesContent={initialNotesContent}
                                             showSubtasks={showSubtasks}
                                             readOnlyReason={readOnlyReason}
                                             focusChildrenGridViewStart={focusChildrenGridViewStart}
@@ -833,7 +821,6 @@ export function TaskDetailView({
                                             setDueDateInputState={setDueDateInputState}
                                             focusDueDateInput={focusDueDateInput}
                                             notesClient={notesClient}
-                                            setNotesClient={setNotesClient}
                                         />
                                     ),
                                 };
@@ -847,8 +834,6 @@ export function TaskDetailView({
                             taskSubscription,
                             undoManager,
                             affinityManager,
-                            initialNotesVersion,
-                            initialNotesContent,
                             showSubtasks,
                             readOnlyReason,
                             focusChildrenGridViewStart,
@@ -861,7 +846,6 @@ export function TaskDetailView({
                             dueDateInputState.isVisible,
                             focusDueDateInput,
                             notesClient,
-                            setNotesClient,
                         ],
                     )}
                     onRenderedRangeChange={range => {
@@ -941,8 +925,6 @@ function TaskDetailViewMain(
         taskSubscription,
         undoManager,
         affinityManager,
-        initialNotesVersion,
-        initialNotesContent,
         showSubtasks,
         readOnlyReason,
         focusChildrenGridViewStart,
@@ -962,14 +944,11 @@ function TaskDetailViewMain(
         setDueDateInputState,
         focusDueDateInput,
         notesClient,
-        setNotesClient,
     }: {
         withMobileLayout: boolean;
         taskSubscription: TaskClientTaskSubscription;
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchAffinityManager;
-        initialNotesVersion: number;
-        initialNotesContent: TaskNotesContentWithReferences;
         showSubtasks: boolean;
         readOnlyReason: Memo<{icon: ReactNode; message: string}> | null;
         focusChildrenGridViewStart: Memo<() => void>;
@@ -989,9 +968,6 @@ function TaskDetailViewMain(
         setDueDateInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
         focusDueDateInput: Memo<(options: {preventScroll: boolean}) => void>;
         notesClient: TaskDetailNotesContentEditorWebSocketClient;
-        setNotesClient: React.Dispatch<
-            React.SetStateAction<TaskDetailNotesContentEditorWebSocketClient>
-        >;
     },
     ref: Ref<TaskDetailViewMainRef>,
 ) {

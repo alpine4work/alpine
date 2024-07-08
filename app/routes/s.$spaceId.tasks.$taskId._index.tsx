@@ -32,6 +32,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
@@ -275,6 +276,13 @@ export default function TaskRoute({
     // connection.
     useWebSocketErrorDialog(notesClient, webSocketState);
 
+    const subscribeToCommentsEvents = useCallback(
+        (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => {
+            return notesClient.subscribeToCommentEvents(subscriber);
+        },
+        [notesClient],
+    );
+
     return (
         <Box
             flexGrow="1"
@@ -294,10 +302,7 @@ export default function TaskRoute({
                     childrenQuery={childrenQuery}
                     affinityManager={affinityManager}
                     initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
-                    initialNotesVersion={initialNotesVersion}
-                    initialNotesContent={initialNotesContent}
                     notesClient={notesClient}
-                    setNotesClient={setNotesClient}
                 />
             </TaskGridViewDndContext>
             {!withMobileLayout && (
@@ -315,7 +320,9 @@ export default function TaskRoute({
                         initialComments={initialComments}
                         initialScrollToCommentIndex={commentIndex}
                         getCommentUrl={getCommentUrl}
-                        notesClient={notesClient}
+                        isConnected={webSocketState.isConnected}
+                        procedures={notesClient.procedures}
+                        subscribeToEvents={subscribeToCommentsEvents}
                     />
                 </Box>
             )}

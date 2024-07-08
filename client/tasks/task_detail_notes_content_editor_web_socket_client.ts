@@ -11,6 +11,7 @@ import {
 import {AppContext} from "~/client/context/app_context.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {
     WebSocketClient,
     WebSocketClientProcedures,
@@ -96,7 +97,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
     private readonly _state: ValueStore<TaskNotesContentEditorState>;
     private _disconnect: (() => void) | null = null;
 
-    public readonly procedures: TaskDetailNotesContentEditorWebSocketClientProcedures;
+    public readonly procedures: MemoObject<TaskDetailNotesContentEditorWebSocketClientProcedures>;
 
     public get state(): Store<TaskNotesContentEditorState> {
         return this._state;
@@ -141,7 +142,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
         this.procedures = pickObject(
             this._client.procedures,
             TaskDetailNotesContentEditorWebSocketClient.procedureNames,
-        );
+        ) as MemoObject<TaskDetailNotesContentEditorWebSocketClientProcedures>;
     }
 
     private _dispatchBatch(actions: ReadonlyArray<TaskNotesContentEditorAction>) {

@@ -10,15 +10,18 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskCommentsFromEnd} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
+import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -136,6 +139,23 @@ export default function TaskCommentsRoute({
 
     useSearchAffinityViewInteraction(`Task:${taskId}`);
 
+    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+        "TaskNotesCollaborationService",
+        TaskNotesCollaborationProtocol,
+        `/api/durable-objects/task-notes/${taskId}`,
+    );
+
+    const subscribeToCommentsEvents = useCallback(
+        (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => {
+            return subscribeToEvents(event => {
+                if (event.type === "Comments") {
+                    subscriber(event.event);
+                }
+            });
+        },
+        [subscribeToEvents],
+    );
+
     return (
         <TaskCommentsView
             key={taskId}
@@ -159,6 +179,9 @@ export default function TaskCommentsRoute({
             scrollViewRef={scrollViewRef}
             extraChildren={navigationBar}
             scrollbarInsetTop={scrollbarInsetTop}
+            isConnected={isConnected}
+            procedures={procedures}
+            subscribeToEvents={subscribeToCommentsEvents}
         />
     );
 }

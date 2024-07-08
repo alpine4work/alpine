@@ -1,4 +1,3 @@
-import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
