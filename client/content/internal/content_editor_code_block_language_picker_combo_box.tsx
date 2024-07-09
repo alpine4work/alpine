@@ -1,88 +1,69 @@
-import {isFocusVisible, usePress} from "@react-aria/interactions";
+import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {Memo, ReactNode, Ref, RefObject, useCallback, useMemo, useRef, useState} from "react";
-import {
-    AriaListBoxOptions,
-    mergeProps,
-    useComboBox,
-    useHover,
-    useListBox,
-    useOption,
-} from "react-aria";
+import _Fuse from "fuse.js";
+import {Check, MagnifyingGlass} from "phosphor-react";
+import {Memo, RefObject, useCallback, useMemo, useRef, useState} from "react";
+import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
 import {ComboBoxState, Item, ListState, useListState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {
-    OverlayTriggerButton,
-    OverlayTriggerButtonRef,
-} from "~/client/design/overlay_trigger_button.js";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {noop} from "~/shared/helpers/control/noop.js";
 import {
-    colorSchemeVars,
-    greyElevated2ClassName,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+    ContentCodeBlockLanguage,
+    ContentCodeBlockLanguageId,
+    contentCodeBlockLanguages,
+} from "~/shared/content/content_code_block_language.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
-export type TaskQueryFilterEditorMultiSelectComboBoxItemBase = {
-    readonly key: string;
-    readonly textValue: string;
-    readonly node: ReactNode;
-};
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-export function TaskQueryFilterEditorMultiSelectComboBox<
-    Item extends TaskQueryFilterEditorMultiSelectComboBoxItemBase,
->({
+export function ContentEditorCodeBlockLanguagePickerComboBox({
     withMobileLayout,
-    inputLabel,
-    triggerButtonRef,
-    preview,
-    selectedKeys,
-    onSelectedKeysChange,
-    useSearchedItems,
-    optionCheckboxMarginTop,
+    targetElement,
+    isVisible,
+    onCloseWithAnimation,
+    onCloseWithoutAnimation,
+    selectedLanguageId,
+    onSelectedLanguageChange,
 }: {
     withMobileLayout: boolean;
-    inputLabel: string;
-    triggerButtonRef?: Ref<OverlayTriggerButtonRef> | null;
-    preview: ReactNode;
-    selectedKeys: ReadonlySet<Item["key"]>;
-    onSelectedKeysChange: (
-        selectedKeys: ReadonlySet<Item["key"]>,
-        searchedItems: ReadonlyArray<Item>,
-    ) => void;
-    useSearchedItems: (searchInputValue: string) =>
-        | {
-              isLoading: false;
-              shouldShowSearchLoadingIndicator?: boolean;
-              searchedItems: ReadonlyArray<Item>;
-          }
-        | {isLoading: true};
-    optionCheckboxMarginTop?: Spacing;
+    targetElement: HTMLElement;
+    isVisible: boolean;
+    onCloseWithAnimation: () => void;
+    onCloseWithoutAnimation: () => void;
+    selectedLanguageId: ContentCodeBlockLanguageId;
+    onSelectedLanguageChange: (languageId: ContentCodeBlockLanguageId) => void;
 }) {
-    const {pressProps, isPressed} = usePress({});
-    const {hoverProps, isHovered} = useHover({});
-
     return (
-        <OverlayTriggerButton
-            ref={triggerButtonRef}
-            aria-haspopup="listbox"
-            placement="bottom-start"
-            // Allow flipping vertically but not horizontally on mobile. Flipping
-            // horizontally on mobile can happen easily and be disruptive.
-            fallbackPlacements={withMobileLayout ? ["top-start"] : undefined}
-            overlay={({onCloseWithoutAnimation}) => (
+        <OverlayAnimated
+            // The overlay blocks interaction with everything outside the overlay. We still
+            // want to render the overlay in our current overlay scope so that it animates
+            // smoothly with scroll animations (important on mobile when we need to avoid
+            // the keyboard).
+            isBlocking={true}
+            withoutRootBlockingScope={true}
+            isVisible={isVisible}
+            disableAnimationIn={true}
+            onActuallyVisibleChange={isActuallyVisible => {
+                if (!isActuallyVisible) onCloseWithoutAnimation();
+            }}
+            placement="bottom-end"
+            offset={defaultTooltipOffset}
+            targetElement={targetElement}
+            overlay={
                 <Box
+                    ref={useOutsideInteraction(onCloseWithAnimation)}
                     className={greyElevated2ClassName}
-                    width="64"
+                    width="48"
                     maxHeight={withMobileLayout ? "64" : "96"}
                     overflow="hidden"
                     borderRadius="1.5"
@@ -91,117 +72,64 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
                     display="flex"
                     flexDirection="column"
                 >
-                    <TaskQueryFilterEditorMultiSelectComboBoxOverlay
-                        inputLabel={inputLabel}
-                        selectedKeys={selectedKeys}
-                        onSelectedKeysChange={onSelectedKeysChange}
-                        useSearchedItems={useSearchedItems}
+                    <ContentEditorCodeBlockLanguagePickerComboBoxOverlay
+                        selectedLanguageId={selectedLanguageId}
+                        onSelectedLanguageChange={onSelectedLanguageChange}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
-                        optionCheckboxMarginTop={optionCheckboxMarginTop ?? null}
                     />
                 </Box>
-            )}
-        >
-            {({isVisible}) => (
-                <FocusRing offset="0">
-                    <button
-                        {...mergeProps(pressProps, hoverProps)}
-                        className={sprinkles({
-                            position: "relative",
-                            zIndex: "0",
-                            flexShrink: "1",
-                            height: "full",
-                            overflow: withMobileLayout ? "hidden" : undefined,
-                        })}
-                        style={{
-                            paddingTop: 1,
-                            paddingBottom: 1,
-                        }}
-                    >
-                        <span
-                            className={sprinkles({
-                                height: "full",
-                                minWidth: "4",
-                                paddingX: "1",
-                                display: "flex",
-                                alignItems: "center",
-                                // The hit radius for this button extends within the entire filter editor but
-                                // the background color style has some inset.
-                                backgroundColor: isPressed
-                                    ? "grey-10"
-                                    : isHovered || isVisible
-                                    ? "grey-5"
-                                    : undefined,
-                                borderRadius: "0.5",
-                            })}
-                        >
-                            {preview}
-                        </span>
-                    </button>
-                </FocusRing>
-            )}
-        </OverlayTriggerButton>
+            }
+        />
     );
 }
 
-function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
-    Item extends TaskQueryFilterEditorMultiSelectComboBoxItemBase,
->({
-    inputLabel,
-    selectedKeys,
-    onSelectedKeysChange,
-    useSearchedItems,
+function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
+    selectedLanguageId,
+    onSelectedLanguageChange,
     onCloseWithoutAnimation,
-    optionCheckboxMarginTop,
 }: {
-    inputLabel: string;
-    selectedKeys: ReadonlySet<Item["key"]>;
-    onSelectedKeysChange: (
-        selectedKeys: ReadonlySet<Item["key"]>,
-        searchedItems: ReadonlyArray<Item>,
-    ) => void;
-    useSearchedItems: (searchInputValue: string) =>
-        | {
-              isLoading: false;
-              shouldShowSearchLoadingIndicator?: boolean;
-              searchedItems: ReadonlyArray<Item>;
-          }
-        | {isLoading: true};
+    selectedLanguageId: ContentCodeBlockLanguageId;
+    onSelectedLanguageChange: (languageId: ContentCodeBlockLanguageId) => void;
     onCloseWithoutAnimation: () => void;
-    optionCheckboxMarginTop: Spacing | null;
 }) {
     const [inputValue, setInputValue] = useState("");
 
-    const searchedItemsResult = useSearchedItems(inputValue);
-    const searchedItems = searchedItemsResult.isLoading
-        ? emptyArray
-        : searchedItemsResult.searchedItems;
+    const languagesSearchIndex = useMemo(
+        () => new Fuse(contentCodeBlockLanguages, {keys: ["name", "aliases"]}),
+        [],
+    );
 
-    const shouldShowSearchLoadingIndicator =
-        !searchedItemsResult.isLoading && !!searchedItemsResult.shouldShowSearchLoadingIndicator;
+    const searchedLanguages = useMemo(() => {
+        return inputValue === ""
+            ? contentCodeBlockLanguages
+            : languagesSearchIndex.search(inputValue).map(({item}) => item);
+    }, [inputValue, languagesSearchIndex]);
 
-    const renderItem = useCallback((item: TaskQueryFilterEditorMultiSelectComboBoxItemBase) => {
-        return <Item textValue={item.textValue}>{item.node}</Item>;
+    const renderItem = useCallback((language: ContentCodeBlockLanguage) => {
+        return <Item key={language.id}>{language.name}</Item>;
     }, []);
 
     const {collection, selectionManager, disabledKeys} = useListState({
-        items: searchedItems,
+        items: searchedLanguages,
         children: renderItem,
 
-        selectionMode: "multiple",
-        selectedKeys,
-        onSelectionChange: useEvent(selectedKeys => {
-            // Ignore "all" selections. Doesn't make sense for this input.
+        selectedKeys: useMemo(() => [selectedLanguageId], [selectedLanguageId]),
+        selectionMode: "single",
+        onSelectionChange: selectedKeys => {
             if (selectedKeys === "all") return;
 
-            onSelectedKeysChange(selectedKeys as Set<Item["key"]>, searchedItems);
-        }),
+            const selectedKey = iterableFirst(selectedKeys);
+            if (!selectedKey) return;
+
+            onSelectedLanguageChange(selectedKey as ContentCodeBlockLanguageId);
+            onCloseWithoutAnimation();
+        },
     });
 
     // Memoized list state object we can use to avoid re-renders if list
     // doesn't change.
     const listState = useMemo(
-        (): ListState<TaskQueryFilterEditorMultiSelectComboBoxItemBase> => ({
+        (): ListState<ContentCodeBlockLanguage> => ({
             collection,
             disabledKeys,
             selectionManager,
@@ -213,7 +141,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
 
-    const comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItemBase> = {
+    const comboBoxState: ComboBoxState<ContentCodeBlockLanguage> = {
         inputValue,
         setInputValue,
 
@@ -237,8 +165,8 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
         setFocused: isFocused => selectionManager.setFocused(isFocused),
 
         // We use multiple selection, there is never one selected key.
-        selectedKey: null as any,
-        selectedItem: null as any,
+        selectedKey: selectedLanguageId,
+        selectedItem: collection.getItem(selectedLanguageId) as Node<ContentCodeBlockLanguage>,
         setSelectedKey: key => selectionManager.select(key!),
 
         collection,
@@ -248,13 +176,13 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
 
     const {inputProps, listBoxProps} = useComboBox(
         {
-            "aria-label": inputLabel,
+            "aria-label": "Language",
             inputRef,
             popoverRef,
             listBoxRef,
-            autoFocus: false,
+            autoFocus: true,
             shouldFocusWrap: false,
-            items: searchedItems,
+            items: searchedLanguages,
         },
         comboBoxState,
     );
@@ -275,13 +203,13 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                             width: "full",
                             height: "9",
                             paddingLeft: "7",
-                            paddingRight: shouldShowSearchLoadingIndicator ? "7" : "2.5",
+                            paddingRight: "2.5",
                             backgroundColor: "transparent",
                             borderTopRadius: "1.5",
                             borderBottomRadius: "none",
                             borderBottom: "grey-10",
                         })}
-                        placeholder={inputLabel}
+                        placeholder="Language"
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
                         // disables these capabilities because the user has combobox suggestions.
                         // However, fixing typos at the OS level when typos are common (like on iOS)
@@ -314,11 +242,6 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                         }}
                     />
                 </FocusRing>
-                {shouldShowSearchLoadingIndicator && (
-                    <Box position="absolute" top="2.5" right="2.5" pointerEvents="none">
-                        <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
-                    </Box>
-                )}
             </Box>
             <Box
                 ref={popoverRef}
@@ -327,37 +250,24 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                 display="flex"
                 flexDirection="column"
             >
-                {searchedItemsResult.isLoading ? (
-                    <Box paddingY="7" display="flex" justifyContent="center">
-                        <SpinnerGap
-                            className={spinAnimationClassName}
-                            color={colorSchemeVars["grey-70"]}
-                            size={spacing["4"]}
-                        />
-                    </Box>
-                ) : (
-                    <TaskQueryFilterEditorMultiSelectListBox
-                        listState={listState}
-                        listBoxRef={listBoxRef}
-                        listBoxProps={listBoxProps}
-                        optionCheckboxMarginTop={optionCheckboxMarginTop}
-                    />
-                )}
+                <ContentEditorCodeBlockLanguagePickerListBox
+                    listState={listState}
+                    listBoxRef={listBoxRef}
+                    listBoxProps={listBoxProps}
+                />
             </Box>
         </>
     );
 }
 
-function TaskQueryFilterEditorMultiSelectListBox({
+function ContentEditorCodeBlockLanguagePickerListBox({
     listState,
     listBoxRef,
     listBoxProps: _listBoxProps,
-    optionCheckboxMarginTop,
 }: {
-    listState: Memo<ListState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>>;
+    listState: Memo<ListState<ContentCodeBlockLanguage>>;
     listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
-    optionCheckboxMarginTop: Spacing | null;
+    listBoxProps: AriaListBoxOptions<ContentCodeBlockLanguage>;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const {listBoxProps} = useListBox(
@@ -397,28 +307,25 @@ function TaskQueryFilterEditorMultiSelectListBox({
                         </Box>
                     ) : (
                         Array.from(listState.collection, item => (
-                            <TaskQueryFilterEditorMultiSelectListBoxOption
+                            <ContentEditorCodeBlockLanguagePickerListBoxOption
                                 key={item.key}
                                 listState={listState}
                                 item={item}
-                                optionCheckboxMarginTop={optionCheckboxMarginTop}
                             />
                         ))
                     );
-                }, [listState, optionCheckboxMarginTop])}
+                }, [listState])}
             </ul>
         </div>
     );
 }
 
-function TaskQueryFilterEditorMultiSelectListBoxOption({
+function ContentEditorCodeBlockLanguagePickerListBoxOption({
     listState,
     item,
-    optionCheckboxMarginTop,
 }: {
-    listState: Memo<ListState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>>;
-    item: Node<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
-    optionCheckboxMarginTop: Spacing | null;
+    listState: Memo<ListState<ContentCodeBlockLanguage>>;
+    item: Node<ContentCodeBlockLanguage>;
 }) {
     const optionRef = useRef(null);
     const {optionProps, isFocused, isPressed, isSelected, isHovered} = useOption(
@@ -458,17 +365,17 @@ function TaskQueryFilterEditorMultiSelectListBoxOption({
                     gap: "1.5",
                 })}
             >
-                <Box
-                    alignSelf={optionCheckboxMarginTop === null ? "stretch" : undefined}
-                    paddingTop={
-                        optionCheckboxMarginTop !== null ? optionCheckboxMarginTop : undefined
-                    }
-                    display="flex"
-                    alignItems="center"
-                >
-                    <TaskCheckbox isChecked={isSelected} />
-                </Box>
-                {item.rendered}
+                <Box flexGrow="1">{item.rendered}</Box>
+                {isSelected && (
+                    <Box flexShrink="0">
+                        <Check
+                            size={spacing["3"]}
+                            color={
+                                isPressed ? colorSchemeVars["grey-100"] : colorSchemeVars["grey-80"]
+                            }
+                        />
+                    </Box>
+                )}
             </li>
         </FocusRing>
     );

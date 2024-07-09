@@ -4,24 +4,29 @@ import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {
+    addTriggeredOverlayCloseEventListener,
+    addTriggeredOverlayOpenEventListener,
+    removeTriggeredOverlayCloseEventListener,
+    removeTriggeredOverlayOpenEventListener,
+} from "~/client/design/overlay_trigger_button.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {backgroundColorVar, contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function createContentEditorCodeBlockNodeViewConstructor({
-    getSpaceId,
     getReporter,
+    onCodeBlockLanguagePickerOpen,
     onCodeBlockCopyButtonHoverStart,
     onCodeBlockCopyButtonHoverEnd,
     onCodeBlockCopyButtonPress,
 }: {
-    getSpaceId: () => SpaceId;
     getReporter: () => Reporter;
+    onCodeBlockLanguagePickerOpen: (element: HTMLElement) => void;
     onCodeBlockCopyButtonHoverStart: (element: HTMLElement) => void;
     onCodeBlockCopyButtonHoverEnd: (element: HTMLElement) => void;
     onCodeBlockCopyButtonPress: (element: HTMLElement) => void;
@@ -107,7 +112,6 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             languagePickerElementText.className = sprinkles({
                 fontStyle: "truncate",
                 fontSize: "75",
-                color: "grey-100",
             });
 
             // NOCOMMIT: Actual name
@@ -116,12 +120,20 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             // We don't need to cleanup event listeners on DOM nodes created for this
             // node view.
             addUnfocusableButtonBehaviorToElement(languagePickerElement, {
+                defaultClassName: sprinkles({
+                    color: "grey-70",
+                }),
                 hoverClassName: sprinkles({
+                    color: "grey-70",
                     backgroundColor: "grey-5",
                 }),
                 pressClassName: sprinkles({
+                    color: "grey-100",
                     backgroundColor: "grey-10",
                 }),
+                onPress: () => {
+                    onCodeBlockLanguagePickerOpen(languagePickerElement);
+                },
             });
         }
 
@@ -253,12 +265,17 @@ function addUnfocusableButtonBehaviorToElement(
 
     let isPointerOver = false;
     let isPointerDownAndOver = false;
+    let isTriggeredOverlayOpen = false;
 
     let state: "Pressed" | "Hovered" | null = null;
 
     const maybeUpdateStyle = () => {
         const oldState = state;
-        const newState = isPointerDownAndOver ? "Pressed" : isPointerOver ? "Hovered" : null;
+        const newState = isPointerDownAndOver
+            ? "Pressed"
+            : isPointerOver || isTriggeredOverlayOpen
+            ? "Hovered"
+            : null;
 
         state = newState;
 
@@ -345,6 +362,16 @@ function addUnfocusableButtonBehaviorToElement(
         maybeUpdateStyle();
     };
 
+    const handleTriggeredOverlayOpen = () => {
+        isTriggeredOverlayOpen = true;
+        maybeUpdateStyle();
+    };
+
+    const handleTriggeredOverlayClose = () => {
+        isTriggeredOverlayOpen = false;
+        maybeUpdateStyle();
+    };
+
     element.addEventListener("pointerdown", handlePointerDown);
     element.addEventListener("pointerup", handlePointerUp);
     element.addEventListener("pointerenter", handlePointerEnter);
@@ -355,6 +382,8 @@ function addUnfocusableButtonBehaviorToElement(
         element,
         handleParentScrollWhenPointerDownAndOver,
     );
+    addTriggeredOverlayOpenEventListener(element, handleTriggeredOverlayOpen);
+    addTriggeredOverlayCloseEventListener(element, handleTriggeredOverlayClose);
 
     return () => {
         element.classList.remove(
@@ -374,5 +403,7 @@ function addUnfocusableButtonBehaviorToElement(
             element,
             handleParentScrollWhenPointerDownAndOver,
         );
+        removeTriggeredOverlayOpenEventListener(element, handleTriggeredOverlayOpen);
+        removeTriggeredOverlayCloseEventListener(element, handleTriggeredOverlayClose);
     };
 }

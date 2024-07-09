@@ -8,6 +8,7 @@ import {
     createElement,
     forwardRef,
     useCallback,
+    useEffect,
     useRef,
     useState,
 } from "react";
@@ -16,8 +17,10 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
-    onTriggeredOverlayCloseSymbol,
-    onTriggeredOverlayOpenSymbol,
+    addTriggeredOverlayCloseEventListener,
+    addTriggeredOverlayOpenEventListener,
+    removeTriggeredOverlayCloseEventListener,
+    removeTriggeredOverlayOpenEventListener,
 } from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
@@ -27,6 +30,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
     buttonStyles,
@@ -419,6 +423,26 @@ function IconButton(
 
     const willDarkenWithOverlayOnPress = !isQuietVariant && !isOutlineVariant;
 
+    useEffect(() => {
+        // Element is re-created when this prop changes.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        isFocusable;
+
+        const element = assertExists(localRef.current);
+
+        const handleOverlayOpen = () => setIsTriggeredOverlayOpen(true);
+        const handleOverlayClose = () => setIsTriggeredOverlayOpen(false);
+
+        addTriggeredOverlayOpenEventListener(element, handleOverlayOpen);
+        addTriggeredOverlayCloseEventListener(element, handleOverlayClose);
+
+        return () => {
+            removeTriggeredOverlayOpenEventListener(element, handleOverlayOpen);
+            removeTriggeredOverlayCloseEventListener(element, handleOverlayClose);
+        };
+    }, [isFocusable]);
+
     return (
         <Tooltip
             placement={tooltipPlacement}
@@ -470,10 +494,6 @@ function IconButton(
                                                 continuePropagation: () => {},
                                             });
                                         },
-                                        [onTriggeredOverlayOpenSymbol]: () =>
-                                            setIsTriggeredOverlayOpen(true),
-                                        [onTriggeredOverlayCloseSymbol]: () =>
-                                            setIsTriggeredOverlayOpen(false),
                                     });
 
                                     localRef.current = actualElement;

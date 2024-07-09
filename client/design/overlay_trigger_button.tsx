@@ -38,8 +38,10 @@ import {Spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 export type OverlayTriggerButtonRef = {
     open(options?: {stopPropagation?: boolean}): void;
@@ -74,8 +76,44 @@ export type OverlayTriggerButtonOverlayProps = {
     onCloseWithoutAnimation: Memo<() => void>;
 };
 
-export const onTriggeredOverlayOpenSymbol = Symbol("onTriggeredOverlayOpen");
-export const onTriggeredOverlayCloseSymbol = Symbol("onTriggeredOverlayClose");
+let overlayTriggeredOpenEventEmitterByElement: WeakMap<Element, EventEmitter<void>> | undefined;
+let overlayTriggeredCloseEventEmitterByElement: WeakMap<Element, EventEmitter<void>> | undefined;
+
+export function dispatchTriggeredOverlayOpenEvent(element: Element) {
+    overlayTriggeredOpenEventEmitterByElement?.get(element)?.emit();
+}
+
+export function dispatchTriggeredOverlayCloseEvent(element: Element) {
+    overlayTriggeredCloseEventEmitterByElement?.get(element)?.emit();
+}
+
+export function addTriggeredOverlayOpenEventListener(element: Element, listener: () => void) {
+    overlayTriggeredOpenEventEmitterByElement ??= new WeakMap();
+
+    getOrSetDefaultMapValue(
+        overlayTriggeredOpenEventEmitterByElement,
+        element,
+        () => new EventEmitter(),
+    ).addListener(listener);
+}
+
+export function removeTriggeredOverlayOpenEventListener(element: Element, listener: () => void) {
+    overlayTriggeredOpenEventEmitterByElement?.get(element)?.removeListener(listener);
+}
+
+export function addTriggeredOverlayCloseEventListener(element: Element, listener: () => void) {
+    overlayTriggeredCloseEventEmitterByElement ??= new WeakMap();
+
+    getOrSetDefaultMapValue(
+        overlayTriggeredCloseEventEmitterByElement,
+        element,
+        () => new EventEmitter(),
+    ).addListener(listener);
+}
+
+export function removeTriggeredOverlayCloseEventListener(element: Element, listener: () => void) {
+    overlayTriggeredCloseEventEmitterByElement?.get(element)?.removeListener(listener);
+}
 
 const OverlayTriggerButtonForwardRef = forwardRef(OverlayTriggerButton);
 export {OverlayTriggerButtonForwardRef as OverlayTriggerButton};
@@ -541,10 +579,10 @@ function OverlayTriggerButton(
                 // Overlay trigger buttons may attach custom event listeners to their DOM
                 // element if they'd like to know if their overlay is open or closed.
                 if (isActuallyVisible) {
-                    (overlayTriggerElement as any)[onTriggeredOverlayOpenSymbol]?.();
+                    dispatchTriggeredOverlayOpenEvent(overlayTriggerElement);
                 } else {
                     pendingTriggeredOverlayCloseRef.current = () => {
-                        (overlayTriggerElement as any)[onTriggeredOverlayCloseSymbol]?.();
+                        dispatchTriggeredOverlayCloseEvent(overlayTriggerElement);
                     };
 
                     // The double `requestAnimationFrame()` is for overlay triggers which use

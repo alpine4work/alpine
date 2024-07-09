@@ -1,13 +1,24 @@
 import {PressEvent} from "@react-types/shared";
 import classNames from "classnames";
 import {IconContext, SpinnerGap} from "phosphor-react";
-import {ReactNode, Ref, createElement, forwardRef, useCallback, useRef, useState} from "react";
+import {
+    ReactNode,
+    Ref,
+    createElement,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
-    onTriggeredOverlayCloseSymbol,
-    onTriggeredOverlayOpenSymbol,
+    addTriggeredOverlayCloseEventListener,
+    addTriggeredOverlayOpenEventListener,
+    removeTriggeredOverlayCloseEventListener,
+    removeTriggeredOverlayOpenEventListener,
 } from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -18,6 +29,7 @@ import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
     buttonStyles,
@@ -490,6 +502,26 @@ function Button(
 
     const willDarkenWithOverlayOnPress = !isQuietVariant && !isOutlineVariant;
 
+    useEffect(() => {
+        // Element is re-created when this prop changes.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        isFocusable;
+
+        const element = assertExists(localRef.current);
+
+        const handleOverlayOpen = () => setIsTriggeredOverlayOpen(true);
+        const handleOverlayClose = () => setIsTriggeredOverlayOpen(false);
+
+        addTriggeredOverlayOpenEventListener(element, handleOverlayOpen);
+        addTriggeredOverlayCloseEventListener(element, handleOverlayClose);
+
+        return () => {
+            removeTriggeredOverlayOpenEventListener(element, handleOverlayOpen);
+            removeTriggeredOverlayCloseEventListener(element, handleOverlayClose);
+        };
+    }, [isFocusable]);
+
     let node = (
         <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
             {createElement(
@@ -515,10 +547,6 @@ function Button(
                                             continuePropagation: () => {},
                                         });
                                     },
-                                    [onTriggeredOverlayOpenSymbol]: () =>
-                                        setIsTriggeredOverlayOpen(true),
-                                    [onTriggeredOverlayCloseSymbol]: () =>
-                                        setIsTriggeredOverlayOpen(false),
                                 });
 
                                 localRef.current = actualElement;

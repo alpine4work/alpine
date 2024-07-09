@@ -35,6 +35,7 @@ import {
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
+import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
@@ -59,6 +60,10 @@ import {
     MobileFullScreenModal,
     useIsBehindMobileFullScreenModal,
 } from "~/client/design/mobile_full_screen_modal.js";
+import {
+    dispatchTriggeredOverlayCloseEvent,
+    dispatchTriggeredOverlayOpenEvent,
+} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
@@ -812,8 +817,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                 checkListItem: createContentEditorCheckListItemNodeView,
                 // NOCOMMIT: Matching `nodeRenderer` in `renderContentToHtml()`.
                 codeBlock: createContentEditorCodeBlockNodeViewConstructor({
-                    getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                     getReporter: () => reporterRef.current,
+                    onCodeBlockLanguagePickerOpen: targetElement =>
+                        setCodeBlockLanguagePickerState({
+                            key: generateId(),
+                            targetElement,
+                            isVisible: true,
+                        }),
                     onCodeBlockCopyButtonHoverStart: targetElement =>
                         setCodeBlockCopyButtonTooltipState({
                             key: generateId(),
@@ -1824,6 +1834,35 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, [isMobileCommentInputOpen, setDecorationCallbacks, viewRef]);
 
+    const [codeBlockLanguagePickerState, setCodeBlockLanguagePickerState] = useState<{
+        readonly key: Id;
+        readonly targetElement: HTMLElement;
+        readonly isVisible: boolean;
+    } | null>(null);
+
+    // Report whether the overlay is open or closed. If the overlay is open we want to
+    // continue rendering our hover state.
+    const lastCodeBlockLanguagePickerStateRef = useRef(codeBlockLanguagePickerState);
+    useEffect(() => {
+        const lastCodeBlockLanguagePickerState = lastCodeBlockLanguagePickerStateRef.current;
+        lastCodeBlockLanguagePickerStateRef.current = codeBlockLanguagePickerState;
+        if (lastCodeBlockLanguagePickerState === codeBlockLanguagePickerState) return;
+
+        if (
+            codeBlockLanguagePickerState &&
+            lastCodeBlockLanguagePickerState?.key !== codeBlockLanguagePickerState.key
+        ) {
+            dispatchTriggeredOverlayOpenEvent(codeBlockLanguagePickerState.targetElement);
+        }
+
+        if (
+            lastCodeBlockLanguagePickerState &&
+            lastCodeBlockLanguagePickerState.key !== codeBlockLanguagePickerState?.key
+        ) {
+            dispatchTriggeredOverlayCloseEvent(lastCodeBlockLanguagePickerState.targetElement);
+        }
+    }, [codeBlockLanguagePickerState]);
+
     const codeBlockCopyButtonTooltipRef = useRef<TooltipRef>(null);
 
     const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
@@ -1934,6 +1973,24 @@ function ContentEditor<Content extends ContentWithReferences>(
                     state={unwrappedState}
                     viewRef={viewRef}
                     onClose={() => setIsMobileCommentInputOpen(false)}
+                />
+            )}
+            {codeBlockLanguagePickerState && (
+                <ContentEditorCodeBlockLanguagePickerComboBox
+                    withMobileLayout={withMobileLayout}
+                    targetElement={codeBlockLanguagePickerState.targetElement}
+                    isVisible={codeBlockLanguagePickerState.isVisible}
+                    onCloseWithAnimation={() =>
+                        setCodeBlockLanguagePickerState({
+                            ...codeBlockLanguagePickerState,
+                            isVisible: false,
+                        })
+                    }
+                    onCloseWithoutAnimation={() => setCodeBlockLanguagePickerState(null)}
+                    selectedLanguageId="text"
+                    onSelectedLanguageChange={() => {
+                        // NOCOMMIT
+                    }}
                 />
             )}
             {codeBlockCopyButtonTooltipState && (
