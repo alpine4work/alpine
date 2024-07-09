@@ -4,8 +4,8 @@ import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
-import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
@@ -27,6 +27,7 @@ const {
     docClassName,
     checkListItemCheckboxContainerClassName,
     checkListItemCheckboxClassName,
+    checkListItemCheckboxIconClassName,
     checkListItemContentClassName,
     mentionClassName,
     currentAccountMentionClassName,
@@ -141,7 +142,8 @@ export function renderContentFragmentToHtmlStore(
                     checkboxContainerHtml.appendChild(checkboxHtml);
                     checkboxHtml.setAttribute("class", checkListItemCheckboxClassName);
                     checkboxHtml.appendChild({
-                        generateHtml: () => contentCheckListItemIconSvg,
+                        generateHtml: () =>
+                            checkIconSvg({className: checkListItemCheckboxIconClassName}),
                         generateNode: () => {
                             throw new UnimplementedError(
                                 "DOM node generation unimplemented for icon SVG",

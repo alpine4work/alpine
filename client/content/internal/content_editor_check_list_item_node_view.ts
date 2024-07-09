@@ -1,12 +1,13 @@
 import {DOMSerializer, Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
-import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg.js";
+import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {
     checkListItemCheckboxClassName,
     checkListItemCheckboxContainerClassName,
     checkListItemCheckboxPressedClassName,
+    checkListItemCheckboxIconClassName,
     checkListItemContentClassName,
 } = contentSchemaStyles;
 
@@ -24,7 +25,7 @@ export function createContentEditorCheckListItemNodeView(
     const checkboxDom = document.createElement("div");
     checkboxContainerDom.appendChild(checkboxDom);
     checkboxDom.className = checkListItemCheckboxClassName;
-    checkboxDom.innerHTML = contentCheckListItemIconSvg;
+    checkboxDom.innerHTML = checkIconSvg({className: checkListItemCheckboxIconClassName});
 
     const contentDom = document.createElement("div");
     dom.appendChild(contentDom);

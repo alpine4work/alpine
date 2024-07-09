@@ -35,14 +35,12 @@ import {
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
+import {createContentEditorCodeBlockNodeView} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
-import {
-    createContentEditorLinkMarkViewConstructor,
-    onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol,
-} from "~/client/content/internal/content_editor_link_mark_view.js";
+import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
 import {ContentEditorMobileKeyboardToolbar} from "~/client/content/internal/content_editor_mobile_keyboard_toolbar.js";
@@ -53,6 +51,7 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
@@ -100,6 +99,7 @@ const {
     withMobileLayoutDocClassName,
     compactDocClassName,
     extraCompactDocClassName,
+    parentScrollWhenPointerDownAndOverReceiverClassName,
 } = contentSchemaStyles;
 
 const {
@@ -804,6 +804,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             nodeViews: {
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
+                // NOCOMMIT: Matching `nodeRenderer` in `renderContentToHtml()`.
+                codeBlock: createContentEditorCodeBlockNodeView,
                 mention: createContentEditorMentionNodeViewConstructor({
                     getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                     getCurrentAccountIfExists: () =>
@@ -1639,19 +1641,22 @@ function ContentEditor<Content extends ContentWithReferences>(
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
 
-        let isPointerDownAndOverInteractiveMark = false;
+        let isPointerDownAndOverParentScrollReceiver = false;
 
         const handlePointerDown = (event: PointerEvent) => {
-            let hasInteractiveMarkParent = false;
+            let hasPointerDownAndOverParentScrollReceiverParent = false;
 
             {
                 let parentElement: HTMLElement | null = event.target as HTMLElement;
                 while (parentElement) {
                     if (
+                        parentElement.classList.contains(
+                            parentScrollWhenPointerDownAndOverReceiverClassName,
+                        ) ||
                         parentElement.classList.contains(linkClassName) ||
                         parentElement.classList.contains(commentClassName)
                     ) {
-                        hasInteractiveMarkParent = true;
+                        hasPointerDownAndOverParentScrollReceiverParent = true;
                         break;
                     }
 
@@ -1662,19 +1667,20 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
             }
 
-            isPointerDownAndOverInteractiveMark = hasInteractiveMarkParent;
+            isPointerDownAndOverParentScrollReceiver =
+                hasPointerDownAndOverParentScrollReceiverParent;
         };
 
         const handlePointerUp = () => {
-            isPointerDownAndOverInteractiveMark = false;
+            isPointerDownAndOverParentScrollReceiver = false;
         };
 
         const handlePointerLeave = () => {
-            isPointerDownAndOverInteractiveMark = false;
+            isPointerDownAndOverParentScrollReceiver = false;
         };
 
         const handlePointerCancel = () => {
-            isPointerDownAndOverInteractiveMark = false;
+            isPointerDownAndOverParentScrollReceiver = false;
         };
 
         view.dom.addEventListener("pointerdown", handlePointerDown);
@@ -1683,13 +1689,15 @@ function ContentEditor<Content extends ContentWithReferences>(
         view.dom.addEventListener("pointercancel", handlePointerCancel);
 
         const handleScroll = () => {
-            if (!isPointerDownAndOverInteractiveMark) return;
-            isPointerDownAndOverInteractiveMark = false;
+            if (!isPointerDownAndOverParentScrollReceiver) return;
+            isPointerDownAndOverParentScrollReceiver = false;
 
             for (const element of view.dom.querySelectorAll(
-                `.${linkClassName}, .${commentClassName}`,
+                // `linkClassName` and `commentClassName` are inherently receivers of this
+                // event.
+                `.${parentScrollWhenPointerDownAndOverReceiverClassName}, .${linkClassName}, .${commentClassName}`,
             )) {
-                (element as any)[onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol]?.();
+                dispatchParentScrollWhenPointerDownAndOverEvent(element);
             }
         };
 

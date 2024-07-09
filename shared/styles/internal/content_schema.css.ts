@@ -150,6 +150,8 @@ export const extraCompactDocClassName = style({
     },
 });
 
+export const parentScrollWhenPointerDownAndOverReceiverClassName = style({});
+
 const blockStyles = {
     width: "100%",
     maxWidth: blockMaxWidthVar,
@@ -585,14 +587,22 @@ export const checkListItemCheckboxIconClassName = style({
     },
 });
 
-const codeBlockPaddingRight = spacing["3"];
+export const codeBlockToolbarMaxWidth = addRemLengths(spacing["32"], spacing["6"]);
+
+const codeBlockPaddingRightSpacing = "3";
+const codeBlockPaddingRight = spacing[codeBlockPaddingRightSpacing];
+export {codeBlockPaddingRightSpacing as codeBlockPaddingRight};
 
 export const codeBlockWrapperClassName = style({
     ...omitObject(blockStyles, ["paddingLeft", "paddingRight"]),
+    position: "relative",
     overflowX: "auto",
     marginTop: codeBlockMarginVar,
     marginBottom: codeBlockMarginVar,
     counterReset: "code-block-line-number",
+    ...paragraphFontSize,
+    // `fontStyles.code` needs to be second to override `letter-spacing`.
+    ...fontStyles.code,
 });
 
 export const codeBlockClassName = style({
@@ -651,6 +661,12 @@ export const codeBlockLineClassName = style({
             width: codeBlockPaddingRight,
             height: paragraphFontSize.lineHeight,
             background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+        },
+        [`${codeBlockClassName} > &:first-child`]: {
+            paddingRight: codeBlockToolbarMaxWidth,
+        },
+        [`${codeBlockClassName} > &:first-child::after`]: {
+            content: "none",
         },
     },
 });

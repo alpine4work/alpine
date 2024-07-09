@@ -1,6 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
-import {onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol} from "~/client/content/internal/content_editor_link_mark_view.js";
+import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -218,10 +218,10 @@ export function createContentEditorCommentMarkViewConstructor({
             maybeUpdatePressed();
         });
 
-        (dom as any)[onParentScrollWhenPointerDownAndOverInteractiveMarkSymbol] = () => {
+        addParentScrollWhenPointerDownAndOverListener(dom, () => {
             isPointerDownAndOver = false;
             maybeUpdatePressed();
-        };
+        });
 
         return {
             dom,
