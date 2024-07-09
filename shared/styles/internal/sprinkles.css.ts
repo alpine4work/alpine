@@ -35,6 +35,7 @@ import {
 } from "~/shared/styles/internal/color_scheme.css.js";
 import {elevationVars} from "~/shared/styles/internal/elevation.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 const properties = defineProperties({
     properties: {
@@ -112,7 +113,20 @@ const properties = defineProperties({
             text: {userSelect: "text", cursor: "auto"},
         },
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
-        fontStyle: fontStyles,
+        fontStyle: mapObjectValues(fontStyles, style => {
+            if (!("letterSpacing" in style)) return style;
+
+            return {
+                ...omitObject(style, ["letterSpacing"]),
+                selectors: {
+                    // Use a triple selector so that this letter spacing overrides the letter
+                    // spacing of a `fontSizes` size with a condition. Letter spacing in
+                    // `fontSizes` with size has a specificity of 2. One for the
+                    // selector and one for the media query. So quadruple selector beats it.
+                    "&&&": {letterSpacing: style.letterSpacing},
+                },
+            };
+        }),
     },
 });
 

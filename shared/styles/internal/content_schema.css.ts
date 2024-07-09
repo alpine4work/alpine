@@ -1,11 +1,6 @@
 import {assignVars, createGlobalTheme, createVar, globalStyle, style} from "@vanilla-extract/css";
 import Color from "color";
 import {colors} from "~/shared/design/colors.js";
-import {
-    interFontAscender,
-    interFontDescender,
-    interFontUnitsPerEm,
-} from "~/shared/design/font_metrics.js";
 import {colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
 import {
@@ -95,15 +90,17 @@ export const defaultBlockMaxWidth = addRemLengths(
     blockPaddingX,
 );
 
-const paragraphMarginVar = createVar("paragraph-margin");
-const listItemOffsetVar = createVar("list-item-offset");
 export const blockMaxWidthVar: CssVarFunction = createVar("block-max-width");
+const paragraphMarginVar = createVar("paragraph-margin");
+const codeBlockMarginVar = createVar("code-block-margin");
+const listItemOffsetVar = createVar("list-item-offset");
 
 globalStyle(":root", {
     vars: {
-        [paragraphMarginVar]: defaultParagraphMargin,
-        [listItemOffsetVar]: spacing["0"],
         [blockMaxWidthVar]: defaultBlockMaxWidth,
+        [paragraphMarginVar]: defaultParagraphMargin,
+        [codeBlockMarginVar]: spacing["4"],
+        [listItemOffsetVar]: spacing["0"],
     },
 });
 
@@ -135,6 +132,7 @@ export const compactDocClassName = style({
         // Slightly smaller paragraph margins in messages. This makes bullet points in
         // a message bubble look better.
         [paragraphMarginVar]: spacing["1.5"],
+        [codeBlockMarginVar]: spacing["3"],
         // Pull in list items so they're not so far from the edge of the message
         // bubble.
         [listItemOffsetVar]: `-${spacing["2"]}`,
@@ -592,42 +590,17 @@ export const checkListItemCheckboxIconClassName = style({
 const codeBlockPaddingRight = spacing["3"];
 
 export const codeBlockWrapperClassName = style({
-    ...blockStyles,
-    // Override `blockStyles` `paddingLeft`/`paddingRight`.
-    paddingLeft: undefined,
-    paddingRight: undefined,
-    position: "relative",
-    marginTop: headingMarginVars.heading4TopMargin,
-    marginBottom: headingMarginVars.heading4TopMargin,
+    ...omitObject(blockStyles, ["paddingLeft", "paddingRight"]),
+    overflowX: "auto",
+    marginTop: codeBlockMarginVar,
+    marginBottom: codeBlockMarginVar,
     counterReset: "code-block-line-number",
-    selectors: {
-        // NOCOMMIT:
-        // "&::before": {
-        //     content: '""',
-        //     zIndex: "10",
-        //     position: "absolute",
-        //     top: "0",
-        //     bottom: "0",
-        //     left: "0",
-        //     width: blockPaddingX,
-        //     backgroundColor: "tomato",
-        // },
-        "&::after": {
-            content: '""',
-            zIndex: "10",
-            position: "absolute",
-            top: "0",
-            bottom: "0",
-            right: "0",
-            width: codeBlockPaddingRight,
-            background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
-        },
-    },
 });
 
 export const codeBlockClassName = style({
     display: "block",
-    overflowX: "auto",
+    position: "relative",
+    width: "fit-content",
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
@@ -644,42 +617,57 @@ export const codeBlockClassName = style({
 });
 
 export const codeBlockLineClassName = style({
-    position: "relative",
+    display: "flex",
+    width: "100%",
     counterIncrement: "code-block-line-number",
     selectors: {
         "&::before": {
             content: "counter(code-block-line-number)",
-            float: "left",
+            flexShrink: "0",
+            pointerEvents: "none",
+            zIndex: "10",
             position: "sticky",
-            top: "0",
             left: "0",
-            width: `calc(${subtractRemLengths(
+            width: `calc(${addRemLengths(
                 listItemIndentation,
+                blockPaddingX,
+            )} + ${listItemOffsetVar})`,
+            paddingRight: addRemLengths(
+                blockPaddingX,
                 // Optically align code block numbers with ordered list item numbers.
                 "0.25rem",
-            )} + ${listItemOffsetVar})`,
+            ),
             textAlign: "right",
             color: colorSchemeVars["grey-40"],
+            // No gradient for the line number. We have a hard border to create the
+            // illusion of the line number column sliding over the code.
+            backgroundColor: backgroundColorVar,
+        },
+        "&::after": {
+            content: '""',
+            flexShrink: "0",
             pointerEvents: "none",
+            zIndex: "10",
+            position: "sticky",
+            right: "0",
+            width: codeBlockPaddingRight,
+            height: paragraphFontSize.lineHeight,
+            background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
         },
     },
 });
 
 export const codeBlockLineContentClassName = style({
-    width: "fit-content",
-    paddingLeft: `calc(${addRemLengths(
-        listItemIndentation,
-        blockPaddingX,
-    )} + ${listItemOffsetVar})`,
-    paddingRight: codeBlockPaddingRight,
+    flexGrow: "1",
+    // `min-width` and `min-height` for when the code block line is empty. We still
+    // need space to render the cursor (can't be 0 width) and we can't collapse the
+    // line (can't be 0 height).
+    minWidth: "1ch",
     minHeight: "1lh",
 });
 
 export const dividerClassName = style({
-    ...blockStyles,
-    // Override `blockStyles` `paddingLeft`/`paddingRight`.
-    paddingLeft: undefined,
-    paddingRight: undefined,
+    ...omitObject(blockStyles, ["paddingLeft", "paddingRight"]),
     width: `calc(100% - ${blockPaddingX} * 2)`,
     maxWidth: `calc(${blockMaxWidthVar} - ${blockPaddingX} * 2)`,
     marginTop: spacing[desktopHeading1TopMargin],
@@ -747,10 +735,10 @@ export const boldClassName = style({
     fontFeatureSettings: "inherit",
     selectors: {
         [`${codeClassName} &`]: {
-            ...fontStyles["code-bold"],
+            ...fontStyles["code-extra-bold"],
         },
         [`${codeBlockClassName} &`]: {
-            ...fontStyles["code-bold"],
+            ...fontStyles["code-extra-bold"],
         },
         [`${headingLevel1ClassName} &`]: {
             ...fontStyles["ultra-bold"],
@@ -766,6 +754,18 @@ export const boldClassName = style({
 
 export const italicClassName = style({
     fontStyle: "italic",
+    selectors: {
+        [`${codeClassName} &`]: {
+            // Italics in our code font is controlled by a variable font setting instead of
+            // `font-style: italic`.
+            fontVariationSettings: '"ital" 1',
+        },
+        [`${codeBlockClassName} &`]: {
+            // Italics in our code font is controlled by a variable font setting instead of
+            // `font-style: italic`.
+            fontVariationSettings: '"ital" 1',
+        },
+    },
 });
 
 export const strikeClassName = style({

@@ -195,8 +195,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             defining: true,
             toDOM: () => [
                 "pre",
-                {class: codeBlockWrapperClassName},
-                ["code", {class: codeBlockClassName, "data-scrollbar": "false"}, 0],
+                {class: codeBlockWrapperClassName, "data-scrollbar": "false"},
+                ["code", {class: codeBlockClassName}, 0],
             ],
             parseDOM: createCodeBlockParseRules(),
         },

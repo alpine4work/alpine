@@ -32,15 +32,23 @@ const formatPercentage = (percentage: number) =>
 export const backgroundFontSizePercentage =
     (interFontAscender + interFontDescender) / interFontUnitsPerEm;
 
+const interWithoutItalicFontFaceRule: Parameters<typeof fontFace>[0] & {src: string} = {
+    // See how to use variable fonts:
+    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
+    src: `url(/fonts/inter-${interFontHash}.woff2) format('woff2 supports variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2-variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2')`,
+    fontWeight: "100 900",
+    fontStyle: "normal",
+    fontDisplay: "swap",
+    // Shouldn't be necessary but we include to ensure layout is stable when
+    // swapping fonts.
+    ascentOverride: formatPercentage(interFontAscender / interFontUnitsPerEm),
+    descentOverride: formatPercentage(interFontDescender / interFontUnitsPerEm),
+};
+
+const interWithoutItalicFontFace = fontFace(interWithoutItalicFontFaceRule);
+
 const interFontFace = fontFace([
-    {
-        // See how to use variable fonts:
-        // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-        src: `url(/fonts/inter-${interFontHash}.woff2) format('woff2 supports variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2-variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2')`,
-        fontWeight: "100 900",
-        fontStyle: "normal",
-        fontDisplay: "swap",
-    },
+    interWithoutItalicFontFaceRule,
     {
         // See how to use variable fonts:
         // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
@@ -48,6 +56,10 @@ const interFontFace = fontFace([
         fontWeight: "100 900",
         fontStyle: "italic",
         fontDisplay: "swap",
+        // Shouldn't be necessary but we include to ensure layout is stable when
+        // swapping fonts.
+        ascentOverride: formatPercentage(interFontAscender / interFontUnitsPerEm),
+        descentOverride: formatPercentage(interFontDescender / interFontUnitsPerEm),
     },
 ]);
 
@@ -59,6 +71,16 @@ const commitMonoFontFace = fontFace({
     fontDisplay: "swap",
     // Make sure the x-height of our monospace font matches the x-height of Inter.
     sizeAdjust: formatPercentage(commitMonoFontSizeAdjust),
+    // Shouldn't be necessary since we modify the font to have matching
+    // ascender/descender stats with Inter (since Safari doesn't support
+    // `ascent-override` and `descent-override`) but we include to ensure layout is
+    // stable when swapping fonts.
+    ascentOverride: formatPercentage(
+        interFontAscender / (interFontUnitsPerEm * commitMonoFontSizeAdjust),
+    ),
+    descentOverride: formatPercentage(
+        interFontDescender / (interFontUnitsPerEm * commitMonoFontSizeAdjust),
+    ),
 });
 
 const emojiFontFace = fontFace({
@@ -83,16 +105,21 @@ const fallbackFontSizeAdjust = 1.0764;
 const fallbackFontFace = fontFace({
     src: 'local("Arial")',
     ascentOverride: formatPercentage(
-        interFontDescender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
+        interFontAscender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
     ),
     descentOverride: formatPercentage(
-        interFontAscender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
+        interFontDescender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
     ),
     sizeAdjust: `${fallbackFontSizeAdjust * 100}%`,
 });
 
-const interFontFamily = `${interFontFace}, ${fallbackFontFace}`;
+// If our italic font hasn't loaded, fallback to an Inter font face without the
+// italic file so we temporarily render Inter but the browser manually
+// slants it.
+const interFontFamily = `${interFontFace}, ${interWithoutItalicFontFace}, ${fallbackFontFace}`;
+
 const commitMonoFontFamily = `${commitMonoFontFace}, ${fallbackFontFace}`;
+
 export const emojiFontFamily = emojiFontFace;
 
 /**
@@ -109,7 +136,18 @@ export const fontStyles = {
         fontFamily: interFontFamily,
         fontWeight: 400,
         fontStyle: "normal",
+        // You must manually enable `calt` to get contextual alternatives.
         fontFeatureSettings: '"calt" off',
+        // Don't allow bold or italic synthesis. Bold/italic fonts must be
+        // explicitly defined by the `@font-face` rule.
+        //
+        // Inter is a variable font with an axis for bold text. There's a separate
+        // Inter file for italic text.
+        //
+        // Commit Mono is a variable font with an axis for bold text and italic text.
+        // `font-style: italic` won't work with Commit Mono and you need to set
+        // `fontFeatureSettings: '"ital" 1'` with Commit Mono's other features.
+        fontSynthesis: "none",
     },
     // Usually `font-weight: 500` maps to the name "Medium" but since we want to
     // make it clear the style is bold we name it "Semi Bold" so bold is in the
@@ -119,6 +157,7 @@ export const fontStyles = {
         fontWeight: 500,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
     },
     // Usually `font-weight: 600` maps to the name "Semi Bold" but since it is the
     // most common heavy weight in our product we call it simply "Bold".
@@ -127,6 +166,7 @@ export const fontStyles = {
         fontWeight: 600,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
     },
     // Usually `font-weight: 700` maps to the name "Bold" but since it is less
     // common in our product than `font-weight: 600` we call it "Extra Bold".
@@ -135,6 +175,7 @@ export const fontStyles = {
         fontWeight: 700,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
     },
     // `extra-bold` and `ultra-bold` usually refer to the same thing but since
     // our bold weight starts at 600 we use `ultra-bold` as an intermediate value
@@ -144,19 +185,28 @@ export const fontStyles = {
         fontWeight: 800,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
     },
     black: {
         fontFamily: interFontFamily,
         fontWeight: 900,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
     },
     code: {
         fontFamily: commitMonoFontFamily,
-        fontWeight: 350,
+        fontWeight: 375,
         fontStyle: "normal",
         fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
-        // NOCOMMIT: Document why the letter spacing
+        fontSynthesis: "none",
+        // Reduce letter spacing on monospace font. Commit Mono is wider than Inter
+        // because each letter (even “i” and “l”) have the same width. Reduced letter
+        // spacing helps even things out.
+        //
+        // The custom `letter-spacing` does conflict with letter spacing from font
+        // sizes! We need to be careful when applying both code and font size to let
+        // the letter spacing from our font win.
         letterSpacing: "-0.02em",
     },
     "code-semi-bold": {
@@ -164,15 +214,23 @@ export const fontStyles = {
         fontWeight: 500,
         fontStyle: "normal",
         fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
-        // NOCOMMIT: Document why the letter spacing
+        fontSynthesis: "none",
         letterSpacing: "-0.02em",
     },
     "code-bold": {
         fontFamily: commitMonoFontFamily,
+        fontWeight: 600,
+        fontStyle: "normal",
+        fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
+        fontSynthesis: "none",
+        letterSpacing: "-0.02em",
+    },
+    "code-extra-bold": {
+        fontFamily: commitMonoFontFamily,
         fontWeight: 700,
         fontStyle: "normal",
         fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
-        // NOCOMMIT: Document why the letter spacing
+        fontSynthesis: "none",
         letterSpacing: "-0.02em",
     },
     // Styles that truncates text to a single line and shows ellipsis for
@@ -182,6 +240,7 @@ export const fontStyles = {
         fontWeight: 400,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
@@ -191,6 +250,7 @@ export const fontStyles = {
         fontWeight: 500,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
@@ -200,6 +260,7 @@ export const fontStyles = {
         fontWeight: 600,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
+        fontSynthesis: "none",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
@@ -209,7 +270,7 @@ export const fontStyles = {
         fontWeight: 350,
         fontStyle: "normal",
         fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
-        // NOCOMMIT: Document why the letter spacing
+        fontSynthesis: "none",
         letterSpacing: "-0.02em",
         overflow: "hidden",
         textOverflow: "ellipsis",
