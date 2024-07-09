@@ -274,6 +274,16 @@ export type TooltipRef = {
      * Force the tooltip to update its position.
      */
     forceUpdateTooltipPosition(): void;
+
+    /**
+     * Skip the hover delay and immediately show our tooltip.
+     */
+    skipTooltipHoverDelay(): void;
+
+    /**
+     * Skip the hover delay and immediately show our tooltip without animating in.
+     */
+    skipTooltipHoverDelayAndAnimation(): void;
 };
 
 const TooltipForwardRef = forwardRef(Tooltip);
@@ -347,6 +357,16 @@ export type TooltipProps = {
     isVisibleAfterPress?: boolean;
 
     /**
+     * Is the target element considered to be hovered when the tooltip component
+     * mounts? The mouse must move off the target element for the tooltip to
+     * disappear.
+     *
+     * Useful when using `targetElement` nad you've mounted this component after a
+     * hover event.
+     */
+    isInitiallyHovered?: boolean;
+
+    /**
      * The element our tooltip content will be rendered to point to. Must provide
      * a ref to an HTML element or we will throw an error.
      */
@@ -387,6 +407,7 @@ function Tooltip(
         isVisibleWhenFocused = true,
         isVisibleWhenFocusWithin = false,
         isVisibleAfterPress = false,
+        isInitiallyHovered = false,
         children: actualChildren,
         targetElement,
         onStateChange: _onStateChange,
@@ -394,16 +415,6 @@ function Tooltip(
     ref: Ref<TooltipRef>,
 ) {
     const overlayRef = useRef<OverlayRef>(null);
-
-    useImperativeHandle(
-        ref,
-        () => ({
-            forceUpdateTooltipPosition: () => {
-                overlayRef.current?.forceUpdateOverlayPosition();
-            },
-        }),
-        [],
-    );
 
     const isMounted = useIsMounted();
 
@@ -419,7 +430,26 @@ function Tooltip(
         coordinationContext !== null,
         "Expected a parent `<TooltipCoordinationContextProvider>` component",
     );
-    const {tooltipSymbolAboutToFadeOutRef} = coordinationContext;
+    const {tooltipSymbolAboutToFadeOutRef, skipTooltipHoverDelay} = coordinationContext;
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            forceUpdateTooltipPosition: () => {
+                overlayRef.current?.forceUpdateOverlayPosition();
+            },
+            skipTooltipHoverDelay,
+            skipTooltipHoverDelayAndAnimation: () => {
+                setState(state => {
+                    if (!state.isFadingIn) return state;
+                    return {...state, isFadingIn: false};
+                });
+
+                skipTooltipHoverDelay();
+            },
+        }),
+        [skipTooltipHoverDelay],
+    );
 
     // Controls whether the tooltip is actually visible or not. Only one tooltip
     // can be visible on screen at once and that is managed by our tooltip
@@ -428,14 +458,25 @@ function Tooltip(
     const hasActiveTooltipSymbol = activeTooltipSymbol !== null;
     const getHasActiveTooltipSymbol = useEvent(() => hasActiveTooltipSymbol);
 
-    const [state, setState] = useState<TooltipState>({
-        isHovered: false,
-        isFocused: false,
-        isFadingIn: false,
-        isFadingOut: false,
-        isDisabled,
-        hadHidingPointerDownWhileHovered: false,
-    });
+    const [state, setState] = useState<TooltipState>(
+        isInitiallyHovered && !isDisabled
+            ? {
+                  isHovered: true,
+                  isFocused: false,
+                  isFadingIn: true,
+                  isFadingOut: false,
+                  isDisabled,
+                  hadHidingPointerDownWhileHovered: false,
+              }
+            : {
+                  isHovered: false,
+                  isFocused: false,
+                  isFadingIn: false,
+                  isFadingOut: false,
+                  isDisabled,
+                  hadHidingPointerDownWhileHovered: false,
+              },
+    );
 
     // When disabled prop changes, update our state. Importantly when we disable a
     // visible tooltip we want to fade it out.
@@ -852,10 +893,10 @@ function Tooltip(
             } else {
                 return actualChildren({
                     isVisible,
-                    skipHoverDelay: coordinationContext.skipTooltipHoverDelay,
+                    skipHoverDelay: skipTooltipHoverDelay,
                 });
             }
-        }, [actualChildren, coordinationContext.skipTooltipHoverDelay, isVisible]),
+        }, [actualChildren, skipTooltipHoverDelay, isVisible]),
         useLifecycleRef(targetLifecycleRef),
     );
 

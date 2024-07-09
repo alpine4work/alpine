@@ -35,7 +35,7 @@ import {
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
-import {createContentEditorCodeBlockNodeView} from "~/client/content/internal/content_editor_code_block_node_view.js";
+import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
@@ -53,11 +53,14 @@ import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/con
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
+import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
     MobileFullScreenModal,
     useIsBehindMobileFullScreenModal,
 } from "~/client/design/mobile_full_screen_modal.js";
+import {useReporter} from "~/client/design/reporter.js";
+import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
@@ -82,7 +85,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
-import {generateId} from "~/shared/id/id.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -556,6 +559,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     } = props;
 
     const navigate = useNavigate();
+    const reporter = useReporter();
     const isMobile = useIsMobile();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
@@ -604,6 +608,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const canPrimaryInputHoverRef = useRef(canPrimaryInputHover);
     const isDualModalityRef = useRef(isDualModality);
     const navigateRef = useRef(navigate);
+    const reporterRef = useRef(reporter);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
     const spaceContext = useSpaceContextIfExists();
@@ -615,6 +620,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         canPrimaryInputHoverRef.current = canPrimaryInputHover;
         isDualModalityRef.current = isDualModality;
         navigateRef.current = navigate;
+        reporterRef.current = reporter;
         spaceContextRef.current = spaceContext;
     });
 
@@ -805,7 +811,29 @@ function ContentEditor<Content extends ContentWithReferences>(
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
                 // NOCOMMIT: Matching `nodeRenderer` in `renderContentToHtml()`.
-                codeBlock: createContentEditorCodeBlockNodeView,
+                codeBlock: createContentEditorCodeBlockNodeViewConstructor({
+                    getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                    getReporter: () => reporterRef.current,
+                    onCodeBlockCopyButtonHoverStart: targetElement =>
+                        setCodeBlockCopyButtonTooltipState({
+                            key: generateId(),
+                            targetElement,
+                            wasPressed: false,
+                        }),
+                    onCodeBlockCopyButtonHoverEnd: () => {
+                        // We intentionally do not remove our tooltip state when the hover ends. Since
+                        // we need to wait until the tooltip fades out on its own.
+                    },
+                    onCodeBlockCopyButtonPress: targetElement => {
+                        codeBlockCopyButtonTooltipRef.current?.skipTooltipHoverDelayAndAnimation();
+
+                        setCodeBlockCopyButtonTooltipState(state =>
+                            state?.targetElement === targetElement && !state?.wasPressed
+                                ? {...state, wasPressed: true}
+                                : state,
+                        );
+                    },
+                }),
                 mention: createContentEditorMentionNodeViewConstructor({
                     getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                     getCurrentAccountIfExists: () =>
@@ -1796,6 +1824,14 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, [isMobileCommentInputOpen, setDecorationCallbacks, viewRef]);
 
+    const codeBlockCopyButtonTooltipRef = useRef<TooltipRef>(null);
+
+    const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
+        readonly key: Id;
+        readonly targetElement: HTMLElement;
+        readonly wasPressed: boolean;
+    } | null>(null);
+
     return (
         <div
             className={classNames(
@@ -1898,6 +1934,37 @@ function ContentEditor<Content extends ContentWithReferences>(
                     state={unwrappedState}
                     viewRef={viewRef}
                     onClose={() => setIsMobileCommentInputOpen(false)}
+                />
+            )}
+            {codeBlockCopyButtonTooltipState && (
+                <Tooltip
+                    key={codeBlockCopyButtonTooltipState.key}
+                    ref={codeBlockCopyButtonTooltipRef}
+                    placement="bottom"
+                    isInitiallyHovered={true}
+                    isVisibleAfterPress={true}
+                    targetElement={codeBlockCopyButtonTooltipState.targetElement}
+                    content={
+                        !codeBlockCopyButtonTooltipState.wasPressed ? (
+                            "Copy"
+                        ) : (
+                            <Box display="inline" color="grey-60">
+                                Copied
+                            </Box>
+                        )
+                    }
+                    onStateChange={state => {
+                        // Once the tooltip completely disappears (after fade out completes) then we
+                        // can remove our tooltip state.
+                        if (
+                            !state.isHovered &&
+                            !state.isFocused &&
+                            !state.isFadingIn &&
+                            !state.isFadingOut
+                        ) {
+                            setCodeBlockCopyButtonTooltipState(null);
+                        }
+                    }}
                 />
             )}
         </div>

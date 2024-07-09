@@ -1,156 +1,226 @@
-import {DOMSerializer, Node} from "prosemirror-model";
-import {NodeView} from "prosemirror-view";
+import {DOMSerializer} from "prosemirror-model";
+import {NodeViewConstructor, serializeForClipboard} from "prosemirror-view";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {backgroundColorVar, contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
-export function createContentEditorCodeBlockNodeView(node: Node): NodeView {
-    const {dom: element, contentDOM: contentElement} = DOMSerializer.renderSpec(
-        document,
-        node.type.spec.toDOM!(node),
-    );
+export function createContentEditorCodeBlockNodeViewConstructor({
+    getSpaceId,
+    getReporter,
+    onCodeBlockCopyButtonHoverStart,
+    onCodeBlockCopyButtonHoverEnd,
+    onCodeBlockCopyButtonPress,
+}: {
+    getSpaceId: () => SpaceId;
+    getReporter: () => Reporter;
+    onCodeBlockCopyButtonHoverStart: (element: HTMLElement) => void;
+    onCodeBlockCopyButtonHoverEnd: (element: HTMLElement) => void;
+    onCodeBlockCopyButtonPress: (element: HTMLElement) => void;
+}): NodeViewConstructor {
+    return (node, view, getPos) => {
+        const {dom: element, contentDOM: contentElement} = DOMSerializer.renderSpec(
+            document,
+            node.type.spec.toDOM!(node),
+        );
 
-    assert(element instanceof HTMLElement && element.tagName === "PRE");
-    assert(contentElement instanceof HTMLElement && contentElement.tagName === "CODE");
-    assert(element.childElementCount === 1);
-    assert(element.firstElementChild === contentElement);
+        assert(element instanceof HTMLElement && element.tagName === "PRE");
+        assert(contentElement instanceof HTMLElement && contentElement.tagName === "CODE");
+        assert(element.childElementCount === 1);
+        assert(element.firstElementChild === contentElement);
 
-    const toolbarElement = document.createElement("div");
-    element.insertBefore(toolbarElement, contentElement);
-    toolbarElement.contentEditable = "false";
-    toolbarElement.className = sprinkles({
-        zIndex: "20",
-        position: "sticky",
-        left: "0",
-        height: "0",
-        width: "full",
-        // Override `cursor: text` and `user-select: text` set on the content editor.
-        cursor: "auto",
-        userSelect: "none",
-    });
+        const destroyCallbacks: Array<() => void> = [];
 
-    const toolbarFlexElement = document.createElement("div");
-    toolbarElement.appendChild(toolbarFlexElement);
-    toolbarFlexElement.className = sprinkles({
-        position: "absolute",
-        right: "0",
-        height: "6",
-        paddingLeft: "1.5",
-        paddingRight: contentSchemaStyles.blockPaddingX,
-        display: "flex",
-        alignItems: "center",
-        gap: "1",
-    });
-    toolbarFlexElement.style.top = `calc((1lh - ${spacing["6"]}) / 2)`;
-    toolbarFlexElement.style.backgroundColor = backgroundColorVar;
-    toolbarFlexElement.style.maxWidth = subtractRemLengths(
-        contentSchemaStyles.codeBlockToolbarMaxWidth,
-        // The overflow gradient is rendered absolutely out of this element's layout
-        // but we still want to consider it as a part of the max width.
-        spacing[contentSchemaStyles.codeBlockPaddingRight],
-    );
+        const toolbarElement = document.createElement("div");
+        element.insertBefore(toolbarElement, contentElement);
+        toolbarElement.contentEditable = "false";
+        toolbarElement.className = sprinkles({
+            pointerEvents: "none",
+            zIndex: "20",
+            position: "sticky",
+            left: "0",
+            height: "0",
+            width: "full",
+            // Override `cursor: text` and `user-select: text` set on the content editor.
+            cursor: "auto",
+            userSelect: "none",
+        });
 
-    const toolbarOverflowGradientElement = document.createElement("div");
-    toolbarFlexElement.appendChild(toolbarOverflowGradientElement);
-    toolbarOverflowGradientElement.className = sprinkles({
-        position: "absolute",
-        top: "0",
-        bottom: "0",
-        left: `-${contentSchemaStyles.codeBlockPaddingRight}`,
-        width: contentSchemaStyles.codeBlockPaddingRight,
-    });
-    toolbarOverflowGradientElement.style.background = `linear-gradient(to left, ${backgroundColorVar}, transparent)`;
-
-    {
-        const languagePickerElement = document.createElement("div");
-        toolbarFlexElement.appendChild(languagePickerElement);
-        languagePickerElement.className = sprinkles({
+        const toolbarFlexElement = document.createElement("div");
+        toolbarElement.appendChild(toolbarFlexElement);
+        toolbarFlexElement.className = sprinkles({
+            pointerEvents: "auto",
+            position: "absolute",
+            right: "0",
             height: "6",
-            paddingX: "1.5",
+            paddingLeft: "1.5",
+            paddingRight: contentSchemaStyles.blockPaddingX,
             display: "flex",
             alignItems: "center",
-            borderRadius: "1",
-            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-            // have `min-width: auto` which extends with content.
-            // https://stackoverflow.com/a/66689926/1568890
-            minWidth: "0",
         });
+        toolbarFlexElement.style.top = `calc((1lh - ${spacing["6"]}) / 2)`;
+        toolbarFlexElement.style.backgroundColor = backgroundColorVar;
+        toolbarFlexElement.style.maxWidth = subtractRemLengths(
+            contentSchemaStyles.codeBlockToolbarMaxWidth,
+            // The overflow gradient is rendered absolutely out of this element's layout
+            // but we still want to consider it as a part of the max width.
+            spacing[contentSchemaStyles.codeBlockPaddingRight],
+        );
 
-        const languagePickerElementText = document.createElement("div");
-        languagePickerElement.appendChild(languagePickerElementText);
-        languagePickerElementText.className = sprinkles({
-            fontStyle: "truncate",
-            fontSize: "75",
-            color: "grey-100",
+        const toolbarOverflowGradientElement = document.createElement("div");
+        toolbarFlexElement.appendChild(toolbarOverflowGradientElement);
+        toolbarOverflowGradientElement.className = sprinkles({
+            pointerEvents: "none",
+            position: "absolute",
+            top: "0",
+            bottom: "0",
+            left: `-${contentSchemaStyles.codeBlockPaddingRight}`,
+            width: contentSchemaStyles.codeBlockPaddingRight,
         });
+        toolbarOverflowGradientElement.style.background = `linear-gradient(to left, ${backgroundColorVar}, transparent)`;
 
-        // NOCOMMIT: Actual name
-        languagePickerElementText.appendChild(document.createTextNode("JavaScript"));
+        {
+            const languagePickerElement = document.createElement("div");
+            toolbarFlexElement.appendChild(languagePickerElement);
+            languagePickerElement.className = sprinkles({
+                height: "6",
+                paddingX: "1.5",
+                display: "flex",
+                alignItems: "center",
+                borderRadius: "1",
+                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                // have `min-width: auto` which extends with content.
+                // https://stackoverflow.com/a/66689926/1568890
+                minWidth: "0",
+            });
 
-        addUnfocusableButtonBehaviorToElement(languagePickerElement, {
-            hoverClassName: sprinkles({
-                backgroundColor: "grey-5",
-            }),
-            pressClassName: sprinkles({
-                backgroundColor: "grey-10",
-            }),
-        });
-    }
-
-    {
-        // NOCOMMIT: Don't render on mobile. Reduce `codeBlockToolbarMaxWidth` by 6 on mobile as well.
-        const copyButtonElement = document.createElement("div");
-        toolbarFlexElement.appendChild(copyButtonElement);
-        copyButtonElement.className = sprinkles({
-            flexShrink: "0",
-            width: "6",
-            height: "6",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            borderRadius: "full",
-        });
-        copyButtonElement.innerHTML = clipboardTextIconSvg({
-            className: sprinkles({
-                width: "4",
-                height: "4",
-            }),
-        });
-
-        addUnfocusableButtonBehaviorToElement(copyButtonElement, {
-            defaultClassName: sprinkles({
-                color: "grey-70",
-            }),
-            hoverClassName: sprinkles({
-                color: "grey-70",
-                backgroundColor: "grey-5",
-            }),
-            pressClassName: sprinkles({
+            const languagePickerElementText = document.createElement("div");
+            languagePickerElement.appendChild(languagePickerElementText);
+            languagePickerElementText.className = sprinkles({
+                fontStyle: "truncate",
+                fontSize: "75",
                 color: "grey-100",
-                backgroundColor: "grey-10",
-            }),
-        });
-    }
+            });
 
-    return {
-        dom: element,
-        contentDOM: contentElement,
-        ignoreMutation: mutation => {
-            // Ignore changes to the `class` attribute for elements in our toolbar so that
-            // the node isn't recreated when we update classes.
-            return (
-                mutation.type === "attributes" &&
-                mutation.attributeName === "class" &&
-                toolbarElement.contains(mutation.target)
-            );
-        },
+            // NOCOMMIT: Actual name
+            languagePickerElementText.appendChild(document.createTextNode("JavaScript"));
+
+            // We don't need to cleanup event listeners on DOM nodes created for this
+            // node view.
+            addUnfocusableButtonBehaviorToElement(languagePickerElement, {
+                hoverClassName: sprinkles({
+                    backgroundColor: "grey-5",
+                }),
+                pressClassName: sprinkles({
+                    backgroundColor: "grey-10",
+                }),
+            });
+        }
+
+        {
+            // NOCOMMIT: Don't render on mobile. Reduce `codeBlockToolbarMaxWidth` by 6 on mobile as well.
+            const copyButtonElement = document.createElement("div");
+            toolbarFlexElement.appendChild(copyButtonElement);
+            copyButtonElement.className = sprinkles({
+                flexShrink: "0",
+                width: "6",
+                height: "6",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                borderRadius: "full",
+            });
+            copyButtonElement.innerHTML = clipboardTextIconSvg({
+                className: sprinkles({
+                    width: "4",
+                    height: "4",
+                }),
+            });
+
+            let isCodeBlockCopyButtonHovered = false;
+
+            // We don't need to cleanup event listeners on DOM nodes created for this
+            // node view.
+            addUnfocusableButtonBehaviorToElement(copyButtonElement, {
+                defaultClassName: sprinkles({
+                    color: "grey-70",
+                }),
+                hoverClassName: sprinkles({
+                    color: "grey-70",
+                    backgroundColor: "grey-5",
+                }),
+                pressClassName: sprinkles({
+                    color: "grey-100",
+                    backgroundColor: "grey-10",
+                }),
+                onHoverStart: () => {
+                    const wasCodeBlockCopyButtonHovered = isCodeBlockCopyButtonHovered;
+                    isCodeBlockCopyButtonHovered = true;
+
+                    if (!wasCodeBlockCopyButtonHovered)
+                        onCodeBlockCopyButtonHoverStart(copyButtonElement);
+                },
+                onHoverEnd: () => {
+                    const wasCodeBlockCopyButtonHovered = isCodeBlockCopyButtonHovered;
+                    isCodeBlockCopyButtonHovered = false;
+                    if (wasCodeBlockCopyButtonHovered)
+                        onCodeBlockCopyButtonHoverEnd(copyButtonElement);
+                },
+                onPress: () => {
+                    const pos = getPos();
+
+                    const {dom, text} = serializeForClipboard(
+                        view,
+                        view.state.doc.slice(pos, pos + node.nodeSize),
+                    );
+
+                    navigator.clipboard
+                        .write([
+                            new ClipboardItem({
+                                "text/html": new Blob([dom.innerHTML], {type: "text/html"}),
+                                "text/plain": new Blob([text], {type: "text/plain"}),
+                            }),
+                        ])
+                        .catch(error => {
+                            getReporter().displayError("Couldn’t copy code", error);
+                        });
+
+                    onCodeBlockCopyButtonPress(copyButtonElement);
+                },
+            });
+
+            destroyCallbacks.push(() => {
+                if (isCodeBlockCopyButtonHovered) {
+                    isCodeBlockCopyButtonHovered = false;
+                    onCodeBlockCopyButtonHoverEnd(copyButtonElement);
+                }
+            });
+        }
+
+        return {
+            dom: element,
+            contentDOM: contentElement,
+            destroy: () => {
+                for (const destroyCallback of destroyCallbacks) {
+                    destroyCallback();
+                }
+            },
+            ignoreMutation: mutation => {
+                // Ignore any attribute mutation for elements in the toolbar. It's expected
+                // that we'll modify `class` when hovered/pressed and it's expected that
+                // `<Tooltip>` on `copyButtonElement` will change `aria-owns` and other
+                // properties.
+                return mutation.type === "attributes" && toolbarElement.contains(mutation.target);
+            },
+        };
     };
 }
 
@@ -160,11 +230,15 @@ function addUnfocusableButtonBehaviorToElement(
         defaultClassName = "",
         hoverClassName = "",
         pressClassName = "",
+        onHoverStart,
+        onHoverEnd,
         onPress,
     }: {
         defaultClassName?: string;
         hoverClassName?: string;
         pressClassName?: string;
+        onHoverStart?: () => void;
+        onHoverEnd?: () => void;
         onPress?: () => void;
     } = {},
 ): () => void {
@@ -236,21 +310,24 @@ function addUnfocusableButtonBehaviorToElement(
         isPointerDownAndOver = false;
         maybeUpdateStyle();
 
-        // Only process pointer up events that started on our element.
-        if (!wasPointerDownAndOver) return;
-
-        onPress?.();
+        if (wasPointerDownAndOver) onPress?.();
     };
 
     const handlePointerEnter = () => {
+        const wasPointerOver = isPointerOver;
         isPointerOver = true;
         maybeUpdateStyle();
+
+        if (!wasPointerOver) onHoverStart?.();
     };
 
     const handlePointerLeave = () => {
+        const wasPointerOver = isPointerOver;
         isPointerOver = false;
         isPointerDownAndOver = false;
         maybeUpdateStyle();
+
+        if (wasPointerOver) onHoverEnd?.();
     };
 
     const handlePointerCancel = () => {

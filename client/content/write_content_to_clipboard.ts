@@ -33,8 +33,8 @@ export async function writeContentToClipboard(spaceId: SpaceId, content: Content
 
     await navigator.clipboard.write([
         new ClipboardItem({
-            "text/html": dom.innerHTML,
-            "text/plain": text,
+            "text/html": new Blob([dom.innerHTML], {type: "text/html"}),
+            "text/plain": new Blob([text], {type: "text/plain"}),
         }),
     ]);
 }
