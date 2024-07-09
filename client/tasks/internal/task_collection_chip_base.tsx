@@ -157,7 +157,12 @@ function TaskCollectionChipBase(
             )}
             <div
                 className={nameClassName}
-                style={nameMaxWidth ? {maxWidth: spacing[nameMaxWidth]} : undefined}
+                style={{
+                    maxWidth: nameMaxWidth ? spacing[nameMaxWidth] : undefined,
+                    // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                    // for consistency if the user types anything like 2x2 or an @ mention.
+                    fontFeatureSettings: '"calt" on',
+                }}
             >
                 {name}
             </div>

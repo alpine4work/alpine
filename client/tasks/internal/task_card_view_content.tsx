@@ -264,6 +264,9 @@ function TaskCardViewContent(
                         lineClamp: 3,
                         WebkitBoxOrient: "vertical",
                         textOverflow: "ellipsis",
+                        // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                        // for consistency if the user types anything like 2x2 or an @ mention.
+                        fontFeatureSettings: '"calt" on',
                     }}
                     dangerouslySetInnerHTML={useMemo(
                         () => ({

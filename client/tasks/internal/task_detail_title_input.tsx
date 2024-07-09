@@ -1,7 +1,15 @@
 import classNames from "classnames";
 import {AllSelection, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {Ref, forwardRef, useCallback, useImperativeHandle, useInsertionEffect, useRef} from "react";
+import {
+    CSSProperties,
+    Ref,
+    forwardRef,
+    useCallback,
+    useImperativeHandle,
+    useInsertionEffect,
+    useRef,
+} from "react";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin} from "y-prosemirror";
 import * as Y from "yjs";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
@@ -32,6 +40,12 @@ const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
     fontStyle: "semi-bold",
     userSelect: "text",
 })} ${tasksStyles.detailTitleInputPlaceholderClassName}`;
+
+const taskDetailTitleInputStyle: CSSProperties = {
+    // Render contextual alternate glyphs. User text may be rendered here. Helpful
+    // for consistency if the user types anything like 2x2 or an @ mention.
+    fontFeatureSettings: '"calt" on',
+};
 
 const TaskDetailTitleInputForwardRef = forwardRef(TaskDetailTitleInput);
 export {TaskDetailTitleInputForwardRef as TaskDetailTitleInput};
@@ -115,6 +129,7 @@ function TaskDetailTitleInput(
 
             viewElement.ariaLabel = taskDetailTitleInputAriaLabel;
             viewElement.className = taskDetailTitleInputClassName;
+            Object.assign(viewElement.style, taskDetailTitleInputStyle);
 
             const view = new EditorView(
                 {mount: viewElement},

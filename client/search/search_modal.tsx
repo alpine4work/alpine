@@ -492,6 +492,11 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                     fontSize: "400",
                     backgroundColor: "transparent",
                 })}
+                style={{
+                    // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                    // for consistency if the user types anything like 2x2 or an @ mention.
+                    fontFeatureSettings: '"calt" on',
+                }}
                 // Chrome complains if `<input>` doesn't have an `id` or `name`.
                 id={useId()}
                 autoComplete="off"

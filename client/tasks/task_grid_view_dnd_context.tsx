@@ -630,7 +630,12 @@ function TaskRowViewDragOverlay({
                             </Box>
                             <Box
                                 fontStyle="truncate"
-                                style={contentSchemaStyles.paragraphFontSize}
+                                style={{
+                                    ...contentSchemaStyles.paragraphFontSize,
+                                    // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                                    // for consistency if the user types anything like 2x2 or an @ mention.
+                                    fontFeatureSettings: '"calt" on',
+                                }}
                                 dangerouslySetInnerHTML={{
                                     __html: serializeProsemirrorFragmentToHtml(
                                         data.title.getProsemirrorNode().content,

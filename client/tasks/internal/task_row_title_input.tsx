@@ -114,6 +114,9 @@ const taskRowTitleInputSingleLineStyle: CSSProperties = {
     // below the element. Adding `vertical-align` stops the space from being added.
     // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
     verticalAlign: "top",
+    // Render contextual alternate glyphs. User text may be rendered here. Helpful
+    // for consistency if the user types anything like 2x2 or an @ mention.
+    fontFeatureSettings: '"calt" on',
 };
 
 const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
@@ -135,6 +138,9 @@ const taskRowTitleInputMultilineStyle: CSSProperties = {
     // below the element. Adding `vertical-align` stops the space from being added.
     // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
     verticalAlign: "top",
+    // Render contextual alternate glyphs. User text may be rendered here. Helpful
+    // for consistency if the user types anything like 2x2 or an @ mention.
+    fontFeatureSettings: '"calt" on',
 };
 
 const rootClassName = sprinkles({
