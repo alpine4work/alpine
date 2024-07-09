@@ -102,10 +102,15 @@ export function ChannelViewNameEditor({
                                 boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                             }}
                             textClassName={sprinkles({
+                                paddingX: "1",
                                 fontSize: "400",
                                 fontStyle: "bold",
-                                paddingX: "1",
                             })}
+                            textStyle={{
+                                // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                                // for consistency if the user types anything like 2x2 or an @ mention.
+                                fontFeatureSettings: '"calt" on',
+                            }}
                             onKeyDown={event => {
                                 switch (event.key) {
                                     case "Enter": {

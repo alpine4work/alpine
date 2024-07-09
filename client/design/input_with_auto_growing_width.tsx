@@ -100,6 +100,7 @@ function InputWithAutoGrowingWidth(
                 size={1}
                 style={{
                     ...props.style,
+                    ...textStyle,
                     display: "inline-block",
                     width: "100%",
                 }}

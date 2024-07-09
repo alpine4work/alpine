@@ -1965,6 +1965,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     ? "center"
                                     : undefined
                             }
+                            style={{
+                                // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                                // for consistency if the user types anything like 2x2 or an @ mention.
+                                fontFeatureSettings: '"calt" on',
+                            }}
                         >
                             {title}
                         </Box>
@@ -1975,6 +1980,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                 fontStyle="truncate"
                                 userSelect={!isMobile ? "text" : undefined}
                                 textAlign={isMobile ? "center" : "left"}
+                                style={{
+                                    // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                                    // for consistency if the user types anything like 2x2 or an @ mention.
+                                    fontFeatureSettings: '"calt" on',
+                                }}
                             >
                                 {subtitle}
                             </Box>

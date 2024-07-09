@@ -152,6 +152,11 @@ function TaskCollectionViewDesktopHeaderName(
                     fontSize="200"
                     fontStyle="truncate-semi-bold"
                     userSelect="text"
+                    style={{
+                        // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                        // for consistency if the user types anything like 2x2 or an @ mention.
+                        fontFeatureSettings: '"calt" on',
+                    }}
                     onDoubleClick={event => {
                         if (isReadOnly) return;
 
@@ -298,6 +303,11 @@ function TaskCollectionViewDesktopHeaderNameEditor({
                             fontStyle: "semi-bold",
                             paddingX: "1",
                         })}
+                        textStyle={{
+                            // Render contextual alternate glyphs. User text may be rendered here. Helpful
+                            // for consistency if the user types anything like 2x2 or an @ mention.
+                            fontFeatureSettings: '"calt" on',
+                        }}
                         onKeyDown={event => {
                             switch (event.key) {
                                 case "Enter": {
