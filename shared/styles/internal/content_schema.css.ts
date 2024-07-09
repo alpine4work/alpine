@@ -66,8 +66,6 @@ import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
 //   writing:
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
-// Allow changing styles for `MessageContent`.
-
 const blockPaddingXSpacing = "2";
 export {blockPaddingXSpacing as blockPaddingX};
 const blockPaddingX = spacing[blockPaddingXSpacing];
