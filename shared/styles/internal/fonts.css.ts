@@ -7,26 +7,20 @@
  */
 
 import {assignVars, createGlobalTheme, fontFace, globalStyle} from "@vanilla-extract/css";
+import {
+    commitMonoFontHash,
+    interFontHash,
+    interItalicFontHash,
+} from "~/shared/design/font_hashes.js";
+import {
+    commitMonoFontSizeAdjust,
+    interFontAscender,
+    interFontDescender,
+    interFontUnitsPerEm,
+} from "~/shared/design/font_metrics.js";
 import {RemLength, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-
-// Font metrics taken from:
-// https://fontdrop.info
-const interFontAscender = 2728;
-const interFontDescender = 680;
-export const interFontAscenderPercentage =
-    interFontAscender / (interFontAscender + interFontDescender);
-export const interFontDescenderPercentage =
-    interFontDescender / (interFontAscender + interFontDescender);
-
-const interXHeight = 1536;
-const interCapHeight = 2048;
-const interEmSize = 2816;
-
-const commitMonoXHeight = 540;
-const commitMonoCapHeight = 700;
-const commitMonoEmSize = 1000;
 
 const formatPercentage = (percentage: number) =>
     `${Math.round(percentage * 100 * 10 ** 5) / 10 ** 5}%`;
@@ -36,35 +30,35 @@ const formatPercentage = (percentage: number) =>
  * `background-color` in the browser.
  */
 export const backgroundFontSizePercentage =
-    interFontAscenderPercentage + interFontDescenderPercentage + interFontDescenderPercentage;
+    (interFontAscender + interFontDescender) / interFontUnitsPerEm;
 
-const interFontFace = fontFace({
-    // See how to use variable fonts:
-    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: "url(/fonts/inter.woff2) format('woff2 supports variations'), url(/fonts/inter.woff2) format('woff2-variations'), url(/fonts/inter.woff2) format('woff2')",
-    fontWeight: "100 900",
-    fontDisplay: "swap",
-    // It appears browsers add an extra descent to the font's ascent metric.
-    // Presumably so that `background-color` appears centered around the text.
-    ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
-    descentOverride: formatPercentage(interFontDescenderPercentage),
-});
+const interFontFace = fontFace([
+    {
+        // See how to use variable fonts:
+        // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
+        src: `url(/fonts/inter-${interFontHash}.woff2) format('woff2 supports variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2-variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2')`,
+        fontWeight: "100 900",
+        fontStyle: "normal",
+        fontDisplay: "swap",
+    },
+    {
+        // See how to use variable fonts:
+        // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
+        src: `url(/fonts/inter-italic-${interItalicFontHash}.woff2) format('woff2 supports variations'), url(/fonts/inter-italic-${interItalicFontHash}.woff2) format('woff2-variations'), url(/fonts/inter-italic-${interItalicFontHash}.woff2) format('woff2')`,
+        fontWeight: "100 900",
+        fontStyle: "italic",
+        fontDisplay: "swap",
+    },
+]);
 
 const commitMonoFontFace = fontFace({
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: "url(/fonts/commit-mono.woff2) format('woff2 supports variations'), url(/fonts/commit-mono.woff2) format('woff2-variations'), url(/fonts/commit-mono.woff2) format('woff2')",
+    src: `url(/fonts/commit-mono-${commitMonoFontHash}.woff2) format('woff2 supports variations'), url(/fonts/commit-mono-${commitMonoFontHash}.woff2) format('woff2-variations'), url(/fonts/commit-mono-${commitMonoFontHash}.woff2) format('woff2')`,
     fontWeight: "100 900",
     fontDisplay: "swap",
     // Make sure the x-height of our monospace font matches the x-height of Inter.
-    sizeAdjust: formatPercentage(
-        interXHeight / interEmSize / (commitMonoXHeight / commitMonoEmSize),
-    ),
-    // Give Fira Code the same ascent/descent metrics as Inter. This means
-    // `background-color`s, font sizes, line heights, everything set on the two
-    // fonts line up when next to each other.
-    ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
-    descentOverride: formatPercentage(interFontDescenderPercentage),
+    sizeAdjust: formatPercentage(commitMonoFontSizeAdjust),
 });
 
 const emojiFontFace = fontFace({
@@ -73,23 +67,28 @@ const emojiFontFace = fontFace({
     // Use the same ascent/descent metrics for our emoji font face. This means
     // `background-color`s, font sizes, line heights, everything set on this font
     // will line up with our main font Inter.
-    ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
-    descentOverride: formatPercentage(interFontDescenderPercentage),
+    ascentOverride: formatPercentage(interFontAscender / interFontUnitsPerEm),
+    descentOverride: formatPercentage(interFontDescender / interFontUnitsPerEm),
 });
+
+// Value taken from the fallback font `@next/font` generates for Inter.
+// We use the same fallback font for Inter and Commit Mono because Commit Mono
+// is resized to the same size as Inter.
+//
+// See:
+// https://beta.nextjs.org/docs/optimizing/fonts
+// https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
+const fallbackFontSizeAdjust = 1.0764;
 
 const fallbackFontFace = fontFace({
     src: 'local("Arial")',
-    // Values taken from the fallback font `@next/font` generates for Inter.
-    // We use the same fallback font for Inter and Fira Code because Fira Code
-    // is resized to the same size as Inter.
-    //
-    // See:
-    // https://beta.nextjs.org/docs/optimizing/fonts
-    // https://github.com/vercel/next.js/blob/a6b40317294308f2d67240b789a8bbfcca694703/packages/font/src/google/loader.ts#L138-L148
-    ascentOverride: "90.00%",
-    descentOverride: "22.43%",
-    lineGapOverride: "0.00%",
-    sizeAdjust: "107.64%",
+    ascentOverride: formatPercentage(
+        interFontDescender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
+    ),
+    descentOverride: formatPercentage(
+        interFontAscender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
+    ),
+    sizeAdjust: `${fallbackFontSizeAdjust * 100}%`,
 });
 
 const interFontFamily = `${interFontFace}, ${fallbackFontFace}`;

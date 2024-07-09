@@ -63,6 +63,7 @@ import {getInbox} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount, getSpace} from "~/server/spaces/spaces_table.js";
+import {commitMonoFontHash} from "~/shared/design/font_hashes.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -118,7 +119,7 @@ export function links(): Array<LinkDescriptor> {
         // https://web.dev/articles/codelab-preload-web-fonts
         {
             rel: "preload",
-            href: "/fonts/commit-mono.woff2",
+            href: `/fonts/commit-mono-${commitMonoFontHash}.woff2`,
             as: "font",
             crossOrigin: "anonymous",
         },

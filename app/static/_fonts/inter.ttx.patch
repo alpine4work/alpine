@@ -1,0 +1,25 @@
+diff --git a/inter.ttx b/inter.ttx
+index dd9e3bfa..536aded4 100644
+--- a/inter.ttx
++++ b/inter.ttx
+@@ -274473,12 +274473,15 @@
+       </FeatureRecord>
+       <FeatureRecord index="2">
+         <FeatureTag value="calt"/>
++        <!--
++        NOTE(calebmer): Lookup lists 26 and 30 add arrow substitutions and nothing
++        else. We want to remove arrow substitutions from `calt` while keeping other
++        substitutions like how "x" changes in 2x2.
++        -->
+         <Feature>
+-          <!-- LookupCount=4 -->
+-          <LookupListIndex index="0" value="26"/>
+-          <LookupListIndex index="1" value="27"/>
+-          <LookupListIndex index="2" value="30"/>
+-          <LookupListIndex index="3" value="31"/>
++          <!-- LookupCount=2 -->
++          <LookupListIndex index="0" value="27"/>
++          <LookupListIndex index="1" value="31"/>
+         </Feature>
+       </FeatureRecord>
+       <FeatureRecord index="3">

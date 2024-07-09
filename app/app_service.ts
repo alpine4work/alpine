@@ -61,9 +61,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
-const assetsBuildDirectory = joinPath(runfilesPath, "cyberworlds/app/public/build");
+const staticBuildDirectory = joinPath(runfilesPath, "cyberworlds/app/static/build");
+const staticFontsDirectory = joinPath(runfilesPath, "cyberworlds/app/static/fonts");
 
-// Serve static assets from our `public` directory. These assets will be cached
+// Serve static assets from our `static` directory. These assets will be cached
 // by Cloudflare which sits in front of our Node.js HTTP server.
 //
 // TODO(calebmer): Verify Cloudflare is actually caching these assets in
@@ -78,11 +79,13 @@ const assetsBuildDirectory = joinPath(runfilesPath, "cyberworlds/app/public/buil
 // our app service. Maybe instead we upload static assets to Cloudflare storage
 // and our edge service serves them?
 const serveStaticMiddleware = createServeStaticMiddleware(
-    joinPath(runfilesPath, "cyberworlds/app/public"),
+    joinPath(runfilesPath, "cyberworlds/app/static"),
     {
         setHeaders: (res, path) => {
-            // Remix fingerprints its assets so we can cache forever. Other assets (like `favicon.ico`)
-            if (path.startsWith(assetsBuildDirectory)) {
+            // Remix fingerprints its assets so we can cache forever. Other assets (like
+            // `favicon.ico`) are cached for a day then can be updated. We also fingerprint
+            // fonts so fonts can be cached forever too.
+            if (path.startsWith(staticBuildDirectory) || path.startsWith(staticFontsDirectory)) {
                 // - `public`: Means we can store the asset in a shared cache since they don't
                 //   depend on authorization.
                 // - `max-age=31536000`: The asset lives for one year.

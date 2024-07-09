@@ -16,13 +16,10 @@ import {
     TaskQueryViewDesktopHeaderName,
     TaskQueryViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
+import {interFontAscender, interFontDescender} from "~/shared/design/font_metrics.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {
-    backgroundFontSizePercentage,
-    fontSizesByPlatform,
-    interFontDescenderPercentage,
-} from "~/shared/styles/styles.js";
+import {backgroundFontSizePercentage, fontSizesByPlatform} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
@@ -88,7 +85,9 @@ function TaskQueryViewDesktopHeader(
         const fontSize75 = fontSizesByPlatform["75"][isMobile ? "mobile" : "desktop"];
 
         const fontSize75Descender =
-            fontSize75.fontSize * (backgroundFontSizePercentage - 1) * interFontDescenderPercentage;
+            fontSize75.fontSize *
+            (backgroundFontSizePercentage - 1) *
+            (interFontDescender / (interFontAscender + interFontDescender));
 
         const fontSize75BottomHalfHeight = fontSize75Descender + fontSize75.fontSize / 2;
 
@@ -97,7 +96,7 @@ function TaskQueryViewDesktopHeader(
         const fontSize200Descender =
             fontSize200.fontSize *
             (backgroundFontSizePercentage - 1) *
-            interFontDescenderPercentage;
+            (interFontDescender / (interFontAscender + interFontDescender));
 
         const fontSize200BottomHalfHeight = fontSize200Descender + fontSize200.fontSize / 2;
 

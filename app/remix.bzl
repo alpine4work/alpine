@@ -20,7 +20,7 @@ def _remix_app_impl(ctx):
         transitive = [ctx.attr._app_lib[JsInfo].transitive_sources],
     )
 
-    assets_build_output = ctx.actions.declare_directory("public/build")
+    assets_build_output = ctx.actions.declare_directory("static/build")
     server_build_output = ctx.actions.declare_file("build/app_service_bundle.js")
     outputs = [assets_build_output, server_build_output]
 

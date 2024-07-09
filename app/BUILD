@@ -81,11 +81,6 @@ ts_project(
     ],
 )
 
-filegroup(
-    name = "app_public_files",
-    srcs = glob(["public/**/*"]),
-)
-
 js_binary(
     name = "read_remix_resolved_config",
     data = [
@@ -128,8 +123,8 @@ js_binary(
     data = [
         ":app_build",
         ":app_lib",
-        ":app_public_files",
         "//:remix_config_files",
+        "//app/static",
     ],
     entry_point = ":app_build",
     visibility = ["//app/integration_tests:__pkg__"],

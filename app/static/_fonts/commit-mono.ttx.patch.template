@@ -1,0 +1,36 @@
+diff --git a/.local/commit-mono1.ttx b/.local/commit-mono2.ttx
+index 485c9387..4ab5d4fb 100644
+--- a/.local/commit-mono1.ttx
++++ b/.local/commit-mono2.ttx
+@@ -1960,8 +1960,13 @@
+ 
+   <hhea>
+     <tableVersion value="0x00010000"/>
+-    <ascent value="900"/>
+-    <descent value="-200"/>
++    <!--
++    NOTE(calebmer): Modify this font to have the same ascender/descender
++    proportions as Inter. Since Safari doesn't support the `ascent-override`
++    and `descent-override` CSS properties we'd use otherwise.
++    -->
++    <ascent value="{{newCommitMonoFontAscender}}"/>
++    <descent value="-{{newCommitMonoFontDescender}}"/>
+     <lineGap value="0"/>
+     <advanceWidthMax value="600"/>
+     <minLeftSideBearing value="-120"/>
+@@ -2036,11 +2041,11 @@
+     <fsSelection value="00000000 11000000"/>
+     <usFirstCharIndex value="0"/>
+     <usLastCharIndex value="65533"/>
+-    <sTypoAscender value="900"/>
+-    <sTypoDescender value="-200"/>
++    <sTypoAscender value="{{newCommitMonoFontAscender}}"/>
++    <sTypoDescender value="-{{newCommitMonoFontDescender}}"/>
+     <sTypoLineGap value="0"/>
+-    <usWinAscent value="900"/>
+-    <usWinDescent value="200"/>
++    <usWinAscent value="{{newCommitMonoFontAscender}}"/>
++    <usWinDescent value="{{newCommitMonoFontDescender}}"/>
+     <ulCodePageRange1 value="01000000 00000000 00000000 10011011"/>
+     <ulCodePageRange2 value="00000000 00000000 00000000 00000000"/>
+     <sxHeight value="540"/>

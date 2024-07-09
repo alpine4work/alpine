@@ -29,7 +29,7 @@ module.exports = {
         v2_dev: false,
     },
     appDirectory: "./app",
-    assetsBuildDirectory: "./app/public/build",
+    assetsBuildDirectory: "./app/static/build",
     server: "./app/app_service.js",
     serverBuildPath: "./app/build/app_service_bundle.js",
     serverMainFields: ["module", "main"],
