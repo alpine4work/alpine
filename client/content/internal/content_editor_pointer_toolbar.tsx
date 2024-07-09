@@ -1,4 +1,4 @@
-import {useHover, useInteractionModality} from "@react-aria/interactions";
+import {useHover, useInteractionModality, usePress} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
     ChatCircleText,
@@ -19,7 +19,7 @@ import {Mark, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {mergeProps, useButton} from "react-aria";
+import {mergeProps} from "react-aria";
 import {flushSync} from "react-dom";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/build_content_editor_keymap_plugin.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
@@ -84,70 +84,6 @@ export function ContentEditorPointerToolbar({
 
     const [isWaitingForTripleClickAfterDoubleClick, setIsWaitingForTripleClickAfterDoubleClick] =
         useState(false);
-
-    useEffect(() => {
-        setHasPointerMovedWhileDown(false);
-
-        let isPointerDown = false;
-
-        let lastMouseDownTime1: number | null = null;
-        let lastMouseDownTime2: number | null = null;
-
-        const handlePointerDown = (event: PointerEvent) => {
-            isPointerDown = true;
-
-            if (event.pointerType === "mouse") {
-                const mouseDownTime = Date.now();
-
-                if (
-                    lastMouseDownTime1 !== null &&
-                    mouseDownTime - lastMouseDownTime1 <= doubleClickDelayMs
-                ) {
-                    if (
-                        lastMouseDownTime2 === null ||
-                        lastMouseDownTime1 - lastMouseDownTime2 > doubleClickDelayMs
-                    ) {
-                        setIsWaitingForTripleClickAfterDoubleClick(true);
-                    } else {
-                        setIsWaitingForTripleClickAfterDoubleClick(false);
-                    }
-                }
-
-                lastMouseDownTime2 = lastMouseDownTime1;
-                lastMouseDownTime1 = mouseDownTime;
-            }
-        };
-
-        const handlePointerMove = () => {
-            if (isPointerDown) {
-                setHasPointerMovedWhileDown(true);
-            }
-
-            // If the pointer moves, triple click chances are cancelled.
-            setIsWaitingForTripleClickAfterDoubleClick(false);
-        };
-
-        const handlePointerUp = () => {
-            isPointerDown = false;
-            setHasPointerMovedWhileDown(false);
-        };
-
-        const handlePointerCancel = () => {
-            isPointerDown = false;
-            setHasPointerMovedWhileDown(false);
-        };
-
-        document.addEventListener("pointerdown", handlePointerDown, true);
-        document.addEventListener("pointermove", handlePointerMove, true);
-        document.addEventListener("pointerup", handlePointerUp, true);
-        document.addEventListener("pointercancel", handlePointerCancel, true);
-        return () => {
-            document.removeEventListener("pointerdown", handlePointerDown, true);
-            document.removeEventListener("pointermove", handlePointerMove, true);
-            document.removeEventListener("pointerup", handlePointerUp, true);
-            document.removeEventListener("pointercancel", handlePointerCancel, true);
-        };
-    }, []);
 
     useEffect(() => {
         if (!isWaitingForTripleClickAfterDoubleClick) return;
@@ -245,6 +181,79 @@ export function ContentEditorPointerToolbar({
         // shortcuts to accomplish everything in the toolbar.
         (interactionModality === "pointer" ||
             hasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow);
+
+    // If `shouldShow` is true then we don't update `hasPointerMovedWhileDown`
+    // and `isWaitingForTripleClickAfterDoubleClick`.
+    if (shouldShow && (hasPointerMovedWhileDown || isWaitingForTripleClickAfterDoubleClick)) {
+        setHasPointerMovedWhileDown(false);
+        setIsWaitingForTripleClickAfterDoubleClick(false);
+    }
+
+    useEffect(() => {
+        if (shouldShow) return;
+
+        setHasPointerMovedWhileDown(false);
+
+        let isPointerDown = false;
+
+        let lastMouseDownTime1: number | null = null;
+        let lastMouseDownTime2: number | null = null;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            isPointerDown = true;
+
+            if (event.pointerType === "mouse") {
+                const mouseDownTime = Date.now();
+
+                if (
+                    lastMouseDownTime1 !== null &&
+                    mouseDownTime - lastMouseDownTime1 <= doubleClickDelayMs
+                ) {
+                    if (
+                        lastMouseDownTime2 === null ||
+                        lastMouseDownTime1 - lastMouseDownTime2 > doubleClickDelayMs
+                    ) {
+                        setIsWaitingForTripleClickAfterDoubleClick(true);
+                    } else {
+                        setIsWaitingForTripleClickAfterDoubleClick(false);
+                    }
+                }
+
+                lastMouseDownTime2 = lastMouseDownTime1;
+                lastMouseDownTime1 = mouseDownTime;
+            }
+        };
+
+        const handlePointerMove = () => {
+            if (isPointerDown) {
+                setHasPointerMovedWhileDown(true);
+            }
+
+            // If the pointer moves, triple click chances are cancelled.
+            setIsWaitingForTripleClickAfterDoubleClick(false);
+        };
+
+        const handlePointerUp = () => {
+            isPointerDown = false;
+            setHasPointerMovedWhileDown(false);
+        };
+
+        const handlePointerCancel = () => {
+            isPointerDown = false;
+            setHasPointerMovedWhileDown(false);
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("pointermove", handlePointerMove, true);
+        document.addEventListener("pointerup", handlePointerUp, true);
+        document.addEventListener("pointercancel", handlePointerCancel, true);
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("pointermove", handlePointerMove, true);
+            document.removeEventListener("pointerup", handlePointerUp, true);
+            document.removeEventListener("pointercancel", handlePointerCancel, true);
+        };
+    }, [shouldShow]);
 
     const initialSelection = useConstant(() => state.selection);
 
@@ -850,14 +859,11 @@ function ContentEditorPointerToolbarButton({
 
     const localRef = useRef<HTMLDivElement>(null);
 
-    const {buttonProps, isPressed} = useButton(
-        {
-            elementType: "div",
-            "aria-label": description,
-            onPress,
-        },
-        localRef,
-    );
+    const {pressProps, isPressed} = usePress({
+        ref: localRef,
+        preventFocusOnPress: true,
+        onPress,
+    });
 
     const {hoverProps, isHovered} = useHover({});
 
@@ -884,7 +890,7 @@ function ContentEditorPointerToolbarButton({
             onStateChange={onTooltipStateChange}
         >
             <div
-                {...mergeProps(buttonProps, hoverProps)}
+                {...mergeProps(pressProps, hoverProps)}
                 ref={localRef}
                 // Disable the ability to focus this icon button! The icon buttons in the
                 // selection toolbar are only mouse accessible. They are not keyboard
