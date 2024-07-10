@@ -1,9 +1,19 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//admin/typescript:typescript.bzl", "ts_project")
+load("//app/static:_fonts/filter_font_hashes.bzl", "filter_font_hashes")
+
+filegroup(
+    name = "static",
+    srcs = [
+        ":files",
+        ":fonts",
+    ],
+    visibility = ["//app:__subpackages__"],
+)
 
 copy_to_bin(
-    name = "static",
+    name = "files",
     srcs = glob(
         ["**/*"],
         exclude = [
@@ -20,7 +30,7 @@ copy_to_bin(
             "**/.*/**/*",
             "BUILD",
         ],
-    ) + [":hashed_fonts"],
+    ),
     visibility = ["//app:__subpackages__"],
 )
 
@@ -39,7 +49,7 @@ genrule(
         "_fonts/inter.ttx.patch",
     ],
     outs = ["_fonts/inter-patched.ttx"],
-    cmd = "cp $(location _fonts/inter.ttx) \"$@\" && patch -p1 -s \"$@\" $(location _fonts/inter.ttx.patch)",
+    cmd = "cp $(location _fonts/inter.ttx) \"$@\" && chmod +w \"$@\" && patch -p1 -s \"$@\" $(location _fonts/inter.ttx.patch)",
 )
 
 genrule(
@@ -65,7 +75,7 @@ genrule(
         "_fonts/inter-italic.ttx.patch",
     ],
     outs = ["_fonts/inter-italic-patched.ttx"],
-    cmd = "cp $(location _fonts/inter-italic.ttx) \"$@\" && patch -p1 -s \"$@\" $(location _fonts/inter-italic.ttx.patch)",
+    cmd = "cp $(location _fonts/inter-italic.ttx) \"$@\" && chmod +w \"$@\" && patch -p1 -s \"$@\" $(location _fonts/inter-italic.ttx.patch)",
 )
 
 genrule(
@@ -91,7 +101,7 @@ genrule(
         "_fonts/commit-mono.ttx.patch",
     ],
     outs = ["_fonts/commit-mono-patched.ttx"],
-    cmd = "cp $(location _fonts/commit-mono.ttx) \"$@\" && patch -p1 -s \"$@\" $(location _fonts/commit-mono.ttx.patch)",
+    cmd = "cp $(location _fonts/commit-mono.ttx) \"$@\" && chmod +w \"$@\" && patch -p1 -s \"$@\" $(location _fonts/commit-mono.ttx.patch)",
 )
 
 genrule(
@@ -141,22 +151,27 @@ js_run_binary(
 )
 
 js_binary(
-    name = "generate_hashed_fonts",
+    name = "generate_fonts",
     data = [
         "_fonts/commit-mono-patched.woff2",
         "_fonts/inter-italic-patched.woff2",
         "_fonts/inter-patched.woff2",
         ":static_lib",
     ],
-    entry_point = "_fonts/generate_hashed_fonts_main.js",
+    entry_point = "_fonts/generate_fonts_main.js",
     env = {"NODE_ENV": "development"},
 )
 
 js_run_binary(
-    name = "hashed_fonts",
+    name = "fonts_and_font_hashes",
     outs = ["_fonts/font_hashes.ts"],
     chdir = package_name(),
     out_dirs = ["fonts"],
-    tool = ":generate_hashed_fonts",
+    tool = ":generate_fonts",
     visibility = ["//shared/design:__pkg__"],
+)
+
+filter_font_hashes(
+    name = "fonts",
+    srcs = [":fonts_and_font_hashes"],
 )
