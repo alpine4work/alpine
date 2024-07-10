@@ -64,14 +64,14 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         toolbarFlexElement.className = sprinkles({
             pointerEvents: "auto",
             position: "absolute",
+            top: "0",
             right: "0",
-            height: "6",
+            height: contentSchemaStyles.codeBlockToolbarHeight,
             paddingLeft: "1.5",
             paddingRight: contentSchemaStyles.blockPaddingX,
             display: "flex",
             alignItems: "center",
         });
-        toolbarFlexElement.style.top = `calc((1lh - ${spacing["6"]}) / 2)`;
         toolbarFlexElement.style.backgroundColor = backgroundColorVar;
         toolbarFlexElement.style.maxWidth = subtractRemLengths(
             contentSchemaStyles.codeBlockToolbarMaxWidth,
@@ -96,7 +96,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             const languagePickerElement = document.createElement("div");
             toolbarFlexElement.appendChild(languagePickerElement);
             languagePickerElement.className = sprinkles({
-                height: "6",
+                height: contentSchemaStyles.codeBlockToolbarHeight,
                 paddingX: "1.5",
                 display: "flex",
                 alignItems: "center",
@@ -143,8 +143,8 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             toolbarFlexElement.appendChild(copyButtonElement);
             copyButtonElement.className = sprinkles({
                 flexShrink: "0",
-                width: "6",
-                height: "6",
+                width: contentSchemaStyles.codeBlockToolbarHeight,
+                height: contentSchemaStyles.codeBlockToolbarHeight,
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
