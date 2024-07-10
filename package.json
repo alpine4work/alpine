@@ -313,6 +313,12 @@
                 "dependencies": {
                     "@react-aria/ssr": "^3.8.0"
                 }
+            },
+            "@remix-run/dev": {
+                "peerDependencies": {
+                    "react": "^18.0.0",
+                    "react-dom": "^18.0.0"
+                }
             }
         }
     }

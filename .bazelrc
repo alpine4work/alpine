@@ -1,3 +1,7 @@
+# In Bazel 7 `--enable_bzlmod` was made the default. Disable it since we don't
+# want to upgrade now.
+always --noenable_bzlmod
+
 # Import Aspect bazelrc presets
 import %workspace%/admin/bazel/aspect_bazelrc/bazel6.bazelrc
 import %workspace%/admin/bazel/aspect_bazelrc/convenience.bazelrc
@@ -14,14 +18,17 @@ test --build_tests_only
 # operations. To make sure we get hermetic builds we want to override to a
 # remote version of Java which Bazel will download.
 # https://bazel.build/docs/bazel-and-java#hermetic-testing
-build --java_language_version=18
-build --java_runtime_version=remotejdk_18
-build --tool_java_language_version=18
-build --tool_java_runtime_version=remotejdk_18
+build --java_language_version=17
+build --java_runtime_version=remotejdk_17
+build --tool_java_language_version=17
+build --tool_java_runtime_version=remotejdk_17
 
 # Setting `--skipLibCheck` makes type checking much faster at the cost of
 # type checking correctness for `.d.ts` files. We may want to consider
 # occasionally doing a type checking run with `--skipLibCheck` off.
-build --@aspect_rules_ts//ts:skipLibCheck=always
-fetch --@aspect_rules_ts//ts:skipLibCheck=always
-query --@aspect_rules_ts//ts:skipLibCheck=always
+common --@aspect_rules_ts//ts:skipLibCheck=always
+
+# Make sure we use a Bash script entrypoint for `py_binary()` rules instead of
+# using the system Python installation. Since sometimes we may run on machines
+# that don't have Python installed (e.g. CI machines).
+build --@rules_python//python/config_settings:bootstrap_impl=script

@@ -57,14 +57,21 @@ http_archive(
     url = "https://github.com/bazelbuild/rules_python/releases/download/0.34.0/rules_python-0.34.0.tar.gz",
 )
 
-load("@rules_python//python:repositories.bzl", "py_repositories")
+load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
 
 py_repositories()
 
+python_register_toolchains(
+    name = "python",
+    python_version = "3.12",
+)
+
 load("@rules_python//python:pip.bzl", "pip_parse")
+load("@python//:defs.bzl", python_interpreter = "interpreter")
 
 pip_parse(
     name = "pypi",
+    python_interpreter_target = python_interpreter,
     requirements_lock = "//:requirements.txt",
 )
 
