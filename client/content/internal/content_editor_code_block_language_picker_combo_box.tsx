@@ -95,7 +95,12 @@ function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
     const [inputValue, setInputValue] = useState("");
 
     const languagesSearchIndex = useMemo(
-        () => new Fuse(contentCodeBlockLanguages, {keys: ["name", "aliases"]}),
+        () =>
+            new Fuse(contentCodeBlockLanguages, {
+                // Reduce churn while typing by requiring better matches in search.
+                threshold: 0.4,
+                keys: ["name", "aliases"],
+            }),
         [],
     );
 
