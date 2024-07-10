@@ -71,6 +71,10 @@ py_console_script_binary(
     name = "ttx",
     pkg = "@pypi//fonttools",
     visibility = ["//visibility:public"],
+    deps = [
+        "@pypi//brotli",
+        "@pypi//zopfli",
+    ],
 )
 
 package_light_json(visibility = ["//visibility:public"])
