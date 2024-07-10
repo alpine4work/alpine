@@ -10,6 +10,7 @@ import {
     Schema as ProsemirrorSchema,
     SchemaSpec,
 } from "prosemirror-model";
+import {ContentCodeBlockLanguageIdSchema} from "~/shared/content/content_code_block_language.js";
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
@@ -193,6 +194,12 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block",
             content: "codeBlockLine+",
             defining: true,
+            attrs: {
+                language: {
+                    schema: ContentCodeBlockLanguageIdSchema,
+                    default: "text",
+                },
+            },
             toDOM: () => [
                 "pre",
                 {class: codeBlockWrapperClassName, "data-scrollbar": "false"},

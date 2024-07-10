@@ -78,6 +78,7 @@ import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
@@ -818,10 +819,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // NOCOMMIT: Matching `nodeRenderer` in `renderContentToHtml()`.
                 codeBlock: createContentEditorCodeBlockNodeViewConstructor({
                     getReporter: () => reporterRef.current,
-                    onCodeBlockLanguagePickerOpen: targetElement =>
+                    onCodeBlockLanguagePickerOpen: ({targetElement, languageId, getPos}) =>
                         setCodeBlockLanguagePickerState({
                             key: generateId(),
                             targetElement,
+                            languageId,
+                            getPos,
                             isVisible: true,
                         }),
                     onCodeBlockCopyButtonHoverStart: targetElement =>
@@ -1837,8 +1840,21 @@ function ContentEditor<Content extends ContentWithReferences>(
     const [codeBlockLanguagePickerState, setCodeBlockLanguagePickerState] = useState<{
         readonly key: Id;
         readonly targetElement: HTMLElement;
+        readonly languageId: ContentCodeBlockLanguageId;
+        // Could return `undefined` if the node has been unmounted.
+        readonly getPos: () => number | undefined;
         readonly isVisible: boolean;
     } | null>(null);
+
+    // Whenever this component renders check that `targetElement` is still in the
+    // DOM. If it's not (maybe `attr`s changed or another user removed it) then
+    // reset our state to null.
+    if (
+        codeBlockLanguagePickerState &&
+        !document.body.contains(codeBlockLanguagePickerState.targetElement)
+    ) {
+        setCodeBlockLanguagePickerState(null);
+    }
 
     // Report whether the overlay is open or closed. If the overlay is open we want to
     // continue rendering our hover state.
@@ -1870,6 +1886,16 @@ function ContentEditor<Content extends ContentWithReferences>(
         readonly targetElement: HTMLElement;
         readonly wasPressed: boolean;
     } | null>(null);
+
+    // Whenever this component renders check that `targetElement` is still in the
+    // DOM. If it's not (maybe `attr`s changed or another user removed it) then
+    // reset our state to null.
+    if (
+        codeBlockCopyButtonTooltipState &&
+        !document.body.contains(codeBlockCopyButtonTooltipState.targetElement)
+    ) {
+        setCodeBlockCopyButtonTooltipState(null);
+    }
 
     return (
         <div
@@ -1987,9 +2013,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                         })
                     }
                     onCloseWithoutAnimation={() => setCodeBlockLanguagePickerState(null)}
-                    selectedLanguageId="text"
-                    onSelectedLanguageChange={() => {
-                        // NOCOMMIT
+                    selectedLanguageId={codeBlockLanguagePickerState.languageId}
+                    onSelectedLanguageChange={languageId => {
+                        const pos = codeBlockLanguagePickerState.getPos();
+                        if (pos === undefined) return;
+
+                        const view = assertExists(viewRef.current);
+                        view.dispatch(view.state.tr.setNodeAttribute(pos, "language", languageId));
                     }}
                 />
             )}

@@ -13,6 +13,10 @@ import {
 import {Reporter} from "~/client/design/reporter.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {
+    ContentCodeBlockLanguageId,
+    contentCodeBlockLanguageById,
+} from "~/shared/content/content_code_block_language.js";
 import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -26,12 +30,19 @@ export function createContentEditorCodeBlockNodeViewConstructor({
     onCodeBlockCopyButtonPress,
 }: {
     getReporter: () => Reporter;
-    onCodeBlockLanguagePickerOpen: (element: HTMLElement) => void;
-    onCodeBlockCopyButtonHoverStart: (element: HTMLElement) => void;
-    onCodeBlockCopyButtonHoverEnd: (element: HTMLElement) => void;
-    onCodeBlockCopyButtonPress: (element: HTMLElement) => void;
+    onCodeBlockLanguagePickerOpen: (options: {
+        targetElement: HTMLElement;
+        languageId: ContentCodeBlockLanguageId;
+        getPos: () => number;
+    }) => void;
+    onCodeBlockCopyButtonHoverStart: (targetElement: HTMLElement) => void;
+    onCodeBlockCopyButtonHoverEnd: (targetElement: HTMLElement) => void;
+    onCodeBlockCopyButtonPress: (targetElement: HTMLElement) => void;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
+        const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
+        const language = contentCodeBlockLanguageById[languageId];
+
         const {dom: element, contentDOM: contentElement} = DOMSerializer.renderSpec(
             document,
             node.type.spec.toDOM!(node),
@@ -114,8 +125,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
                 fontSize: "75",
             });
 
-            // NOCOMMIT: Actual name
-            languagePickerElementText.appendChild(document.createTextNode("JavaScript"));
+            languagePickerElementText.appendChild(document.createTextNode(language.name));
 
             // We don't need to cleanup event listeners on DOM nodes created for this
             // node view.
@@ -132,7 +142,11 @@ export function createContentEditorCodeBlockNodeViewConstructor({
                     backgroundColor: "grey-10",
                 }),
                 onPress: () => {
-                    onCodeBlockLanguagePickerOpen(languagePickerElement);
+                    onCodeBlockLanguagePickerOpen({
+                        targetElement: languagePickerElement,
+                        languageId,
+                        getPos,
+                    });
                 },
             });
         }

@@ -8,7 +8,7 @@ import {SchemaSerializedScalarValue} from "~/shared/schema/schema.js";
 import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 const schemaCompositeDescriptionTypes: {
-    [K in SchemaSerializedCompositeValueDescription["type"]]: true;
+    [K in SchemaSerializedCompositeValueDescription["type"] | "Enum"]: true;
 } = {
     Nullable: true,
     Array: true,
@@ -18,6 +18,7 @@ const schemaCompositeDescriptionTypes: {
     Set: true,
     Map: true,
     Tuple: true,
+    Enum: true,
 };
 
 /**

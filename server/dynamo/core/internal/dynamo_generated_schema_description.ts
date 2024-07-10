@@ -732,15 +732,61 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         },
-                                                                                        "codeBlockLine": {
+                                                                                        "codeBlock": {
                                                                                             "type": "Object",
                                                                                             "propertySchemaByKey": {
                                                                                                 "type": {
                                                                                                     "valueSchema": {
                                                                                                         "type": "Value",
-                                                                                                        "value": "codeBlockLine"
+                                                                                                        "value": "codeBlock"
                                                                                                     },
                                                                                                     "optional": false
+                                                                                                },
+                                                                                                "attrs": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Nullable",
+                                                                                                        "schema": {
+                                                                                                            "type": "Object",
+                                                                                                            "propertySchemaByKey": {
+                                                                                                                "language": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Enum",
+                                                                                                                        "values": [
+                                                                                                                            "text",
+                                                                                                                            "javascript",
+                                                                                                                            "html",
+                                                                                                                            "css",
+                                                                                                                            "sql",
+                                                                                                                            "python",
+                                                                                                                            "typescript",
+                                                                                                                            "shell",
+                                                                                                                            "java",
+                                                                                                                            "json",
+                                                                                                                            "markdown",
+                                                                                                                            "csharp",
+                                                                                                                            "cpp",
+                                                                                                                            "c",
+                                                                                                                            "php",
+                                                                                                                            "go",
+                                                                                                                            "yaml",
+                                                                                                                            "powershell",
+                                                                                                                            "rust",
+                                                                                                                            "kotlin",
+                                                                                                                            "ruby",
+                                                                                                                            "lua",
+                                                                                                                            "xml",
+                                                                                                                            "dart",
+                                                                                                                            "assembly",
+                                                                                                                            "webassembly"
+                                                                                                                        ],
+                                                                                                                        "referenceId": "d78bffd7"
+                                                                                                                    },
+                                                                                                                    "optional": true
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    },
+                                                                                                    "optional": true
                                                                                                 },
                                                                                                 "content": {
                                                                                                     "valueSchema": {
@@ -751,13 +797,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         },
-                                                                                        "codeBlock": {
+                                                                                        "codeBlockLine": {
                                                                                             "type": "Object",
                                                                                             "propertySchemaByKey": {
                                                                                                 "type": {
                                                                                                     "valueSchema": {
                                                                                                         "type": "Value",
-                                                                                                        "value": "codeBlock"
+                                                                                                        "value": "codeBlockLine"
                                                                                                     },
                                                                                                     "optional": false
                                                                                                 },
@@ -1297,7 +1343,27 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "green",
                                                                                             "blue",
                                                                                             "purple"
-                                                                                        ]
+                                                                                        ],
+                                                                                        "referenceId": "dd644350"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "language": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "language"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "d78bffd7"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -1525,14 +1591,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "propertySchemaByKey": {
                                                                                             "color": {
                                                                                                 "valueSchema": {
-                                                                                                    "type": "Enum",
-                                                                                                    "values": [
-                                                                                                        "red",
-                                                                                                        "orange",
-                                                                                                        "green",
-                                                                                                        "blue",
-                                                                                                        "purple"
-                                                                                                    ]
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "dd644350"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             }
@@ -1762,6 +1822,44 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                 },
                                                                                                                                 "referenceId": "c9d4fad3"
                                                                                                                             },
+                                                                                                                            "codeBlock": {
+                                                                                                                                "type": "Object",
+                                                                                                                                "propertySchemaByKey": {
+                                                                                                                                    "type": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Value",
+                                                                                                                                            "value": "codeBlock"
+                                                                                                                                        },
+                                                                                                                                        "optional": false
+                                                                                                                                    },
+                                                                                                                                    "attrs": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Nullable",
+                                                                                                                                            "schema": {
+                                                                                                                                                "type": "Object",
+                                                                                                                                                "propertySchemaByKey": {
+                                                                                                                                                    "language": {
+                                                                                                                                                        "valueSchema": {
+                                                                                                                                                            "type": "Reference",
+                                                                                                                                                            "reuseReferenceId": "d78bffd7"
+                                                                                                                                                        },
+                                                                                                                                                        "optional": true
+                                                                                                                                                    }
+                                                                                                                                                }
+                                                                                                                                            }
+                                                                                                                                        },
+                                                                                                                                        "optional": true
+                                                                                                                                    },
+                                                                                                                                    "content": {
+                                                                                                                                        "valueSchema": {
+                                                                                                                                            "type": "Reference",
+                                                                                                                                            "reuseReferenceId": "9c994e05"
+                                                                                                                                        },
+                                                                                                                                        "optional": true
+                                                                                                                                    }
+                                                                                                                                },
+                                                                                                                                "referenceId": "30ac24b4"
+                                                                                                                            },
                                                                                                                             "codeBlockLine": {
                                                                                                                                 "type": "Object",
                                                                                                                                 "propertySchemaByKey": {
@@ -1781,26 +1879,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                     }
                                                                                                                                 },
                                                                                                                                 "referenceId": "cd858722"
-                                                                                                                            },
-                                                                                                                            "codeBlock": {
-                                                                                                                                "type": "Object",
-                                                                                                                                "propertySchemaByKey": {
-                                                                                                                                    "type": {
-                                                                                                                                        "valueSchema": {
-                                                                                                                                            "type": "Value",
-                                                                                                                                            "value": "codeBlock"
-                                                                                                                                        },
-                                                                                                                                        "optional": false
-                                                                                                                                    },
-                                                                                                                                    "content": {
-                                                                                                                                        "valueSchema": {
-                                                                                                                                            "type": "Reference",
-                                                                                                                                            "reuseReferenceId": "9c994e05"
-                                                                                                                                        },
-                                                                                                                                        "optional": true
-                                                                                                                                    }
-                                                                                                                                },
-                                                                                                                                "referenceId": "30ac24b4"
                                                                                                                             },
                                                                                                                             "unorderedListItem": {
                                                                                                                                 "type": "Object",
@@ -2064,13 +2142,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "c9d4fad3"
                                                                                                 },
-                                                                                                "codeBlockLine": {
-                                                                                                    "type": "Reference",
-                                                                                                    "reuseReferenceId": "cd858722"
-                                                                                                },
                                                                                                 "codeBlock": {
                                                                                                     "type": "Reference",
                                                                                                     "reuseReferenceId": "30ac24b4"
+                                                                                                },
+                                                                                                "codeBlockLine": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "cd858722"
                                                                                                 },
                                                                                                 "unorderedListItem": {
                                                                                                     "type": "Reference",
@@ -2973,15 +3051,33 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "codeBlockLine": {
+                                                                    "codeBlock": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "codeBlockLine"
+                                                                                    "value": "codeBlock"
                                                                                 },
                                                                                 "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "language": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "d78bffd7"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
@@ -2992,13 +3088,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "codeBlock": {
+                                                                    "codeBlockLine": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "codeBlock"
+                                                                                    "value": "codeBlockLine"
                                                                                 },
                                                                                 "optional": false
                                                                             },
@@ -5476,7 +5572,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                         "Comment",
                                                                                                                         "Edit",
                                                                                                                         "Manage"
-                                                                                                                    ]
+                                                                                                                    ],
+                                                                                                                    "referenceId": "79201f7d"
                                                                                                                 },
                                                                                                                 "optional": false
                                                                                                             }
@@ -5504,13 +5601,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                     },
                                                                                                                     "level": {
                                                                                                                         "valueSchema": {
-                                                                                                                            "type": "Enum",
-                                                                                                                            "values": [
-                                                                                                                                "View",
-                                                                                                                                "Comment",
-                                                                                                                                "Edit",
-                                                                                                                                "Manage"
-                                                                                                                            ]
+                                                                                                                            "type": "Reference",
+                                                                                                                            "reuseReferenceId": "79201f7d"
                                                                                                                         },
                                                                                                                         "optional": false
                                                                                                                     }
@@ -6490,15 +6582,33 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "codeBlockLine": {
+                                                                    "codeBlock": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "codeBlockLine"
+                                                                                    "value": "codeBlock"
                                                                                 },
                                                                                 "optional": false
+                                                                            },
+                                                                            "attrs": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Nullable",
+                                                                                    "schema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "language": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "d78bffd7"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
@@ -6509,13 +6619,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         }
                                                                     },
-                                                                    "codeBlock": {
+                                                                    "codeBlockLine": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "codeBlock"
+                                                                                    "value": "codeBlockLine"
                                                                                 },
                                                                                 "optional": false
                                                                             },

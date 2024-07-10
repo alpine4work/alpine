@@ -1,4 +1,5 @@
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export type ContentCodeBlockLanguageId = keyof typeof contentCodeBlockLanguageDefinitionById;
 
@@ -175,7 +176,11 @@ const contentCodeBlockLanguageDefinitionById = {
     readonly [id: string]: ContentCodeBlockLanguageDefinition;
 };
 
+const nonReadonlyContentCodeBlockLanguageIds: Array<ContentCodeBlockLanguageId> = [];
 const nonReadonlyContentCodeBlockLanguages: Array<ContentCodeBlockLanguage> = [];
+
+export const contentCodeBlockLanguageIds: ReadonlyArray<ContentCodeBlockLanguageId> =
+    nonReadonlyContentCodeBlockLanguageIds;
 
 export const contentCodeBlockLanguages: ReadonlyArray<ContentCodeBlockLanguage> =
     nonReadonlyContentCodeBlockLanguages;
@@ -191,8 +196,11 @@ export const contentCodeBlockLanguageById: Readonly<
             aliases: languageDefinition.aliases ?? [],
         };
 
+        nonReadonlyContentCodeBlockLanguageIds.push(id);
         nonReadonlyContentCodeBlockLanguages.push(language);
 
         return language;
     },
 );
+
+export const ContentCodeBlockLanguageIdSchema = Schema.enum(nonReadonlyContentCodeBlockLanguageIds);
