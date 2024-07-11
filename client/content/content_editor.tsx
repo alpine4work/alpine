@@ -28,10 +28,13 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
+import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {
     ContentEditorState,
+    getContentCodeBlockIncrementalParser,
     getContentEditorFloaterState,
     setContentEditorFloaterState,
+    updateUnloadedContentCodeBlockIncrementalParserLanguageIds,
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
@@ -85,6 +88,7 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -1545,6 +1549,12 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
 
+    const codeBlockLanguageStateRef = useRef<{
+        isBrowserActive: boolean;
+        loadingLanguageIds: Set<ContentCodeBlockLanguageId>;
+        rejectedLanguageIds: Set<ContentCodeBlockLanguageId>;
+    } | null>(null);
+
     useEffect(() => {
         // Rerun this effect whenever anything in the content editor changes. We depend
         // on `state` since that represents the latest official state and we depend on
@@ -1556,8 +1566,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         lastOptimisticTransactionTime;
 
-        assert(viewRef.current);
-        const viewElement = viewRef.current.dom;
+        const view = assertExists(viewRef.current);
+        const viewElement = view.dom;
 
         // Keep track of the element ProseMirror marks as selected with the
         // `ProseMirror-selectednode` CSS class so that we can render our own custom
@@ -1569,6 +1579,81 @@ function ContentEditor<Content extends ContentWithReferences>(
             setSelectedNodeElement(selectedNodeElement);
         } else {
             setSelectedNodeElement(null);
+        }
+
+        // Whenever `EditorState` changes, look for code block languages we need to
+        // load. We compare that against languages we're currently loading (stored in
+        // `loadingCodeBlockLanguageIdsRef`) so we don't try to load the same language
+        // twice and kick of network requests for any languages we haven't started
+        // loading yet.
+        //
+        // Once we finish loading the code block languages we need, we tell our
+        // incremental parser to try parsing again.
+        const unloadedLanguageIds = getContentCodeBlockIncrementalParser(
+            unwrap(state),
+        ).getUnloadedLanguageIds();
+
+        if (unloadedLanguageIds.size > 0) {
+            const isBrowserActive = navigator.onLine && document.visibilityState === "visible";
+
+            const codeBlockLanguageState = (codeBlockLanguageStateRef.current ??= {
+                isBrowserActive,
+                loadingLanguageIds: new Set(),
+                rejectedLanguageIds: new Set(),
+            });
+
+            // If the browser is activated (after being deactivated) clear our rejected
+            // language set. This way we will retry loading any languages we failed to load
+            // previously. This is useful, for instance, if the browser goes offline (so we
+            // fail to load a language's parser) then comes back online.
+            if (codeBlockLanguageState.isBrowserActive !== isBrowserActive) {
+                codeBlockLanguageState.isBrowserActive = isBrowserActive;
+
+                if (isBrowserActive) codeBlockLanguageState.rejectedLanguageIds.clear();
+            }
+
+            const loadingLanguageIds: Array<ContentCodeBlockLanguageId> = [];
+            for (const languageId of unloadedLanguageIds) {
+                if (
+                    !codeBlockLanguageState.loadingLanguageIds.has(languageId) &&
+                    !codeBlockLanguageState.rejectedLanguageIds.has(languageId)
+                ) {
+                    codeBlockLanguageState.loadingLanguageIds.add(languageId);
+                    loadingLanguageIds.push(languageId);
+                }
+            }
+
+            if (loadingLanguageIds.length > 0) {
+                Promise.allSettled(
+                    loadingLanguageIds.map(languageId =>
+                        contentCodeBlockLanguageById[languageId].parser?.load(),
+                    ),
+                ).then(results => {
+                    // Retry parsing even if there were errors. Since there may have been a
+                    // partial error. Some languages may have loaded while others may have not.
+                    view.dispatch(
+                        updateUnloadedContentCodeBlockIncrementalParserLanguageIds(view.state.tr),
+                    );
+
+                    for (let i = 0; i < loadingLanguageIds.length; i++) {
+                        const languageId = loadingLanguageIds[i]!;
+                        const result = results[i]!;
+
+                        codeBlockLanguageState.loadingLanguageIds.delete(languageId);
+
+                        if (result.status === "rejected") {
+                            codeBlockLanguageState.rejectedLanguageIds.add(languageId);
+
+                            reporterRef.current.logErrorWithoutDisplaying(
+                                "Couldn't load code block language parser",
+                                result.reason,
+                            );
+                        }
+                    }
+                    // `Promise.allSettled()` shouldn't fail. Instead it should return an array with
+                    // individual errors. So treat any errors as an uncaught exception.
+                }, scheduleUncaughtError);
+            }
         }
     }, [lastOptimisticTransactionTime, state]);
 

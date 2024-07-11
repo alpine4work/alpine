@@ -3,6 +3,7 @@ import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
+import {ContentCodeBlockIncrementalParser} from "~/client/content/code/content_code_block_incremental_parser.js";
 import {
     buildContentEditorInputRulesPlugin,
     openMentionFloaterMetaKey,
@@ -67,7 +68,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorRetypedInputRulePlugin(),
         contentEditorIsContinuouslyTypingPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
-        contentEditorCleanCodeBlockTrailingSpacePlugin(),
+        contentEditorCodeBlockPlugin(),
     ];
 }
 
@@ -973,28 +974,49 @@ export function isContinuouslyTypingInContentEditor(state: EditorState): boolean
     return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
 }
 
+const contentEditorCodeBlockPluginKey = new PluginKey<ContentCodeBlockIncrementalParser>(
+    "contentEditorCodeBlock",
+);
+
 /**
- * When the user deselects a code block line we want to clear any trailing
- * space from the code block line. Like VS Code's trim trailing whitespace on
- * save feature. Except documents aren't saved so we trim when the user leaves
- * a code block line.
+ * Plugin for managing code block behavior. Including:
  *
- * The user's selection must be entirely in the one code block line and they
- * must fully leave the code block line. The document may change when the
- * selection moves (e.g. hitting enter to add a new line) but the code block
- * line the user is leaving must not change at all to be trimmed.
- *
- * Trimming is best effort. There are definitely scenarios where we won't be
- * able to trim (e.g. user reloads the page so we don't see their selection
- * leave).
- *
- * We are definitely making an assumption here that trailing white space is
- * irrelevant to a code block example and it feels wrong when present (given
- * most code editors trim it). These assumptions may not hold to all our users
- * so we should consider making this configurable.
+ * - Syntax highlighting
+ * - Trailing space cleanup
  */
-function contentEditorCleanCodeBlockTrailingSpacePlugin() {
-    return new Plugin({
+function contentEditorCodeBlockPlugin() {
+    return new Plugin<ContentCodeBlockIncrementalParser>({
+        key: contentEditorCodeBlockPluginKey,
+        state: {
+            init: (config, state) => ContentCodeBlockIncrementalParser.new(state.doc),
+            apply: (transaction, parser) => {
+                if (transaction.getMeta(contentEditorCodeBlockPluginKey))
+                    parser = parser.updateUnloadedLanguageIds();
+
+                if (!transaction.docChanged) return parser;
+
+                return parser.update(transaction.doc);
+            },
+        },
+
+        // When the user deselects a code block line we want to clear any trailing
+        // space from the code block line. Like VS Code's trim trailing whitespace on
+        // save feature. Except documents aren't saved so we trim when the user leaves
+        // a code block line.
+        //
+        // The user's selection must be entirely in the one code block line and they
+        // must fully leave the code block line. The document may change when the
+        // selection moves (e.g. hitting enter to add a new line) but the code block
+        // line the user is leaving must not change at all to be trimmed.
+        //
+        // Trimming is best effort. There are definitely scenarios where we won't be
+        // able to trim (e.g. user reloads the page so we don't see their selection
+        // leave).
+        //
+        // We are definitely making an assumption here that trailing white space is
+        // irrelevant to a code block example and it feels wrong when present (given
+        // most code editors trim it). These assumptions may not hold to all our users
+        // so we should consider making this configurable.
         appendTransaction: (transactions, oldState, newState) => {
             const oldFromNode = oldState.selection.$from.node();
             if (oldFromNode.type.name !== "codeBlockLine") return;
@@ -1049,4 +1071,16 @@ function contentEditorCleanCodeBlockTrailingSpacePlugin() {
             return newState.tr.deleteRange(oldNodeEnd - trailingSpaceCount, oldNodeEnd);
         },
     });
+}
+
+export function getContentCodeBlockIncrementalParser(
+    state: EditorState,
+): ContentCodeBlockIncrementalParser {
+    return contentEditorCodeBlockPluginKey.getState(state)!;
+}
+
+export function updateUnloadedContentCodeBlockIncrementalParserLanguageIds(
+    transaction: Transaction,
+): Transaction {
+    return transaction.setMeta(contentEditorCodeBlockPluginKey, true);
 }

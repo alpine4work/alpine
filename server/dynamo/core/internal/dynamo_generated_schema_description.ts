@@ -776,8 +776,19 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                             "lua",
                                                                                                                             "xml",
                                                                                                                             "dart",
+                                                                                                                            "swift",
                                                                                                                             "assembly",
-                                                                                                                            "webassembly"
+                                                                                                                            "webassembly",
+                                                                                                                            "scala",
+                                                                                                                            "r",
+                                                                                                                            "elixir",
+                                                                                                                            "objectivec",
+                                                                                                                            "perl",
+                                                                                                                            "haskell",
+                                                                                                                            "solidity",
+                                                                                                                            "clojure",
+                                                                                                                            "erlang",
+                                                                                                                            "ocaml"
                                                                                                                         ],
                                                                                                                         "referenceId": "d78bffd7"
                                                                                                                     },

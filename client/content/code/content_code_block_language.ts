@@ -1,8 +1,11 @@
 import {StreamLanguage} from "@codemirror/language";
 import {Parser} from "@lezer/common";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
 
 type ContentCodeBlockLanguageDefinition = {
     readonly name: string;
@@ -11,13 +14,46 @@ type ContentCodeBlockLanguageDefinition = {
 };
 
 export type ContentCodeBlockLanguage = {
+    /**
+     * Unique identifier for the language.
+     */
     readonly id: ContentCodeBlockLanguageId;
+
+    /**
+     * Name of the language displayed to the user.
+     */
     readonly name: string;
+
+    /**
+     * Other names for the language that will be matched when searching for
+     * languages. Typically this array will include a file extension associated
+     * with the language. For example JavaScript has the alias "ECMAScript"
+     * and "js".
+     */
     readonly aliases: ReadonlyArray<string>;
-    readonly parser: {
-        readonly getIfExists: () => Parser | null;
-        readonly load: () => PromiseImmediate<Parser>;
-    } | null;
+
+    /**
+     * Functions for loading the Lezer parser for this language.
+     */
+    readonly parser: ContentCodeBlockLanguageParser | null;
+};
+
+export type ContentCodeBlockLanguageParser = {
+    /**
+     * Load the Lezer parser associated with this language from the network. If
+     * we've already loaded the parser we won't load it from the network again.
+     *
+     * If `load()` was previously called but the promise rejected then we'll try
+     * loading again.
+     */
+    readonly load: () => PromiseImmediate<Parser>;
+
+    /**
+     * Get the Lezer parser associated with this language if it's been successfully
+     * loaded. Returns null if `load()` hasn't been called, if `load()` has been
+     * called but hasn't finished, or if `load()` finished with an error.
+     */
+    readonly getIfLoaded: () => Parser | null;
 };
 
 /**
@@ -375,24 +411,11 @@ export const contentCodeBlockLanguageById: Readonly<
 > = mapObjectValues(
     contentCodeBlockLanguageDefinitionById,
     ({name, aliases = [], loadParser}, id) => {
-        let parserPromise: PromiseImmediate<Parser> | null = null;
-
         const language: ContentCodeBlockLanguage = {
             id,
             name,
             aliases,
-            parser:
-                loadParser !== null
-                    ? {
-                          getIfExists: () => {
-                              return parserPromise?.getStateWithoutListening().value ?? null;
-                          },
-                          load: () => {
-                              parserPromise ??= PromiseImmediate.resolve(loadParser());
-                              return parserPromise;
-                          },
-                      }
-                    : null,
+            parser: loadParser !== null ? createContentCodeBlockLanguageParser(loadParser) : null,
         };
 
         nonReadonlyContentCodeBlockLanguages.push(language);
@@ -400,3 +423,50 @@ export const contentCodeBlockLanguageById: Readonly<
         return language;
     },
 );
+
+function createContentCodeBlockLanguageParser(
+    loadParser: () => Promise<Parser>,
+): ContentCodeBlockLanguageParser {
+    let parserPromise: PromiseImmediate<Parser> | null = null;
+
+    const load = () => {
+        if (parserPromise?.getStateWithoutListening().status === "rejected") {
+            parserPromise = null;
+        }
+
+        if (parserPromise === null) {
+            parserPromise = PromiseImmediate.resolve(
+                retryWithExponentialBackoff(async retry => {
+                    try {
+                        const parser = await loadParser();
+                        return parser;
+                    } catch (error) {
+                        // If we failed while the user is online, retry a couple times otherwise fail
+                        // with an offline error.
+                        if (navigator.onLine) {
+                            throw retry(error);
+                        } else {
+                            throw FailedPreconditionError.from(error, undefined, {
+                                displayMessage:
+                                    // If we're in a web browser, if we failed to make a request it's probably the
+                                    // user's internet connection and they should look into a fix.
+                                    typeof window !== "undefined"
+                                        ? offlineErrorDisplayMessage
+                                        : undefined,
+                            });
+                        }
+                    }
+                }),
+            );
+        }
+
+        return parserPromise;
+    };
+
+    return {
+        load,
+        getIfLoaded: () => {
+            return parserPromise?.getStateWithoutListening().value ?? null;
+        },
+    };
+}

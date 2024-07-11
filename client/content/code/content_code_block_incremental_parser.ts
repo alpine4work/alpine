@@ -16,28 +16,39 @@ type ContentCodeBlockIncrementalParserResult = {
 
 // NOCOMMIT: Document
 export class ContentCodeBlockIncrementalParser {
+    // NOCOMMIT: Document
     private readonly _nodeArray: ReadonlyArray<Node>;
     private readonly _nodeSet: ReadonlySet<Node>;
     private readonly _results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>;
+    private readonly _unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>;
 
     private constructor(
         nodeArray: ReadonlyArray<Node>,
         nodeSet: ReadonlySet<Node>,
         results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
+        unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>,
     ) {
         this._nodeArray = nodeArray;
         this._nodeSet = nodeSet;
         this._results = results;
+        this._unloadedLanguageIds = unloadedLanguageIds;
     }
 
-    public static new(doc: Node) {
+    public static new(doc: Node): ContentCodeBlockIncrementalParser {
         const [nodeArray, nodeSet] = getContentCodeBlockNodes(doc);
+
+        const unloadedLanguageIds = new Set<ContentCodeBlockLanguageId>();
 
         const results = nodeArray.map((node): ContentCodeBlockIncrementalParserResult | null => {
             const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
             const language = contentCodeBlockLanguageById[languageId];
-            const parser = language.parser?.getIfExists() ?? null;
-            if (parser === null) return null;
+            if (language.parser === null) return null;
+
+            const parser = language.parser.getIfLoaded();
+            if (parser === null) {
+                unloadedLanguageIds.add(languageId);
+                return null;
+            }
 
             const input = createContentCodeBlockNodeInput(node);
             const tree = parser.parse(input);
@@ -53,11 +64,17 @@ export class ContentCodeBlockIncrementalParser {
             };
         });
 
-        return new ContentCodeBlockIncrementalParser(nodeArray, nodeSet, results);
+        return new ContentCodeBlockIncrementalParser(
+            nodeArray,
+            nodeSet,
+            results,
+            unloadedLanguageIds,
+        );
     }
 
     // NOCOMMIT: Document
-    public update(doc: Node) {
+    // NOCOMMIT: Test???
+    public update(doc: Node): ContentCodeBlockIncrementalParser {
         const [newNodeArray, newNodeSet] = getContentCodeBlockNodes(doc);
 
         const changes = actuallySymmetricDiffIterable(
@@ -73,13 +90,31 @@ export class ContentCodeBlockIncrementalParser {
             result: ContentCodeBlockIncrementalParserResult | null;
         }> | null = null;
         const newResults: Array<ContentCodeBlockIncrementalParserResult | null> = [];
+        let newUnloadedLanguageIds: Set<ContentCodeBlockLanguageId> | null = null;
 
         for (const change of changes) {
             switch (change.type) {
                 case null: {
-                    candidateOldEntries = null;
-                    newResults.push(this._results[oldIndex]!);
+                    const oldResult = this._results[oldIndex]!;
                     oldIndex++;
+
+                    candidateOldEntries = null;
+
+                    newResults.push(oldResult);
+                    break;
+                }
+                case "Deleted": {
+                    const oldResult = this._results[oldIndex]!;
+                    oldIndex++;
+
+                    // An update appears as a deleted change followed by an added change. So record
+                    // the results of deleted entries and we'll reuse them for the next code block
+                    // to be added.
+                    candidateOldEntries ??= [];
+                    candidateOldEntries.push({
+                        node: change.value,
+                        result: oldResult,
+                    });
                     break;
                 }
                 case "Added": {
@@ -98,8 +133,25 @@ export class ContentCodeBlockIncrementalParser {
                         (oldEntry.node.attrs.language ?? "text") !== newLanguageId
                     ) {
                         const language = contentCodeBlockLanguageById[newLanguageId];
-                        const parser = language.parser?.getIfExists() ?? null;
-                        if (parser === null) return null;
+                        if (language.parser === null) {
+                            newResults.push(null);
+                            break;
+                        }
+
+                        const parser = language.parser.getIfLoaded();
+                        if (parser === null) {
+                            newUnloadedLanguageIds ??= new Set(this._unloadedLanguageIds);
+                            newUnloadedLanguageIds.add(newLanguageId);
+                            newResults.push(null);
+                            break;
+                        }
+
+                        // If we now have this language's parser but we didn't previously then remove
+                        // it from the unloaded set.
+                        if (this._unloadedLanguageIds.has(newLanguageId)) {
+                            newUnloadedLanguageIds ??= new Set(this._unloadedLanguageIds);
+                            newUnloadedLanguageIds.delete(newLanguageId);
+                        }
 
                         const tree = parser.parse(newInput);
                         const treeFragments = TreeFragment.addTree(tree);
@@ -141,21 +193,63 @@ export class ContentCodeBlockIncrementalParser {
                     }
                     break;
                 }
-                case "Deleted": {
-                    candidateOldEntries ??= [];
-                    candidateOldEntries.push({
-                        node: change.value,
-                        result: this._results[oldIndex]!,
-                    });
-                    oldIndex++;
-                    break;
-                }
                 default:
                     throw exhaustive(change.type);
             }
         }
 
-        return new ContentCodeBlockIncrementalParser(newNodeArray, newNodeSet, newResults);
+        return new ContentCodeBlockIncrementalParser(
+            newNodeArray,
+            newNodeSet,
+            newResults,
+            newUnloadedLanguageIds ?? this._unloadedLanguageIds,
+        );
+    }
+
+    public getUnloadedLanguageIds(): ReadonlySet<ContentCodeBlockLanguageId> {
+        return this._unloadedLanguageIds;
+    }
+
+    // NOCOMMIT: Document
+    public updateUnloadedLanguageIds(): ContentCodeBlockIncrementalParser {
+        if (this._unloadedLanguageIds.size === 0) return this;
+
+        const newUnloadedLanguageIds = new Set<ContentCodeBlockLanguageId>();
+
+        const newResults = this._results.map((oldResult, i) => {
+            if (oldResult !== null) return oldResult;
+
+            const node = this._nodeArray[i]!;
+            const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
+            const language = contentCodeBlockLanguageById[languageId];
+            if (language.parser === null) return null;
+
+            const parser = language.parser.getIfLoaded();
+            if (parser === null) {
+                newUnloadedLanguageIds.add(languageId);
+                return null;
+            }
+
+            const input = createContentCodeBlockNodeInput(node);
+            const tree = parser.parse(input);
+            const treeFragments = TreeFragment.addTree(tree);
+
+            const lineNodeSet = new Set(node.content.content);
+
+            return {
+                parser,
+                tree,
+                treeFragments,
+                lineNodeSet,
+            };
+        });
+
+        return new ContentCodeBlockIncrementalParser(
+            this._nodeArray,
+            this._nodeSet,
+            newResults,
+            newUnloadedLanguageIds,
+        );
     }
 }
 
