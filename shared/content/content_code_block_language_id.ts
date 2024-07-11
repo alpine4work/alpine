@@ -1,0 +1,62 @@
+import {assert} from "~/shared/helpers/control/assert.js";
+import {Schema} from "~/shared/schema/schema.js";
+
+export type ContentCodeBlockLanguageId = (typeof contentCodeBlockLanguageIds)[number];
+
+/**
+ * Programming languages supported by our code block. The order languages
+ * appear in this array is the order they'll appear in the code block's language
+ * selector. Languages are roughly ordered by what [professional developers are
+ * using according to the 2023 StackOverflow developer survey][1]. Ordering by
+ * popularity means you can more quickly find the language you're looking for
+ * as opposed to scrolling through an alphabetically sorted list of obscure
+ * languages.
+ *
+ * [1]: https://survey.stackoverflow.co/2023/#most-popular-technologies-language-prof
+ */
+export const contentCodeBlockLanguageIds = [
+    "text",
+    "javascript",
+    "html",
+    "css",
+    "sql",
+    "python",
+    "typescript",
+    "shell",
+    "java",
+    "json",
+    "markdown",
+    "csharp",
+    "cpp",
+    "c",
+    "php",
+    "go",
+    "yaml",
+    "powershell",
+    "rust",
+    "kotlin",
+    "ruby",
+    "lua",
+    "xml",
+    "dart",
+    "swift",
+    "assembly",
+    "webassembly",
+    "scala",
+    "r",
+    "elixir",
+    "objectivec",
+    "perl",
+    "haskell",
+    "solidity",
+    "clojure",
+    "erlang",
+    "ocaml",
+] as const;
+
+const contentCodeBlockLanguageIdSet = new Set(contentCodeBlockLanguageIds);
+
+// Make sure there are no duplicates.
+assert(contentCodeBlockLanguageIds.length === contentCodeBlockLanguageIdSet.size);
+
+export const ContentCodeBlockLanguageIdSchema = Schema.enum(contentCodeBlockLanguageIdSet);

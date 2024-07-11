@@ -1,0 +1,38 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "code",
+    test_deps = ["//shared/documents"],
+    visibility = [
+        "//app:__subpackages__",
+        "//client:__subpackages__",
+    ],
+    deps = [
+        "//:node_modules/@codemirror/lang-sql",
+        "//:node_modules/@codemirror/lang-wast",
+        "//:node_modules/@codemirror/language",
+        "//:node_modules/@codemirror/legacy-modes",
+        "//:node_modules/@fig/lezer-bash",
+        "//:node_modules/@lezer/common",
+        "//:node_modules/@lezer/cpp",
+        "//:node_modules/@lezer/css",
+        "//:node_modules/@lezer/go",
+        "//:node_modules/@lezer/html",
+        "//:node_modules/@lezer/java",
+        "//:node_modules/@lezer/javascript",
+        "//:node_modules/@lezer/json",
+        "//:node_modules/@lezer/markdown",
+        "//:node_modules/@lezer/php",
+        "//:node_modules/@lezer/python",
+        "//:node_modules/@lezer/rust",
+        "//:node_modules/@lezer/xml",
+        "//:node_modules/@lezer/yaml",
+        "//:node_modules/@nextjournal/lezer-clojure",
+        "//:node_modules/@replit/codemirror-lang-csharp",
+        "//:node_modules/@replit/codemirror-lang-solidity",
+        "//:node_modules/lezer-elixir",
+        "//shared/content",
+        "//shared/error",
+        "//shared/helpers",
+    ],
+)

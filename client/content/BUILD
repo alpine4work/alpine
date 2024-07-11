@@ -2,9 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "content",
-    test_deps = [
-        "//:node_modules/@testing-library/react",
-    ],
+    test_deps = ["//:node_modules/@testing-library/react"],
     visibility = [
         "//admin/eslint:__pkg__",
         "//app:__subpackages__",
@@ -29,6 +27,7 @@ ts_project(
         "//:node_modules/react-aria",
         "//:node_modules/react-router-dom",
         "//client/accounts",
+        "//client/content/code",
         "//client/design",
         "//client/dev",
         "//client/helpers",

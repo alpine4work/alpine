@@ -453,10 +453,12 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * Accept only values included in the enum array/object.
      */
     public static enum<const Value extends string | number | boolean>(
-        values: ReadonlyArray<Value> | Readonly<Record<string, Value>>,
+        values: ReadonlySet<Value> | ReadonlyArray<Value> | Readonly<Record<string, Value>>,
     ): Schema<Value> {
         let valueSet: ReadonlySet<Value>;
-        if (Array.isArray(values)) {
+        if (values instanceof Set) {
+            valueSet = values;
+        } else if (Array.isArray(values)) {
             valueSet = new Set(values);
         } else {
             valueSet = new Set(Object.values(values));

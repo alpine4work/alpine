@@ -15,9 +15,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {
     ContentCodeBlockLanguage,
-    ContentCodeBlockLanguageId,
     contentCodeBlockLanguages,
-} from "~/shared/content/content_code_block_language.js";
+} from "~/client/content/code/content_code_block_language.js";
+import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";

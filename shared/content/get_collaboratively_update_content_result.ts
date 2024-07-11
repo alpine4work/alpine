@@ -267,20 +267,38 @@ export async function getCollaborativelyUpdateContentResult({
                 if (parentNode && !validatedNodes.has(parentNode)) {
                     validatedNodes.add(parentNode);
 
-                    if (!parentNode.type.validContent(parentNode.content))
+                    if (!parentNode.type.validContent(parentNode.content)) {
                         throw new FailedPreconditionError(
                             `Updated content for "${parentNode.type.name}" node is not valid`,
                         );
+                    }
                 }
 
                 // If we have already validated this node in a different range, don't validate again.
                 if (validatedNodes.has(node)) return false;
                 validatedNodes.add(node);
 
-                if (!node.type.validContent(node.content))
+                if (!node.type.validContent(node.content)) {
                     throw new FailedPreconditionError(
                         `Updated content for "${node.type.name}" node is not valid`,
                     );
+                }
+
+                // For code blocks, new lines should be created by adding new `codeBlockLine`s.
+                // Not by adding a `\n` character! Reject any updates that try to add a new line
+                // character to a code block line.
+                //
+                // NOCOMMIT: Test this!
+                if (
+                    node.isText &&
+                    // `text` nodes must have a parent node. Error if they don't.
+                    parentNode!.type.name === "codeBlockLine" &&
+                    node.text!.includes("\n")
+                ) {
+                    throw new FailedPreconditionError(
+                        `Can't add "\\n" character to "codeBlockLine" node`,
+                    );
+                }
             });
         }
     }

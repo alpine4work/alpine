@@ -10,7 +10,7 @@ import {
     Schema as ProsemirrorSchema,
     SchemaSpec,
 } from "prosemirror-model";
-import {ContentCodeBlockLanguageIdSchema} from "~/shared/content/content_code_block_language.js";
+import {ContentCodeBlockLanguageIdSchema} from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
@@ -208,6 +208,20 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             parseDOM: createCodeBlockParseRules(),
         },
 
+        // The ProseMirror data model technically allows "\n" characters within text
+        // content. However, we want to disallow "\n" characters in `codeBlockLine`! To
+        // add new lines to a code block you must create new `codeBlockLine` nodes.
+        //
+        // Currently, the way we ban "\n" characters in `codeBlockLine` is a validation
+        // in `getCollaborativelyUpdateContentResult()`. So it's important that
+        // function comprehensively validates updated data.
+        //
+        // It's important we maintain that there are no "\n" characters in
+        // `codeBlockLine` so:
+        //
+        // - Line numbers render properly
+        // - Our `createContentCodeBlockNodeInput()` implementation for the code block
+        //   incremental parser returns line chunks correctly
         codeBlockLine: {
             content: "text*",
             marks: "allowedInCodeBlock",
