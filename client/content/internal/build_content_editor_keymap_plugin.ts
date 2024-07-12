@@ -209,6 +209,46 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
+        // If you're at the last line in a code block that has more than 1 line and the
+        // code block line is only spaces then we want to deleted the last line and
+        // instead create a paragraph beneath the code block. This allows the user to
+        // easily escape the code block and continue typing prose when they're done
+        // editing.
+        //
+        // To intentionally create many empty lines at the end of a code block the user
+        // needs to put content in the lines then delete that content.
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+            if ($from.pos !== $to.pos) return false;
+
+            const node = $from.node();
+            if (node.type.name !== "codeBlockLine") return false;
+
+            const parentNode = $from.node($from.depth - 1);
+            if (parentNode.childCount < 2) return false;
+
+            const index = $from.index($from.depth - 1);
+            if (index !== parentNode.childCount - 1) return false;
+
+            if (!isNodeSpacesOnly(node)) return false;
+
+            if (dispatch) {
+                const before = $from.before();
+                const after = $from.after();
+
+                const transaction = state.tr
+                    .deleteRange(before, after)
+                    .replaceRangeWith(before + 1, before + 1, state.schema.node("paragraph"));
+
+                dispatch?.(
+                    transaction.setSelection(
+                        new TextSelection(transaction.doc.resolve(before + 2)),
+                    ),
+                );
+            }
+            return true;
+        },
+
         // Create a new node by splitting the current block at the cursor. If the
         // cursor is at the end of the block this will simply create a new block.
         // If the cursor is in the middle of the block it will split the block
@@ -358,9 +398,7 @@ export function buildContentEditorKeymapPlugin(
             if (!isSelectionAtFirstOffsetOfParagraphInQuoteBlock) return false;
 
             // 2. Lift the paragraph out of the quote block.
-            if (dispatch) {
-                dispatch(state.tr.lift($from.blockRange()!, $from.depth - 2));
-            }
+            dispatch?.(state.tr.lift($from.blockRange()!, $from.depth - 2));
             return true;
         },
 
