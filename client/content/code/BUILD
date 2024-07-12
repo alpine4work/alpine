@@ -17,6 +17,7 @@ ts_project(
         "//:node_modules/@lezer/cpp",
         "//:node_modules/@lezer/css",
         "//:node_modules/@lezer/go",
+        "//:node_modules/@lezer/highlight",
         "//:node_modules/@lezer/html",
         "//:node_modules/@lezer/java",
         "//:node_modules/@lezer/javascript",

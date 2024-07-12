@@ -1,17 +1,47 @@
 import {ChangedRange, Parser, Tree, TreeFragment} from "@lezer/common";
+import {highlightTree} from "@lezer/highlight";
 import {Node} from "prosemirror-model";
+import {Mapping} from "prosemirror-transform";
+import {Decoration, DecorationSet} from "prosemirror-view";
 import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {createContentCodeBlockNodeInput} from "~/client/content/code/create_content_code_block_node_input.js";
-import {actuallySymmetricDiffIterable} from "~/client/content/code/symmetric_diff_iterable.js";
+import {lezerClassHighlighter} from "~/client/content/code/lezer_class_highlighter.js";
+import {
+    IterableChange,
+    actuallySymmetricDiffIterable,
+} from "~/client/content/code/symmetric_diff_iterable.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+
+declare module "prosemirror-view" {
+    class DecorationSet {
+        // The [internal ProseMirror `DecorationSet` constructor signature][1]. We want
+        // to construct `DecorationSet` directly to avoid an [expensive `buildTree()`
+        // function][2] that keeps looping over the full decoration set.
+        //
+        // [1]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L278-L281
+        // [2]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
+        constructor(
+            local: ReadonlyArray<Decoration>,
+            children: ReadonlyArray<number | DecorationSet>,
+        );
+    }
+}
 
 type ContentCodeBlockIncrementalParserResult = {
     readonly parser: Parser;
     readonly tree: Tree;
     readonly treeFragments: ReadonlyArray<TreeFragment>;
     readonly lineNodeSet: ReadonlySet<Node>;
+    readonly highlightsByLine: ReadonlyArray<
+        ReadonlyArray<{
+            readonly from: number;
+            readonly to: number;
+            readonly classes: string;
+        }>
+    >;
 };
 
 // NOCOMMIT: Document
@@ -19,23 +49,30 @@ export class ContentCodeBlockIncrementalParser {
     // NOCOMMIT: Document
     private readonly _nodeArray: ReadonlyArray<Node>;
     private readonly _nodeSet: ReadonlySet<Node>;
+    private readonly _nodePoses: ReadonlyArray<number>;
     private readonly _results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>;
     private readonly _unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>;
+
+    public readonly decorations: DecorationSet;
 
     private constructor(
         nodeArray: ReadonlyArray<Node>,
         nodeSet: ReadonlySet<Node>,
+        nodePoses: ReadonlyArray<number>,
         results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
         unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>,
+        decorations: DecorationSet,
     ) {
         this._nodeArray = nodeArray;
         this._nodeSet = nodeSet;
+        this._nodePoses = nodePoses;
         this._results = results;
         this._unloadedLanguageIds = unloadedLanguageIds;
+        this.decorations = decorations;
     }
 
     public static new(doc: Node): ContentCodeBlockIncrementalParser {
-        const [nodeArray, nodeSet] = getContentCodeBlockNodes(doc);
+        const [nodeArray, nodeSet, nodePoses] = getContentCodeBlockNodes(doc);
 
         const unloadedLanguageIds = new Set<ContentCodeBlockLanguageId>();
 
@@ -50,32 +87,29 @@ export class ContentCodeBlockIncrementalParser {
                 return null;
             }
 
-            const input = createContentCodeBlockNodeInput(node);
-            const tree = parser.parse(input);
-            const treeFragments = TreeFragment.addTree(tree);
-
-            const lineNodeSet = new Set(node.content.content);
-
-            return {
-                parser,
-                tree,
-                treeFragments,
-                lineNodeSet,
-            };
+            return createInitialContentCodeBlockIncrementalParserResult(node, parser);
         });
+
+        const decorations = createContentCodeBlockIncrementalParserDecorationSet(
+            nodeArray,
+            nodePoses,
+            results,
+        );
 
         return new ContentCodeBlockIncrementalParser(
             nodeArray,
             nodeSet,
+            nodePoses,
             results,
             unloadedLanguageIds,
+            decorations,
         );
     }
 
     // NOCOMMIT: Document
     // NOCOMMIT: Test???
-    public update(doc: Node): ContentCodeBlockIncrementalParser {
-        const [newNodeArray, newNodeSet] = getContentCodeBlockNodes(doc);
+    public update(doc: Node, mapping: Mapping): ContentCodeBlockIncrementalParser {
+        const [newNodeArray, newNodeSet, newNodePoses] = getContentCodeBlockNodes(doc);
 
         const changes = actuallySymmetricDiffIterable(
             this._nodeArray,
@@ -92,6 +126,8 @@ export class ContentCodeBlockIncrementalParser {
         const newResults: Array<ContentCodeBlockIncrementalParserResult | null> = [];
         let newUnloadedLanguageIds: Set<ContentCodeBlockLanguageId> | null = null;
 
+        let isUnchanged = true;
+
         for (const change of changes) {
             switch (change.type) {
                 case null: {
@@ -104,6 +140,8 @@ export class ContentCodeBlockIncrementalParser {
                     break;
                 }
                 case "Deleted": {
+                    isUnchanged = false;
+
                     const oldResult = this._results[oldIndex]!;
                     oldIndex++;
 
@@ -118,14 +156,13 @@ export class ContentCodeBlockIncrementalParser {
                     break;
                 }
                 case "Added": {
+                    isUnchanged = false;
+
                     const oldEntry = candidateOldEntries?.shift();
 
                     const newNode = change.value;
                     const newLanguageId: ContentCodeBlockLanguageId =
                         newNode.attrs.language ?? "text";
-
-                    const newInput = createContentCodeBlockNodeInput(newNode);
-                    const newLineNodeSet = new Set(newNode.content.content);
 
                     if (
                         oldEntry === undefined ||
@@ -153,28 +190,35 @@ export class ContentCodeBlockIncrementalParser {
                             newUnloadedLanguageIds.delete(newLanguageId);
                         }
 
-                        const tree = parser.parse(newInput);
-                        const treeFragments = TreeFragment.addTree(tree);
-
-                        newResults.push({
-                            parser,
-                            tree,
-                            treeFragments,
-                            lineNodeSet: newLineNodeSet,
-                        });
-                    } else {
+                        newResults.push(
+                            createInitialContentCodeBlockIncrementalParserResult(newNode, parser),
+                        );
+                    }
+                    // Here is where we actually perform our incremental parsing! At this point we
+                    // have an parse tree and highlights for an old code block in the same position.
+                    // We reuse the parse tree and highlights as much as we can.
+                    //
+                    // We diff to see which lines of code changed then re-parse and re-highlight
+                    // only those changed lines.
+                    else {
                         const {
                             parser,
                             treeFragments: oldTreeFragments,
                             lineNodeSet: oldLineNodeSet,
+                            highlightsByLine: oldHighlightsByLine,
                         } = oldEntry.result;
 
-                        const changedRanges = getContentCodeBlockNodeChangedRanges(
-                            oldEntry.node,
+                        const newInput = createContentCodeBlockNodeInput(newNode);
+                        const newLineNodeSet = new Set(newNode.content.content);
+
+                        const lineChanges = actuallySymmetricDiffIterable(
+                            oldEntry.node.content.content,
                             oldLineNodeSet,
-                            newNode,
+                            newNode.content.content,
                             newLineNodeSet,
                         );
+
+                        const changedRanges = getContentCodeBlockNodeChangedRanges(lineChanges);
 
                         let newTreeFragments = TreeFragment.applyChanges(
                             oldTreeFragments,
@@ -184,11 +228,89 @@ export class ContentCodeBlockIncrementalParser {
                         const newTree = parser.parse(newInput, newTreeFragments);
                         newTreeFragments = TreeFragment.addTree(newTree, newTreeFragments);
 
+                        const newHighlightsByLine: Array<
+                            ReadonlyArray<{from: number; to: number; classes: string}>
+                        > = [];
+
+                        let oldLineIndex = 0;
+                        let oldPosToNewPos = 0;
+
+                        // `length` corresponds to the current position in the input string. It's
+                        // different from the ProseMirror position `pos` in that for `pos` each line
+                        // adds 2 (the start + end of the node) whereas for `length` each line adds 1
+                        // (a `\n` character).
+                        let newLength = 0;
+                        let newPos = 0;
+
+                        for (const lineChange of lineChanges) {
+                            switch (lineChange.type) {
+                                case null: {
+                                    const oldHighlights = oldHighlightsByLine[oldLineIndex]!;
+
+                                    oldLineIndex++;
+                                    newLength += lineChange.value.content.size + 1;
+                                    newPos += lineChange.value.nodeSize;
+
+                                    // Reuse highlights from a line that hasn't changed...
+                                    newHighlightsByLine.push(
+                                        oldPosToNewPos !== 0
+                                            ? oldHighlights.map(highlight => ({
+                                                  from: highlight.from + oldPosToNewPos,
+                                                  to: highlight.to + oldPosToNewPos,
+                                                  classes: highlight.classes,
+                                              }))
+                                            : oldHighlights,
+                                    );
+                                    break;
+                                }
+                                case "Added": {
+                                    const lineFrom = newLength;
+                                    const lineTo = lineFrom + lineChange.value.content.size + 1;
+                                    const lengthToPos = length - newPos;
+
+                                    oldPosToNewPos += lineChange.value.nodeSize;
+                                    newLength += lineChange.value.content.size + 1;
+                                    newPos += lineChange.value.nodeSize;
+
+                                    const highlights: Array<{
+                                        from: number;
+                                        to: number;
+                                        classes: string;
+                                    }> = [];
+
+                                    // Highlight a new line that has changed...
+                                    highlightTree(
+                                        newTree,
+                                        lezerClassHighlighter.get(),
+                                        (from, to, classes) =>
+                                            highlights.push({
+                                                from: from + lengthToPos,
+                                                to: to + lengthToPos,
+                                                classes,
+                                            }),
+                                        lineFrom,
+                                        lineTo,
+                                    );
+
+                                    newHighlightsByLine.push(highlights);
+                                    break;
+                                }
+                                case "Deleted": {
+                                    oldLineIndex++;
+                                    oldPosToNewPos -= lineChange.value.nodeSize;
+                                    break;
+                                }
+                                default:
+                                    throw exhaustive(lineChange.type);
+                            }
+                        }
+
                         newResults.push({
                             parser,
                             tree: newTree,
                             treeFragments: newTreeFragments,
                             lineNodeSet: newLineNodeSet,
+                            highlightsByLine: newHighlightsByLine,
                         });
                     }
                     break;
@@ -198,11 +320,26 @@ export class ContentCodeBlockIncrementalParser {
             }
         }
 
+        // If no code blocks changed, then let's `map()` to avoid recreating our entire
+        // decoration tree in case the tree is large.
+        let newDecorations: DecorationSet;
+        if (isUnchanged) {
+            newDecorations = this.decorations.map(mapping, doc);
+        } else {
+            newDecorations = createContentCodeBlockIncrementalParserDecorationSet(
+                newNodeArray,
+                newNodePoses,
+                newResults,
+            );
+        }
+
         return new ContentCodeBlockIncrementalParser(
             newNodeArray,
             newNodeSet,
+            newNodePoses,
             newResults,
             newUnloadedLanguageIds ?? this._unloadedLanguageIds,
+            newDecorations,
         );
     }
 
@@ -230,59 +367,100 @@ export class ContentCodeBlockIncrementalParser {
                 return null;
             }
 
-            const input = createContentCodeBlockNodeInput(node);
-            const tree = parser.parse(input);
-            const treeFragments = TreeFragment.addTree(tree);
-
-            const lineNodeSet = new Set(node.content.content);
-
-            return {
-                parser,
-                tree,
-                treeFragments,
-                lineNodeSet,
-            };
+            return createInitialContentCodeBlockIncrementalParserResult(node, parser);
         });
+
+        const newDecorations = createContentCodeBlockIncrementalParserDecorationSet(
+            this._nodeArray,
+            this._nodePoses,
+            newResults,
+        );
 
         return new ContentCodeBlockIncrementalParser(
             this._nodeArray,
             this._nodeSet,
+            this._nodePoses,
             newResults,
             newUnloadedLanguageIds,
+            newDecorations,
         );
     }
 }
 
-function getContentCodeBlockNodes(doc: Node): [Array<Node>, Set<Node>] {
+function getContentCodeBlockNodes(
+    doc: Node,
+): [nodeArray: Array<Node>, nodeSet: Set<Node>, nodePoses: Array<number>] {
     assert(doc.type.name === "doc");
 
-    const codeBlockNodeArray: Array<Node> = [];
-    const codeBlockNodeSet = new Set<Node>();
+    const nodeArray: Array<Node> = [];
+    const nodeSet = new Set<Node>();
+    const nodePoses: Array<number> = [];
 
-    doc.forEach(node => {
+    doc.forEach((node, pos) => {
         // Currently, code blocks may only be a direct child of `doc`.
         if (node.type.name === "codeBlock") {
-            codeBlockNodeArray.push(node);
-            codeBlockNodeSet.add(node);
+            nodeArray.push(node);
+            nodeSet.add(node);
+            nodePoses.push(pos);
         }
     });
 
-    return [codeBlockNodeArray, codeBlockNodeSet];
+    return [nodeArray, nodeSet, nodePoses];
+}
+
+function createInitialContentCodeBlockIncrementalParserResult(
+    node: Node,
+    parser: Parser,
+): ContentCodeBlockIncrementalParserResult {
+    const input = createContentCodeBlockNodeInput(node);
+    const tree = parser.parse(input);
+    const treeFragments = TreeFragment.addTree(tree);
+
+    const lineNodeSet = new Set<Node>();
+    const highlightsByLine: Array<Array<{from: number; to: number; classes: string}>> = [];
+
+    // `length` corresponds to the current position in the input string. It's
+    // different from the ProseMirror position `pos` in that for `pos` each line
+    // adds 2 (the start + end of the node) whereas for `length` each line adds 1
+    // (a `\n` character).
+    let length = 0;
+    let pos = 0;
+
+    for (const lineNode of node.content.content) {
+        lineNodeSet.add(lineNode);
+
+        const lineFrom = length;
+        const lineTo = lineFrom + lineNode.content.size + 1;
+        const lengthToPos = pos - length;
+        length = lineTo;
+        pos += lineNode.nodeSize;
+
+        const highlights: Array<{from: number; to: number; classes: string}> = [];
+
+        highlightTree(
+            tree,
+            lezerClassHighlighter.get(),
+            (from, to, classes) =>
+                highlights.push({from: from + lengthToPos, to: to + lengthToPos, classes}),
+            lineFrom,
+            lineTo,
+        );
+
+        highlightsByLine.push(highlights);
+    }
+
+    return {
+        parser,
+        tree,
+        treeFragments,
+        lineNodeSet,
+        highlightsByLine,
+    };
 }
 
 function getContentCodeBlockNodeChangedRanges(
-    oldNode: Node,
-    oldLineNodeSet: ReadonlySet<Node>,
-    newNode: Node,
-    newLineNodeSet: ReadonlySet<Node>,
+    changes: ReadonlyArray<IterableChange<Node>>,
 ): Array<ChangedRange> {
-    const changes = actuallySymmetricDiffIterable(
-        oldNode.content.content,
-        oldLineNodeSet,
-        newNode.content.content,
-        newLineNodeSet,
-    );
-
     let changedRange: ChangedRange | null = null;
     const changedRanges: Array<ChangedRange> = [];
 
@@ -336,4 +514,66 @@ function getContentCodeBlockNodeChangedRanges(
     }
 
     return changedRanges;
+}
+
+// NOCOMMIT: Talk about how we reference
+// https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
+function createContentCodeBlockIncrementalParserDecorationSet(
+    nodes: ReadonlyArray<Node>,
+    poses: ReadonlyArray<number>,
+    results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
+): DecorationSet {
+    const rootDecorations: Array<Decoration> = [];
+    const rootChildDecorations: Array<number | DecorationSet> = [];
+
+    for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+        const node = nodes[nodeIndex]!;
+        const pos = poses[nodeIndex]!;
+        const result = results[nodeIndex]!;
+
+        if (result === null) continue;
+
+        const nodeDecorations: Array<Decoration> = [];
+        const nodeChildDecorations: Array<number | DecorationSet> = [];
+
+        let relativePos = 0;
+
+        for (let lineNodeIndex = 0; lineNodeIndex < node.content.content.length; lineNodeIndex++) {
+            const lineNode = node.content.content[lineNodeIndex]!;
+            const highlights = result.highlightsByLine[lineNodeIndex]!;
+
+            const lineNodeDecorations: Array<Decoration> = [];
+
+            for (const highlight of highlights) {
+                const decoration = Decoration.inline(
+                    pos + 2 + highlight.from,
+                    pos + 2 + highlight.to,
+                    {
+                        nodeName: "span",
+                        class: highlight.classes,
+                    },
+                );
+
+                rootDecorations.push(decoration);
+                nodeDecorations.push(decoration);
+                lineNodeDecorations.push(decoration);
+            }
+
+            nodeChildDecorations.push(
+                relativePos + 1,
+                relativePos + 1 + lineNode.nodeSize,
+                new DecorationSet(lineNodeDecorations, emptyArray),
+            );
+
+            relativePos += lineNode.nodeSize;
+        }
+
+        rootChildDecorations.push(
+            pos + 1,
+            pos + 1 + node.nodeSize,
+            new DecorationSet(nodeDecorations, nodeChildDecorations),
+        );
+    }
+
+    return new DecorationSet(rootDecorations, rootChildDecorations);
 }

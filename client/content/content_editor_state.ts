@@ -995,7 +995,13 @@ function contentEditorCodeBlockPlugin() {
 
                 if (!transaction.docChanged) return parser;
 
-                return parser.update(transaction.doc);
+                return parser.update(transaction.doc, transaction.mapping);
+            },
+        },
+
+        props: {
+            decorations(state) {
+                return this.getState(state)!.decorations;
             },
         },
 
