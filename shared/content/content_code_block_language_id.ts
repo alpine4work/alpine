@@ -56,6 +56,10 @@ export const contentCodeBlockLanguageIds = [
 
 const contentCodeBlockLanguageIdSet = new Set(contentCodeBlockLanguageIds);
 
+export function isContentCodeBlockLanguageId(string: string): string is ContentCodeBlockLanguageId {
+    return contentCodeBlockLanguageIdSet.has(string as any);
+}
+
 // Make sure there are no duplicates.
 assert(contentCodeBlockLanguageIds.length === contentCodeBlockLanguageIdSet.size);
 

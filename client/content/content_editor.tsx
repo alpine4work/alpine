@@ -2176,6 +2176,32 @@ function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boo
         return true;
     }
 
+    // When pasting a `codeBlock` or a `codeBlockLine` if we're pasting in the
+    // middle of a paragraph then the code block's content will be converted to
+    // plain text. We want to style that text with the `code` mark so after we
+    // paste, try adding the mark to the entire range of the pasted content. If
+    // the range is a `codeBlock` adding the mark will be a noop. But if we
+    // converted the code block to paragraph text then the mark will be added.
+    if (
+        slice.content.firstChild?.type.name === "codeBlock" ||
+        slice.content.firstChild?.type.name === "codeBlockLine"
+    ) {
+        const {from, to} = view.state.selection;
+        const transaction = view.state.tr.replaceSelection(slice);
+
+        const mappedFrom = transaction.mapping.map(from, -1);
+        const mappedTo = transaction.mapping.map(to, 1);
+
+        transaction.addMark(
+            mappedFrom,
+            mappedTo,
+            slice.content.firstChild.type.schema.mark("code"),
+        );
+
+        view.dispatch(transaction);
+        return true;
+    }
+
     return false;
 }
 

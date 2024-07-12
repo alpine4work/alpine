@@ -97,6 +97,10 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const preDom = document.createElement("pre");
             const codeDom = document.createElement("code");
 
+            if (node.attrs.language && node.attrs.language !== "text") {
+                codeDom.setAttribute("data-language", node.attrs.language);
+            }
+
             let isFirstChild = true;
 
             node.forEach(childNode => {
@@ -108,20 +112,28 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     codeDom.appendChild(document.createTextNode("\n"));
                 }
 
-                const childDom = this.serializeNodeInner(childNode, options);
-                assert(childDom instanceof HTMLDivElement);
-
-                // NOTE(calebmer): We must clone the `childNodes` array before iterating over
-                // it since `appendChild()` will remove the node from `childDom` and add it to
-                // `codeDom`. Mutating the array we are iterating over causes problems so we
-                // clone the array to avoid problems.
-                for (const grandChildDom of [...childDom.childNodes]) {
-                    codeDom.appendChild(grandChildDom);
-                }
+                // Serialize each `codeBlockLine` directly into our `<code>` element. We don't
+                // want to call `serializeNodeInner()` for `codeBlockLine` since that'll create
+                // a DOM element for each line which we don't want to put on the clipboard.
+                this.serializeFragment(childNode.content, options, codeDom);
             });
 
             preDom.appendChild(codeDom);
             return preDom;
+        }
+
+        // If we're serializing content within a single `codeBlockLine` then serialize
+        // to a `<code>` element. So when pasted the text gets code styles. This
+        // happens when you copy some text in a single line of a code block.
+        //
+        // This branch is not executed when serializing a `codeBlock`. Instead we
+        // serialize `codeBlockLine` children directly in the `codeBlock` serializer.
+        if (node.type.name === "codeBlockLine") {
+            const codeDom = document.createElement("code");
+
+            this.serializeFragment(node.content, options, codeDom);
+
+            return codeDom;
         }
 
         const dom = super.serializeNodeInner(node, options);

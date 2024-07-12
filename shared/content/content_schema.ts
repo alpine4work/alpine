@@ -10,7 +10,11 @@ import {
     Schema as ProsemirrorSchema,
     SchemaSpec,
 } from "prosemirror-model";
-import {ContentCodeBlockLanguageIdSchema} from "~/shared/content/content_code_block_language_id.js";
+import {
+    ContentCodeBlockLanguageId,
+    ContentCodeBlockLanguageIdSchema,
+    isContentCodeBlockLanguageId,
+} from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
@@ -261,12 +265,27 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             // `paragraph` (`<p>` elements or `<div>` elements) as a `codeBlockLine`.
             // That way if you paste multiple lines of plain text into a code block they're
             // treated as `codeBlockLine`s.
-            parseDOM: paragraphParseRules.map(parseRule => ({
-                ...parseRule,
-                context: "codeBlock//",
-                // Make sure the priority is higher than `paragraph` parse rules.
-                priority: parseRule.priority + 50,
-            })),
+            parseDOM: [
+                ...paragraphParseRules.map(parseRule => ({
+                    ...parseRule,
+                    context: "codeBlock//",
+                    // Make sure the priority is higher than `paragraph` parse rules.
+                    priority: parseRule.priority + 50,
+                })),
+
+                // If you copy content from a `codeBlockLine` you end up with a `code` element
+                // (we modified `ContentEditorDomClipboardSerializer` to output a `code`
+                // element when copy/pasting) with a `data-pm-slice` attribute that tells
+                // ProseMirror when pasting to wrap the element in a `codeBlock` node.
+                //
+                // We need to detect a copied `codeBlockLine` and parse it as a `codeBlockLine`
+                // node or else we get an error because we have a wrapping `codeBlock` node
+                // with incorrect child content.
+                {
+                    tag: 'code[data-pm-slice*="\\"codeBlock\\""]',
+                    priority: 100,
+                },
+            ],
         },
 
         // Welcome to the list items! You'll notice that we structure them
@@ -751,10 +770,24 @@ function createCodeBlockParseRules(): Array<ParseRule> {
 
     return [
         {
+            context: "doc//",
             tag: "pre",
+            getAttrs: (node): {language: ContentCodeBlockLanguageId} => {
+                if (typeof node === "string") return {language: "text"};
+                if (node.childElementCount !== 1) return {language: "text"};
+                if (node.firstElementChild?.tagName !== "CODE") return {language: "text"};
+
+                const language = node.firstElementChild.getAttribute("data-language");
+                if (!language) return {language: "text"};
+                if (!isContentCodeBlockLanguageId(language)) return {language: "text"};
+
+                return {language};
+            },
             getContent,
         },
+
         {
+            context: "doc//",
             tag: '[style*="white-space: pre"]',
             // Beat `<div>` rule for paragraphs.
             priority: 200,
@@ -782,6 +815,7 @@ function createCodeBlockParseRules(): Array<ParseRule> {
         // style set and only `white-space: pre` elements even support `tab-size`
         // property we consider `table` elements with `tab-size` set to be code blocks.
         {
+            context: "doc//",
             tag: 'table[style*="tab-size"]',
             getContent,
         },
