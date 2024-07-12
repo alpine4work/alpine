@@ -535,7 +535,7 @@ export function FocusRingBox({
     return (
         <div
             ref={ringRef}
-            className={sprinkles({border: "theme-30-const"})}
+            className={sprinkles({border: "theme-40-const"})}
             style={{
                 width: `calc(100% + ${ringWidthPx * 2 + ringOffsetLeftPx + ringOffsetRightPx}px)`,
                 height: `calc(100% + ${ringWidthPx * 2 + ringOffsetTopPx + ringOffsetBottomPx}px)`,

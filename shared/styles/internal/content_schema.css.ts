@@ -541,7 +541,7 @@ export const checkListItemCheckboxClassName = style({
     borderColor: colorSchemeVars["grey-40"],
     selectors: {
         [`${checkListItemCheckedClassName} &`]: {
-            backgroundColor: colorSchemeVars["theme-50"],
+            backgroundColor: colorSchemeVars["theme-50-const"],
             color: colorSchemeVars["grey-0-const"],
             borderWidth: 0,
         },
@@ -558,7 +558,7 @@ export const checkListItemCheckboxPressedClassName = style({
     backgroundColor: colorSchemeVars["grey-10"],
     selectors: {
         [`${checkListItemCheckedClassName} &`]: {
-            backgroundColor: colorSchemeVars["theme-50"],
+            backgroundColor: colorSchemeVars["theme-50-const"],
         },
         [`${checkListItemCheckedClassName} &::before`]: {
             content: '""',
@@ -1118,8 +1118,8 @@ export const currentAccountMentionClassName = style({
             color: colorSchemeVars["theme-80"],
         },
         [`${darkColorSchemeSelector} &::after`]: {
-            backgroundColor: colorSchemeVars["theme-50"],
-            opacity: 0.4,
+            backgroundColor: colorSchemeVars["theme-40"],
+            opacity: 0.5,
         },
     },
 });

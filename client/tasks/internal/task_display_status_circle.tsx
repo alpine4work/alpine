@@ -35,7 +35,7 @@ const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boo
                 ? "grey-40"
                 : undefined,
         backgroundColor:
-            displayStatus === "Closed" ? "theme-40-const" : isPressed ? "grey-10" : "grey-0",
+            displayStatus === "Closed" ? "theme-50-const" : isPressed ? "grey-10" : "grey-0",
     });
 
 const unpressedCircleClassNameByDisplayStatus = new DefaultMap((displayStatus: TaskDisplayStatus) =>

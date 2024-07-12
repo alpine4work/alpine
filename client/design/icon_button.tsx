@@ -340,7 +340,7 @@ function IconButton(
     const stylesByVariant: {[K in IconButtonVariant]: Sprinkles} = {
         accent: !isDisabled
             ? {
-                  backgroundColor: "theme-40-const",
+                  backgroundColor: "theme-50-const",
                   color: "grey-0-const",
               }
             : {

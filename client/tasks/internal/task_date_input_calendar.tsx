@@ -488,7 +488,7 @@ function TaskDateInputCalendarCell({
                             : undefined,
                         color:
                             isCurrentDate && !isDimmed
-                                ? {light: "theme-60", dark: "theme-70"}
+                                ? {light: "theme-50", dark: "theme-70"}
                                 : isDimmed && !isSelected
                                 ? "grey-40"
                                 : undefined,

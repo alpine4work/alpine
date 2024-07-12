@@ -24,7 +24,7 @@ const progressTrackClassName = sprinkles({
 const progressLineClassName = sprinkles({
     position: "absolute",
     inset: "0",
-    color: {light: "theme-40-const", dark: "theme-30-const"},
+    color: {light: "theme-50-const", dark: "theme-40-const"},
 });
 
 export function TaskChildTasksProgressWheel({

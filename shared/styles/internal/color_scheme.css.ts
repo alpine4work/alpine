@@ -54,12 +54,12 @@ const selectionColors = Object.fromEntries(
 // darker shades. Less saturated colors look better as selection colors.
 const invertedSelectionColors = Object.fromEntries(
     [...themeColors, "grey" as const].map(themeColor => {
-        const selectionAlpha = 1 / 4;
+        const selectionAlpha = 1 / 3;
         const selectionAlphaHex = Math.round(selectionAlpha * 255)
             .toString(16)
             .padStart(2, "0");
 
-        const colorHexCode: `#${string}` = colors[`${themeColor}-20`];
+        const colorHexCode: `#${string}` = colors[`${themeColor}-30`];
         return [`${themeColor}-selection`, `${colorHexCode}${selectionAlphaHex}`];
     }),
 ) as {readonly [C in ThemeColor | "grey" as `${C}-selection`]: `#${string}`};

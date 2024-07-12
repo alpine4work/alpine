@@ -466,7 +466,7 @@ function Button(
         },
         accent: !isDisabled
             ? {
-                  backgroundColor: "theme-40-const",
+                  backgroundColor: "theme-50-const",
                   color: "grey-0-const",
               }
             : {
@@ -477,7 +477,7 @@ function Button(
         // the button not clickable or focusable but does not visually change the
         // button. Useful for buttons we really want to accent.
         "accent-even-when-disabled": {
-            backgroundColor: "theme-40-const",
+            backgroundColor: "theme-50-const",
             color: "grey-0-const",
         },
         outline: !isDisabled

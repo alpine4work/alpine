@@ -1,5 +1,4 @@
 import {Memo, Ref, RefObject, forwardRef} from "react";
-import {flushSync} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
@@ -109,7 +108,7 @@ function TaskRowCollectionsCellOverlay(
                             // The focus ring is rendered on the inner `<div>` so it renders on top of the
                             // elevation shadow.
                             boxShadow: !isChildFocusRingVisible
-                                ? `0 0 0 2px ${colorSchemeVars["theme-30-const"]}`
+                                ? `0 0 0 2px ${colorSchemeVars["theme-40-const"]}`
                                 : undefined,
                         }}
                     >
