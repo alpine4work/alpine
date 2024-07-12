@@ -34,6 +34,7 @@ import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {taskDetailViewCommentSidebarWidth} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -41,9 +42,6 @@ import {TaskNotesContentWithReferencesSchema} from "~/shared/tasks/task_notes_co
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
-
-// Maintain same sidebar width as used in document comment sidebar
-const taskDetailViewCommentSidebarWidth = "96";
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,

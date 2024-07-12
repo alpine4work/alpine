@@ -12,6 +12,7 @@ import {
 } from "~/client/messaging/messaging_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -251,7 +252,7 @@ export function TaskCommentsView({
     );
 
     if (!initialComments) {
-        return <>Loading shimmer...</>;
+        return <TaskCommentsViewShimmer withMobileLayout={withMobileLayout} />;
     } else {
         return (
             <MessagingView

@@ -69,15 +69,18 @@ import {
     tasksStyles,
 } from "~/shared/styles/styles.js";
 import {
+    desktopTaskCommentsNavigationBarHeaderSpacerHeight,
     desktopTaskDetailViewNavigationBarSpacerMarginBottom,
     desktopTaskDetailViewStatusButtonSize,
     desktopTaskNotepadViewActiveSectionMarginBottom,
+    mobileTaskCommentsNavigationBarPaddingBottom,
     mobileTaskDetailViewStatusButtonPaddingBottom,
     mobileTaskDetailViewStatusButtonPaddingTop,
     mobileTaskDetailViewStatusButtonSize,
     mobileTaskNotepadViewActiveSectionMarginBottom,
     taskCardViewMaxWidth,
     taskDetailNotesFieldLabelPaddingBottom,
+    taskDetailViewCommentSidebarWidth,
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
     taskDetailViewMaxWidth,
@@ -138,7 +141,8 @@ const shimmerComponentByRouteId: {
     "routes/s.$spaceId.posts.$postId": PostRouteShimmer,
     "routes/s.$spaceId.posts.new.$draftId": NewPostRouteShimmer,
     "routes/s.$spaceId.search": SearchRouteShimmer,
-    "routes/s.$spaceId.tasks.$taskId": TaskDetailRouteShimmer,
+    "routes/s.$spaceId.tasks.$taskId._index": TaskDetailRouteShimmer,
+    "routes/s.$spaceId.tasks.$taskId.comments": TaskCommentsViewShimmer,
     "routes/s.$spaceId.tasks._index": TaskNotepadRouteShimmer,
     "routes/s.$spaceId.tasks.collections.$collectionId": TaskGridRouteShimmer,
     "routes/s.$spaceId.tasks.view": TaskQueryRouteShimmer,
@@ -396,7 +400,7 @@ function ChatRouteShimmer() {
                     </Box>
                 </Box>
             </Box>
-            <ChatMessagingViewShimmer messages="fill" />
+            <MessagingViewShimmer withTopAlignedMessages={false} messages="fill" />
         </Box>
     );
 }
@@ -434,12 +438,18 @@ function NewChatRouteShimmer() {
                     </Box>
                 </Box>
             </Box>
-            <ChatMessagingViewShimmer messages="few" />
+            <MessagingViewShimmer withTopAlignedMessages={false} messages="few" />
         </Box>
     );
 }
 
-function ChatMessagingViewShimmer({messages}: {messages: "fill" | "few"}) {
+function MessagingViewShimmer({
+    messages,
+    withTopAlignedMessages,
+}: {
+    messages: "fill" | "few";
+    withTopAlignedMessages: boolean;
+}) {
     return (
         <>
             <Box
@@ -447,8 +457,20 @@ function ChatMessagingViewShimmer({messages}: {messages: "fill" | "few"}) {
                 flexGrow="1"
                 display="flex"
                 flexDirection="column"
-                justifyContent="flex-end"
+                justifyContent={
+                    withTopAlignedMessages && messages === "few" ? "flex-start" : "flex-end"
+                }
             >
+                {withTopAlignedMessages && messages === "few" && (
+                    <Box
+                        display="flex"
+                        justifyContent="center"
+                        paddingBottom={messageViewTimestampDividerMarginBottom}
+                    >
+                        <TextShimmer width="16" fontSize="50" />
+                    </Box>
+                )}
+
                 {messages === "fill" && (
                     <>
                         <MessageShimmer
@@ -1177,89 +1199,152 @@ function SearchRouteShimmer() {
     );
 }
 
-function TaskDetailRouteShimmer() {
+function TaskDetailRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
     const isMobile = useIsMobile();
 
     return (
         <Box width="full" height="full" overflow="hidden">
             <Box
                 width="full"
-                maxWidth={taskDetailViewMaxWidth}
+                height="full"
                 marginX="center"
-                paddingX={screenPaddingX}
+                display="flex"
+                justifyContent="center"
+                flexDirection="row"
             >
-                <Box height="safe-area-inset-top" />
                 <Box
-                    height={navigationBarHeight}
+                    paddingX={screenPaddingX}
+                    overflow="hidden"
+                    width="full"
+                    maxWidth={taskDetailViewMaxWidth}
+                    marginX="center"
                     display="flex"
-                    alignItems="center"
-                    marginBottom={
-                        !isMobile ? desktopTaskDetailViewNavigationBarSpacerMarginBottom : undefined
-                    }
+                    flexDirection="column"
+                    position="relative"
                 >
-                    {isMobile && <MobileBackButton />}
-                    {!isMobile && (
-                        <Box
-                            className={pulseAnimationClassName}
-                            backgroundColor="grey-10"
-                            width={desktopTaskDetailViewStatusButtonSize}
-                            height={desktopTaskDetailViewStatusButtonSize}
-                            borderRadius="full"
-                        />
-                    )}
-                </Box>
-                {isMobile && (
+                    <Box height="safe-area-inset-top" />
                     <Box
-                        paddingTop={mobileTaskDetailViewStatusButtonPaddingTop}
-                        paddingBottom={mobileTaskDetailViewStatusButtonPaddingBottom}
+                        height={navigationBarHeight}
+                        display="flex"
+                        alignItems="center"
+                        marginBottom={
+                            !isMobile
+                                ? desktopTaskDetailViewNavigationBarSpacerMarginBottom
+                                : undefined
+                        }
                     >
+                        {isMobile && <MobileBackButton />}
+                        {!isMobile && (
+                            <Box
+                                className={pulseAnimationClassName}
+                                backgroundColor="grey-10"
+                                width={desktopTaskDetailViewStatusButtonSize}
+                                height={desktopTaskDetailViewStatusButtonSize}
+                                borderRadius="full"
+                            />
+                        )}
+                    </Box>
+                    {isMobile && (
                         <Box
-                            className={pulseAnimationClassName}
-                            backgroundColor="grey-10"
-                            width={mobileTaskDetailViewStatusButtonSize}
-                            height={mobileTaskDetailViewStatusButtonSize}
-                            borderRadius="full"
-                        />
+                            paddingTop={mobileTaskDetailViewStatusButtonPaddingTop}
+                            paddingBottom={mobileTaskDetailViewStatusButtonPaddingBottom}
+                        >
+                            <Box
+                                className={pulseAnimationClassName}
+                                backgroundColor="grey-10"
+                                width={mobileTaskDetailViewStatusButtonSize}
+                                height={mobileTaskDetailViewStatusButtonSize}
+                                borderRadius="full"
+                            />
+                        </Box>
+                    )}
+                    <TextShimmer fontSize={taskDetailViewTitleFontSize} width="64" />
+                    <Box height={taskDetailViewSectionGap} />
+                    <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
+                        <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
+                        <TextShimmer fontSize="75" width="24" />
+                    </Box>
+                    <Box height={taskDetailViewDenseFieldGap} />
+                    <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
+                        <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
+                        <TextShimmer fontSize="75" width="48" />
+                    </Box>
+                    <Box height={taskDetailViewSectionGap} />
+                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="12" />
+                    <Box height={taskDetailNotesFieldLabelPaddingBottom} />
+                    <Box style={{height: tasksStyles.detailNotesContentEditorMinHeight}} />
+                    <Box height={taskDetailViewSectionGap} />
+                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
+                    <Box
+                        className={pulseAnimationClassName}
+                        height={taskDetailViewSubtasksFieldLabelPaddingBottom}
+                        borderBottom="grey-5"
+                    />
+                    <Box
+                        className={pulseAnimationClassName}
+                        height={taskRowViewMinHeight}
+                        borderBottom="grey-5"
+                    />
+                    <Box
+                        className={pulseAnimationClassName}
+                        height={taskRowViewMinHeight}
+                        borderBottom="grey-5"
+                    />
+                    <Box
+                        className={pulseAnimationClassName}
+                        height={taskRowViewMinHeight}
+                        borderBottom="grey-5"
+                    />
+                </Box>
+                {!withMobileLayout && (
+                    <Box
+                        flexShrink="0"
+                        width={taskDetailViewCommentSidebarWidth}
+                        borderLeft="grey-10"
+                        overflow="hidden"
+                    >
+                        <TaskCommentsViewShimmer withMobileLayout={withMobileLayout} />
                     </Box>
                 )}
-                <TextShimmer fontSize={taskDetailViewTitleFontSize} width="64" />
-                <Box height={taskDetailViewSectionGap} />
-                <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
-                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
-                    <TextShimmer fontSize="75" width="24" />
-                </Box>
-                <Box height={taskDetailViewDenseFieldGap} />
-                <Box display="flex" alignItems="center" gap={taskDetailViewDenseFieldGap}>
-                    <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
-                    <TextShimmer fontSize="75" width="48" />
-                </Box>
-                <Box height={taskDetailViewSectionGap} />
-                <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="12" />
-                <Box height={taskDetailNotesFieldLabelPaddingBottom} />
-                <Box style={{height: tasksStyles.detailNotesContentEditorMinHeight}} />
-                <Box height={taskDetailViewSectionGap} />
-                <TextShimmer fontSize={taskDetailViewFieldLabelFontSize} width="16" />
-                <Box
-                    className={pulseAnimationClassName}
-                    height={taskDetailViewSubtasksFieldLabelPaddingBottom}
-                    borderBottom="grey-5"
-                />
-                <Box
-                    className={pulseAnimationClassName}
-                    height={taskRowViewMinHeight}
-                    borderBottom="grey-5"
-                />
-                <Box
-                    className={pulseAnimationClassName}
-                    height={taskRowViewMinHeight}
-                    borderBottom="grey-5"
-                />
-                <Box
-                    className={pulseAnimationClassName}
-                    height={taskRowViewMinHeight}
-                    borderBottom="grey-5"
-                />
             </Box>
+        </Box>
+    );
+}
+
+export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
+    const isMobile = useIsMobile();
+
+    return (
+        <Box width="full" height="full" display="flex" flexDirection="column">
+            {withMobileLayout && (
+                <Box flexShrink="0" paddingTop="safe-area-inset">
+                    <Box
+                        position="relative"
+                        marginBottom={mobileTaskCommentsNavigationBarPaddingBottom}
+                        height={navigationBarHeight}
+                        borderBottom="grey-10"
+                        maxWidth={taskDetailViewMaxWidth}
+                    >
+                        <Box
+                            display="flex"
+                            flexDirection={"column"}
+                            justifyContent="center"
+                            alignItems={!isMobile ? "flex-start" : "center"}
+                            width="full"
+                            maxWidth="160"
+                            height="full"
+                            paddingX={screenPaddingX}
+                        >
+                            <TextShimmer fontSize={"200"} width={"32"} />
+                            <TextShimmer fontSize={"75"} width={"32"} />
+                        </Box>
+                    </Box>
+                </Box>
+            )}
+            {!withMobileLayout && (
+                <Spacer space={desktopTaskCommentsNavigationBarHeaderSpacerHeight} />
+            )}
+            <MessagingViewShimmer withTopAlignedMessages={true} messages="few" />
         </Box>
     );
 }
