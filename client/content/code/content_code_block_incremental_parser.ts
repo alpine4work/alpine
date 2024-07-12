@@ -264,12 +264,12 @@ export class ContentCodeBlockIncrementalParser {
                                     break;
                                 }
                                 case "Added": {
+                                    oldPosToNewPos += lineChange.value.nodeSize;
+
                                     const lineFrom = newLength;
                                     const lineTo = lineFrom + lineChange.value.content.size + 1;
-                                    const lengthToPos = length - newPos;
-
-                                    oldPosToNewPos += lineChange.value.nodeSize;
-                                    newLength += lineChange.value.content.size + 1;
+                                    const lengthToPos = newPos - newLength;
+                                    newLength = lineTo;
                                     newPos += lineChange.value.nodeSize;
 
                                     const highlights: Array<{
