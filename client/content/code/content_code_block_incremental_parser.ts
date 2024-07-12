@@ -44,6 +44,13 @@ type ContentCodeBlockIncrementalParserResult = {
     >;
 };
 
+let mockedHighlightTreeForTest: typeof highlightTree | null = null;
+
+export function setMockedHighlightTreeForTest(mockedHighlightTree: typeof highlightTree) {
+    assert(import.meta.jest);
+    mockedHighlightTreeForTest = mockedHighlightTree;
+}
+
 // NOCOMMIT: Document
 export class ContentCodeBlockIncrementalParser {
     // NOCOMMIT: Document
@@ -279,7 +286,7 @@ export class ContentCodeBlockIncrementalParser {
                                     }> = [];
 
                                     // Highlight a new line that has changed...
-                                    highlightTree(
+                                    (mockedHighlightTreeForTest ?? highlightTree)(
                                         newTree,
                                         lezerClassHighlighter.get(),
                                         (from, to, classes) =>
@@ -437,7 +444,7 @@ function createInitialContentCodeBlockIncrementalParserResult(
 
         const highlights: Array<{from: number; to: number; classes: string}> = [];
 
-        highlightTree(
+        (mockedHighlightTreeForTest ?? highlightTree)(
             tree,
             lezerClassHighlighter.get(),
             (from, to, classes) =>

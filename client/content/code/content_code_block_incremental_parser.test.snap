@@ -1,0 +1,1205 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`can highlight syntax after adding a new line 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -655,8 +655,20 @@
+       </div>
+     </div>
+     <div>
+       <div>
++        <span class="tok-variableName">console</span>
++        <span class="tok-operator">.</span>
++        <span class="tok-propertyName">log</span>
++        <span class="tok-punctuation">(</span>
++        <span class="tok-string">"does this work?"</span>
++        <span class="tok-punctuation">)</span>
++        <span class="tok-punctuation">;</span>
++      </div>
++    </div>
++    <div><div></div></div>
++    <div>
++      <div>
+         <span class="tok-keyword">const</span>
+         <span class="tok-variableName tok-definition">val</span>
+         <span class="tok-operator">=</span>
+         <span class="tok-variableName">vals</span>
+"
+`;
+
+exports[`can highlight syntax after deleting a code block 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -23,350 +23,8 @@
+ </div>
+ <div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
+   <p>Every close bracket has a corresponding open bracket of the same type.</p>
+ </div>
+-<div data-scrollbar="false">
+-  <code>
+-    <div>
+-      <div>
+-        <span class="tok-keyword">function</span>
+-        <span class="tok-variableName tok-definition">isValid</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-variableName tok-definition">string</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-typeName">string</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-typeName">boolean</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword">const</span>
+-        <span class="tok-variableName tok-definition">stack</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-typeName">Array</span>
+-        &lt;
+-        <span class="tok-string">"("</span>
+-        <span class="tok-operator">|</span>
+-        <span class="tok-string">"["</span>
+-        <span class="tok-operator">|</span>
+-        <span class="tok-string">"{"</span>
+-        &gt;
+-        <span class="tok-operator">=</span>
+-        <span class="tok-punctuation">[</span>
+-        <span class="tok-punctuation">]</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><br /></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">for</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-keyword">let</span>
+-        <span class="tok-variableName tok-definition">i</span>
+-        <span class="tok-operator">=</span>
+-        <span class="tok-number">0</span>
+-        <span class="tok-punctuation">;</span>
+-        <span class="tok-variableName">i</span>
+-        <span class="tok-operator">&lt;</span>
+-        <span class="tok-variableName">string</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">length</span>
+-        <span class="tok-punctuation">;</span>
+-        <span class="tok-variableName">i</span>
+-        <span class="tok-operator">++</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword">const</span>
+-        <span class="tok-variableName tok-definition">c</span>
+-        <span class="tok-operator">=</span>
+-        <span class="tok-variableName">string</span>
+-        <span class="tok-punctuation">[</span>
+-        <span class="tok-variableName">i</span>
+-        <span class="tok-punctuation">]</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><br /></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">switch</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-variableName">c</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">case</span>
+-        <span class="tok-string">"("</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-variableName">stack</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">push</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-string">"("</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">break</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">case</span>
+-        <span class="tok-string">")"</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword">const</span>
+-        <span class="tok-variableName tok-definition">c2</span>
+-        <span class="tok-operator">=</span>
+-        <span class="tok-variableName">stack</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">pop</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">if</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-variableName">c2</span>
+-        <span class="tok-operator">!==</span>
+-        <span class="tok-string">"("</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-keyword tok-controlKeyword">return</span>
+-        <span class="tok-bool">false</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">break</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">case</span>
+-        <span class="tok-string">"["</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-variableName">stack</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">push</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-string">"["</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">break</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">case</span>
+-        <span class="tok-string">"]"</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword">const</span>
+-        <span class="tok-variableName tok-definition">c2</span>
+-        <span class="tok-operator">=</span>
+-        <span class="tok-variableName">stack</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">pop</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">if</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-variableName">c2</span>
+-        <span class="tok-operator">!==</span>
+-        <span class="tok-string">"["</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-keyword tok-controlKeyword">return</span>
+-        <span class="tok-bool">false</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">break</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">case</span>
+-        <span class="tok-string">"{"</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-variableName">stack</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">push</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-string">"{"</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">break</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">case</span>
+-        <span class="tok-string">"}"</span>
+-        <span class="tok-punctuation">:</span>
+-        <span class="tok-punctuation">{</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword">const</span>
+-        <span class="tok-variableName tok-definition">c2</span>
+-        <span class="tok-operator">=</span>
+-        <span class="tok-variableName">stack</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">pop</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">if</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-variableName">c2</span>
+-        <span class="tok-operator">!==</span>
+-        <span class="tok-string">"{"</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-keyword tok-controlKeyword">return</span>
+-        <span class="tok-bool">false</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">break</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">default</span>
+-        <span class="tok-punctuation">:</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">throw</span>
+-        <span class="tok-keyword">new</span>
+-        <span class="tok-variableName">Error</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-string2">\`Unexpected character: "</span>
+-        <span class="tok-punctuation2">\${</span>
+-        <span class="tok-variableName">c</span>
+-        <span class="tok-punctuation2">}</span>
+-        <span class="tok-string2">"\`</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-    <div>
+-      <div><br /></div>
+-    </div>
+-    <div>
+-      <div>
+-        <span class="tok-keyword tok-controlKeyword">return</span>
+-        <span class="tok-variableName">stack</span>
+-        <span class="tok-operator">.</span>
+-        <span class="tok-propertyName">length</span>
+-        <span class="tok-operator">===</span>
+-        <span class="tok-number">0</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div><span class="tok-punctuation">}</span></div>
+-    </div>
+-  </code>
+-</div>
+ <p>
+   You are given the heads of two sorted linked lists
+   <code>list1</code>
+   and
+"
+`;
+
+exports[`can highlight syntax after deleting line 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -299,21 +299,8 @@
+       </div>
+     </div>
+     <div>
+       <div>
+-        <span class="tok-keyword tok-controlKeyword">if</span>
+-        <span class="tok-punctuation">(</span>
+-        <span class="tok-variableName">c2</span>
+-        <span class="tok-operator">!==</span>
+-        <span class="tok-string">"{"</span>
+-        <span class="tok-punctuation">)</span>
+-        <span class="tok-keyword tok-controlKeyword">return</span>
+-        <span class="tok-bool">false</span>
+-        <span class="tok-punctuation">;</span>
+-      </div>
+-    </div>
+-    <div>
+-      <div>
+         <span class="tok-keyword tok-controlKeyword">break</span>
+         <span class="tok-punctuation">;</span>
+       </div>
+     </div>
+"
+`;
+
+exports[`can highlight syntax after inserting a code block 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -372,8 +372,23 @@
+   and
+   <code>list2</code>
+   .
+ </p>
++<div data-scrollbar="false">
++  <code>
++    <div>
++      <div>
++        <span class="tok-variableName">console</span>
++        <span class="tok-operator">.</span>
++        <span class="tok-propertyName">log</span>
++        <span class="tok-punctuation">(</span>
++        <span class="tok-string">"wow"</span>
++        <span class="tok-punctuation">)</span>
++        <span class="tok-punctuation">;</span>
++      </div>
++    </div>
++  </code>
++</div>
+ <p>
+   Merge the two lists into one
+   <strong>sorted</strong>
+   list. The list should be made by splicing together the nodes of the first two
+"
+`;
+
+exports[`can highlight syntax after updating a single line 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -528,15 +528,15 @@
+     <div>
+       <div>
+         <span class="tok-keyword tok-controlKeyword">while</span>
+         <span class="tok-punctuation">(</span>
+-        <span class="tok-variableName">list1</span>
++        <span class="tok-variableName">list2</span>
+         <span class="tok-operator">!==</span>
+         <span class="tok-keyword">null</span>
+         <span class="tok-operator">&amp;&amp;</span>
+-        <span class="tok-variableName">list2</span>
++        <span class="tok-keyword">null</span>
+         <span class="tok-operator">!==</span>
+-        <span class="tok-keyword">null</span>
++        <span class="tok-variableName">list1</span>
+         <span class="tok-punctuation">)</span>
+         <span class="tok-punctuation">{</span>
+       </div>
+     </div>
+"
+`;
+
+exports[`can highlight syntax after updating multiple lines 1`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -618,8 +618,9 @@
+       <div><br /></div>
+     </div>
+     <div>
+       <div>
++        <span class="tok-punctuation">{</span>
+         <span class="tok-keyword">let</span>
+         <span class="tok-variableName tok-definition">mergedList</span>
+         <span class="tok-operator">=</span>
+         <span class="tok-variableName">list1</span>
+@@ -691,8 +692,9 @@
+       <div>
+         <span class="tok-keyword tok-controlKeyword">return</span>
+         <span class="tok-variableName">mergedList</span>
+         <span class="tok-punctuation">;</span>
++        <span class="tok-punctuation">}</span>
+       </div>
+     </div>
+     <div>
+       <div><span class="tok-punctuation">}</span></div>
+"
+`;
+
+exports[`can initially highlight syntax 1`] = `
+"<h1><br /></h1>
+<p>
+  Given a string containing just the characters “
+  <code>(</code>
+  ”, “
+  <code>)</code>
+  ”, “
+  <code>[</code>
+  ”, “
+  <code>]</code>
+  ”, “
+  <code>{</code>
+  ”, and “
+  <code>}</code>
+  ” determine if the input string is valid.
+</p>
+<p>An input string is valid if:</p>
+<div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
+  <p>Open brackets must be closed by the same type of brackets.</p>
+</div>
+<div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
+  <p>Open brackets must be closed in the correct order.</p>
+</div>
+<div style="--list-item-indent: 0" data-list-indent="0" data-list-number="0">
+  <p>Every close bracket has a corresponding open bracket of the same type.</p>
+</div>
+<div data-scrollbar="false">
+  <code>
+    <div>
+      <div>
+        <span class="tok-keyword">function</span>
+        <span class="tok-variableName tok-definition">isValid</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName tok-definition">string</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">string</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">boolean</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">const</span>
+        <span class="tok-variableName tok-definition">stack</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">Array</span>
+        &lt;
+        <span class="tok-string">"("</span>
+        <span class="tok-operator">|</span>
+        <span class="tok-string">"["</span>
+        <span class="tok-operator">|</span>
+        <span class="tok-string">"{"</span>
+        &gt;
+        <span class="tok-operator">=</span>
+        <span class="tok-punctuation">[</span>
+        <span class="tok-punctuation">]</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">for</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-keyword">let</span>
+        <span class="tok-variableName tok-definition">i</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-number">0</span>
+        <span class="tok-punctuation">;</span>
+        <span class="tok-variableName">i</span>
+        <span class="tok-operator">&lt;</span>
+        <span class="tok-variableName">string</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">length</span>
+        <span class="tok-punctuation">;</span>
+        <span class="tok-variableName">i</span>
+        <span class="tok-operator">++</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">const</span>
+        <span class="tok-variableName tok-definition">c</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">string</span>
+        <span class="tok-punctuation">[</span>
+        <span class="tok-variableName">i</span>
+        <span class="tok-punctuation">]</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">switch</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">c</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">case</span>
+        <span class="tok-string">"("</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">stack</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">push</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-string">"("</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">break</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">case</span>
+        <span class="tok-string">")"</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">const</span>
+        <span class="tok-variableName tok-definition">c2</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">stack</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">pop</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">if</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">c2</span>
+        <span class="tok-operator">!==</span>
+        <span class="tok-string">"("</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-keyword tok-controlKeyword">return</span>
+        <span class="tok-bool">false</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">break</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">case</span>
+        <span class="tok-string">"["</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">stack</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">push</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-string">"["</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">break</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">case</span>
+        <span class="tok-string">"]"</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">const</span>
+        <span class="tok-variableName tok-definition">c2</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">stack</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">pop</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">if</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">c2</span>
+        <span class="tok-operator">!==</span>
+        <span class="tok-string">"["</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-keyword tok-controlKeyword">return</span>
+        <span class="tok-bool">false</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">break</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">case</span>
+        <span class="tok-string">"{"</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">stack</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">push</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-string">"{"</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">break</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">case</span>
+        <span class="tok-string">"}"</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">const</span>
+        <span class="tok-variableName tok-definition">c2</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">stack</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">pop</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">if</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">c2</span>
+        <span class="tok-operator">!==</span>
+        <span class="tok-string">"{"</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-keyword tok-controlKeyword">return</span>
+        <span class="tok-bool">false</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">break</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">default</span>
+        <span class="tok-punctuation">:</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">throw</span>
+        <span class="tok-keyword">new</span>
+        <span class="tok-variableName">Error</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-string2">\`Unexpected character: "</span>
+        <span class="tok-punctuation2">\${</span>
+        <span class="tok-variableName">c</span>
+        <span class="tok-punctuation2">}</span>
+        <span class="tok-string2">"\`</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">return</span>
+        <span class="tok-variableName">stack</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">length</span>
+        <span class="tok-operator">===</span>
+        <span class="tok-number">0</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+  </code>
+</div>
+<p>
+  You are given the heads of two sorted linked lists
+  <code>list1</code>
+  and
+  <code>list2</code>
+  .
+</p>
+<p>
+  Merge the two lists into one
+  <strong>sorted</strong>
+  list. The list should be made by splicing together the nodes of the first two
+  lists.
+</p>
+<p>
+  Return
+  <em>the head of the merged linked list</em>
+  .
+</p>
+<div data-scrollbar="false">
+  <code>
+    <div>
+      <div>
+        <span class="tok-keyword">class</span>
+        <span class="tok-className tok-definition">ListNode</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-propertyName tok-definition">val</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">number</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-propertyName tok-definition">next</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">ListNode</span>
+        <span class="tok-operator">|</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-propertyName tok-definition">constructor</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName tok-definition">val</span>
+        ?
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">number</span>
+        <span class="tok-punctuation">,</span>
+        <span class="tok-variableName tok-definition">next</span>
+        ?
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">ListNode</span>
+        <span class="tok-operator">|</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">this</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">val</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">val</span>
+        <span class="tok-operator">===</span>
+        <span class="tok-variableName">undefined</span>
+        <span class="tok-operator">?</span>
+        <span class="tok-number">0</span>
+        <span class="tok-operator">:</span>
+        <span class="tok-variableName">val</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">this</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">next</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">next</span>
+        <span class="tok-operator">===</span>
+        <span class="tok-variableName">undefined</span>
+        <span class="tok-operator">?</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-operator">:</span>
+        <span class="tok-variableName">next</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">function</span>
+        <span class="tok-variableName tok-definition">mergeTwoLists</span>
+        <span class="tok-punctuation">(</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName tok-definition">list1</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">ListNode</span>
+        <span class="tok-operator">|</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-punctuation">,</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName tok-definition">list2</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">ListNode</span>
+        <span class="tok-operator">|</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-punctuation">,</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">:</span>
+        <span class="tok-typeName">ListNode</span>
+        <span class="tok-operator">|</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">const</span>
+        <span class="tok-variableName tok-definition">vals</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-punctuation">[</span>
+        <span class="tok-punctuation">]</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">while</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">list1</span>
+        <span class="tok-operator">!==</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-operator">&amp;&amp;</span>
+        <span class="tok-variableName">list2</span>
+        <span class="tok-operator">!==</span>
+        <span class="tok-keyword">null</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">if</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">list1</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">val</span>
+        <span class="tok-operator">&lt;=</span>
+        <span class="tok-variableName">list2</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">val</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">vals</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">push</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">list1</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">val</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">list1</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">list1</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">next</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-punctuation">}</span>
+        <span class="tok-keyword tok-controlKeyword">else</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">vals</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">push</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">list2</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">val</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">list2</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">list2</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">next</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">let</span>
+        <span class="tok-variableName tok-definition">mergedList</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">list1</span>
+        <span class="tok-operator">??</span>
+        <span class="tok-variableName">list2</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">for</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-keyword">let</span>
+        <span class="tok-variableName tok-definition">i</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">vals</span>
+        <span class="tok-operator">.</span>
+        <span class="tok-propertyName">length</span>
+        <span class="tok-operator">-</span>
+        <span class="tok-number">1</span>
+        <span class="tok-punctuation">;</span>
+        <span class="tok-variableName">i</span>
+        <span class="tok-operator">&gt;=</span>
+        <span class="tok-number">0</span>
+        <span class="tok-punctuation">;</span>
+        <span class="tok-variableName">i</span>
+        <span class="tok-operator">--</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword">const</span>
+        <span class="tok-variableName tok-definition">val</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-variableName">vals</span>
+        <span class="tok-punctuation">[</span>
+        <span class="tok-variableName">i</span>
+        <span class="tok-punctuation">]</span>
+        <span class="tok-operator">!</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">mergedList</span>
+        <span class="tok-operator">=</span>
+        <span class="tok-keyword">new</span>
+        <span class="tok-variableName">ListNode</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-variableName">val</span>
+        <span class="tok-punctuation">,</span>
+        <span class="tok-variableName">mergedList</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-keyword tok-controlKeyword">return</span>
+        <span class="tok-variableName">mergedList</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+  </code>
+</div>
+"
+`;

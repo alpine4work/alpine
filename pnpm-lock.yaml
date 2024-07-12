@@ -356,6 +356,9 @@ dependencies:
   '@types/dedent':
     specifier: ^0.7.0
     version: 0.7.0
+  '@types/diff':
+    specifier: ^5.2.1
+    version: 5.2.1
   '@types/escape-html':
     specifier: ^1.0.2
     version: 1.0.2
@@ -407,6 +410,9 @@ dependencies:
   '@types/opentype.js':
     specifier: ^1.3.8
     version: 1.3.8
+  '@types/prettier':
+    specifier: ^2.7.3
+    version: 2.7.3
   '@types/proper-lockfile':
     specifier: ^4.1.2
     version: 4.1.2
@@ -530,6 +536,9 @@ dependencies:
   dedent:
     specifier: ^0.7.0
     version: 0.7.0
+  diff:
+    specifier: ^5.2.0
+    version: 5.2.0
   dotenv:
     specifier: ^16.0.3
     version: 16.0.3
@@ -6509,6 +6518,10 @@ packages:
     resolution: {integrity: sha512-EGlKlgMhnLt/cM4DbUSafFdrkeJoC9Mvnj0PUCU7tFmTjMjNRT957kXCx0wYm3JuEq4o4ZsS5vG+NlkM2DMd2A==}
     dev: false
 
+  /@types/diff@5.2.1:
+    resolution: {integrity: sha512-uxpcuwWJGhe2AR1g8hD9F5OYGCqjqWnBUQFD8gMZsDbv8oPHzxJF6iMO6n8Tk0AdzlxoaaoQhOYlIg/PukVU8g==}
+    dev: false
+
   /@types/escape-html@1.0.2:
     resolution: {integrity: sha512-gaBLT8pdcexFztLSPRtriHeXY/Kn4907uOCZ4Q3lncFBkheAWOuNt53ypsF8szgxbEJ513UeBzcf4utN0EzEwA==}
     dev: false
@@ -6691,6 +6704,10 @@ packages:
 
   /@types/opentype.js@1.3.8:
     resolution: {integrity: sha512-H6qeTp03jrknklSn4bpT1/9+1xCAEIU2CnjcWPkicJy8A1SKuthanbvoHYMiv79/2W3Xn1XE4gfSJFzt2U3JSw==}
+    dev: false
+
+  /@types/prettier@2.7.3:
+    resolution: {integrity: sha512-+68kP9yzs4LMp7VNh8gdzMSPZFL44MLGqiHWvttYJe+6qnuVr4Ek9wSBQoveqY/r+LwjCcU29kNVkidwim+kYA==}
     dev: false
 
   /@types/prop-types@15.7.5:
@@ -8480,8 +8497,8 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dev: false
 
-  /diff@5.1.0:
-    resolution: {integrity: sha512-D+mk+qE8VC/PAUrlAU34N+VfXev0ghe5ywmpqrawphmVZc1bEfn56uo9qpyGp1p4xpzOHkSW4ztBd6L7Xx4ACw==}
+  /diff@5.2.0:
+    resolution: {integrity: sha512-uIFDxqpRZGZ6ThOk84hEfqWoHx2devRFvpTZcTHur85vImfaxUbTW9Ryh4CpCuDnToOP1CEtXKIgytHBPVff5A==}
     engines: {node: '>=0.3.1'}
     dev: false
 
@@ -15535,7 +15552,7 @@ packages:
     hasBin: true
     dependencies:
       dequal: 2.0.3
-      diff: 5.1.0
+      diff: 5.2.0
       kleur: 4.1.5
       sade: 1.8.1
     dev: false

@@ -64,8 +64,19 @@ function wrapWithPunctuation(
         const nodeFrom = $from.node();
         const nodeTo = $to.node();
 
-        // This checks if the selection spans across content nodes
-        if (nodeFrom !== nodeTo) return false;
+        // This checks if the selection spans across content nodes. If the selection is
+        // in the same `codeBlock` then we allow it to span across multiple
+        // `codeBlockLine`s.
+        if (nodeFrom !== nodeTo) {
+            if (nodeFrom.type.name !== "codeBlockLine" || nodeTo.type.name !== "codeBlockLine") {
+                return false;
+            } else {
+                const parentNodeFrom = $from.node($from.depth - 1);
+                const parentNodeTo = $to.node($to.depth - 1);
+
+                if (parentNodeFrom !== parentNodeTo) return false;
+            }
+        }
 
         const isInCode =
             nodeFrom.type.name === "codeBlockLine" ||

@@ -185,6 +185,32 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         //
         // - Copy/pasting code into a code block should detect the indentation level
         //   and fix it so user doesn't have to reformat.
+        //
+        // - Typing a close bracket on an indented line should dedent the line. For
+        //   example, if you have a code block and your cursor is `|`:
+        //
+        //   ```
+        //   switch (c) {
+        //     case "(": {
+        //       break;
+        //       |
+        //   }
+        //   ```
+        //
+        //   Then typing `}` should result in:
+        //
+        //   ```
+        //   switch (c) {
+        //     case "(": {
+        //       break;
+        //     }|
+        //   }
+        //   ```
+        //
+        // - Content editor doesn't scroll horizontally to cursor when cursor moves.
+        //   Put your cursor at the end of a long code block line that causes the code
+        //   block to scroll horizontally. Then press Command-Left. The cursor will
+        //   move but the code block won't scroll!
 
         // NOTE(maximchen): we remove `code: true` from codeBlock and codeBlock
         // line because, `code: true` defaults white-space property to `pre`

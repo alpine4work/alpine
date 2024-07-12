@@ -23,16 +23,24 @@ export async function runProcess(
     {
         cwd = workspacePath,
         env,
+        isErrorExitCode = exitCode => exitCode !== 0,
     }: {
         /**
          * What directory should the process run in? By default runs in the root
          * directory of our code repository.
          */
         cwd?: string;
+
         /**
          * Extra environment variables to set when running the subprocess.
          */
         env?: {[key: string]: string | undefined};
+
+        /**
+         * Should we throw an error for the provided exit code? By default any non-zero
+         * exit code is an error.
+         */
+        isErrorExitCode?: (exitCode: number) => boolean;
     } = {},
 ): Promise<string> {
     const flattenedArgs: Array<string | undefined | null | false> =
@@ -73,14 +81,14 @@ export async function runProcess(
                     : ` (stdout and stderr included for debugging)\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`;
 
             if (typeof exitCode === "number") {
-                if (exitCode === 0) {
-                    resolve();
-                } else {
+                if (isErrorExitCode(exitCode)) {
                     reject(
                         new UnknownError(
                             `${nameMessage} process exited with code ${exitCode}${stderrMessage}`,
                         ),
                     );
+                } else {
+                    resolve();
                 }
             } else {
                 const signalMessage = signal !== null ? quote`${signal}` : "null";

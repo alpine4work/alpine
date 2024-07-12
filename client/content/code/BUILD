@@ -2,7 +2,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "code",
-    test_deps = ["//shared/documents"],
+    test_deps = [
+        "//:node_modules/@types/diff",
+        "//:node_modules/@types/prettier",
+        "//:node_modules/diff",
+        "//:node_modules/prettier",
+        "//shared/documents",
+    ],
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",
