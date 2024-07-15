@@ -104,7 +104,6 @@ const contentCodeBlockLanguageDefinitionById: Record<
         name: "JavaScript",
         aliases: ["js", "jsx", "ECMAScript"],
         loadParser: async () => {
-            // NOCOMMIT: Test that this parses JSX
             const {parser} = await import("@lezer/javascript");
             return parser.configure({dialect: "jsx"});
         },
@@ -148,7 +147,9 @@ const contentCodeBlockLanguageDefinitionById: Record<
         name: "TypeScript",
         aliases: ["ts", "tsx"],
         loadParser: async () => {
-            // NOCOMMIT: Test that this parses JSX
+            // TODO(calebmer): It appears that `@lezer/javascript`'s `ts` dialect doesn't
+            // support JSX! This means JSX gets improper syntax highlighting. Send a PR to
+            // Lezer (or fork it) to add JSX support.
             const {parser} = await import("@lezer/javascript");
             return parser.configure({dialect: "ts"});
         },

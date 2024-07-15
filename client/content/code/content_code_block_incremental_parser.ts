@@ -114,7 +114,6 @@ export class ContentCodeBlockIncrementalParser {
     }
 
     // NOCOMMIT: Document
-    // NOCOMMIT: Test???
     public update(doc: Node, mapping: Mapping): ContentCodeBlockIncrementalParser {
         const [newNodeArray, newNodeSet, newNodePoses] = getContentCodeBlockNodes(doc);
 

@@ -820,7 +820,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             nodeViews: {
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
-                // NOCOMMIT: Matching `nodeRenderer` in `renderContentToHtml()`.
                 codeBlock: createContentEditorCodeBlockNodeViewConstructor({
                     getReporter: () => reporterRef.current,
                     onCodeBlockLanguagePickerOpen: ({targetElement, languageId, getPos}) =>
