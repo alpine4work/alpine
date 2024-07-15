@@ -1031,16 +1031,16 @@ const colorByLezerHighlightSelector: {
         | {color?: string; lightColor?: string; darkColor?: string; weight?: "semi-bold"}
         | null;
 } = {
-    ".tok-link": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // NOCOMMIT?
-    ".tok-heading": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // NOCOMMIT?
-    ".tok-emphasis": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // NOCOMMIT?
-    ".tok-strong": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // NOCOMMIT?
+    ".tok-link": codeBlockStringLiteralColor, // Used for `[link](url)` in Markdown
+    ".tok-url": null, // Used for `[link](url)` in Markdown
+    ".tok-heading": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // Used for `# Heading` in Markdown
+    ".tok-emphasis": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // Used for `_emphasis_` in Markdown
+    ".tok-strong": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // Used for `**strong**` in Markdown
     ".tok-keyword": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"},
     ".tok-keyword.tok-controlKeyword": codeBlockSecondaryKeywordColor,
     ".tok-keyword.tok-moduleKeyword": codeBlockSecondaryKeywordColor,
     ".tok-atom": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // Used for `super()` in JavaScript
     ".tok-bool": {color: codeBlockSecondaryKeywordColor, weight: "semi-bold"},
-    ".tok-url": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // NOCOMMIT?
     ".tok-labelName": codeBlockStringLiteralColor,
     ".tok-inserted": colorSchemeVars["green-60"],
     ".tok-deleted": colorSchemeVars["red-60"],
@@ -1056,7 +1056,7 @@ const colorByLezerHighlightSelector: {
     ".tok-propertyName": codeBlockValueColor,
     ".tok-operator": null,
     ".tok-comment": colorSchemeVars["grey-50"],
-    ".tok-meta": {color: codeBlockPrimaryKeywordColor, weight: "semi-bold"}, // NOCOMMIT?
+    ".tok-meta": null, // Used for annotations like `#[derive(Serializable)]` in Rust
     ".tok-punctuation": null,
     ".tok-punctuation2": codeBlockPrimaryKeywordColor, // Used for template string interpolation `${}` in JavaScript
     ".tok-invalid": null,

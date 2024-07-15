@@ -1581,9 +1581,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         //
         // Once we finish loading the code block languages we need, we tell our
         // incremental parser to try parsing again.
-        const unloadedLanguageIds = getContentCodeBlockIncrementalParser(
-            unwrap(state),
-        ).getUnloadedLanguageIds();
+        const {unloadedLanguageIds} = getContentCodeBlockIncrementalParser(unwrap(state));
 
         loadContentCodeBlockLanguageIdsInEffect(unloadedLanguageIds, {
             onLoaded: () => {

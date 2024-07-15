@@ -36,10 +36,43 @@ declare module "prosemirror-view" {
 }
 
 export type ContentCodeBlockIncrementalParserResult = {
+    /** The loaded Lezer parser we use for this code block. */
     readonly parser: Parser;
+
+    /** The fully parsed syntax tree for this code block. */
     readonly tree: Tree;
+
+    /**
+     * Fragments of parsed syntax trees for this code block. Used in an
+     * incremental parse.
+     */
     readonly treeFragments: ReadonlyArray<TreeFragment>;
+
+    /**
+     * A set of each `codeBlockLine` node in this code block. Used by
+     * `actuallySymmetricDiffIterable()` where having the set of lines already
+     * available allows us to perform O(1) `set.has(value)` operations.
+     *
+     * Let `this` be an instance of our incremental parser. For every `index`
+     * in `this._nodeArray`, `this._results[index].lineNodeSet` has every `Node`
+     * in `this._nodeArray[index].content.content` and nothing more.
+     */
     readonly lineNodeSet: ReadonlySet<Node>;
+
+    /**
+     * The syntax highlighting result for each `codeBlockLine` node in this code
+     * block. When a code block changes, we diff the code block's lines to see
+     * which lines changed and only re-highlight those lines that changed.
+     *
+     * Let `this` be an instance of our incremental parser. For every `index1` in
+     * `this._nodeArray` and every `index2` in
+     * `this._nodeArray[index1].content.content`, the highlights in
+     * `this._results[index1].highlightByLine[index2]` correspond to the
+     * `codeBlockLine` node at `this._nodeArray[index1].content.content[index2]`.
+     *
+     * Every `codeBlockLine` node has highlights and there are no more highlights
+     * then there are `codeBlockLine` nodes.
+     */
     readonly highlightsByLine: ReadonlyArray<
         ReadonlyArray<{
             readonly from: number;
@@ -56,15 +89,71 @@ export function setMockedHighlightTreeForTest(mockedHighlightTree: typeof highli
     mockedHighlightTreeForTest = mockedHighlightTree;
 }
 
-// NOCOMMIT: Document
+/**
+ * Manages code block syntax highlighting for `<ContentEditor>`. Uses the
+ * [Lezer][1] parser system for syntax highlighting. Manages all code blocks in
+ * a doc instead of managing only one at a time.
+ *
+ * Whenever a code block changes, instead of re-parsing the entire code block
+ * (as a naive implementation of this class might) we perform an incremental
+ * parse that reuses the previous parse tree. Powered by Lezer's incremental
+ * parsing implementation. We both:
+ *
+ * - Only re-parse code blocks which changed
+ * - Only re-parse (and re-highlight) the specific code block lines which
+ *   changed
+ *
+ * [1]: https://lezer.codemirror.net
+ */
 export class ContentCodeBlockIncrementalParser {
-    // NOCOMMIT: Document
+    /**
+     * The `codeBlock` nodes in the doc we're highlighting.
+     */
     private readonly _nodeArray: ReadonlyArray<Node>;
-    private readonly _nodeSet: ReadonlySet<Node>;
-    private readonly _nodeOffsets: ReadonlyArray<number>;
-    private readonly _results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>;
-    private readonly _unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>;
 
+    /**
+     * The set of `codeBlock` nodes in the doc we're highlighting. Every node in
+     * `this._nodeArray` is present in this set and every item in this set is
+     * present in `this._nodeArray`.
+     *
+     * This set is purely used as an optimization to perform O(1)
+     * `this._nodeSet.has(node)` operations. Specifically
+     * `actuallySymmetricDiffIterable()` is what needs O(1)
+     * `this._nodeSet.has(node)` operations to maintain good performance.
+     */
+    private readonly _nodeSet: ReadonlySet<Node>;
+
+    /**
+     * The offset in the doc of each `codeBlock` node in `this._nodeArray`. For
+     * every index in `this._nodeArray` we have a node offset in this array.
+     *
+     * For every `index` in `this._nodeArray` the following should be true:
+     * `this._nodeArray[index] === doc.resolve(this._nodeOffsets[index]).nodeAfter`.
+     */
+    private readonly _nodeOffsets: ReadonlyArray<number>;
+
+    /**
+     * The parsing result of each `codeBlock` in `this._nodeArray`. For every index
+     * in `this._nodeArray` we have a result in this array. If a `codeBlock` node
+     * couldn't be parsed the corresponding index in this array will be `null`.
+     */
+    private readonly _results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>;
+
+    /**
+     * Languages we couldn't find the parser for when the incremental parser was
+     * initialized. The `<ContentEditor>` component looks at this set and
+     * asynchronously loads the language parsers.
+     *
+     * When languages have been loaded we should re-render the `<ContentEditor>` or
+     * `<ContentView>` so we can parse their code blocks.
+     */
+    public readonly unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>;
+
+    /**
+     * The final `DecorationSet` that's provided to ProseMirror's `EditorView`
+     * containing inline decorations that actually perform the highlighting of code
+     * in a code block.
+     */
     public readonly decorations: DecorationSet;
 
     private constructor(
@@ -79,10 +168,14 @@ export class ContentCodeBlockIncrementalParser {
         this._nodeSet = nodeSet;
         this._nodeOffsets = nodeOffsets;
         this._results = results;
-        this._unloadedLanguageIds = unloadedLanguageIds;
+        this.unloadedLanguageIds = unloadedLanguageIds;
         this.decorations = decorations;
     }
 
+    /**
+     * Create a new incremental parser from a content doc when `EditorView` is
+     * initialized. Finds all code block nodes and parses them.
+     */
     public static new(doc: Node): ContentCodeBlockIncrementalParser {
         const [nodeArray, nodeSet, nodeOffsets] = getContentCodeBlockNodes(doc);
 
@@ -130,7 +223,29 @@ export class ContentCodeBlockIncrementalParser {
         );
     }
 
-    // NOCOMMIT: Document
+    /**
+     * Perform an incremental update to our parsed code blocks with a new content
+     * doc. This function will only re-parse code block nodes that changed.
+     *
+     * We do this by:
+     *
+     * 1. Diffing `codeBlock` nodes to see which code blocks changed
+     * 2. Diffing `codeBlockLine` nodes within `codeBlock` nodes to see which lines
+     *    changed
+     *
+     * We diff `codeBlock` nodes and `codeBlockLine` nodes with
+     * `actuallySymmetricDiffIterable()` which returns all additions/deletions to
+     * items in an array that don't change relative order. You can think of
+     * `actuallySymmetricDiffIterable()` as implementing a similar algorithm to
+     * `git diff`.
+     *
+     * Then once we have our changes we use [Lezer's incremental parsing
+     * capabilities][1] to only re-parse the parts of a code block that changed.
+     * Similarly, we only call Lezer's `highlightTree()` function on the lines
+     * within the code block that changed.
+     *
+     * [1]: https://discuss.codemirror.net/t/an-example-of-an-incremental-parse/5356/2
+     */
     public update(doc: Node, mapping: Mapping): ContentCodeBlockIncrementalParser {
         const [newNodeArray, newNodeSet, newNodeOffsets] = getContentCodeBlockNodes(doc);
 
@@ -200,7 +315,7 @@ export class ContentCodeBlockIncrementalParser {
 
                         const parser = language.parser.getIfLoaded();
                         if (parser === null) {
-                            newUnloadedLanguageIds ??= new Set(this._unloadedLanguageIds);
+                            newUnloadedLanguageIds ??= new Set(this.unloadedLanguageIds);
                             newUnloadedLanguageIds.add(newLanguageId);
                             newResults.push(null);
                             break;
@@ -208,8 +323,8 @@ export class ContentCodeBlockIncrementalParser {
 
                         // If we now have this language's parser but we didn't previously then remove
                         // it from the unloaded set.
-                        if (this._unloadedLanguageIds.has(newLanguageId)) {
-                            newUnloadedLanguageIds ??= new Set(this._unloadedLanguageIds);
+                        if (this.unloadedLanguageIds.has(newLanguageId)) {
+                            newUnloadedLanguageIds ??= new Set(this.unloadedLanguageIds);
                             newUnloadedLanguageIds.delete(newLanguageId);
                         }
 
@@ -373,18 +488,18 @@ export class ContentCodeBlockIncrementalParser {
             newNodeSet,
             newNodeOffsets,
             newResults,
-            newUnloadedLanguageIds ?? this._unloadedLanguageIds,
+            newUnloadedLanguageIds ?? this.unloadedLanguageIds,
             newDecorations,
         );
     }
 
-    public getUnloadedLanguageIds(): ReadonlySet<ContentCodeBlockLanguageId> {
-        return this._unloadedLanguageIds;
-    }
-
-    // NOCOMMIT: Document
+    /**
+     * After we've asynchronously loaded unloaded code block languages this
+     * function is called so we can re-parse our content block nodes with the
+     * newly loaded parsers.
+     */
     public updateUnloadedLanguageIds(): ContentCodeBlockIncrementalParser {
-        if (this._unloadedLanguageIds.size === 0) return this;
+        if (this.unloadedLanguageIds.size === 0) return this;
 
         const newUnloadedLanguageIds = new Set<ContentCodeBlockLanguageId>();
 
@@ -551,9 +666,27 @@ function getContentCodeBlockNodeChangedRanges(
     return changedRanges;
 }
 
-// NOCOMMIT: Talk about how we reference
-// https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
-export function createContentCodeBlockIncrementalParserDecorationSet(
+/**
+ * Create a `DecorationSet` for results from
+ * `ContentCodeBlockIncrementalParser`.
+ *
+ * This should build the same set as
+ * `DecorationSet.create(doc, allDecorations)`. We write our own function since
+ * we'll have many decorations and we can more efficiently build a decoration
+ * tree than [ProseMirror's `buildTree()` function][1] called by
+ * `DecorationSet.create()`. The build tree function performs multiple O(n)
+ * loops over each child node in a document which we're scared of since n can
+ * be quite large given we have a decoration for each syntax highlight.
+ *
+ * We closely mimic the implementation of [ProseMirror's `buildTree()`
+ * function][1] here since our result should be indistinguishable. In unit
+ * tests, we call `assertIsDecorationSetEqualForTest()` to make sure we produce
+ * a `DecorationSet` object that's the same as what `DecorationSet.create()`
+ * would produce.
+ *
+ * [1]: https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
+ */
+function createContentCodeBlockIncrementalParserDecorationSet(
     nodes: ReadonlyArray<Node>,
     offsets: ReadonlyArray<number>,
     results: ReadonlyArray<Pick<
@@ -628,7 +761,7 @@ export function createContentCodeBlockIncrementalParserDecorationSet(
     return new DecorationSet(rootDecorations, rootChildDecorations);
 }
 
-export function assertIsDecorationSetEqualForTest(
+function assertIsDecorationSetEqualForTest(
     actualDecorations: DecorationSet,
     expectedDecorations: DecorationSet,
 ) {

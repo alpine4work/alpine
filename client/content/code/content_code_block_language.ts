@@ -91,6 +91,15 @@ export type ContentCodeBlockLanguageParser = {
  * [4]: https://github.com/codemirror/language-data/blob/7b21009213b9fdb44d6ec172ad0a779234170f52/src/language-data.ts#L11-L12
  * [5]: https://www.npmjs.com/package/@codemirror/legacy-modes
  */
+// TODO(calebmer, 2024-07-15): I wonder if the asynchronous lazy-loading of
+// languages is more trouble than it's worth. Lezer generates pretty small
+// parser files for each language. We should consider:
+//
+// 1. Putting all parsers in one bundle and lazy loading that
+// 2. Putting parsers in `contentReferences` so they're automatically loaded
+// 3. Don't lazy load parsers at all
+//
+// NOCOMMIT: Seriously evaluate one of these options
 const contentCodeBlockLanguageDefinitionById: Record<
     ContentCodeBlockLanguageId,
     ContentCodeBlockLanguageDefinition

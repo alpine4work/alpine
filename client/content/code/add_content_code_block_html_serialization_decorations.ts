@@ -6,7 +6,14 @@ import {lezerClassHighlighter} from "~/client/content/code/lezer_class_highlight
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
-// NOCOMMIT: Document!!
+/**
+ * Generate `codeBlock` node syntax highlighting decorations for
+ * `<ContentView>`'s ProseMirror HTML serialization and add them to the
+ * `decorations` array.
+ *
+ * Performs the same logic as `ContentCodeBlockIncrementalParser` but in one
+ * shot. Doesn't save state for future incremental parses.
+ */
 export function addContentCodeBlockHtmlSerializationDecorations(
     doc: Node,
     decorations: Array<ProsemirrorHtmlSerializationDecoration>,
