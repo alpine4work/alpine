@@ -215,7 +215,6 @@ export function renderContentFragmentToHtmlStore(
                     }
 
                     {
-                        // NOCOMMIT: Don't render on mobile. Reduce `codeBlockToolbarMaxWidth` by 6 on mobile as well.
                         const copyButtonHtml = new HtmlElementGenerator("div");
                         toolbarFlexHtml.appendChild(copyButtonHtml);
                         copyButtonHtml.setAttribute(

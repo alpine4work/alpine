@@ -1920,7 +1920,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // reset our state to null.
     if (
         codeBlockCopyButtonTooltipState &&
-        !document.body.contains(codeBlockCopyButtonTooltipState.targetElement)
+        (isMobile || !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
     ) {
         setCodeBlockCopyButtonTooltipState(null);
     }

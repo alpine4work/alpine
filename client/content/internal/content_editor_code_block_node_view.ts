@@ -19,6 +19,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
+// NOCOMMIT: Scroll when opening language picker on mobile?
+
 // IMPORTANT: Any change you make to this function also likely must be made to
 // the `codeBlock` node renderer in `renderContentInHtml()`.
 export function createContentEditorCodeBlockNodeViewConstructor({
@@ -105,7 +107,6 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         }
 
         {
-            // NOCOMMIT: Don't render on mobile. Reduce `codeBlockToolbarMaxWidth` by 6 on mobile as well.
             const copyButtonElement = document.createElement("div");
             toolbarFlexElement.appendChild(copyButtonElement);
             copyButtonElement.className = contentSchemaStyles.codeBlockCopyButtonClassName;
@@ -119,10 +120,10 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             // node view.
             addUnfocusableButtonBehaviorToElement(copyButtonElement, {
                 defaultClassName: sprinkles({
-                    color: "grey-70",
+                    color: "grey-60",
                 }),
                 hoverClassName: sprinkles({
-                    color: "grey-70",
+                    color: "grey-60",
                     backgroundColor: "grey-5",
                 }),
                 pressClassName: sprinkles({

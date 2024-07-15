@@ -20,7 +20,7 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
-import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
+import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
@@ -200,6 +200,7 @@ export function ContentView({
      */
     onSeeLessContent?: () => void;
 }) {
+    const isMobile = useIsMobile();
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
@@ -486,7 +487,7 @@ export function ContentView({
     // reset our state to null.
     if (
         codeBlockCopyButtonTooltipState &&
-        !document.body.contains(codeBlockCopyButtonTooltipState.targetElement)
+        (isMobile || !document.body.contains(codeBlockCopyButtonTooltipState.targetElement))
     ) {
         setCodeBlockCopyButtonTooltipState(null);
     }
@@ -717,10 +718,10 @@ export function ContentView({
                 // node view.
                 const cleanup = addUnfocusableButtonBehaviorToElement(element, {
                     defaultClassName: sprinkles({
-                        color: "grey-70",
+                        color: "grey-60",
                     }),
                     hoverClassName: sprinkles({
-                        color: "grey-70",
+                        color: "grey-60",
                         backgroundColor: isBackgroundColorGrey5 ? "grey-10" : "grey-5",
                     }),
                     pressClassName: sprinkles({

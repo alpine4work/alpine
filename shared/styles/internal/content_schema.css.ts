@@ -591,7 +591,11 @@ const codeBlockToolbarHeightSpacing = "6";
 const codeBlockToolbarHeight = spacing[codeBlockToolbarHeightSpacing];
 export {codeBlockToolbarHeightSpacing as codeBlockToolbarHeight};
 
-export const codeBlockToolbarMaxWidth = addRemLengths(spacing["32"], spacing["6"]);
+const mobileCodeBlockToolbarMaxWidth = spacing["32"];
+const desktopCodeBlockToolbarMaxWidth = addRemLengths(
+    mobileCodeBlockToolbarMaxWidth,
+    codeBlockToolbarHeight,
+);
 
 const codeBlockPaddingRightSpacing = "3";
 const codeBlockPaddingRight = spacing[codeBlockPaddingRightSpacing];
@@ -685,7 +689,12 @@ export const codeBlockLineClassName = style({
             background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
         },
         [`${codeBlockClassName} > &:first-child`]: {
-            paddingRight: codeBlockToolbarMaxWidth,
+            paddingRight: desktopCodeBlockToolbarMaxWidth,
+            "@media": {
+                [mobilePlatformMediaQuery]: {
+                    paddingRight: mobileCodeBlockToolbarMaxWidth,
+                },
+            },
         },
         [`${codeBlockClassName} > &:first-child::after`]: {
             content: "none",
@@ -726,11 +735,21 @@ export const codeBlockToolbarFlexClassName = style({
     alignItems: "center",
     backgroundColor: backgroundColorVar,
     maxWidth: subtractRemLengths(
-        codeBlockToolbarMaxWidth,
+        desktopCodeBlockToolbarMaxWidth,
         // The overflow gradient is rendered absolutely out of this element's layout
         // but we still want to consider it as a part of the max width.
         codeBlockPaddingRight,
     ),
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            maxWidth: subtractRemLengths(
+                mobileCodeBlockToolbarMaxWidth,
+                // The overflow gradient is rendered absolutely out of this element's layout
+                // but we still want to consider it as a part of the max width.
+                codeBlockPaddingRight,
+            ),
+        },
+    },
 });
 
 export const codeBlockToolbarOverflowGradientClassName = style({
@@ -759,6 +778,7 @@ export const codeBlockLanguagePickerClassName = style({
 export const codeBlockLanguagePickerTextClassName = style({
     ...fontStyles["truncate"],
     ...fontSizes["75"],
+    color: colorSchemeVars["grey-60"],
 });
 
 export const codeBlockCopyButtonClassName = style({
@@ -769,6 +789,11 @@ export const codeBlockCopyButtonClassName = style({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: borderRadius["full"],
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            display: "none",
+        },
+    },
 });
 
 export const codeBlockCopyButtonIconClassName = style({
