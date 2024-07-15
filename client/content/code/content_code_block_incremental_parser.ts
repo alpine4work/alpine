@@ -13,10 +13,15 @@ import {
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 
 declare module "prosemirror-view" {
     class DecorationSet {
+        public readonly local: ReadonlyArray<Decoration>;
+        public readonly children: ReadonlyArray<number | DecorationSet>;
+
         // The [internal ProseMirror `DecorationSet` constructor signature][1]. We want
         // to construct `DecorationSet` directly to avoid an [expensive `buildTree()`
         // function][2] that keeps looping over the full decoration set.
@@ -97,11 +102,23 @@ export class ContentCodeBlockIncrementalParser {
             return createInitialContentCodeBlockIncrementalParserResult(node, parser);
         });
 
+        const allDecorationsForTest = import.meta.jest ? [] : undefined;
+
         const decorations = createContentCodeBlockIncrementalParserDecorationSet(
             nodeArray,
             nodePoses,
             results,
+            allDecorationsForTest,
         );
+
+        if (import.meta.jest) {
+            // Expect us to manually build the same decoration set tree that
+            // `DecorationSet.create()` would.
+            assertIsDecorationSetEqualForTest(
+                decorations,
+                DecorationSet.create(doc, assertExists(allDecorationsForTest)),
+            );
+        }
 
         return new ContentCodeBlockIncrementalParser(
             nodeArray,
@@ -332,11 +349,23 @@ export class ContentCodeBlockIncrementalParser {
         if (isUnchanged) {
             newDecorations = this.decorations.map(mapping, doc);
         } else {
+            const allDecorationsForTest = import.meta.jest ? [] : undefined;
+
             newDecorations = createContentCodeBlockIncrementalParserDecorationSet(
                 newNodeArray,
                 newNodePoses,
                 newResults,
+                allDecorationsForTest,
             );
+
+            if (import.meta.jest) {
+                // Expect us to manually build the same decoration set tree that
+                // `DecorationSet.create()` would.
+                assertIsDecorationSetEqualForTest(
+                    newDecorations,
+                    DecorationSet.create(doc, assertExists(allDecorationsForTest)),
+                );
+            }
         }
 
         return new ContentCodeBlockIncrementalParser(
@@ -528,6 +557,7 @@ function createContentCodeBlockIncrementalParserDecorationSet(
     nodes: ReadonlyArray<Node>,
     poses: ReadonlyArray<number>,
     results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
+    allDecorations?: Array<Decoration>,
 ): DecorationSet {
     const rootDecorations: Array<Decoration> = [];
     const rootChildDecorations: Array<number | DecorationSet> = [];
@@ -551,35 +581,93 @@ function createContentCodeBlockIncrementalParserDecorationSet(
             const lineNodeDecorations: Array<Decoration> = [];
 
             for (const highlight of highlights) {
-                const decoration = Decoration.inline(
-                    pos + 2 + highlight.from,
-                    pos + 2 + highlight.to,
-                    {
+                if (allDecorations !== undefined) {
+                    allDecorations.push(
+                        Decoration.inline(pos + 2 + highlight.from, pos + 2 + highlight.to, {
+                            nodeName: "span",
+                            class: highlight.classes,
+                        }),
+                    );
+                }
+
+                lineNodeDecorations.push(
+                    Decoration.inline(highlight.from - relativePos, highlight.to - relativePos, {
                         nodeName: "span",
                         class: highlight.classes,
-                    },
+                    }),
                 );
-
-                rootDecorations.push(decoration);
-                nodeDecorations.push(decoration);
-                lineNodeDecorations.push(decoration);
             }
 
-            nodeChildDecorations.push(
-                relativePos + 1,
-                relativePos + 1 + lineNode.nodeSize,
-                new DecorationSet(lineNodeDecorations, emptyArray),
-            );
+            if (lineNodeDecorations.length > 0) {
+                nodeChildDecorations.push(
+                    relativePos,
+                    relativePos + lineNode.nodeSize,
+                    new DecorationSet(lineNodeDecorations, emptyArray),
+                );
+            }
 
             relativePos += lineNode.nodeSize;
         }
 
-        rootChildDecorations.push(
-            pos + 1,
-            pos + 1 + node.nodeSize,
-            new DecorationSet(nodeDecorations, nodeChildDecorations),
-        );
+        if (nodeChildDecorations.length > 0) {
+            rootChildDecorations.push(
+                pos,
+                pos + node.nodeSize,
+                new DecorationSet(nodeDecorations, nodeChildDecorations),
+            );
+        }
     }
 
     return new DecorationSet(rootDecorations, rootChildDecorations);
+}
+
+function assertIsDecorationSetEqualForTest(
+    actualDecorations: DecorationSet,
+    expectedDecorations: DecorationSet,
+) {
+    assert(import.meta.jest);
+
+    assert(
+        actualDecorations.local.length === expectedDecorations.local.length,
+        `\`actualDecorations.local.length === expectedDecorations.local.length\` (\`${actualDecorations.local.length} === ${expectedDecorations.local.length}\`)`,
+    );
+
+    for (let i = 0; i < actualDecorations.local.length; i++) {
+        const actualDecoration = actualDecorations.local[i]!;
+        const expectedDecoration = expectedDecorations.local[i]!;
+
+        assert(
+            actualDecoration.from === expectedDecoration.from,
+            `\`actualDecoration.from === expectedDecoration.from\` (\`${actualDecoration.from} === ${expectedDecoration.from}\`)`,
+        );
+        assert(
+            actualDecoration.to === expectedDecoration.to,
+            `\`actualDecoration.to === expectedDecoration.to\` (\`${actualDecoration.to} === ${expectedDecoration.to}\`)`,
+        );
+        assert(isDeepEqual(actualDecoration.spec, expectedDecoration.spec));
+    }
+
+    assert(
+        actualDecorations.children.length === expectedDecorations.children.length,
+        `\`actualDecorations.children.length === expectedDecorations.children.length\` (\`${actualDecorations.children.length} === ${expectedDecorations.children.length}\`)`,
+    );
+
+    for (let i = 0; i < actualDecorations.children.length; i++) {
+        const actualChildDecorations = actualDecorations.children[i]!;
+        const expectedChildDecorations = expectedDecorations.children[i]!;
+
+        if (typeof actualChildDecorations === "number") {
+            assert(typeof expectedChildDecorations === "number");
+
+            assert(
+                actualChildDecorations === expectedChildDecorations,
+                `\`actualChildDecorations === expectedChildDecorations\` (\`${actualChildDecorations} === ${expectedChildDecorations}\`)`,
+            );
+        } else {
+            assert(typeof actualChildDecorations === "object");
+            assert(typeof expectedChildDecorations === "object");
+
+            assertIsDecorationSetEqualForTest(actualChildDecorations, expectedChildDecorations);
+        }
+    }
 }

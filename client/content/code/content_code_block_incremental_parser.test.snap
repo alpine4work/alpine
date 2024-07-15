@@ -1,5 +1,167 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug) 1`] = `
+"<h1><br /></h1>
+<div data-scrollbar="false">
+  <code>
+    <div>
+      <div>
+        <span class="tok-keyword">enum</span>
+        <span class="tok-typeName">LinkedList</span>
+        &lt;
+        <span class="tok-typeName">T</span>
+        &gt;
+        <span class="tok-punctuation">{</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">None</span>
+        <span class="tok-punctuation">,</span>
+      </div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-variableName">Cons</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-typeName">T</span>
+        <span class="tok-punctuation">,</span>
+        <span class="tok-typeName">Box</span>
+        &lt;
+        <span class="tok-typeName">LinkedList</span>
+        &lt;
+        <span class="tok-typeName">T</span>
+        &gt;&gt;
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">,</span>
+      </div>
+    </div>
+    <div>
+      <div><span class="tok-punctuation">}</span></div>
+    </div>
+    <div>
+      <div><br /></div>
+    </div>
+    <div>
+      <div>
+        <span class="tok-macroName">println</span>
+        <span class="tok-macroName">!</span>
+        <span class="tok-punctuation">(</span>
+        <span class="tok-string">"hi"</span>
+        <span class="tok-punctuation">)</span>
+        <span class="tok-punctuation">;</span>
+      </div>
+    </div>
+  </code>
+</div>
+<p><br /></p>
+<div data-scrollbar="false">
+  <code>
+    <div>
+      <div>
+        <span class="tok-punctuation">&lt;</span>
+        <span class="tok-typeName">div</span>
+        <span class="tok-punctuation">&gt;</span>
+        Hi!
+        <span class="tok-punctuation">&lt;/</span>
+        <span class="tok-typeName">div</span>
+        <span class="tok-punctuation">&gt;</span>
+      </div>
+    </div>
+  </code>
+</div>
+<p><br /></p>
+<p><br /></p>
+<p>asdfasdf</p>
+"
+`;
+
+exports[`can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug) 2`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -54,17 +54,9 @@
+ <p><br /></p>
+ <div data-scrollbar="false">
+   <code>
+     <div>
+-      <div>
+-        <span class="tok-punctuation">&lt;</span>
+-        <span class="tok-typeName">div</span>
+-        <span class="tok-punctuation">&gt;</span>
+-        Hi!
+-        <span class="tok-punctuation">&lt;/</span>
+-        <span class="tok-typeName">div</span>
+-        <span class="tok-punctuation">&gt;</span>
+-      </div>
++      <div><br /></div>
+     </div>
+   </code>
+ </div>
+ <p><br /></p>
+"
+`;
+
+exports[`can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug) 3`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -51,22 +51,7 @@
+     </div>
+   </code>
+ </div>
+ <p><br /></p>
+-<div data-scrollbar="false">
+-  <code>
+-    <div>
+-      <div>
+-        <span class="tok-punctuation">&lt;</span>
+-        <span class="tok-typeName">div</span>
+-        <span class="tok-punctuation">&gt;</span>
+-        Hi!
+-        <span class="tok-punctuation">&lt;/</span>
+-        <span class="tok-typeName">div</span>
+-        <span class="tok-punctuation">&gt;</span>
+-      </div>
+-    </div>
+-  </code>
+-</div>
+ <p><br /></p>
+ <p><br /></p>
+ <p>asdfasdf</p>
+"
+`;
+
+exports[`can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug) 4`] = `
+"===================================================================
+--- old.html
++++ new.html
+@@ -51,22 +51,6 @@
+     </div>
+   </code>
+ </div>
+ <p><br /></p>
+-<div data-scrollbar="false">
+-  <code>
+-    <div>
+-      <div>
+-        <span class="tok-punctuation">&lt;</span>
+-        <span class="tok-typeName">div</span>
+-        <span class="tok-punctuation">&gt;</span>
+-        Hi!
+-        <span class="tok-punctuation">&lt;/</span>
+-        <span class="tok-typeName">div</span>
+-        <span class="tok-punctuation">&gt;</span>
+-      </div>
+-    </div>
+-  </code>
+-</div>
+ <p><br /></p>
+-<p><br /></p>
+ <p>asdfasdf</p>
+"
+`;
+
 exports[`can highlight syntax after adding a new line 1`] = `
 "===================================================================
 --- old.html

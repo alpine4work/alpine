@@ -2,6 +2,7 @@ import {Parser} from "@lezer/common";
 import {highlightTree} from "@lezer/highlight";
 import {createTwoFilesPatch} from "diff";
 import * as prettier from "prettier";
+import {Node} from "prosemirror-model";
 import {EditorState, Plugin} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
@@ -14,7 +15,7 @@ import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/doc
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-const doc = schema.nodeFromJSON({
+const doc1 = schema.nodeFromJSON({
     type: "doc",
     content: [
         {type: "title"},
@@ -383,7 +384,7 @@ const doc = schema.nodeFromJSON({
     ],
 });
 
-function createView() {
+function createView(doc: Node = doc1) {
     return new EditorView(null, {
         state: EditorState.create({
             doc,
@@ -454,7 +455,7 @@ function printHtml(element: HTMLElement): string {
     });
 }
 
-async function printHtmlDiff(oldElement: HTMLElement, newElement: HTMLElement): Promise<string> {
+function printHtmlDiff(oldElement: HTMLElement, newElement: HTMLElement): string {
     const oldHtml = printHtml(oldElement);
     const newHtml = printHtml(newElement);
 
@@ -464,31 +465,58 @@ async function printHtmlDiff(oldElement: HTMLElement, newElement: HTMLElement): 
 const mockedHighlightTree = import.meta.jest.fn(highlightTree);
 setMockedHighlightTreeForTest(mockedHighlightTree);
 
-let mockedParse: jest.Mock<ReturnType<Parser["parse"]>, Parameters<Parser["parse"]>>;
+let mockedTypescriptParse: jest.Mock<ReturnType<Parser["parse"]>, Parameters<Parser["parse"]>>;
+let mockedJavascriptParse: jest.Mock<ReturnType<Parser["parse"]>, Parameters<Parser["parse"]>>;
+let mockedRustParse: jest.Mock<ReturnType<Parser["parse"]>, Parameters<Parser["parse"]>>;
 
 // Returns a boolean for each mocked parse call. `true` if the call was an
 // incremental parse.
-function getMockedParseCalls() {
-    return mockedParse.mock.calls.map(call => Array.isArray(call[1]));
+function getMockedTypescriptParseCalls() {
+    return mockedTypescriptParse.mock.calls.map(call => Array.isArray(call[1]));
+}
+
+// Returns a boolean for each mocked parse call. `true` if the call was an
+// incremental parse.
+function getMockedJavascriptParseCalls() {
+    return mockedJavascriptParse.mock.calls.map(call => Array.isArray(call[1]));
+}
+
+// Returns a boolean for each mocked parse call. `true` if the call was an
+// incremental parse.
+function getMockedRustParseCalls() {
+    return mockedRustParse.mock.calls.map(call => Array.isArray(call[1]));
 }
 
 beforeAll(async () => {
-    const parser = assertExists(await contentCodeBlockLanguageById.typescript.parser?.load());
+    const typescriptParser = assertExists(
+        await contentCodeBlockLanguageById.typescript.parser?.load(),
+    );
+    const javascriptParser = assertExists(
+        await contentCodeBlockLanguageById.javascript.parser?.load(),
+    );
+    const rustParser = assertExists(await contentCodeBlockLanguageById.rust.parser?.load());
 
-    // Mock the parse function.
-    mockedParse = import.meta.jest.fn(parser.parse.bind(parser));
-    parser.parse = mockedParse;
+    // Mock parse functions.
+
+    mockedTypescriptParse = import.meta.jest.fn(typescriptParser.parse.bind(typescriptParser));
+    typescriptParser.parse = mockedTypescriptParse;
+
+    mockedJavascriptParse = import.meta.jest.fn(javascriptParser.parse.bind(javascriptParser));
+    javascriptParser.parse = mockedJavascriptParse;
+
+    mockedRustParse = import.meta.jest.fn(rustParser.parse.bind(rustParser));
+    rustParser.parse = mockedRustParse;
 });
 
 test("can initially highlight syntax", () => {
     const view = createView();
 
-    expect(getMockedParseCalls()).toEqual([false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
 
     expect(printHtml(view.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after updating a single line", async () => {
+test("can highlight syntax after updating a single line", () => {
     const steps = [
         {stepType: "replace", from: 1804, to: 1805},
         {stepType: "replace", from: 1804, to: 1804, slice: {content: [{type: "text", text: "2"}]}},
@@ -505,10 +533,10 @@ test("can highlight syntax after updating a single line", async () => {
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
-    expect(getMockedParseCalls()).toEqual([false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
     const view2 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
     const transaction = view2.state.tr;
     for (const step of steps) transaction.step(step);
@@ -516,12 +544,12 @@ test("can highlight syntax after updating a single line", async () => {
 
     // Make sure we performed an incremental parse instead of a full parse.
     expect(mockedHighlightTree).toHaveBeenCalledTimes(151);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false, true]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after adding a new line", async () => {
+test("can highlight syntax after adding a new line", () => {
     const steps = [
         {
             stepType: "replace",
@@ -584,10 +612,10 @@ test("can highlight syntax after adding a new line", async () => {
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
-    expect(getMockedParseCalls()).toEqual([false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
     const view2 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
     const transaction = view2.state.tr;
     for (const step of steps) transaction.step(step);
@@ -595,12 +623,12 @@ test("can highlight syntax after adding a new line", async () => {
 
     // Make sure we performed an incremental parse instead of a full parse.
     expect(mockedHighlightTree).toHaveBeenCalledTimes(153);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false, true]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after deleting line", async () => {
+test("can highlight syntax after deleting line", () => {
     const steps = [
         {
             stepType: "replace",
@@ -612,10 +640,10 @@ test("can highlight syntax after deleting line", async () => {
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
-    expect(getMockedParseCalls()).toEqual([false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
     const view2 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
     const transaction = view2.state.tr;
     for (const step of steps) transaction.step(step);
@@ -623,12 +651,12 @@ test("can highlight syntax after deleting line", async () => {
 
     // Make sure we performed an incremental parse instead of a full parse.
     expect(mockedHighlightTree).toHaveBeenCalledTimes(151);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false, true]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after updating multiple lines", async () => {
+test("can highlight syntax after updating multiple lines", () => {
     const steps = [
         {stepType: "replace", from: 2014, to: 2014, slice: {content: [{type: "text", text: "{"}]}},
         {stepType: "replace", from: 2202, to: 2202, slice: {content: [{type: "text", text: "}"}]}},
@@ -636,10 +664,10 @@ test("can highlight syntax after updating multiple lines", async () => {
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
-    expect(getMockedParseCalls()).toEqual([false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
     const view2 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
     const transaction = view2.state.tr;
     for (const step of steps) transaction.step(step);
@@ -647,12 +675,12 @@ test("can highlight syntax after updating multiple lines", async () => {
 
     // Make sure we performed an incremental parse instead of a full parse.
     expect(mockedHighlightTree).toHaveBeenCalledTimes(152);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false, true]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, true]);
 
-    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after inserting a code block", async () => {
+test("can highlight syntax after inserting a code block", () => {
     const steps = [
         {
             stepType: "replace",
@@ -699,10 +727,10 @@ test("can highlight syntax after inserting a code block", async () => {
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
-    expect(getMockedParseCalls()).toEqual([false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
     const view2 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
     const transaction = view2.state.tr;
     for (const step of steps) transaction.step(step);
@@ -710,12 +738,12 @@ test("can highlight syntax after inserting a code block", async () => {
 
     // Make sure we performed an incremental parse instead of a full parse.
     expect(mockedHighlightTree).toHaveBeenCalledTimes(151);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false, false]);
 
-    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
 
-test("can highlight syntax after deleting a code block", async () => {
+test("can highlight syntax after deleting a code block", () => {
     const steps = [
         {stepType: "replace", from: 344, to: 1204},
         {stepType: "replace", from: 342, to: 346},
@@ -723,10 +751,10 @@ test("can highlight syntax after deleting a code block", async () => {
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
-    expect(getMockedParseCalls()).toEqual([false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false]);
     const view2 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
     const transaction = view2.state.tr;
     for (const step of steps) transaction.step(step);
@@ -734,7 +762,99 @@ test("can highlight syntax after deleting a code block", async () => {
 
     // Make sure we performed an incremental parse instead of a full parse.
     expect(mockedHighlightTree).toHaveBeenCalledTimes(150);
-    expect(getMockedParseCalls()).toEqual([false, false, false, false]);
+    expect(getMockedTypescriptParseCalls()).toEqual([false, false, false, false]);
 
-    expect(await printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+});
+
+test("can delete multiple lines between two code blocks adjacent to each other (repro for syntax highlighting bug)", () => {
+    const doc2 = schema.nodeFromJSON({
+        type: "doc",
+        content: [
+            {type: "title"},
+            {
+                type: "codeBlock",
+                attrs: {language: "rust"},
+                content: [
+                    {
+                        type: "codeBlockLine",
+                        content: [{type: "text", text: "enum LinkedList<T> {"}],
+                    },
+                    {type: "codeBlockLine", content: [{type: "text", text: "  None,"}]},
+                    {
+                        type: "codeBlockLine",
+                        content: [{type: "text", text: "  Cons(T, Box<LinkedList<T>>),"}],
+                    },
+                    {type: "codeBlockLine", content: [{type: "text", text: "}"}]},
+                    {type: "codeBlockLine"},
+                    {type: "codeBlockLine", content: [{type: "text", text: 'println!("hi");'}]},
+                ],
+            },
+            {type: "paragraph"},
+            {
+                type: "codeBlock",
+                attrs: {language: "javascript"},
+                content: [
+                    {type: "codeBlockLine", content: [{type: "text", text: "<div>Hi!</div>"}]},
+                ],
+            },
+            {type: "paragraph"},
+            {type: "paragraph"},
+            {type: "paragraph", content: [{type: "text", text: "asdfasdf"}]},
+        ],
+    });
+
+    const view1 = createView(doc2);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(7);
+    expect(getMockedRustParseCalls()).toEqual([false]);
+    expect(getMockedJavascriptParseCalls()).toEqual([false]);
+
+    expect(printHtml(view1.dom)).toMatchSnapshot();
+
+    const view2 = createView(doc2);
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(14);
+    expect(getMockedRustParseCalls()).toEqual([false, false]);
+    expect(getMockedJavascriptParseCalls()).toEqual([false, false]);
+
+    const steps1 = [{stepType: "replace", from: 93, to: 107}].map(step =>
+        Step.fromJSON(schema, step),
+    );
+
+    const steps2 = [{stepType: "replace", from: 91, to: 95}].map(step =>
+        Step.fromJSON(schema, step),
+    );
+
+    const steps3 = [{stepType: "replace", from: 89, to: 91}].map(step =>
+        Step.fromJSON(schema, step),
+    );
+
+    const transaction1 = view2.state.tr;
+    for (const step of steps1) transaction1.step(step);
+    view2.dispatch(transaction1);
+
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(15);
+    expect(getMockedRustParseCalls()).toEqual([false, false]);
+    expect(getMockedJavascriptParseCalls()).toEqual([false, false, true]);
+
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+
+    const transaction2 = view2.state.tr;
+    for (const step of steps2) transaction2.step(step);
+    view2.dispatch(transaction2);
+
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(15);
+    expect(getMockedRustParseCalls()).toEqual([false, false]);
+    expect(getMockedJavascriptParseCalls()).toEqual([false, false, true]);
+
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
+
+    const transaction3 = view2.state.tr;
+    for (const step of steps3) transaction3.step(step);
+    view2.dispatch(transaction3);
+
+    expect(mockedHighlightTree).toHaveBeenCalledTimes(15);
+    expect(getMockedRustParseCalls()).toEqual([false, false]);
+    expect(getMockedJavascriptParseCalls()).toEqual([false, false, true]);
+
+    expect(printHtmlDiff(view1.dom, view2.dom)).toMatchSnapshot();
 });
