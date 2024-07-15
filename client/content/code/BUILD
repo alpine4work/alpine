@@ -38,8 +38,12 @@ ts_project(
         "//:node_modules/@replit/codemirror-lang-csharp",
         "//:node_modules/@replit/codemirror-lang-solidity",
         "//:node_modules/lezer-elixir",
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-transform",
+        "//:node_modules/prosemirror-view",
         "//shared/content",
         "//shared/error",
         "//shared/helpers",
+        "//shared/tracer",
     ],
 )

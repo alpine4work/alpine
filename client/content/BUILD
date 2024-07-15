@@ -26,6 +26,7 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/react-aria",
         "//:node_modules/react-router-dom",
+        "//:node_modules/react-stately",
         "//client/accounts",
         "//client/content/code",
         "//client/design",

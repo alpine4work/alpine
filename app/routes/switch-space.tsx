@@ -50,7 +50,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
         <SpaceRouteScrollView
             withMobileLayout={isMobile}
             title="Switch space"
-            titleJustifyContents="center"
+            titleJustifyContent="center"
             desktopMaxWidth={maxWidth}
             withoutDisappearingTitle
         >

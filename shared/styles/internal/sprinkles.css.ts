@@ -26,6 +26,7 @@ import {
     spacing,
 } from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css.js";
 import {
     CssVarFunction,
@@ -35,7 +36,6 @@ import {
 } from "~/shared/styles/internal/color_scheme.css.js";
 import {elevationVars} from "~/shared/styles/internal/elevation.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 const properties = defineProperties({
     properties: {
