@@ -2,10 +2,13 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
+import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
+import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
@@ -23,18 +26,6 @@ import {
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
-const {
-    docClassName,
-    checkListItemCheckboxContainerClassName,
-    checkListItemCheckboxClassName,
-    checkListItemCheckboxIconClassName,
-    checkListItemContentClassName,
-    mentionClassName,
-    currentAccountMentionClassName,
-    mentionAtClassName,
-    mentionTextClassName,
-} = contentSchemaStyles;
-
 /**
  * Renders content from `content_schema.tsx` into HTML. Contains all the same
  * custom node renderers as `<ContentEditor>` so you get the same HTML as you
@@ -49,7 +40,7 @@ export function renderContentToHtmlStore(
     },
 ): Store<string> {
     return renderContentFragmentToHtmlStore(content, options).map(fragmentHtml => {
-        return `<div class="${docClassName}">${fragmentHtml}</div>`;
+        return `<div class="${contentSchemaStyles.docClassName}">${fragmentHtml}</div>`;
     });
 }
 
@@ -110,7 +101,7 @@ export function renderContentFragmentToHtmlStore(
                     // all list items in this node's parent and try checking for the number again.
                     // The number must be present.
                     if (listItemNumber === undefined) {
-                        const $pos = content.doc.resolve(pos);
+                        const $pos = content.doc.resolve(pos + 1);
                         assert($pos.parent === node && $pos.parentOffset === 0);
 
                         const parentNode = $pos.node($pos.depth - 1);
@@ -135,15 +126,20 @@ export function renderContentFragmentToHtmlStore(
                     html.appendChild(checkboxContainerHtml);
                     checkboxContainerHtml.setAttribute(
                         "class",
-                        checkListItemCheckboxContainerClassName,
+                        contentSchemaStyles.checkListItemCheckboxContainerClassName,
                     );
 
                     const checkboxHtml = new HtmlElementGenerator("div");
                     checkboxContainerHtml.appendChild(checkboxHtml);
-                    checkboxHtml.setAttribute("class", checkListItemCheckboxClassName);
+                    checkboxHtml.setAttribute(
+                        "class",
+                        contentSchemaStyles.checkListItemCheckboxClassName,
+                    );
                     checkboxHtml.appendChild({
                         generateHtml: () =>
-                            checkIconSvg({className: checkListItemCheckboxIconClassName}),
+                            checkIconSvg({
+                                className: contentSchemaStyles.checkListItemCheckboxIconClassName,
+                            }),
                         generateNode: () => {
                             throw new UnimplementedError(
                                 "DOM node generation unimplemented for icon SVG",
@@ -153,7 +149,95 @@ export function renderContentFragmentToHtmlStore(
 
                     const contentHtml = new HtmlElementGenerator("div");
                     html.appendChild(contentHtml);
-                    contentHtml.setAttribute("class", checkListItemContentClassName);
+                    contentHtml.setAttribute(
+                        "class",
+                        contentSchemaStyles.checkListItemContentClassName,
+                    );
+
+                    return {html, contentHtml};
+                },
+                codeBlock: (node, pos) => {
+                    // IMPORTANT: Any change you make to this function also likely must be made to
+                    // the `codeBlock` node view in `content_editor_code_block_node_view.ts`.
+
+                    const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
+                    const language = contentCodeBlockLanguageById[languageId];
+
+                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                        node.type.spec.toDOM!(node),
+                    );
+
+                    assert(html instanceof HtmlElementGenerator && html.tagName === "pre");
+                    assert(
+                        contentHtml instanceof HtmlElementGenerator &&
+                            contentHtml.tagName === "code",
+                    );
+                    assert(html.childElementCount === 1);
+                    assert(html.firstElementChild === contentHtml);
+
+                    const toolbarHtml = new HtmlElementGenerator("div");
+                    html.insertBefore(toolbarHtml, contentHtml);
+                    toolbarHtml.setAttribute(
+                        "class",
+                        contentSchemaStyles.codeBlockToolbarClassName,
+                    );
+
+                    const toolbarFlexHtml = new HtmlElementGenerator("div");
+                    toolbarHtml.appendChild(toolbarFlexHtml);
+                    toolbarFlexHtml.setAttribute(
+                        "class",
+                        contentSchemaStyles.codeBlockToolbarFlexClassName,
+                    );
+
+                    const toolbarOverflowGradientHtml = new HtmlElementGenerator("div");
+                    toolbarFlexHtml.appendChild(toolbarOverflowGradientHtml);
+                    toolbarOverflowGradientHtml.setAttribute(
+                        "class",
+                        contentSchemaStyles.codeBlockToolbarOverflowGradientClassName,
+                    );
+
+                    {
+                        const languagePickerHtml = new HtmlElementGenerator("div");
+                        toolbarFlexHtml.appendChild(languagePickerHtml);
+                        languagePickerHtml.setAttribute(
+                            "class",
+                            contentSchemaStyles.codeBlockLanguagePickerClassName,
+                        );
+
+                        const languagePickerTextHtml = new HtmlElementGenerator("div");
+                        languagePickerHtml.appendChild(languagePickerTextHtml);
+                        languagePickerTextHtml.setAttribute(
+                            "class",
+                            contentSchemaStyles.codeBlockLanguagePickerTextClassName,
+                        );
+
+                        languagePickerTextHtml.appendChild(new HtmlTextGenerator(language.name));
+                    }
+
+                    {
+                        // NOCOMMIT: Don't render on mobile. Reduce `codeBlockToolbarMaxWidth` by 6 on mobile as well.
+                        const copyButtonHtml = new HtmlElementGenerator("div");
+                        toolbarFlexHtml.appendChild(copyButtonHtml);
+                        copyButtonHtml.setAttribute(
+                            "class",
+                            contentSchemaStyles.codeBlockCopyButtonClassName,
+                        );
+                        copyButtonHtml.appendChild({
+                            generateHtml: () =>
+                                clipboardTextIconSvg({
+                                    className: contentSchemaStyles.codeBlockCopyButtonIconClassName,
+                                }),
+                            generateNode: () => {
+                                throw new UnimplementedError(
+                                    "DOM node generation unimplemented for icon SVG",
+                                );
+                            },
+                        });
+
+                        // Include the position the code block is rendered at so our press
+                        // implementation is able to find the code block node from the HTML.
+                        copyButtonHtml.setAttribute("data-pos", pos);
+                    }
 
                     return {html, contentHtml};
                 },
@@ -174,19 +258,20 @@ export function renderContentFragmentToHtmlStore(
                     element.setAttribute(
                         "class",
                         classNames(
-                            mentionClassName,
-                            isCurrentAccountMention && currentAccountMentionClassName,
+                            contentSchemaStyles.mentionClassName,
+                            isCurrentAccountMention &&
+                                contentSchemaStyles.currentAccountMentionClassName,
                         ),
                     );
 
                     const atElement = new HtmlElementGenerator("span");
                     element.appendChild(atElement);
-                    atElement.setAttribute("class", mentionAtClassName);
+                    atElement.setAttribute("class", contentSchemaStyles.mentionAtClassName);
                     atElement.appendChild(new HtmlTextGenerator("@"));
 
                     const textElement = new HtmlElementGenerator("span");
                     element.appendChild(textElement);
-                    textElement.setAttribute("class", mentionTextClassName);
+                    textElement.setAttribute("class", contentSchemaStyles.mentionTextClassName);
                     textElement.appendChild(
                         new HtmlTextGenerator(
                             get(

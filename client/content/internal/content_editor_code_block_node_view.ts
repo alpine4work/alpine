@@ -1,5 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeViewConstructor, serializeForClipboard} from "prosemirror-view";
+import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
@@ -13,13 +14,13 @@ import {
 import {Reporter} from "~/client/design/reporter.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
-import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {backgroundColorVar, contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
+// IMPORTANT: Any change you make to this function also likely must be made to
+// the `codeBlock` node renderer in `renderContentInHtml()`.
 export function createContentEditorCodeBlockNodeViewConstructor({
     getReporter,
     onCodeBlockLanguagePickerOpen,
@@ -56,74 +57,28 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         const toolbarElement = document.createElement("div");
         element.insertBefore(toolbarElement, contentElement);
         toolbarElement.contentEditable = "false";
-        toolbarElement.className = sprinkles({
-            pointerEvents: "none",
-            zIndex: "20",
-            position: "sticky",
-            left: "0",
-            height: "0",
-            width: "full",
-            // Override `cursor: text` and `user-select: text` set on the content editor.
-            cursor: "auto",
-            userSelect: "none",
-        });
+        toolbarElement.className = contentSchemaStyles.codeBlockToolbarClassName;
 
         const toolbarFlexElement = document.createElement("div");
         toolbarElement.appendChild(toolbarFlexElement);
-        toolbarFlexElement.className = sprinkles({
-            pointerEvents: "auto",
-            position: "absolute",
-            top: "0",
-            right: "0",
-            height: contentSchemaStyles.codeBlockToolbarHeight,
-            paddingLeft: "1.5",
-            paddingRight: contentSchemaStyles.blockPaddingX,
-            display: "flex",
-            alignItems: "center",
-        });
-        toolbarFlexElement.style.backgroundColor = backgroundColorVar;
-        toolbarFlexElement.style.maxWidth = subtractRemLengths(
-            contentSchemaStyles.codeBlockToolbarMaxWidth,
-            // The overflow gradient is rendered absolutely out of this element's layout
-            // but we still want to consider it as a part of the max width.
-            spacing[contentSchemaStyles.codeBlockPaddingRight],
-        );
+        toolbarFlexElement.className = contentSchemaStyles.codeBlockToolbarFlexClassName;
 
         const toolbarOverflowGradientElement = document.createElement("div");
         toolbarFlexElement.appendChild(toolbarOverflowGradientElement);
-        toolbarOverflowGradientElement.className = sprinkles({
-            pointerEvents: "none",
-            position: "absolute",
-            top: "0",
-            bottom: "0",
-            left: `-${contentSchemaStyles.codeBlockPaddingRight}`,
-            width: contentSchemaStyles.codeBlockPaddingRight,
-        });
-        toolbarOverflowGradientElement.style.background = `linear-gradient(to left, ${backgroundColorVar}, transparent)`;
+        toolbarOverflowGradientElement.className =
+            contentSchemaStyles.codeBlockToolbarOverflowGradientClassName;
 
         {
             const languagePickerElement = document.createElement("div");
             toolbarFlexElement.appendChild(languagePickerElement);
-            languagePickerElement.className = sprinkles({
-                height: contentSchemaStyles.codeBlockToolbarHeight,
-                paddingX: "1.5",
-                display: "flex",
-                alignItems: "center",
-                borderRadius: "1",
-                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                // have `min-width: auto` which extends with content.
-                // https://stackoverflow.com/a/66689926/1568890
-                minWidth: "0",
-            });
+            languagePickerElement.className = contentSchemaStyles.codeBlockLanguagePickerClassName;
 
-            const languagePickerElementText = document.createElement("div");
-            languagePickerElement.appendChild(languagePickerElementText);
-            languagePickerElementText.className = sprinkles({
-                fontStyle: "truncate",
-                fontSize: "75",
-            });
+            const languagePickerTextElement = document.createElement("div");
+            languagePickerElement.appendChild(languagePickerTextElement);
+            languagePickerTextElement.className =
+                contentSchemaStyles.codeBlockLanguagePickerTextClassName;
 
-            languagePickerElementText.appendChild(document.createTextNode(language.name));
+            languagePickerTextElement.appendChild(document.createTextNode(language.name));
 
             // We don't need to cleanup event listeners on DOM nodes created for this
             // node view.
@@ -153,20 +108,9 @@ export function createContentEditorCodeBlockNodeViewConstructor({
             // NOCOMMIT: Don't render on mobile. Reduce `codeBlockToolbarMaxWidth` by 6 on mobile as well.
             const copyButtonElement = document.createElement("div");
             toolbarFlexElement.appendChild(copyButtonElement);
-            copyButtonElement.className = sprinkles({
-                flexShrink: "0",
-                width: contentSchemaStyles.codeBlockToolbarHeight,
-                height: contentSchemaStyles.codeBlockToolbarHeight,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                borderRadius: "full",
-            });
+            copyButtonElement.className = contentSchemaStyles.codeBlockCopyButtonClassName;
             copyButtonElement.innerHTML = clipboardTextIconSvg({
-                className: sprinkles({
-                    width: "4",
-                    height: "4",
-                }),
+                className: contentSchemaStyles.codeBlockCopyButtonIconClassName,
             });
 
             let isCodeBlockCopyButtonHovered = false;
@@ -248,7 +192,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
     };
 }
 
-function addUnfocusableButtonBehaviorToElement(
+export function addUnfocusableButtonBehaviorToElement(
     element: HTMLElement,
     {
         defaultClassName = "",

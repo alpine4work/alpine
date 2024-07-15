@@ -267,7 +267,7 @@ function serializeProsemirrorNode(
     if (!node.isText) {
         const nodeRenderer = context.nodeRenderers[node.type.name];
         if (nodeRenderer) {
-            ({html, contentHtml} = nodeRenderer(node, pos));
+            ({html, contentHtml} = nodeRenderer(node, pos - 1));
         } else {
             const toDOM = node.type.spec.toDOM;
             assert(toDOM, `Could not find renderer for node type "${node.type.name}"`);

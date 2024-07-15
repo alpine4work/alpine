@@ -1,3 +1,4 @@
+import {Slice} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
@@ -9,7 +10,11 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 /**
  * Write some content including its rich styles to the clipboard.
  */
-export async function writeContentToClipboard(spaceId: SpaceId, content: ContentWithReferences) {
+export async function writeContentToClipboard(
+    spaceId: SpaceId,
+    content: ContentWithReferences,
+    slice: Slice = content.doc.slice(0),
+) {
     const state = ContentEditorState.create(content)._getInternalState();
     const {schema} = state.doc.type;
 
@@ -29,7 +34,7 @@ export async function writeContentToClipboard(spaceId: SpaceId, content: Content
             ),
     });
 
-    const {dom, text} = serializeForClipboard(view, state.doc.slice(0));
+    const {dom, text} = serializeForClipboard(view, slice);
 
     await navigator.clipboard.write([
         new ClipboardItem({

@@ -1,11 +1,15 @@
 import classNames from "classnames";
-import {Memo, useEffect, useId, useMemo, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
+import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
+import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
-import {Tooltip} from "~/client/design/tooltip.js";
+import {useReporter} from "~/client/design/reporter.js";
+import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -13,30 +17,19 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {contentSchemaStyles, contentViewStyles} from "~/shared/styles/styles.js";
-
-const {
-    docClassName,
-    linkClassName,
-    linkPressedClassName,
-    emptyTitleClassName,
-    emptyBodyClassName,
-    paragraphClassName,
-    emojiClassName,
-    withMobileLayoutDocClassName,
-    compactDocClassName,
-    extraCompactDocClassName,
-} = contentSchemaStyles;
+import {contentSchemaStyles, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * A read-only view of content. Used as a complement to `<ContentEditor>` when
@@ -144,14 +137,14 @@ export function ContentView({
 }) {
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
+    const reporter = useReporter();
 
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
-    const currentAccount =
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        !import.meta.jest ? useSpaceContext().currentAccount : null;
+    const spaceContext = useSpaceContextIfExists();
 
     const ref = useRef<HTMLDivElement>(null);
+    const codeBlockCopyButtonTooltipRef = useRef<TooltipRef>(null);
 
     const [focusedLinkElement, setFocusedLinkElement] = useState<HTMLElement | null>(null);
 
@@ -201,7 +194,10 @@ export function ContentView({
                     html = updatedNoteHtml;
                 } else {
                     const updatedNoteContainerHtml = new HtmlElementGenerator("p");
-                    updatedNoteContainerHtml.setAttribute("class", paragraphClassName);
+                    updatedNoteContainerHtml.setAttribute(
+                        "class",
+                        contentSchemaStyles.paragraphClassName,
+                    );
 
                     const updatedNoteHtml = new HtmlElementGenerator("span");
                     updatedNoteContainerHtml.appendChild(updatedNoteHtml);
@@ -263,7 +259,10 @@ export function ContentView({
                     html = seeButtonContainerHtml;
                 } else {
                     const seeButtonContainerHtml = new HtmlElementGenerator("p");
-                    seeButtonContainerHtml.setAttribute("class", paragraphClassName);
+                    seeButtonContainerHtml.setAttribute(
+                        "class",
+                        contentSchemaStyles.paragraphClassName,
+                    );
 
                     const seeButtonHtml = new HtmlElementGenerator("span");
                     seeButtonContainerHtml.appendChild(seeButtonHtml);
@@ -291,7 +290,7 @@ export function ContentView({
                         to: pos + index + emoji.length,
                         attrs: {
                             nodeName: "span",
-                            class: emojiClassName,
+                            class: contentSchemaStyles.emojiClassName,
                         },
                     });
                 }
@@ -299,7 +298,7 @@ export function ContentView({
 
             return renderContentFragmentToHtmlStore(content, {
                 accountStore,
-                currentAccount,
+                currentAccount: spaceContext?.currentAccount ?? null,
                 placeholder,
                 isInert,
                 decorations,
@@ -314,16 +313,55 @@ export function ContentView({
             content,
             contentUpdatedNoteId,
             contentUpdatedTime,
-            currentAccount,
             isInert,
             placeholder,
             shouldHighlightComment,
             shouldShowSeeLessContentButton,
             shouldShowSeeMoreContentButton,
+            spaceContext?.currentAccount,
         ]),
     );
 
     const navigate = useNavigate();
+
+    const [codeBlockCopyButtonTooltipState, setCodeBlockCopyButtonTooltipState] = useState<{
+        readonly key: Id;
+        readonly targetElement: HTMLElement;
+        readonly wasPressed: boolean;
+    } | null>(null);
+
+    // Whenever this component renders check that `targetElement` is still in the
+    // DOM. If it's not (maybe `attr`s changed or another user removed it) then
+    // reset our state to null.
+    if (
+        codeBlockCopyButtonTooltipState &&
+        !document.body.contains(codeBlockCopyButtonTooltipState.targetElement)
+    ) {
+        setCodeBlockCopyButtonTooltipState(null);
+    }
+
+    const handleCodeBlockCopyButtonHoverStart = useCallback((targetElement: HTMLElement) => {
+        setCodeBlockCopyButtonTooltipState({
+            key: generateId(),
+            targetElement,
+            wasPressed: false,
+        });
+    }, []);
+
+    const handleCodeBlockCopyButtonHoverEnd = useCallback((targetElement: HTMLElement) => {
+        // We intentionally do not remove our tooltip state when the hover ends. Since
+        // we need to wait until the tooltip fades out on its own.
+    }, []);
+
+    const handleCodeBlockCopyButtonPress = useCallback((targetElement: HTMLElement) => {
+        codeBlockCopyButtonTooltipRef.current?.skipTooltipHoverDelayAndAnimation();
+
+        setCodeBlockCopyButtonTooltipState(state =>
+            state?.targetElement === targetElement && !state?.wasPressed
+                ? {...state, wasPressed: true}
+                : state,
+        );
+    }, []);
 
     useEffect(() => {
         if (isInert) return;
@@ -332,191 +370,255 @@ export function ContentView({
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         html;
 
-        const element = assertExists(ref.current);
+        const parentElement = assertExists(ref.current);
 
         const cleanupFunctions: Array<() => void> = [];
 
-        for (const linkElement of element.getElementsByClassName(linkClassName)) {
-            if (!(linkElement instanceof HTMLAnchorElement)) continue;
-
-            let isPointerDownAndOver = false;
-
-            const maybeUpdateStyle = () => {
-                if (isPointerDownAndOver) {
-                    linkElement.classList.add(linkPressedClassName);
-                } else {
-                    linkElement.classList.remove(linkPressedClassName);
-                }
-            };
-
-            const handleClick = (event: MouseEvent) => {
-                const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
-                    event,
-                    getClientInfoWithoutListening(),
-                );
-
-                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                // modifier. Unless the click was meant to open the link in a separate tab. We
-                // need to implement that manually here given the text is editable.
-                if (
-                    (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                    !isOpenLinkInSeparateTabEvent
-                ) {
-                    return;
-                }
-
-                // Must call prevent default here in addition to `pointerdown` to stop mobile
-                // WebKit from following a link after click.
-                event.preventDefault();
-            };
-
-            const handlePointerDown = (event: MouseEvent) => {
-                isPointerDownAndOver =
-                    event.button === 0 &&
-                    (!isModifiedPointerEvent(event) ||
-                        isOpenLinkInSeparateTabPointerEvent(
-                            event,
-                            getClientInfoWithoutListening(),
-                        ));
-
-                maybeUpdateStyle();
-
-                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                // modifier. Unless the click was meant to open the link in a separate tab. We
-                // need to implement that manually here given the text is editable.
-                if (
-                    (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                    !isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
-                ) {
-                    return;
-                }
-
-                // This will be a navigation click if the pointer stays over our element. Don't
-                // select the editable text.
-                event.preventDefault();
-            };
-
-            const handlePointerUp = (event: MouseEvent) => {
-                const wasPointerDownAndOver = isPointerDownAndOver;
-                isPointerDownAndOver = false;
-                maybeUpdateStyle();
-
-                // Only process pointer up events that started on our element.
-                if (!wasPointerDownAndOver) {
-                    return;
-                }
-
-                handleContentLinkClick(event, navigate);
-            };
-
-            const handlePointerLeave = (event: MouseEvent) => {
-                isPointerDownAndOver = false;
-                maybeUpdateStyle();
-            };
-
-            const handleDragStart = (event: DragEvent) => {
-                isPointerDownAndOver = false;
-                maybeUpdateStyle();
-            };
-
-            linkElement.addEventListener("click", handleClick);
-            linkElement.addEventListener("pointerdown", handlePointerDown);
-            linkElement.addEventListener("pointerup", handlePointerUp);
-            linkElement.addEventListener("pointerleave", handlePointerLeave);
-            linkElement.addEventListener("dragstart", handleDragStart);
-            cleanupFunctions.push(() => {
-                linkElement.removeEventListener("click", handleClick);
-                linkElement.removeEventListener("pointerdown", handlePointerDown);
-                linkElement.removeEventListener("pointerup", handlePointerUp);
-                linkElement.removeEventListener("pointerleave", handlePointerLeave);
-                linkElement.removeEventListener("dragstart", handleDragStart);
-            });
-        }
-
-        for (const seeButtonElement of element.getElementsByClassName(
-            contentViewStyles.seeButtonClassName,
+        for (const element of parentElement.querySelectorAll(
+            `.${contentSchemaStyles.linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentSchemaStyles.codeBlockCopyButtonClassName}`,
         )) {
-            if (!(seeButtonElement instanceof HTMLElement)) continue;
+            if (!(element instanceof HTMLElement)) continue;
 
-            let isPointerDownAndOver = false;
+            if (
+                element.classList.contains(contentSchemaStyles.linkClassName) &&
+                element instanceof HTMLAnchorElement
+            ) {
+                let isPointerDownAndOver = false;
 
-            const maybeUpdateStyle = () => {
-                if (isPointerDownAndOver) {
-                    seeButtonElement.classList.add(contentViewStyles.seeButtonPressedClassName);
-                } else {
-                    seeButtonElement.classList.remove(contentViewStyles.seeButtonPressedClassName);
-                }
-            };
+                const maybeUpdateStyle = () => {
+                    if (isPointerDownAndOver) {
+                        element.classList.add(contentSchemaStyles.linkPressedClassName);
+                    } else {
+                        element.classList.remove(contentSchemaStyles.linkPressedClassName);
+                    }
+                };
 
-            const handleClick = (event: MouseEvent) => {
-                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                // modifier. Unless the click was meant to open the link in a separate tab. We
-                // need to implement that manually here given the text is editable.
-                if (event.button !== 0 || isModifiedPointerEvent(event)) {
-                    return;
-                }
+                const handleClick = (event: MouseEvent) => {
+                    const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
+                        event,
+                        getClientInfoWithoutListening(),
+                    );
 
-                // Must call prevent default here in addition to `pointerdown` to stop mobile
-                // WebKit from following a link after click.
-                event.preventDefault();
-            };
+                    // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                    // modifier. Unless the click was meant to open the link in a separate tab. We
+                    // need to implement that manually here given the text is editable.
+                    if (
+                        (event.button !== 0 || isModifiedPointerEvent(event)) &&
+                        !isOpenLinkInSeparateTabEvent
+                    ) {
+                        return;
+                    }
 
-            const handlePointerDown = (event: MouseEvent) => {
-                isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
+                    // Must call prevent default here in addition to `pointerdown` to stop mobile
+                    // WebKit from following a link after click.
+                    event.preventDefault();
+                };
 
-                maybeUpdateStyle();
+                const handlePointerDown = (event: MouseEvent) => {
+                    isPointerDownAndOver =
+                        event.button === 0 &&
+                        (!isModifiedPointerEvent(event) ||
+                            isOpenLinkInSeparateTabPointerEvent(
+                                event,
+                                getClientInfoWithoutListening(),
+                            ));
 
-                // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
-                // modifier. Unless the click was meant to open the link in a separate tab. We
-                // need to implement that manually here given the text is editable.
-                if (event.button !== 0 || isModifiedPointerEvent(event)) {
-                    return;
-                }
+                    maybeUpdateStyle();
 
-                // This will be a navigation click if the pointer stays over our element. Don't
-                // select the editable text.
-                event.preventDefault();
-            };
+                    // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                    // modifier. Unless the click was meant to open the link in a separate tab. We
+                    // need to implement that manually here given the text is editable.
+                    if (
+                        (event.button !== 0 || isModifiedPointerEvent(event)) &&
+                        !isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
+                    ) {
+                        return;
+                    }
 
-            const handlePointerUp = (event: MouseEvent) => {
-                const wasPointerDownAndOver = isPointerDownAndOver;
-                isPointerDownAndOver = false;
-                maybeUpdateStyle();
+                    // This will be a navigation click if the pointer stays over our element. Don't
+                    // select the editable text.
+                    event.preventDefault();
+                };
 
-                // Only process pointer up events that started on our element.
-                if (!wasPointerDownAndOver) {
-                    return;
-                }
+                const handlePointerUp = (event: MouseEvent) => {
+                    const wasPointerDownAndOver = isPointerDownAndOver;
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
 
-                if (shouldShowSeeLessContentButton) {
-                    events.onSeeLessContent();
-                } else if (shouldShowSeeMoreContentButton) {
-                    events.onSeeMoreContent();
-                }
-            };
+                    // Only process pointer up events that started on our element.
+                    if (!wasPointerDownAndOver) {
+                        return;
+                    }
 
-            const handlePointerLeave = (event: MouseEvent) => {
-                isPointerDownAndOver = false;
-                maybeUpdateStyle();
-            };
+                    handleContentLinkClick(event, navigate);
+                };
 
-            const handleDragStart = (event: DragEvent) => {
-                isPointerDownAndOver = false;
-                maybeUpdateStyle();
-            };
+                const handlePointerLeave = (event: MouseEvent) => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
 
-            seeButtonElement.addEventListener("click", handleClick);
-            seeButtonElement.addEventListener("pointerdown", handlePointerDown);
-            seeButtonElement.addEventListener("pointerup", handlePointerUp);
-            seeButtonElement.addEventListener("pointerleave", handlePointerLeave);
-            seeButtonElement.addEventListener("dragstart", handleDragStart);
-            cleanupFunctions.push(() => {
-                seeButtonElement.removeEventListener("click", handleClick);
-                seeButtonElement.removeEventListener("pointerdown", handlePointerDown);
-                seeButtonElement.removeEventListener("pointerup", handlePointerUp);
-                seeButtonElement.removeEventListener("pointerleave", handlePointerLeave);
-                seeButtonElement.removeEventListener("dragstart", handleDragStart);
-            });
+                const handleDragStart = (event: DragEvent) => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
+
+                element.addEventListener("click", handleClick);
+                element.addEventListener("pointerdown", handlePointerDown);
+                element.addEventListener("pointerup", handlePointerUp);
+                element.addEventListener("pointerleave", handlePointerLeave);
+                element.addEventListener("dragstart", handleDragStart);
+                cleanupFunctions.push(() => {
+                    element.removeEventListener("click", handleClick);
+                    element.removeEventListener("pointerdown", handlePointerDown);
+                    element.removeEventListener("pointerup", handlePointerUp);
+                    element.removeEventListener("pointerleave", handlePointerLeave);
+                    element.removeEventListener("dragstart", handleDragStart);
+                });
+            }
+
+            if (element.classList.contains(contentViewStyles.seeButtonClassName)) {
+                let isPointerDownAndOver = false;
+
+                const maybeUpdateStyle = () => {
+                    if (isPointerDownAndOver) {
+                        element.classList.add(contentViewStyles.seeButtonPressedClassName);
+                    } else {
+                        element.classList.remove(contentViewStyles.seeButtonPressedClassName);
+                    }
+                };
+
+                const handleClick = (event: MouseEvent) => {
+                    // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                    // modifier. Unless the click was meant to open the link in a separate tab. We
+                    // need to implement that manually here given the text is editable.
+                    if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                        return;
+                    }
+
+                    // Must call prevent default here in addition to `pointerdown` to stop mobile
+                    // WebKit from following a link after click.
+                    event.preventDefault();
+                };
+
+                const handlePointerDown = (event: MouseEvent) => {
+                    isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
+
+                    maybeUpdateStyle();
+
+                    // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+                    // modifier. Unless the click was meant to open the link in a separate tab. We
+                    // need to implement that manually here given the text is editable.
+                    if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                        return;
+                    }
+
+                    // This will be a navigation click if the pointer stays over our element. Don't
+                    // select the editable text.
+                    event.preventDefault();
+                };
+
+                const handlePointerUp = (event: MouseEvent) => {
+                    const wasPointerDownAndOver = isPointerDownAndOver;
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+
+                    // Only process pointer up events that started on our element.
+                    if (!wasPointerDownAndOver) {
+                        return;
+                    }
+
+                    if (shouldShowSeeLessContentButton) {
+                        events.onSeeLessContent();
+                    } else if (shouldShowSeeMoreContentButton) {
+                        events.onSeeMoreContent();
+                    }
+                };
+
+                const handlePointerLeave = (event: MouseEvent) => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
+
+                const handleDragStart = (event: DragEvent) => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
+
+                element.addEventListener("click", handleClick);
+                element.addEventListener("pointerdown", handlePointerDown);
+                element.addEventListener("pointerup", handlePointerUp);
+                element.addEventListener("pointerleave", handlePointerLeave);
+                element.addEventListener("dragstart", handleDragStart);
+                cleanupFunctions.push(() => {
+                    element.removeEventListener("click", handleClick);
+                    element.removeEventListener("pointerdown", handlePointerDown);
+                    element.removeEventListener("pointerup", handlePointerUp);
+                    element.removeEventListener("pointerleave", handlePointerLeave);
+                    element.removeEventListener("dragstart", handleDragStart);
+                });
+            }
+
+            if (element.classList.contains(contentSchemaStyles.codeBlockCopyButtonClassName)) {
+                let isCodeBlockCopyButtonHovered = false;
+
+                // We don't need to cleanup event listeners on DOM nodes created for this
+                // node view.
+                const cleanup = addUnfocusableButtonBehaviorToElement(element, {
+                    defaultClassName: sprinkles({
+                        color: "grey-70",
+                    }),
+                    hoverClassName: sprinkles({
+                        color: "grey-70",
+                        backgroundColor: "grey-5",
+                    }),
+                    pressClassName: sprinkles({
+                        color: "grey-100",
+                        backgroundColor: "grey-10",
+                    }),
+                    onHoverStart: () => {
+                        const wasCodeBlockCopyButtonHovered = isCodeBlockCopyButtonHovered;
+                        isCodeBlockCopyButtonHovered = true;
+                        if (!wasCodeBlockCopyButtonHovered)
+                            handleCodeBlockCopyButtonHoverStart(element);
+                    },
+                    onHoverEnd: () => {
+                        const wasCodeBlockCopyButtonHovered = isCodeBlockCopyButtonHovered;
+                        isCodeBlockCopyButtonHovered = false;
+                        if (wasCodeBlockCopyButtonHovered)
+                            handleCodeBlockCopyButtonHoverEnd(element);
+                    },
+                    onPress: () => {
+                        const posString = element.dataset.pos;
+                        assert(posString);
+                        const pos = parseInt(posString, 10);
+                        assert(!isNaN(pos));
+
+                        const $pos = content.doc.resolve(pos);
+                        const node = assertExists($pos.nodeAfter);
+                        assert(node.type.name === "codeBlock");
+
+                        writeContentToClipboard(
+                            assertExists(spaceContext).space.id,
+                            content,
+                            content.doc.slice(pos, pos + node.nodeSize),
+                        ).catch(error => {
+                            reporter.displayError("Couldn’t copy code", error);
+                        });
+
+                        handleCodeBlockCopyButtonPress(element);
+                    },
+                });
+
+                cleanupFunctions.push(() => {
+                    cleanup();
+
+                    if (isCodeBlockCopyButtonHovered) {
+                        isCodeBlockCopyButtonHovered = false;
+                        handleCodeBlockCopyButtonHoverEnd(element);
+                    }
+                });
+            }
         }
 
         return () => {
@@ -529,8 +631,14 @@ export function ContentView({
         html,
         isInert,
         navigate,
+        handleCodeBlockCopyButtonHoverEnd,
+        handleCodeBlockCopyButtonHoverStart,
         shouldShowSeeLessContentButton,
         shouldShowSeeMoreContentButton,
+        content,
+        spaceContext,
+        handleCodeBlockCopyButtonPress,
+        reporter,
     ]);
 
     useEffect(() => {
@@ -539,7 +647,7 @@ export function ContentView({
         const handleFocusChange = () => {
             if (
                 document.activeElement instanceof HTMLAnchorElement &&
-                document.activeElement?.classList.contains(linkClassName)
+                document.activeElement?.classList.contains(contentSchemaStyles.linkClassName)
             ) {
                 setFocusedLinkElement(document.activeElement);
             } else {
@@ -567,13 +675,15 @@ export function ContentView({
             <div
                 ref={ref}
                 className={classNames(
-                    docClassName,
-                    withMobileLayout ? withMobileLayoutDocClassName : undefined,
-                    isCompact || isExtraCompact ? compactDocClassName : undefined,
-                    isExtraCompact ? extraCompactDocClassName : undefined,
+                    contentSchemaStyles.docClassName,
+                    withMobileLayout ? contentSchemaStyles.withMobileLayoutDocClassName : undefined,
+                    isCompact || isExtraCompact
+                        ? contentSchemaStyles.compactDocClassName
+                        : undefined,
+                    isExtraCompact ? contentSchemaStyles.extraCompactDocClassName : undefined,
                     className,
-                    isTitleEmpty && emptyTitleClassName,
-                    isBodyEmpty && emptyBodyClassName,
+                    isTitleEmpty && contentSchemaStyles.emptyTitleClassName,
+                    isBodyEmpty && contentSchemaStyles.emptyBodyClassName,
                     isTruncated && contentViewStyles.truncatedClassName,
                 )}
                 style={
@@ -589,6 +699,37 @@ export function ContentView({
                     placement="bottom"
                     content={<PrettyAbsoluteDateTooltipContent date={contentUpdatedTime} />}
                     targetElement={contentUpdatedNoteElement}
+                />
+            )}
+            {codeBlockCopyButtonTooltipState && (
+                <Tooltip
+                    key={codeBlockCopyButtonTooltipState.key}
+                    ref={codeBlockCopyButtonTooltipRef}
+                    placement="bottom"
+                    isInitiallyHovered={true}
+                    isVisibleAfterPress={true}
+                    targetElement={codeBlockCopyButtonTooltipState.targetElement}
+                    content={
+                        !codeBlockCopyButtonTooltipState.wasPressed ? (
+                            "Copy"
+                        ) : (
+                            <Box display="inline" color="grey-60">
+                                Copied
+                            </Box>
+                        )
+                    }
+                    onStateChange={state => {
+                        // Once the tooltip completely disappears (after fade out completes) then we
+                        // can remove our tooltip state.
+                        if (
+                            !state.isHovered &&
+                            !state.isFocused &&
+                            !state.isFadingIn &&
+                            !state.isFadingOut
+                        ) {
+                            setCodeBlockCopyButtonTooltipState(null);
+                        }
+                    }}
                 />
             )}
         </>

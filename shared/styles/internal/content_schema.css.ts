@@ -702,6 +702,80 @@ export const codeBlockLineContentClassName = style({
     minHeight: "1lh",
 });
 
+export const codeBlockToolbarClassName = style({
+    pointerEvents: "none",
+    zIndex: 20,
+    position: "sticky",
+    left: 0,
+    height: 0,
+    width: "100%",
+    // Override `cursor: text` and `user-select: text` set on the content editor.
+    cursor: "auto",
+    userSelect: "none",
+});
+
+export const codeBlockToolbarFlexClassName = style({
+    pointerEvents: "auto",
+    position: "absolute",
+    top: 0,
+    right: 0,
+    height: codeBlockToolbarHeight,
+    paddingLeft: spacing["1.5"],
+    paddingRight: blockPaddingX,
+    display: "flex",
+    alignItems: "center",
+    backgroundColor: backgroundColorVar,
+    maxWidth: subtractRemLengths(
+        codeBlockToolbarMaxWidth,
+        // The overflow gradient is rendered absolutely out of this element's layout
+        // but we still want to consider it as a part of the max width.
+        codeBlockPaddingRight,
+    ),
+});
+
+export const codeBlockToolbarOverflowGradientClassName = style({
+    pointerEvents: "none",
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: `-${codeBlockPaddingRight}`,
+    width: codeBlockPaddingRight,
+    background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
+});
+
+export const codeBlockLanguagePickerClassName = style({
+    height: codeBlockToolbarHeight,
+    paddingLeft: spacing["1.5"],
+    paddingRight: spacing["1.5"],
+    display: "flex",
+    alignItems: "center",
+    borderRadius: borderRadius["1"],
+    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+    // have `min-width: auto` which extends with content.
+    // https://stackoverflow.com/a/66689926/1568890
+    minWidth: "0",
+});
+
+export const codeBlockLanguagePickerTextClassName = style({
+    ...fontStyles["truncate"],
+    ...fontSizes["75"],
+});
+
+export const codeBlockCopyButtonClassName = style({
+    flexShrink: "0",
+    width: codeBlockToolbarHeight,
+    height: codeBlockToolbarHeight,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: borderRadius["full"],
+});
+
+export const codeBlockCopyButtonIconClassName = style({
+    width: spacing["4"],
+    height: spacing["4"],
+});
+
 export const dividerClassName = style({
     ...omitObject(blockStyles, ["paddingLeft", "paddingRight"]),
     width: `calc(100% - ${blockPaddingX} * 2)`,

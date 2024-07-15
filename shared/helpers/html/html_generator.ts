@@ -1,7 +1,6 @@
 import escapeHtml from "escape-html";
 import voidHtmlTagNames from "html-tags/void.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 export interface HtmlGenerator {
@@ -16,11 +15,11 @@ export class HtmlTextGenerator implements HtmlGenerator {
         this._text = text;
     }
 
-    generateHtml() {
+    public generateHtml() {
         return escapeHtml(this._text);
     }
 
-    generateNode() {
+    public generateNode() {
         return document.createTextNode(this._text);
     }
 }
@@ -28,11 +27,39 @@ export class HtmlTextGenerator implements HtmlGenerator {
 export abstract class HtmlContainerGenerator implements HtmlGenerator {
     private _children: Array<HtmlGenerator> = [];
 
-    appendChild(node: HtmlGenerator) {
+    public get childElementCount(): number {
+        let count = 0;
+
+        for (const node of this._children) {
+            if (node instanceof HtmlElementGenerator) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    public get firstElementChild(): HtmlElementGenerator | null {
+        for (const node of this._children) {
+            if (node instanceof HtmlElementGenerator) {
+                return node;
+            }
+        }
+
+        return null;
+    }
+
+    public appendChild(node: HtmlGenerator) {
         this._children.push(node);
     }
 
-    removeAllChildren() {
+    public insertBefore(newNode: HtmlGenerator, referenceNode: HtmlGenerator) {
+        const index = this._children.indexOf(referenceNode);
+        assert(index !== -1, "Couldn't find reference node");
+        this._children.splice(index, 0, newNode);
+    }
+
+    public removeAllChildren() {
         this._children = [];
     }
 
@@ -52,26 +79,26 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
         }
     }
 
-    abstract generateHtml(): string;
-    abstract generateNode(): Node;
+    public abstract generateHtml(): string;
+    public abstract generateNode(): Node;
 }
 
 export class HtmlElementGenerator extends HtmlContainerGenerator {
-    private readonly _tagName: string;
+    public readonly tagName: string;
     private readonly _attributes = new Map<string, string>();
 
     constructor(tagName: string) {
         super();
 
         assert(
-            isIdentifier(tagName),
-            quote`Invalid tag name ${tagName}, we currently only support simple tag names`,
+            /^[a-z][a-z0-9]*$/.test(tagName),
+            quote`Invalid tag name ${tagName}, we currently only support simple, lower case, tag names`,
         );
 
-        this._tagName = tagName;
+        this.tagName = tagName;
     }
 
-    setAttribute(attributeName: string, attributeValue: unknown) {
+    public setAttribute(attributeName: string, attributeValue: unknown) {
         assert(
             /^[a-z]([a-z0-9-]*[a-z0-9]|)$/.test(attributeName),
             quote`Invalid attribute name ${attributeName}, we currently only support simple attribute names`,
@@ -80,8 +107,8 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
         this._attributes.set(attributeName, String(attributeValue));
     }
 
-    generateHtml() {
-        let html = `<${this._tagName}`;
+    public generateHtml() {
+        let html = `<${this.tagName}`;
 
         for (const [attributeName, attributeValue] of this._attributes) {
             html += ` ${attributeName}="${escapeHtml(attributeValue)}"`;
@@ -91,17 +118,17 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
 
         const childrenHtml = this._generateChildrenHtml();
 
-        if (childrenHtml === "" && voidHtmlTagNames.includes(this._tagName as any)) {
+        if (childrenHtml === "" && voidHtmlTagNames.includes(this.tagName as any)) {
             return html;
         }
 
-        html += `${childrenHtml}</${this._tagName}>`;
+        html += `${childrenHtml}</${this.tagName}>`;
 
         return html;
     }
 
-    generateNode() {
-        const element = document.createElement(this._tagName);
+    public generateNode() {
+        const element = document.createElement(this.tagName);
 
         for (const [attributeName, attributeValue] of this._attributes) {
             element.setAttribute(attributeName, attributeValue);
@@ -114,11 +141,11 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
 }
 
 export class HtmlFragmentGenerator extends HtmlContainerGenerator {
-    generateHtml() {
+    public generateHtml() {
         return this._generateChildrenHtml();
     }
 
-    generateNode() {
+    public generateNode() {
         const fragment = document.createDocumentFragment();
 
         this._appendChildNodes(fragment);

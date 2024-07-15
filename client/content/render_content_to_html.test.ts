@@ -203,3 +203,52 @@ test("will properly number list items in quote blocks", () => {
         '<div><blockquote><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test2</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="2"><p>test3</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="3"><p>test4</p></div></blockquote><blockquote><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test6</p></div></blockquote><blockquote><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test8</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="2"><p>test9</p></div></blockquote></div>',
     );
 });
+
+test("will render code block", () => {
+    expect(
+        stripHtml(
+            renderContentToHtmlStore(
+                {
+                    doc: schema.node("doc", {}, [
+                        schema.nodeFromJSON({
+                            type: "codeBlock",
+                            attrs: {language: "rust"},
+                            content: [
+                                {
+                                    type: "codeBlockLine",
+                                    content: [{type: "text", text: "enum LinkedList<T> {"}],
+                                },
+                                {
+                                    type: "codeBlockLine",
+                                    content: [{type: "text", text: "  None,"}],
+                                },
+                                {
+                                    type: "codeBlockLine",
+                                    content: [
+                                        {type: "text", text: "  Cons(T, Box<LinkedList<T>>),"},
+                                    ],
+                                },
+                                {
+                                    type: "codeBlockLine",
+                                    content: [{type: "text", text: "}"}],
+                                },
+                                {type: "codeBlockLine"},
+                                {
+                                    type: "codeBlockLine",
+                                    content: [{type: "text", text: 'println!("hi");'}],
+                                },
+                            ],
+                        }),
+                    ]),
+                    references: emptyContentReferences,
+                },
+                {
+                    accountStore: getAccountClientStoreForClient(generateId()),
+                    currentAccount: null,
+                },
+            ).getSnapshot(),
+        ),
+    ).toEqual(
+        '<div><pre data-scrollbar="false"><div><div><div></div><div><div>Rust</div></div><div data-pos="0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><rect width="256" height="256" fill="none"></rect><line x1="96" y1="152" x2="160" y2="152" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></line><line x1="96" y1="120" x2="160" y2="120" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></line><path d="M160,40h40a8,8,0,0,1,8,8V216a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8V48a8,8,0,0,1,8-8H96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></path><path d="M88,72V64a40,40,0,0,1,80,0v8Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"></path></svg></div></div></div><code><div><div>enum LinkedList&lt;T&gt; {</div></div><div><div>  None,</div></div><div><div>  Cons(T, Box&lt;LinkedList&lt;T&gt;&gt;),</div></div><div><div>}</div></div><div><div></div></div><div><div>println!("hi");</div></div></code></pre></div>',
+    );
+});
