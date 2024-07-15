@@ -1,0 +1,65 @@
+import {highlightTree} from "@lezer/highlight";
+import {Node} from "prosemirror-model";
+import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
+import {createContentCodeBlockNodeInput} from "~/client/content/code/create_content_code_block_node_input.js";
+import {lezerClassHighlighter} from "~/client/content/code/lezer_class_highlighter.js";
+import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+
+// NOCOMMIT: Document!!
+export function addContentCodeBlockHtmlSerializationDecorations(
+    doc: Node,
+    decorations: Array<ProsemirrorHtmlSerializationDecoration>,
+) {
+    const unloadedCodeBlockLanguageIds = new Set<ContentCodeBlockLanguageId>();
+
+    doc.forEach((node, offset) => {
+        // Currently, code blocks may only be a direct child of `doc`.
+        if (node.type.name !== "codeBlock") return;
+
+        const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
+        const language = contentCodeBlockLanguageById[languageId];
+        if (language.parser === null) return;
+
+        const parser = language.parser.getIfLoaded();
+        if (parser === null) {
+            unloadedCodeBlockLanguageIds.add(languageId);
+            return;
+        }
+
+        const input = createContentCodeBlockNodeInput(node);
+        const tree = parser.parse(input);
+
+        // `length` corresponds to the current position in the input string. It's
+        // different from the ProseMirror position `pos` in that for `pos` each line
+        // adds 2 (the start + end of the node) whereas for `length` each line adds 1
+        // (a `\n` character).
+        let length = 0;
+        let pos = 0;
+
+        for (const lineNode of node.content.content) {
+            const lineFrom = length;
+            const lineTo = lineFrom + lineNode.content.size + 1;
+            const lengthToPos = pos - length;
+            length = lineTo;
+            pos += lineNode.nodeSize;
+
+            highlightTree(
+                tree,
+                lezerClassHighlighter.get(),
+                (from, to, classes) => {
+                    decorations.push({
+                        type: "Inline",
+                        from: offset + 2 + from + lengthToPos,
+                        to: offset + 2 + to + lengthToPos,
+                        attrs: {nodeName: "span", class: classes},
+                    });
+                },
+                lineFrom,
+                lineTo,
+            );
+        }
+    });
+
+    return unloadedCodeBlockLanguageIds;
+}

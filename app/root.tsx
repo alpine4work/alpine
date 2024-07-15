@@ -19,6 +19,7 @@ import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display
 import {AppLiveReload} from "~/app/router/app_live_reload.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
+import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -51,6 +52,7 @@ import {spacing} from "~/shared/design/spacing.js";
 import {NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
@@ -99,7 +101,28 @@ const LoaderSchema = Schema.object({
     devServerPort: Schema.integer.optional(),
 });
 
-export function loader({context}: LoaderArgs) {
+let allContentCodeBlockLanguagesLoadedPromise: "Unloaded" | Promise<void> | null = "Unloaded";
+
+export async function loader({context}: LoaderArgs) {
+    // Make sure to load all code block languages are loaded before rendering
+    // anything. That way if we server render a `<ContentView>` with a code block
+    // it'll have syntax highlighting.
+    //
+    // We do this in the root loader instead of `/s/:spaceId` since we may render
+    // `<ContentView>`s outside of a space. For example in a space share route or a
+    // blog post.
+    if (allContentCodeBlockLanguagesLoadedPromise === null) {
+        // Loaded! All good...
+    } else if (allContentCodeBlockLanguagesLoadedPromise === "Unloaded") {
+        allContentCodeBlockLanguagesLoadedPromise = runAllPromises(
+            Object.values(contentCodeBlockLanguageById).map(language => language.parser?.load()),
+        ).then(() => {
+            allContentCodeBlockLanguagesLoadedPromise = null;
+        });
+    } else {
+        await allContentCodeBlockLanguagesLoadedPromise;
+    }
+
     return jsonWithSchema(LoaderSchema, {
         initialTime: context.loader.getInitialTime(),
         initialAppRenderId: generateId(),

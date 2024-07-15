@@ -334,6 +334,7 @@ export function MessageViewTouchLightbox<
                             isTruncated={true}
                             isCompact={true}
                             isExtraCompact={isMobile}
+                            isBackgroundColorGrey5={true}
                             withUserSelectNone={true}
                             // Only rendered on mobile layouts.
                             withMobileLayout={true}
@@ -558,6 +559,7 @@ export function MessageViewTouchLightbox<
                                 isInert={true}
                                 isCompact={true}
                                 isExtraCompact={isMobile}
+                                isBackgroundColorGrey5={true}
                                 withUserSelectNone={true}
                                 className={sprinkles({minWidth: messageViewBubbleMinWidth})}
                                 // Only rendered on mobile layouts.

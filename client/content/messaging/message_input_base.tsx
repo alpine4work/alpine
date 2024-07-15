@@ -779,6 +779,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                         isTruncated={true}
                                                         isCompact={true}
                                                         isExtraCompact={isMobile}
+                                                        isBackgroundColorGrey5={true}
                                                         withMobileLayout={withMobileLayout}
                                                         content={replyingToMessage.truncatedContent}
                                                     />

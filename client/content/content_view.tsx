@@ -1,8 +1,12 @@
 import classNames from "classnames";
+import {Node} from "prosemirror-model";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {addContentCodeBlockHtmlSerializationDecorations} from "~/client/content/code/add_content_code_block_html_serialization_decorations.js";
+import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {loadContentCodeBlockLanguageIdsInEffect} from "~/client/content/internal/load_content_code_block_language_ids_in_effect.js";
 import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {Box} from "~/client/design/box.js";
@@ -13,14 +17,17 @@ import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
+import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -29,7 +36,57 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {contentSchemaStyles, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
+
+const ContentViewCodeBlockDecorationsSchema = Schema.array(
+    Schema.object({
+        from: Schema.integer,
+        to: Schema.integer,
+        class: Schema.string,
+    }).transform<ProsemirrorHtmlSerializationDecoration>({
+        serialize: decoration => {
+            assert(decoration.type === "Inline");
+            assert(decoration.attrs.nodeName === "span");
+
+            return {
+                from: decoration.from,
+                to: decoration.to,
+                class: decoration.attrs.class ?? "",
+            };
+        },
+        deserialize: decoration => {
+            return {
+                type: "Inline",
+                from: decoration.from,
+                to: decoration.to,
+                attrs: {
+                    nodeName: "span",
+                    class: decoration.class,
+                },
+            };
+        },
+    }),
+);
+
+declare global {
+    // eslint-disable-next-line no-var
+    var __contentViewCodeBlockDecorationsById: {[key: string]: SchemaSerializedValue} | undefined;
+}
+
+type ContentViewCodeBlockDecorationsState =
+    | {
+          readonly type: "Initial";
+          readonly doc: Node;
+          readonly initialDecorations: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
+          readonly generation?: undefined;
+      }
+    | {
+          readonly type: "Loaded";
+          readonly generation: number;
+          readonly initialDecorations?: undefined;
+      }
+    | null;
 
 /**
  * A read-only view of content. Used as a complement to `<ContentEditor>` when
@@ -43,12 +100,13 @@ export function ContentView({
     className,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
-    isInert,
-    isTruncated,
-    isCompact,
-    isExtraCompact,
+    isInert = false,
+    isTruncated = false,
+    isCompact = false,
+    isExtraCompact = false,
+    isBackgroundColorGrey5 = false,
     shouldHighlightComment,
-    withUserSelectNone,
+    withUserSelectNone = false,
     onSeeMoreContent,
     onSeeLessContent,
 }: {
@@ -111,6 +169,13 @@ export function ContentView({
     isExtraCompact?: boolean;
 
     /**
+     * Is this `<ContentView>` rendered on a `grey-5` background? If true certain
+     * colors may change. For example, the code block button's hover background
+     * color will change from `grey-5` to `grey-10`.
+     */
+    isBackgroundColorGrey5?: boolean;
+
+    /**
      * Should we highlight the provided comment thread? By default the content view
      * renders no comment highlights.
      */
@@ -135,6 +200,7 @@ export function ContentView({
      */
     onSeeLessContent?: () => void;
 }) {
+    const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
     const reporter = useReporter();
@@ -143,12 +209,12 @@ export function ContentView({
     // to render a space context when testing this component.
     const spaceContext = useSpaceContextIfExists();
 
+    const id = useId();
     const ref = useRef<HTMLDivElement>(null);
     const codeBlockCopyButtonTooltipRef = useRef<TooltipRef>(null);
 
     const [focusedLinkElement, setFocusedLinkElement] = useState<HTMLElement | null>(null);
 
-    const contentUpdatedNoteId = useId();
     const [contentUpdatedNoteElement, setContentUpdatedNoteElement] = useState<HTMLElement | null>(
         null,
     );
@@ -161,166 +227,251 @@ export function ContentView({
         onSeeLessContent: onSeeLessContent ?? noop,
     });
 
-    const {html, isTitleEmpty, isBodyEmpty} = useStore(
-        useMemo(() => {
-            const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
+    const [codeBlockDecorationsState, setCodeBlockDecorationsState] =
+        useState<ContentViewCodeBlockDecorationsState>(() => {
+            if (typeof window === "undefined") return null;
+            if (!isInitialAppRender) return null;
 
-            if (contentUpdatedTime) {
-                let depthToLastTextblockChild = null;
-                let lastTextblockChild = content.doc.lastChild;
-                let depth = 1;
+            const decorations = window.__contentViewCodeBlockDecorationsById?.[id];
+            if (!decorations) return null;
 
-                while (lastTextblockChild !== null) {
-                    if (lastTextblockChild.isTextblock) {
-                        depthToLastTextblockChild = depth;
-                        break;
-                    }
-                    lastTextblockChild = lastTextblockChild.lastChild;
-                    depth++;
+            delete window.__contentViewCodeBlockDecorationsById![id];
+            return {
+                type: "Initial",
+                doc: content.doc,
+                initialDecorations: ContentViewCodeBlockDecorationsSchema.deserialize(decorations),
+            };
+        });
+    let initialCodeBlockDecorations = codeBlockDecorationsState?.initialDecorations ?? null;
+
+    // If the document we're rendering changes, remove code block decorations from
+    // the server side render.
+    if (
+        codeBlockDecorationsState?.type === "Initial" &&
+        codeBlockDecorationsState.doc !== content.doc
+    ) {
+        initialCodeBlockDecorations = null;
+        setCodeBlockDecorationsState(null);
+    }
+
+    const {
+        isTitleEmpty,
+        isBodyEmpty,
+        decorations,
+        unloadedCodeBlockLanguageIds,
+        codeBlockDecorationsStartIndex,
+        codeBlockDecorationsEndIndex,
+        htmlStore,
+    } = useMemo(() => {
+        const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
+
+        if (contentUpdatedTime) {
+            let depthToLastTextblockChild = null;
+            let lastTextblockChild = content.doc.lastChild;
+            let depth = 1;
+
+            while (lastTextblockChild !== null) {
+                if (lastTextblockChild.isTextblock) {
+                    depthToLastTextblockChild = depth;
+                    break;
                 }
-
-                const depthToLastParagraphChild =
-                    lastTextblockChild?.type.name === "paragraph"
-                        ? depthToLastTextblockChild
-                        : null;
-
-                let html: HtmlElementGenerator;
-                if (depthToLastParagraphChild !== null) {
-                    const updatedNoteHtml = new HtmlElementGenerator("span");
-                    updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
-                    updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-                    updatedNoteHtml.appendChild(new HtmlTextGenerator(" (edited)"));
-
-                    html = updatedNoteHtml;
-                } else {
-                    const updatedNoteContainerHtml = new HtmlElementGenerator("p");
-                    updatedNoteContainerHtml.setAttribute(
-                        "class",
-                        contentSchemaStyles.paragraphClassName,
-                    );
-
-                    const updatedNoteHtml = new HtmlElementGenerator("span");
-                    updatedNoteContainerHtml.appendChild(updatedNoteHtml);
-                    updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
-                    updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-                    updatedNoteHtml.appendChild(new HtmlTextGenerator("(edited)"));
-
-                    html = updatedNoteContainerHtml;
-                }
-
-                decorations.push({
-                    type: "Widget",
-                    pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
-                    html,
-                });
+                lastTextblockChild = lastTextblockChild.lastChild;
+                depth++;
             }
 
-            if (shouldShowSeeMoreContentButton || shouldShowSeeLessContentButton) {
-                let depthToLastTextblockChild = null;
-                let lastTextblockChild = content.doc.lastChild;
-                let depth = 1;
+            const depthToLastParagraphChild =
+                lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
 
-                while (lastTextblockChild !== null) {
-                    if (lastTextblockChild.isTextblock) {
-                        depthToLastTextblockChild = depth;
-                        break;
-                    }
-                    lastTextblockChild = lastTextblockChild.lastChild;
-                    depth++;
-                }
+            let html: HtmlElementGenerator;
+            if (depthToLastParagraphChild !== null) {
+                const updatedNoteHtml = new HtmlElementGenerator("span");
+                updatedNoteHtml.setAttribute("id", `${id}-edited`);
+                updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
+                updatedNoteHtml.appendChild(new HtmlTextGenerator(" (edited)"));
 
-                const depthToLastParagraphChild =
-                    lastTextblockChild?.type.name === "paragraph"
-                        ? depthToLastTextblockChild
-                        : null;
+                html = updatedNoteHtml;
+            } else {
+                const updatedNoteContainerHtml = new HtmlElementGenerator("p");
+                updatedNoteContainerHtml.setAttribute(
+                    "class",
+                    contentSchemaStyles.paragraphClassName,
+                );
 
-                const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
+                const updatedNoteHtml = new HtmlElementGenerator("span");
+                updatedNoteContainerHtml.appendChild(updatedNoteHtml);
+                updatedNoteHtml.setAttribute("id", `${id}-edited`);
+                updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
+                updatedNoteHtml.appendChild(new HtmlTextGenerator("(edited)"));
 
-                let html: HtmlElementGenerator;
-                if (depthToLastParagraphChild !== null) {
-                    const shouldAddEllipsis =
-                        !shouldShowSeeLessContentButton &&
-                        lastTextblockChild &&
-                        lastTextblockChild.childCount > 0 &&
-                        !isTextEndedWithPunctuation(lastTextblockChild.lastChild!.text!);
-
-                    const seeButtonContainerHtml = new HtmlElementGenerator("span");
-
-                    seeButtonContainerHtml.appendChild(
-                        new HtmlTextGenerator(shouldAddEllipsis ? "… " : " "),
-                    );
-
-                    const seeButtonHtml = new HtmlElementGenerator("span");
-                    seeButtonContainerHtml.appendChild(seeButtonHtml);
-                    seeButtonHtml.setAttribute("id", contentUpdatedNoteId);
-                    seeButtonHtml.setAttribute("class", contentViewStyles.seeButtonClassName);
-                    seeButtonHtml.appendChild(new HtmlTextGenerator(buttonText));
-
-                    html = seeButtonContainerHtml;
-                } else {
-                    const seeButtonContainerHtml = new HtmlElementGenerator("p");
-                    seeButtonContainerHtml.setAttribute(
-                        "class",
-                        contentSchemaStyles.paragraphClassName,
-                    );
-
-                    const seeButtonHtml = new HtmlElementGenerator("span");
-                    seeButtonContainerHtml.appendChild(seeButtonHtml);
-                    seeButtonHtml.setAttribute("id", contentUpdatedNoteId);
-                    seeButtonHtml.setAttribute("class", contentViewStyles.seeButtonClassName);
-                    seeButtonHtml.appendChild(new HtmlTextGenerator(buttonText));
-
-                    html = seeButtonContainerHtml;
-                }
-
-                decorations.push({
-                    type: "Widget",
-                    pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
-                    html,
-                });
+                html = updatedNoteContainerHtml;
             }
 
-            content.doc.descendants((node, pos) => {
-                if (!node.isText) return;
+            decorations.push({
+                type: "Widget",
+                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                html,
+            });
+        }
 
-                for (const {index, emoji} of iterateEmojis(node.text!)) {
-                    decorations.push({
-                        type: "Inline",
-                        from: pos + index,
-                        to: pos + index + emoji.length,
-                        attrs: {
-                            nodeName: "span",
-                            class: contentSchemaStyles.emojiClassName,
-                        },
-                    });
+        if (shouldShowSeeMoreContentButton || shouldShowSeeLessContentButton) {
+            let depthToLastTextblockChild = null;
+            let lastTextblockChild = content.doc.lastChild;
+            let depth = 1;
+
+            while (lastTextblockChild !== null) {
+                if (lastTextblockChild.isTextblock) {
+                    depthToLastTextblockChild = depth;
+                    break;
+                }
+                lastTextblockChild = lastTextblockChild.lastChild;
+                depth++;
+            }
+
+            const depthToLastParagraphChild =
+                lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
+
+            const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
+
+            let html: HtmlElementGenerator;
+            if (depthToLastParagraphChild !== null) {
+                const shouldAddEllipsis =
+                    !shouldShowSeeLessContentButton &&
+                    lastTextblockChild &&
+                    lastTextblockChild.childCount > 0 &&
+                    !isTextEndedWithPunctuation(lastTextblockChild.lastChild!.text!);
+
+                const seeButtonContainerHtml = new HtmlElementGenerator("span");
+
+                seeButtonContainerHtml.appendChild(
+                    new HtmlTextGenerator(shouldAddEllipsis ? "… " : " "),
+                );
+
+                const seeButtonHtml = new HtmlElementGenerator("span");
+                seeButtonContainerHtml.appendChild(seeButtonHtml);
+                seeButtonHtml.setAttribute("id", `${id}-edited`);
+                seeButtonHtml.setAttribute("class", contentViewStyles.seeButtonClassName);
+                seeButtonHtml.appendChild(new HtmlTextGenerator(buttonText));
+
+                html = seeButtonContainerHtml;
+            } else {
+                const seeButtonContainerHtml = new HtmlElementGenerator("p");
+                seeButtonContainerHtml.setAttribute(
+                    "class",
+                    contentSchemaStyles.paragraphClassName,
+                );
+
+                const seeButtonHtml = new HtmlElementGenerator("span");
+                seeButtonContainerHtml.appendChild(seeButtonHtml);
+                seeButtonHtml.setAttribute("id", `${id}-edited`);
+                seeButtonHtml.setAttribute("class", contentViewStyles.seeButtonClassName);
+                seeButtonHtml.appendChild(new HtmlTextGenerator(buttonText));
+
+                html = seeButtonContainerHtml;
+            }
+
+            decorations.push({
+                type: "Widget",
+                pos: content.doc.nodeSize - ((depthToLastParagraphChild ?? 0) + 1),
+                html,
+            });
+        }
+
+        content.doc.descendants((node, pos) => {
+            if (!node.isText) return;
+
+            for (const {index, emoji} of iterateEmojis(node.text!)) {
+                decorations.push({
+                    type: "Inline",
+                    from: pos + index,
+                    to: pos + index + emoji.length,
+                    attrs: {
+                        nodeName: "span",
+                        class: contentSchemaStyles.emojiClassName,
+                    },
+                });
+            }
+        });
+
+        // Re-render content HTML whenever our code block languages generation
+        // changes. We update the generation whenever previously unloaded language
+        // parsers are loaded.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        codeBlockDecorationsState?.generation;
+
+        const codeBlockDecorationsStartIndex = decorations.length;
+
+        let unloadedCodeBlockLanguageIds: Set<ContentCodeBlockLanguageId>;
+
+        // If we have some initial code block decorations from server-side rendering
+        // then use those instead of trying to compute new decorations. Since we
+        // may not be able to compute new decorations given no language parsers will be
+        // loaded on initial render.
+        if (initialCodeBlockDecorations !== null) {
+            unloadedCodeBlockLanguageIds = new Set();
+
+            content.doc.forEach(node => {
+                // Currently, code blocks may only be a direct child of `doc`.
+                if (node.type.name !== "codeBlock") return;
+
+                const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
+                const language = contentCodeBlockLanguageById[languageId];
+
+                if (language.parser !== null) {
+                    const parser = language.parser.getIfLoaded();
+                    if (parser === null) {
+                        unloadedCodeBlockLanguageIds.add(languageId);
+                    }
                 }
             });
 
-            return renderContentFragmentToHtmlStore(content, {
+            for (const decoration of initialCodeBlockDecorations) {
+                decorations.push(decoration);
+            }
+        } else {
+            unloadedCodeBlockLanguageIds = addContentCodeBlockHtmlSerializationDecorations(
+                content.doc,
+                decorations,
+            );
+        }
+
+        const codeBlockDecorationsEndIndex = decorations.length;
+
+        return {
+            isTitleEmpty: isContentTitleEmpty(content.doc),
+            isBodyEmpty: isContentBodyEmpty(content.doc),
+            decorations,
+            // Always use the same reference for an empty set so effects don't need
+            // to re-run.
+            unloadedCodeBlockLanguageIds:
+                unloadedCodeBlockLanguageIds.size !== 0 ? unloadedCodeBlockLanguageIds : emptySet,
+            codeBlockDecorationsStartIndex,
+            codeBlockDecorationsEndIndex,
+            htmlStore: renderContentFragmentToHtmlStore(content, {
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 placeholder,
                 isInert,
                 decorations,
                 shouldHighlightComment,
-            }).map(html => ({
-                html,
-                isTitleEmpty: isContentTitleEmpty(content.doc),
-                isBodyEmpty: isContentBodyEmpty(content.doc),
-            }));
-        }, [
-            accountStore,
-            content,
-            contentUpdatedNoteId,
-            contentUpdatedTime,
-            isInert,
-            placeholder,
-            shouldHighlightComment,
-            shouldShowSeeLessContentButton,
-            shouldShowSeeMoreContentButton,
-            spaceContext?.currentAccount,
-        ]),
-    );
+            }),
+        };
+    }, [
+        contentUpdatedTime,
+        shouldShowSeeMoreContentButton,
+        shouldShowSeeLessContentButton,
+        content,
+        codeBlockDecorationsState?.generation,
+        initialCodeBlockDecorations,
+        accountStore,
+        spaceContext?.currentAccount,
+        placeholder,
+        isInert,
+        shouldHighlightComment,
+        id,
+    ]);
+
+    const html = useStore(htmlStore);
 
     const navigate = useNavigate();
 
@@ -570,11 +721,11 @@ export function ContentView({
                     }),
                     hoverClassName: sprinkles({
                         color: "grey-70",
-                        backgroundColor: "grey-5",
+                        backgroundColor: isBackgroundColorGrey5 ? "grey-10" : "grey-5",
                     }),
                     pressClassName: sprinkles({
                         color: "grey-100",
-                        backgroundColor: "grey-10",
+                        backgroundColor: isBackgroundColorGrey5 ? "grey-20" : "grey-10",
                     }),
                     onHoverStart: () => {
                         const wasCodeBlockCopyButtonHovered = isCodeBlockCopyButtonHovered;
@@ -639,6 +790,7 @@ export function ContentView({
         spaceContext,
         handleCodeBlockCopyButtonPress,
         reporter,
+        isBackgroundColorGrey5,
     ]);
 
     useEffect(() => {
@@ -666,9 +818,26 @@ export function ContentView({
 
     useEffect(() => {
         setContentUpdatedNoteElement(
-            contentUpdatedTime ? document.getElementById(contentUpdatedNoteId) : null,
+            contentUpdatedTime ? document.getElementById(`${id}-edited`) : null,
         );
-    }, [contentUpdatedNoteId, contentUpdatedTime]);
+    }, [id, contentUpdatedTime]);
+
+    useEffect(() => {
+        loadContentCodeBlockLanguageIdsInEffect(unloadedCodeBlockLanguageIds, {
+            onLoaded: () =>
+                setCodeBlockDecorationsState(state =>
+                    state?.type !== "Initial"
+                        ? {type: "Loaded", generation: (state?.generation ?? 0) + 1}
+                        : state,
+                ),
+            onError: error => {
+                reporter.logErrorWithoutDisplaying(
+                    "Couldn't load code block language parser",
+                    error,
+                );
+            },
+        });
+    }, [reporter, unloadedCodeBlockLanguageIds]);
 
     return (
         <>
@@ -729,6 +898,27 @@ export function ContentView({
                         ) {
                             setCodeBlockCopyButtonTooltipState(null);
                         }
+                    }}
+                />
+            )}
+            {isInitialAppRender && (
+                <script
+                    // We only compute this script on the server. On the client we don't bother
+                    // rendering the script which allows us to avoid an extra `JSON.stringify()`
+                    // call on a potentially large object.
+                    suppressHydrationWarning
+                    dangerouslySetInnerHTML={{
+                        __html:
+                            typeof window === "undefined"
+                                ? `(window.__contentViewCodeBlockDecorationsById || (window.__contentViewCodeBlockDecorationsById = {}))["${id}"] = ${JSON.stringify(
+                                      ContentViewCodeBlockDecorationsSchema.serialize(
+                                          decorations.slice(
+                                              codeBlockDecorationsStartIndex,
+                                              codeBlockDecorationsEndIndex,
+                                          ),
+                                      ),
+                                  )};`
+                                : "",
                     }}
                 />
             )}

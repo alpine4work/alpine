@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {differenceInMinutes} from "date-fns";
 import {timeline} from "motion";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
@@ -793,6 +792,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 <ContentView
                     isCompact={true}
                     isExtraCompact={isMobile}
+                    isBackgroundColorGrey5={true}
                     withMobileLayout={withMobileLayout}
                     content={message.payload.content}
                     contentUpdatedTime={message.payload.contentUpdatedTime}
@@ -987,6 +987,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     isTruncated={true}
                                     isCompact={true}
                                     isExtraCompact={isMobile}
+                                    isBackgroundColorGrey5={true}
                                     withUserSelectNone={true}
                                     content={truncatedContent}
                                     className={sprinkles({minWidth: messageViewBubbleMinWidth})}

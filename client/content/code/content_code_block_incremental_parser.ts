@@ -35,7 +35,7 @@ declare module "prosemirror-view" {
     }
 }
 
-type ContentCodeBlockIncrementalParserResult = {
+export type ContentCodeBlockIncrementalParserResult = {
     readonly parser: Parser;
     readonly tree: Tree;
     readonly treeFragments: ReadonlyArray<TreeFragment>;
@@ -61,7 +61,7 @@ export class ContentCodeBlockIncrementalParser {
     // NOCOMMIT: Document
     private readonly _nodeArray: ReadonlyArray<Node>;
     private readonly _nodeSet: ReadonlySet<Node>;
-    private readonly _nodePoses: ReadonlyArray<number>;
+    private readonly _nodeOffsets: ReadonlyArray<number>;
     private readonly _results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>;
     private readonly _unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>;
 
@@ -70,21 +70,21 @@ export class ContentCodeBlockIncrementalParser {
     private constructor(
         nodeArray: ReadonlyArray<Node>,
         nodeSet: ReadonlySet<Node>,
-        nodePoses: ReadonlyArray<number>,
+        nodeOffsets: ReadonlyArray<number>,
         results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
         unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>,
         decorations: DecorationSet,
     ) {
         this._nodeArray = nodeArray;
         this._nodeSet = nodeSet;
-        this._nodePoses = nodePoses;
+        this._nodeOffsets = nodeOffsets;
         this._results = results;
         this._unloadedLanguageIds = unloadedLanguageIds;
         this.decorations = decorations;
     }
 
     public static new(doc: Node): ContentCodeBlockIncrementalParser {
-        const [nodeArray, nodeSet, nodePoses] = getContentCodeBlockNodes(doc);
+        const [nodeArray, nodeSet, nodeOffsets] = getContentCodeBlockNodes(doc);
 
         const unloadedLanguageIds = new Set<ContentCodeBlockLanguageId>();
 
@@ -106,7 +106,7 @@ export class ContentCodeBlockIncrementalParser {
 
         const decorations = createContentCodeBlockIncrementalParserDecorationSet(
             nodeArray,
-            nodePoses,
+            nodeOffsets,
             results,
             allDecorationsForTest,
         );
@@ -123,7 +123,7 @@ export class ContentCodeBlockIncrementalParser {
         return new ContentCodeBlockIncrementalParser(
             nodeArray,
             nodeSet,
-            nodePoses,
+            nodeOffsets,
             results,
             unloadedLanguageIds,
             decorations,
@@ -132,7 +132,7 @@ export class ContentCodeBlockIncrementalParser {
 
     // NOCOMMIT: Document
     public update(doc: Node, mapping: Mapping): ContentCodeBlockIncrementalParser {
-        const [newNodeArray, newNodeSet, newNodePoses] = getContentCodeBlockNodes(doc);
+        const [newNodeArray, newNodeSet, newNodeOffsets] = getContentCodeBlockNodes(doc);
 
         const changes = actuallySymmetricDiffIterable(
             this._nodeArray,
@@ -353,7 +353,7 @@ export class ContentCodeBlockIncrementalParser {
 
             newDecorations = createContentCodeBlockIncrementalParserDecorationSet(
                 newNodeArray,
-                newNodePoses,
+                newNodeOffsets,
                 newResults,
                 allDecorationsForTest,
             );
@@ -371,7 +371,7 @@ export class ContentCodeBlockIncrementalParser {
         return new ContentCodeBlockIncrementalParser(
             newNodeArray,
             newNodeSet,
-            newNodePoses,
+            newNodeOffsets,
             newResults,
             newUnloadedLanguageIds ?? this._unloadedLanguageIds,
             newDecorations,
@@ -407,14 +407,14 @@ export class ContentCodeBlockIncrementalParser {
 
         const newDecorations = createContentCodeBlockIncrementalParserDecorationSet(
             this._nodeArray,
-            this._nodePoses,
+            this._nodeOffsets,
             newResults,
         );
 
         return new ContentCodeBlockIncrementalParser(
             this._nodeArray,
             this._nodeSet,
-            this._nodePoses,
+            this._nodeOffsets,
             newResults,
             newUnloadedLanguageIds,
             newDecorations,
@@ -424,23 +424,23 @@ export class ContentCodeBlockIncrementalParser {
 
 function getContentCodeBlockNodes(
     doc: Node,
-): [nodeArray: Array<Node>, nodeSet: Set<Node>, nodePoses: Array<number>] {
+): [nodeArray: Array<Node>, nodeSet: Set<Node>, nodeOffsets: Array<number>] {
     assert(doc.type.name === "doc");
 
     const nodeArray: Array<Node> = [];
     const nodeSet = new Set<Node>();
-    const nodePoses: Array<number> = [];
+    const nodeOffsets: Array<number> = [];
 
     doc.forEach((node, pos) => {
         // Currently, code blocks may only be a direct child of `doc`.
         if (node.type.name === "codeBlock") {
             nodeArray.push(node);
             nodeSet.add(node);
-            nodePoses.push(pos);
+            nodeOffsets.push(pos);
         }
     });
 
-    return [nodeArray, nodeSet, nodePoses];
+    return [nodeArray, nodeSet, nodeOffsets];
 }
 
 function createInitialContentCodeBlockIncrementalParserResult(
@@ -553,10 +553,13 @@ function getContentCodeBlockNodeChangedRanges(
 
 // NOCOMMIT: Talk about how we reference
 // https://github.com/ProseMirror/prosemirror-view/blob/d3e9dcabe253707654978a9da9be9b9ce78db38d/src/decoration.ts#L692-L714
-function createContentCodeBlockIncrementalParserDecorationSet(
+export function createContentCodeBlockIncrementalParserDecorationSet(
     nodes: ReadonlyArray<Node>,
-    poses: ReadonlyArray<number>,
-    results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
+    offsets: ReadonlyArray<number>,
+    results: ReadonlyArray<Pick<
+        ContentCodeBlockIncrementalParserResult,
+        "highlightsByLine"
+    > | null>,
     allDecorations?: Array<Decoration>,
 ): DecorationSet {
     const rootDecorations: Array<Decoration> = [];
@@ -564,7 +567,7 @@ function createContentCodeBlockIncrementalParserDecorationSet(
 
     for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
         const node = nodes[nodeIndex]!;
-        const pos = poses[nodeIndex]!;
+        const offset = offsets[nodeIndex]!;
         const result = results[nodeIndex]!;
 
         if (result === null) continue;
@@ -572,7 +575,7 @@ function createContentCodeBlockIncrementalParserDecorationSet(
         const nodeDecorations: Array<Decoration> = [];
         const nodeChildDecorations: Array<number | DecorationSet> = [];
 
-        let relativePos = 0;
+        let relativeOffset = 0;
 
         for (let lineNodeIndex = 0; lineNodeIndex < node.content.content.length; lineNodeIndex++) {
             const lineNode = node.content.content[lineNodeIndex]!;
@@ -583,7 +586,7 @@ function createContentCodeBlockIncrementalParserDecorationSet(
             for (const highlight of highlights) {
                 if (allDecorations !== undefined) {
                     allDecorations.push(
-                        Decoration.inline(pos + 2 + highlight.from, pos + 2 + highlight.to, {
+                        Decoration.inline(offset + 2 + highlight.from, offset + 2 + highlight.to, {
                             nodeName: "span",
                             class: highlight.classes,
                         }),
@@ -591,28 +594,32 @@ function createContentCodeBlockIncrementalParserDecorationSet(
                 }
 
                 lineNodeDecorations.push(
-                    Decoration.inline(highlight.from - relativePos, highlight.to - relativePos, {
-                        nodeName: "span",
-                        class: highlight.classes,
-                    }),
+                    Decoration.inline(
+                        highlight.from - relativeOffset,
+                        highlight.to - relativeOffset,
+                        {
+                            nodeName: "span",
+                            class: highlight.classes,
+                        },
+                    ),
                 );
             }
 
             if (lineNodeDecorations.length > 0) {
                 nodeChildDecorations.push(
-                    relativePos,
-                    relativePos + lineNode.nodeSize,
+                    relativeOffset,
+                    relativeOffset + lineNode.nodeSize,
                     new DecorationSet(lineNodeDecorations, emptyArray),
                 );
             }
 
-            relativePos += lineNode.nodeSize;
+            relativeOffset += lineNode.nodeSize;
         }
 
         if (nodeChildDecorations.length > 0) {
             rootChildDecorations.push(
-                pos,
-                pos + node.nodeSize,
+                offset,
+                offset + node.nodeSize,
                 new DecorationSet(nodeDecorations, nodeChildDecorations),
             );
         }
@@ -621,7 +628,7 @@ function createContentCodeBlockIncrementalParserDecorationSet(
     return new DecorationSet(rootDecorations, rootChildDecorations);
 }
 
-function assertIsDecorationSetEqualForTest(
+export function assertIsDecorationSetEqualForTest(
     actualDecorations: DecorationSet,
     expectedDecorations: DecorationSet,
 ) {
