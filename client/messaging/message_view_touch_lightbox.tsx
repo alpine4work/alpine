@@ -152,49 +152,56 @@ export function MessageViewTouchLightbox<
         if (hasOpenTranslateYAnimationStartedRef.current) return;
         hasOpenTranslateYAnimationStartedRef.current = true;
 
-        const backdropElement = assertExists(backdropRef.current);
-        const presentedElement = assertExists(presentedRef.current);
+        // To improve performance, wait an animation frame before starting our
+        // animation. This will make sure the browser has fully rendered the lightbox
+        // before we start animating.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const backdropElement = assertExists(backdropRef.current);
+                const presentedElement = assertExists(presentedRef.current);
 
-        const backdropRect = backdropElement.getBoundingClientRect();
-        const presentedRect = presentedElement.getBoundingClientRect();
+                const backdropRect = backdropElement.getBoundingClientRect();
+                const presentedRect = presentedElement.getBoundingClientRect();
 
-        const translateY = Math.max(0, presentedRect.bottom - backdropRect.bottom);
+                const translateY = Math.max(0, presentedRect.bottom - backdropRect.bottom);
 
-        const animation = timeline([
-            [
-                presentedElement,
-                {
-                    y: [0, -translateY],
-                },
-                {
-                    at: 0,
-                    duration: 0.15,
-                    easing: "ease",
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
-            ],
-            [
-                presentedElement,
-                {
-                    x: [0, -convertRemLengthToPx(spacing["9"], getRemPxWithoutListening())],
-                },
-                {
-                    at: translateY === 0 ? 0 : 0.1,
-                    duration: 0.15,
-                    easing: "ease",
-                    // Make sure we use hardware acceleration for this animation in WebKit. By
-                    // default `motion` turns it off.
-                    // https://motion.dev/guides/performance#webkits-exceptions
-                    allowWebkitAcceleration: true,
-                },
-            ],
-        ]);
+                const animation = timeline([
+                    [
+                        presentedElement,
+                        {
+                            y: [0, -translateY],
+                        },
+                        {
+                            at: 0,
+                            duration: 0.15,
+                            easing: "ease",
+                            // Make sure we use hardware acceleration for this animation in WebKit. By
+                            // default `motion` turns it off.
+                            // https://motion.dev/guides/performance#webkits-exceptions
+                            allowWebkitAcceleration: true,
+                        },
+                    ],
+                    [
+                        presentedElement,
+                        {
+                            x: [0, -convertRemLengthToPx(spacing["9"], getRemPxWithoutListening())],
+                        },
+                        {
+                            at: translateY === 0 ? 0 : 0.1,
+                            duration: 0.15,
+                            easing: "ease",
+                            // Make sure we use hardware acceleration for this animation in WebKit. By
+                            // default `motion` turns it off.
+                            // https://motion.dev/guides/performance#webkits-exceptions
+                            allowWebkitAcceleration: true,
+                        },
+                    ],
+                ]);
 
-        void animation.finished.finally(() => {
-            setHasOpenTranslateYAnimationFinished(true);
+                void animation.finished.finally(() => {
+                    setHasOpenTranslateYAnimationFinished(true);
+                });
+            });
         });
     }, []);
 
@@ -438,6 +445,8 @@ export function MessageViewTouchLightbox<
             position="fixed"
             inset="0"
             overflow="hidden"
+            // Don't render message in safe area.
+            paddingTop="safe-area-inset"
             className={
                 !isFadingOut
                     ? messagingStyles.backdropFadeInClassName
@@ -450,172 +459,190 @@ export function MessageViewTouchLightbox<
             }}
         >
             <Box
-                ref={presentedRef}
-                position="absolute"
+                position="relative"
                 width="full"
+                height="full"
                 overflow="hidden"
-                className={pointerEventsNoneNotInheritedClassName}
-                style={{
-                    top: initialMessageTop,
-                    paddingBottom: `calc(${spacing["4"]} + var(--safe-area-inset-bottom, 0px))`,
+                onPointerDown={event => {
+                    if (event.target === event.currentTarget) {
+                        onCloseWithAnimation();
+                    }
                 }}
             >
-                {parentMessage && (
-                    <Box
-                        fontSize="50"
-                        fontStyle="truncate"
-                        paddingTop="1"
-                        paddingBottom="1"
-                        paddingRight={screenPaddingX.mobile}
-                        color="grey-50"
-                        display="flex"
-                        alignItems="center"
-                        gap="0.5"
-                        pointerEvents="none"
-                        style={{
-                            paddingLeft: addRemLengths(
-                                getMessageBubbleMarginLeft(screenPaddingX.mobile),
-                                parentMessage === null ? spacing["1.5"] : spacing["1"],
-                            ),
-                        }}
-                    >
-                        <ArrowArcLeft size={spacing["3"]} />
-                        <span>
-                            <AccountShortName account={message.author} />
-                            {parentMessage !== null && (
-                                <>
-                                    {" "}
-                                    replied to{" "}
-                                    {message.author.id === parentMessage.author.id ? (
-                                        "themself"
-                                    ) : (
-                                        <AccountShortName account={parentMessage.author} />
-                                    )}
-                                </>
-                            )}
-                        </span>
-                    </Box>
-                )}
-                {parentMessageNode}
                 <Box
-                    paddingX={screenPaddingX.mobile}
-                    display="flex"
-                    className={pointerEventsNoneNotInheritedClassName}
-                >
-                    <Box pointerEvents="none" flexShrink="0" paddingRight="2">
-                        <Spacer space="7" />
-                    </Box>
-                    {messageChildrenForBigEmojiMessage ? (
-                        <Box
-                            paddingLeft="1"
-                            position="relative"
-                            zIndex="20"
-                            fontSize="600"
-                            userSelect="none"
-                        >
-                            {messageChildrenForBigEmojiMessage}
-                            {message.payload.type === "Content" &&
-                                message.payload.contentUpdatedTime && (
-                                    <span
-                                        className={contentViewStyles.updatedNoteClassName}
-                                        style={{paddingLeft: spacing["1"]}}
-                                    >
-                                        {" "}
-                                        (updated)
-                                    </span>
-                                )}
-                        </Box>
-                    ) : (
-                        <Box
-                            position="relative"
-                            zIndex="20"
-                            backgroundColor="grey-5"
-                            maxWidth="full"
-                            overflow="hidden"
-                            display="inline-block"
-                            paddingX={messageViewBubblePaddingX}
-                            paddingY={messageViewBubblePaddingY}
-                            borderTopLeftRadius={
-                                !hasOpenTranslateYAnimationFinished || isFadingOut
-                                    ? !shouldMergeWithPreviousMessage
-                                        ? messageViewBubbleBorderRadius
-                                        : messageViewBubbleMergedBorderRadius
-                                    : messageViewBubbleBorderRadius
-                            }
-                            borderTopRightRadius={messageViewBubbleBorderRadius}
-                            borderBottomLeftRadius={
-                                !hasOpenTranslateYAnimationFinished || isFadingOut
-                                    ? !shouldMergeWithNextMessage
-                                        ? messageViewBubbleBorderRadius
-                                        : messageViewBubbleMergedBorderRadius
-                                    : messageViewBubbleBorderRadius
-                            }
-                            borderBottomRightRadius={messageViewBubbleBorderRadius}
-                            pointerEvents="auto"
-                            style={{
-                                transition: "border-radius 200ms ease",
-                            }}
-                        >
-                            <ContentView
-                                isInert={true}
-                                isCompact={true}
-                                isExtraCompact={isMobile}
-                                isBackgroundColorGrey5={true}
-                                withUserSelectNone={true}
-                                className={sprinkles({minWidth: messageViewBubbleMinWidth})}
-                                // Only rendered on mobile layouts.
-                                withMobileLayout={true}
-                                content={
-                                    // Should only be able to open a lightbox for a message with content. If a
-                                    // message is deleted then show nothing. (Message may be deleted in realtime.)
-                                    message.payload.type === "Content"
-                                        ? message.payload.content
-                                        : emptyMessageContentWithReferences
-                                }
-                                contentUpdatedTime={
-                                    message.payload.type === "Content"
-                                        ? message.payload.contentUpdatedTime
-                                        : null
-                                }
-                            />
-                        </Box>
-                    )}
-                    <Box pointerEvents="none" flexShrink="0" paddingLeft="3">
-                        <Box width={messageViewActionsWidthWithoutHoveringPrimaryInput} />
-                    </Box>
-                </Box>
-                <Box
-                    paddingRight={screenPaddingX.mobile}
-                    // Display flex so we don't get the same width as the message bubble.
-                    display="flex"
-                    paddingTop={defaultTooltipOffset}
+                    ref={presentedRef}
+                    position="absolute"
+                    width="full"
+                    overflow="hidden"
                     className={pointerEventsNoneNotInheritedClassName}
                     style={{
-                        paddingLeft: addRemLengths(spacing[screenPaddingX.mobile], spacing["9"]),
-                        opacity: !hasOpenTranslateYAnimationFinished ? 0 : undefined,
-                        animation: hasOpenTranslateYAnimationFinished
-                            ? !isFadingOut
-                                ? overlayAnimateFadeInFromBottomSlowedAnimation
-                                : overlayAnimateFadeOutFromBottomAnimation
-                            : undefined,
+                        top: `calc(${initialMessageTop}px - var(--safe-area-inset-top, 0px))`,
+                        paddingBottom: `calc(${spacing["4"]} + var(--safe-area-inset-bottom, 0px))`,
+                        // We're about to start animating this element. Hint to the browser that it
+                        // should create a new compositing layer.
+                        willChange: "transform",
                     }}
                 >
-                    <Menu
-                        actions={menuActions}
-                        extraBottom={
-                            <MessageViewMenuCreatedTime
-                                createdTime={message.createdTime}
-                                contentUpdatedTime={
-                                    message.payload.type === "Content"
-                                        ? message.payload.contentUpdatedTime
-                                        : null
+                    {parentMessage && (
+                        <Box
+                            fontSize="50"
+                            fontStyle="truncate"
+                            paddingTop="1"
+                            paddingBottom="1"
+                            paddingRight={screenPaddingX.mobile}
+                            color="grey-50"
+                            display="flex"
+                            alignItems="center"
+                            gap="0.5"
+                            pointerEvents="none"
+                            style={{
+                                paddingLeft: addRemLengths(
+                                    getMessageBubbleMarginLeft(screenPaddingX.mobile),
+                                    parentMessage === null ? spacing["1.5"] : spacing["1"],
+                                ),
+                            }}
+                        >
+                            <ArrowArcLeft size={spacing["3"]} />
+                            <span>
+                                <AccountShortName account={message.author} />
+                                {parentMessage !== null && (
+                                    <>
+                                        {" "}
+                                        replied to{" "}
+                                        {message.author.id === parentMessage.author.id ? (
+                                            "themself"
+                                        ) : (
+                                            <AccountShortName account={parentMessage.author} />
+                                        )}
+                                    </>
+                                )}
+                            </span>
+                        </Box>
+                    )}
+                    {parentMessageNode}
+                    <Box
+                        paddingX={screenPaddingX.mobile}
+                        display="flex"
+                        className={pointerEventsNoneNotInheritedClassName}
+                    >
+                        <Box pointerEvents="none" flexShrink="0" paddingRight="2">
+                            <Spacer space="7" />
+                        </Box>
+                        {messageChildrenForBigEmojiMessage ? (
+                            <Box
+                                paddingLeft="1"
+                                position="relative"
+                                zIndex="20"
+                                fontSize="600"
+                                userSelect="none"
+                            >
+                                {messageChildrenForBigEmojiMessage}
+                                {message.payload.type === "Content" &&
+                                    message.payload.contentUpdatedTime && (
+                                        <span
+                                            className={contentViewStyles.updatedNoteClassName}
+                                            style={{paddingLeft: spacing["1"]}}
+                                        >
+                                            {" "}
+                                            (updated)
+                                        </span>
+                                    )}
+                            </Box>
+                        ) : (
+                            <Box
+                                position="relative"
+                                zIndex="20"
+                                backgroundColor="grey-5"
+                                maxWidth="full"
+                                overflow="hidden"
+                                display="inline-block"
+                                paddingX={messageViewBubblePaddingX}
+                                paddingY={messageViewBubblePaddingY}
+                                borderTopLeftRadius={
+                                    !hasOpenTranslateYAnimationFinished || isFadingOut
+                                        ? !shouldMergeWithPreviousMessage
+                                            ? messageViewBubbleBorderRadius
+                                            : messageViewBubbleMergedBorderRadius
+                                        : messageViewBubbleBorderRadius
                                 }
-                            />
-                        }
-                        onCloseWithAnimation={onCloseWithAnimation}
-                        // Always close lightbox with animation.
-                        onCloseWithoutAnimation={onCloseWithAnimation}
-                    />
+                                borderTopRightRadius={messageViewBubbleBorderRadius}
+                                borderBottomLeftRadius={
+                                    !hasOpenTranslateYAnimationFinished || isFadingOut
+                                        ? !shouldMergeWithNextMessage
+                                            ? messageViewBubbleBorderRadius
+                                            : messageViewBubbleMergedBorderRadius
+                                        : messageViewBubbleBorderRadius
+                                }
+                                borderBottomRightRadius={messageViewBubbleBorderRadius}
+                                pointerEvents="auto"
+                                style={{
+                                    transition: "border-radius 200ms ease",
+                                }}
+                            >
+                                <ContentView
+                                    isInert={true}
+                                    isCompact={true}
+                                    isExtraCompact={isMobile}
+                                    isBackgroundColorGrey5={true}
+                                    withUserSelectNone={true}
+                                    className={sprinkles({minWidth: messageViewBubbleMinWidth})}
+                                    // Only rendered on mobile layouts.
+                                    withMobileLayout={true}
+                                    content={
+                                        // Should only be able to open a lightbox for a message with content. If a
+                                        // message is deleted then show nothing. (Message may be deleted in realtime.)
+                                        message.payload.type === "Content"
+                                            ? message.payload.content
+                                            : emptyMessageContentWithReferences
+                                    }
+                                    contentUpdatedTime={
+                                        message.payload.type === "Content"
+                                            ? message.payload.contentUpdatedTime
+                                            : null
+                                    }
+                                />
+                            </Box>
+                        )}
+                        <Box pointerEvents="none" flexShrink="0" paddingLeft="3">
+                            <Box width={messageViewActionsWidthWithoutHoveringPrimaryInput} />
+                        </Box>
+                    </Box>
+                    <Box
+                        paddingRight={screenPaddingX.mobile}
+                        // Display flex so we don't get the same width as the message bubble.
+                        display="flex"
+                        paddingTop={defaultTooltipOffset}
+                        className={pointerEventsNoneNotInheritedClassName}
+                        style={{
+                            paddingLeft: addRemLengths(
+                                spacing[screenPaddingX.mobile],
+                                spacing["9"],
+                            ),
+                            opacity: !hasOpenTranslateYAnimationFinished ? 0 : undefined,
+                            animation: hasOpenTranslateYAnimationFinished
+                                ? !isFadingOut
+                                    ? overlayAnimateFadeInFromBottomSlowedAnimation
+                                    : overlayAnimateFadeOutFromBottomAnimation
+                                : undefined,
+                        }}
+                    >
+                        <Menu
+                            actions={menuActions}
+                            extraBottom={
+                                <MessageViewMenuCreatedTime
+                                    createdTime={message.createdTime}
+                                    contentUpdatedTime={
+                                        message.payload.type === "Content"
+                                            ? message.payload.contentUpdatedTime
+                                            : null
+                                    }
+                                />
+                            }
+                            onCloseWithAnimation={onCloseWithAnimation}
+                            // Always close lightbox with animation.
+                            onCloseWithoutAnimation={onCloseWithAnimation}
+                        />
+                    </Box>
                 </Box>
             </Box>
         </Box>,
