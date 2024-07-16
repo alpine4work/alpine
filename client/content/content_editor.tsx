@@ -2395,7 +2395,8 @@ function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
         node = $pos.node(depth);
     }
 
-    if (!node.isTextblock || node.type.name !== "paragraph") return decorations;
+    if (!node.isTextblock || node.type.name !== "paragraph" || node.content.size === 0)
+        return decorations;
 
     return decorations.add(state.doc, [
         Decoration.widget(
