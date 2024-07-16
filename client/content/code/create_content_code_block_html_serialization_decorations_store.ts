@@ -6,7 +6,16 @@ import {lezerClassHighlighter} from "~/client/content/code/lezer_class_highlight
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {ProsemirrorHtmlSerializationInlineDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+
+export type ContentCodeBlockHtmlSerializationDecoration = {
+    readonly type: "Inline";
+    readonly from: number;
+    readonly to: number;
+    readonly attrs: {
+        readonly nodeName: "span";
+        readonly class: string;
+    };
+};
 
 /**
  * Generate `codeBlock` node syntax highlighting decorations for
@@ -18,9 +27,9 @@ import {ProsemirrorHtmlSerializationInlineDecoration} from "~/shared/prosemirror
  */
 export function createContentCodeBlockHtmlSerializationDecorationsStore(
     doc: Node,
-): Store<ReadonlyArray<ProsemirrorHtmlSerializationInlineDecoration>> {
+): Store<ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>> {
     return computeStore(get => {
-        const decorations: Array<ProsemirrorHtmlSerializationInlineDecoration> = [];
+        const decorations: Array<ContentCodeBlockHtmlSerializationDecoration> = [];
 
         doc.forEach((node, offset) => {
             // Currently, code blocks may only be a direct child of `doc`.

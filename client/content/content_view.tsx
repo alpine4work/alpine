@@ -2,8 +2,12 @@ import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {ContentCodeBlockIncrementalParser} from "~/client/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
-import {createContentCodeBlockHtmlSerializationDecorationsStore} from "~/client/content/code/create_content_code_block_html_serialization_decorations_store.js";
+import {
+    ContentCodeBlockHtmlSerializationDecoration,
+    createContentCodeBlockHtmlSerializationDecorationsStore,
+} from "~/client/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
@@ -34,10 +38,7 @@ import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/htm
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {
-    ProsemirrorHtmlSerializationDecoration,
-    ProsemirrorHtmlSerializationInlineDecoration,
-} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {contentSchemaStyles, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
@@ -46,27 +47,21 @@ const ContentViewCodeBlockDecorationsSchema = Schema.array(
         from: Schema.integer,
         to: Schema.integer,
         class: Schema.string,
-    }).transform<ProsemirrorHtmlSerializationInlineDecoration>({
-        serialize: decoration => {
-            assert(decoration.attrs.nodeName === "span");
-
-            return {
-                from: decoration.from,
-                to: decoration.to,
-                class: decoration.attrs.class ?? "",
-            };
-        },
-        deserialize: decoration => {
-            return {
-                type: "Inline",
-                from: decoration.from,
-                to: decoration.to,
-                attrs: {
-                    nodeName: "span",
-                    class: decoration.class,
-                },
-            };
-        },
+    }).transform<ContentCodeBlockHtmlSerializationDecoration>({
+        serialize: decoration => ({
+            from: decoration.from,
+            to: decoration.to,
+            class: decoration.attrs.class ?? "",
+        }),
+        deserialize: decoration => ({
+            type: "Inline",
+            from: decoration.from,
+            to: decoration.to,
+            attrs: {
+                nodeName: "span",
+                class: decoration.class,
+            },
+        }),
     }),
 );
 
@@ -91,6 +86,7 @@ export function ContentView({
     isTruncated = false,
     isCompact = false,
     isExtraCompact = false,
+    isEditorInitialAppRender = false,
     isBackgroundColorGrey5 = false,
     shouldHighlightComment,
     withUserSelectNone = false,
@@ -156,6 +152,13 @@ export function ContentView({
     isExtraCompact?: boolean;
 
     /**
+     * Are we rendering a `<ContentView>` as a placeholder during initial app
+     * render for `<ContentEditor>`? Not much changes when this is true but we
+     * disable some behaviors we save for `<ContentEditor>`.
+     */
+    isEditorInitialAppRender?: boolean;
+
+    /**
      * Is this `<ContentView>` rendered on a `grey-5` background? If true certain
      * colors may change. For example, the code block button's hover background
      * color will change from `grey-5` to `grey-10`.
@@ -217,18 +220,28 @@ export function ContentView({
 
     const [initialCodeBlockDecorationsState, setInitialCodeBlockDecorationsState] = useState<{
         readonly doc: Node;
-        readonly decorations: ReadonlyArray<ProsemirrorHtmlSerializationInlineDecoration>;
+        readonly decorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
     } | null>(() => {
         if (typeof window === "undefined") return null;
         if (!isInitialAppRender) return null;
 
-        const decorations = window.__contentViewCodeBlockDecorationsById?.[id];
-        if (!decorations) return null;
+        const serializedDecorations = window.__contentViewCodeBlockDecorationsById?.[id];
+        if (!serializedDecorations) return null;
 
         delete window.__contentViewCodeBlockDecorationsById![id];
+        const decorations =
+            ContentViewCodeBlockDecorationsSchema.deserialize(serializedDecorations);
+
+        if (isEditorInitialAppRender && decorations.length > 0) {
+            ContentCodeBlockIncrementalParser.getInitialDecorationsByNode().set(
+                content.doc,
+                decorations,
+            );
+        }
+
         return {
             doc: content.doc,
-            decorations: ContentViewCodeBlockDecorationsSchema.deserialize(decorations),
+            decorations,
         };
     });
     let initialCodeBlockDecorations = initialCodeBlockDecorationsState?.decorations ?? null;
@@ -375,7 +388,7 @@ export function ContentView({
 
         let htmlStore: Store<{
             html: string;
-            codeBlockDecorations: ReadonlyArray<ProsemirrorHtmlSerializationInlineDecoration>;
+            codeBlockDecorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
         }>;
 
         // If we have some initial code block decorations from server-side rendering

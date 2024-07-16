@@ -33,6 +33,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -977,10 +978,18 @@ export function isContinuouslyTypingInContentEditor(state: EditorState): boolean
     return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
 }
 
-const contentEditorCodeBlockPluginKey = new PluginKey<{
+type ContentEditorCodeBlockStateValue = {
     readonly dependencyStores: ReadonlySet<Store<any>> | null;
     readonly parser: ContentCodeBlockIncrementalParser;
-}>("contentEditorCodeBlock");
+};
+
+type ContentEditorCodeBlockState =
+    | ContentEditorCodeBlockStateValue
+    | Lazy<ContentEditorCodeBlockStateValue>;
+
+const contentEditorCodeBlockPluginKey = new PluginKey<ContentEditorCodeBlockState>(
+    "contentEditorCodeBlock",
+);
 
 /**
  * Plugin for managing code block behavior. Including:
@@ -989,44 +998,61 @@ const contentEditorCodeBlockPluginKey = new PluginKey<{
  * - Trailing space cleanup
  */
 function contentEditorCodeBlockPlugin() {
-    return new Plugin<{
-        readonly dependencyStores: ReadonlySet<Store<any>> | null;
-        readonly parser: ContentCodeBlockIncrementalParser;
-    }>({
+    return new Plugin<ContentEditorCodeBlockState>({
         key: contentEditorCodeBlockPluginKey,
         state: {
-            init: (config, state) => {
-                let dependencyStores: Set<Store<any>> | null = null;
+            init: (config, state) =>
+                // We want to lazily initialize `ContentCodeBlockIncrementalParser` when
+                // `EditorView` is available. (In other words, in an effect after
+                // `isInitialAppRender`). We don't want to initialize
+                // `ContentCodeBlockIncrementalParser` on `ContentEditorState.create()`!
+                //
+                // On initial server render, `<ContentView>` sets the initial server rendered
+                // decorations to
+                // `ContentCodeBlockIncrementalParser.getInitialDecorationsByNode()`. This only
+                // happens after `<ContentView>` is rendered and `<ContentView>` is rendered
+                // after `ContentEditorState.create()` is called.
+                //
+                // By lazily initializing `ContentCodeBlockIncrementalParser` we'll initialize
+                // after `<ContentView>` has been rendered and our initial server rendered
+                // decorations are discovered.
+                new Lazy(() => {
+                    let dependencyStores: Set<Store<any>> | null = null;
 
-                const parser = ContentCodeBlockIncrementalParser.new(store => {
-                    if (!store.isFinal()) {
-                        dependencyStores ??= new Set();
-                        dependencyStores.add(store);
-                    }
+                    const parser = ContentCodeBlockIncrementalParser.new(store => {
+                        if (!store.isFinal()) {
+                            dependencyStores ??= new Set();
+                            dependencyStores.add(store);
+                        }
 
-                    return store.getSnapshot();
-                }, state.doc);
+                        return store.getSnapshot();
+                    }, state.doc);
 
-                return {
-                    dependencyStores,
-                    parser,
-                };
-            },
-            apply: (transaction, pluginState) => {
+                    return {
+                        dependencyStores,
+                        parser,
+                    };
+                }),
+
+            apply: (transaction, oldPluginState) => {
                 if (
                     !transaction.docChanged &&
                     !transaction.getMeta(contentEditorCodeBlockPluginKey)
                 ) {
-                    return pluginState;
+                    return oldPluginState;
                 }
 
-                let dependencyStores: Set<Store<any>> | null = null;
+                oldPluginState =
+                    oldPluginState instanceof Lazy ? oldPluginState.get() : oldPluginState;
 
-                const parser = pluginState.parser.update(
+                const {dependencyStores: oldDependencyStores} = oldPluginState;
+                let newDependencyStores: Set<Store<any>> | null = null;
+
+                const parser = oldPluginState.parser.update(
                     store => {
                         if (!store.isFinal()) {
-                            dependencyStores ??= new Set();
-                            dependencyStores.add(store);
+                            newDependencyStores ??= new Set();
+                            newDependencyStores.add(store);
                         }
 
                         return store.getSnapshot();
@@ -1039,20 +1065,18 @@ function contentEditorCodeBlockPlugin() {
                     // If `dependencyStores` didn't change then reuse the old value from
                     // `pluginState` so we don't have to re-subscribe.
                     dependencyStores:
-                        dependencyStores !== null &&
-                        pluginState.dependencyStores !== null &&
-                        iterableEvery(dependencyStores, store =>
-                            pluginState.dependencyStores!.has(
+                        newDependencyStores !== null &&
+                        oldDependencyStores !== null &&
+                        iterableEvery(newDependencyStores, store =>
+                            oldDependencyStores.has(
                                 // @ts-expect-error: `store` is the right type here but TypeScript is having
                                 // trouble figuring that out.
                                 store,
                             ),
                         ) &&
-                        iterableEvery(pluginState.dependencyStores, store =>
-                            dependencyStores!.has(store),
-                        )
-                            ? pluginState.dependencyStores
-                            : dependencyStores,
+                        iterableEvery(oldDependencyStores, store => newDependencyStores!.has(store))
+                            ? oldDependencyStores
+                            : newDependencyStores,
 
                     parser,
                 };
@@ -1074,10 +1098,16 @@ function contentEditorCodeBlockPlugin() {
             };
 
             const update = (view: EditorView, oldState: EditorState | null) => {
-                const oldPluginState = oldState
+                let oldPluginState = oldState
                     ? contentEditorCodeBlockPluginKey.getState(oldState)!
                     : null;
-                const newPluginState = contentEditorCodeBlockPluginKey.getState(view.state)!;
+                let newPluginState = contentEditorCodeBlockPluginKey.getState(view.state)!;
+
+                oldPluginState =
+                    oldPluginState instanceof Lazy ? oldPluginState.get() : oldPluginState;
+
+                newPluginState =
+                    newPluginState instanceof Lazy ? newPluginState.get() : newPluginState;
 
                 if (oldPluginState?.dependencyStores === newPluginState.dependencyStores) return;
 
@@ -1107,7 +1137,11 @@ function contentEditorCodeBlockPlugin() {
 
         props: {
             decorations(state) {
-                return this.getState(state)!.parser.decorations;
+                let pluginState = this.getState(state)!;
+
+                pluginState = pluginState instanceof Lazy ? pluginState.get() : pluginState;
+
+                return pluginState.parser.decorations;
             },
         },
 

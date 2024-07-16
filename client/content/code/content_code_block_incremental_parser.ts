@@ -4,6 +4,7 @@ import {Node} from "prosemirror-model";
 import {Mapping} from "prosemirror-transform";
 import {Decoration, DecorationSet} from "prosemirror-view";
 import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
+import {ContentCodeBlockHtmlSerializationDecoration} from "~/client/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {createContentCodeBlockNodeInput} from "~/client/content/code/create_content_code_block_node_input.js";
 import {lezerClassHighlighter} from "~/client/content/code/lezer_class_highlighter.js";
 import {
@@ -107,6 +108,20 @@ export function setMockedHighlightTreeForTest(mockedHighlightTree: typeof highli
  * [1]: https://lezer.codemirror.net
  */
 export class ContentCodeBlockIncrementalParser {
+    private static _initialDecorationsByNode: WeakMap<
+        Node,
+        ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>
+    > | null = null;
+
+    public static getInitialDecorationsByNode() {
+        return (this._initialDecorationsByNode ??= new WeakMap());
+    }
+
+    /**
+     * The full document we're highlighting code blocks in.
+     */
+    private readonly _doc: Node;
+
     /**
      * The `codeBlock` nodes in the doc we're highlighting.
      */
@@ -148,12 +163,14 @@ export class ContentCodeBlockIncrementalParser {
     public readonly decorations: DecorationSet;
 
     private constructor(
+        doc: Node,
         nodeArray: ReadonlyArray<Node>,
         nodeSet: ReadonlySet<Node>,
         nodeOffsets: ReadonlyArray<number>,
         results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
         decorations: DecorationSet,
     ) {
+        this._doc = doc;
         this._nodeArray = nodeArray;
         this._nodeSet = nodeSet;
         this._nodeOffsets = nodeOffsets;
@@ -170,6 +187,36 @@ export class ContentCodeBlockIncrementalParser {
         doc: Node,
     ): ContentCodeBlockIncrementalParser {
         const [nodeArray, nodeSet, nodeOffsets] = getContentCodeBlockNodes(doc);
+
+        // Check to see if we have initial decorations from the server. If so we use
+        // them until the document updates and load the language parsers in the
+        // background so we don't have a flash of code blocks that aren't highlighted.
+        const initialDecorations =
+            ContentCodeBlockIncrementalParser._initialDecorationsByNode?.get(doc);
+        if (initialDecorations) {
+            for (const node of nodeArray) {
+                const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
+                const language = contentCodeBlockLanguageById[languageId];
+
+                // Preload code block languages while we're using initial code block
+                // decorations so we're ready for a re-render.
+                language.getParser();
+            }
+
+            return new ContentCodeBlockIncrementalParser(
+                doc,
+                [],
+                new Set(),
+                [],
+                [],
+                DecorationSet.create(
+                    doc,
+                    initialDecorations.map(decoration =>
+                        Decoration.inline(decoration.from, decoration.to, decoration.attrs),
+                    ),
+                ),
+            );
+        }
 
         const results = nodeArray.map((node): ContentCodeBlockIncrementalParserResult | null => {
             const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
@@ -205,6 +252,7 @@ export class ContentCodeBlockIncrementalParser {
         }
 
         return new ContentCodeBlockIncrementalParser(
+            doc,
             nodeArray,
             nodeSet,
             nodeOffsets,
@@ -242,6 +290,24 @@ export class ContentCodeBlockIncrementalParser {
         mapping: Mapping,
     ): ContentCodeBlockIncrementalParser {
         const [newNodeArray, newNodeSet, newNodeOffsets] = getContentCodeBlockNodes(doc);
+
+        // If this `doc` has some initial decorations we used and the doc is the same
+        // as what we previously parsed, then don't update the parser.
+        //
+        // Normally, we need to update the parser even if `this._doc === doc` because
+        // we need to check and see if a previously unloaded language parser is now
+        // loaded. However, when we have initial decorations from the server we
+        // don't need to load parsers until the user updates the document.
+        const initialDecorations =
+            ContentCodeBlockIncrementalParser._initialDecorationsByNode?.get(doc);
+        if (
+            initialDecorations &&
+            this._doc === doc &&
+            this._nodeArray.length === 0 &&
+            newNodeArray.length > 0
+        ) {
+            return this;
+        }
 
         const changes = actuallySymmetricDiffIterable(
             this._nodeArray,
@@ -500,6 +566,7 @@ export class ContentCodeBlockIncrementalParser {
         }
 
         return new ContentCodeBlockIncrementalParser(
+            doc,
             newNodeArray,
             newNodeSet,
             newNodeOffsets,

@@ -518,6 +518,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     return (
         <div className={classNames(containerClassName, customContainerClassName)}>
             <ContentView
+                isEditorInitialAppRender={true}
                 withMobileLayout={withMobileLayout}
                 isCompact={isCompact}
                 isExtraCompact={isExtraCompact}
