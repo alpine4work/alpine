@@ -1,4 +1,4 @@
-import {isFocusVisible} from "@react-aria/interactions";
+import {getInteractionModality} from "@react-aria/interactions";
 import {
     ReactElement,
     Ref,
@@ -270,7 +270,7 @@ export function useIsFocusRingVisible({
                 // (Unless otherwise specified.) We cache whether focus is visible instead of
                 // relying on a prop since if the interaction modality changes from keyboard
                 // to mouse we'd like to keep the ring.
-                return isVisibleFromAnyFocus || isFocusVisible();
+                return isVisibleFromAnyFocus || getInteractionModality() === "keyboard";
             };
 
             let isFocused =
