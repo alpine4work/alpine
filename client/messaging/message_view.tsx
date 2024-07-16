@@ -529,7 +529,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 const touch = event.touches[0]!;
 
                 if (touchState.gesture === null) {
-                    if (Math.abs(touch.clientX - touchState.initialClientX) >= 10) {
+                    const clientXDifferenceMagnitude = Math.abs(
+                        touch.clientX - touchState.initialClientX,
+                    );
+                    const clientYDifferenceMagnitude = Math.abs(
+                        touch.clientY - touchState.initialClientY,
+                    );
+
+                    if (clientXDifferenceMagnitude > clientYDifferenceMagnitude) {
                         if (touch.clientX < touchState.initialClientX) {
                             touchState.gesture = "Other";
                         } else if (touchState.isReplyGestureDisabled) {
@@ -578,7 +585,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 return animation.finished;
                             };
                         }
-                    } else if (Math.abs(touch.clientY - touchState.initialClientY) >= 10) {
+                    } else if (clientXDifferenceMagnitude < clientYDifferenceMagnitude) {
                         touchState.gesture = "Other";
                     }
                 }

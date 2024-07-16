@@ -71,20 +71,20 @@ export function ContentEditorCodeBlockLanguagePickerComboBox({
             // keyboard opens. The value was calculated based on the keyboard height in
             // iOS. We may need to change this constant if the keyboard height for iOS
             // changes or the Android keyboard height is bigger.
-            overflowBottom={isMobile ? "64" : undefined}
+            overflowBottom={isMobile ? "18rem" : undefined}
             targetElement={targetElement}
             overlay={
                 <Box
                     ref={useOutsideInteraction(onCloseWithAnimation)}
                     className={greyElevated2ClassName}
                     width="48"
-                    maxHeight={withMobileLayout ? "48" : "96"}
                     overflow="hidden"
                     borderRadius="1.5"
                     backgroundColor="grey-0"
                     boxShadow="elevation-20"
                     display="flex"
                     flexDirection="column"
+                    style={{maxHeight: withMobileLayout ? spacing["32"] : spacing["96"]}}
                 >
                     <ContentEditorCodeBlockLanguagePickerComboBoxOverlay
                         selectedLanguageId={selectedLanguageId}

@@ -608,6 +608,7 @@ export {codeBlockPaddingRightSpacing as codeBlockPaddingRight};
 export const codeBlockWrapperClassName = style({
     ...omitObject(blockStyles, ["paddingLeft", "paddingRight"]),
     position: "relative",
+    zIndex: "0",
     overflowX: "auto",
     marginTop: codeBlockMarginVar,
     marginBottom: codeBlockMarginVar,
@@ -640,6 +641,9 @@ const extraCompactCodeBlockPaddingY = `${Math.max(
 export const codeBlockClassName = style({
     display: "block",
     position: "relative",
+    // Render under toolbar. Toolbar needs to be at `z-index: 0` so native
+    // scrollbar renders on top of it.
+    zIndex: "-10",
     width: "fit-content",
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
@@ -697,7 +701,7 @@ export const codeBlockLineClassName = style({
             content: "counter(code-block-line-number)",
             flexShrink: "0",
             pointerEvents: "none",
-            zIndex: "10",
+            zIndex: "0",
             position: "sticky",
             left: "0",
             marginLeft: `-${codeBlockLineOverscrollSlopX}`,
@@ -720,7 +724,7 @@ export const codeBlockLineClassName = style({
             content: '""',
             flexShrink: "0",
             pointerEvents: "none",
-            zIndex: "10",
+            zIndex: "0",
             position: "sticky",
             right: "0",
             width: codeBlockPaddingRight,
@@ -742,6 +746,10 @@ export const codeBlockLineClassName = style({
 });
 
 export const codeBlockLineContentClassName = style({
+    position: "relative",
+    // Render under line number. Line number needs to be at `z-index: 0` so native
+    // scrollbar renders on top of it.
+    zIndex: "-10",
     paddingLeft: codeBlockLineOverscrollSlopX,
     flexGrow: "1",
     // `min-width` and `min-height` for when the code block line is empty. We still
@@ -753,7 +761,7 @@ export const codeBlockLineContentClassName = style({
 
 export const codeBlockToolbarClassName = style({
     pointerEvents: "none",
-    zIndex: "20",
+    zIndex: "0",
     position: "sticky",
     left: "0",
     height: "0",

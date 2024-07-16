@@ -12,7 +12,7 @@ import {isTextInputElement} from "~/client/helpers/elements/is_text_input_elemen
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 
-const marginYRem = parseRemLengthNumber(spacing["5"]);
+export const textInputVisibilityMaintainerMarginYRem = parseRemLengthNumber(spacing["5"]);
 
 const maintainTextInputVisibilityEmitter = new EventEmitter<HTMLElement>();
 
@@ -145,6 +145,19 @@ export function useTextInputVisibilityMaintainer() {
 
             const remPx = getRemPxWithoutListening();
 
+            const viewportHeight = document.documentElement.getBoundingClientRect().height;
+
+            const visibleTop =
+                getElementSafeAreaInsetTopPx(targetElement) +
+                getNavigationBarHeightRemWithoutListening() * remPx;
+
+            const visibleBottom = viewportHeight - getCurrentCoveredHeight();
+
+            // If the input is below our covered height then don't try to maintain
+            // visibility through this hook. `<MessageInput>`s in our mobile app will be
+            // below the covered height because they're doing the covering.
+            if (inputRect.top > visibleBottom) return;
+
             // Only add margin for elements that don't have a popup (`role="combobox"`
             // [implicitly has `aria-haspopup="listbox"`][1]). For elements with popups
             // we've likely already carefully scrolled them into view considering the
@@ -160,16 +173,10 @@ export function useTextInputVisibilityMaintainer() {
                 targetElement.ariaHasPopup ??
                 (targetElement.role === "combobox" ? "listbox" : null);
 
-            inputRect.top -= (hasPopUp === null ? marginYRem : 0) * remPx;
-            inputRect.bottom += (hasPopUp === null ? marginYRem : 0) * remPx;
-
-            const viewportHeight = document.documentElement.getBoundingClientRect().height;
-
-            const visibleTop =
-                getElementSafeAreaInsetTopPx(targetElement) +
-                getNavigationBarHeightRemWithoutListening() * remPx;
-
-            const visibleBottom = viewportHeight - getCurrentCoveredHeight();
+            inputRect.top -=
+                (hasPopUp === null ? textInputVisibilityMaintainerMarginYRem : 0) * remPx;
+            inputRect.bottom +=
+                (hasPopUp === null ? textInputVisibilityMaintainerMarginYRem : 0) * remPx;
 
             if (inputRect.bottom > visibleBottom) {
                 const scrollDelta = inputRect.bottom - visibleBottom;
@@ -226,5 +233,5 @@ export function useTextInputVisibilityMaintainer() {
             document.removeEventListener("input", handleInput, {capture: true});
             unsubscribe();
         };
-    }, [getCurrentCoveredHeight]);
+    }, [getCurrentCoveredHeight, isBehindMobileFullScreenModal]);
 }

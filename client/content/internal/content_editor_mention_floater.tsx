@@ -353,6 +353,13 @@ export function ContentEditorMentionFloater({
             isVisible={!isClosing}
             disableAnimation={!wasInitiallyLoading && !isClosing}
             placement="bottom-start"
+            // Set a constant `overflowBottom` value instead of relying on the current
+            // keyboard height (which will be updated asynchronously after `isEditing` is
+            // true). This stops the overlay placement from jumping around while the
+            // keyboard opens. The value was calculated based on the keyboard height in
+            // iOS. We may need to change this constant if the keyboard height for iOS
+            // changes or the Android keyboard height is bigger.
+            overflowBottom={isMobile ? "18rem" : undefined}
             offset="3"
             overlay={
                 // TODO(calebmer): This should eventually be virtualized. Probably at the same

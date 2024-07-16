@@ -416,6 +416,7 @@ export function MessageViewTouchLightbox<
                                 messageIndex: message.index,
                                 messageRoomKey: message.getRoomKey(),
                                 messagePayload: message.payload,
+                                isMobile,
                                 returnFocusAfterEditing: null,
                             });
                         }

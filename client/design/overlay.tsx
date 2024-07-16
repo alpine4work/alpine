@@ -382,11 +382,17 @@ function Overlay(
 
                 const paddingPx = convertRemLengthToPx(spacing["1"], remPx);
 
+                const portalRect = portalElement!.getBoundingClientRect();
+                const viewportHeight = document.documentElement.getBoundingClientRect().height;
+
                 const padding = {
                     top: sameHeight
                         ? 0
                         : paddingPx +
-                          getElementSafeAreaInsetTopPx(targetElement) +
+                          Math.max(
+                              0,
+                              getElementSafeAreaInsetTopPx(targetElement) - portalRect.top,
+                          ) +
                           (overflowTop !== undefined
                               ? convertRemLengthToPx(
                                     isSpacing(overflowTop) ? spacing[overflowTop] : overflowTop,
@@ -397,8 +403,16 @@ function Overlay(
                         ? 0
                         : paddingPx +
                           (overflowBottom === undefined
-                              ? getCurrentCoveredHeight()
-                              : getElementWindowSafeAreaInsetBottomPx(targetElement) +
+                              ? Math.max(
+                                    0,
+                                    getCurrentCoveredHeight() -
+                                        (viewportHeight - portalRect.bottom),
+                                )
+                              : Math.max(
+                                    0,
+                                    getElementWindowSafeAreaInsetBottomPx(targetElement) -
+                                        (viewportHeight - portalRect.bottom),
+                                ) +
                                 convertRemLengthToPx(
                                     isSpacing(overflowBottom)
                                         ? spacing[overflowBottom]
@@ -536,20 +550,22 @@ function Overlay(
                             phase: "main" as const,
                             requires: ["hide"],
                             fn: ({state}: {state: State}) => {
+                                const offsetParentRect =
+                                    state.elements.popper.offsetParent?.getBoundingClientRect();
+
                                 const scrollParent =
                                     state.scrollParents.popper[0] instanceof HTMLElement
                                         ? state.scrollParents.popper[0]
                                         : null;
-                                if (!scrollParent) return;
-
-                                const scrollParentRect = scrollParent.getBoundingClientRect();
 
                                 state.modifiersData.updateBlockingCoverRead = {
-                                    scrollParentRect: {
-                                        x: scrollParentRect.x - scrollParent.scrollLeft,
-                                        y: scrollParentRect.y - scrollParent.scrollTop,
-                                        width: scrollParentRect.width,
-                                        height: scrollParentRect.height,
+                                    popperRelativeCoord: {
+                                        x:
+                                            (offsetParentRect?.x ?? 0) -
+                                            (scrollParent?.scrollLeft ?? 0),
+                                        y:
+                                            (offsetParentRect?.y ?? 0) -
+                                            (scrollParent?.scrollTop ?? 0),
                                     },
                                 };
                             },
@@ -560,25 +576,26 @@ function Overlay(
                                 isBlocking && (withoutRootBlockingScope || withoutBlockingTarget),
                             phase: "write" as const,
                             fn: ({state}: {state: State}) => {
-                                const scrollParentRect: Rect | undefined =
-                                    state.modifiersData.updateBlockingCoverRead?.scrollParentRect;
+                                const popperRelativeCoord: {x: number; y: number} | undefined =
+                                    state.modifiersData.updateBlockingCoverRead
+                                        ?.popperRelativeCoord;
 
                                 const rects = {
                                     target: {
                                         width: state.rects.reference.width,
                                         height: state.rects.reference.height,
-                                        x: state.rects.reference.x + (scrollParentRect?.x ?? 0),
-                                        y: state.rects.reference.y + (scrollParentRect?.y ?? 0),
+                                        x: state.rects.reference.x + (popperRelativeCoord?.x ?? 0),
+                                        y: state.rects.reference.y + (popperRelativeCoord?.y ?? 0),
                                     },
                                     overlay: {
                                         width: state.rects.popper.width,
                                         height: state.rects.popper.height,
                                         x:
                                             (state.modifiersData.popperOffsets?.x ?? 0) +
-                                            (scrollParentRect?.x ?? 0),
+                                            (popperRelativeCoord?.x ?? 0),
                                         y:
                                             (state.modifiersData.popperOffsets?.y ?? 0) +
-                                            (scrollParentRect?.y ?? 0),
+                                            (popperRelativeCoord?.y ?? 0),
                                     },
                                 };
 

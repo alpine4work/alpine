@@ -43,6 +43,7 @@ export type MessageEditingAction<RoomKey extends string> =
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
           readonly messagePayload: MessageContentPayloadModel;
+          readonly isMobile: boolean;
           readonly returnFocusAfterEditing: (() => void) | null;
       }
     | {
@@ -80,8 +81,9 @@ function reduce<RoomKey extends string>(
                 messageIndex: action.messageIndex,
                 contentEditorState: ContentEditorState.create(action.messagePayload.content, {
                     // The user is much more likely to need to edit from the end of the message than
-                    // the start. This is especially convenient on mobile.
-                    selectionAt: "end",
+                    // the start. But on mobile, if the message is long, editing should start at the
+                    // start of the message so the cursor is visible.
+                    selectionAt: action.isMobile ? "start" : "end",
                 }),
                 initialContent: action.messagePayload.content.doc,
                 returnFocusAfterEditing: action.returnFocusAfterEditing,

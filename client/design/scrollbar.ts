@@ -479,6 +479,10 @@ export function initializeScrollbar(
         pointerEvents: "none",
     });
 
+    // Above `z-index: 0` but below `z-index: 10`. `z-index: 10` is the first
+    // `z-index` you can set with `sprinkles()`.
+    scrollbarElement.style.zIndex = "5";
+
     scrollbarElement.style.width =
         insetRight !== 0
             ? typeof insetRight === "number"

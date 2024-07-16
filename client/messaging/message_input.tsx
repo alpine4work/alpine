@@ -336,6 +336,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                     messageRoomKey: message.getRoomKey(),
                                     messageIndex: message.index,
                                     messagePayload: message.payload,
+                                    isMobile,
                                     returnFocusAfterEditing: () => {
                                         // Reset the interaction modality when returning focus to our editor. So if the
                                         // user pressed enter to save that doesn't give us a keyboard modality if the

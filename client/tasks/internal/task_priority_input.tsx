@@ -456,7 +456,7 @@ function TaskPriorityInput(
                 // keyboard opens. The value was calculated based on the keyboard height in
                 // iOS. We may need to change this constant if the keyboard height for iOS
                 // changes or the Android keyboard height is bigger.
-                overflowBottom={isMobile ? "64" : undefined}
+                overflowBottom={isMobile ? "18rem" : undefined}
                 overflowTop={navigationBarHeight[isMobile ? "mobile" : "desktop"]}
                 overlay={
                     <div ref={popoverRef} className={sprinkles({position: "relative"})}>

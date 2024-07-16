@@ -67,6 +67,7 @@ import {
 } from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
+import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
@@ -781,7 +782,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             if (lastScrollMargin !== null && lastRemPx === remPx) return lastScrollMargin;
 
-            const scrollMarginPx = convertRemLengthToPx(spacing["5"], remPx);
+            const scrollMarginPx = textInputVisibilityMaintainerMarginYRem * remPx;
 
             lastRemPx = remPx;
 
