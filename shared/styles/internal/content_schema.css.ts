@@ -650,6 +650,34 @@ export const codeBlockClassName = style({
     },
 });
 
+// In Safari, when the user is scrolling and they reach the end of the scroll
+// view they may start overscrolling. When the user ends their scroll Safari
+// will bounce animate the scroll position back to the correct range.
+//
+// So for example if a user is at scroll offset 100 and is scrolling left they
+// may reach 0 then overscroll to -10. When they release their scroll it
+// bounces back to 0 since -10 is not a valid scroll offset.
+//
+// We want our sticky elements to stay "stuck" while the user is overscrolling
+// instead of moving with the scroll view. So to accomplish this we have some
+// slop to modify the true position of sticky elements. We place the sticky
+// elements far offscreen and let `position: sticky` move them onscreen. If a
+// left positioned sticky element is originally placed at position -200 then
+// when the view is scrolled to position -10 the sticky element will still be
+// stuck to the left edge of the view. However, if a left positioned sticky
+// element is originally at position 0 then when the view is scroll to position
+// -10 it'll unstick and move with the scroll.
+//
+// To debug this try opening Safari (desktop or mobile will work) and set this
+// to 0. Then try overscrolling a code block left and right and observe how the
+// line numbers and toolbar move with the overscroll.
+//
+// Technically, if the user overscrolls to this slop sticky elements will
+// unstick and start traveling with the scroll but a user has to try really
+// hard to overscroll this far since the operating system will resist the
+// overscroll.
+const codeBlockLineOverscrollSlopX = spacing["96"];
+
 export const codeBlockLineClassName = style({
     display: "flex",
     width: "100%",
@@ -662,6 +690,7 @@ export const codeBlockLineClassName = style({
             zIndex: "10",
             position: "sticky",
             left: "0",
+            marginLeft: `-${codeBlockLineOverscrollSlopX}`,
             width: `calc(${addRemLengths(
                 listItemIndentation,
                 blockPaddingX,
@@ -703,6 +732,7 @@ export const codeBlockLineClassName = style({
 });
 
 export const codeBlockLineContentClassName = style({
+    paddingLeft: codeBlockLineOverscrollSlopX,
     flexGrow: "1",
     // `min-width` and `min-height` for when the code block line is empty. We still
     // need space to render the cursor (can't be 0 width) and we can't collapse the
@@ -713,11 +743,13 @@ export const codeBlockLineContentClassName = style({
 
 export const codeBlockToolbarClassName = style({
     pointerEvents: "none",
-    zIndex: 20,
+    zIndex: "20",
     position: "sticky",
-    left: 0,
-    height: 0,
+    left: "0",
+    height: "0",
     width: "100%",
+    marginLeft: `-${codeBlockLineOverscrollSlopX}`,
+    marginRight: `-${codeBlockLineOverscrollSlopX}`,
     // Override `cursor: text` and `user-select: text` set on the content editor.
     cursor: "auto",
     userSelect: "none",
@@ -726,8 +758,8 @@ export const codeBlockToolbarClassName = style({
 export const codeBlockToolbarFlexClassName = style({
     pointerEvents: "auto",
     position: "absolute",
-    top: 0,
-    right: 0,
+    top: "0",
+    right: "0",
     height: codeBlockToolbarHeight,
     paddingLeft: spacing["1.5"],
     paddingRight: blockPaddingX,
