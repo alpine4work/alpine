@@ -1,5 +1,6 @@
 import {Memo, MutableRefObject, ReactNode, useEffect, useMemo, useReducer} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {trimContentEnd} from "~/client/content/trim_content_end.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -217,7 +218,7 @@ export function useMessageEditing<RoomKey extends string>({
         onUpdateMessageContent({
             roomKey: state.messageRoomKey,
             messageIndex: state.messageIndex,
-            content: state.contentEditorState.getDoc(),
+            content: trimContentEnd(state.contentEditorState.getDoc()),
         }).then(
             () => {
                 state.savePromiseResolver?.resolve();

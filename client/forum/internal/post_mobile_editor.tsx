@@ -4,6 +4,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
+import {trimContentEnd} from "~/client/content/trim_content_end.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -113,7 +114,7 @@ export function PostMobileEditor({
             onPress={async () => {
                 const event = await updatePostContent(context, {
                     postId: post.id,
-                    content: state.getDoc(),
+                    content: trimContentEnd(state.getDoc()),
                 });
 
                 onPostRealtimeEventTransaction(event);

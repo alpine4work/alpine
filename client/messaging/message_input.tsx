@@ -13,6 +13,7 @@ import {
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -171,7 +172,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         if (isMessageCreationDisabled) return;
         if (messageEditingForThisInput) return;
 
-        const content = newMessageState.getContent();
+        const content = trimContentWithReferencesEnd(newMessageState.getContent());
         if (isContentEmpty(content.doc)) return;
 
         const optimisticMessage: OptimisticMessageModel = {

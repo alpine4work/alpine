@@ -4,6 +4,7 @@ import {useCallback, useEffect, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
+import {trimContentEnd} from "~/client/content/trim_content_end.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -174,7 +175,7 @@ export function PostCreator({
 
                 const {post, readTime, eventTransaction} = await createPost(context, {
                     channelId: channel.id,
-                    content: state.getDoc(),
+                    content: trimContentEnd(state.getDoc()),
                 });
 
                 // While the client should get their new post data through `<ChannelView>`s

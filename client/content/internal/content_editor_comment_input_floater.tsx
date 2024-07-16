@@ -9,6 +9,7 @@ import {
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -186,7 +187,7 @@ function ContentEditorCommentInput({
     }, [shouldShowConfirmCloseDialog]);
 
     const sendComment = async () => {
-        const content = commentState.getContent();
+        const content = trimContentWithReferencesEnd(commentState.getContent());
         if (isContentEmpty(content.doc)) return;
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
