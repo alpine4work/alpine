@@ -6,7 +6,12 @@ import {
 } from "~/server/apns/apns_alert_notification.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
-import {DeadlineExceededError, InternalError, UnavailableError} from "~/shared/error/error.js";
+import {
+    DeadlineExceededError,
+    InternalError,
+    UnavailableError,
+    UnknownError,
+} from "~/shared/error/error.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -259,7 +264,7 @@ export class ApnsConnection {
 
         if (!wasCloseExpected && !this._hasCloseError) {
             this._hasCloseError = true;
-            this._closeError = new UnavailableError("Connection closed unexpectedly");
+            this._closeError = new UnavailableError("APNs connection closed unexpectedly");
 
             const {span, finishSpan} = this._processContext.tracer
                 .getRoot()
@@ -296,13 +301,15 @@ export class ApnsConnection {
         //
         // [1]: https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Understand-error-codes
         this._closeWithError(
-            new UnavailableError(`Received GOAWAY frame (error code: ${errorCode})`),
+            new UnavailableError(`Received GOAWAY frame from APNs (error code: ${errorCode})`),
         );
     };
 
     private readonly _handleFrameError = (type: number, errorCode: number, streamId: number) => {
         this._closeWithError(
-            new InternalError(`Failed to send frame (type: ${type}, error code: ${errorCode})`),
+            new InternalError(
+                `Failed to send frame to APNs (type: ${type}, error code: ${errorCode})`,
+            ),
         );
     };
 
@@ -327,7 +334,7 @@ export class ApnsConnection {
     ) {
         return context.tracer.withSpan("Sending APNs alert notification", async (context, span) => {
             if (this._startClosePromiseResolver.isSettled())
-                throw new InternalError("Connection is closed");
+                throw new InternalError("APNs connection is closed");
 
             assert(deviceToken.byteLength === 32);
 
@@ -381,7 +388,7 @@ export class ApnsConnection {
             }>((resolve, reject) => {
                 request.setTimeout(requestTimeoutMs, () => {
                     request.close(http2.constants.NGHTTP2_CANCEL);
-                    reject(new DeadlineExceededError("Request timed out"));
+                    reject(new DeadlineExceededError("APNs request timed out"));
                 });
 
                 let headers: http2.IncomingHttpHeaders & http2.IncomingHttpStatusHeader = {};
@@ -397,7 +404,8 @@ export class ApnsConnection {
             });
 
             const statusCode = response.headers[":status"];
-            if (statusCode === undefined) throw new InternalError("Missing status code");
+            if (statusCode === undefined)
+                throw new InternalError("APNs request is missing status code");
 
             span.addData({
                 http: {
@@ -411,6 +419,47 @@ export class ApnsConnection {
                     },
                 },
             });
+
+            if (statusCode !== 200) {
+                const errorMessage = getApnsErrorMessageFromStatusCode(statusCode);
+
+                throw new (errorMessage !== null ? InternalError : UnknownError)(
+                    `APNs request failed${
+                        errorMessage !== null ? `: ${errorMessage}` : ""
+                    } (status code: ${statusCode})`,
+                );
+            }
         });
+    }
+}
+
+/**
+ * Get a human readable error message based on the status code returned by
+ * APNs. APNs status codes are documented [here][1].
+ *
+ * [1]: https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Interpret-header-responses
+ */
+function getApnsErrorMessageFromStatusCode(statusCode: number) {
+    switch (statusCode) {
+        case 400:
+            return "Bad request";
+        case 403:
+            return "There was an error with the certificate or with the provider’s authentication token";
+        case 404:
+            return "The request contained an invalid `:path` value";
+        case 405:
+            return "The request used an invalid `:method` value, only `POST` requests are supported";
+        case 410:
+            return "The device token is no longer active for the topic";
+        case 413:
+            return "The notification payload was too large";
+        case 429:
+            return "The server received too many requests for the same device token";
+        case 500:
+            return "Internal server error";
+        case 503:
+            return "The server is shutting down and unavailable";
+        default:
+            return null;
     }
 }
