@@ -17,3 +17,9 @@ export type PromiseState<Value> =
           readonly reason: unknown;
           readonly value?: undefined;
       };
+
+/**
+ * Pending promise state constant you can return while a promise is pending and
+ * stop any reloading.
+ */
+export const pendingPromiseState: PromiseState<never> = {status: "pending"};

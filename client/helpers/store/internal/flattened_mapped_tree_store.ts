@@ -62,6 +62,13 @@ export class FlattenedMappedTreeStore<Key, OldValue, NewValue> extends Store<Tre
         };
     }
 
+    public override isFinal(): boolean {
+        // This function should be fast. Recursively checking if all our stores are
+        // final defeats the point of this optimization. So assume the store is not
+        // final.
+        return false;
+    }
+
     public readonly getSnapshot = () => {
         // Initialize `newTree` if we haven't initialized it before.
         if (this._newTree === null) {

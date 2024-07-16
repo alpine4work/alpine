@@ -24,6 +24,13 @@ export class MappedManyStore<
         this._map = map;
     }
 
+    public override isFinal(): boolean {
+        // This function should be fast. Recursively checking if all our stores are
+        // final defeats the point of this optimization. So assume the store is not
+        // final.
+        return false;
+    }
+
     public readonly getSnapshot = () => {
         const oldValues = this._stores.map(store => store.getSnapshot()) as any as OldValues;
 

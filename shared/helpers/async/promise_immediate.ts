@@ -1,6 +1,6 @@
 import {UnavailableError} from "~/shared/error/error.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
-import {PromiseState} from "~/shared/helpers/async/promise_state.js";
+import {PromiseState, pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -29,7 +29,7 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
             reject: (error: unknown) => void,
         ) => void,
     ) {
-        this._state = {status: "pending"};
+        this._state = pendingPromiseState;
         this._onResolvedCallbacks = [];
         this._onRejectedCallbacks = [];
 

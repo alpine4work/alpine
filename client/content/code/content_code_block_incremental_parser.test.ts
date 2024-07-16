@@ -391,9 +391,17 @@ function createView(doc: Node = doc1) {
             plugins: [
                 new Plugin({
                     state: {
-                        init: (config, state) => ContentCodeBlockIncrementalParser.new(state.doc),
+                        init: (config, state) =>
+                            ContentCodeBlockIncrementalParser.new(
+                                store => store.getSnapshot(),
+                                state.doc,
+                            ),
                         apply: (transaction, parser) =>
-                            parser.update(transaction.doc, transaction.mapping),
+                            parser.update(
+                                store => store.getSnapshot(),
+                                transaction.doc,
+                                transaction.mapping,
+                            ),
                     },
                     props: {
                         decorations(state) {
@@ -489,12 +497,12 @@ function getMockedRustParseCalls() {
 
 beforeAll(async () => {
     const typescriptParser = assertExists(
-        await contentCodeBlockLanguageById.typescript.parser?.load(),
+        await contentCodeBlockLanguageById.typescript.getParser()?.promise,
     );
     const javascriptParser = assertExists(
-        await contentCodeBlockLanguageById.javascript.parser?.load(),
+        await contentCodeBlockLanguageById.javascript.getParser()?.promise,
     );
-    const rustParser = assertExists(await contentCodeBlockLanguageById.rust.parser?.load());
+    const rustParser = assertExists(await contentCodeBlockLanguageById.rust.getParser()?.promise);
 
     // Mock parse functions.
 

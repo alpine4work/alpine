@@ -28,6 +28,14 @@ export class FlattenedMappedStore<OldValue, NewValue> extends Store<NewValue> {
         this._map = map;
     }
 
+    public override isFinal(): boolean {
+        return (
+            this._store.isFinal() &&
+            this._nestedStoreResult?.ok === true &&
+            this._nestedStoreResult.value.isFinal()
+        );
+    }
+
     public readonly getSnapshot = () => {
         if (this._nestedStoreResult === null) {
             // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad

@@ -2,11 +2,10 @@ import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
-import {addContentCodeBlockHtmlSerializationDecorations} from "~/client/content/code/add_content_code_block_html_serialization_decorations.js";
 import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
+import {createContentCodeBlockHtmlSerializationDecorationsStore} from "~/client/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
-import {loadContentCodeBlockLanguageIdsInEffect} from "~/client/content/internal/load_content_code_block_language_ids_in_effect.js";
 import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {Box} from "~/client/design/box.js";
@@ -18,6 +17,7 @@ import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointe
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -27,7 +27,6 @@ import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_la
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -35,7 +34,10 @@ import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/htm
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {
+    ProsemirrorHtmlSerializationDecoration,
+    ProsemirrorHtmlSerializationInlineDecoration,
+} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {contentSchemaStyles, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
@@ -44,9 +46,8 @@ const ContentViewCodeBlockDecorationsSchema = Schema.array(
         from: Schema.integer,
         to: Schema.integer,
         class: Schema.string,
-    }).transform<ProsemirrorHtmlSerializationDecoration>({
+    }).transform<ProsemirrorHtmlSerializationInlineDecoration>({
         serialize: decoration => {
-            assert(decoration.type === "Inline");
             assert(decoration.attrs.nodeName === "span");
 
             return {
@@ -73,20 +74,6 @@ declare global {
     // eslint-disable-next-line no-var
     var __contentViewCodeBlockDecorationsById: {[key: string]: SchemaSerializedValue} | undefined;
 }
-
-type ContentViewCodeBlockDecorationsState =
-    | {
-          readonly type: "Initial";
-          readonly doc: Node;
-          readonly initialDecorations: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
-          readonly generation?: undefined;
-      }
-    | {
-          readonly type: "Loaded";
-          readonly generation: number;
-          readonly initialDecorations?: undefined;
-      }
-    | null;
 
 /**
  * A read-only view of content. Used as a complement to `<ContentEditor>` when
@@ -228,42 +215,35 @@ export function ContentView({
         onSeeLessContent: onSeeLessContent ?? noop,
     });
 
-    const [codeBlockDecorationsState, setCodeBlockDecorationsState] =
-        useState<ContentViewCodeBlockDecorationsState>(() => {
-            if (typeof window === "undefined") return null;
-            if (!isInitialAppRender) return null;
+    const [initialCodeBlockDecorationsState, setInitialCodeBlockDecorationsState] = useState<{
+        readonly doc: Node;
+        readonly decorations: ReadonlyArray<ProsemirrorHtmlSerializationInlineDecoration>;
+    } | null>(() => {
+        if (typeof window === "undefined") return null;
+        if (!isInitialAppRender) return null;
 
-            const decorations = window.__contentViewCodeBlockDecorationsById?.[id];
-            if (!decorations) return null;
+        const decorations = window.__contentViewCodeBlockDecorationsById?.[id];
+        if (!decorations) return null;
 
-            delete window.__contentViewCodeBlockDecorationsById![id];
-            return {
-                type: "Initial",
-                doc: content.doc,
-                initialDecorations: ContentViewCodeBlockDecorationsSchema.deserialize(decorations),
-            };
-        });
-    let initialCodeBlockDecorations = codeBlockDecorationsState?.initialDecorations ?? null;
+        delete window.__contentViewCodeBlockDecorationsById![id];
+        return {
+            doc: content.doc,
+            decorations: ContentViewCodeBlockDecorationsSchema.deserialize(decorations),
+        };
+    });
+    let initialCodeBlockDecorations = initialCodeBlockDecorationsState?.decorations ?? null;
 
     // If the document we're rendering changes, remove code block decorations from
     // the server side render.
     if (
-        codeBlockDecorationsState?.type === "Initial" &&
-        codeBlockDecorationsState.doc !== content.doc
+        initialCodeBlockDecorationsState !== null &&
+        initialCodeBlockDecorationsState.doc !== content.doc
     ) {
         initialCodeBlockDecorations = null;
-        setCodeBlockDecorationsState(null);
+        setInitialCodeBlockDecorationsState(null);
     }
 
-    const {
-        isTitleEmpty,
-        isBodyEmpty,
-        decorations,
-        unloadedCodeBlockLanguageIds,
-        codeBlockDecorationsStartIndex,
-        codeBlockDecorationsEndIndex,
-        htmlStore,
-    } = useMemo(() => {
+    const {isTitleEmpty, isBodyEmpty, htmlStore} = useMemo(() => {
         const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
 
         if (contentUpdatedTime) {
@@ -393,24 +373,33 @@ export function ContentView({
             }
         });
 
-        // Re-render content HTML whenever our code block languages generation
-        // changes. We update the generation whenever previously unloaded language
-        // parsers are loaded.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        codeBlockDecorationsState?.generation;
-
-        const codeBlockDecorationsStartIndex = decorations.length;
-
-        let unloadedCodeBlockLanguageIds: Set<ContentCodeBlockLanguageId>;
+        let htmlStore: Store<{
+            html: string;
+            codeBlockDecorations: ReadonlyArray<ProsemirrorHtmlSerializationInlineDecoration>;
+        }>;
 
         // If we have some initial code block decorations from server-side rendering
         // then use those instead of trying to compute new decorations. Since we
         // may not be able to compute new decorations given no language parsers will be
         // loaded on initial render.
-        if (initialCodeBlockDecorations !== null) {
-            unloadedCodeBlockLanguageIds = new Set();
+        if (initialCodeBlockDecorations === null) {
+            const codeBlockDecorationsStore =
+                createContentCodeBlockHtmlSerializationDecorationsStore(content.doc);
 
+            htmlStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
+                renderContentFragmentToHtmlStore(content, {
+                    accountStore,
+                    currentAccount: spaceContext?.currentAccount ?? null,
+                    placeholder,
+                    isInert,
+                    decorations: [decorations, codeBlockDecorations],
+                    shouldHighlightComment,
+                }).map(html => ({
+                    html,
+                    codeBlockDecorations,
+                })),
+            );
+        } else {
             content.doc.forEach(node => {
                 // Currently, code blocks may only be a direct child of `doc`.
                 if (node.type.name !== "codeBlock") return;
@@ -418,51 +407,34 @@ export function ContentView({
                 const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
                 const language = contentCodeBlockLanguageById[languageId];
 
-                if (language.parser !== null) {
-                    const parser = language.parser.getIfLoaded();
-                    if (parser === null) {
-                        unloadedCodeBlockLanguageIds.add(languageId);
-                    }
-                }
+                // Preload code block languages while we're using initial code block
+                // decorations so we're ready for a re-render.
+                language.getParser();
             });
 
-            for (const decoration of initialCodeBlockDecorations) {
-                decorations.push(decoration);
-            }
-        } else {
-            unloadedCodeBlockLanguageIds = addContentCodeBlockHtmlSerializationDecorations(
-                content.doc,
-                decorations,
-            );
-        }
-
-        const codeBlockDecorationsEndIndex = decorations.length;
-
-        return {
-            isTitleEmpty: isContentTitleEmpty(content.doc),
-            isBodyEmpty: isContentBodyEmpty(content.doc),
-            decorations,
-            // Always use the same reference for an empty set so effects don't need
-            // to re-run.
-            unloadedCodeBlockLanguageIds:
-                unloadedCodeBlockLanguageIds.size !== 0 ? unloadedCodeBlockLanguageIds : emptySet,
-            codeBlockDecorationsStartIndex,
-            codeBlockDecorationsEndIndex,
-            htmlStore: renderContentFragmentToHtmlStore(content, {
+            htmlStore = renderContentFragmentToHtmlStore(content, {
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 placeholder,
                 isInert,
-                decorations,
+                decorations: [decorations, initialCodeBlockDecorations],
                 shouldHighlightComment,
-            }),
+            }).map(html => ({
+                html,
+                codeBlockDecorations: initialCodeBlockDecorations!,
+            }));
+        }
+
+        return {
+            isTitleEmpty: isContentTitleEmpty(content.doc),
+            isBodyEmpty: isContentBodyEmpty(content.doc),
+            htmlStore,
         };
     }, [
         contentUpdatedTime,
         shouldShowSeeMoreContentButton,
         shouldShowSeeLessContentButton,
         content,
-        codeBlockDecorationsState?.generation,
         initialCodeBlockDecorations,
         accountStore,
         spaceContext?.currentAccount,
@@ -472,7 +444,7 @@ export function ContentView({
         id,
     ]);
 
-    const html = useStore(htmlStore);
+    const {html, codeBlockDecorations} = useStore(htmlStore);
 
     const navigate = useNavigate();
 
@@ -823,23 +795,6 @@ export function ContentView({
         );
     }, [id, contentUpdatedTime]);
 
-    useEffect(() => {
-        loadContentCodeBlockLanguageIdsInEffect(unloadedCodeBlockLanguageIds, {
-            onLoaded: () =>
-                setCodeBlockDecorationsState(state =>
-                    state?.type !== "Initial"
-                        ? {type: "Loaded", generation: (state?.generation ?? 0) + 1}
-                        : state,
-                ),
-            onError: error => {
-                reporter.logErrorWithoutDisplaying(
-                    "Couldn't load code block language parser",
-                    error,
-                );
-            },
-        });
-    }, [reporter, unloadedCodeBlockLanguageIds]);
-
     return (
         <>
             <div
@@ -913,10 +868,7 @@ export function ContentView({
                             typeof window === "undefined"
                                 ? `(window.__contentViewCodeBlockDecorationsById || (window.__contentViewCodeBlockDecorationsById = {}))["${id}"] = ${JSON.stringify(
                                       ContentViewCodeBlockDecorationsSchema.serialize(
-                                          decorations.slice(
-                                              codeBlockDecorationsStartIndex,
-                                              codeBlockDecorationsEndIndex,
-                                          ),
+                                          codeBlockDecorations,
                                       ),
                                   )};`
                                 : "",

@@ -1,14 +1,15 @@
 import {ReactNode, createContext, useContext, useState} from "react";
 import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 let nextGlobalContextId = 1;
 
-const ActualGlobalContext = createContext<Map<number, any> | null>(
-    // Provide a default context implementation in unit tests so you don't need to
-    // use `useGlobalContextProvider()`.
-    import.meta.jest ? new Map() : null,
-);
+// Provide a default context implementation in unit tests so you don't need to
+// use `useGlobalContextProvider()`.
+const actualGlobalContextForTest = import.meta.jest ? new Map() : null;
+
+const ActualGlobalContext = createContext<Map<number, any> | null>(actualGlobalContextForTest);
 
 export type GlobalContext<Value> = {
     readonly id: number;
@@ -48,6 +49,12 @@ export function useGlobalContext<Value>(context: GlobalContext<Value>): Value {
     }
 
     return getOrSetDefaultMapValue(actualGlobalContext, context.id, context.create);
+}
+
+export function getGlobalContextForTest<Value>(context: GlobalContext<Value>): Value {
+    assert(import.meta.jest);
+
+    return getOrSetDefaultMapValue(actualGlobalContextForTest!, context.id, context.create);
 }
 
 export function useGlobalContextProvider(children: ReactNode) {

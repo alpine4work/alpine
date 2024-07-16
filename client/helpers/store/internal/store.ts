@@ -31,6 +31,22 @@ type StoreType<T extends Store<any>> = T extends Store<infer U> ? U : never;
  */
 export abstract class Store<Value> {
     /**
+     * Has the store been finalized? A final store will never update again. The
+     * value returned by `getSnapshot()` will never change and any listeners added
+     * by `addListener()` will not be called.
+     *
+     * Used as a performance optimization. You don't need to add listeners to
+     * finalized stores.
+     *
+     * The implementation of this function should be O(1). It defeats the point of
+     * the optimization if this function is slow. As such results are provided on a
+     * best effort basis. There may be a store with only finalized dependencies
+     * that itself is not `isFinal()` because checking whether it's final would be
+     * too expensive.
+     */
+    public abstract isFinal(): boolean;
+
+    /**
      * Get the current value of the store. If you call this function you won't be
      * subscribed to updates from the store! Generally you want to use this
      * alongside `subscribe()`.
@@ -211,6 +227,10 @@ export abstract class Store<Value> {
      * `Store.flatMap()`.
      */
     public flat<Value>(this: Store<Store<Value>>): Store<Value> {
+        // Optimization: Final stores don't update so we can directly use the store's
+        // current value.
+        if (this.isFinal()) return this.getSnapshot();
+
         return new FlattenedMappedStore(this, cast);
     }
 
@@ -232,6 +252,10 @@ export abstract class Store<Value> {
      * [1]: http://learnyouahaskell.com/a-fistful-of-monads
      */
     public flatMap<NewValue>(map: (value: Value) => Store<NewValue>): Store<NewValue> {
+        // Optimization: Final stores don't update so we can directly use the store's
+        // current value.
+        if (this.isFinal()) return map(this.getSnapshot());
+
         return new FlattenedMappedStore(this, map);
     }
 }

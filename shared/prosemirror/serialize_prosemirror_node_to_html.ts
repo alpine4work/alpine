@@ -1,4 +1,5 @@
 import {DOMOutputSpec, Fragment, Mark, Node} from "prosemirror-model";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
@@ -9,6 +10,8 @@ import {
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+
+export type RecursiveReadonlyArray<Value> = ReadonlyArray<Value | RecursiveReadonlyArray<Value>>;
 
 /**
  * Options for customizing ProseMirror HTML serialization. Similar set of
@@ -38,7 +41,7 @@ export type ProsemirrorHtmlSerializationOptions = {
             contentHtml?: HtmlElementGenerator;
         };
     };
-    readonly decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
+    readonly decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
 };
 
 type ProsemirrorHtmlSerializationContext = {
@@ -123,24 +126,33 @@ export function serializeProsemirrorNodeToHtml(
     node: Node,
     options: ProsemirrorHtmlSerializationOptions = {},
 ): string {
-    const widgetDecorationQueue = [];
-    const inlineDecorationQueue = [];
+    const widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration> = [];
+    const inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration> = [];
 
-    for (const decoration of options.decorations ?? []) {
-        switch (decoration.type) {
-            case "Widget": {
-                widgetDecorationQueue.push(decoration);
-                break;
+    const loop = (decorations: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>) => {
+        for (const decoration of decorations) {
+            if (isReadonlyArray(decoration)) {
+                loop(decoration);
+                continue;
             }
-            case "Inline": {
-                assert(decoration.from < decoration.to);
-                inlineDecorationQueue.push(decoration);
-                break;
+
+            switch (decoration.type) {
+                case "Widget": {
+                    widgetDecorationQueue.push(decoration);
+                    break;
+                }
+                case "Inline": {
+                    assert(decoration.from < decoration.to);
+                    inlineDecorationQueue.push(decoration);
+                    break;
+                }
+                default:
+                    throw exhaustive(decoration);
             }
-            default:
-                throw exhaustive(decoration);
         }
-    }
+    };
+
+    if (options.decorations !== undefined) loop(options.decorations);
 
     widgetDecorationQueue.sort((a, b) => b.pos - a.pos);
     inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);
@@ -166,24 +178,33 @@ export function serializeProsemirrorFragmentToHtml(
     fragment: Fragment,
     options: ProsemirrorHtmlSerializationOptions & {startPos?: number} = {},
 ): string {
-    const widgetDecorationQueue = [];
-    const inlineDecorationQueue = [];
+    const widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration> = [];
+    const inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration> = [];
 
-    for (const decoration of options.decorations ?? []) {
-        switch (decoration.type) {
-            case "Widget": {
-                widgetDecorationQueue.push(decoration);
-                break;
+    const loop = (decorations: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>) => {
+        for (const decoration of decorations) {
+            if (isReadonlyArray(decoration)) {
+                loop(decoration);
+                continue;
             }
-            case "Inline": {
-                assert(decoration.from < decoration.to);
-                inlineDecorationQueue.push(decoration);
-                break;
+
+            switch (decoration.type) {
+                case "Widget": {
+                    widgetDecorationQueue.push(decoration);
+                    break;
+                }
+                case "Inline": {
+                    assert(decoration.from < decoration.to);
+                    inlineDecorationQueue.push(decoration);
+                    break;
+                }
+                default:
+                    throw exhaustive(decoration);
             }
-            default:
-                throw exhaustive(decoration);
         }
-    }
+    };
+
+    if (options.decorations !== undefined) loop(options.decorations);
 
     widgetDecorationQueue.sort((a, b) => b.pos - a.pos);
     inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);

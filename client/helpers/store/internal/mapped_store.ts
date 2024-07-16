@@ -17,6 +17,10 @@ export class MappedStore<OldValue, NewValue> extends Store<NewValue> {
         this._map = map;
     }
 
+    public override isFinal(): boolean {
+        return this._store.isFinal();
+    }
+
     public readonly getSnapshot = () => {
         // If `getSnapshot()` throws, it's fine. We don't leave our store in a bad
         // partial state.

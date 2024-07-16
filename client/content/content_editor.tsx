@@ -30,10 +30,8 @@ import {
 import {flushSync} from "react-dom";
 import {
     ContentEditorState,
-    getContentCodeBlockIncrementalParser,
     getContentEditorFloaterState,
     setContentEditorFloaterState,
-    updateUnloadedContentCodeBlockIncrementalParserLanguageIds,
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
@@ -54,7 +52,6 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
-import {loadContentCodeBlockLanguageIdsInEffect} from "~/client/content/internal/load_content_code_block_language_ids_in_effect.js";
 import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {Box} from "~/client/design/box.js";
@@ -1572,32 +1569,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         } else {
             setSelectedNodeElement(null);
         }
-
-        // Whenever `EditorState` changes, look for code block languages we need to
-        // load. We compare that against languages we're currently loading (stored in
-        // `loadingCodeBlockLanguageIdsRef`) so we don't try to load the same language
-        // twice and kick of network requests for any languages we haven't started
-        // loading yet.
-        //
-        // Once we finish loading the code block languages we need, we tell our
-        // incremental parser to try parsing again.
-        const {unloadedLanguageIds} = getContentCodeBlockIncrementalParser(unwrap(state));
-
-        loadContentCodeBlockLanguageIdsInEffect(unloadedLanguageIds, {
-            onLoaded: () => {
-                // Retry parsing even if there were errors. Since there may have been a
-                // partial error. Some languages may have loaded while others may have not.
-                view.dispatch(
-                    updateUnloadedContentCodeBlockIncrementalParserLanguageIds(view.state.tr),
-                );
-            },
-            onError: error => {
-                reporterRef.current.logErrorWithoutDisplaying(
-                    "Couldn't load code block language parser",
-                    error,
-                );
-            },
-        });
     }, [lastOptimisticTransactionTime, state]);
 
     // Highlights the selection of all our phantom text selections using the

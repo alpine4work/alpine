@@ -15,6 +15,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * [1]: https://react.dev/reference/react/useSyncExternalStore
  */
 export class ValueStore<Value> extends Store<Value> {
+    private _isFinal = false;
     private _value: Value;
     private readonly _listeners = new Map<() => void, number>();
     private _weakImmediateListeners: StoreWeakImmediateListeners | null = null;
@@ -22,6 +23,10 @@ export class ValueStore<Value> extends Store<Value> {
     constructor(value: Value) {
         super();
         this._value = value;
+    }
+
+    public override isFinal(): boolean {
+        return this._isFinal;
     }
 
     /**
@@ -52,6 +57,8 @@ export class ValueStore<Value> extends Store<Value> {
      * `batchStoreUpdates()`.
      */
     public set(value: Value | ((value: Value) => Value)): void {
+        assert(!this._isFinal);
+
         const actualValue: Value =
             typeof value === "function" ? (value as (value: Value) => Value)(this._value) : value;
 
@@ -85,12 +92,69 @@ export class ValueStore<Value> extends Store<Value> {
         }
     }
 
+    /**
+     * Performs a set on `ValueStore` and finalizes the store. You may not call `set()`
+     * ever again on a finalized store! The tradeoff is some optimizations will kick in
+     * for finalized stores.
+     *
+     * Useful if your `ValueStore` is tracking something like a promise which will
+     * update once then never again.
+     *
+     * If we're executing in a `batchStoreUpdates()` then we ignore the batch and call
+     * listeners immediately when this method is called. Since `isFinal()` guarantees
+     * that listeners will never be called after `isFinal()` is set to true.
+     */
+    public finalSet(value: Value | ((value: Value) => Value)) {
+        assert(!this._isFinal);
+
+        const actualValue: Value =
+            typeof value === "function" ? (value as (value: Value) => Value)(this._value) : value;
+
+        if (!Object.is(this._value, actualValue)) {
+            this._value = actualValue;
+
+            // Call immediate listeners before our regular listeners. Immediate listeners
+            // update the internal state of any stores that depend on us.
+            this._weakImmediateListeners?.callListeners();
+
+            for (const listener of this._listeners.keys()) {
+                // If we're in a transaction, we must call our listeners immediately for the
+                // final set. Delete our listener from the batch if it was present.
+                if (storeUpdatesBatch !== null) {
+                    storeUpdatesBatch.listeners.delete(listener);
+                }
+
+                try {
+                    listener();
+                } catch (error) {
+                    // If one of our listeners throws an error, continue calling the rest of our
+                    // listeners.
+                    //
+                    // Treat listener errors as unhandled errors. Emitting an event should not need
+                    // to think about downstream listener implementation details.
+                    scheduleUncaughtError(error);
+                }
+            }
+        }
+
+        this._isFinal = true;
+
+        // Clear out our listeners. Now that our store is finalized we'll never call
+        // listeners again.
+        this._listeners.clear();
+        this._weakImmediateListeners = null;
+    }
+
     public addListener(listener: () => void) {
+        if (this._isFinal) return;
+
         const listenerCount = (this._listeners.get(listener) ?? 0) + 1;
         this._listeners.set(listener, listenerCount);
     }
 
     public removeListener(listener: () => void) {
+        if (this._isFinal) return;
+
         const listenerCount = (this._listeners.get(listener) ?? 0) - 1;
         if (listenerCount < 0) {
             throw new InternalError("Can't remove listener that wasn't added to store");
@@ -102,11 +166,15 @@ export class ValueStore<Value> extends Store<Value> {
     }
 
     public _addWeakImmediateListener(listener: () => void): void {
+        if (this._isFinal) return;
+
         this._weakImmediateListeners ??= new StoreWeakImmediateListeners();
         this._weakImmediateListeners.addListener(listener);
     }
 
     public _removeWeakImmediateListener(listener: () => void): void {
+        if (this._isFinal) return;
+
         this._weakImmediateListeners ??= new StoreWeakImmediateListeners();
         this._weakImmediateListeners.removeListener(listener);
     }

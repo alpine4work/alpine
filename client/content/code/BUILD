@@ -41,6 +41,7 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
         "//:node_modules/prosemirror-view",
+        "//client/helpers",
         "//shared/content",
         "//shared/error",
         "//shared/helpers",

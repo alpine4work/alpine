@@ -69,16 +69,30 @@ class ComputationStore<NewValue> extends Store<NewValue> {
         this._compute = compute;
     }
 
+    public override isFinal(): boolean {
+        // This function should be fast. Recursively checking if all our stores are
+        // final defeats the point of this optimization. So assume the store is not
+        // final.
+        //
+        // If `get()` was never called then this store is final.
+        return this._oldValueResultByStore.size === 0;
+    }
+
     public readonly getSnapshot = () => {
         // Initialize the computation:
         if (this._newValueResult === null) {
             let isFinished = false;
 
             const get = <Value>(store: Store<Value>): Value => {
-                if (isFinished)
+                if (isFinished) {
                     throw new InternalError(
                         "Can't get more stores because we're finished computing value",
                     );
+                }
+
+                // Optimization: Final stores never update so don't bother recording the store
+                // in our dependencies.
+                if (store.isFinal()) return store.getSnapshot();
 
                 const existingOldValueResult = this._oldValueResultByStore.get(store);
 
@@ -106,6 +120,14 @@ class ComputationStore<NewValue> extends Store<NewValue> {
                         store.addListener(listener);
                     }
                 }
+            }
+
+            // If there are zero store dependencies (may happen if all our dependencies are
+            // finalized) then our computation store is itself finalized so clear all
+            // listeners.
+            if (this._oldValueResultByStore.size === 0) {
+                this._listeners.clear();
+                this._weakImmediateListeners = null;
             }
 
             return unwrapResult(this._newValueResult);
@@ -144,10 +166,15 @@ class ComputationStore<NewValue> extends Store<NewValue> {
         let isFinished = false;
 
         const get = <Value>(store: Store<Value>): Value => {
-            if (isFinished)
+            if (isFinished) {
                 throw new InternalError(
                     "Can't get more stores because we're finished computing value",
                 );
+            }
+
+            // Optimization: Final stores never update so don't bother recording the store
+            // in our dependencies.
+            if (store.isFinal()) return store.getSnapshot();
 
             const existingOldValueResult = this._oldValueResultByStore.get(store);
 
@@ -204,10 +231,20 @@ class ComputationStore<NewValue> extends Store<NewValue> {
             }
         }
 
+        // If there are zero store dependencies (may happen if all our dependencies are
+        // finalized) then our computation store is itself finalized so clear all
+        // listeners.
+        if (this._oldValueResultByStore.size === 0) {
+            this._listeners.clear();
+            this._weakImmediateListeners = null;
+        }
+
         return unwrapResult(this._newValueResult);
     };
 
     public addListener(listener: () => void) {
+        if (this._oldValueResultByStore.size === 0) return;
+
         const listenerCount = (this._listeners.get(listener) ?? 0) + 1;
         this._listeners.set(listener, listenerCount);
 
@@ -217,6 +254,8 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     }
 
     public removeListener(listener: () => void) {
+        if (this._oldValueResultByStore.size === 0) return;
+
         const listenerCount = (this._listeners.get(listener) ?? 0) - 1;
         if (listenerCount < 0) {
             throw new InternalError("Can't remove listener that wasn't added to store");
@@ -232,6 +271,8 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     }
 
     public _addWeakImmediateListener(listener: () => void): void {
+        if (this._oldValueResultByStore.size === 0) return;
+
         this._weakImmediateListeners ??= new StoreWeakImmediateListeners();
         this._weakImmediateListeners.addListener(listener);
 
@@ -241,6 +282,8 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     }
 
     public _removeWeakImmediateListener(listener: () => void): void {
+        if (this._oldValueResultByStore.size === 0) return;
+
         this._weakImmediateListeners ??= new StoreWeakImmediateListeners();
         this._weakImmediateListeners.removeListener(listener);
 

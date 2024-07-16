@@ -12,6 +12,10 @@ export class ConstStore<Value> extends Store<Value> {
         this._value = value;
     }
 
+    public override isFinal(): boolean {
+        return true;
+    }
+
     public readonly getSnapshot = () => {
         return this._value;
     };

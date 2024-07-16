@@ -10,6 +10,7 @@ import {
     IterableChange,
     actuallySymmetricDiffIterable,
 } from "~/client/content/code/symmetric_diff_iterable.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -140,16 +141,6 @@ export class ContentCodeBlockIncrementalParser {
     private readonly _results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>;
 
     /**
-     * Languages we couldn't find the parser for when the incremental parser was
-     * initialized. The `<ContentEditor>` component looks at this set and
-     * asynchronously loads the language parsers.
-     *
-     * When languages have been loaded we should re-render the `<ContentEditor>` or
-     * `<ContentView>` so we can parse their code blocks.
-     */
-    public readonly unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>;
-
-    /**
      * The final `DecorationSet` that's provided to ProseMirror's `EditorView`
      * containing inline decorations that actually perform the highlighting of code
      * in a code block.
@@ -161,14 +152,12 @@ export class ContentCodeBlockIncrementalParser {
         nodeSet: ReadonlySet<Node>,
         nodeOffsets: ReadonlyArray<number>,
         results: ReadonlyArray<ContentCodeBlockIncrementalParserResult | null>,
-        unloadedLanguageIds: ReadonlySet<ContentCodeBlockLanguageId>,
         decorations: DecorationSet,
     ) {
         this._nodeArray = nodeArray;
         this._nodeSet = nodeSet;
         this._nodeOffsets = nodeOffsets;
         this._results = results;
-        this.unloadedLanguageIds = unloadedLanguageIds;
         this.decorations = decorations;
     }
 
@@ -176,21 +165,23 @@ export class ContentCodeBlockIncrementalParser {
      * Create a new incremental parser from a content doc when `EditorView` is
      * initialized. Finds all code block nodes and parses them.
      */
-    public static new(doc: Node): ContentCodeBlockIncrementalParser {
+    public static new(
+        get: <Value>(store: Store<Value>) => Value,
+        doc: Node,
+    ): ContentCodeBlockIncrementalParser {
         const [nodeArray, nodeSet, nodeOffsets] = getContentCodeBlockNodes(doc);
-
-        const unloadedLanguageIds = new Set<ContentCodeBlockLanguageId>();
 
         const results = nodeArray.map((node): ContentCodeBlockIncrementalParserResult | null => {
             const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
             const language = contentCodeBlockLanguageById[languageId];
-            if (language.parser === null) return null;
+            const parserPromiseStore = language.getParser();
+            if (parserPromiseStore === null) return null;
 
-            const parser = language.parser.getIfLoaded();
-            if (parser === null) {
-                unloadedLanguageIds.add(languageId);
-                return null;
-            }
+            const parserPromise = get(parserPromiseStore);
+            if (parserPromise.status === "pending") return null;
+            if (parserPromise.status === "rejected") throw parserPromise.reason;
+
+            const parser = parserPromise.value;
 
             return createInitialContentCodeBlockIncrementalParserResult(node, parser);
         });
@@ -218,7 +209,6 @@ export class ContentCodeBlockIncrementalParser {
             nodeSet,
             nodeOffsets,
             results,
-            unloadedLanguageIds,
             decorations,
         );
     }
@@ -246,7 +236,11 @@ export class ContentCodeBlockIncrementalParser {
      *
      * [1]: https://discuss.codemirror.net/t/an-example-of-an-incremental-parse/5356/2
      */
-    public update(doc: Node, mapping: Mapping): ContentCodeBlockIncrementalParser {
+    public update(
+        get: <Value>(store: Store<Value>) => Value,
+        doc: Node,
+        mapping: Mapping,
+    ): ContentCodeBlockIncrementalParser {
         const [newNodeArray, newNodeSet, newNodeOffsets] = getContentCodeBlockNodes(doc);
 
         const changes = actuallySymmetricDiffIterable(
@@ -262,19 +256,46 @@ export class ContentCodeBlockIncrementalParser {
             result: ContentCodeBlockIncrementalParserResult | null;
         }> | null = null;
         const newResults: Array<ContentCodeBlockIncrementalParserResult | null> = [];
-        let newUnloadedLanguageIds: Set<ContentCodeBlockLanguageId> | null = null;
 
         let isUnchanged = true;
 
         for (const change of changes) {
             switch (change.type) {
                 case null: {
+                    const oldNode = this._nodeArray[oldIndex]!;
+                    const oldLanguageId: ContentCodeBlockLanguageId =
+                        oldNode.attrs.language ?? "text";
                     const oldResult = this._results[oldIndex]!;
                     oldIndex++;
 
                     candidateOldEntries = null;
 
-                    newResults.push(oldResult);
+                    if (oldResult !== null) {
+                        newResults.push(oldResult);
+                    } else {
+                        const language = contentCodeBlockLanguageById[oldLanguageId];
+                        const parserPromiseStore = language.getParser();
+                        if (parserPromiseStore === null) {
+                            newResults.push(null);
+                            break;
+                        }
+
+                        const parserPromise = get(parserPromiseStore);
+                        if (parserPromise.status === "pending") {
+                            newResults.push(null);
+                            break;
+                        }
+                        if (parserPromise.status === "rejected") throw parserPromise.reason;
+
+                        isUnchanged = false;
+
+                        newResults.push(
+                            createInitialContentCodeBlockIncrementalParserResult(
+                                oldNode,
+                                parserPromise.value,
+                            ),
+                        );
+                    }
                     break;
                 }
                 case "Deleted": {
@@ -308,25 +329,20 @@ export class ContentCodeBlockIncrementalParser {
                         (oldEntry.node.attrs.language ?? "text") !== newLanguageId
                     ) {
                         const language = contentCodeBlockLanguageById[newLanguageId];
-                        if (language.parser === null) {
+                        const parserPromiseStore = language.getParser();
+                        if (parserPromiseStore === null) {
                             newResults.push(null);
                             break;
                         }
 
-                        const parser = language.parser.getIfLoaded();
-                        if (parser === null) {
-                            newUnloadedLanguageIds ??= new Set(this.unloadedLanguageIds);
-                            newUnloadedLanguageIds.add(newLanguageId);
+                        const parserPromise = get(parserPromiseStore);
+                        if (parserPromise.status === "pending") {
                             newResults.push(null);
                             break;
                         }
+                        if (parserPromise.status === "rejected") throw parserPromise.reason;
 
-                        // If we now have this language's parser but we didn't previously then remove
-                        // it from the unloaded set.
-                        if (this.unloadedLanguageIds.has(newLanguageId)) {
-                            newUnloadedLanguageIds ??= new Set(this.unloadedLanguageIds);
-                            newUnloadedLanguageIds.delete(newLanguageId);
-                        }
+                        const parser = parserPromise.value;
 
                         newResults.push(
                             createInitialContentCodeBlockIncrementalParserResult(newNode, parser),
@@ -488,50 +504,6 @@ export class ContentCodeBlockIncrementalParser {
             newNodeSet,
             newNodeOffsets,
             newResults,
-            newUnloadedLanguageIds ?? this.unloadedLanguageIds,
-            newDecorations,
-        );
-    }
-
-    /**
-     * After we've asynchronously loaded unloaded code block languages this
-     * function is called so we can re-parse our content block nodes with the
-     * newly loaded parsers.
-     */
-    public updateUnloadedLanguageIds(): ContentCodeBlockIncrementalParser {
-        if (this.unloadedLanguageIds.size === 0) return this;
-
-        const newUnloadedLanguageIds = new Set<ContentCodeBlockLanguageId>();
-
-        const newResults = this._results.map((oldResult, i) => {
-            if (oldResult !== null) return oldResult;
-
-            const node = this._nodeArray[i]!;
-            const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
-            const language = contentCodeBlockLanguageById[languageId];
-            if (language.parser === null) return null;
-
-            const parser = language.parser.getIfLoaded();
-            if (parser === null) {
-                newUnloadedLanguageIds.add(languageId);
-                return null;
-            }
-
-            return createInitialContentCodeBlockIncrementalParserResult(node, parser);
-        });
-
-        const newDecorations = createContentCodeBlockIncrementalParserDecorationSet(
-            this._nodeArray,
-            this._nodeOffsets,
-            newResults,
-        );
-
-        return new ContentCodeBlockIncrementalParser(
-            this._nodeArray,
-            this._nodeSet,
-            this._nodeOffsets,
-            newResults,
-            newUnloadedLanguageIds,
             newDecorations,
         );
     }

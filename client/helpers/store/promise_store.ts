@@ -1,9 +1,7 @@
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {PromiseState} from "~/shared/helpers/async/promise_state.js";
-
-export const pendingPromiseState: PromiseState<never> = {status: "pending"};
+import {PromiseState, pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 
 /**
  * Create a store which updates with a promise's state. Starts as pending when
@@ -20,8 +18,8 @@ export function createPromiseStore<Value>(promise: PromiseLike<Value>): Store<Pr
 
     if (initialState.status === "pending") {
         promise.then(
-            value => store.set({status: "fulfilled", value}),
-            reason => store.set({status: "rejected", reason}),
+            value => store.finalSet({status: "fulfilled", value}),
+            reason => store.finalSet({status: "rejected", reason}),
         );
     }
 

@@ -29,6 +29,10 @@ export class ReducedTreeStore<TreeKey, TreeValue, Value> extends Store<Value> {
         this._value = initialValue;
     }
 
+    public override isFinal(): boolean {
+        return this._store.isFinal();
+    }
+
     public readonly getSnapshot = () => {
         const tree = this._store.getSnapshot();
 

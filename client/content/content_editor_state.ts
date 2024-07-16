@@ -3,6 +3,7 @@ import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
+import {EditorView} from "prosemirror-view";
 import {ContentCodeBlockIncrementalParser} from "~/client/content/code/content_code_block_incremental_parser.js";
 import {
     buildContentEditorInputRulesPlugin,
@@ -19,6 +20,7 @@ import {
     initialContentEditorFloaterState,
 } from "~/client/content/internal/content_editor_floater.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {
     ContentReferences,
     ContentWithReferences,
@@ -31,6 +33,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -974,9 +977,10 @@ export function isContinuouslyTypingInContentEditor(state: EditorState): boolean
     return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
 }
 
-const contentEditorCodeBlockPluginKey = new PluginKey<ContentCodeBlockIncrementalParser>(
-    "contentEditorCodeBlock",
-);
+const contentEditorCodeBlockPluginKey = new PluginKey<{
+    readonly dependencyStores: ReadonlySet<Store<any>> | null;
+    readonly parser: ContentCodeBlockIncrementalParser;
+}>("contentEditorCodeBlock");
 
 /**
  * Plugin for managing code block behavior. Including:
@@ -985,23 +989,125 @@ const contentEditorCodeBlockPluginKey = new PluginKey<ContentCodeBlockIncrementa
  * - Trailing space cleanup
  */
 function contentEditorCodeBlockPlugin() {
-    return new Plugin<ContentCodeBlockIncrementalParser>({
+    return new Plugin<{
+        readonly dependencyStores: ReadonlySet<Store<any>> | null;
+        readonly parser: ContentCodeBlockIncrementalParser;
+    }>({
         key: contentEditorCodeBlockPluginKey,
         state: {
-            init: (config, state) => ContentCodeBlockIncrementalParser.new(state.doc),
-            apply: (transaction, parser) => {
-                if (transaction.getMeta(contentEditorCodeBlockPluginKey))
-                    parser = parser.updateUnloadedLanguageIds();
+            init: (config, state) => {
+                let dependencyStores: Set<Store<any>> | null = null;
 
-                if (!transaction.docChanged) return parser;
+                const parser = ContentCodeBlockIncrementalParser.new(store => {
+                    if (!store.isFinal()) {
+                        dependencyStores ??= new Set();
+                        dependencyStores.add(store);
+                    }
 
-                return parser.update(transaction.doc, transaction.mapping);
+                    return store.getSnapshot();
+                }, state.doc);
+
+                return {
+                    dependencyStores,
+                    parser,
+                };
             },
+            apply: (transaction, pluginState) => {
+                if (
+                    !transaction.docChanged &&
+                    !transaction.getMeta(contentEditorCodeBlockPluginKey)
+                ) {
+                    return pluginState;
+                }
+
+                let dependencyStores: Set<Store<any>> | null = null;
+
+                const parser = pluginState.parser.update(
+                    store => {
+                        if (!store.isFinal()) {
+                            dependencyStores ??= new Set();
+                            dependencyStores.add(store);
+                        }
+
+                        return store.getSnapshot();
+                    },
+                    transaction.doc,
+                    transaction.mapping,
+                );
+
+                return {
+                    // If `dependencyStores` didn't change then reuse the old value from
+                    // `pluginState` so we don't have to re-subscribe.
+                    dependencyStores:
+                        dependencyStores !== null &&
+                        pluginState.dependencyStores !== null &&
+                        iterableEvery(dependencyStores, store =>
+                            pluginState.dependencyStores!.has(
+                                // @ts-expect-error: `store` is the right type here but TypeScript is having
+                                // trouble figuring that out.
+                                store,
+                            ),
+                        ) &&
+                        iterableEvery(pluginState.dependencyStores, store =>
+                            dependencyStores!.has(store),
+                        )
+                            ? pluginState.dependencyStores
+                            : dependencyStores,
+
+                    parser,
+                };
+            },
+        },
+
+        // Subscribe to all `dependencyStores`. Dispatch a transaction to update our
+        // incremental parser whenever a dependency store changes.
+        view: view => {
+            let cleanupFunctions: Array<() => void> | null = null;
+
+            const cleanup = () => {
+                if (cleanupFunctions === null) return;
+
+                const currentCleanupFunctions = cleanupFunctions;
+                cleanupFunctions = null;
+
+                for (const cleanupFunction of currentCleanupFunctions) cleanupFunction();
+            };
+
+            const update = (view: EditorView, oldState: EditorState | null) => {
+                const oldPluginState = oldState
+                    ? contentEditorCodeBlockPluginKey.getState(oldState)!
+                    : null;
+                const newPluginState = contentEditorCodeBlockPluginKey.getState(view.state)!;
+
+                if (oldPluginState?.dependencyStores === newPluginState.dependencyStores) return;
+
+                cleanup();
+                if (newPluginState.dependencyStores === null) return;
+
+                cleanupFunctions ??= [];
+
+                for (const dependencyStore of newPluginState.dependencyStores) {
+                    cleanupFunctions.push(
+                        dependencyStore.subscribe(() => {
+                            view.dispatch(
+                                view.state.tr.setMeta(contentEditorCodeBlockPluginKey, true),
+                            );
+                        }),
+                    );
+                }
+            };
+
+            update(view, null);
+
+            return {
+                update,
+                destroy: cleanup,
+            };
         },
 
         props: {
             decorations(state) {
-                return this.getState(state)!.decorations;
+                return this.getState(state)!.parser.decorations;
             },
         },
 
@@ -1077,16 +1183,4 @@ function contentEditorCodeBlockPlugin() {
             return newState.tr.deleteRange(oldNodeEnd - trailingSpaceCount, oldNodeEnd);
         },
     });
-}
-
-export function getContentCodeBlockIncrementalParser(
-    state: EditorState,
-): ContentCodeBlockIncrementalParser {
-    return contentEditorCodeBlockPluginKey.getState(state)!;
-}
-
-export function updateUnloadedContentCodeBlockIncrementalParserLanguageIds(
-    transaction: Transaction,
-): Transaction {
-    return transaction.setMeta(contentEditorCodeBlockPluginKey, true);
 }

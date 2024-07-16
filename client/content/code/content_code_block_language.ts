@@ -1,9 +1,11 @@
 import {StreamLanguage} from "@codemirror/language";
 import {Parser} from "@lezer/common";
+import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {ErrorBase, FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
+import {PromiseState} from "~/shared/helpers/async/promise_state.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
 
@@ -33,27 +35,14 @@ export type ContentCodeBlockLanguage = {
     readonly aliases: ReadonlyArray<string>;
 
     /**
-     * Functions for loading the Lezer parser for this language.
+     * Get the parser for this language. If the parser hasn't been loaded yet
+     * we'll load the parser from the network. Returns a store you should
+     * subscribe to if the language hasn't been loaded yet so you can re-render
+     * when the parser is available.
      */
-    readonly parser: ContentCodeBlockLanguageParser | null;
-};
-
-export type ContentCodeBlockLanguageParser = {
-    /**
-     * Load the Lezer parser associated with this language from the network. If
-     * we've already loaded the parser we won't load it from the network again.
-     *
-     * If `load()` was previously called but the promise rejected then we'll try
-     * loading again.
-     */
-    readonly load: () => PromiseImmediate<Parser>;
-
-    /**
-     * Get the Lezer parser associated with this language if it's been successfully
-     * loaded. Returns null if `load()` hasn't been called, if `load()` has been
-     * called but hasn't finished, or if `load()` finished with an error.
-     */
-    readonly getIfLoaded: () => Parser | null;
+    readonly getParser: () =>
+        | (Store<PromiseState<Parser>> & {readonly promise: Promise<Parser>})
+        | null;
 };
 
 /**
@@ -97,9 +86,10 @@ export type ContentCodeBlockLanguageParser = {
 //
 // 1. Putting all parsers in one bundle and lazy loading that
 // 2. Putting parsers in `contentReferences` so they're automatically loaded
-// 3. Don't lazy load parsers at all
 //
-// NOCOMMIT: Seriously evaluate one of these options
+// We need to lazy load parsers. If we didn't, language parsers would be ~1/3
+// of the JavaScript we sent to the client. For a feature most users won't use
+// that's not acceptable.
 const contentCodeBlockLanguageDefinitionById: Record<
     ContentCodeBlockLanguageId,
     ContentCodeBlockLanguageDefinition
@@ -413,6 +403,11 @@ const contentCodeBlockLanguageDefinitionById: Record<
 
 const nonReadonlyContentCodeBlockLanguages: Array<ContentCodeBlockLanguage> = [];
 
+let contentCodeBlockLanguageParserPromiseStoreById: Map<
+    ContentCodeBlockLanguageId,
+    Store<PromiseState<Parser>> & {readonly promise: Promise<Parser>}
+> | null = null;
+
 export const contentCodeBlockLanguages: ReadonlyArray<ContentCodeBlockLanguage> =
     nonReadonlyContentCodeBlockLanguages;
 
@@ -425,38 +420,27 @@ export const contentCodeBlockLanguageById: Readonly<
             id,
             name,
             aliases,
-            parser: loadParser !== null ? createContentCodeBlockLanguageParser(loadParser) : null,
-        };
+            getParser: () => {
+                if (loadParser === null) return null;
 
-        nonReadonlyContentCodeBlockLanguages.push(language);
+                contentCodeBlockLanguageParserPromiseStoreById ??= new Map();
 
-        return language;
-    },
-);
+                return getOrSetDefaultMapValue(
+                    contentCodeBlockLanguageParserPromiseStoreById,
+                    id,
+                    () => {
+                        const promise = loadParser().catch(error => {
+                            // If the error already has a code, we don't need to add a new one.
+                            if (error instanceof ErrorBase) throw error;
 
-function createContentCodeBlockLanguageParser(
-    loadParser: () => Promise<Parser>,
-): ContentCodeBlockLanguageParser {
-    let parserPromise: PromiseImmediate<Parser> | null = null;
-
-    const load = () => {
-        if (parserPromise?.getStateWithoutListening().status === "rejected") {
-            parserPromise = null;
-        }
-
-        if (parserPromise === null) {
-            parserPromise = PromiseImmediate.resolve(
-                retryWithExponentialBackoff(async retry => {
-                    try {
-                        const parser = await loadParser();
-                        return parser;
-                    } catch (error) {
-                        // If we failed while the user is online, retry a couple times otherwise fail
-                        // with an offline error.
-                        if (navigator.onLine) {
-                            throw retry(error);
-                        } else {
-                            throw FailedPreconditionError.from(error, undefined, {
+                            // Classify network errors as the `Unavailable` status code.
+                            //
+                            // If the user is offline then we use a `FailedPreconditionError` since it's a
+                            // user error (no internet connection) not a system error. System errors show a
+                            // red error icon.
+                            throw (
+                                !navigator.onLine ? FailedPreconditionError : UnavailableError
+                            ).from(error, undefined, {
                                 displayMessage:
                                     // If we're in a web browser, if we failed to make a request it's probably the
                                     // user's internet connection and they should look into a fix.
@@ -464,19 +448,16 @@ function createContentCodeBlockLanguageParser(
                                         ? offlineErrorDisplayMessage
                                         : undefined,
                             });
-                        }
-                    }
-                }),
-            );
-        }
+                        });
 
-        return parserPromise;
-    };
+                        return Object.assign(createPromiseStore(promise), {promise});
+                    },
+                );
+            },
+        };
 
-    return {
-        load,
-        getIfLoaded: () => {
-            return parserPromise?.getStateWithoutListening().value ?? null;
-        },
-    };
-}
+        nonReadonlyContentCodeBlockLanguages.push(language);
+
+        return language;
+    },
+);

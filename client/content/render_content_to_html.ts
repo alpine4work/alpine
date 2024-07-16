@@ -20,6 +20,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
+    RecursiveReadonlyArray,
     renderProsemirrorDomOutputSpec,
     serializeProsemirrorFragmentToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
@@ -70,7 +71,7 @@ export function renderContentFragmentToHtmlStore(
         currentAccount: AccountModel | null;
         placeholder?: string;
         isInert?: boolean;
-        decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
+        decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
     },
 ): Store<string> {
