@@ -125,6 +125,10 @@ export const docClassName = style({
 
 export const withMobileLayoutDocClassName = style({});
 
+const compactListItemOffsetSpacing = "2";
+const compactListItemOffset = spacing[compactListItemOffsetSpacing];
+export {compactListItemOffsetSpacing as compactListItemOffset};
+
 export const compactDocClassName = style({
     vars: {
         // Slightly smaller paragraph margins in messages. This makes bullet points in
@@ -133,7 +137,7 @@ export const compactDocClassName = style({
         [codeBlockMarginVar]: spacing["3"],
         // Pull in list items so they're not so far from the edge of the message
         // bubble.
-        [listItemOffsetVar]: `-${spacing["2"]}`,
+        [listItemOffsetVar]: `-${compactListItemOffset}`,
     },
 });
 

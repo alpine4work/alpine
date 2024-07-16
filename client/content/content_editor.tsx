@@ -56,6 +56,7 @@ import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     MobileFullScreenModal,
     useIsBehindMobileFullScreenModal,
@@ -82,6 +83,12 @@ import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_la
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -765,6 +772,45 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const initialIsDualModality = isDualModalityRef.current;
 
+        let lastRemPx: number | null = null;
+        let lastScrollMargin: {top: number; left: number; right: number; bottom: number} | null =
+            null;
+
+        const getScrollMargin = () => {
+            const remPx = getRemPxWithoutListening();
+
+            if (lastScrollMargin !== null && lastRemPx === remPx) return lastScrollMargin;
+
+            const scrollMarginPx = convertRemLengthToPx(spacing["5"], remPx);
+
+            lastRemPx = remPx;
+
+            lastScrollMargin = {
+                top: scrollMarginPx,
+                left:
+                    scrollMarginPx +
+                    // This is the base width of code block line numbers. When scrolling left, to
+                    // make sure the selection is visible we should scroll past line numbers which
+                    // cover up content.
+                    convertRemLengthToPx(
+                        subtractRemLengths(
+                            addRemLengths(
+                                spacing[contentSchemaStyles.listItemIndentation],
+                                spacing[contentSchemaStyles.blockPaddingX],
+                            ),
+                            propsRef.current.isCompact || propsRef.current.isExtraCompact
+                                ? spacing[contentSchemaStyles.compactListItemOffset]
+                                : spacing["0"],
+                        ),
+                        remPx,
+                    ),
+                right: scrollMarginPx,
+                bottom: scrollMarginPx,
+            };
+
+            return lastScrollMargin;
+        };
+
         const view = new EditorView(rootElement, {
             state: initialState,
 
@@ -796,6 +842,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // spellings there so we only show a permanent red squiggle which is bad. I
                 // think the best answer here is to build our own spellchecker eventually.
                 ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+            },
+
+            get scrollThreshold() {
+                return getScrollMargin();
+            },
+            get scrollMargin() {
+                return getScrollMargin();
             },
 
             domParser: ContentEditorDomParser.fromSchema(schema),

@@ -1109,9 +1109,9 @@ export function buildContentEditorKeymapPlugin(
                 indentationTextLength++;
                 if (fromRelativePos !== 0 && fromRelativePos <= indentationTextLength) {
                     dispatch?.(
-                        state.tr.setSelection(
-                            new TextSelection(state.doc.resolve(fromNodeStartPos)),
-                        ),
+                        state.tr
+                            .setSelection(new TextSelection(state.doc.resolve(fromNodeStartPos)))
+                            .scrollIntoView(),
                     );
                     return true;
                 }
@@ -1119,9 +1119,11 @@ export function buildContentEditorKeymapPlugin(
         }
 
         dispatch?.(
-            state.tr.setSelection(
-                new TextSelection(state.doc.resolve(fromNodeStartPos + indentationTextLength)),
-            ),
+            state.tr
+                .setSelection(
+                    new TextSelection(state.doc.resolve(fromNodeStartPos + indentationTextLength)),
+                )
+                .scrollIntoView(),
         );
         return true;
     });
@@ -1176,9 +1178,11 @@ export function buildContentEditorKeymapPlugin(
                 indentationTextLength++;
                 if (fromRelativePos !== 0 && fromRelativePos <= indentationTextLength) {
                     dispatch?.(
-                        state.tr.setSelection(
-                            new TextSelection($to, state.doc.resolve(fromNodeStartPos)),
-                        ),
+                        state.tr
+                            .setSelection(
+                                new TextSelection($to, state.doc.resolve(fromNodeStartPos)),
+                            )
+                            .scrollIntoView(),
                     );
                     return true;
                 }
@@ -1186,9 +1190,14 @@ export function buildContentEditorKeymapPlugin(
         }
 
         dispatch?.(
-            state.tr.setSelection(
-                new TextSelection($to, state.doc.resolve(fromNodeStartPos + indentationTextLength)),
-            ),
+            state.tr
+                .setSelection(
+                    new TextSelection(
+                        $to,
+                        state.doc.resolve(fromNodeStartPos + indentationTextLength),
+                    ),
+                )
+                .scrollIntoView(),
         );
         return true;
     });
