@@ -1,5 +1,6 @@
 import {useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
     flushNavigationBarScrollEvent,
     getNavigationBarHeightRemWithoutListening,
@@ -45,8 +46,11 @@ export function maintainTextInputVisibility(targetElement: HTMLElement) {
  */
 export function useTextInputVisibilityMaintainer() {
     const getCurrentCoveredHeight = useGetCurrentCoveredHeight();
+    const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
 
     useEffect(() => {
+        if (isBehindMobileFullScreenModal) return;
+
         const handleInput = (event: Event) => {
             if (!(event.target instanceof HTMLElement)) return;
             if (!isTextInputElement(event.target)) return;

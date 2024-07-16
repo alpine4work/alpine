@@ -23,6 +23,7 @@ import {
 } from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
+import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
@@ -1359,25 +1360,7 @@ export function DocumentContentEditor({
         // - Disable on `sidebarState.isOpen` since the comment view should be
         //   scrolling not the document.
         isDisabled: isInitialAppRender || sidebarState.isOpen,
-        getAnchorPosition: useCallback(() => {
-            const editor = assertExists(editorRef.current);
-            const editorState = editor.getState();
-
-            const coords = editor.coordsAtPos(editorState.getSelection().from);
-
-            const paragraphLineHeight = convertRemLengthToPx(
-                contentSchemaStyles.paragraphFontSize.lineHeight,
-                getRemPxWithoutListening(),
-            );
-
-            // Add a paragraph line height in either direction as slop. We consider the
-            // selection offscreen if there's less than a line of space between it and the
-            // keyboard.
-            return {
-                top: coords.top - paragraphLineHeight,
-                height: coords.bottom - coords.top + paragraphLineHeight * 2,
-            };
-        }, []),
+        getAnchorPosition: useCallback(() => getContentEditorScrollAnchorPosition(editorRef), []),
     });
 
     useEffect(() => {

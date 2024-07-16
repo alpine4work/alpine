@@ -613,6 +613,26 @@ export const codeBlockWrapperClassName = style({
     ...fontStyles.code,
 });
 
+// If the code block toolbar is a little taller than a line of code (it is)
+// then we need to add some padding Y to our code block so the toolbar can be
+// centered relative to the first line of text when the toolbar is positioned
+// with `position: absolute; top: 0`. We can't position the toolbar with a
+// negative `top` since then it would be clipped because `overflowY` is hidden
+// (since `overflowX` is scrollable).
+const codeBlockPaddingY = `${Math.max(
+    0,
+    (parseRemLengthNumber(codeBlockToolbarHeight) -
+        parseRemLengthNumber(paragraphFontSize.lineHeight)) /
+        2,
+)}rem`;
+
+const extraCompactCodeBlockPaddingY = `${Math.max(
+    0,
+    (parseRemLengthNumber(codeBlockToolbarHeight) -
+        parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight)) /
+        2,
+)}rem`;
+
 export const codeBlockClassName = style({
     display: "block",
     position: "relative",
@@ -620,18 +640,8 @@ export const codeBlockClassName = style({
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
     ...fontStyles.code,
-    // If the code block toolbar is a little taller than a line of code (it is)
-    // then we need to add some padding top to our code block so the toolbar can be
-    // centered relative to the first line of text when the toolbar is positioned
-    // with `position: absolute; top: 0`. We can't position the toolbar with a
-    // negative `top` since then it would be clipped because `overflowY` is hidden
-    // (since `overflowX` is scrollable).
-    paddingTop: `${Math.max(
-        0,
-        (parseRemLengthNumber(codeBlockToolbarHeight) -
-            parseRemLengthNumber(paragraphFontSize.lineHeight)) /
-            2,
-    )}rem`,
+    paddingTop: codeBlockPaddingY,
+    paddingBottom: codeBlockPaddingY,
     selectors: {
         // The reason use `&&&` is to beat the CSS set by ProseMirror since
         // ProseMirror automatically sets white space to pre-wrap.
@@ -640,12 +650,8 @@ export const codeBlockClassName = style({
         },
         [`${extraCompactDocClassName} &`]: {
             ...extraCompactParagraphFontSize,
-            paddingTop: `${Math.max(
-                0,
-                (parseRemLengthNumber(codeBlockToolbarHeight) -
-                    parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight)) /
-                    2,
-            )}rem`,
+            paddingTop: extraCompactCodeBlockPaddingY,
+            paddingBottom: extraCompactCodeBlockPaddingY,
         },
     },
 });

@@ -873,8 +873,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // reference would actually cause issues.
         return UIColor { [weak self] (traits) in
             traits.userInterfaceStyle == .dark
-                ? self?.theme60Color ?? UIColor(named: "theme-70")!
-                : self?.theme40Color ?? UIColor(named: "theme-50")!
+                ? self?.theme70Color ?? UIColor(named: "theme-70")!
+                : self?.theme50Color ?? UIColor(named: "theme-50")!
         }
     }
 

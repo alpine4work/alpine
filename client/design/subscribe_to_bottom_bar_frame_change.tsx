@@ -362,7 +362,7 @@ function registerBottomBarFrame(
 ): (options: {isUnmounting: boolean}) => void {
     const bottomBarFrame = {height, withMobileKeyboardToolbar};
 
-    (context.bottomBarFrames ??= new Set()).add(bottomBarFrame);
+    context.bottomBarFrames.add(bottomBarFrame);
 
     const oldBottomBarHeight = (context.currentBottomBarHeight ??= {
         visibleMobileKeyboard: 0,
@@ -386,7 +386,7 @@ function registerBottomBarFrame(
     }
 
     return ({isUnmounting}: {isUnmounting: boolean}) => {
-        (context.bottomBarFrames ??= new Set()).delete(bottomBarFrame);
+        context.bottomBarFrames.delete(bottomBarFrame);
 
         const oldBottomBarHeight = (context.currentBottomBarHeight ??= {
             visibleMobileKeyboard: 0,
@@ -419,7 +419,7 @@ function getMobileBottomBarHeight(
 
     let bottomBarHeight = 0;
 
-    for (const bottomBar of context.bottomBarFrames ?? []) {
+    for (const bottomBar of context.bottomBarFrames) {
         bottomBarHeight = Math.max(
             bottomBarHeight,
             bottomBar.height +

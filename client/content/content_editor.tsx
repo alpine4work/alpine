@@ -2009,13 +2009,43 @@ function ContentEditor<Content extends ContentWithReferences>(
                     withMobileLayout={withMobileLayout}
                     targetElement={codeBlockLanguagePickerState.targetElement}
                     isVisible={codeBlockLanguagePickerState.isVisible}
-                    onCloseWithAnimation={() =>
+                    onCloseWithAnimation={() => {
+                        // NOTE(calebmer, #mobile-webkit-weirdness): Courtesy blur since WebKit doesn't
+                        // like it when a focused element is removed from the DOM. We've observed
+                        // sometimes that when this combobox closes and we don't call `blur()` WebKit
+                        // will scroll us to the bottom of the parent document! It's unclear to me what
+                        // causes this to happen but it's definitely the browser
+                        // (`register_scroll_event_debugger.ts` doesn't report a scroll from
+                        // JavaScript) and calling `blur()` beforehand helps.
+                        //
+                        // Since the language picker is a blocking overlay, while open the only focused
+                        // element could be one inside the overlay.
+                        if (document.activeElement instanceof HTMLElement) {
+                            document.activeElement.blur();
+                        }
+
                         setCodeBlockLanguagePickerState({
                             ...codeBlockLanguagePickerState,
                             isVisible: false,
-                        })
-                    }
-                    onCloseWithoutAnimation={() => setCodeBlockLanguagePickerState(null)}
+                        });
+                    }}
+                    onCloseWithoutAnimation={() => {
+                        // NOTE(calebmer, #mobile-webkit-weirdness): Courtesy blur since WebKit doesn't
+                        // like it when a focused element is removed from the DOM. We've observed
+                        // sometimes that when this combobox closes and we don't call `blur()` WebKit
+                        // will scroll us to the bottom of the parent document! It's unclear to me what
+                        // causes this to happen but it's definitely the browser
+                        // (`register_scroll_event_debugger.ts` doesn't report a scroll from
+                        // JavaScript) and calling `blur()` beforehand helps.
+                        //
+                        // Since the language picker is a blocking overlay, while open the only focused
+                        // element could be one inside the overlay.
+                        if (document.activeElement instanceof HTMLElement) {
+                            document.activeElement.blur();
+                        }
+
+                        setCodeBlockLanguagePickerState(null);
+                    }}
                     selectedLanguageId={codeBlockLanguagePickerState.languageId}
                     onSelectedLanguageChange={languageId => {
                         const pos = codeBlockLanguagePickerState.getPos();

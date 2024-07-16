@@ -3,15 +3,16 @@ import classNames from "classnames";
 import {useCallback, useEffect, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {
     mobileNavigationBarActionsWidthFittingFlexBasis,
     navigationBarHeight,
     useNavigationBar,
 } from "~/client/design/navigation_bar.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {safeAreaOnlyScrollbarInsetTop, useScrollbar} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
@@ -28,12 +29,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {
-    convertRemLengthToPx,
-    screenPaddingX,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/spacing.js";
+import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
@@ -234,30 +230,7 @@ export function PostCreator({
         // - Disable on `sidebarState.isOpen` since the comment view should be
         //   scrolling not the document.
         isDisabled: isInitialAppRender,
-        getAnchorPosition: useCallback(() => {
-            const editor = assertExists(editorRef.current);
-
-            // Don't anchor if the editor is not focused. The channel selector input might
-            // be focused!
-            if (!editor.isFocused()) return null;
-
-            const editorState = editor.getState();
-
-            const coords = editor.coordsAtPos(editorState.getSelection().from);
-
-            const paragraphLineHeight = convertRemLengthToPx(
-                contentSchemaStyles.paragraphFontSize.lineHeight,
-                getRemPxWithoutListening(),
-            );
-
-            // Add a paragraph line height in either direction as slop. We consider the
-            // selection offscreen if there's less than a line of space between it and the
-            // keyboard.
-            return {
-                top: coords.top - paragraphLineHeight,
-                height: coords.bottom - coords.top + paragraphLineHeight * 2,
-            };
-        }, []),
+        getAnchorPosition: useCallback(() => getContentEditorScrollAnchorPosition(editorRef), []),
     });
 
     return (
@@ -296,107 +269,111 @@ export function PostCreator({
                 overflowX="hidden"
                 overflowY="auto"
             >
-                <Box
-                    position="relative"
-                    minHeight="full"
-                    display="flex"
-                    flexDirection="column"
-                    paddingTop="safe-area-inset"
-                    style={{
-                        ...assignInlineVars({
-                            [contentSchemaStyles.blockMaxWidthVar]:
-                                postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],
-                        }),
-                    }}
-                >
-                    {navigationBar}
-                    {isMobile && <Box height={navigationBarHeight} />}
+                <OverlayScopeContextProvider>
                     <Box
-                        flexShrink="0"
-                        width="full"
-                        maxWidth={postViewMaxWidth}
-                        marginX="center"
-                        paddingX={screenPaddingX}
-                        paddingBottom={postContentViewInnerMarginY}
+                        position="relative"
+                        minHeight="full"
+                        display="flex"
+                        flexDirection="column"
+                        paddingTop="safe-area-inset"
                         style={{
-                            paddingTop: withMobileLayout
-                                ? isMobile
-                                    ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                    : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
-                                : `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
+                            ...assignInlineVars({
+                                [contentSchemaStyles.blockMaxWidthVar]:
+                                    postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],
+                            }),
                         }}
                     >
-                        <PostContentViewHeaderBase
-                            author={currentAccount}
-                            createdTime={displayCreatedTime}
-                            shouldCreatedTimeExcludeTime
-                            extraAfterCreatedTime={isMobile ? `, in:` : undefined}
-                            channelSelector={
-                                !isMobile && (
+                        {navigationBar}
+                        {isMobile && <Box height={navigationBarHeight} />}
+                        <Box
+                            flexShrink="0"
+                            width="full"
+                            maxWidth={postViewMaxWidth}
+                            marginX="center"
+                            paddingX={screenPaddingX}
+                            paddingBottom={postContentViewInnerMarginY}
+                            style={{
+                                paddingTop: withMobileLayout
+                                    ? isMobile
+                                        ? `${mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
+                                        : `${mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`
+                                    : `${desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput}rem`,
+                            }}
+                        >
+                            <PostContentViewHeaderBase
+                                author={currentAccount}
+                                createdTime={displayCreatedTime}
+                                shouldCreatedTimeExcludeTime
+                                extraAfterCreatedTime={isMobile ? `, in:` : undefined}
+                                channelSelector={
+                                    !isMobile && (
+                                        <PostCreatorChannelSelectorInput
+                                            ref={channelSelectorRef}
+                                            channel={channel}
+                                            onChannelChange={onChannelChange}
+                                        />
+                                    )
+                                }
+                            />
+                            {isMobile && (
+                                <Box paddingTop="1" paddingLeft="10">
                                     <PostCreatorChannelSelectorInput
                                         ref={channelSelectorRef}
                                         channel={channel}
                                         onChannelChange={onChannelChange}
+                                        width="full"
                                     />
-                                )
-                            }
+                                </Box>
+                            )}
+                        </Box>
+                        <ContentEditor
+                            ref={editorRef}
+                            aria-label="New post"
+                            withMobileLayout={withMobileLayout}
+                            state={state}
+                            onChange={(state, transaction) => {
+                                setState({
+                                    state,
+                                    hasContentChanged: hasContentChanged || transaction.docChanged,
+                                });
+                            }}
+                            // On mobile, don't allow interactions when unfocused. We're already in an
+                            // editing modality.
+                            withoutMobileDualModality={true}
+                            placeholder="Share your ideas…"
+                            containerClassName={sprinkles({
+                                flexGrow: "1",
+                            })}
+                            className={classNames(
+                                forumStyles.fullScreenContentEditorClassName,
+                                sprinkles({
+                                    paddingX:
+                                        contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
+                                }),
+                            )}
+                            onModEnter={() => {
+                                // Programmatically press the button instead of calling `createPost()`
+                                // directly to correctly handle loading and error states.
+                                assertExists(createButtonRef.current).press();
+                            }}
                         />
-                        {isMobile && (
-                            <Box paddingTop="1" paddingLeft="10">
-                                <PostCreatorChannelSelectorInput
-                                    ref={channelSelectorRef}
-                                    channel={channel}
-                                    onChannelChange={onChannelChange}
-                                    width="full"
-                                />
+                        {!isMobile && (
+                            <Box
+                                marginTop="-12"
+                                flexShrink="0"
+                                width="full"
+                                marginX="center"
+                                maxWidth={postViewMaxWidth}
+                                paddingBottom="safe-area-inset"
+                            >
+                                <Box height="12" paddingX="2.5" display="flex" alignItems="center">
+                                    <Box flexGrow="1" />
+                                    {createButtonNode}
+                                </Box>
                             </Box>
                         )}
                     </Box>
-                    <ContentEditor
-                        ref={editorRef}
-                        aria-label="New post"
-                        withMobileLayout={withMobileLayout}
-                        state={state}
-                        onChange={(state, transaction) => {
-                            setState({
-                                state,
-                                hasContentChanged: hasContentChanged || transaction.docChanged,
-                            });
-                        }}
-                        // On mobile, don't allow interactions when unfocused. We're already in an
-                        // editing modality.
-                        withoutMobileDualModality={true}
-                        placeholder="Share your ideas…"
-                        containerClassName={sprinkles({
-                            flexGrow: "1",
-                        })}
-                        className={classNames(
-                            forumStyles.fullScreenContentEditorClassName,
-                            sprinkles({
-                                paddingX: contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
-                            }),
-                        )}
-                        onModEnter={() => {
-                            // Programmatically press the button instead of calling `createPost()`
-                            // directly to correctly handle loading and error states.
-                            assertExists(createButtonRef.current).press();
-                        }}
-                    />
-                    {!isMobile && (
-                        <Box
-                            flexShrink="0"
-                            width="full"
-                            marginX="center"
-                            maxWidth={postViewMaxWidth}
-                            paddingBottom="safe-area-inset"
-                        >
-                            <Box height="12" paddingX="2.5" display="flex" alignItems="center">
-                                <Box flexGrow="1" />
-                                {createButtonNode}
-                            </Box>
-                        </Box>
-                    )}
-                </Box>
+                </OverlayScopeContextProvider>
             </Box>
         </Box>
     );

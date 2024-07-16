@@ -22,6 +22,7 @@ import {
     trackNavigationAnimationStart,
 } from "~/client/design/schedule_after_navigation_animation.js";
 import {BottomBarFrameContextProvider} from "~/client/design/subscribe_to_bottom_bar_frame_change.js";
+import {useTextInputVisibilityMaintainer} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -386,6 +387,7 @@ export function MobileFullScreenModal({
                         // Bottom bars in a fullscreen modal shouldn't effect the content underneath
                         // the modal.
                         >
+                            {animation === null && <TextInputVisibilityMaintainer />}
                             {!isInitialRender && (
                                 <Box
                                     ref={modalRef}
@@ -410,4 +412,13 @@ export function MobileFullScreenModal({
         // bottom bar it doesn't get any weird positioning.
         portalElement,
     );
+}
+
+function TextInputVisibilityMaintainer() {
+    // We need a new text input visibility maintainer hook inside a full screen
+    // modal's `<BottomBarFrameContextProvider>` so we can maintain visibility
+    // considering the bottom bars within the modal.
+    useTextInputVisibilityMaintainer();
+
+    return null;
 }

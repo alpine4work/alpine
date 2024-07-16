@@ -17,6 +17,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -44,6 +45,8 @@ export function ContentEditorCodeBlockLanguagePickerComboBox({
     selectedLanguageId: ContentCodeBlockLanguageId;
     onSelectedLanguageChange: (languageId: ContentCodeBlockLanguageId) => void;
 }) {
+    const isMobile = useIsMobile();
+
     return (
         <OverlayAnimated
             // The overlay blocks interaction with everything outside the overlay. We still
@@ -57,15 +60,25 @@ export function ContentEditorCodeBlockLanguagePickerComboBox({
             onActuallyVisibleChange={isActuallyVisible => {
                 if (!isActuallyVisible) onCloseWithoutAnimation();
             }}
-            placement="bottom-end"
             offset={defaultTooltipOffset}
+            placement="bottom-end"
+            // Allow flipping vertically but not horizontally. Should always be rendered
+            // inside the code block.
+            fallbackPlacements={["top-end"]}
+            // Set a constant `overflowBottom` value instead of relying on the current
+            // keyboard height (which will be updated asynchronously after `isEditing` is
+            // true). This stops the overlay placement from jumping around while the
+            // keyboard opens. The value was calculated based on the keyboard height in
+            // iOS. We may need to change this constant if the keyboard height for iOS
+            // changes or the Android keyboard height is bigger.
+            overflowBottom={isMobile ? "64" : undefined}
             targetElement={targetElement}
             overlay={
                 <Box
                     ref={useOutsideInteraction(onCloseWithAnimation)}
                     className={greyElevated2ClassName}
                     width="48"
-                    maxHeight={withMobileLayout ? "64" : "96"}
+                    maxHeight={withMobileLayout ? "48" : "96"}
                     overflow="hidden"
                     borderRadius="1.5"
                     backgroundColor="grey-0"

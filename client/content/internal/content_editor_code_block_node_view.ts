@@ -19,8 +19,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Scroll when opening language picker on mobile?
-
 // IMPORTANT: Any change you make to this function also likely must be made to
 // the `codeBlock` node renderer in `renderContentInHtml()`.
 export function createContentEditorCodeBlockNodeViewConstructor({

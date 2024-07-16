@@ -39,7 +39,7 @@ export const hiddenIfLightColorSchemeClassName = style({
 
 const selectionColors = Object.fromEntries(
     [...themeColors, "grey" as const].map(themeColor => {
-        const selectionAlpha = 1 / 2;
+        const selectionAlpha = 2 / 3;
         const selectionAlphaHex = Math.round(selectionAlpha * 255)
             .toString(16)
             .padStart(2, "0");
@@ -59,7 +59,7 @@ const invertedSelectionColors = Object.fromEntries(
             .toString(16)
             .padStart(2, "0");
 
-        const colorHexCode: `#${string}` = colors[`${themeColor}-30`];
+        const colorHexCode: `#${string}` = colors[`${themeColor}-20`];
         return [`${themeColor}-selection`, `${colorHexCode}${selectionAlphaHex}`];
     }),
 ) as {readonly [C in ThemeColor | "grey" as `${C}-selection`]: `#${string}`};
