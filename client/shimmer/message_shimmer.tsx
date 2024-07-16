@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {Memo, Ref, forwardRef} from "react";
+import {Ref, forwardRef} from "react";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     Spacing,
@@ -55,7 +55,7 @@ function MessageShimmer(
         heightLines: number;
         shouldMergeWithNextMessage?: boolean;
         shouldMergeWithPreviousMessage?: boolean;
-        paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
+        paddingX?: Spacing | {mobile: Spacing; desktop: Spacing};
     },
     ref: Ref<HTMLDivElement>,
 ) {

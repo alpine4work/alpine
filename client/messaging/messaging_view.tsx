@@ -41,7 +41,7 @@ import {
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing, screenPaddingX} from "~/shared/design/spacing.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -224,6 +224,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         elementRef,
         extraChildren,
         scrollbarInsetTop,
+        paddingX = screenPaddingX,
     }: {
         withMobileLayout: boolean;
 
@@ -401,6 +402,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * `scrollbarInsetTop` wins.
          */
         scrollbarInsetTop?: ScrollbarInsetDynamic;
+
+        /**
+         * Customize the amount of margin on messages.
+         */
+        paddingX?: Spacing | Memo<{mobile: Spacing; desktop: Spacing}>;
     },
     ref: Ref<MessagingViewRef>,
 ) {
@@ -664,6 +670,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
                         shouldAddMarginBottom: index === state.getItemCount() - 1,
+                        paddingX,
                     });
                 }
             }
@@ -677,6 +684,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
+            paddingX,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             state,
@@ -753,6 +761,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                             );
                     }}
                     restoreStateRef={inputRestoreStateRef}
+                    paddingX={paddingX}
                 />
             </div>
         </>

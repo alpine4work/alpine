@@ -446,9 +446,11 @@ function NewChatRouteShimmer() {
 function MessagingViewShimmer({
     messages,
     withTopAlignedMessages,
+    paddingX = screenPaddingX,
 }: {
     messages: "fill" | "few";
     withTopAlignedMessages: boolean;
+    paddingX?: Spacing | {desktop?: Spacing; mobile?: Spacing};
 }) {
     return (
         <>
@@ -470,79 +472,102 @@ function MessagingViewShimmer({
                         <TextShimmer width="16" fontSize="50" />
                     </Box>
                 )}
-
                 {messages === "fill" && (
                     <>
                         <MessageShimmer
                             width="48"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
+                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="64"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
                             shouldMergeWithPreviousMessage={true}
+                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="128"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
+                            paddingX={paddingX}
                         />
-                        <MessageShimmer width="128" heightLines={1} />
-                        <MessageShimmer width="160" heightLines={2} />
-                        <MessageShimmer width="96" heightLines={1} />
+                        <MessageShimmer width="128" heightLines={1} paddingX={paddingX} />
+                        <MessageShimmer width="160" heightLines={2} paddingX={paddingX} />
+                        <MessageShimmer width="96" heightLines={1} paddingX={paddingX} />
                         <MessageShimmer
                             width="64"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
+                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="32"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
                             shouldMergeWithPreviousMessage={true}
+                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="128"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
+                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="96"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
+                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="32"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
+                            paddingX={paddingX}
                         />
-                        <MessageShimmer width="160" heightLines={3} />
+                        <MessageShimmer width="160" heightLines={3} paddingX={paddingX} />
                         <MessageShimmer
                             width="32"
                             heightLines={1}
                             shouldMergeWithNextMessage={true}
+                            paddingX={paddingX}
                         />
                         <MessageShimmer
                             width="96"
                             heightLines={1}
                             shouldMergeWithPreviousMessage={true}
+                            paddingX={paddingX}
                         />
                     </>
                 )}
-                <MessageShimmer width="32" heightLines={1} />
-                <MessageShimmer width="64" heightLines={1} shouldMergeWithNextMessage={true} />
-                <MessageShimmer width="96" heightLines={1} shouldMergeWithPreviousMessage={true} />
-                <MessageShimmer width="128" heightLines={1} />
+                <MessageShimmer width="32" heightLines={1} paddingX={paddingX} />
+                <MessageShimmer
+                    width="64"
+                    heightLines={1}
+                    shouldMergeWithNextMessage={true}
+                    paddingX={paddingX}
+                />
+                <MessageShimmer
+                    width="96"
+                    heightLines={1}
+                    shouldMergeWithPreviousMessage={true}
+                    paddingX={paddingX}
+                />
+                <MessageShimmer width="128" heightLines={1} paddingX={paddingX} />
             </Box>
-            <MessageInputShimmer />
+            <MessageInputShimmer paddingX={paddingX} />
             <Box flexShrink="0" height="safe-area-inset-bottom" />
         </>
     );
 }
 
-function MessageInputShimmer() {
+function MessageInputShimmer({
+    paddingX = screenPaddingX,
+}: {
+    paddingX?: Spacing | {desktop?: Spacing; mobile?: Spacing};
+}) {
     const isMobile = useIsMobile();
 
     return (
@@ -554,7 +579,7 @@ function MessageInputShimmer() {
                 maxWidth="160"
                 height="full"
                 marginX="center"
-                paddingX={screenPaddingX}
+                paddingX={paddingX}
                 paddingTop={isMobile ? "2" : "0"}
                 gap="2"
             >
@@ -1345,7 +1370,13 @@ export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: b
             {!withMobileLayout && (
                 <Spacer space={desktopTaskCommentsNavigationBarHeaderSpacerHeight} />
             )}
-            <MessagingViewShimmer withTopAlignedMessages={true} messages="few" />
+            <MessagingViewShimmer
+                withTopAlignedMessages={true}
+                messages="few"
+                // Slightly reduce the amount of margin on messages in a desktop comment thread
+                // because we have less space in the sidebar.
+                paddingX={!withMobileLayout ? "4" : undefined}
+            />
         </Box>
     );
 }
