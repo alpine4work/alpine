@@ -34,14 +34,14 @@ import {
 } from "~/client/helpers/color_scheme.js";
 import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
-import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
-import {ClientInfoContextProvider} from "~/client/remix/client_info_context.js";
+import {useClientInfoContextProvider} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
+import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
@@ -455,45 +455,55 @@ export default function Root() {
         nodes.sort((node1, node2) => defaultCompareStrings(String(node1.key), String(node2.key)));
     }
 
-    const wrappedChildren = useGlobalContextProvider(
+    const wrappedChildren4 = (
         <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
             <AppContextProvider value={context}>
-                <AppInitialRenderContextProvider
-                    initialAppRenderId={loaderData?.initialAppRenderId}
-                >
-                    <ClientInfoContextProvider
-                        // If there was an error at our root loader and we couldn't load `BrowserId`
-                        // then use the `RealmId` as the `BrowserId`.
-                        browserId={loaderData?.browserId ?? (getRealmId() as any as BrowserId)}
-                        initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
-                    >
-                        <CurrentTimeContextProvider initialTime={initialTime}>
-                            <IsMobileContextProvider>
-                                <NavigationContextProvider>
-                                    <GlobalKeyDownRootContextProvider>
-                                        <BottomBarFrameContextProvider>
-                                            <RootOverlayScopeContextProvider>
-                                                <MobileFullScreenModalContextProvider>
-                                                    <TooltipCoordinationContextProvider>
-                                                        <ReporterContextProvider>
-                                                            {nodes}
-                                                        </ReporterContextProvider>
-                                                    </TooltipCoordinationContextProvider>
-                                                </MobileFullScreenModalContextProvider>
-                                            </RootOverlayScopeContextProvider>
-                                        </BottomBarFrameContextProvider>
-                                    </GlobalKeyDownRootContextProvider>
-                                </NavigationContextProvider>
-                            </IsMobileContextProvider>
-                        </CurrentTimeContextProvider>
-                    </ClientInfoContextProvider>
-                </AppInitialRenderContextProvider>
+                <CurrentTimeContextProvider initialTime={initialTime}>
+                    <NavigationContextProvider>
+                        <GlobalKeyDownRootContextProvider>
+                            <BottomBarFrameContextProvider>
+                                <RootOverlayScopeContextProvider>
+                                    <MobileFullScreenModalContextProvider>
+                                        <TooltipCoordinationContextProvider>
+                                            <ReporterContextProvider>
+                                                {nodes}
+                                            </ReporterContextProvider>
+                                        </TooltipCoordinationContextProvider>
+                                    </MobileFullScreenModalContextProvider>
+                                </RootOverlayScopeContextProvider>
+                            </BottomBarFrameContextProvider>
+                        </GlobalKeyDownRootContextProvider>
+                    </NavigationContextProvider>
+                </CurrentTimeContextProvider>
             </AppContextProvider>
-        </IconContext.Provider>,
+        </IconContext.Provider>
+    );
+
+    const {clientInfo, children: wrappedChildren3} = useClientInfoContextProvider(
+        {
+            // If there was an error at our root loader and we couldn't load `BrowserId`
+            // then use the `RealmId` as the `BrowserId`.
+            browserId: loaderData?.browserId ?? (getRealmId() as any as BrowserId),
+            initialClientInfo: loaderData?.clientInfo ?? defaultClientInfo,
+        },
+        wrappedChildren4,
+    );
+
+    const {isMobile, children: wrappedChildren2} = useIsMobileContextProvider(
+        clientInfo,
+        wrappedChildren3,
+    );
+
+    const wrappedChildren = useGlobalContextProvider(
+        useAppInitialRenderContextProvider(loaderData?.initialAppRenderId, wrappedChildren2),
     );
 
     return (
-        <html lang="en" data-color-scheme={getColorSchemeWithoutListeningIfBrowser()}>
+        <html
+            lang="en"
+            data-platform={isMobile ? "mobile" : "desktop"}
+            data-color-scheme={getColorSchemeWithoutListeningIfBrowser()}
+        >
             <head>
                 <meta charSet="utf-8" />
                 <meta

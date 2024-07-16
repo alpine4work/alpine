@@ -13,9 +13,10 @@ import {
     interFontDescender,
     interFontUnitsPerEm,
 } from "~/shared/design/font_metrics.js";
-import {RemLength, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
+import {RemLength} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {mobilePlatformSelector} from "~/shared/styles/internal/platform.css.js";
 
 const formatPercentage = (percentage: number) =>
     `${Math.round(percentage * 100 * 10 ** 5) / 10 ** 5}%`;
@@ -513,20 +514,16 @@ const fontSizeVars = createGlobalTheme(":root", {
     }),
 });
 
-globalStyle(":root", {
-    "@media": {
-        [mobilePlatformMediaQuery]: {
-            vars: assignVars(fontSizeVars, {
-                font: mapObjectValues(fontSizesByPlatform, ({desktop, mobile}) => {
-                    assert(desktop.lineHeight === mobile.lineHeight);
-                    return {
-                        fontSize: `${mobile.fontSize}px`,
-                        letterSpacing: mobile.letterSpacing,
-                    };
-                }),
-            }),
-        },
-    },
+globalStyle(mobilePlatformSelector, {
+    vars: assignVars(fontSizeVars, {
+        font: mapObjectValues(fontSizesByPlatform, ({desktop, mobile}) => {
+            assert(desktop.lineHeight === mobile.lineHeight);
+            return {
+                fontSize: `${mobile.fontSize}px`,
+                letterSpacing: mobile.letterSpacing,
+            };
+        }),
+    }),
 });
 
 export type FontSize = keyof typeof fontSizesByPlatform;

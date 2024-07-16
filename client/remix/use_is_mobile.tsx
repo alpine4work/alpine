@@ -1,8 +1,7 @@
-import {ReactNode, createContext, useContext, useEffect, useState} from "react";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {flushSync} from "react-dom";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
+import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
@@ -71,21 +70,31 @@ export function getInitialAppRenderIsMobile(clientInfo: ClientInfo): boolean {
     return clientInfo.isNativeMobile || clientInfo.screenWidth <= mobileMaxScreenWidth;
 }
 
-export function IsMobileContextProvider({children}: {children?: ReactNode}) {
-    const clientInfo = useClientInfo();
+export function useIsMobileContextProvider(
+    clientInfo: ClientInfo,
+    children: ReactNode,
+): {isMobile: boolean; children: ReactElement} {
     const [isMobile, setIsMobile] = useState(getInitialAppRenderIsMobile(clientInfo));
 
     useEffect(() => {
-        const mediaQuery = window.matchMedia(mobilePlatformMediaQuery);
+        const mediaQuery = window.matchMedia(`screen and (max-width: ${mobileMaxScreenWidth}px)`);
 
         const update = () => {
-            runWithImmediatePriority(() => {
+            if (isWithinEffect) {
                 setIsMobile(clientInfo.isNativeMobile || mediaQuery.matches);
-            });
+            } else {
+                flushSync(() => {
+                    setIsMobile(clientInfo.isNativeMobile || mediaQuery.matches);
+                });
+            }
         };
+
+        let isWithinEffect = true;
 
         // In case the value changed since the time component rendered.
         update();
+
+        isWithinEffect = false;
 
         mediaQuery.addEventListener("change", update);
         return () => {
@@ -111,13 +120,16 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
         };
     }, []);
 
-    return (
-        <IsMobileContext.Provider value={isMobile}>
-            <CanPrimaryInputHoverContext.Provider value={canPrimaryInputHover}>
-                {children}
-            </CanPrimaryInputHoverContext.Provider>
-        </IsMobileContext.Provider>
-    );
+    return {
+        isMobile,
+        children: (
+            <IsMobileContext.Provider value={isMobile}>
+                <CanPrimaryInputHoverContext.Provider value={canPrimaryInputHover}>
+                    {children}
+                </CanPrimaryInputHoverContext.Provider>
+            </IsMobileContext.Provider>
+        ),
+    };
 }
 
 export function TestIsMobileContextProvider({

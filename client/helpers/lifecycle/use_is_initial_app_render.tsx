@@ -1,5 +1,5 @@
 import {injectUseIsSSRImplementation} from "@react-aria/ssr";
-import {ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
@@ -63,13 +63,10 @@ export function useInitialAppRenderId(): Id | null {
 // `useIsSSR()` hook so we don't need to render `react-aria`'s SSR context.
 injectUseIsSSRImplementation(useIsInitialAppRender);
 
-export function AppInitialRenderContextProvider({
-    initialAppRenderId: initialAppRenderIdProp,
-    children,
-}: {
-    initialAppRenderId: Id | undefined;
-    children: ReactNode;
-}) {
+export function useAppInitialRenderContextProvider(
+    initialAppRenderIdProp: Id | undefined,
+    children: ReactNode,
+): ReactElement {
     // There should only be one `<AppInitialRenderContextProvider>` at the root of
     // our application. Don't nest these!
     const parentIsInitialAppRender = useContext(AppInitialRenderContext);

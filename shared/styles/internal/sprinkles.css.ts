@@ -20,11 +20,7 @@ import "~/shared/styles/internal/content_schema.css.js";
 
 import {createVar} from "@vanilla-extract/css";
 import {createSprinkles, defineProperties} from "@vanilla-extract/sprinkles";
-import {
-    desktopPlatformMediaQuery,
-    mobilePlatformMediaQuery,
-    spacing,
-} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css.js";
@@ -36,6 +32,10 @@ import {
 } from "~/shared/styles/internal/color_scheme.css.js";
 import {elevationVars} from "~/shared/styles/internal/elevation.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
+import {
+    desktopPlatformSelector,
+    mobilePlatformSelector,
+} from "~/shared/styles/internal/platform.css.js";
 
 const properties = defineProperties({
     properties: {
@@ -173,8 +173,8 @@ const spacingWithNegatives = {
 const responsiveProperties = defineProperties({
     conditions: {
         default: {},
-        mobile: {"@media": mobilePlatformMediaQuery},
-        desktop: {"@media": desktopPlatformMediaQuery},
+        mobile: {selector: `${mobilePlatformSelector} &`},
+        desktop: {selector: `${desktopPlatformSelector} &`},
     },
     defaultCondition: "default",
     properties: {

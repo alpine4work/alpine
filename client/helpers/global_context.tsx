@@ -1,4 +1,4 @@
-import {ReactNode, createContext, useContext, useState} from "react";
+import {ReactElement, ReactNode, createContext, useContext, useState} from "react";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -57,7 +57,7 @@ export function getGlobalContextForTest<Value>(context: GlobalContext<Value>): V
     return getOrSetDefaultMapValue(actualGlobalContextForTest!, context.id, context.create);
 }
 
-export function useGlobalContextProvider(children: ReactNode) {
+export function useGlobalContextProvider(children: ReactNode): ReactElement {
     const parentActualGlobalContext = useContext(ActualGlobalContext);
 
     if (parentActualGlobalContext !== null) {

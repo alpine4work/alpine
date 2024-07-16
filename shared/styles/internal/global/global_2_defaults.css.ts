@@ -6,13 +6,14 @@
  */
 
 import {globalStyle} from "@vanilla-extract/css";
-import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing.js";
+import {remPxByPlatform} from "~/shared/design/spacing.js";
 import {
     colorSchemeVars,
     invertSelectionColorsClassName,
 } from "~/shared/styles/internal/color_scheme.css.js";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
+import {mobilePlatformSelector} from "~/shared/styles/internal/platform.css.js";
 import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
 
 globalStyle(":root", {
@@ -23,12 +24,6 @@ globalStyle(":root", {
 
     // Change the size of 1rem based on whether we're on desktop or mobile.
     fontSize: remPxByPlatform.desktop,
-
-    "@media": {
-        [mobilePlatformMediaQuery]: {
-            fontSize: remPxByPlatform.mobile,
-        },
-    },
 
     // By default we don't allow selecting any text. Instead individual elements
     // must opt-into text selection. This makes our UI feel more native. In a
@@ -44,6 +39,10 @@ globalStyle(":root", {
     // responsible for implementing their own touch feedback styles.
     WebkitTouchCallout: "none",
     WebkitTapHighlightColor: "rgba(0, 0, 0, 0)",
+});
+
+globalStyle(mobilePlatformSelector, {
+    fontSize: remPxByPlatform.mobile,
 });
 
 globalStyle("body", {

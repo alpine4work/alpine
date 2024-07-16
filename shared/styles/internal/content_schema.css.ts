@@ -7,7 +7,6 @@ import {
     RemLength,
     addRemLengths,
     assertSpacing,
-    mobilePlatformMediaQuery,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
@@ -40,6 +39,10 @@ import {
     printRawColor,
 } from "~/shared/styles/internal/helpers/raw_color.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
+import {
+    mobilePlatformSelector,
+    desktopPlatformSelector,
+} from "~/shared/styles/internal/platform.css.js";
 import {
     desktopNavigationBarHeight,
     mobileNavigationBarHeight,
@@ -247,17 +250,13 @@ globalStyle(withMobileLayoutDocClassName, {
     }),
 });
 
-globalStyle(`:root`, {
-    "@media": {
-        [mobilePlatformMediaQuery]: {
-            vars: assignVars(headingMarginVars, {
-                heading1TopMargin: spacing[mobileHeading1TopMargin],
-                heading2TopMargin: spacing[mobileHeading2TopMargin],
-                heading3TopMargin: spacing[mobileHeading3TopMargin],
-                heading4TopMargin: spacing[mobileHeading4TopMargin],
-            }),
-        },
-    },
+globalStyle(mobilePlatformSelector, {
+    vars: assignVars(headingMarginVars, {
+        heading1TopMargin: spacing[mobileHeading1TopMargin],
+        heading2TopMargin: spacing[mobileHeading2TopMargin],
+        heading3TopMargin: spacing[mobileHeading3TopMargin],
+        heading4TopMargin: spacing[mobileHeading4TopMargin],
+    }),
 });
 
 export const desktopTitlePaddingTop = addRemLengths(
@@ -284,26 +283,18 @@ export const titleClassName = style({
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
-    "@media": {
-        [mobilePlatformMediaQuery]: {
-            ...mobileTitleFontSize,
-            paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-            minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
-            selectors: {
-                [`${withMobileLayoutDocClassName} &`]: {
-                    ...mobileTitleFontSize,
-                    paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-                    minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
-                },
-            },
-        },
-    },
     selectors: {
         [`${withMobileLayoutDocClassName} &`]: {
             ...mobileTitleFontSize,
             paddingTop: `calc(${mobileLayoutTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
             minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileLayoutTitlePaddingTop})`,
         },
+        [`${mobilePlatformSelector} &, ${mobilePlatformSelector} ${withMobileLayoutDocClassName} &`]:
+            {
+                ...mobileTitleFontSize,
+                paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+                minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
+            },
     },
 });
 
@@ -315,10 +306,8 @@ export const headingLevel1ClassName = style({
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
-    "@media": {
-        [mobilePlatformMediaQuery]: {...mobileHeadingLevel1FontSize},
-    },
     selectors: {
+        [`${mobilePlatformSelector} &`]: {...mobileHeadingLevel1FontSize},
         [`${withMobileLayoutDocClassName} &`]: {...mobileHeadingLevel1FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
@@ -332,10 +321,8 @@ export const headingLevel2ClassName = style({
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
-    "@media": {
-        [mobilePlatformMediaQuery]: {...mobileHeadingLevel2FontSize},
-    },
     selectors: {
+        [`${mobilePlatformSelector} &`]: {...mobileHeadingLevel2FontSize},
         [`${withMobileLayoutDocClassName} &`]: {...mobileHeadingLevel2FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
@@ -350,10 +337,8 @@ export const headingLevel3ClassName = style({
     marginBottom: paragraphMarginVar,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
-    "@media": {
-        [mobilePlatformMediaQuery]: {...mobileHeadingLevel3FontSize},
-    },
     selectors: {
+        [`${mobilePlatformSelector} &`]: {...mobileHeadingLevel3FontSize},
         [`${withMobileLayoutDocClassName} &`]: {...mobileHeadingLevel3FontSize},
         [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
         [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
@@ -496,8 +481,8 @@ export const checkListItemCheckboxContainerClassName = style({
     paddingRight: spacing["1"],
     cursor: "default",
     userSelect: "none",
-    "@media": {
-        [mobilePlatformMediaQuery]: {
+    selectors: {
+        [`${mobilePlatformSelector} &`]: {
             top: `${
                 (parseRemLengthNumber(paragraphFontSize.lineHeight) -
                     parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
@@ -510,23 +495,19 @@ export const checkListItemCheckboxContainerClassName = style({
                     2
             }rem + ${listItemOffsetVar})`,
         },
-    },
-    selectors: {
-        [`${extraCompactDocClassName} &`]: {
+        [`${desktopPlatformSelector} ${extraCompactDocClassName} &`]: {
             top: `${
                 (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
                     parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
                 2
             }rem`,
-            "@media": {
-                [mobilePlatformMediaQuery]: {
-                    top: `${
-                        (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
-                            parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
-                        2
-                    }rem`,
-                },
-            },
+        },
+        [`${mobilePlatformSelector} ${extraCompactDocClassName} &`]: {
+            top: `${
+                (parseRemLengthNumber(extraCompactParagraphFontSize.lineHeight) -
+                    parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
+                2
+            }rem`,
         },
     },
 });
@@ -549,9 +530,7 @@ export const checkListItemCheckboxClassName = style({
             color: colorSchemeVars["grey-0-const"],
             borderWidth: 0,
         },
-    },
-    "@media": {
-        [mobilePlatformMediaQuery]: {
+        [`${mobilePlatformSelector} &`]: {
             width: spacing[checkListItemCheckboxMobileSize],
             height: spacing[checkListItemCheckboxMobileSize],
         },
@@ -582,8 +561,8 @@ export const checkListItemCheckboxIconClassName = style({
     height: addRemLengths(spacing["2"], spacing["0.5"]),
     transform: `translate(-50%, -50%) scale(${parseInt(checkListItemCheckboxDesktopSize, 10) / 4})`,
     pointerEvents: "none",
-    "@media": {
-        [mobilePlatformMediaQuery]: {
+    selectors: {
+        [`${mobilePlatformSelector} &`]: {
             transform: `translate(-50%, -50%) scale(${
                 parseInt(checkListItemCheckboxMobileSize, 10) / 4
             })`,
@@ -731,13 +710,11 @@ export const codeBlockLineClassName = style({
             height: paragraphFontSize.lineHeight,
             background: `linear-gradient(to left, ${backgroundColorVar}, transparent)`,
         },
-        [`${codeBlockClassName} > &:first-child`]: {
+        [`${desktopPlatformSelector} ${codeBlockClassName} > &:first-child`]: {
             paddingRight: desktopCodeBlockToolbarMaxWidth,
-            "@media": {
-                [mobilePlatformMediaQuery]: {
-                    paddingRight: mobileCodeBlockToolbarMaxWidth,
-                },
-            },
+        },
+        [`${mobilePlatformSelector} ${codeBlockClassName} > &:first-child`]: {
+            paddingRight: mobileCodeBlockToolbarMaxWidth,
         },
         [`${codeBlockClassName} > &:first-child::after`]: {
             content: "none",
@@ -790,8 +767,8 @@ export const codeBlockToolbarFlexClassName = style({
         // but we still want to consider it as a part of the max width.
         codeBlockPaddingRight,
     ),
-    "@media": {
-        [mobilePlatformMediaQuery]: {
+    selectors: {
+        [`${mobilePlatformSelector} &`]: {
             maxWidth: subtractRemLengths(
                 mobileCodeBlockToolbarMaxWidth,
                 // The overflow gradient is rendered absolutely out of this element's layout
@@ -839,8 +816,8 @@ export const codeBlockCopyButtonClassName = style({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: borderRadius["full"],
-    "@media": {
-        [mobilePlatformMediaQuery]: {
+    selectors: {
+        [`${mobilePlatformSelector} &`]: {
             display: "none",
         },
     },
@@ -858,14 +835,8 @@ export const dividerClassName = style({
     marginTop: spacing[desktopHeading1TopMargin],
     marginBottom: spacing[desktopHeading1TopMargin],
     borderColor: colorSchemeVars["grey-10"],
-    "@media": {
-        [mobilePlatformMediaQuery]: {
-            marginTop: spacing[mobileHeading1TopMargin],
-            marginBottom: spacing[mobileHeading1TopMargin],
-        },
-    },
     selectors: {
-        [`${withMobileLayoutDocClassName} &`]: {
+        [`${mobilePlatformSelector} &, ${withMobileLayoutDocClassName} &`]: {
             marginTop: spacing[mobileHeading1TopMargin],
             marginBottom: spacing[mobileHeading1TopMargin],
         },

@@ -1,5 +1,5 @@
 import Cookies from "js-cookie";
-import {ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {I18nProvider} from "react-aria";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -86,15 +86,16 @@ export function useClientInfo(): ClientInfo {
     return clientInfo;
 }
 
-export function ClientInfoContextProvider({
-    browserId,
-    initialClientInfo,
-    children,
-}: {
-    browserId: BrowserId;
-    initialClientInfo: ClientInfo;
-    children: ReactNode;
-}) {
+export function useClientInfoContextProvider(
+    {
+        browserId,
+        initialClientInfo,
+    }: {
+        browserId: BrowserId;
+        initialClientInfo: ClientInfo;
+    },
+    children: ReactNode,
+): {clientInfo: ClientInfo; children: ReactElement} {
     const [clientInfo, setClientInfo] = useState(initialClientInfo);
 
     useEffect(() => {
@@ -115,17 +116,20 @@ export function ClientInfoContextProvider({
         }
     }, []);
 
-    return (
-        <BrowserIdContext.Provider value={browserId}>
-            <ClientInfoContext.Provider value={clientInfo}>
-                <I18nProvider
-                    // Also render `react-aria`'s `I18nProvider` so that `react-aria` hooks get the
-                    // correct locale.
-                    locale={clientInfo.locale}
-                >
-                    {children}
-                </I18nProvider>
-            </ClientInfoContext.Provider>
-        </BrowserIdContext.Provider>
-    );
+    return {
+        clientInfo,
+        children: (
+            <BrowserIdContext.Provider value={browserId}>
+                <ClientInfoContext.Provider value={clientInfo}>
+                    <I18nProvider
+                        // Also render `react-aria`'s `I18nProvider` so that `react-aria` hooks get the
+                        // correct locale.
+                        locale={clientInfo.locale}
+                    >
+                        {children}
+                    </I18nProvider>
+                </ClientInfoContext.Provider>
+            </BrowserIdContext.Provider>
+        ),
+    };
 }

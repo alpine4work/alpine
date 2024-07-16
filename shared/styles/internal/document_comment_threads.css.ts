@@ -1,13 +1,15 @@
 import {style} from "@vanilla-extract/css";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
+import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
 import {
-    mobilePlatformMediaQuery,
-    parseRemLengthNumber,
-    remPxByPlatform,
-    spacing,
-} from "~/shared/design/spacing.js";
-import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
+    darkColorSchemeSelector,
+    lightColorSchemeSelector,
+} from "~/shared/styles/internal/color_scheme.css.js";
 import {convertSvgToCssDataUrl} from "~/shared/styles/internal/helpers/convert_svg_to_css_data_url.js";
+import {
+    desktopPlatformSelector,
+    mobilePlatformSelector,
+} from "~/shared/styles/internal/platform.css.js";
 
 export const sawtoothSize = "4";
 export const sawtoothSizeRem = parseRemLengthNumber(spacing[sawtoothSize]);
@@ -16,11 +18,16 @@ export const sawtoothBorderClassName = style({
     width: "100%",
     height: `${sawtoothSizeRem}rem`,
     backgroundRepeat: "repeat-x",
-    backgroundImage: convertSvgToCssDataUrl(
-        createSawtoothSvg(sawtoothSizeRem * remPxByPlatform.desktop, colorsWithShade["grey-10"]),
-    ),
     selectors: {
-        [`${darkColorSchemeSelector} &`]: {
+        [`${desktopPlatformSelector} ${lightColorSchemeSelector} &`]: {
+            backgroundImage: convertSvgToCssDataUrl(
+                createSawtoothSvg(
+                    sawtoothSizeRem * remPxByPlatform.desktop,
+                    colorsWithShade["grey-10"],
+                ),
+            ),
+        },
+        [`${desktopPlatformSelector} ${darkColorSchemeSelector} &`]: {
             backgroundImage: convertSvgToCssDataUrl(
                 createSawtoothSvg(
                     sawtoothSizeRem * remPxByPlatform.desktop,
@@ -28,25 +35,21 @@ export const sawtoothBorderClassName = style({
                 ),
             ),
         },
-    },
-    "@media": {
-        [mobilePlatformMediaQuery]: {
+        [`${mobilePlatformSelector} ${lightColorSchemeSelector} &`]: {
             backgroundImage: convertSvgToCssDataUrl(
                 createSawtoothSvg(
                     sawtoothSizeRem * remPxByPlatform.mobile,
                     colorsWithShade["grey-10"],
                 ),
             ),
-            selectors: {
-                [`${darkColorSchemeSelector} &`]: {
-                    backgroundImage: convertSvgToCssDataUrl(
-                        createSawtoothSvg(
-                            sawtoothSizeRem * remPxByPlatform.mobile,
-                            invertedColorsWithShade["grey-10"],
-                        ),
-                    ),
-                },
-            },
+        },
+        [`${mobilePlatformSelector} ${darkColorSchemeSelector} &`]: {
+            backgroundImage: convertSvgToCssDataUrl(
+                createSawtoothSvg(
+                    sawtoothSizeRem * remPxByPlatform.mobile,
+                    invertedColorsWithShade["grey-10"],
+                ),
+            ),
         },
     },
 });
