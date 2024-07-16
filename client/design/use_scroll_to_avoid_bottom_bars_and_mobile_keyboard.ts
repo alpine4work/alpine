@@ -1,5 +1,3 @@
-import "~/client/helpers/events/register_scroll_event_debugger.js";
-
 import {Memo, RefObject, useCallback, useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
