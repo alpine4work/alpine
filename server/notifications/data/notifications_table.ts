@@ -1485,7 +1485,7 @@ async function archiveInboxEntryItemKey(
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
 
-    const {archiveTime, newEntryItem, loudNotificationCountDifference} =
+    const {archiveTime, newInboxEntryItem, loudNotificationCountDifference} =
         await context.dynamo.retryTransaction(async context => {
             const [inboxItem, inboxEntryItem] = await runAllPromises([
                 InboxTable.getItemIfExists(context, {
@@ -1508,7 +1508,8 @@ async function archiveInboxEntryItemKey(
             if (inboxEntryItem.isArchived) {
                 return {
                     archiveTime: inboxEntryItem.enteredTime,
-                    newEntryItem: inboxEntryItem,
+                    newInboxItem: inboxItem,
+                    newInboxEntryItem: inboxEntryItem,
                     loudNotificationCountDifference: 0,
                 };
             }
@@ -1559,23 +1560,26 @@ async function archiveInboxEntryItemKey(
             // entries at some point.
             const newEntryCount = Math.max(0, inboxItem.entryCount - 1);
 
+            const newInboxItem: InboxAttributesItem = {
+                ...inboxItem,
+                loudNotificationCount:
+                    inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
+                entryCount: newEntryCount,
+                lastZeroEntryCountTime:
+                    newEntryCount === 0 && inboxItem.entryCount !== 0
+                        ? archiveTime
+                        : inboxItem.lastZeroEntryCountTime,
+            };
+
             await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-                InboxTable.transactionDirectlyUpdateItem({
-                    ...inboxItem,
-                    loudNotificationCount:
-                        inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
-                    entryCount: newEntryCount,
-                    lastZeroEntryCountTime:
-                        newEntryCount === 0 && inboxItem.entryCount !== 0
-                            ? archiveTime
-                            : inboxItem.lastZeroEntryCountTime,
-                }),
+                InboxTable.transactionDirectlyUpdateItem(newInboxItem),
                 InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
             ]);
 
             return {
                 archiveTime,
-                newEntryItem: newInboxEntryItem,
+                newInboxItem,
+                newInboxEntryItem,
                 loudNotificationCountDifference: -inboxEntryItem.loudNotificationCount,
             };
         });
@@ -1583,7 +1587,7 @@ async function archiveInboxEntryItemKey(
     // If we're archiving an entry with loud notifications, we need to send an
     // alert to Apple devices to update the badge count.
     if (loudNotificationCountDifference !== 0) {
-        assert(newEntryItem.isArchived);
+        assert(newInboxEntryItem.isArchived);
 
         // NOTE(calebmer): Consider turning this into a job on the job queue to
         // guarantee notification delivery.
@@ -1591,7 +1595,7 @@ async function archiveInboxEntryItemKey(
             sendPushNotificationToAccountDevices(context, {
                 accountId: context.actor.getAccountId(),
                 eventId: generateId(),
-                newEntryItem,
+                newInboxEntryItem,
                 loudNotificationCountDifference,
             }),
         );
@@ -1847,7 +1851,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                         await sendPushNotificationToAccountDevices(context, {
                             accountId,
                             eventId: event.id,
-                            newEntryItem: result.newEntryItem,
+                            newInboxEntryItem: result.newInboxEntryItem,
                             loudNotificationCountDifference: result.loudNotificationCountDifference,
                             getAlertContent: () =>
                                 getAlertContent(context, event, {
@@ -1856,7 +1860,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                                     // TODO(calebmer): All notifications are currently in US English. When we
                                     // localize the product this should change.
                                     locale: "en-US",
-                                    entryItem: result.newEntryItem,
+                                    entryItem: result.newInboxEntryItem,
                                 }),
                         });
                     },
@@ -1882,13 +1886,13 @@ async function sendPushNotificationToAccountDevices(
     {
         accountId,
         eventId,
-        newEntryItem,
+        newInboxEntryItem,
         loudNotificationCountDifference,
         getAlertContent,
     }: {
         accountId: AccountId;
         eventId: NotificationEventId;
-        newEntryItem: InboxEntryItem;
+        newInboxEntryItem: InboxEntryItem;
         loudNotificationCountDifference: number;
         getAlertContent?: () => Promise<{
             title: string;
@@ -1902,7 +1906,7 @@ async function sendPushNotificationToAccountDevices(
     //
     // However, if the loud notification count changed then we need to send a
     // silent push notification updating the badge number.
-    if (newEntryItem.isArchived && loudNotificationCountDifference === 0) {
+    if (newInboxEntryItem.isArchived && loudNotificationCountDifference === 0) {
         return;
     }
 
@@ -1966,7 +1970,7 @@ async function sendPushNotificationToAccountDevices(
                 // we want to send them notifications quickly. So it's worth speeding up
                 // notification sending even if sometimes it's a little wasteful to load alert
                 // content when we don't need it.
-                !newEntryItem.isArchived ? assertExists(getAlertContent)() : null,
+                !newInboxEntryItem.isArchived ? assertExists(getAlertContent)() : null,
 
                 // We optimistically get the account's total loud notification count even if we
                 // don't need it (e.g. since there are no registered devices).
@@ -1984,8 +1988,8 @@ async function sendPushNotificationToAccountDevices(
             const isLoud = loudNotificationCountDifference > 0;
 
             const entryPath = getInboxEntryKeyPath(
-                newEntryItem.spaceId,
-                getInboxEntryKey(newEntryItem),
+                newInboxEntryItem.spaceId,
+                getInboxEntryKey(newInboxEntryItem),
             );
             const entryUrl = new URL(
                 entryPath,
@@ -2009,7 +2013,7 @@ async function sendPushNotificationToAccountDevices(
 
                             aps: {
                                 alert: alertContent ?? undefined,
-                                "thread-id": getApnsNotificationThreadId(newEntryItem),
+                                "thread-id": getApnsNotificationThreadId(newInboxEntryItem),
 
                                 // Update the badge. There are likely all kinds of race conditions with badge
                                 // updates. For example, let's say we're sending alert A and alert B. Alert A
@@ -2102,7 +2106,7 @@ function isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
 }
 
 type UpdateInboxEntryResult = {
-    readonly newEntryItem: InboxEntryItem;
+    readonly newInboxEntryItem: InboxEntryItem;
     readonly loudNotificationCountDifference: number;
 };
 
@@ -2294,14 +2298,14 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                         // won't update (it continues to show the sticky mention) but we still want to
                         // send push notifications for any messages sent after the sticky mention.
                         return {
-                            newEntryItem: oldInboxEntryItem,
+                            newInboxEntryItem: oldInboxEntryItem,
                             loudNotificationCountDifference,
                         };
                     } else {
                         await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
 
                         return {
-                            newEntryItem: newInboxEntryItem,
+                            newInboxEntryItem,
                             loudNotificationCountDifference,
                         };
                     }
@@ -2313,7 +2317,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     );
 
                     return {
-                        newEntryItem: newInboxEntryItem,
+                        newInboxEntryItem,
                         loudNotificationCountDifference,
                     };
                 }
@@ -2324,32 +2328,33 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 // entries at some point.
                 const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
 
+                const newInboxItem: InboxAttributesItem = {
+                    ...inboxItem,
+                    partitionType: "Account",
+                    sortRangeType: "InboxAttributes",
+                    spaceId: itemKey.spaceId,
+                    accountId: itemKey.accountId,
+                    generation: inboxGeneration,
+                    loudNotificationCount:
+                        (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
+                    entryCount: newEntryCount,
+                    lastZeroEntryCountTime:
+                        newEntryCount === 0 && oldEntryCount !== 0
+                            ? currentTime
+                            : inboxItem?.lastZeroEntryCountTime ?? null,
+                };
+
                 await DynamoGeneralRealtimeTableSchema.executeTransaction(
                     context,
                     [
-                        InboxTable.transactionDirectlyUpdateItem({
-                            ...inboxItem,
-                            partitionType: "Account",
-                            sortRangeType: "InboxAttributes",
-                            spaceId: itemKey.spaceId,
-                            accountId: itemKey.accountId,
-                            generation: inboxGeneration,
-                            loudNotificationCount:
-                                (inboxItem?.loudNotificationCount ?? 0) +
-                                loudNotificationCountDifference,
-                            entryCount: newEntryCount,
-                            lastZeroEntryCountTime:
-                                newEntryCount === 0 && oldEntryCount !== 0
-                                    ? currentTime
-                                    : inboxItem?.lastZeroEntryCountTime ?? null,
-                        }),
+                        InboxTable.transactionDirectlyUpdateItem(newInboxItem),
                         InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
                     ],
                     {clientRequestToken},
                 );
 
                 return {
-                    newEntryItem: newInboxEntryItem,
+                    newInboxEntryItem,
                     loudNotificationCountDifference,
                 };
             }
