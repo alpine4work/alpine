@@ -2,7 +2,7 @@ import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import _Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
-import {Memo, RefObject, useCallback, useMemo, useRef, useState} from "react";
+import {Memo, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
 import {ComboBoxState, Item, ListState, useListState} from "react-stately";
 import {
@@ -19,6 +19,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
@@ -185,12 +186,20 @@ function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
             inputRef,
             popoverRef,
             listBoxRef,
-            autoFocus: true,
+            autoFocus: false,
             shouldFocusWrap: false,
             items: searchedLanguages,
         },
         comboBoxState,
     );
+
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        assertExists(inputRef.current).focus();
+    }, []);
 
     return (
         <>

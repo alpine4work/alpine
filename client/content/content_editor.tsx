@@ -109,6 +109,7 @@ const {
     compactDocClassName,
     extraCompactDocClassName,
     parentScrollWhenPointerDownAndOverReceiverClassName,
+    codeBlockToolbarClassName,
 } = contentSchemaStyles;
 
 const {
@@ -1125,7 +1126,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 while (element !== null && element !== view.dom) {
                     if (
                         element.classList.contains(linkClassName) ||
-                        element.classList.contains(commentClassName)
+                        element.classList.contains(commentClassName) ||
+                        // Includes the language picker button and the copy code button.
+                        element.classList.contains(codeBlockToolbarClassName)
                     ) {
                         isTargetInteractive = true;
                         break;
