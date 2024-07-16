@@ -287,8 +287,6 @@ export async function getCollaborativelyUpdateContentResult({
                 // For code blocks, new lines should be created by adding new `codeBlockLine`s.
                 // Not by adding a `\n` character! Reject any updates that try to add a new line
                 // character to a code block line.
-                //
-                // NOCOMMIT: Test this!
                 if (
                     node.isText &&
                     // `text` nodes must have a parent node. Error if they don't.

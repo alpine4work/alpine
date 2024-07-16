@@ -2754,6 +2754,106 @@ test("can not update a document with an invalid step even when there is a concur
     );
 });
 
+test("can not add a newline character to an existing `codeBlockLine` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.action(session1), {
+        id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("codeBlock", {}, [
+                            schema.node("codeBlockLine", {}, [schema.text("foobar")]),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("codeBlock", {}, [
+                    schema.node("codeBlockLine", {}, [schema.text("foobar")]),
+                ]),
+            ])
+            .toJSON(),
+    });
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 1,
+            steps: [new ReplaceStep(7, 7, textSlice("\n"))],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(`Can't add "\\n" character to "codeBlockLine" node`),
+    );
+
+    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}, []),
+                schema.node("codeBlock", {}, [
+                    schema.node("codeBlockLine", {}, [schema.text("foobar")]),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can not add a newline character with a new `codeBlockLine` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    2,
+                    4,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("codeBlock", {}, [
+                                schema.node("codeBlockLine", {}, [schema.text("foo\nbar")]),
+                            ]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(`Can't add "\\n" character to "codeBlockLine" node`),
+    );
+
+    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+        version: 0,
+        content: emptyDocumentContent.toJSON(),
+    });
+});
+
 test("can not update a document such that it would have invalid content even when there is a concurrent update", async () => {
     const {id} = await createDocument(context.action(session1), {
         spaceId: space.id,
