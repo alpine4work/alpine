@@ -722,57 +722,13 @@ function DocumentCommentThreadListView(
     useScrollToAvoidBottomBarsAndMobileKeyboard(viewRef, {
         isPinned: true,
         getAnchorPosition: useEvent(oldVisibleRect => {
-            const view = assertExists(viewRef.current);
-
-            // Only anchor based on message we're replying to or editing on mobile. On
-            // desktop keep anchoring predictable (anchor to bottom of screen). On mobile
-            // the message we're replying to or editing can easily be sent offscreen when
-            // the keyboard opens. Which is why we need to keep it anchored.
-            if (isMobile) {
-                const anchorMessageIndex = messageEditing.state.isEditing
-                    ? ([
-                          decodeDocumentCommentRoomKey(messageEditing.state.messageRoomKey)[1],
-                          messageEditing.state.messageIndex,
-                      ] as const)
-                    : isSingleCommentThreadWithPinnedCommentInput
-                    ? iterableFirst(replyingToCommentIndexByCommentThreadId.entries()) ?? null
-                    : null;
-
-                if (anchorMessageIndex !== null) {
-                    const node = tree.getNodeByKeyIfExists(anchorMessageIndex[0]);
-                    if (node === null) return null;
-
-                    const itemIndex = node.startItemIndex + 1 + anchorMessageIndex[1];
-                    if (itemIndex >= tree.getItemCount()) return null;
-
-                    const item = tree.getItem(itemIndex);
-                    if (item.type !== "DocumentComment") return null;
-
-                    const position = view.getPositionByKeyIfExists(
-                        getMessageListItemKey(item.commentItem, anchorMessageIndex[0]),
-                    );
-                    if (!position) return null;
-
-                    const anchorPositionTop =
-                        oldVisibleRect.top + (position.offset - view.getScrollOffset());
-
-                    // Only include visible bits of the message in the anchor. This way, we exclude
-                    // safe area margin bottom on the last message in the anchor position.
-                    const anchorPosition = {
-                        top: Math.max(oldVisibleRect.top, anchorPositionTop),
-                        bottom: Math.min(
-                            oldVisibleRect.bottom,
-                            anchorPositionTop + position.height,
-                        ),
-                    };
-                    anchorPosition.bottom = Math.max(anchorPosition.top, anchorPosition.bottom);
-
-                    return {
-                        top: anchorPositionTop,
-                        height: anchorPosition.bottom - anchorPosition.top,
-                    };
-                }
-            }
+            // NOTE(calebmer, 2024-07-16): We used to anchor chat view scroll to the
+            // message the user was replying to or editing. However, in practice this felt
+            // janky to me. Scrolling wasn't predictable when swiping to reply to a
+            // message! I think consistency is likely the better user experience here.
+            //
+            // To look at the old message anchoring code, git blame this comment to see the
+            // commit where I remove it.
 
             return {top: oldVisibleRect.bottom, height: 0};
         }),

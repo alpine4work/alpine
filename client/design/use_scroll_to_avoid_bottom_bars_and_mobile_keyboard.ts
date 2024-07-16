@@ -1,3 +1,5 @@
+import "~/client/helpers/events/register_scroll_event_debugger.js";
+
 import {Memo, RefObject, useCallback, useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
@@ -747,7 +749,12 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             // compute a new scroll delta considering the tab bar's new state.
             const tabBarHeightAfterScroll =
                 NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
-                    ? -scrollDelta >= navigationBarHeight
+                    ? // If we have a bottom bar that's visible even when the keyboard is closed, the
+                      // tab bar is always open.
+                      newBottomBarHeight.hiddenMobileKeyboard > 0
+                        ? NativeMobileBridge.tabBar.height
+                        : // Otherwise, check if we scroll enough to reveal/hide the tab bar.
+                        -scrollDelta >= navigationBarHeight
                         ? NativeMobileBridge.tabBar.height
                         : scrollDelta >= navigationBarHeight
                         ? 0
