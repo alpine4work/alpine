@@ -555,6 +555,7 @@ function MessageInputShimmer() {
                 height="full"
                 marginX="center"
                 paddingX={screenPaddingX}
+                paddingTop={isMobile ? "2" : "0"}
                 gap="2"
             >
                 {!isMobile && (
