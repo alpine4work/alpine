@@ -11,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
@@ -118,11 +119,17 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             ? (messageEditing as MessageEditing<RoomKey> & {state: {isEditing: true}})
             : null;
 
-    const [newMessageState, _setNewMessageState] = useState(
-        () =>
-            restoreStateRef?.current?.state ??
-            ContentEditorState.create(emptyMessageContentWithReferences),
+    const [{key: newMessageKey, state: newMessageState}, actuallySetNewMessageState] = useState(
+        () => {
+            return {
+                key: generateId(),
+                state:
+                    restoreStateRef?.current?.state ??
+                    ContentEditorState.create(emptyMessageContentWithReferences),
+            };
+        },
     );
+
     const setNewMessageState = useCallback(
         (newMessageState: ContentEditorState<MessageContentWithReferences>) => {
             if (restoreStateRef) {
@@ -132,16 +139,35 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 };
             }
 
-            _setNewMessageState(newMessageState);
+            actuallySetNewMessageState(oldState => ({
+                key: oldState.key,
+                state: newMessageState,
+            }));
         },
         [restoreStateRef],
     );
+
+    const resetNewMessageState = useCallback(() => {
+        const newMessageState = ContentEditorState.create(emptyMessageContentWithReferences);
+
+        if (restoreStateRef) {
+            restoreStateRef.current = {
+                state: newMessageState,
+                isFocused: inputRef.current?.isFocused() ?? false,
+            };
+        }
+
+        actuallySetNewMessageState({
+            key: generateId(),
+            state: newMessageState,
+        });
+    }, [restoreStateRef]);
 
     // If we're editing a message then clear any new message text so when we finish
     // editing the input is empty. Also clear reply state but we need to do that in
     // an effect since the state isn't local.
     if (messageEditingForThisInput && !isContentEmpty(newMessageState.getDoc())) {
-        setNewMessageState(ContentEditorState.create(emptyMessageContentWithReferences));
+        resetNewMessageState();
     }
     useEffect(() => {
         if (messageEditingForThisInput && replyingToMessage) {
@@ -189,10 +215,17 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
             },
         };
 
-        onUpdateMessages(messages => messages.addOptimisticMessage(optimisticMessage));
+        // If the input was focused then after we reset our input state, we want to
+        // focus the re-rendered input.
+        const wasInputFocused = assertExists(inputRef.current).isFocused();
 
-        setNewMessageState(ContentEditorState.create(emptyMessageContentWithReferences));
-        onClearReplyingToMessage();
+        flushSync(() => {
+            onUpdateMessages(messages => messages.addOptimisticMessage(optimisticMessage));
+            resetNewMessageState();
+            onClearReplyingToMessage();
+        });
+
+        if (wasInputFocused) assertExists(inputRef.current).focus();
 
         const tryCreatingMessage = () => {
             runPromiseWithoutAwaiting(async () => {
@@ -258,6 +291,14 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         <>
             <MessageInputBase
                 ref={useMergedRefs(inputRef, externalRef)}
+                key={
+                    // Fully remount the message input after sending a message or when switching to
+                    // editing mode. This should reset iOS auto complete. Otherwise the last
+                    // message's auto complete will still be suggested.
+                    !messageEditingForThisInput
+                        ? newMessageKey
+                        : `MessageEditing:${messageEditingForThisInput.state.messageRoomKey}:${messageEditingForThisInput.state.messageIndex}`
+                }
                 withMobileLayout={withMobileLayout}
                 messageNoun={messageNoun}
                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
