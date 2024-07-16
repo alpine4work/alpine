@@ -8,11 +8,6 @@
 
 import {assignVars, createGlobalTheme, fontFace, globalStyle} from "@vanilla-extract/css";
 import {
-    commitMonoFontHash,
-    interFontHash,
-    interItalicFontHash,
-} from "~/shared/design/font_hashes.js";
-import {
     commitMonoFontSizeAdjust,
     interFontAscender,
     interFontDescender,
@@ -35,7 +30,7 @@ export const backgroundFontSizePercentage =
 const interWithoutItalicFontFaceRule: Parameters<typeof fontFace>[0] & {src: string} = {
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: `url(/fonts/inter-${interFontHash}.woff2) format('woff2 supports variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2-variations'), url(/fonts/inter-${interFontHash}.woff2) format('woff2')`,
+    src: `url(/fonts/inter.v1.woff2) format('woff2 supports variations'), url(/fonts/inter.v1.woff2) format('woff2-variations'), url(/fonts/inter.v1.woff2) format('woff2')`,
     fontWeight: "100 900",
     fontStyle: "normal",
     fontDisplay: "swap",
@@ -52,7 +47,7 @@ const interFontFace = fontFace([
     {
         // See how to use variable fonts:
         // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-        src: `url(/fonts/inter-italic-${interItalicFontHash}.woff2) format('woff2 supports variations'), url(/fonts/inter-italic-${interItalicFontHash}.woff2) format('woff2-variations'), url(/fonts/inter-italic-${interItalicFontHash}.woff2) format('woff2')`,
+        src: `url(/fonts/inter-italic.v1.woff2) format('woff2 supports variations'), url(/fonts/inter-italic.v1.woff2) format('woff2-variations'), url(/fonts/inter-italic.v1.woff2) format('woff2')`,
         fontWeight: "100 900",
         fontStyle: "italic",
         fontDisplay: "swap",
@@ -66,7 +61,7 @@ const interFontFace = fontFace([
 const commitMonoFontFace = fontFace({
     // See how to use variable fonts:
     // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
-    src: `url(/fonts/commit-mono-${commitMonoFontHash}.woff2) format('woff2 supports variations'), url(/fonts/commit-mono-${commitMonoFontHash}.woff2) format('woff2-variations'), url(/fonts/commit-mono-${commitMonoFontHash}.woff2) format('woff2')`,
+    src: `url(/fonts/commit-mono.v1.woff2) format('woff2 supports variations'), url(/fonts/commit-mono.v1.woff2) format('woff2-variations'), url(/fonts/commit-mono.v1.woff2) format('woff2')`,
     fontWeight: "100 900",
     fontDisplay: "swap",
     // Make sure the x-height of our monospace font matches the x-height of Inter.

@@ -47,7 +47,6 @@ import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_tit
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {interFontHash} from "~/shared/design/font_hashes.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
@@ -80,7 +79,7 @@ export function links(): Array<LinkDescriptor> {
         // https://web.dev/articles/codelab-preload-web-fonts
         {
             rel: "preload",
-            href: `/fonts/inter-${interFontHash}.woff2`,
+            href: "/fonts/inter.v1.woff2",
             as: "font",
             crossOrigin: "anonymous",
         },

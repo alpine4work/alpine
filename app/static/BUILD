@@ -1,13 +1,14 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//admin/typescript:typescript.bzl", "ts_project")
-load("//app/static:_fonts/filter_font_hashes.bzl", "filter_font_hashes")
 
 filegroup(
     name = "static",
     srcs = [
+        "fonts/commit-mono.v1.woff2",
+        "fonts/inter.v1.woff2",
+        "fonts/inter-italic.v1.woff2",
         ":files",
-        ":fonts",
     ],
     visibility = ["//app:__subpackages__"],
 )
@@ -53,9 +54,9 @@ genrule(
 )
 
 genrule(
-    name = "fonts_inter_patched",
+    name = "fonts_inter",
     srcs = ["_fonts/inter-patched.ttx"],
-    outs = ["_fonts/inter-patched.woff2"],
+    outs = ["fonts/inter.v1.woff2"],
     cmd = "./$(location //:ttx) -o \"$@\" -q --flavor woff2 $(location _fonts/inter-patched.ttx)",
     tools = ["//:ttx"],
 )
@@ -79,9 +80,9 @@ genrule(
 )
 
 genrule(
-    name = "fonts_inter_italic_patched",
+    name = "fonts_inter_italic",
     srcs = ["_fonts/inter-italic-patched.ttx"],
-    outs = ["_fonts/inter-italic-patched.woff2"],
+    outs = ["fonts/inter-italic.v1.woff2"],
     cmd = "./$(location //:ttx) -o \"$@\" -q --flavor woff2 $(location _fonts/inter-italic-patched.ttx)",
     tools = ["//:ttx"],
 )
@@ -105,9 +106,9 @@ genrule(
 )
 
 genrule(
-    name = "fonts_commit_mono_patched",
+    name = "fonts_commit_mono",
     srcs = ["_fonts/commit-mono-patched.ttx"],
-    outs = ["_fonts/commit-mono-patched.woff2"],
+    outs = ["fonts/commit-mono.v1.woff2"],
     cmd = "./$(location //:ttx) -o \"$@\" -q --flavor woff2 $(location _fonts/commit-mono-patched.ttx)",
     tools = ["//:ttx"],
 )
@@ -148,30 +149,4 @@ js_run_binary(
     chdir = package_name(),
     tool = ":generate_font_metrics",
     visibility = ["//shared/design:__pkg__"],
-)
-
-js_binary(
-    name = "generate_fonts",
-    data = [
-        "_fonts/commit-mono-patched.woff2",
-        "_fonts/inter-italic-patched.woff2",
-        "_fonts/inter-patched.woff2",
-        ":static_lib",
-    ],
-    entry_point = "_fonts/generate_fonts_main.js",
-    env = {"NODE_ENV": "development"},
-)
-
-js_run_binary(
-    name = "fonts_and_font_hashes",
-    outs = ["_fonts/font_hashes.ts"],
-    chdir = package_name(),
-    out_dirs = ["fonts"],
-    tool = ":generate_fonts",
-    visibility = ["//shared/design:__pkg__"],
-)
-
-filter_font_hashes(
-    name = "fonts",
-    srcs = [":fonts_and_font_hashes"],
 )

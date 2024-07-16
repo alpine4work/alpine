@@ -1,0 +1,207 @@
+diff --color -ur a/BUILD b/BUILD
+--- a/BUILD	2024-01-22 13:54:34
++++ b/BUILD	2024-07-16 11:21:43
+@@ -1,5 +1,9 @@
+ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_library")
++
+ licenses(["notice"])
+
+ exports_files(["LICENSE"])
+diff --color -ur a/apple/testing/default_runner/BUILD b/apple/testing/default_runner/BUILD
+--- a/apple/testing/default_runner/BUILD	2024-01-22 13:54:34
++++ b/apple/testing/default_runner/BUILD	2024-07-16 11:17:42
+@@ -24,6 +24,10 @@
+ )
+ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary")
++
+ licenses(["notice"])
+
+ bzl_library(
+diff --color -ur a/tools/alticonstool/BUILD b/tools/alticonstool/BUILD
+--- a/tools/alticonstool/BUILD	2024-01-22 13:54:34
++++ b/tools/alticonstool/BUILD	2024-07-16 11:17:52
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/bitcode_strip/BUILD b/tools/bitcode_strip/BUILD
+--- a/tools/bitcode_strip/BUILD	2024-01-22 13:54:34
++++ b/tools/bitcode_strip/BUILD	2024-07-16 11:20:36
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_library")
++
+ licenses(["notice"])
+
+ py_library(
+diff --color -ur a/tools/bundletool/BUILD b/tools/bundletool/BUILD
+--- a/tools/bundletool/BUILD	2024-01-22 13:54:34
++++ b/tools/bundletool/BUILD	2024-07-16 11:18:12
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/clangrttool/BUILD b/tools/clangrttool/BUILD
+--- a/tools/clangrttool/BUILD	2024-01-22 13:54:34
++++ b/tools/clangrttool/BUILD	2024-07-16 11:18:22
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/codesigningtool/BUILD b/tools/codesigningtool/BUILD
+--- a/tools/codesigningtool/BUILD	2024-01-22 13:54:34
++++ b/tools/codesigningtool/BUILD	2024-07-16 11:18:33
+@@ -1,5 +1,9 @@
+ load("@build_bazel_apple_support//rules:toolchain_substitution.bzl", "toolchain_substitution")
+
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/dossier_codesigningtool/BUILD b/tools/dossier_codesigningtool/BUILD
+--- a/tools/dossier_codesigningtool/BUILD	2024-01-22 13:54:34
++++ b/tools/dossier_codesigningtool/BUILD	2024-07-16 11:18:48
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/imported_dynamic_framework_processor/BUILD b/tools/imported_dynamic_framework_processor/BUILD
+--- a/tools/imported_dynamic_framework_processor/BUILD	2024-01-22 13:54:34
++++ b/tools/imported_dynamic_framework_processor/BUILD	2024-07-16 11:19:04
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/local_provisioning_profile_finder/BUILD b/tools/local_provisioning_profile_finder/BUILD
+--- a/tools/local_provisioning_profile_finder/BUILD	2024-01-22 13:54:34
++++ b/tools/local_provisioning_profile_finder/BUILD	2024-07-16 11:19:16
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary")
++
+ py_binary(
+     name = "local_provisioning_profile_finder",
+     srcs = ["local_provisioning_profile_finder.py"],
+diff --color -ur a/tools/plisttool/BUILD b/tools/plisttool/BUILD
+--- a/tools/plisttool/BUILD	2024-01-22 13:54:34
++++ b/tools/plisttool/BUILD	2024-07-16 11:19:26
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/provisioning_profile_tool/BUILD b/tools/provisioning_profile_tool/BUILD
+--- a/tools/provisioning_profile_tool/BUILD	2024-01-22 13:54:34
++++ b/tools/provisioning_profile_tool/BUILD	2024-07-16 11:19:32
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/swift_stdlib_tool/BUILD b/tools/swift_stdlib_tool/BUILD
+--- a/tools/swift_stdlib_tool/BUILD	2024-01-22 13:54:34
++++ b/tools/swift_stdlib_tool/BUILD	2024-07-16 11:19:36
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/versiontool/BUILD b/tools/versiontool/BUILD
+--- a/tools/versiontool/BUILD	2024-01-22 13:54:34
++++ b/tools/versiontool/BUILD	2024-07-16 11:19:46
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/wrapper_common/BUILD b/tools/wrapper_common/BUILD
+--- a/tools/wrapper_common/BUILD	2024-01-22 13:54:34
++++ b/tools/wrapper_common/BUILD	2024-07-16 11:21:59
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_library(
+diff --color -ur a/tools/xcarchivetool/BUILD b/tools/xcarchivetool/BUILD
+--- a/tools/xcarchivetool/BUILD	2024-01-22 13:54:34
++++ b/tools/xcarchivetool/BUILD	2024-07-16 11:19:50
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary")
++
+ py_binary(
+     name = "make_xcarchive",
+     srcs = ["make_xcarchive.py"],
+diff --color -ur a/tools/xcframework_processor_tool/BUILD b/tools/xcframework_processor_tool/BUILD
+--- a/tools/xcframework_processor_tool/BUILD	2024-01-22 13:54:34
++++ b/tools/xcframework_processor_tool/BUILD	2024-07-16 11:21:22
+@@ -1,3 +1,7 @@
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(
+diff --color -ur a/tools/xctoolrunner/BUILD b/tools/xctoolrunner/BUILD
+--- a/tools/xctoolrunner/BUILD	2024-01-22 13:54:34
++++ b/tools/xctoolrunner/BUILD	2024-07-16 11:20:05
+@@ -1,5 +1,9 @@
+ load("//tools:binary_env.bzl", "binary_env")
+
++# NOTE(calebmer): Use the `@rules_python` rules instead of the build-in native
++# Bazel rules.
++load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
++
+ licenses(["notice"])
+
+ py_binary(

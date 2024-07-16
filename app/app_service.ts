@@ -82,9 +82,11 @@ const serveStaticMiddleware = createServeStaticMiddleware(
     joinPath(runfilesPath, "cyberworlds/app/static"),
     {
         setHeaders: (res, path) => {
-            // Remix fingerprints its assets so we can cache forever. Other assets (like
-            // `favicon.ico`) are cached for a day then can be updated. We also fingerprint
-            // fonts so fonts can be cached forever too.
+            // Remix fingerprints its assets so we can cache them forever. Other assets
+            // (like `favicon.ico`) are cached for a day then can be updated.
+            //
+            // We manually version our font assets so fonts can be cached forever too. If
+            // we need to update a font the file name will change.
             if (path.startsWith(staticBuildDirectory) || path.startsWith(staticFontsDirectory)) {
                 // - `public`: Means we can store the asset in a shared cache since they don't
                 //   depend on authorization.

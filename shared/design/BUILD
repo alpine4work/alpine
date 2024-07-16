@@ -20,6 +20,5 @@ write_source_files(
     name = "write_font_metrics",
     files = {
         "font_metrics.ts": "//app/static:_fonts/font_metrics.ts",
-        "font_hashes.ts": "//app/static:_fonts/font_hashes.ts",
     },
 )

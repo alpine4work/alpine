@@ -398,6 +398,8 @@ http_file(
 
 http_archive(
     name = "build_bazel_rules_apple",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/build_bazel_rules_apple.patch"],
     sha256 = "9c4f1e1ec4fdfeac5bddb07fa0e872c398e3d8eb0ac596af9c463f9123ace292",
     url = "https://github.com/bazelbuild/rules_apple/releases/download/3.2.1/rules_apple.3.2.1.tar.gz",
 )
