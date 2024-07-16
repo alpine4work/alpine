@@ -75,7 +75,7 @@ class ComputationStore<NewValue> extends Store<NewValue> {
         // final.
         //
         // If `get()` was never called then this store is final.
-        return this._oldValueResultByStore.size === 0;
+        return this._newValueResult !== null && this._oldValueResultByStore.size === 0;
     }
 
     public readonly getSnapshot = () => {
@@ -243,7 +243,7 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     };
 
     public addListener(listener: () => void) {
-        if (this._oldValueResultByStore.size === 0) return;
+        if (this._newValueResult !== null && this._oldValueResultByStore.size === 0) return;
 
         const listenerCount = (this._listeners.get(listener) ?? 0) + 1;
         this._listeners.set(listener, listenerCount);
@@ -254,7 +254,7 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     }
 
     public removeListener(listener: () => void) {
-        if (this._oldValueResultByStore.size === 0) return;
+        if (this._newValueResult !== null && this._oldValueResultByStore.size === 0) return;
 
         const listenerCount = (this._listeners.get(listener) ?? 0) - 1;
         if (listenerCount < 0) {
@@ -271,7 +271,7 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     }
 
     public _addWeakImmediateListener(listener: () => void): void {
-        if (this._oldValueResultByStore.size === 0) return;
+        if (this._newValueResult !== null && this._oldValueResultByStore.size === 0) return;
 
         this._weakImmediateListeners ??= new StoreWeakImmediateListeners();
         this._weakImmediateListeners.addListener(listener);
@@ -282,7 +282,7 @@ class ComputationStore<NewValue> extends Store<NewValue> {
     }
 
     public _removeWeakImmediateListener(listener: () => void): void {
-        if (this._oldValueResultByStore.size === 0) return;
+        if (this._newValueResult !== null && this._oldValueResultByStore.size === 0) return;
 
         this._weakImmediateListeners ??= new StoreWeakImmediateListeners();
         this._weakImmediateListeners.removeListener(listener);
