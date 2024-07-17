@@ -1,4 +1,8 @@
-import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
+import {
+    getInteractionModality,
+    isFocusVisible,
+    setInteractionModality,
+} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import {CaretDown, Check, MagnifyingGlass, SpinnerGap} from "phosphor-react";
@@ -309,6 +313,18 @@ function PostCreatorChannelSelectorInput(
                     shouldBlurRef: {current: false},
                 };
             });
+        },
+
+        onKeyDown: event => {
+            switch (event.key) {
+                case "ArrowDown":
+                case "ArrowUp":
+                case "Home":
+                case "End": {
+                    setInteractionModality("keyboard");
+                    break;
+                }
+            }
         },
 
         items: items ?? emptyArray,

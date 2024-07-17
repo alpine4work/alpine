@@ -1,4 +1,4 @@
-import {isFocusVisible, usePress} from "@react-aria/interactions";
+import {isFocusVisible, setInteractionModality, usePress} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
@@ -373,7 +373,16 @@ export function ChatAccountPicker({
             listBoxRef,
             onKeyDown: event => {
                 assert(event.currentTarget instanceof HTMLInputElement);
+
                 switch (event.key) {
+                    case "ArrowDown":
+                    case "ArrowUp":
+                    case "Home":
+                    case "End": {
+                        setInteractionModality("keyboard");
+                        break;
+                    }
+
                     // If we are at the beginning of the combobox text input, the backspace key
                     // will delete the last selected account.
                     case "Backspace": {
@@ -385,6 +394,7 @@ export function ChatAccountPicker({
                         ) {
                             event.preventDefault();
                             event.stopPropagation();
+
                             onUpdateSelectedAccounts(selectedAccounts => {
                                 if (selectedAccounts.length === 0) return selectedAccounts;
                                 return selectedAccounts.slice(0, -1);

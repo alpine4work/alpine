@@ -1,4 +1,4 @@
-import {isFocusVisible, usePress} from "@react-aria/interactions";
+import {isFocusVisible, setInteractionModality, usePress} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {Memo, ReactNode, Ref, RefObject, useCallback, useMemo, useRef, useState} from "react";
@@ -255,6 +255,17 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
             autoFocus: false,
             shouldFocusWrap: false,
             items: searchedItems,
+            onKeyDown: event => {
+                switch (event.key) {
+                    case "ArrowDown":
+                    case "ArrowUp":
+                    case "Home":
+                    case "End": {
+                        setInteractionModality("keyboard");
+                        break;
+                    }
+                }
+            },
         },
         comboBoxState,
     );

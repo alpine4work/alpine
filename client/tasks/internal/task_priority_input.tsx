@@ -260,6 +260,13 @@ function TaskPriorityInput(
             const inputElement = assertExists(inputRef.current);
 
             switch (event.key) {
+                case "ArrowDown":
+                case "ArrowUp":
+                case "Home":
+                case "End": {
+                    setInteractionModality("keyboard");
+                    break;
+                }
                 case "Backspace": {
                     if (priority && inputState.type === "Typing" && inputState.value.length === 0) {
                         event.preventDefault();

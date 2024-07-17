@@ -1,4 +1,4 @@
-import {getInteractionModality, usePress} from "@react-aria/interactions";
+import {getInteractionModality, setInteractionModality, usePress} from "@react-aria/interactions";
 import classNames from "classnames";
 import {Plus, SpinnerGap} from "phosphor-react";
 import {
@@ -445,6 +445,12 @@ function TaskCollectionsInput(
             onKeyDown: event => {
                 assert(event.currentTarget instanceof HTMLInputElement);
                 switch (event.key) {
+                    case "ArrowDown":
+                    case "Home":
+                    case "End": {
+                        setInteractionModality("keyboard");
+                        break;
+                    }
                     // If we are at the beginning of the combobox text input, the backspace key
                     // will delete the last collection.
                     case "Backspace": {
@@ -507,6 +513,8 @@ function TaskCollectionsInput(
                             event.preventDefault();
                             event.stopPropagation();
 
+                            setInteractionModality("keyboard");
+
                             const collectionChipElement = collectionRefs[0]?.current
                                 ?.firstElementChild as HTMLElement | undefined;
                             collectionChipElement?.focus();
@@ -514,6 +522,8 @@ function TaskCollectionsInput(
                         } else if (!inputProps["aria-activedescendant"]) {
                             event.preventDefault();
                             event.stopPropagation();
+
+                            setInteractionModality("keyboard");
 
                             const currentRect = event.target.getBoundingClientRect();
                             const currentCenter = Rectangle.from(currentRect).center();
@@ -676,6 +686,8 @@ function TaskCollectionsInput(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    setInteractionModality("keyboard");
+
                     commitActionTransactionEvenIfGhost(taskId => [
                         {
                             type: "UpdateTask",
@@ -703,6 +715,8 @@ function TaskCollectionsInput(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    setInteractionModality("keyboard");
+
                     if (index === 0) {
                         onArrowLeftLeaveKeyDown?.();
                     } else if (isAppleDevice ? event.metaKey : event.ctrlKey) {
@@ -722,6 +736,8 @@ function TaskCollectionsInput(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    setInteractionModality("keyboard");
+
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         inputRef.current?.focus();
                     } else if (index + 1 < collectionRefs.length) {
@@ -739,6 +755,8 @@ function TaskCollectionsInput(
                 case "ArrowDown": {
                     event.preventDefault();
                     event.stopPropagation();
+
+                    setInteractionModality("keyboard");
 
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         inputRef.current?.focus();
@@ -823,6 +841,8 @@ function TaskCollectionsInput(
                     event.preventDefault();
                     event.stopPropagation();
 
+                    setInteractionModality("keyboard");
+
                     if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         const collectionChipElement = collectionRefs[0]?.current
                             ?.firstElementChild as HTMLElement | undefined;
@@ -896,6 +916,8 @@ function TaskCollectionsInput(
                     ) {
                         event.preventDefault();
                         event.stopPropagation();
+
+                        setInteractionModality("keyboard");
 
                         commitActionTransactionEvenIfGhost(taskId => [
                             {

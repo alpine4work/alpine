@@ -1,4 +1,4 @@
-import {getInteractionModality, usePress} from "@react-aria/interactions";
+import {getInteractionModality, setInteractionModality, usePress} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
 import {
     MutableRefObject,
@@ -346,6 +346,13 @@ function TaskAssigneeInput(
             const inputElement = assertExists(inputRef.current);
 
             switch (event.key) {
+                case "ArrowDown":
+                case "ArrowUp":
+                case "Home":
+                case "End": {
+                    setInteractionModality("keyboard");
+                    break;
+                }
                 case "Backspace": {
                     if (
                         assigneeAccountData &&

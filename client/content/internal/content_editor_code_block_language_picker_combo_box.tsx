@@ -1,4 +1,4 @@
-import {isFocusVisible} from "@react-aria/interactions";
+import {isFocusVisible, setInteractionModality} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import _Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
@@ -202,6 +202,17 @@ function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
             autoFocus: false,
             shouldFocusWrap: false,
             items: searchedLanguages,
+            onKeyDown: event => {
+                switch (event.key) {
+                    case "ArrowDown":
+                    case "ArrowUp":
+                    case "Home":
+                    case "End": {
+                        setInteractionModality("keyboard");
+                        break;
+                    }
+                }
+            },
         },
         comboBoxState,
     );

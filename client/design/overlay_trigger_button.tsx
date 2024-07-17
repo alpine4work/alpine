@@ -1,3 +1,4 @@
+import {setInteractionModality} from "@react-aria/interactions";
 import {
     AriaAttributes,
     Memo,
@@ -334,6 +335,7 @@ function OverlayTriggerButton(
                         if (typeof result === "object" && result.preventDefault) {
                             // Do nothing if default was prevented...
                         } else {
+                            setInteractionModality("keyboard");
                             setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
                         }
                         break;
@@ -346,6 +348,7 @@ function OverlayTriggerButton(
                         if (typeof result === "object" && result.preventDefault) {
                             // Do nothing if default was prevented...
                         } else {
+                            setInteractionModality("keyboard");
                             setState({isExpanded: true, initiallyFocus: "LastFocusableElement"});
                         }
                         break;
@@ -358,6 +361,7 @@ function OverlayTriggerButton(
                         if (typeof result === "object" && result.preventDefault) {
                             // Do nothing if default was prevented...
                         } else {
+                            setInteractionModality("keyboard");
                             setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
                         }
                         break;
@@ -370,6 +374,7 @@ function OverlayTriggerButton(
                         if (typeof result === "object" && result.preventDefault) {
                             // Do nothing if default was prevented...
                         } else {
+                            setInteractionModality("keyboard");
                             setState({isExpanded: true, initiallyFocus: "FirstFocusableElement"});
                         }
                         break;

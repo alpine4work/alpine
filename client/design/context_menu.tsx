@@ -1,3 +1,4 @@
+import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
     ReactElement,
@@ -476,6 +477,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                     ) {
                         const flattenedAction = flattenedActions[index]!;
                         if (flattenedAction.type === "Action") {
+                            setInteractionModality("keyboard");
                             onFocusedMenuItemIndexChange(index);
                             return;
                         }
@@ -487,6 +489,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                 for (let index = 0; index < flattenedActions.length; index++) {
                     const flattenedAction = flattenedActions[index]!;
                     if (flattenedAction.type === "Action") {
+                        setInteractionModality("keyboard");
                         onFocusedMenuItemIndexChange(index);
                         return;
                     }
@@ -506,6 +509,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                     for (let index = focusedMenuItemIndex - 1; index >= 0; index--) {
                         const flattenedAction = flattenedActions[index]!;
                         if (flattenedAction.type === "Action") {
+                            setInteractionModality("keyboard");
                             onFocusedMenuItemIndexChange(index);
                             return;
                         }
@@ -517,6 +521,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                 for (let index = flattenedActions.length - 1; index >= 0; index--) {
                     const flattenedAction = flattenedActions[index]!;
                     if (flattenedAction.type === "Action") {
+                        setInteractionModality("keyboard");
                         onFocusedMenuItemIndexChange(index);
                         return;
                     }
@@ -536,6 +541,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                 for (let index = 0; index < flattenedActions.length; index++) {
                     const flattenedAction = flattenedActions[index]!;
                     if (flattenedAction.type === "Action") {
+                        setInteractionModality("keyboard");
                         onFocusedMenuItemIndexChange(index);
                         return;
                     }
@@ -555,6 +561,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                 for (let index = flattenedActions.length - 1; index >= 0; index--) {
                     const flattenedAction = flattenedActions[index]!;
                     if (flattenedAction.type === "Action") {
+                        setInteractionModality("keyboard");
                         onFocusedMenuItemIndexChange(index);
                         return;
                     }
@@ -574,6 +581,7 @@ const ContextMenu = forwardRef(function ContextMenu(
                 ) {
                     event.preventDefault();
                     event.stopPropagation();
+
                     const nextSearchText = searchText + event.key;
                     const nextIndex = flattenedActions.findIndex(
                         action =>
@@ -582,7 +590,10 @@ const ContextMenu = forwardRef(function ContextMenu(
                             action.action.label.slice(0, nextSearchText.length).toLowerCase() ===
                                 nextSearchText.toLowerCase(),
                     );
+
+                    setInteractionModality("keyboard");
                     if (nextIndex !== -1) onFocusedMenuItemIndexChange(nextIndex);
+
                     setSearchText(nextSearchText);
                     return;
                 }

@@ -621,6 +621,7 @@ export const Menu = forwardRef(function Menu(
                         for (let index = 0; index < menuItemRefs.length; index++) {
                             const menuItemRef = menuItemRefs[index]!;
                             if (menuItemRef) {
+                                setInteractionModality("keyboard");
                                 menuItemRef.current?.focus();
                                 return;
                             }
@@ -639,6 +640,7 @@ export const Menu = forwardRef(function Menu(
                         for (let index = menuItemRefs.length - 1; index >= 0; index--) {
                             const menuItemRef = menuItemRefs[index]!;
                             if (menuItemRef) {
+                                setInteractionModality("keyboard");
                                 menuItemRef.current?.focus();
                                 return;
                             }
@@ -657,6 +659,7 @@ export const Menu = forwardRef(function Menu(
                         ) {
                             event.preventDefault();
                             event.stopPropagation();
+
                             const nextSearchText = searchText + event.key;
                             const nextIndex = flattenedActions.findIndex(
                                 action =>
@@ -666,7 +669,10 @@ export const Menu = forwardRef(function Menu(
                                         .slice(0, nextSearchText.length)
                                         .toLowerCase() === nextSearchText.toLowerCase(),
                             );
+
+                            setInteractionModality("keyboard");
                             if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
+
                             setSearchText(nextSearchText);
                             return;
                         }

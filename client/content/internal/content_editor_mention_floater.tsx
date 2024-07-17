@@ -1,4 +1,7 @@
-import {isFocusVisible as getIsFocusVisible} from "@react-aria/interactions";
+import {
+    isFocusVisible as getIsFocusVisible,
+    setInteractionModality,
+} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
@@ -222,7 +225,10 @@ export function ContentEditorMentionFloater({
             case "ArrowDown": {
                 event.preventDefault(); // Don't scroll or move cursor
                 event.stopPropagation();
+
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    setInteractionModality("keyboard");
+
                     setSelectionState({
                         searchQuery,
                         index:
@@ -242,7 +248,10 @@ export function ContentEditorMentionFloater({
             case "ArrowUp": {
                 event.preventDefault(); // Don't scroll or move cursor
                 event.stopPropagation();
+
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    setInteractionModality("keyboard");
+
                     setSelectionState({
                         searchQuery,
                         index:
@@ -262,7 +271,10 @@ export function ContentEditorMentionFloater({
             case "Home": {
                 event.preventDefault(); // Don't scroll
                 event.stopPropagation();
+
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    setInteractionModality("keyboard");
+
                     setSelectionState({
                         searchQuery,
                         index: 0,
@@ -279,7 +291,10 @@ export function ContentEditorMentionFloater({
             case "End": {
                 event.preventDefault(); // Don't scroll
                 event.stopPropagation();
+
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    setInteractionModality("keyboard");
+
                     setSelectionState({
                         searchQuery,
                         index: searchedAccountDatas.length - 1,
@@ -308,6 +323,7 @@ export function ContentEditorMentionFloater({
             case "Enter": {
                 event.preventDefault();
                 event.stopPropagation();
+
                 if (
                     searchedAccountDatas &&
                     selectionState.index !== null &&
