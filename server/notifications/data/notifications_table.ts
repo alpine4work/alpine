@@ -1817,7 +1817,16 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
             },
         });
 
-        const {info, accountIds} = await getSubscribers(context, event);
+        const {info, accountIds} = await getSubscribers(
+            // This function needs read-after-write consistency! So throw an error (in
+            // development) when a DynamoDB read doesn't use strong consistency to make
+            // sure developers don't accidentally use eventual consistency.
+            //
+            // We need read-after-write consistency since the update which caused a
+            // notification event may have just itself added a subscriber.
+            context.dynamo.expectStrongReadConsistency(),
+            event,
+        );
 
         await runAllPromises(
             mapIterable(accountIds, async accountOrMentionId => {
@@ -2791,7 +2800,12 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         // account gets a notification for any new post in every channel. When we have
         // channel subscriptions, a mention should deliver a notification regardless of
         // whether the mentioned user is in the channel.
-        const accounts = await expensivelyGetAllSpaceAccounts(context, event.spaceId);
+        const accounts = await expensivelyGetAllSpaceAccounts(
+            // Ok to read space accounts with eventual consistency. Creating a post won't
+            // also add an account to the space.
+            context.dynamo.unexpectStrongReadConsistency(),
+            event.spaceId,
+        );
 
         return {
             info: {},

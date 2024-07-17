@@ -987,7 +987,7 @@ export class DynamoGeneralRealtimeTableSchema<
     public getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
-        options?: {consistency?: DynamoReadConsistency},
+        options?: {consistency?: DynamoReadConsistency; allowsEventualReadConsistency?: boolean},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
@@ -1003,7 +1003,7 @@ export class DynamoGeneralRealtimeTableSchema<
     public getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
-        options?: {consistency?: DynamoReadConsistency},
+        options?: {consistency?: DynamoReadConsistency; allowsEventualReadConsistency?: boolean},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
@@ -1026,6 +1026,7 @@ export class DynamoGeneralRealtimeTableSchema<
         options: {
             attributes: Array<Attributes>;
             consistency?: DynamoReadConsistency;
+            allowsEventualReadConsistency?: boolean;
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
         assert(

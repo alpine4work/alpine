@@ -20,3 +20,12 @@ export function getDynamoRetryTransactionIfExists(
     // `internal` folder.
     return context.dynamo._retryTransaction;
 }
+
+/**
+ * Get the DynamoDB `retryTransaction()` function from context.
+ */
+export function getDynamoExpectsStrongReadConsistency(context: DynamoContext): boolean {
+    // @ts-expect-error: The `expectsStrongReadConsistency` property is not private
+    // to our `internal` folder.
+    return context.dynamo._expectsStrongReadConsistency;
+}

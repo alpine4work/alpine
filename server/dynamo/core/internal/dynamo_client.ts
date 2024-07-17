@@ -98,6 +98,7 @@ export class DynamoClient {
             consistency = "Eventual",
             projectionExpression,
             expressionAttributeNames,
+            expectsStrongReadConsistency,
             debugItemType,
         }: {
             tableName: string;
@@ -105,6 +106,7 @@ export class DynamoClient {
             consistency?: DynamoReadConsistency;
             projectionExpression?: string;
             expressionAttributeNames?: ReadonlyMap<string, string>;
+            expectsStrongReadConsistency: boolean;
             debugItemType: DynamoClientDebugItemType;
         },
     ): Promise<SchemaSerializedObjectValue | null> {
@@ -119,6 +121,7 @@ export class DynamoClient {
                     projectionExpression,
                     expressionAttributeNames,
                 },
+                expectsStrongReadConsistency,
                 debugItemType,
             );
         }
@@ -137,6 +140,7 @@ export class DynamoClient {
                         ? Object.fromEntries(expressionAttributeNames)
                         : undefined,
             },
+            expectsStrongReadConsistency,
             [debugItemType],
         );
 
@@ -663,6 +667,7 @@ export class DynamoClient {
             pageLimit?: number;
             descending?: boolean;
             debugIndexName?: string;
+            expectsStrongReadConsistency: boolean;
             debugItemTypes: DynamoClientDebugItemTypes;
         },
     ): AsyncIterableIterator<SchemaSerializedObjectValue> {
@@ -842,6 +847,7 @@ export class DynamoClient {
 type DynamoClientBatch<TableInput, ItemInput, ItemOutput> = {
     itemCount: number;
     tableBatches: Map<string, DynamoClientTableBatch<TableInput, ItemInput, ItemOutput>>;
+    expectsStrongReadConsistency: boolean;
 };
 
 type DynamoClientTableBatch<TableInput, ItemInput, ItemOutput> = {
@@ -878,6 +884,7 @@ export class DynamoClientBatchContext {
             const scheduledBatch = {
                 itemCount: 0,
                 tableBatches: new Map(),
+                expectsStrongReadConsistency: false,
             };
 
             // We schedule a macrotask that will run after the microtask queue
@@ -905,6 +912,7 @@ abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, I
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: ItemInput1,
+        expectsStrongReadConsistency: boolean,
         debugItemType: DynamoClientDebugItemType,
     ): Promise<ItemOutput> {
         const scheduledBatch = batchContext.getScheduledBatch(this, tracer);
@@ -941,6 +949,7 @@ abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, I
         keyBatch.inputs.push(input);
         keyBatch.promiseResolvers.push({tracer, promiseResolver});
         keyBatch.debugItemTypes.push(debugItemType);
+        scheduledBatch.expectsStrongReadConsistency ||= expectsStrongReadConsistency;
 
         return promiseResolver.promise;
     }
@@ -1052,6 +1061,7 @@ function splitDynamoClientBatch<TableInput, ItemInput, ItemOutput>(
         currentBatch = {
             itemCount: 0,
             tableBatches: new Map(),
+            expectsStrongReadConsistency: fullBatch.expectsStrongReadConsistency,
         };
         batches.push(currentBatch);
 
@@ -1146,9 +1156,18 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: DynamoClientGetItemBatchItemInput,
+        expectsStrongReadConsistency: boolean,
         debugItemType: DynamoClientDebugItemType,
     ) {
-        return this._addItem(tracer, batchContext, tableName, key, input, debugItemType);
+        return this._addItem(
+            tracer,
+            batchContext,
+            tableName,
+            key,
+            input,
+            expectsStrongReadConsistency,
+            debugItemType,
+        );
     }
 
     protected override _reorganizeBatch(
@@ -1186,6 +1205,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                         ConsistentRead: this._consistency === "Strong",
                         Key: intoDynamoAttributeValueObject(key),
                     },
+                    batch.expectsStrongReadConsistency,
                     debugItemTypes,
                 );
 
@@ -1196,6 +1216,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                     unprocessedBatch: {
                         itemCount: 0,
                         tableBatches: new Map(),
+                        expectsStrongReadConsistency: batch.expectsStrongReadConsistency,
                     },
                 };
             }
@@ -1257,6 +1278,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                     }),
                 ),
             },
+            batch.expectsStrongReadConsistency,
             flatMapIterable(batch.tableBatches.values(), tableBatch =>
                 flatMapIterable(
                     tableBatch.keyBatches.values(),
@@ -1309,6 +1331,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
         > = {
             itemCount: 0,
             tableBatches: new Map(),
+            expectsStrongReadConsistency: batch.expectsStrongReadConsistency,
         };
 
         // If we have any unprocessed keys move them into a new unprocessed batch
@@ -1483,6 +1506,7 @@ function reorganizeDynamoClientGetItemBatch(
                 finalBatches.push({
                     itemCount: newTableBatch.keyBatches.size,
                     tableBatches: new Map([[tableName, newTableBatch]]),
+                    expectsStrongReadConsistency: batch.expectsStrongReadConsistency,
                 });
             }
         }
@@ -1528,6 +1552,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
             tableName,
             key,
             {action: "Put", item},
+            false,
             debugItemType,
         );
     }
@@ -1545,6 +1570,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
             tableName,
             key,
             {action: "Delete"},
+            false,
             debugItemType,
         );
     }
@@ -1605,6 +1631,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                     unprocessedBatch: {
                         itemCount: 0,
                         tableBatches: new Map(),
+                        expectsStrongReadConsistency: batch.expectsStrongReadConsistency,
                     },
                 };
             }
@@ -1660,6 +1687,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
         const unprocessedBatch: DynamoClientBatch<null, DynamoClientWriteItemBatchAction, void> = {
             itemCount: 0,
             tableBatches: new Map(),
+            expectsStrongReadConsistency: batch.expectsStrongReadConsistency,
         };
 
         // If we have any unprocessed keys move them into a new unprocessed batch

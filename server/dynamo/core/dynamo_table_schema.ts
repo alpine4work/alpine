@@ -22,6 +22,7 @@ import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/core/internal/dy
 import {dynamoReservedWords} from "~/server/dynamo/core/internal/dynamo_reserved_words.js";
 import {
     getDynamoClient,
+    getDynamoExpectsStrongReadConsistency,
     getDynamoRetryTransactionIfExists,
 } from "~/server/dynamo/core/internal/get_dynamo_client.js";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
@@ -1229,8 +1230,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         key: Key,
         {
             consistency = "Eventual",
+            allowsEventualReadConsistency = false,
         }: {
             consistency?: DynamoReadConsistency;
+            allowsEventualReadConsistency?: boolean;
         } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         const client = await this._getClient(context, false);
@@ -1243,6 +1246,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
                 consistency,
+                expectsStrongReadConsistency:
+                    !allowsEventualReadConsistency &&
+                    getDynamoExpectsStrongReadConsistency(context),
                 debugItemType: {
                     tableName: this._name,
                     partitionType: key.partitionType,
@@ -1250,6 +1256,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
         );
+
         if (!serializedItem) return null;
 
         const item: any = {...key};
@@ -1308,9 +1315,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         {
             attributes,
             consistency = "Eventual",
+            allowsEventualReadConsistency,
         }: {
             attributes: Array<Attributes>;
             consistency?: DynamoReadConsistency;
+            allowsEventualReadConsistency?: boolean;
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
         const client = await this._getClient(context, false);
@@ -1355,6 +1364,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 expressionAttributeNames: new Map(
                     mapIterable(expressionAttributeNames, ([key, value]) => [value, key]),
                 ),
+                expectsStrongReadConsistency:
+                    !allowsEventualReadConsistency &&
+                    getDynamoExpectsStrongReadConsistency(context),
                 debugItemType: {
                     tableName: this._name,
                     partitionType: key.partitionType,
@@ -1362,6 +1374,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
         );
+
         if (!serializedItem) return null;
 
         const item: any = {...key};
@@ -2871,6 +2884,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             pageLimit,
             descending,
             consistency = "Eventual",
+            allowsEventualReadConsistency = false,
         }: {
             partitionKey: PartitionKey;
             startSortKey?: StartSortKey | undefined;
@@ -2883,6 +2897,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             pageLimit?: number;
             descending?: boolean;
             consistency?: DynamoReadConsistency;
+            allowsEventualReadConsistency?: boolean;
         },
     ): AsyncIterableIterator<
         MergeObjectIntersection<
@@ -2933,6 +2948,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             limit: limit !== "All" ? limit : undefined,
             pageLimit,
             descending,
+            expectsStrongReadConsistency:
+                !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
             debugItemTypes: sortRanges.map(sortRange => ({
                 tableName: this._name,
                 partitionType: partitionKey.partitionType,
@@ -3175,6 +3192,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     limit,
                     pageLimit,
                     descending,
+                    allowsEventualReadConsistency = false,
                 },
             ) {
                 assert(schema._initializationState.isInitialized);
@@ -3262,6 +3280,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     limit: limit !== "All" ? limit : undefined,
                     pageLimit,
                     descending,
+                    expectsStrongReadConsistency:
+                        !allowsEventualReadConsistency &&
+                        getDynamoExpectsStrongReadConsistency(context),
                     debugIndexName: indexConfig.name,
                     debugItemTypes: config.itemTypes.map(itemType => ({
                         tableName: schema._name,
@@ -3365,6 +3386,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     limit,
                     pageLimit,
                     descending,
+                    allowsEventualReadConsistency = false,
                 },
             ) {
                 assert(schema._initializationState.isInitialized);
@@ -3452,6 +3474,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     limit: limit !== "All" ? limit : undefined,
                     pageLimit,
                     descending,
+                    expectsStrongReadConsistency:
+                        !allowsEventualReadConsistency &&
+                        getDynamoExpectsStrongReadConsistency(context),
                     debugIndexName: indexConfig.name,
                     debugItemTypes: config.itemTypes.map(itemType => ({
                         tableName: schema._name,
@@ -4484,6 +4509,7 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
             limit: number | "All";
             pageLimit?: number;
             descending?: boolean;
+            allowsEventualReadConsistency?: boolean;
         },
     ): AsyncIterableIterator<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>;
 

@@ -820,7 +820,13 @@ const DocumentPreviewContextCache = new ContextCache<DocumentId, DocumentPreview
 export function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {
+        consistency = "Eventual",
+        allowsEventualReadConsistency = false,
+    }: {
+        consistency?: DynamoReadConsistency;
+        allowsEventualReadConsistency?: boolean;
+    } = {},
 ): Promise<DocumentPreviewModel | null> {
     const get = async () => {
         const attributes = await DocumentsTable.getItemIfExists(
@@ -830,7 +836,7 @@ export function getDocumentPreviewIfExists(
                 documentId: id,
                 sortRangeType: "Attributes",
             },
-            {consistency},
+            {consistency, allowsEventualReadConsistency},
         );
 
         if (!attributes) return null;
@@ -889,7 +895,14 @@ export async function authorizeDocumentAccess(
     context: ServerActionContext,
     documentId: DocumentId,
 ): Promise<{spaceId: SpaceId}> {
-    let document = await getDocumentPreviewIfExists(context, documentId);
+    let document = await getDocumentPreviewIfExists(
+        context,
+        documentId,
+        // It's ok to call this function when expecting strong read consistency.
+        // Authorization is mostly strongly consistent since we retry with strong
+        // consistency if our eventually consistent read fails.
+        {allowsEventualReadConsistency: true},
+    );
 
     // If we couldn't find the document with eventual consistency, try again with
     // strong consistency in case it was just created.
@@ -3680,30 +3693,36 @@ async function getDocumentCommentThreadItemIfExists(
     },
 ): Promise<DocumentCommentThreadItem | null> {
     {
-        const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
-            partitionType: "Document",
-            sortRangeType: !shouldTryArchiveFirst
-                ? "ReferencedCommentThread"
-                : "ArchivedCommentThread",
-            documentId,
-            commentThreadId,
-            consistency,
-        });
+        const commentThreadItem = await DocumentsTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Document",
+                sortRangeType: !shouldTryArchiveFirst
+                    ? "ReferencedCommentThread"
+                    : "ArchivedCommentThread",
+                documentId,
+                commentThreadId,
+            },
+            {consistency},
+        );
         if (commentThreadItem) return commentThreadItem;
     }
 
     await getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint.waitForTest(documentId);
 
     {
-        const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
-            partitionType: "Document",
-            sortRangeType: !shouldTryArchiveFirst
-                ? "ArchivedCommentThread"
-                : "ReferencedCommentThread",
-            documentId,
-            commentThreadId,
-            consistency,
-        });
+        const commentThreadItem = await DocumentsTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Document",
+                sortRangeType: !shouldTryArchiveFirst
+                    ? "ArchivedCommentThread"
+                    : "ReferencedCommentThread",
+                documentId,
+                commentThreadId,
+            },
+            {consistency},
+        );
         if (commentThreadItem) return commentThreadItem;
     }
 

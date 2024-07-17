@@ -3,7 +3,7 @@ import {
     DynamoClientBatchContext,
 } from "~/server/dynamo/core/internal/dynamo_client.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {Context} from "~/shared/context/context.js";
+import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -27,12 +27,25 @@ export class DynamoContextModule<Modules extends {} = {}>
      */
     private readonly _retryTransaction: ((error?: unknown) => never) | null;
 
+    /**
+     * Do we expect `consistency` to be `Strong` when reading data?
+     *
+     * In some pieces of code, like reading data for a search entity, we must use
+     * strongly consistent reads or we risk not indexing some data in our search
+     * index. Such code can set this to true and we'll throw an error when reading
+     * data with eventual consistency in development. In production we won't throw
+     * an error but we'll still log an error.
+     */
+    private readonly _expectsStrongReadConsistency: boolean;
+
     private constructor(
         client: DynamoClient | null,
         {
             retryTransaction,
+            expectsStrongReadConsistency,
         }: {
             retryTransaction: ((error?: unknown) => never) | null;
+            expectsStrongReadConsistency: boolean;
         },
     ) {
         super();
@@ -52,11 +65,13 @@ export class DynamoContextModule<Modules extends {} = {}>
         }
 
         this._retryTransaction = retryTransaction;
+        this._expectsStrongReadConsistency = expectsStrongReadConsistency;
     }
 
     public static new(url: string, signer: AwsRequestSigner) {
         return new DynamoContextModule(new DynamoClient(url, signer), {
             retryTransaction: null,
+            expectsStrongReadConsistency: false,
         });
     }
 
@@ -73,6 +88,7 @@ export class DynamoContextModule<Modules extends {} = {}>
 
         const contextModule = new DynamoContextModule(null, {
             retryTransaction: null,
+            expectsStrongReadConsistency: false,
         });
 
         return Object.assign(contextModule, {
@@ -113,10 +129,61 @@ export class DynamoContextModule<Modules extends {} = {}>
                 {
                     dynamo: new DynamoContextModule(this._client, {
                         retryTransaction: retry,
+                        expectsStrongReadConsistency: this._expectsStrongReadConsistency,
                     }),
                 },
                 action,
             );
+        });
+    }
+
+    /**
+     * Expect all DynamoDB reads made by this context to use strong consistency.
+     * Throws an error in development and logs in production but won't throw an
+     * error to avoid breaking the product in case of accidentally eventually
+     * consistent reads.
+     */
+    public expectStrongReadConsistency<Modules extends {}>(
+        this: ContextModuleBase<Modules> & DynamoContextModule,
+    ): ContextWithDestroy<
+        Replace<
+            Modules,
+            {
+                dynamo: DynamoContextModule<{}>;
+            }
+        >
+    > {
+        if (this._expectsStrongReadConsistency) return this._context as any;
+
+        return this._context.clone({
+            dynamo: new DynamoContextModule(this._client, {
+                retryTransaction: this._retryTransaction,
+                expectsStrongReadConsistency: true,
+            }),
+        });
+    }
+
+    /**
+     * Stop expecting DynamoDB reads to be strongly consistent. After calling this
+     * you can make eventually consistent reads that won't throw an error.
+     */
+    public unexpectStrongReadConsistency<Modules extends {}>(
+        this: ContextModuleBase<Modules> & DynamoContextModule,
+    ): ContextWithDestroy<
+        Replace<
+            Modules,
+            {
+                dynamo: DynamoContextModule<{}>;
+            }
+        >
+    > {
+        if (!this._expectsStrongReadConsistency) return this._context as any;
+
+        return this._context.clone({
+            dynamo: new DynamoContextModule(this._client, {
+                retryTransaction: this._retryTransaction,
+                expectsStrongReadConsistency: false,
+            }),
         });
     }
 
@@ -125,6 +192,7 @@ export class DynamoContextModule<Modules extends {} = {}>
             // Reset retry transaction in fork. Forked actions need their own `retryTransaction()`
             // call. The retry call from the action we forked from may have finished long ago.
             retryTransaction: null,
+            expectsStrongReadConsistency: this._expectsStrongReadConsistency,
         });
     }
 }

@@ -3480,11 +3480,18 @@ async function getTaskItemForAuthorization(
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
     return TaskItemAuthorizationCache.get(context, taskId, async () => {
-        const taskItem = await TaskTable.getItemIfExists(context, {
-            partitionType: "Task",
-            sortRangeType: "EssentialAttributes",
-            taskId,
-        });
+        const taskItem = await TaskTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Task",
+                sortRangeType: "EssentialAttributes",
+                taskId,
+            },
+            // It's ok to call this function when expecting strong read consistency.
+            // Authorization is mostly strongly consistent since we retry with strong
+            // consistency if our eventually consistent read fails.
+            {allowsEventualReadConsistency: true},
+        );
 
         if (taskItem) return taskItem;
 
@@ -3495,12 +3502,10 @@ async function getTaskItemForAuthorization(
                 sortRangeType: "EssentialAttributes",
                 taskId,
             },
-            {
-                // If we couldn't find the task, maybe it was just created. Try reading again
-                // with strong read consistency. Don't want to throw an error if the task
-                // actually exists.
-                consistency: "Strong",
-            },
+            // If we couldn't find the task, maybe it was just created. Try reading again
+            // with strong read consistency. Don't want to throw an error if the task
+            // actually exists.
+            {consistency: "Strong"},
         );
     });
 }
@@ -3538,11 +3543,18 @@ async function getTaskCollectionItemForAuthorization(
     if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
 
     return TaskCollectionItemAuthorizationCache.get(context, collectionId, async () => {
-        const collectionItem = await TaskTable.getItemIfExists(context, {
-            partitionType: "TaskCollection",
-            sortRangeType: "EssentialAttributes",
-            collectionId,
-        });
+        const collectionItem = await TaskTable.getItemIfExists(
+            context,
+            {
+                partitionType: "TaskCollection",
+                sortRangeType: "EssentialAttributes",
+                collectionId,
+            },
+            // It's ok to call this function when expecting strong read consistency.
+            // Authorization is mostly strongly consistent since we retry with strong
+            // consistency if our eventually consistent read fails.
+            {allowsEventualReadConsistency: true},
+        );
 
         if (collectionItem) return collectionItem;
 
@@ -3553,12 +3565,10 @@ async function getTaskCollectionItemForAuthorization(
                 sortRangeType: "EssentialAttributes",
                 collectionId,
             },
-            {
-                // If we couldn't find the collection, maybe it was just created. Try reading
-                // again with strong read consistency. Don't want to throw an error if the
-                // collection actually exists.
-                consistency: "Strong",
-            },
+            // If we couldn't find the collection, maybe it was just created. Try reading
+            // again with strong read consistency. Don't want to throw an error if the
+            // collection actually exists.
+            {consistency: "Strong"},
         );
     });
 }

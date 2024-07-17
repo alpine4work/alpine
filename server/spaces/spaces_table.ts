@@ -813,7 +813,7 @@ class SpaceAccountsCache {
         }
     }
 
-    private _getData(
+    private async _getData(
         context: Context<{
             process: ProcessContextModule;
             tracer: TracerContextModule;
@@ -1007,11 +1007,15 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     // strong consistency if this fails.
     const item1 = await dangerouslyGetSpaceAccountItemIfExists(context, spaceId, accountId, {
         consistency: "Eventual",
+        // It's ok to call this function when expecting strong read consistency.
+        // Authorization is mostly strongly consistent since we retry with strong
+        // consistency if our eventually consistent read fails.
+        allowsEventualReadConsistency: true,
     });
     if (item1 && !item1.removal) return true;
 
     // If the item wasn't present in any cache and wasn't present when we read with
-    // eventual consistency then trying finding the item again one last time with
+    // eventual consistency then try finding the item again one last time with
     // strong consistency. Since we want to return `true` from this function with
     // strong consistency.
     const item2 = await dangerouslyGetSpaceAccountItemIfExists(context, spaceId, accountId, {
@@ -1124,7 +1128,13 @@ async function dangerouslyGetSpaceAccountItemIfExists(
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
     accountId: AccountId | ContentMentionAccountId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {
+        consistency = "Eventual",
+        allowsEventualReadConsistency = false,
+    }: {
+        consistency?: DynamoReadConsistency;
+        allowsEventualReadConsistency?: boolean;
+    } = {},
 ): Promise<SpaceAccountItem | null> {
     switch (consistency) {
         case "Eventual": {
@@ -1137,7 +1147,7 @@ async function dangerouslyGetSpaceAccountItemIfExists(
                         spaceId,
                         accountId: accountId as AccountId,
                     },
-                    {consistency: "Eventual"},
+                    {consistency: "Eventual", allowsEventualReadConsistency},
                 ),
             );
         }

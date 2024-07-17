@@ -163,13 +163,6 @@ interface TaskCollectionModelForAuthorization {
  * the chat message back. If we read the chat message with eventual consistency
  * we might get the chat message's data from before your update.
  */
-// TODO(calebmer): It would be nice someday to have some developer tool to make
-// sure essential DynamoDB reads have strong consistency. Maybe we have an
-// eventual consistency read logger? Or even throw in development?
-//
-// We could also use this tool in `notifications_table.ts` since it's important
-// the `getSubscribers()` function has strong read consistency for similar
-// reasons.
 class SearchEntityReadState {
     private readonly _context: SearchEntityIndexSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
@@ -194,7 +187,11 @@ class SearchEntityReadState {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
         targetId: SearchEntityId,
     ) {
-        this._context = context;
+        // Makes sure all reads use strong consistency. We need strong consistency so
+        // that we don't miss recent updates when indexing. Throws an error (in
+        // development) if a read doesn't use strong consistency.
+        this._context = context.dynamo.expectStrongReadConsistency();
+
         this.tokenizer = tokenizer;
         this._targetId = targetId;
     }

@@ -974,11 +974,18 @@ export async function authorizeChatAccess(
 
         // If we have access to the space, we have access to the chat...
         case "System": {
-            let chatItem = await ChatTable.getItemIfExists(context, {
-                partitionType: "Chat",
-                sortRangeType: "Attributes",
-                chatId,
-            });
+            let chatItem = await ChatTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Chat",
+                    sortRangeType: "Attributes",
+                    chatId,
+                },
+                // It's ok to call this function when expecting strong read consistency.
+                // Authorization is mostly strongly consistent since we retry with strong
+                // consistency if our eventually consistent read fails.
+                {allowsEventualReadConsistency: true},
+            );
 
             // If we can't find the chat with eventual consistency, it may have just been
             // created so try again with strong consistency.
@@ -1029,12 +1036,19 @@ export async function authorizeChatAccessForAccount(
 ): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
     const [chatAccountItem] = await runAllPromises([
         (async () => {
-            let chatAccountItem = await ChatTable.getItemIfExists(context, {
-                partitionType: "Chat",
-                sortRangeType: "Account",
-                chatId,
-                accountId,
-            });
+            let chatAccountItem = await ChatTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Chat",
+                    sortRangeType: "Account",
+                    chatId,
+                    accountId,
+                },
+                // It's ok to call this function when expecting strong read consistency.
+                // Authorization is mostly strongly consistent since we retry with strong
+                // consistency if our eventually consistent read fails.
+                {allowsEventualReadConsistency: true},
+            );
 
             // If we couldn't find the item with eventual consistency, it may have just
             // been created so try again with strong consistency.
@@ -1064,12 +1078,19 @@ export async function authorizeChatAccessForAccount(
                     // We already are loading our session's chat account item above.
                     if (context.actor.getAccountId() === accountId) return;
 
-                    let chatAccountItem = await ChatTable.getItemIfExists(context, {
-                        partitionType: "Chat",
-                        sortRangeType: "Account",
-                        chatId,
-                        accountId: context.actor.getAccountId(),
-                    });
+                    let chatAccountItem = await ChatTable.getItemIfExists(
+                        context,
+                        {
+                            partitionType: "Chat",
+                            sortRangeType: "Account",
+                            chatId,
+                            accountId: context.actor.getAccountId(),
+                        },
+                        // It's ok to call this function when expecting strong read consistency.
+                        // Authorization is mostly strongly consistent since we retry with strong
+                        // consistency if our eventually consistent read fails.
+                        {allowsEventualReadConsistency: true},
+                    );
 
                     // If we couldn't find the item with eventual consistency, it may have just
                     // been created so try again with strong consistency.

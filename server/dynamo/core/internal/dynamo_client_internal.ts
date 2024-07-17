@@ -1,13 +1,14 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
+import {inspect} from "util";
 import {
     isConstructedDynamoTableSchemaIndexName,
     isConstructedDynamoTableSchemaName,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {UnavailableError} from "~/shared/error/error.js";
+import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
@@ -128,6 +129,7 @@ export class DynamoClientInternal {
     public GetItem(
         tracer: TracerBase,
         input: types.GetItemInput,
+        expectsStrongReadConsistency: boolean,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.GetItemOutput> {
         let spanName = "DynamoDB GetItem";
@@ -164,6 +166,19 @@ export class DynamoClientInternal {
                 },
             });
 
+            if (expectsStrongReadConsistency && !input.ConsistentRead) {
+                const error = new InternalError("Expected DynamoDB strong read consistency");
+
+                if (process.env.NODE_ENV !== "production") {
+                    throw error;
+                } else {
+                    // In production, add the exception to the span but let it return like normal.
+                    // In case a developer accidentally forgot to make a read strong we don't want
+                    // to break the product for users.
+                    span.addException(error);
+                }
+            }
+
             return output;
         });
     }
@@ -177,17 +192,18 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         otherTracers: Iterable<TracerBase>,
         input: types.BatchGetItemInput,
+        expectsStrongReadConsistency: boolean,
         debugItemTypes: DynamoClientDebugItemTypes,
     ): Promise<types.BatchGetItemOutput> {
         let spanName = "DynamoDB BatchGetItem";
 
         const tableNames = [];
-        let anyConsistentRead = false;
+        let everyConsistentRead = true;
         let batchSize = 0;
 
         for (const [tableName, requestItem] of Object.entries(input.RequestItems ?? {})) {
             tableNames.push(tableName);
-            anyConsistentRead ||= requestItem.ConsistentRead ?? false;
+            everyConsistentRead &&= requestItem.ConsistentRead ?? false;
             batchSize += requestItem.Keys?.length ?? 0;
         }
 
@@ -206,7 +222,7 @@ export class DynamoClientInternal {
                     action: "BatchGetItem",
                     tableName: tableNamesString,
                     table: getDebugItemTypesTracerEventData(debugItemTypes),
-                    consistentRead: anyConsistentRead,
+                    consistentRead: everyConsistentRead,
                     batchSize,
                 },
             });
@@ -239,6 +255,19 @@ export class DynamoClientInternal {
                     ),
                 },
             });
+
+            if (expectsStrongReadConsistency && !everyConsistentRead) {
+                const error = new InternalError("Expected DynamoDB strong read consistency");
+
+                if (process.env.NODE_ENV !== "production") {
+                    throw error;
+                } else {
+                    // In production, add the exception to the span but let it return like normal.
+                    // In case a developer accidentally forgot to make a read strong we don't want
+                    // to break the product for users.
+                    span.addException(error);
+                }
+            }
 
             return output;
         });
@@ -592,9 +621,11 @@ export class DynamoClientInternal {
         tracer: TracerBase,
         input: types.QueryInput,
         {
+            expectsStrongReadConsistency,
             debugIndexName,
             debugItemTypes,
         }: {
+            expectsStrongReadConsistency: boolean;
             debugIndexName?: string;
             debugItemTypes: DynamoClientDebugItemTypes;
         },
@@ -649,6 +680,19 @@ export class DynamoClientInternal {
                     },
                 },
             });
+
+            if (expectsStrongReadConsistency && !input.ConsistentRead) {
+                const error = new InternalError("Expected DynamoDB strong read consistency");
+
+                if (process.env.NODE_ENV !== "production") {
+                    throw error;
+                } else {
+                    // In production, add the exception to the span but let it return like normal.
+                    // In case a developer accidentally forgot to make a read strong we don't want
+                    // to break the product for users.
+                    span.addException(error);
+                }
+            }
 
             return output;
         });

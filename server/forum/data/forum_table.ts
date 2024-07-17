@@ -974,7 +974,13 @@ const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | nu
 export function getChannelPreviewIfExists(
     context: ServerActionContext,
     id: ChannelId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {
+        consistency = "Eventual",
+        allowsEventualReadConsistency = false,
+    }: {
+        consistency?: DynamoReadConsistency;
+        allowsEventualReadConsistency?: boolean;
+    } = {},
 ): Promise<ChannelPreviewModel | null> {
     const get = async () => {
         const channelItem = await ForumRealtimeTable.getPartialItemIfExists(
@@ -987,6 +993,7 @@ export function getChannelPreviewIfExists(
             {
                 attributes: ["spaceId", "createdTime", "name"],
                 consistency,
+                allowsEventualReadConsistency,
             },
         );
         if (!channelItem) return null;
@@ -1021,7 +1028,7 @@ export function getChannelPreviewIfExists(
 export async function getChannelPreview(
     context: ServerActionContext,
     id: ChannelId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoReadConsistency; allowsEventualReadConsistency?: boolean},
 ): Promise<ChannelPreviewModel> {
     const channel = await getChannelPreviewIfExists(context, id, options);
     if (!channel) throw new NotFoundError("Channel not found");
@@ -1077,7 +1084,14 @@ export async function authorizeChannelAccess(
     context: ServerActionContext,
     id: ChannelId,
 ): Promise<{spaceId: SpaceId}> {
-    let channel = await getChannelPreview(context, id);
+    let channel = await getChannelPreview(
+        context,
+        id,
+        // It's ok to call this function when expecting strong read consistency.
+        // Authorization is mostly strongly consistent since we retry with strong
+        // consistency if our eventually consistent read fails.
+        {allowsEventualReadConsistency: true},
+    );
 
     if (!channel) {
         channel = await getChannelPreview(context, id, {consistency: "Strong"});
