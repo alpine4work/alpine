@@ -7,7 +7,12 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {generateId} from "~/shared/id/id.js";
 import {postFauxInputCreateButtonHeight} from "~/shared/styles/forum_shared_styles.js";
-import {inputPlaceholderStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
+import {
+    accentThemeBackgroundColor,
+    accentThemeForegroundColor,
+    inputPlaceholderStyles,
+    pressOpacityOverlayClassName,
+} from "~/shared/styles/styles.js";
 
 export function PostFauxInputCreateButton({
     withMobileLayout,
@@ -87,8 +92,8 @@ export function PostFauxInputCreateButton({
                     paddingX="2"
                     height="7"
                     minWidth="16"
-                    backgroundColor="theme-50-const"
-                    color="grey-0-const"
+                    backgroundColor={accentThemeBackgroundColor}
+                    color={accentThemeForegroundColor}
                     borderRadius="1"
                     display="flex"
                     justifyContent="center"

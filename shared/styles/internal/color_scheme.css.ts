@@ -224,6 +224,8 @@ globalStyle(darkColorSchemeSelector, {
     }),
 });
 
+export type ColorSchemeVar = keyof typeof colorSchemeVars;
+
 export const colorSchemeVars = {
     // Spread `colors` first. `baseColorSchemeVars` will override most of our
     // colors but any non-shade colors (e.g. `grey-70-elevated-1`) will be included
@@ -237,6 +239,36 @@ export const colorSchemeVars = {
     ...specialGreyColorVars,
     ...translucentColorSchemeVars,
 };
+
+/**
+ * Theme color to be used for accent elements which are typically white text
+ * with the accent color as the background. These elements are relatively rare
+ * and used to draw the user's eye.
+ *
+ * Generally, we want all uses of our theme color to have an accessible color
+ * contrast but we also want to be true to the typical brand usage for a given
+ * accent color. If the user cares about accessibility and has inaccessible
+ * brand colors (e.g. white text on red buttons is famously inaccessible) then
+ * they should pick a different accessible theme color for their organization.
+ * We could also offer a high contrast mode for users that absolutely need
+ * accessible color combinations.
+ *
+ * Known inaccessible color combinations for white text on:
+ *
+ * - `red-50` (light mode accent) has an inaccessible contrast of 3.58
+ * - `orange-50` (light mode accent) has an inaccessible contrast of 2.91
+ * - `orange-60` (dark mode accent) has an inaccessible contrast of 4.26
+ * - `green-50` (light mode accent) has an inaccessible contrast of 2.91
+ * - `cyan-50` (light mode accent) has an inaccessible contrast of 2.68
+ * - `cyan-60` (dark mode accent) has an inaccessible contrast of 3.93
+ * - `pink-50` (light mode accent) has an inaccessible contrast of 3.13
+ */
+export const accentThemeBackgroundColor: {light: ColorSchemeVar; dark: ColorSchemeVar} = {
+    light: "theme-50-const",
+    dark: "theme-60-const",
+};
+
+export const accentThemeForegroundColor: ColorSchemeVar = "grey-0-const";
 
 /**
  * When you put this class on an element then all children will use "elevated"

@@ -20,8 +20,11 @@ import {borderRadius} from "~/shared/styles/internal/border_radius.css.js";
 import {buttonPressedOverlayOpacity} from "~/shared/styles/internal/button.css.js";
 import {
     CssVarFunction,
+    accentThemeBackgroundColor,
+    accentThemeForegroundColor,
     colorSchemeVars,
     darkColorSchemeSelector,
+    lightColorSchemeSelector,
 } from "~/shared/styles/internal/color_scheme.css.js";
 import {
     backgroundFontSizePercentage,
@@ -40,13 +43,13 @@ import {
 } from "~/shared/styles/internal/helpers/raw_color.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
 import {
-    mobilePlatformSelector,
-    desktopPlatformSelector,
-} from "~/shared/styles/internal/platform.css.js";
-import {
     desktopNavigationBarHeight,
     mobileNavigationBarHeight,
 } from "~/shared/styles/internal/navigation_bar.css.js";
+import {
+    desktopPlatformSelector,
+    mobilePlatformSelector,
+} from "~/shared/styles/internal/platform.css.js";
 import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
 
 // TODO(calebmer): Running list of style tweaks to explore.
@@ -525,9 +528,14 @@ export const checkListItemCheckboxClassName = style({
     borderWidth: 1,
     borderColor: colorSchemeVars["grey-40"],
     selectors: {
-        [`${checkListItemCheckedClassName} &`]: {
-            backgroundColor: colorSchemeVars["theme-50-const"],
-            color: colorSchemeVars["grey-0-const"],
+        [`${lightColorSchemeSelector} ${checkListItemCheckedClassName} &`]: {
+            backgroundColor: colorSchemeVars[accentThemeBackgroundColor.light],
+            color: colorSchemeVars[accentThemeForegroundColor],
+            borderWidth: 0,
+        },
+        [`${darkColorSchemeSelector} ${checkListItemCheckedClassName} &`]: {
+            backgroundColor: colorSchemeVars[accentThemeBackgroundColor.dark],
+            color: colorSchemeVars[accentThemeForegroundColor],
             borderWidth: 0,
         },
         [`${mobilePlatformSelector} &`]: {
@@ -540,8 +548,11 @@ export const checkListItemCheckboxClassName = style({
 export const checkListItemCheckboxPressedClassName = style({
     backgroundColor: colorSchemeVars["grey-10"],
     selectors: {
-        [`${checkListItemCheckedClassName} &`]: {
-            backgroundColor: colorSchemeVars["theme-50-const"],
+        [`${lightColorSchemeSelector} ${checkListItemCheckedClassName} &`]: {
+            backgroundColor: colorSchemeVars[accentThemeBackgroundColor.light],
+        },
+        [`${darkColorSchemeSelector} ${checkListItemCheckedClassName} &`]: {
+            backgroundColor: colorSchemeVars[accentThemeBackgroundColor.dark],
         },
         [`${checkListItemCheckedClassName} &::before`]: {
             content: '""',
@@ -1250,9 +1261,6 @@ export const linkClassName = style({
     // randomly generated in the string.
     fontFeatureSettings: '"calt" off',
     selectors: {
-        [`${darkColorSchemeSelector} &`]: {
-            color: colorSchemeVars["theme-70"],
-        },
         // Inert links use a `<span>` element.
         "a&": {
             // Links use a pointer cursor. See:

@@ -33,6 +33,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
+    accentThemeBackgroundColor,
+    accentThemeForegroundColor,
     buttonStyles,
     colorSchemeVars,
     spinAnimationClassName,
@@ -340,8 +342,8 @@ function IconButton(
     const stylesByVariant: {[K in IconButtonVariant]: Sprinkles} = {
         accent: !isDisabled
             ? {
-                  backgroundColor: "theme-50-const",
-                  color: "grey-0-const",
+                  backgroundColor: accentThemeBackgroundColor,
+                  color: accentThemeForegroundColor,
               }
             : {
                   backgroundColor: "grey-5",

@@ -2,7 +2,12 @@ import {Check} from "phosphor-react";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {buttonStyles, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {
+    accentThemeBackgroundColor,
+    accentThemeForegroundColor,
+    buttonStyles,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -34,8 +39,13 @@ const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boo
             displayStatus === "OpenInactive" || displayStatus === "OpenActive"
                 ? "grey-40"
                 : undefined,
+        color: displayStatus === "Closed" ? accentThemeForegroundColor : undefined,
         backgroundColor:
-            displayStatus === "Closed" ? "theme-50-const" : isPressed ? "grey-10" : "grey-0",
+            displayStatus === "Closed"
+                ? accentThemeBackgroundColor
+                : isPressed
+                ? "grey-10"
+                : "grey-0",
     });
 
 const unpressedCircleClassNameByDisplayStatus = new DefaultMap((displayStatus: TaskDisplayStatus) =>
@@ -169,7 +179,6 @@ export function TaskDisplayStatusCircle({
                     weight="bold"
                     size={addRemLengths(spacing["2"], spacing["0.5"])}
                     style={{transform: `scale(${sizeInt / 4})`}}
-                    color={colorSchemeVars["grey-0-const"]}
                 />
             )}
             {displayStatus === "OpenActive" && (

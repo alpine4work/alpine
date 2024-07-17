@@ -32,6 +32,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
+    accentThemeBackgroundColor,
+    accentThemeForegroundColor,
     buttonStyles,
     colorSchemeVars,
     spinAnimationClassName,
@@ -466,8 +468,8 @@ function Button(
         },
         accent: !isDisabled
             ? {
-                  backgroundColor: "theme-50-const",
-                  color: "grey-0-const",
+                  backgroundColor: accentThemeBackgroundColor,
+                  color: accentThemeForegroundColor,
               }
             : {
                   backgroundColor: "grey-5",
@@ -477,8 +479,8 @@ function Button(
         // the button not clickable or focusable but does not visually change the
         // button. Useful for buttons we really want to accent.
         "accent-even-when-disabled": {
-            backgroundColor: "theme-50-const",
-            color: "grey-0-const",
+            backgroundColor: accentThemeBackgroundColor,
+            color: accentThemeForegroundColor,
         },
         outline: !isDisabled
             ? {
