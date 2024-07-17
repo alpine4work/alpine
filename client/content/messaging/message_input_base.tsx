@@ -932,6 +932,16 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             <ArrowUp
                                                 size={spacing["4"]}
                                                 weight={!isSendButtonDisabled ? "bold" : undefined}
+                                                style={{
+                                                    // Optically, this icon looks...off in our iOS native mobile app.
+                                                    // Presumably everywhere in Safari. If only we had a
+                                                    // `clientInfo.isWebKit` test.
+                                                    transform:
+                                                        clientInfo.isNativeMobile &&
+                                                        clientInfo.isAppleDevice
+                                                            ? "translateY(0.5px)"
+                                                            : undefined,
+                                                }}
                                             />
                                         )}
                                     </IconButton>
