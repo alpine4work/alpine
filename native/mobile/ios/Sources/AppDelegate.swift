@@ -177,4 +177,33 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             notificationRequest = newNotificationRequest
         }
     }
+
+    /// When a loud notification arrives while the app is foregrounded, we want to
+    /// fully process the notification. Change the app's badge, play the
+    /// notification's sound, and show the notification in notification center.
+    ///
+    /// Subtle notifications only update the badge and notification center. You can
+    /// find the notification later there at your own pace.
+    ///
+    /// By default if this is not provided:
+    ///
+    /// > If your delegate does not implement this method, the system behaves as if
+    /// > you had passed the `UNNotificationPresentationOptionNone` option to the
+    /// > `completionHandler` block.
+    ///
+    /// ([Source][1])
+    ///
+    /// [1]: https://developer.apple.com/documentation/usernotifications/unusernotificationcenterdelegate/usernotificationcenter(_:willpresent:withcompletionhandler:)
+    func userNotificationCenter(
+        _ notificationCenter: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) ->
+            Void
+    ) {
+        if notification.request.content.interruptionLevel == .passive {
+            completionHandler([.badge, .list])
+        } else {
+            completionHandler([.badge, .list, .banner, .sound])
+        }
+    }
 }

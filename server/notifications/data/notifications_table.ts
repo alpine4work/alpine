@@ -2015,17 +2015,26 @@ async function sendPushNotificationToAccountDevices(
                                 alert: alertContent ?? undefined,
                                 "thread-id": getApnsNotificationThreadId(newInboxEntryItem),
 
-                                // Update the badge. There are likely all kinds of race conditions with badge
-                                // updates. For example, let's say we're sending alert A and alert B. Alert A
-                                // updates notification count to 3. Alert B dismisses the notification changing
-                                // it to 2. If alert A runs on a server which needs to establish a new APNs
-                                // connection then alert B may be delivered to the device first! When alert A
-                                // is received the notification count will be 3 when in fact it's 2.
+                                // Update the badge.
+                                //
+                                // NOTE(calebmer, 2024-06-14): There are likely all kinds of race conditions
+                                // with badge updates. For example, let's say we're sending alert A and alert
+                                // B. Alert A updates notification count to 3. Alert B dismisses the
+                                // notification changing it to 2. If alert A runs on a server which needs to
+                                // establish a new APNs connection then alert B may be delivered to the device
+                                // first! When alert A is received the notification count will be 3 when in
+                                // fact it's 2.
                                 //
                                 // I can't find a way to set an ordering for APNs notifications. So we need to
                                 // find another way to fix this issue when it comes up. Maybe we schedule a
                                 // reconciliation job to send an alert 5 minutes from now? Maybe we update the
                                 // loud notification count when the app opens? I'm not sure.
+                                //
+                                // NOTE(calebmer, 2024-07-16): Another idea for a solution. Include a last
+                                // modified time on `InboxAttributes` items. If we see a modified time within
+                                // the last ten seconds or so schedule a job for three minutes from now to
+                                // update the notification count. That way we're guaranteed to set the correct
+                                // notification count after everything has settled down.
                                 badge: loudNotificationCount ?? undefined,
 
                                 // Only make a sound for loud notifications.
