@@ -14,7 +14,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -23,6 +23,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
+import {taskCommentsHeaderNavigationBarSpacing} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 
 type TaskCommentsViewInitialComments = {
@@ -123,18 +124,23 @@ export function TaskCommentsView({
 
     const header = useMemo(() => {
         if (!withMobileLayout) {
-            const space = "6";
             return {
-                minHeight: spacing[space],
-                node: <Spacer space={space} />,
+                minHeight: spacing[taskCommentsHeaderNavigationBarSpacing],
+                node: <Spacer space={taskCommentsHeaderNavigationBarSpacing} />,
             };
         } else {
             return {
-                minHeight: spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                minHeight: addRemLengths(
+                    spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
+                    spacing[taskCommentsHeaderNavigationBarSpacing],
+                ),
                 node: (
                     <>
                         <Box height="safe-area-inset-top" />
-                        <Box marginBottom="3" height={navigationBarHeight} />
+                        <Box
+                            marginBottom={taskCommentsHeaderNavigationBarSpacing}
+                            height={navigationBarHeight}
+                        />
                     </>
                 ),
             };

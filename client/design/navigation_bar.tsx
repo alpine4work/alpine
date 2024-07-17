@@ -469,6 +469,13 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * close the modal instead of calling `navigate(-1)`.
      */
     onMobileCancel?: () => void;
+
+    /**
+     * Provide a property to control when the navigation bar stayes
+     * opaque. In some cases we do not want the navigation bar to become
+     * transparent.
+     */
+    isAlwaysOpaque?: boolean;
 };
 
 export type NavigationBarResult = {
@@ -563,6 +570,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopMarginTop,
     withoutMobileBackButton = false,
     onMobileCancel,
+    isAlwaysOpaque = false,
 }: NavigationBarProps<TitleBoundaryElement>): NavigationBarResult {
     const isMobile = useIsMobile();
 
@@ -576,6 +584,14 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     const scrollViewRef = useLifecycleRef<HTMLElement>(
         useCallback(
             element => {
+                // We don't do anything to `isAlwaysOpaque` in this useCallback(), however
+                // we want the effect to re-run whenever it changes. The reason is because
+                // we need to re-initialize to make sure the background is properly updated
+                // and opaque, since we only listen for scroll events.
+                //
+                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                isAlwaysOpaque;
+
                 if (isDisabled) return;
 
                 const handleResize = () => {
@@ -647,7 +663,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                     cleanup?.();
                 };
             },
-            [isDisabled],
+            [isDisabled, isAlwaysOpaque],
         ),
     );
 
@@ -685,6 +701,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopMarginTopRem={desktopMarginTopRem}
             withoutMobileBackButton={withoutMobileBackButton}
             onMobileCancel={onMobileCancel}
+            isAlwaysOpaque={isAlwaysOpaque}
         />
     ) : null;
 
@@ -743,6 +760,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopMarginTopRem,
     withoutMobileBackButton,
     onMobileCancel,
+    isAlwaysOpaque,
 }: {
     isMobile: boolean;
     withMobileLayout: boolean;
@@ -777,6 +795,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopMarginTopRem: number;
     withoutMobileBackButton: boolean;
     onMobileCancel: (() => void) | undefined;
+    isAlwaysOpaque: boolean;
 }) {
     const {isAppleDevice, isNativeMobile} = useClientInfo();
 
@@ -930,7 +949,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 const navigationBarTopOffset = (lastNavigationBarTopOffsetRef.current =
                     scrollOffset);
 
-                const isNavigationBarOpaque = scrollOffset > navigationBarHeight;
+                const isNavigationBarOpaque = isAlwaysOpaque || scrollOffset > navigationBarHeight;
                 lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
 
                 const titleBoundaryOffset = getTitleBoundaryOffset(element);
@@ -1109,7 +1128,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const lastIsNavigationBarTitleVisible =
                         lastIsNavigationBarTitleVisibleRef.current;
 
-                    const isNavigationBarOpaque = scrollOffset > 0;
+                    const isNavigationBarOpaque = isAlwaysOpaque || scrollOffset > 0;
 
                     const titleBoundaryOffset = getTitleBoundaryOffset(element);
 
@@ -1220,10 +1239,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const lastIsNavigationBarTitleVisible =
                         lastIsNavigationBarTitleVisibleRef.current;
 
-                    const isNavigationBarOpaque = lastIsNavigationBarOpaque
+                    const isNavigationBarOpaqueIfNotAlwaysOpaque = lastIsNavigationBarOpaque
                         ? scrollOffset > 0
                         : scrollOffset >
                           navigationBarHeight + (!isMobile ? desktopMarginTopRem * remPx : 0);
+                    const isNavigationBarOpaque =
+                        isAlwaysOpaque || isNavigationBarOpaqueIfNotAlwaysOpaque;
 
                     const titleBoundaryOffset = getTitleBoundaryOffset(element);
 
@@ -1499,6 +1520,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         },
         [
             desktopMarginTopRem,
+            isAlwaysOpaque,
             isMobile,
             navigationBarHeightRem,
             titleBoundaryRef,

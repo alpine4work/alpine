@@ -125,6 +125,7 @@ export default function TaskCommentsRoute({
             },
         ],
         titleJustifyContent: !isMobile ? "flex-start" : "center",
+        isAlwaysOpaque: true,
     });
 
     useEffect(() => {
