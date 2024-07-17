@@ -3436,10 +3436,12 @@ private class WebNavigationEntryController: UIViewController {
 
         var snapshotView: UIView?
 
-        // If we have a `UIScreen` then take a snapshot of the whole screen instead of
-        // just the web view. That way our snapshot will include the iOS keyboard if
-        // the keyboard is open.
-        if let window = view.window {
+        // If we entered the background with the keyboard shown then take a snapshot of
+        // the whole screen instead of just the web view. That way our snapshot will
+        // include the iOS keyboard.
+        if webNavigationController.didSceneEnterBackgroundWithKeyboardShown,
+            let window = view.window
+        {
             snapshotView = window.screen.snapshotView(
                 // Snapshotting a view that is not in a visible window requires
                 // `afterScreenUpdates: true`. `false` the rest of the time because I
