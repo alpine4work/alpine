@@ -398,6 +398,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var willSceneDelegateRemove = false
     fileprivate var didSceneEnterBackground = false
+    fileprivate var didSceneEnterBackgroundWithKeyboardShown = false
     private var lastSceneDidActivateNotificationTime: DispatchTime?
 
     private var theme10Color = UIColor(named: "indigo-10")!
@@ -411,7 +412,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var theme90Color = UIColor(named: "indigo-90")!
 
     private var isHideTabBarChangeAnimated: Bool?
-    private var hideTabBarCount = 0 {
+    fileprivate var hideTabBarCount = 0 {
         didSet {
             let oldIsTabBarHidden = oldValue > 0
             let newIsTabBarHidden = hideTabBarCount > 0
@@ -873,8 +874,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // reference would actually cause issues.
         return UIColor { [weak self] (traits) in
             traits.userInterfaceStyle == .dark
-                ? self?.theme70Color ?? UIColor(named: "theme-70")!
-                : self?.theme50Color ?? UIColor(named: "theme-50")!
+                ? self?.theme60Color ?? UIColor(named: "theme-60")!
+                : self?.theme70Color ?? UIColor(named: "theme-70")!
         }
     }
 
@@ -911,10 +912,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // is what's keeping our process alive. XPC standing for cross-process
                 // communication.
                 //
+                // We don't use the `window.__nativeMobileKeepAliveCount` variable we're
+                // updating. The theory is that doing something will make sure the garbage
+                // collector / optimizer doesn't consider this timeout as dead code.
+                //
                 // [1]: https://openradar.appspot.com/7739943
                 // [2]: https://stackoverflow.com/a/40739474/1568890
                 // [3]: https://github.com/WebKit/WebKit/blob/5d6df46811480fb26abf29a0e34dc90ef720927e/Source/WebKit/UIProcess/Cocoa/AuxiliaryProcessProxyCocoa.mm#L70-L73
-                this.webView.evaluateJavaScript("1 + 1")
+                this.webView.evaluateJavaScript(
+                    "setTimeout(() => { window.__nativeMobileKeepAliveCount = (window.__nativeMobileKeepAliveCount || 0) + 1 }, 1000)"
+                )
             }
 
             if let lastPingTime = this.webViewHealthState.lastPingTime {
@@ -1120,7 +1127,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
 
         logger.error(
-            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription)\") to: \(url.absoluteString, privacy: .public)"
+            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
         )
 
         if webViewHealthState.provisionalNavigation === navigation {
@@ -1132,7 +1139,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let url = webView.url ?? (topViewController as! WebNavigationEntryController).url
 
         logger.error(
-            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription)\") to: \(url.absoluteString, privacy: .public)"
+            "Failed navigation with code \(String((error as NSError).code), privacy: .public) (\"\(error.localizedDescription, privacy: .public)\") to: \(url.absoluteString, privacy: .public)"
         )
 
         if webViewHealthState.provisionalNavigation === navigation {
@@ -2203,7 +2210,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         } else {
             webDelegate?.webNavigationController?(self, didScrollWebScrollView: scrollView)
         }
-
     }
 
     @objc private func keyboardWillShow(notification: NSNotification) {
@@ -2267,10 +2273,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardDidShow(notification: NSNotification) {
+        logger.info("Keyboard was shown")
+
         keyboardAnimationState = nil
 
         if isAfterKeyboardAnimationCallbackScheduled {
             isAfterKeyboardAnimationCallbackScheduled = false
+
             webView.evaluateJavaScript(
                 "window.__NativeMobileBridge.keyboard._callScheduledAfterAnimationCallbacks()"
             )
@@ -2310,7 +2319,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let args = [
             "\(lastKeyboardOffsetWithoutToolbar)", "\(keyboardOffsetWithoutToolbar)",
             "\(shouldDisableScrollFromKeyboardFrameChange == 0)",
-            "\(UIView.inheritedAnimationDuration > 0)",
+            // Don't animate the keyboard frame change if the app is backgrounded.
+            "\(UIView.inheritedAnimationDuration > 0 && !didSceneEnterBackground)",
         ]
         .joined(separator: ", ")
 
@@ -2343,7 +2353,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         keyboardWillHideAnimationTimer = timer
     }
 
-    @objc private func keyboardDidHide(notification: NSNotification) { actuallyKeyboardDidHide() }
+    @objc private func keyboardDidHide(notification: NSNotification) {
+        logger.info("Keyboard was hidden")
+
+        actuallyKeyboardDidHide()
+    }
 
     private func actuallyKeyboardDidHide() {
         if keyboardWillHideCallCount == 0 { return }
@@ -2439,6 +2453,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // web view when the app is foregrounded again. Once the reload is done the web
         // view will be moved back into the top view controller.
         if !webViewHealthState.isHealthy {
+            didSceneEnterBackground = false
+
             // If `SceneDelegate` is about to set a new root view controller and our web
             // view has been terminated then don't reload, keep the snapshot view. Instead
             // a new root view controller instance will become visible arrive and this view
@@ -2466,10 +2482,30 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         didSceneEnterBackground = true
 
+        // If the keyboard is open when we enter the background we need to hide the tab
+        // bar so it's not rendered on top of our web view snapshot that includes the
+        // keyboard! Rendering our tab bar on top of the keyboard looks weird.
+        didSceneEnterBackgroundWithKeyboardShown = keyboardOffset > 0
+        if didSceneEnterBackgroundWithKeyboardShown { hideTabBarCount += 1 }
+
         // When the application is backgrounded, make sure to render a snapshot view.
         // So when the application opens back up we don't have a white screen due to
         // the web view having been terminated.
+        //
+        // We must take a snapshot in this function, so take a snapshot while the
+        // keyboard is still up (if it's up).
         (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
+
+        // Make absolutely sure we close the keyboard when entering the background.
+        webView.resignFirstResponder()
+
+        // If there's a focused element, blur it when the app is backgrounded. When the
+        // app reopens the user will need to pick a new element to focus.
+        //
+        // We've observed that `keyboardWillHide` and `keyboardDidHide` are called
+        // before the blur returns. We want to wait until the keyboard has finished
+        // animating closed before we take our snapshot.
+        webView.evaluateJavaScript("if (document.activeElement) document.activeElement.blur()")
     }
 
     private func getSafeAreaInsets(withoutPreserving: Bool = false) -> UIEdgeInsets {
@@ -2544,7 +2580,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private func updateWebViewSafeAreaInsets(
         alsoCallFrameChangeListeners: (Double, Double, Bool, Bool)? = nil,
-        alsoCallScheduledAfterKeyboardAnimationCallbacks: Bool = false
+        alsoCallScheduledAfterKeyboardAnimationCallbacks: Bool = false,
+        completionHandler: (() -> Void)? = nil
     ) {
         let safeAreaInsets = getSafeAreaInsets()
 
@@ -2591,7 +2628,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             \(alsoCallFromChangeListenersSource)\(alsoCallScheduledAfterKeyboardAnimationCallbacksSource)}
             """
 
-        webView.evaluateJavaScript(source)
+        let actualCompletionHandler: ((Any?, (any Error)?) -> Void)? =
+            if let completionHandler = completionHandler { { (_, _) in completionHandler() } } else
+            { nil }
+
+        webView.evaluateJavaScript(source, completionHandler: actualCompletionHandler)
     }
 
     private func setAllWebScrollViewScrollIndicatorInsets() {
@@ -3384,13 +3425,31 @@ private class WebNavigationEntryController: UIViewController {
             return
         }
 
-        let snapshotView = webView.snapshotView(
-            // Snapshotting a view that is not in a visible window requires
-            // `afterScreenUpdates: true`. `false` the rest of the time because I
-            // assume `true` is potentially expensive? It may force the screen to
-            // paint.
-            afterScreenUpdates: !(webView.window?.isHidden ?? true)
-        )
+        var snapshotView: UIView?
+
+        // If we have a `UIScreen` then take a snapshot of the whole screen instead of
+        // just the web view. That way our snapshot will include the iOS keyboard if
+        // the keyboard is open.
+        if let screen = view.window?.screen {
+            snapshotView = screen.snapshotView(afterScreenUpdates: false)
+
+            // We're taking a snapshot of the screen but make sure we crop to our web
+            // view's bounds.
+            if let snapshotView = snapshotView {
+                snapshotView.bounds = screen.coordinateSpace.convert(
+                    webView.bounds,
+                    from: webView.coordinateSpace
+                )
+            }
+        } else {
+            snapshotView = webView.snapshotView(
+                // Snapshotting a view that is not in a visible window requires
+                // `afterScreenUpdates: true`. `false` the rest of the time because I
+                // assume `true` is potentially expensive? It may force the screen to
+                // paint.
+                afterScreenUpdates: !(webView.window?.isHidden ?? true)
+            )
+        }
 
         if presentedViewController is WebLoadingIndicatorController { dismiss(animated: false) }
         for subview in view.subviews {
@@ -3430,6 +3489,11 @@ private class WebNavigationEntryController: UIViewController {
         if hasWebView {
             resetLoadingIndicatorTimer()
             return
+        }
+
+        if webNavigationController.didSceneEnterBackgroundWithKeyboardShown {
+            webNavigationController.didSceneEnterBackgroundWithKeyboardShown = false
+            webNavigationController.hideTabBarCount -= 1
         }
 
         // The web view is hidden when initialized, make sure it's visible.
@@ -3633,29 +3697,27 @@ private class WebNavigationEntryController: UIViewController {
             return
         }
 
-        // NOCOMMIT
+        // If there's a modal view controller (that's not ourselves), don't show
+        // loading indicator. It's like our view is hidden.
+        //
+        // A modal may have opened while waiting for the timer. We don't call
+        // `resetLoadingIndicatorTimer()` if the modal view controller changes.
+        if let modalPresentedViewController = webNavigationController.modalPresentedViewController,
+            modalPresentedViewController != self
+        {
+            return
+        }
 
-        // // If there's a modal view controller (that's not ourselves), don't show
-        // // loading indicator. It's like our view is hidden.
-        // //
-        // // A modal may have opened while waiting for the timer. We don't call
-        // // `resetLoadingIndicatorTimer()` if the modal view controller changes.
-        // if let modalPresentedViewController = webNavigationController.modalPresentedViewController,
-        //     modalPresentedViewController != self
-        // {
-        //     return
-        // }
+        // If we're already presenting, noop. This should be an idempotent function.
+        if presentedViewController is WebLoadingIndicatorController { return }
 
-        // // If we're already presenting, noop. This should be an idempotent function.
-        // if presentedViewController is WebLoadingIndicatorController { return }
+        let loadingIndicator = WebLoadingIndicatorController()
 
-        // let loadingIndicator = WebLoadingIndicatorController()
+        // Only blur if there's stuff in our view. On initial load there will be
+        // no stuff.
+        loadingIndicator.withBlur = view.subviews.count > 0
 
-        // // Only blur if there's stuff in our view. On initial load there will be
-        // // no stuff.
-        // loadingIndicator.withBlur = view.subviews.count > 0
-
-        // present(loadingIndicator, animated: false)
+        present(loadingIndicator, animated: false)
     }
 
     private func presentUnhealthyAlert(navigationError: (any Error)? = nil) {
