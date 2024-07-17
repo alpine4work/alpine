@@ -84,7 +84,7 @@ export function ContentEditorCodeBlockLanguagePickerComboBox({
                     boxShadow="elevation-20"
                     display="flex"
                     flexDirection="column"
-                    style={{maxHeight: withMobileLayout ? spacing["32"] : spacing["96"]}}
+                    style={{maxHeight: isMobile ? spacing["32"] : spacing["96"]}}
                 >
                     <ContentEditorCodeBlockLanguagePickerComboBoxOverlay
                         selectedLanguageId={selectedLanguageId}
