@@ -12,6 +12,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     private let switchSpace: (String, Session) -> Void
 
     private var inboxNotificationBadgeView: UIView?
+    private var inboxLoudNotificationCount = 0
     private var isInboxSubtleNotificationBadgeView = false
 
     private weak var mainScrollView: UIScrollView?
@@ -828,12 +829,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     private func clearInboxNotificationBadge() {
         inboxNotificationBadgeView?.removeFromSuperview()
         inboxNotificationBadgeView = nil
+        inboxLoudNotificationCount = 0
         isInboxSubtleNotificationBadgeView = false
     }
 
     private func setInboxLoudNotificationBadge(_ loudNotificationCount: Int) {
         inboxNotificationBadgeView?.removeFromSuperview()
         inboxNotificationBadgeView = nil
+        inboxLoudNotificationCount = loudNotificationCount
         isInboxSubtleNotificationBadgeView = false
 
         let inboxTabIndex =
@@ -886,6 +889,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     private func setInboxSubtleNotificationBadge() {
         inboxNotificationBadgeView?.removeFromSuperview()
         inboxNotificationBadgeView = nil
+        inboxLoudNotificationCount = 0
         isInboxSubtleNotificationBadgeView = false
 
         let inboxTabIndex =
@@ -920,6 +924,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         inboxNotificationBadgeView = badgeView
         isInboxSubtleNotificationBadgeView = true
+    }
+
+    func copyInboxNotificationBadge(from otherTabBarController: RootTabBarController) {
+        if otherTabBarController.isInboxSubtleNotificationBadgeView {
+            setInboxSubtleNotificationBadge()
+        } else if otherTabBarController.inboxLoudNotificationCount > 0 {
+            setInboxLoudNotificationBadge(otherTabBarController.inboxLoudNotificationCount)
+        }
     }
 }
 

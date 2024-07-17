@@ -246,6 +246,16 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
         let oldRootViewController = self.state!.rootViewController
 
+        // If we're switching to another root tab bar controller in the same space then
+        // copy over the inbox notification badge so it doesn't flash out while we wait
+        // for JavaScript to execute.
+        if let oldRootViewController = oldRootViewController as? RootTabBarController,
+            let newRootViewController = newRootViewController as? RootTabBarController,
+            oldRootViewController.spaceId == newRootViewController.spaceId
+        {
+            newRootViewController.copyInboxNotificationBadge(from: oldRootViewController)
+        }
+
         // Notify our root view controller that `SceneDelegate` is about to remove it.
         // If this is called after our web process has terminated, we shouldn't reload!
         oldRootViewController.sceneDelegateWillRemove(self)
