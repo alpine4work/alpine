@@ -16,12 +16,11 @@ export const taskDetailViewFieldLabelFontSize = "75";
 export const taskDetailViewCommentSidebarWidth = "96";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
 export const taskDetailViewSubtasksFieldLabelPaddingBottom = "2";
-export const taskCommentsHeaderNavigationBarSpacing = "6";
+export const taskCommentsHeaderNavigationBarSpacing = "10";
 export const desktopTaskDetailViewStatusButtonSize = "6";
 export const mobileTaskDetailViewStatusButtonSize = "7";
 export const mobileTaskDetailViewStatusButtonPaddingTop = "3";
 export const mobileTaskCommentsNavigationBarPaddingBottom = "3";
-export const desktopTaskCommentsNavigationBarHeaderSpacerHeight = "6";
 export const mobileTaskDetailViewStatusButtonPaddingBottom = "2";
 export const desktopTaskDetailViewNavigationBarSpacerMarginBottom = "-1";
 

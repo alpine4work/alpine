@@ -69,7 +69,6 @@ import {
     tasksStyles,
 } from "~/shared/styles/styles.js";
 import {
-    desktopTaskCommentsNavigationBarHeaderSpacerHeight,
     desktopTaskDetailViewNavigationBarSpacerMarginBottom,
     desktopTaskDetailViewStatusButtonSize,
     desktopTaskNotepadViewActiveSectionMarginBottom,
@@ -79,6 +78,7 @@ import {
     mobileTaskDetailViewStatusButtonSize,
     mobileTaskNotepadViewActiveSectionMarginBottom,
     taskCardViewMaxWidth,
+    taskCommentsHeaderNavigationBarSpacing,
     taskDetailNotesFieldLabelPaddingBottom,
     taskDetailViewCommentSidebarWidth,
     taskDetailViewDenseFieldGap,
@@ -1367,9 +1367,7 @@ export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: b
                     </Box>
                 </Box>
             )}
-            {!withMobileLayout && (
-                <Spacer space={desktopTaskCommentsNavigationBarHeaderSpacerHeight} />
-            )}
+            {!withMobileLayout && <Spacer space={taskCommentsHeaderNavigationBarSpacing} />}
             <MessagingViewShimmer
                 withTopAlignedMessages={true}
                 messages="few"
