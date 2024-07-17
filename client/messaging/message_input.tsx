@@ -1,4 +1,4 @@
-import {setInteractionModality} from "@react-aria/interactions";
+import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import {
     Memo,
     MutableRefObject,
@@ -16,6 +16,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {trimContentWithReferencesEnd} from "~/client/content/trim_content_end.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useInboxContext} from "~/client/inbox/inbox_context.js";
@@ -194,6 +195,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         }
     }, [messageEditingForThisInput, restoreStateRef]);
 
+    const maintainedInteractionModalityRef = useRef<Modality | null>(null);
+
     const sendNewMessage = () => {
         if (isMessageCreationDisabled) return;
         if (messageEditingForThisInput) return;
@@ -220,6 +223,9 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         const wasInputFocused = assertExists(inputRef.current).isFocused();
 
         flushSync(() => {
+            if (maintainedInteractionModalityRef.current !== null)
+                setInteractionModality(maintainedInteractionModalityRef.current);
+
             onUpdateMessages(messages => messages.addOptimisticMessage(optimisticMessage));
             resetNewMessageState();
             onClearReplyingToMessage();
@@ -346,8 +352,31 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
                     onFocus?.();
                 }}
-                onBlur={() => {
+                onFocusCapture={() => {
+                    // Maintain interaction modality between remounts of the message input
+                    // component. When we send a message we update `newMessageKey` which remounts
+                    // this component. If when the input was first focused we had an
+                    // `interactionModality` of `pointer` but when we remount we have an
+                    // `interactionModality` of `keyboard` (most likely because the user hit `@` to
+                    // mention then hit arrow up/down) we want to use our initial
+                    // `interactionModality` of `pointer` so we don't render a focus ring around
+                    // the message input.
+                    if (maintainedInteractionModalityRef.current === null) {
+                        maintainedInteractionModalityRef.current = getInteractionModality();
+                    }
+                }}
+                onBlur={event => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = false;
+
+                    // Don't clear our maintained interaction modality until focus completely leaves
+                    // the `<MessageInput>` along with any of its children.
+                    if (
+                        !(event.relatedTarget instanceof Element) ||
+                        !isElementOwnedBy(event.currentTarget, event.relatedTarget)
+                    ) {
+                        maintainedInteractionModalityRef.current = null;
+                    }
+
                     onBlur?.();
                 }}
                 onBeforeFocusFromReplyOrEditingChange={onBeforeFocusFromReplyOrEditingChange}

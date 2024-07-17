@@ -3,6 +3,7 @@ import {animate} from "motion";
 import {ArrowArcLeft, ArrowRight, ArrowUp, PencilSimple, X} from "phosphor-react";
 import {EditorView} from "prosemirror-view";
 import {
+    FocusEvent,
     Key,
     ReactElement,
     Ref,
@@ -122,8 +123,9 @@ export type MessageInputBaseProps<RoomKey extends string, Message extends Messag
     "data-testid"?: string;
     paddingX?: Spacing | {desktop: Spacing; mobile: Spacing};
     withMobileMaxHeight?: boolean;
-    onFocus?: () => void;
-    onBlur?: () => void;
+    onFocus?: (event: FocusEvent) => void;
+    onFocusCapture?: (event: FocusEvent) => void;
+    onBlur?: (event: FocusEvent) => void;
     onBeforeFocusFromReplyOrEditingChange?: () => {preventDefault: boolean} | void;
     onArrowUp?: (event: KeyboardEvent) => void;
 };
@@ -169,6 +171,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         paddingX = screenPaddingX,
         withMobileMaxHeight,
         onFocus,
+        onFocusCapture,
         onBlur,
         onBeforeFocusFromReplyOrEditingChange: onBeforeFocusFromReplyOrEditingChangeProp,
         onArrowUp,
@@ -406,9 +409,9 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
 
     const lastNativeMobileWebKitRefocusTimeRef = useRef<number | null>(null);
 
-    const handleFocus = () => {
+    const handleFocus = (event: FocusEvent) => {
         setIsFocused(true);
-        onFocus?.();
+        onFocus?.(event);
 
         // HACK(calebmer, #mobile-webkit-weirdness): Absolute hack. We animate up
         // message inputs in our native mobile wrapper so the animation is synced
@@ -445,10 +448,10 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         }
     };
 
-    const handleBlur = () => {
+    const handleBlur = (event: FocusEvent) => {
         setIsFocused(false);
         hideTypingIndicator();
-        onBlur?.();
+        onBlur?.(event);
     };
 
     useRegisterBottomBarFrame(inputContentRef, {
@@ -873,6 +876,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                                 if (transaction.docChanged) showTypingIndicator();
                                             }}
                                             onFocus={handleFocus}
+                                            onFocusCapture={onFocusCapture}
                                             onBlur={handleBlur}
                                             aria-label={
                                                 isEditingMessage

@@ -349,6 +349,11 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onFocus?: (event: FocusEvent<HTMLDivElement>) => void;
 
     /**
+     * Event fired when the user focuses the content editor.
+     */
+    onFocusCapture?: (event: FocusEvent<HTMLDivElement>) => void;
+
+    /**
      * Event fired when the user unfocuses the content editor.
      */
     onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
@@ -570,6 +575,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         onFocus,
+        onFocusCapture,
         onBlur,
         phantomSelections,
     } = props;
@@ -1962,7 +1968,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 customContainerClassName,
             )}
             onFocus={onFocus}
-            onFocusCapture={() => {
+            onFocusCapture={event => {
                 // When the user hits cmd-k to open a link input in `<MessageView>`, types a
                 // link, then hits enter, we should not render a `<FocusRing>` if the
                 // `<ContentEditor>` didn't previously have a `<FocusRing>`. To do this we reset
@@ -1978,6 +1984,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 } else {
                     maintainedInteractionModalityRef.current = getInteractionModality();
                 }
+
+                onFocusCapture?.(event);
             }}
             onBlur={event => {
                 if (
