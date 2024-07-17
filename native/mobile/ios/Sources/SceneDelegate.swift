@@ -7,10 +7,6 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: 
 
 protocol SceneDelegateRootController: UIViewController {
     var webNavigationController: WebNavigationController { get }
-
-    func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets)
-    func sceneDelegateWillRemove(_ sceneDelegate: SceneDelegate)
-    func sceneDelegateDidAdd(_ sceneDelegate: SceneDelegate)
 }
 
 class SceneDelegate: NSObject, UIWindowSceneDelegate {
@@ -111,7 +107,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         window.rootViewController = rootWrapperViewController
         window.makeKeyAndVisible()
 
-        rootViewController.setWindowSafeAreaInsets(window.safeAreaInsets)
+        rootViewController.webNavigationController.setWindowSafeAreaInsets(window.safeAreaInsets)
 
         rootWrapperViewController.addChild(rootViewController)
         rootWrapperViewController.view.addSubview(rootViewController.view)
@@ -178,7 +174,9 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     ) {
         guard let state = state else { return }
 
-        state.rootViewController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
+        state.rootViewController.webNavigationController.setWindowSafeAreaInsets(
+            state.window.safeAreaInsets
+        )
     }
 
     private func signIn(_ scene: UIScene, token: String, spaceId: String) {
@@ -242,9 +240,17 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     ) {
         guard let state = self.state else { return }
 
-        newRootViewController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
-
         let oldRootViewController = self.state!.rootViewController
+
+        // HACK(calebmer, 2024-07-17): Copy safe area insets from our old root view
+        // controller instead of checking `state.window.safeAreaInsets`. Sometimes in
+        // production when changing the root view controller (e.g. because of a push
+        // notification) we're observing the new root view controller recieves zero
+        // safe insets. Hoping this will fix the issue but I don't know for sure since
+        // I can't reproduce this bug in development.
+        newRootViewController.webNavigationController.setWindowSafeAreaInsets(
+            oldRootViewController.webNavigationController.windowSafeAreaInsets
+        )
 
         // If we're switching to another root tab bar controller in the same space then
         // copy over the inbox notification badge so it doesn't flash out while we wait
@@ -258,7 +264,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
         // Notify our root view controller that `SceneDelegate` is about to remove it.
         // If this is called after our web process has terminated, we shouldn't reload!
-        oldRootViewController.sceneDelegateWillRemove(self)
+        oldRootViewController.webNavigationController.sceneDelegateWillRemove(self)
 
         // Temporarily we'll have both the new root view controller and the old root
         // view controller in `rootWrapperViewController`. In order for `WKWebView` to
@@ -285,7 +291,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 oldRootViewController.removeFromParent()
                 newRootViewController.view.isHidden = false
 
-                newRootViewController.sceneDelegateDidAdd(this)
+                newRootViewController.webNavigationController.sceneDelegateDidAdd(this)
             } else {
                 UIView.transition(
                     with: state.window,
@@ -298,7 +304,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
                         oldRootViewController.removeFromParent()
                         newRootViewController.view.isHidden = false
 
-                        newRootViewController.sceneDelegateDidAdd(this)
+                        newRootViewController.webNavigationController.sceneDelegateDidAdd(this)
                     },
                     completion: { (_) in
                         let oldRootViewControllerRetainCount =

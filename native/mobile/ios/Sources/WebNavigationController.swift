@@ -180,7 +180,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private weak var webInputAccessoryObserverView: WebInputAccessoryObserverView?
     private var webViewTreeObserver: UIViewTreeObserver?
     private var hasInitialWebViewNavigationCommit = false
-    private var windowSafeAreaInsets: UIEdgeInsets = .zero
+    private(set) var windowSafeAreaInsets: UIEdgeInsets = .zero
     private var webMaskedViews = [UIView: CALayerMasker]()
 
     private var webViewHealthState = WebViewHealthState(
@@ -2550,6 +2550,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
+        // HACK(calebmer, 2024-07-17): There's this bug I've been seeing where if you
+        // open a notification sometimes it loads the page with no safe area insets. I
+        // don't know why this is happening and can't reproduce the issue in a
+        // development build. So taking a shot in the dark that when backgrounding the
+        // app safe area insets are at some point being set to zero?
+        if windowSafeAreaInsets == .zero && self.windowSafeAreaInsets != .zero {
+            logger.warning(
+                "Ignoring the `UIEdgeInsets.zero` we just recieved when we previously had non-`UIEdgeInsets.zero`"
+            )
+            return
+        }
+
         // Noop if safe area insets didn't actually change.
         if self.windowSafeAreaInsets == windowSafeAreaInsets { return }
 
