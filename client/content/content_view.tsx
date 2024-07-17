@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {ContentCodeBlockIncrementalParser} from "~/client/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
@@ -782,23 +783,31 @@ export function ContentView({
     useEffect(() => {
         const element = assertExists(ref.current);
 
-        const handleFocusChange = () => {
-            if (
-                document.activeElement instanceof HTMLAnchorElement &&
-                document.activeElement?.classList.contains(contentSchemaStyles.linkClassName)
-            ) {
-                setFocusedLinkElement(document.activeElement);
-            } else {
-                setFocusedLinkElement(null);
-            }
+        const handleFocusChange = (event: FocusEvent) => {
+            const focusedElement =
+                event.type === "focusout"
+                    ? (event.relatedTarget as Element | null)
+                    : document.activeElement;
+
+            // Focus rings need to be rendered immediately.
+            flushSync(() => {
+                if (
+                    focusedElement instanceof HTMLAnchorElement &&
+                    focusedElement?.classList.contains(contentSchemaStyles.linkClassName)
+                ) {
+                    setFocusedLinkElement(focusedElement);
+                } else {
+                    setFocusedLinkElement(null);
+                }
+            });
         };
 
         // `focusin` and `focusout` bubble whereas `focus` and `blur` don't.
-        element.addEventListener("focusin", handleFocusChange);
-        element.addEventListener("focusout", handleFocusChange);
+        element.addEventListener("focusin", handleFocusChange, true);
+        element.addEventListener("focusout", handleFocusChange, true);
         return () => {
-            element.removeEventListener("focusin", handleFocusChange);
-            element.removeEventListener("focusout", handleFocusChange);
+            element.removeEventListener("focusin", handleFocusChange, true);
+            element.removeEventListener("focusout", handleFocusChange, true);
         };
     }, []);
 

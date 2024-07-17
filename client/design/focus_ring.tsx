@@ -11,13 +11,13 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -230,7 +230,7 @@ export function useIsFocusRingVisible({
 } = {}): [isVisible: boolean, targetRef: RefCallback<HTMLElement>] {
     const [isActive, setIsActive] = useState(false);
 
-    const hasInitiallyMountedRef = useRef(false);
+    const hasInitiallyMountedForTargetElementRef = useRef<HTMLElement | null>(null);
 
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
@@ -239,6 +239,8 @@ export function useIsFocusRingVisible({
                 setIsActive(false);
                 return;
             }
+
+            let isWithinLifecycle = true;
 
             const isActive = (focusedElement: Element | null) => {
                 // If there is an element focused...
@@ -276,7 +278,7 @@ export function useIsFocusRingVisible({
             let isFocused =
                 // If we are initially mounting, don't consider the element to be focused so
                 // `update()` actually updates our state.
-                hasInitiallyMountedRef.current &&
+                hasInitiallyMountedForTargetElementRef.current === targetElement &&
                 (document.activeElement === targetElement ||
                     (isVisibleWhenFocusWithin &&
                         targetElement.contains(document.activeElement) &&
@@ -307,10 +309,7 @@ export function useIsFocusRingVisible({
                 if (isFocused !== nextIsFocused) {
                     isFocused = nextIsFocused;
 
-                    // Immediately re-render the focus ring. That way if we have any state changing
-                    // the visuals of an element in `onFocus` or `onBlur` we don't have a tear with
-                    // the focus ring in a weird state.
-                    runWithImmediatePriority(() => {
+                    const run = () => {
                         if (isActive(focusedElement)) {
                             currentActiveElement = targetElement;
                             setIsActive(true);
@@ -318,7 +317,16 @@ export function useIsFocusRingVisible({
                             if (currentActiveElement === targetElement) currentActiveElement = null;
                             setIsActive(false);
                         }
-                    });
+                    };
+
+                    // Immediately re-render the focus ring. That way if we have any state changing
+                    // the visuals of an element in `onFocus` or `onBlur` we don't have a tear with
+                    // the focus ring in a weird state.
+                    if (isWithinLifecycle) {
+                        run();
+                    } else {
+                        flushSync(run);
+                    }
                 }
             };
 
@@ -334,10 +342,12 @@ export function useIsFocusRingVisible({
             // hitting enter to select the account (focus returned to text input which
             // should not have ring, it stayed focused and maintained its inactive focus
             // ring state).
-            if (!hasInitiallyMountedRef.current) {
-                hasInitiallyMountedRef.current = true;
+            if (hasInitiallyMountedForTargetElementRef.current !== targetElement) {
+                hasInitiallyMountedForTargetElementRef.current = targetElement;
                 update();
             }
+
+            isWithinLifecycle = false;
 
             // Use `focusin`/`focusout` instead of `focus`/`blur` because the
             // former bubbles.
@@ -363,21 +373,31 @@ export function useIsChildFocusRingVisible(): [
 ] {
     const [isChildFocusRingVisible, setIsChildFocusRingVisible] = useState(false);
 
-    const hasInitiallyMountedRef = useRef(false);
+    const hasInitiallyMountedForElementRef = useRef<HTMLElement | null>(null);
 
     const targetLifecycleRef = useCallback((targetElement: HTMLElement) => {
+        let isWithinLifecycle = true;
+
         const update = () => {
             // Immediately re-render since focus rings are rendered immediately.
-            runWithImmediatePriority(() => {
+            const run = () => {
                 setIsChildFocusRingVisible(targetElement.contains(currentActiveElement));
-            });
+            };
+
+            if (isWithinLifecycle) {
+                run();
+            } else {
+                flushSync(run);
+            }
         };
 
         // Update our focus state on initial mount.
-        if (!hasInitiallyMountedRef.current) {
-            hasInitiallyMountedRef.current = true;
+        if (hasInitiallyMountedForElementRef.current !== targetElement) {
+            hasInitiallyMountedForElementRef.current = targetElement;
             update();
         }
+
+        isWithinLifecycle = false;
 
         // Use `focusin`/`focusout` instead of `focus`/`blur` because the
         // former bubbles.
