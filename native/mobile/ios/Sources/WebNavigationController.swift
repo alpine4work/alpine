@@ -3181,8 +3181,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         topViewController!.dismiss(animated: false)
     }
 
+    func canSwitchTab() -> Bool {
+        return webViewHealthState.isHealthy && !webViewHealthState.isLoading
+            && webViewHealthState.navigationError == nil
+    }
+
     /// Change the tab currently being displayed in our web navigation controller.
     func switchTab(_ tab: WebNavigationController.Tab) {
+        // If the web view is loading or unhealthy, don't switch tabs!
+        guard canSwitchTab() else { return }
+
         if currentTab == tab {
             // NOTE(calebmer): Annoyingly, if we call `popToRootViewController(animated: true)`
             // directly in `tabBarController(_:didSelect:)` we successfully pop but we
@@ -3625,27 +3633,29 @@ private class WebNavigationEntryController: UIViewController {
             return
         }
 
-        // If there's a modal view controller (that's not ourselves), don't show
-        // loading indicator. It's like our view is hidden.
-        //
-        // A modal may have opened while waiting for the timer. We don't call
-        // `resetLoadingIndicatorTimer()` if the modal view controller changes.
-        if let modalPresentedViewController = webNavigationController.modalPresentedViewController,
-            modalPresentedViewController != self
-        {
-            return
-        }
+        // NOCOMMIT
 
-        // If we're already presenting, noop. This should be an idempotent function.
-        if presentedViewController is WebLoadingIndicatorController { return }
+        // // If there's a modal view controller (that's not ourselves), don't show
+        // // loading indicator. It's like our view is hidden.
+        // //
+        // // A modal may have opened while waiting for the timer. We don't call
+        // // `resetLoadingIndicatorTimer()` if the modal view controller changes.
+        // if let modalPresentedViewController = webNavigationController.modalPresentedViewController,
+        //     modalPresentedViewController != self
+        // {
+        //     return
+        // }
 
-        let loadingIndicator = WebLoadingIndicatorController()
+        // // If we're already presenting, noop. This should be an idempotent function.
+        // if presentedViewController is WebLoadingIndicatorController { return }
 
-        // Only blur if there's stuff in our view. On initial load there will be
-        // no stuff.
-        loadingIndicator.withBlur = view.subviews.count > 0
+        // let loadingIndicator = WebLoadingIndicatorController()
 
-        present(loadingIndicator, animated: false)
+        // // Only blur if there's stuff in our view. On initial load there will be
+        // // no stuff.
+        // loadingIndicator.withBlur = view.subviews.count > 0
+
+        // present(loadingIndicator, animated: false)
     }
 
     private func presentUnhealthyAlert(navigationError: (any Error)? = nil) {

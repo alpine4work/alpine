@@ -209,6 +209,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     func tabBarController(
         _ tabBarController: UITabBarController,
+        shouldSelect viewController: UIViewController
+    ) -> Bool { return webNavigationController.canSwitchTab() }
+
+    func tabBarController(
+        _ tabBarController: UITabBarController,
         didSelect viewController: UIViewController
     ) {
         // If we have a subtle notification badge then reset it whenever the tab
