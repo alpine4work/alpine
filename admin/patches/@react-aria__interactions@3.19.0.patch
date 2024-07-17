@@ -1,5 +1,5 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 8304c96402b2f2b285445c005b5078b34993a100..52aec004868d758b48bde5e1060f829fd1fc9ab3 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..19d2a6d58bc7e3a56b288facad4ef72fa10da105 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
 @@ -349,6 +349,49 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
@@ -114,76 +114,45 @@ index 8304c96402b2f2b285445c005b5078b34993a100..52aec004868d758b48bde5e1060f829f
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -904,11 +986,66 @@ function $507fabe10e71c6fb$var$triggerChangeHandlers(modality, e) {
+@@ -904,11 +986,23 @@ function $507fabe10e71c6fb$var$triggerChangeHandlers(modality, e) {
      // Control and Shift keys trigger when navigating back to the tab with keyboard.
      return !(e.metaKey || !(0, $bx7SL$isMac)() && e.altKey || e.ctrlKey || e.key === "Control" || e.key === "Shift" || e.key === "Meta");
  }
 +
-+let keyDownStartTime = 0;
-+let keyEventTimes = [];
-+let keyEventTimeIndex = 0;
-+
-+let deviceSupportsTouch =
-+    (typeof window !== 'undefined' && 'ontouchstart' in window) ||
-+        (typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0));
-+
  function $507fabe10e71c6fb$var$handleKeyboardEvent(e) {
-     $507fabe10e71c6fb$var$hasEventBeforeFocus = true;
-     if ($507fabe10e71c6fb$var$isValidKey(e)) {
+-    $507fabe10e71c6fb$var$hasEventBeforeFocus = true;
+-    if ($507fabe10e71c6fb$var$isValidKey(e)) {
 -        $507fabe10e71c6fb$var$currentModality = "keyboard";
 -        $507fabe10e71c6fb$var$triggerChangeHandlers("keyboard", e);
-+        let modality = 'keyboard';
-+
-+        // NOTE(calebmer): If the user is typing on a virtual keyboard with a
-+        // touchscreen then we want the current modality to be pointer (since the
-+        // user is using their pointer, touch) to input keys.
-+        //
-+        // The best solution to this problem I've found is to look at the time
-+        // between `keydown` and `keyup` events. Virtual keyboards, [based on
-+        // experimentation][1], generally have less than a 25ms delay between events
-+        // whereas physical keyboards generally have above a 25ms delay between
-+        // events (though not all the time).
-+        //
-+        // [1]: https://lyosha.me/blog/2016/02/12/detecting-virtual-keyboards/
-+        if (deviceSupportsTouch) {
-+            if (e.type === 'keydown') {
-+                keyDownStartTime = Date.now();
-+            } else if (e.type === 'keyup') {
-+                let keyEventTime = Date.now() - keyDownStartTime;
-+                
-+                let index = keyEventTimeIndex++ % 100
-+                if (index === keyEventTimes.length) {
-+                    keyEventTimes.push(keyEventTime);
-+                } else {
-+                    keyEventTimes[index] = keyEventTime;
-+                }
-+            }
-+    
-+            // For keys are not typically present on virtual keyboards (like tab or
-+            // escape) we can safely say the modality is `keyboard`. Also, for the
-+            // purposes of "focus visible" detection, if tab key is pressed the user
-+            // is probably navigating via keyboard and wants to see focus rings.
-+            if (e.key !== 'Tab' && e.key !== 'Escape' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') {
-+                if (keyEventTimes.length === 0) {
-+                    // Since this is a device supporting touch, on the first keydown,
-+                    // assume pointer input modality. Once we get more key events we'll
-+                    // start returning proper values.
-+                    modality = 'pointer';
-+                } else {
-+                    let averageKeyEventTime = keyEventTimes.reduce((a, b) => a + b, 0) / keyEventTimes.length;
-+                    if (averageKeyEventTime <= 25) {
-+                        modality = 'pointer';
-+                    }
-+                }
-+            }
-+        }
-+
-+        $507fabe10e71c6fb$var$currentModality = modality;
-+        $507fabe10e71c6fb$var$triggerChangeHandlers(modality, e);
++    // NOTE(calebmer): Only switch us into keyboard modality with tab key presses
++    // where `event.preventDefault()` wasn't called by some other event handler.
++    // `@react-aria/interactions` was programmed to switch to a keyboard modality
++    // on any key press! We find that this sometimes leads to showing the
++    // `<FocusRing>` at undesirable moments. For example the `<FocusRing>` would
++    // appear unexpectedly on mobile devices. Instead, we choose to be very
++    // explicit in when we enter keyboard modality: When the user explicitly
++    // triggers a shortcut that moves keyboard focus.
++    //
++    // If you move focus with a different keyboard shortcut, it's expected you
++    // call `setInteractionModality("keyboard")` yourself.
++    if (e.key === 'Tab' && !e.defaultPrevented) {
++        $507fabe10e71c6fb$var$hasEventBeforeFocus = true;
++        $507fabe10e71c6fb$var$currentModality = 'keyboard';
++        $507fabe10e71c6fb$var$triggerChangeHandlers('keyboard', e);
      }
  }
  function $507fabe10e71c6fb$var$handlePointerEvent(e) {
-@@ -1348,25 +1485,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -957,8 +1051,7 @@ function $507fabe10e71c6fb$var$handleWindowBlur() {
+         $507fabe10e71c6fb$var$hasEventBeforeFocus = true;
+         focus.apply(this, arguments);
+     };
+-    document.addEventListener("keydown", $507fabe10e71c6fb$var$handleKeyboardEvent, true);
+-    document.addEventListener("keyup", $507fabe10e71c6fb$var$handleKeyboardEvent, true);
++    document.addEventListener("keydown", $507fabe10e71c6fb$var$handleKeyboardEvent, false);
+     document.addEventListener("click", $507fabe10e71c6fb$var$handleClickEvent, true);
+     // Register focus events on the window so they are sure to happen
+     // before React's event listeners (registered on the document).
+@@ -1348,25 +1441,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
   * governing permissions and limitations under the License.
   */ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
      if (!handler) return;
@@ -231,14 +200,14 @@ index 8304c96402b2f2b285445c005b5078b34993a100..52aec004868d758b48bde5e1060f829f
      };
  }
  
-@@ -1708,4 +1861,4 @@ function $8a26561d2877236e$export$c24ed0104d07eab9(props) {
+@@ -1708,4 +1817,4 @@ function $8a26561d2877236e$export$c24ed0104d07eab9(props) {
  
  
  export {$3b117e43dc0ca95d$export$27c701ed9e449e99 as Pressable, $f1ab8c75478c6f73$export$3351871ee4b288b8 as PressResponder, $f1ab8c75478c6f73$export$cf75428e0b9ed1ea as ClearPressResponder, $a1ea59d68270f0dd$export$f8168d8dd8fd66e6 as useFocus, $507fabe10e71c6fb$export$b9b3dfddab17db27 as isFocusVisible, $507fabe10e71c6fb$export$630ff653c5ada6a9 as getInteractionModality, $507fabe10e71c6fb$export$8397ddfc504fdb9a as setInteractionModality, $507fabe10e71c6fb$export$98e20ec92f614cfe as useInteractionModality, $507fabe10e71c6fb$export$ffd9e5021c1fb2d6 as useFocusVisible, $507fabe10e71c6fb$export$ec71b4b83ac08ec3 as useFocusVisibleListener, $9ab94262bd0047c7$export$420e68273165f4ec as useFocusWithin, $6179b936705e76d3$export$ae780daf29e6d456 as useHover, $e0b6e0b68ec7f50f$export$872b660ac5a1ff98 as useInteractOutside, $46d819fcbaf35654$export$8f71654801c2f7cd as useKeyboard, $e8a7022cf87cba2a$export$36da96379f79f245 as useMove, $f6c31cce2adf654f$export$45712eceda6fad21 as usePress, $7d0a636d7a4dcefd$export$2123ff2b87c81ca as useScrollWheel, $8a26561d2877236e$export$c24ed0104d07eab9 as useLongPress};
 -//# sourceMappingURL=module.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/main.js b/dist/main.js
-index dca2b48e87b91891af244269a71d87c3162a7006..deea93f2a9da0a2b0a8918c277b9a893d2592472 100644
+index dca2b48e87b91891af244269a71d87c3162a7006..19d90ab902cddbfc78c81ce2db24f9ddef3d565c 100644
 --- a/dist/main.js
 +++ b/dist/main.js
 @@ -374,6 +374,49 @@ function $0294ea432cd92340$export$45712eceda6fad21(props) {
@@ -353,76 +322,45 @@ index dca2b48e87b91891af244269a71d87c3162a7006..deea93f2a9da0a2b0a8918c277b9a893
  let $e77252a287ef94ab$var$changeHandlers = new Set();
  let $e77252a287ef94ab$var$hasSetupGlobalListeners = false;
  let $e77252a287ef94ab$var$hasEventBeforeFocus = false;
-@@ -929,11 +1011,66 @@ function $e77252a287ef94ab$var$triggerChangeHandlers(modality, e) {
+@@ -929,11 +1011,23 @@ function $e77252a287ef94ab$var$triggerChangeHandlers(modality, e) {
      // Control and Shift keys trigger when navigating back to the tab with keyboard.
      return !(e.metaKey || !(0, $goTMa$reactariautils.isMac)() && e.altKey || e.ctrlKey || e.key === "Control" || e.key === "Shift" || e.key === "Meta");
  }
 +
-+let keyDownStartTime = 0;
-+let keyEventTimes = [];
-+let keyEventTimeIndex = 0;
-+
-+let deviceSupportsTouch =
-+    (typeof window !== 'undefined' && 'ontouchstart' in window) ||
-+        (typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0));
-+
  function $e77252a287ef94ab$var$handleKeyboardEvent(e) {
-     $e77252a287ef94ab$var$hasEventBeforeFocus = true;
-     if ($e77252a287ef94ab$var$isValidKey(e)) {
+-    $e77252a287ef94ab$var$hasEventBeforeFocus = true;
+-    if ($e77252a287ef94ab$var$isValidKey(e)) {
 -        $e77252a287ef94ab$var$currentModality = "keyboard";
 -        $e77252a287ef94ab$var$triggerChangeHandlers("keyboard", e);
-+        let modality = 'keyboard';
-+
-+        // NOTE(calebmer): If the user is typing on a virtual keyboard with a
-+        // touchscreen then we want the current modality to be pointer (since the
-+        // user is using their pointer, touch) to input keys.
-+        //
-+        // The best solution to this problem I've found is to look at the time
-+        // between `keydown` and `keyup` events. Virtual keyboards, [based on
-+        // experimentation][1], generally have less than a 25ms delay between events
-+        // whereas physical keyboards generally have above a 25ms delay between
-+        // events (though not all the time).
-+        //
-+        // [1]: https://lyosha.me/blog/2016/02/12/detecting-virtual-keyboards/
-+        if (deviceSupportsTouch) {
-+            if (e.type === 'keydown') {
-+                keyDownStartTime = Date.now();
-+            } else if (e.type === 'keyup') {
-+                let keyEventTime = Date.now() - keyDownStartTime;
-+                
-+                let index = keyEventTimeIndex++ % 100
-+                if (index === keyEventTimes.length) {
-+                    keyEventTimes.push(keyEventTime);
-+                } else {
-+                    keyEventTimes[index] = keyEventTime;
-+                }
-+            }
-+    
-+            // For keys are not typically present on virtual keyboards (like tab or
-+            // escape) we can safely say the modality is `keyboard`. Also, for the
-+            // purposes of "focus visible" detection, if tab key is pressed the user
-+            // is probably navigating via keyboard and wants to see focus rings.
-+            if (e.key !== 'Tab' && e.key !== 'Escape' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') {
-+                if (keyEventTimes.length === 0) {
-+                    // Since this is a device supporting touch, on the first keydown,
-+                    // assume pointer input modality. Once we get more key events we'll
-+                    // start returning proper values.
-+                    modality = 'pointer';
-+                } else {
-+                    let averageKeyEventTime = keyEventTimes.reduce((a, b) => a + b, 0) / keyEventTimes.length;
-+                    if (averageKeyEventTime <= 25) {
-+                        modality = 'pointer';
-+                    }
-+                }
-+            }
-+        }
-+
-+        $e77252a287ef94ab$var$currentModality = modality;
-+        $e77252a287ef94ab$var$triggerChangeHandlers(modality, e);
++    // NOTE(calebmer): Only switch us into keyboard modality with tab key presses
++    // where `event.preventDefault()` wasn't called by some other event handler.
++    // `@react-aria/interactions` was programmed to switch to a keyboard modality
++    // on any key press! We find that this sometimes leads to showing the
++    // `<FocusRing>` at undesirable moments. For example the `<FocusRing>` would
++    // appear unexpectedly on mobile devices. Instead, we choose to be very
++    // explicit in when we enter keyboard modality: When the user explicitly
++    // triggers a shortcut that moves keyboard focus.
++    //
++    // If you move focus with a different keyboard shortcut, it's expected you
++    // call `setInteractionModality("keyboard")` yourself.
++    if (e.key === 'Tab' && !e.defaultPrevented) {
++        $e77252a287ef94ab$var$hasEventBeforeFocus = true;
++        $e77252a287ef94ab$var$currentModality = 'keyboard';
++        $e77252a287ef94ab$var$triggerChangeHandlers('keyboard', e);
      }
  }
  function $e77252a287ef94ab$var$handlePointerEvent(e) {
-@@ -1373,25 +1510,41 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
+@@ -982,8 +1076,7 @@ function $e77252a287ef94ab$var$handleWindowBlur() {
+         $e77252a287ef94ab$var$hasEventBeforeFocus = true;
+         focus.apply(this, arguments);
+     };
+-    document.addEventListener("keydown", $e77252a287ef94ab$var$handleKeyboardEvent, true);
+-    document.addEventListener("keyup", $e77252a287ef94ab$var$handleKeyboardEvent, true);
++    document.addEventListener("keydown", $e77252a287ef94ab$var$handleKeyboardEvent, false);
+     document.addEventListener("click", $e77252a287ef94ab$var$handleClickEvent, true);
+     // Register focus events on the window so they are sure to happen
+     // before React's event listeners (registered on the document).
+@@ -1373,25 +1466,41 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
   * governing permissions and limitations under the License.
   */ function $951fbcbbca8db6ce$export$48d1ea6320830260(handler) {
      if (!handler) return;
@@ -470,14 +408,14 @@ index dca2b48e87b91891af244269a71d87c3162a7006..deea93f2a9da0a2b0a8918c277b9a893
      };
  }
  
-@@ -1732,4 +1885,4 @@ function $3cd7b5d0eebf0ca9$export$c24ed0104d07eab9(props) {
+@@ -1732,4 +1841,4 @@ function $3cd7b5d0eebf0ca9$export$c24ed0104d07eab9(props) {
  
  
  
 -//# sourceMappingURL=main.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/module.js b/dist/module.js
-index 8304c96402b2f2b285445c005b5078b34993a100..7c4bc20f749509dfece2abc973c63d74b9ee1781 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..15695f70eecb1331a4aa8f441ed25d7dbcc5c928 100644
 --- a/dist/module.js
 +++ b/dist/module.js
 @@ -349,6 +349,49 @@ function $f6c31cce2adf654f$export$45712eceda6fad21(props) {
@@ -592,76 +530,45 @@ index 8304c96402b2f2b285445c005b5078b34993a100..7c4bc20f749509dfece2abc973c63d74
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -904,11 +986,66 @@ function $507fabe10e71c6fb$var$triggerChangeHandlers(modality, e) {
+@@ -904,11 +986,23 @@ function $507fabe10e71c6fb$var$triggerChangeHandlers(modality, e) {
      // Control and Shift keys trigger when navigating back to the tab with keyboard.
      return !(e.metaKey || !(0, $bx7SL$isMac)() && e.altKey || e.ctrlKey || e.key === "Control" || e.key === "Shift" || e.key === "Meta");
  }
 +
-+let keyDownStartTime = 0;
-+let keyEventTimes = [];
-+let keyEventTimeIndex = 0;
-+
-+let deviceSupportsTouch =
-+    (typeof window !== 'undefined' && 'ontouchstart' in window) ||
-+        (typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0));
-+
  function $507fabe10e71c6fb$var$handleKeyboardEvent(e) {
-     $507fabe10e71c6fb$var$hasEventBeforeFocus = true;
-     if ($507fabe10e71c6fb$var$isValidKey(e)) {
+-    $507fabe10e71c6fb$var$hasEventBeforeFocus = true;
+-    if ($507fabe10e71c6fb$var$isValidKey(e)) {
 -        $507fabe10e71c6fb$var$currentModality = "keyboard";
 -        $507fabe10e71c6fb$var$triggerChangeHandlers("keyboard", e);
-+        let modality = 'keyboard';
-+
-+        // NOTE(calebmer): If the user is typing on a virtual keyboard with a
-+        // touchscreen then we want the current modality to be pointer (since the
-+        // user is using their pointer, touch) to input keys.
-+        //
-+        // The best solution to this problem I've found is to look at the time
-+        // between `keydown` and `keyup` events. Virtual keyboards, [based on
-+        // experimentation][1], generally have less than a 25ms delay between events
-+        // whereas physical keyboards generally have above a 25ms delay between
-+        // events (though not all the time).
-+        //
-+        // [1]: https://lyosha.me/blog/2016/02/12/detecting-virtual-keyboards/
-+        if (deviceSupportsTouch) {
-+            if (e.type === 'keydown') {
-+                keyDownStartTime = Date.now();
-+            } else if (e.type === 'keyup') {
-+                let keyEventTime = Date.now() - keyDownStartTime;
-+                
-+                let index = keyEventTimeIndex++ % 100
-+                if (index === keyEventTimes.length) {
-+                    keyEventTimes.push(keyEventTime);
-+                } else {
-+                    keyEventTimes[index] = keyEventTime;
-+                }
-+            }
-+    
-+            // For keys are not typically present on virtual keyboards (like tab or
-+            // escape) we can safely say the modality is `keyboard`. Also, for the
-+            // purposes of "focus visible" detection, if tab key is pressed the user
-+            // is probably navigating via keyboard and wants to see focus rings.
-+            if (e.key !== 'Tab' && e.key !== 'Escape' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') {
-+                if (keyEventTimes.length === 0) {
-+                    // Since this is a device supporting touch, on the first keydown,
-+                    // assume pointer input modality. Once we get more key events we'll
-+                    // start returning proper values.
-+                    modality = 'pointer';
-+                } else {
-+                    let averageKeyEventTime = keyEventTimes.reduce((a, b) => a + b, 0) / keyEventTimes.length;
-+                    if (averageKeyEventTime <= 25) {
-+                        modality = 'pointer';
-+                    }
-+                }
-+            }
-+        }
-+
-+        $507fabe10e71c6fb$var$currentModality = modality;
-+        $507fabe10e71c6fb$var$triggerChangeHandlers(modality, e);
++    // NOTE(calebmer): Only switch us into keyboard modality with tab key presses
++    // where `event.preventDefault()` wasn't called by some other event handler.
++    // `@react-aria/interactions` was programmed to switch to a keyboard modality
++    // on any key press! We find that this sometimes leads to showing the
++    // `<FocusRing>` at undesirable moments. For example the `<FocusRing>` would
++    // appear unexpectedly on mobile devices. Instead, we choose to be very
++    // explicit in when we enter keyboard modality: When the user explicitly
++    // triggers a shortcut that moves keyboard focus.
++    //
++    // If you move focus with a different keyboard shortcut, it's expected you
++    // call `setInteractionModality("keyboard")` yourself.
++    if (e.key === 'Tab' && !e.defaultPrevented) {
++        $507fabe10e71c6fb$var$currentModality = true;
++        $507fabe10e71c6fb$var$currentModality = 'keyboard';
++        $507fabe10e71c6fb$var$triggerChangeHandlers('keyboard', e);
      }
  }
  function $507fabe10e71c6fb$var$handlePointerEvent(e) {
-@@ -1348,25 +1485,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -957,8 +1051,7 @@ function $507fabe10e71c6fb$var$handleWindowBlur() {
+         $507fabe10e71c6fb$var$hasEventBeforeFocus = true;
+         focus.apply(this, arguments);
+     };
+-    document.addEventListener("keydown", $507fabe10e71c6fb$var$handleKeyboardEvent, true);
+-    document.addEventListener("keyup", $507fabe10e71c6fb$var$handleKeyboardEvent, true);
++    document.addEventListener("keydown", $507fabe10e71c6fb$var$handleKeyboardEvent, false);
+     document.addEventListener("click", $507fabe10e71c6fb$var$handleClickEvent, true);
+     // Register focus events on the window so they are sure to happen
+     // before React's event listeners (registered on the document).
+@@ -1348,25 +1441,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
   * governing permissions and limitations under the License.
   */ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
      if (!handler) return;
@@ -709,7 +616,7 @@ index 8304c96402b2f2b285445c005b5078b34993a100..7c4bc20f749509dfece2abc973c63d74
      };
  }
  
-@@ -1708,4 +1861,4 @@ function $8a26561d2877236e$export$c24ed0104d07eab9(props) {
+@@ -1708,4 +1817,4 @@ function $8a26561d2877236e$export$c24ed0104d07eab9(props) {
  
  
  export {$3b117e43dc0ca95d$export$27c701ed9e449e99 as Pressable, $f1ab8c75478c6f73$export$3351871ee4b288b8 as PressResponder, $f1ab8c75478c6f73$export$cf75428e0b9ed1ea as ClearPressResponder, $a1ea59d68270f0dd$export$f8168d8dd8fd66e6 as useFocus, $507fabe10e71c6fb$export$b9b3dfddab17db27 as isFocusVisible, $507fabe10e71c6fb$export$630ff653c5ada6a9 as getInteractionModality, $507fabe10e71c6fb$export$8397ddfc504fdb9a as setInteractionModality, $507fabe10e71c6fb$export$98e20ec92f614cfe as useInteractionModality, $507fabe10e71c6fb$export$ffd9e5021c1fb2d6 as useFocusVisible, $507fabe10e71c6fb$export$ec71b4b83ac08ec3 as useFocusVisibleListener, $9ab94262bd0047c7$export$420e68273165f4ec as useFocusWithin, $6179b936705e76d3$export$ae780daf29e6d456 as useHover, $e0b6e0b68ec7f50f$export$872b660ac5a1ff98 as useInteractOutside, $46d819fcbaf35654$export$8f71654801c2f7cd as useKeyboard, $e8a7022cf87cba2a$export$36da96379f79f245 as useMove, $f6c31cce2adf654f$export$45712eceda6fad21 as usePress, $7d0a636d7a4dcefd$export$2123ff2b87c81ca as useScrollWheel, $8a26561d2877236e$export$c24ed0104d07eab9 as useLongPress};
@@ -771,7 +678,7 @@ index 5733c7e4221092879a6409ca983e919edff0da87..cb03a60028df9172451768e856dd614b
    };
  }
 diff --git a/src/useFocusVisible.ts b/src/useFocusVisible.ts
-index 60fd6b5a77f5d9f26ffdb6e750e11a0cab6923e4..1cf9adeb3f7c8d3b6d7962c8c7fb94aef328f6d8 100644
+index 60fd6b5a77f5d9f26ffdb6e750e11a0cab6923e4..82754490fe0089f909cbd3cb352b72f108fdb07e 100644
 --- a/src/useFocusVisible.ts
 +++ b/src/useFocusVisible.ts
 @@ -35,7 +35,13 @@ export interface FocusVisibleResult {
@@ -789,74 +696,40 @@ index 60fd6b5a77f5d9f26ffdb6e750e11a0cab6923e4..1cf9adeb3f7c8d3b6d7962c8c7fb94ae
  let changeHandlers = new Set<Handler>();
  let hasSetupGlobalListeners = false;
  let hasEventBeforeFocus = false;
-@@ -61,12 +67,65 @@ function isValidKey(e: KeyboardEvent) {
+@@ -61,10 +67,20 @@ function isValidKey(e: KeyboardEvent) {
    return !(e.metaKey || (!isMac() && e.altKey) || e.ctrlKey || e.key === 'Control' || e.key === 'Shift' || e.key === 'Meta');
  }
  
-+let keyDownStartTime = 0;
-+let keyEventTimes: Array<number> = [];
-+let keyEventTimeIndex = 0;
-+
-+let deviceSupportsTouch =
-+  (typeof window !== 'undefined' && 'ontouchstart' in window) ||
-+    (typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0));
- 
+-
  function handleKeyboardEvent(e: KeyboardEvent) {
-   hasEventBeforeFocus = true;
-   if (isValidKey(e)) {
--    currentModality = 'keyboard';
--    triggerChangeHandlers('keyboard', e);
-+    let modality: Modality = 'keyboard';
-+
-+    // NOTE(calebmer): If the user is typing on a virtual keyboard with a
-+    // touchscreen then we want the current modality to be pointer (since the
-+    // user is using their pointer, touch) to input keys.
-+    //
-+    // The best solution to this problem I've found is to look at the time
-+    // between `keydown` and `keyup` events. Virtual keyboards, [based on
-+    // experimentation][1], generally have less than a 25ms delay between events
-+    // whereas physical keyboards generally have above a 25ms delay between
-+    // events (though not all the time).
-+    //
-+    // [1]: https://lyosha.me/blog/2016/02/12/detecting-virtual-keyboards/
-+    if (deviceSupportsTouch) {
-+      if (e.type === 'keydown') {
-+        keyDownStartTime = Date.now();
-+      } else if (e.type === 'keyup') {
-+        let keyEventTime = Date.now() - keyDownStartTime;
-+        
-+        let index = keyEventTimeIndex++ % 100
-+        if (index === keyEventTimes.length) {
-+          keyEventTimes.push(keyEventTime);
-+        } else {
-+          keyEventTimes[index] = keyEventTime;
-+        }
-+      }
-+
-+      // For keys are not typically present on virtual keyboards (like tab or
-+      // escape) we can safely say the modality is `keyboard`. Also, for the
-+      // purposes of "focus visible" detection, if tab key is pressed the user
-+      // is probably navigating via keyboard and wants to see focus rings.
-+      if (e.key !== 'Tab' && e.key !== 'Escape' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') {
-+        if (keyEventTimes.length === 0) {
-+          // Since this is a device supporting touch, on the first keydown,
-+          // assume pointer input modality. Once we get more key events we'll
-+          // start returning proper values.
-+          modality = 'pointer';
-+        } else {
-+          let averageKeyEventTime = keyEventTimes.reduce((a, b) => a + b, 0) / keyEventTimes.length;
-+          if (averageKeyEventTime <= 25) {
-+            modality = 'pointer';
-+          }
-+        }
-+      }
-+    }
-+
-+    currentModality = modality;
-+    triggerChangeHandlers(modality, e);
+-  hasEventBeforeFocus = true;
+-  if (isValidKey(e)) {
++  // NOTE(calebmer): Only switch us into keyboard modality with tab key presses
++  // where `event.preventDefault()` wasn't called by some other event handler.
++  // `@react-aria/interactions` was programmed to switch to a keyboard modality
++  // on any key press! We find that this sometimes leads to showing the
++  // `<FocusRing>` at undesirable moments. For example the `<FocusRing>` would
++  // appear unexpectedly on mobile devices. Instead, we choose to be very
++  // explicit in when we enter keyboard modality: When the user explicitly
++  // triggers a shortcut that moves keyboard focus.
++  //
++  // If you move focus with a different keyboard shortcut, it's expected you
++  // call `setInteractionModality("keyboard")` yourself.
++  if (e.key === 'Tab' && !e.defaultPrevented) {
++    hasEventBeforeFocus = true;
+     currentModality = 'keyboard';
+     triggerChangeHandlers('keyboard', e);
    }
- }
+@@ -129,8 +145,7 @@ function setupGlobalFocusEvents() {
+     focus.apply(this, arguments);
+   };
  
+-  document.addEventListener('keydown', handleKeyboardEvent, true);
+-  document.addEventListener('keyup', handleKeyboardEvent, true);
++  document.addEventListener('keydown', handleKeyboardEvent, false);
+   document.addEventListener('click', handleClickEvent, true);
+ 
+   // Register focus events on the window so they are sure to happen
 diff --git a/src/usePress.ts b/src/usePress.ts
 index 02a69cb09950093d7612ddd111b12d99a80f34cd..8813bde67c97be246fa94c6087694bae01702a10 100644
 --- a/src/usePress.ts

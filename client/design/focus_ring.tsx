@@ -270,7 +270,7 @@ export function useIsFocusRingVisible({
                 // (Unless otherwise specified.) We cache whether focus is visible instead of
                 // relying on a prop since if the interaction modality changes from keyboard
                 // to mouse we'd like to keep the ring.
-                return isVisibleFromAnyFocus || getInteractionModality() === "keyboard";
+                return isVisibleFromAnyFocus || getInteractionModality() !== "pointer";
             };
 
             let isFocused =
