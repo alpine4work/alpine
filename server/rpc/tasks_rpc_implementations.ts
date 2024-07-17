@@ -12,6 +12,8 @@ import {
     createTaskComment,
     deleteTaskAndAllChildren,
     deleteTaskComment,
+    getTaskCommentsFromEnd,
+    getTaskCommentsFromStart,
     getTaskNotesContentWithoutReferences,
     updateTaskCommentContent,
     updateTaskGridViewExpansionState,
@@ -148,6 +150,14 @@ implementRpc(
         return {collectionResults};
     },
 );
+
+implementRpc(definition.getTaskCommentsFromStart, {visibility: ["AppClient"]}, (context, input) => {
+    return getTaskCommentsFromStart(context.actor.authorizeSession(), input);
+});
+
+implementRpc(definition.getTaskCommentsFromEnd, {visibility: ["AppClient"]}, (context, input) => {
+    return getTaskCommentsFromEnd(context.actor.authorizeSession(), input);
+});
 
 implementRpc(
     definition.createTaskComment,

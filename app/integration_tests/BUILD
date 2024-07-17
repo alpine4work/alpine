@@ -21,6 +21,7 @@ ts_playwright_tests(
         "tasks/task_grid_view_updates.spec.ts": ["webkit_mobile"],
         "tasks/task_notepad.spec.ts": ["webkit_mobile"],
         "tasks/task_undo_grid_view_moves.spec.ts": ["webkit_mobile"],
+        "tasks/task_comments.spec.ts": ["webkit_mobile"],
     },
     deps = [
         "//:node_modules/@types/fs-extra",

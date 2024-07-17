@@ -132,9 +132,11 @@ export default function TaskCommentsRoute({
         if (withMobileLayout) return;
 
         if (commentIndex === null) {
-            void navigate(`/s/${spaceId}/tasks/${taskId}`);
+            void navigate(`/s/${spaceId}/tasks/${taskId}`, {stopPropagation: true});
         } else {
-            void navigate(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`);
+            void navigate(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`, {
+                stopPropagation: true,
+            });
         }
     }, [withMobileLayout, spaceId, taskId, navigate, commentIndex]);
 
