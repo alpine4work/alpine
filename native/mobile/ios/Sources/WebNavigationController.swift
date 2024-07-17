@@ -2496,9 +2496,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // keyboard is still up (if it's up).
         (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
 
-        // Make absolutely sure we close the keyboard when entering the background.
-        webView.resignFirstResponder()
-
         // If there's a focused element, blur it when the app is backgrounded. When the
         // app reopens the user will need to pick a new element to focus.
         //
@@ -2553,6 +2550,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
+        // Noop if safe area insets didn't actually change.
+        if self.windowSafeAreaInsets == windowSafeAreaInsets { return }
+
         actuallySetWindowSafeAreaInsets(windowSafeAreaInsets)
 
         // Scroll indicator insets and masked view masks change when window safe
@@ -2926,6 +2926,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func setTabBarScrollOffset(_ tabBarScrollOffset: Double, navigationBarScrollOffset: Double) {
+        // Ignore any tab bar scroll offset updates while we're hiding the tab bar when
+        // in the backgrounded. Since we don't want our `hideTabBarCount += 1` to
+        // change layout. We're only hiding the tab bar for snapshots, it shouldn't
+        // change the web view's layout.
+        if didSceneEnterBackgroundWithKeyboardShown { return }
+
         let actualTabBarHeight =
             (tabBarController != nil ? tabBarHeight + windowSafeAreaInsets.bottom : 0)
 
@@ -2953,40 +2959,43 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             updateAllWebMaskedViewMasks()
         }
 
-        tabBarScrollOffsetReconcileTimer?.invalidate()
-        tabBarScrollOffsetReconcileTimer = nil
+        // Optimization: If tab bar scroll offset didn't change then don't update our
+        // web view.
+        if lastTabBarScrollOffset != tabBarScrollOffset {
+            tabBarScrollOffsetReconcileTimer?.invalidate()
+            tabBarScrollOffsetReconcileTimer = nil
 
-        let reconcileTimer = Timer(
-            // If we are in a `UIView.animate` block (e.g. when the tab bar is
-            // fully opening/closing) then `UIView.inheritedAnimationDuration` will be the
-            // duration of that animation block. We shouldn't reconcile until the end of
-            // the animation block.
+            let reconcileTimer = Timer(
+                // If we are in a `UIView.animate` block (e.g. when the tab bar is
+                // fully opening/closing) then `UIView.inheritedAnimationDuration` will be the
+                // duration of that animation block. We shouldn't reconcile until the end of
+                // the animation block.
+                //
+                // If we are not in a `UIView.animate` block then
+                // `UIView.inheritedAnimationDuration` will be 0. In that case we want to
+                // debounce with a duration of 100ms.
+                timeInterval: max(0.1, UIView.inheritedAnimationDuration),
+                repeats: false
+            ) { [weak self] (_) in
+                guard let this = self else { return }
+
+                this.webView.evaluateJavaScript(
+                    "window.__NativeMobileBridge.tabBar._scrollOffset = \(tabBarScrollOffset)"
+                )
+            }
+
+            // Add some tolerance to reduce timer energy impact.
+            reconcileTimer.tolerance = 0.05
+
+            // We need to add our timer to the common run loop mode so it can execute
+            // even while a gesture is occuring.
             //
-            // If we are not in a `UIView.animate` block then
-            // `UIView.inheritedAnimationDuration` will be 0. In that case we want to
-            // debounce with a duration of 100ms.
-            timeInterval: max(0.1, UIView.inheritedAnimationDuration),
-            repeats: false
-        ) { [weak self] (_) in
-            guard let this = self else { return }
+            // For more information about run loops:
+            // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+            RunLoop.current.add(reconcileTimer, forMode: .common)
 
-            this.webView.evaluateJavaScript(
-                "window.__NativeMobileBridge.tabBar._scrollOffset = \(tabBarScrollOffset)"
-            )
+            tabBarScrollOffsetReconcileTimer = reconcileTimer
         }
-
-        // Add some tolerance to reduce timer energy impact.
-        reconcileTimer.tolerance = 0.05
-
-        // We need to add our timer to the common run loop mode so it can execute
-        // even while a gesture is occuring.
-        //
-        // For more information about run loops:
-        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
-        RunLoop.current.add(reconcileTimer, forMode: .common)
-
-        tabBarScrollOffsetReconcileTimer = reconcileTimer
-
     }
 
     private func updateAllWebBottomBarFrames() {
@@ -3430,13 +3439,20 @@ private class WebNavigationEntryController: UIViewController {
         // If we have a `UIScreen` then take a snapshot of the whole screen instead of
         // just the web view. That way our snapshot will include the iOS keyboard if
         // the keyboard is open.
-        if let screen = view.window?.screen {
-            snapshotView = screen.snapshotView(afterScreenUpdates: false)
+        if let window = view.window {
+            snapshotView = window.screen.snapshotView(
+                // Snapshotting a view that is not in a visible window requires
+                // `afterScreenUpdates: true`. `false` the rest of the time because I
+                // assume `true` is potentially expensive? It may force the screen to
+                // paint.
+                afterScreenUpdates: window.isHidden
+                    || webNavigationController.didSceneEnterBackground
+            )
 
             // We're taking a snapshot of the screen but make sure we crop to our web
             // view's bounds.
             if let snapshotView = snapshotView {
-                snapshotView.bounds = screen.coordinateSpace.convert(
+                snapshotView.bounds = window.screen.coordinateSpace.convert(
                     webView.bounds,
                     from: webView.coordinateSpace
                 )
@@ -3447,7 +3463,8 @@ private class WebNavigationEntryController: UIViewController {
                 // `afterScreenUpdates: true`. `false` the rest of the time because I
                 // assume `true` is potentially expensive? It may force the screen to
                 // paint.
-                afterScreenUpdates: !(webView.window?.isHidden ?? true)
+                afterScreenUpdates: (webView.window?.isHidden ?? true)
+                    || webNavigationController.didSceneEnterBackground
             )
         }
 

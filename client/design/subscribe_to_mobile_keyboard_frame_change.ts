@@ -57,12 +57,35 @@ export function subscribeToMobileKeyboardFrameChange(
             // to the bottom, and tap the bottom ghost task we'd scroll up but the bottom
             // ghost task wouldn't be completely visible. Since scrolling was clipped
             // because `--safe-area-inset-bottom` hadn't been updated to account for the
-            // task keyboard toolbar.
-            requestAnimationFrame(() => {
+            // task keyboard toolbar. [Video of the bug][1].
+            //
+            // We don't wait an animation frame if the frame change event is not animated
+            // AND the keyboard is shrinking. This fixes a different bug where we need to
+            // run our scroll event before keyboard safe area is removed. If we remove
+            // keyboard safe area first and we've scrolled to the bottom of the view (e.g.
+            // in a chat) then the browser will adjust the scroll. Then we also scroll in
+            // `useScrollToAvoidBottomBarsAndMobileKeyboard()` causing us to have scrolled
+            // further than we should have.
+            //
+            // You can observe this second bug when always calling double
+            // `requestAnimationFrame()`s by going to chat, scrolling to the bottom,
+            // opening the keyboard, closing the app, then reopening the app. There's a
+            // race condition between whether safe area is removed first or the double
+            // `requestAnimationFrame()` fires first so you may need to try a couple
+            // times before seeing the bug. If the safe area is removed first you'll
+            // see the outcome recorded in [this video][2].
+            //
+            // [1]: https://gist.github.com/calebmer/a3d65d71607114d6c5304536f7ac4fd3
+            // [2]: https://gist.github.com/calebmer/d349791e01635bcadeb20e4b659b3401
+            if (!event.isAnimated && event.newKeyboardHeight < event.oldKeyboardHeight) {
+                listener(event);
+            } else {
                 requestAnimationFrame(() => {
-                    listener(event);
+                    requestAnimationFrame(() => {
+                        listener(event);
+                    });
                 });
-            });
+            }
         });
     }
 }

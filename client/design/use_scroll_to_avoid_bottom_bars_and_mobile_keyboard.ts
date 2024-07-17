@@ -109,8 +109,11 @@ export function useGetCurrentCoveredHeight(): Memo<() => number> {
 
         const tabBarHeight =
             NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
-                ? NativeMobileBridge.tabBar.height -
-                  NativeMobileBridge.tabBar.getDeferredScrollOffset()
+                ? Math.max(
+                      0,
+                      NativeMobileBridge.tabBar.height -
+                          NativeMobileBridge.tabBar.getDeferredScrollOffset(),
+                  )
                 : 0;
 
         const windowSafeAreaInsetBottom = getElementWindowSafeAreaInsetBottomPx(
@@ -322,8 +325,11 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
 
             const tabBarHeight =
                 NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
-                    ? NativeMobileBridge.tabBar.height -
-                      NativeMobileBridge.tabBar.getDeferredScrollOffset()
+                    ? Math.max(
+                          0,
+                          NativeMobileBridge.tabBar.height -
+                              NativeMobileBridge.tabBar.getDeferredScrollOffset(),
+                      )
                     : 0;
 
             const oldBottomBarResolvedHeight =
@@ -750,7 +756,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                     ? // If we have a bottom bar that's visible even when the keyboard is closed, the
                       // tab bar is always open.
                       newBottomBarHeight.hiddenMobileKeyboard > 0
-                        ? NativeMobileBridge.tabBar.height
+                        ? tabBarHeight
                         : // Otherwise, check if we scroll enough to reveal/hide the tab bar.
                         -scrollDelta >= navigationBarHeight
                         ? NativeMobileBridge.tabBar.height
@@ -992,8 +998,11 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
             const safeAreaInsetTop = getElementSafeAreaInsetTopPx(document.documentElement);
             const tabBarHeight =
                 NativeMobileBridge && !NativeMobileBridge.tabBar.isHidden()
-                    ? NativeMobileBridge.tabBar.height -
-                      NativeMobileBridge.tabBar.getDeferredScrollOffset()
+                    ? Math.max(
+                          0,
+                          NativeMobileBridge.tabBar.height -
+                              NativeMobileBridge.tabBar.getDeferredScrollOffset(),
+                      )
                     : 0;
 
             // Considers:
