@@ -162,6 +162,13 @@ module.exports = {
         // codebase.
         "no-restricted-imports": ["error", baseNoRestrictedImports],
 
+        // Prefer literals directly as JSX props without wrapping in braces (e.g.
+        // `<div id="foo">` not `<div id={"foo"}>`). We enable this for consistency as
+        // there's absolutely no semantic difference, there's a clear preference for no
+        // braces in the community, wrapping in braces may be an accidental result of a
+        // refactor, and mixing the styles in one JSX element looks weird.
+        "react/jsx-curly-brace-presence": ["warn", {props: "never", propElementValues: "always"}],
+
         // Use the exhaustive deps lint rule on some custom hooks.
         //
         // Please use this sparingly! Prefer patterns where you pass in a

@@ -1353,7 +1353,7 @@ export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: b
                     >
                         <Box
                             display="flex"
-                            flexDirection={"column"}
+                            flexDirection="column"
                             justifyContent="center"
                             alignItems={!isMobile ? "flex-start" : "center"}
                             width="full"
@@ -1361,8 +1361,8 @@ export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: b
                             height="full"
                             paddingX={screenPaddingX}
                         >
-                            <TextShimmer fontSize={"200"} width={"32"} />
-                            <TextShimmer fontSize={"75"} width={"32"} />
+                            <TextShimmer fontSize="200" width="32" />
+                            <TextShimmer fontSize="75" width="32" />
                         </Box>
                     </Box>
                 </Box>
