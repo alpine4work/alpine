@@ -1,18 +1,59 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
-load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
-js_library(
+ts_project(
     name = "styles",
-    srcs = [
-        ":styles_bundle_file",
-        ":styles_lib",
-    ],
+    srcs = glob(
+        [
+            "**/*.ts",
+            "**/*.tsx",
+        ],
+        exclude = [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "internal/**/*.ts",
+            "internal/**/*.tsx",
+        ],
+    ),
+    test_srcs = glob(
+        [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+        ],
+        exclude = [
+            "internal/**/*.test.ts",
+            "internal/**/*.test.tsx",
+        ],
+    ),
     visibility = ["//visibility:public"],
+    deps = [
+        ":styles_bundle_file",
+        ":styles_internal_typings",
+        "//shared/design",
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/schema",
+    ],
 )
 
 ts_project(
-    name = "styles_lib",
+    name = "styles_internal",
+    srcs = glob(
+        [
+            "internal/**/*.ts",
+            "internal/**/*.tsx",
+        ],
+        exclude = [
+            "internal/**/*.test.ts",
+            "internal/**/*.test.tsx",
+        ],
+    ),
+    test_srcs = glob(
+        [
+            "internal/**/*.test.ts",
+            "internal/**/*.test.tsx",
+        ],
+    ),
     deps = [
         "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/css",
@@ -28,7 +69,7 @@ ts_project(
 esbuild(
     name = "styles_bundle_file",
     srcs = [
-        ":styles_lib",
+        ":styles_internal",
         "//:node_modules/@vanilla-extract/css",
         "//:node_modules/@vanilla-extract/sprinkles",
     ],
