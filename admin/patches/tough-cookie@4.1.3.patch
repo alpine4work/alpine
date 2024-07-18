@@ -1,0 +1,20 @@
+diff --git a/lib/utilHelper.js b/lib/utilHelper.js
+index feac12504a935b5eb874c5dd6f0217be8b6f7a44..be903c936441006bb0d6d8f1426cd31638dab156 100644
+--- a/lib/utilHelper.js
++++ b/lib/utilHelper.js
+@@ -1,10 +1,9 @@
+ function requireUtil() {
+-  try {
+-    // eslint-disable-next-line no-restricted-modules
+-    return require("util");
+-  } catch (e) {
+-    return null;
+-  }
++  // NOTE(calebmer): Requiring util confuses `esbuild` bundling for the client.
++  // So get rid of the require statement. Supporting custom inspect printing
++  // isn't important and there's a better solution for modern Node.js
++  // environments.
++  return null;
+ }
+ 
+ // for v10.12.0+

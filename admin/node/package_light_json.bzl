@@ -31,6 +31,7 @@ _package_light_json = rule(
     attrs = {
         "src": attr.label(mandatory = True, allow_single_file = True),
     },
+    toolchains = ["@aspect_bazel_lib//lib:coreutils_toolchain_type"],
 )
 
 def package_light_json(**kwargs):

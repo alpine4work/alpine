@@ -112,7 +112,8 @@ export function createStandardizedRequest(req: IncomingMessage): Request {
         // `ReadableStream` type.
         init.body = body;
 
-        // @ts-expect-error: Expected by the WhatWG fetch API when `body` is a
+        // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+        // @ts-ignore: Expected by the WhatWG fetch API when `body` is a
         // `ReadableStream` but it's not supported in the types yet.
         // https://github.com/nodejs/node/issues/46221
         init.duplex = "half";

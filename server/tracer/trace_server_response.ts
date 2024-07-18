@@ -156,7 +156,8 @@ export async function traceServerResponse(
                 // v20.9.0. This is a bug.
                 // https://github.com/nodejs/node/issues/50490
                 headers: request.headers,
-                // @ts-expect-error: Expected by the WhatWG fetch API when `body` is a
+                // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+                // @ts-ignore: Expected by the WhatWG fetch API when `body` is a
                 // `ReadableStream` but it's not supported in the types yet.
                 // https://github.com/nodejs/node/issues/46221
                 duplex: "half",
