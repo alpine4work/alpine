@@ -893,6 +893,14 @@ export type TracerEventData = {
          * The ID we assigned to the APNs HTTP/2 connection.
          */
         readonly connectionId?: ApnsConnectionId;
+
+        /**
+         * Reason for a non-200 status code from APNs. Error reason strings are
+         * documented [here][1].
+         *
+         * [1]: https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Understand-error-codes
+         */
+        readonly errorReason?: string;
     };
 };
 

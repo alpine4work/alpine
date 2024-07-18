@@ -1,5 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
+import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_table.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
@@ -1950,8 +1951,9 @@ async function sendPushNotificationToAccountDevices(
                         // removed from a space we don't clean up their inbox item in case they're
                         // re-added.
                         //
-                        // We don't authorize since a system actor will only have access to one space.
-                        // Not all the spaces the account has access to.
+                        // We run the version of this function that doesn't authorize since a system
+                        // actor will only have access to one space. Not all the spaces the account
+                        // has access to.
                         if (
                             !(await isAccountMemberOfSpaceWithoutAuthorization(
                                 context,
@@ -2012,10 +2014,7 @@ async function sendPushNotificationToAccountDevices(
 
             await runAllPromises(
                 accountDevices.map(async accountDevice => {
-                    // TODO(calebmer): I expect to get errors from APNs if a device token is
-                    // invalidated (e.g. the app is deleted). We should detect these errors and
-                    // delete the device token from our database.
-                    await sendAlert(
+                    const {wasDeviceTokenUnregistered} = await sendAlert(
                         accountDevice.deviceToken,
                         {
                             entry: `${entryUrl.pathname}${entryUrl.search}${entryUrl.hash}`,
@@ -2061,6 +2060,16 @@ async function sendPushNotificationToAccountDevices(
                             collapseId: eventId,
                         },
                     );
+
+                    // If a device token is unregistered then delete it from our database so we
+                    // won't try to use it again.
+                    if (wasDeviceTokenUnregistered) {
+                        await deleteAccountAppleDeviceTokenIfExists(
+                            context,
+                            accountId,
+                            accountDevice.deviceToken,
+                        );
+                    }
                 }),
             );
         });
@@ -2077,7 +2086,8 @@ function getApnsNotificationThreadId(item: InboxEntryItem): string | undefined {
             return `${item.channelId}-${item.bucketGeneration}`;
         case "DocumentCommentThreadEntry":
             // `DocumentCommentThreadId` is only guaranteed to be unique within a document.
-            // It may not be unique across documents.
+            // It may not be unique across documents. Which is why we include the
+            // `DocumentId` in the thread ID.
             return `${item.documentId}-${item.commentThreadId}`;
         case "DocumentNewCommentThreadsEntry":
             return `${item.documentId}-${item.bucketGeneration}`;

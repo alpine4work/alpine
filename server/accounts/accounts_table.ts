@@ -1269,3 +1269,41 @@ export async function internalGetRegisteredAccountDevicesWithoutAuthorization(
         (item): AccountDevice => ({type: "Apple", deviceToken: item.deviceToken}),
     );
 }
+
+/**
+ * Delete a device token associated with the provided `AccountId`. System
+ * actors can delete the device token for any account whereas session actors
+ * may only delete device tokens for their own account.
+ *
+ * If the provided device token doesn't exist (or was already deleted) this
+ * function does nothing.
+ */
+export async function deleteAccountAppleDeviceTokenIfExists(
+    context: Context<DynamoContextModules & {actor: DynamoActorContextModule}>,
+    accountId: AccountId,
+    deviceToken: Uint8Array,
+): Promise<void> {
+    switch (context.actor.type) {
+        case "Session": {
+            if (context.actor.getAccountId() !== accountId) {
+                throw new PermissionDeniedError(
+                    "Can't delete device token for a different account",
+                );
+            }
+            break;
+        }
+        case "System": {
+            // System actor can delete device tokens for any account...
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+
+    await AccountsTable.deleteItemWithKeyIfExists(context, {
+        partitionType: "AppleDeviceToken",
+        sortRangeType: "Attributes",
+        deviceToken,
+        accountId,
+    });
+}

@@ -307,6 +307,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     apns: {
         connectionId: Schema.id(),
+        errorReason: Schema.string,
     },
 };
 

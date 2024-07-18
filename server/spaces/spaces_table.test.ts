@@ -1,4 +1,5 @@
 import {
+    deleteAccountAppleDeviceTokenIfExists,
     internalUpdateOurAccountNameWithoutUpdatingTasks,
     registerOurAccountAppleDeviceToken,
 } from "~/server/accounts/accounts_table.js";
@@ -2209,4 +2210,146 @@ test("can get an account's registered apple devices", async () => {
     await expect(
         getRegisteredAccountDevices(space2.systemAction(), sharedSession.account.id),
     ).resolves.toEqual([{type: "Apple", deviceToken: sharedDeviceToken}]);
+});
+
+test("can delete an account's registered apple devices", async () => {
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const deviceToken1A = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+    const deviceToken1B = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+    const deviceToken1C = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+
+    expect(deviceToken1A).toEqual(deviceToken1A);
+    expect(deviceToken1A).not.toEqual(deviceToken1B);
+    expect(deviceToken1A).not.toEqual(deviceToken1C);
+
+    await registerOurAccountAppleDeviceToken(session1.action(), deviceToken1A);
+    await registerOurAccountAppleDeviceToken(session1.action(), deviceToken1B);
+    await registerOurAccountAppleDeviceToken(session1.action(), deviceToken1C);
+
+    await expect(
+        getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [
+            {type: "Apple", deviceToken: deviceToken1A},
+            {type: "Apple", deviceToken: deviceToken1B},
+            {type: "Apple", deviceToken: deviceToken1C},
+        ].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
+
+    await expect(
+        deleteAccountAppleDeviceTokenIfExists(
+            session2.action(),
+            session1.account.id,
+            deviceToken1A,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [
+            {type: "Apple", deviceToken: deviceToken1A},
+            {type: "Apple", deviceToken: deviceToken1B},
+            {type: "Apple", deviceToken: deviceToken1C},
+        ].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
+
+    await deleteAccountAppleDeviceTokenIfExists(
+        space.systemAction(),
+        session1.account.id,
+        deviceToken1A,
+    );
+
+    await expect(
+        getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [
+            {type: "Apple", deviceToken: deviceToken1B},
+            {type: "Apple", deviceToken: deviceToken1C},
+        ].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
+
+    // Run twice to test idempotence.
+    await deleteAccountAppleDeviceTokenIfExists(
+        space.systemAction(),
+        session1.account.id,
+        deviceToken1A,
+    );
+
+    await expect(
+        getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [
+            {type: "Apple", deviceToken: deviceToken1B},
+            {type: "Apple", deviceToken: deviceToken1C},
+        ].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
+
+    await deleteAccountAppleDeviceTokenIfExists(
+        session1.action(),
+        session1.account.id,
+        deviceToken1B,
+    );
+
+    await expect(
+        getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [{type: "Apple", deviceToken: deviceToken1C}].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
 });

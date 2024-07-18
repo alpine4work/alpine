@@ -14,13 +14,17 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
      * For more information on supported properties on a notification object
      * see “[Generating a remove notification][1]”.
      *
+     * If this function returns `wasDeviceTokenUnregistered` then you should delete
+     * the provided device token from the database to avoid sending notifications
+     * to it again.
+     *
      * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
      */
     public abstract sendAlert(
         deviceToken: Uint8Array,
         notification: ApnsAlertNotification,
         options?: ApnsAlertNotificationOptions,
-    ): Promise<void>;
+    ): Promise<{wasDeviceTokenUnregistered: boolean}>;
 
     /**
      * Provides a `sendAlert()` function to the action that does the same thing as
@@ -32,6 +36,10 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
      *
      * Use this function as an optimization when you want to connect to APNs in
      * parallel with some other work.
+     *
+     * If the `sendAlert()` function returns `wasDeviceTokenUnregistered` then you
+     * should delete the provided device token from the database to avoid sending
+     * notifications to it again.
      */
     public abstract withSendAlert<Value>(
         action: (
@@ -39,7 +47,7 @@ export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActi
                 deviceToken: Uint8Array,
                 notification: ApnsAlertNotification,
                 options?: ApnsAlertNotificationOptions,
-            ) => Promise<void>,
+            ) => Promise<{wasDeviceTokenUnregistered: boolean}>,
         ) => Promise<Value>,
     ): Promise<Value>;
 }
@@ -85,7 +93,7 @@ export class ApnsContextModule extends ApnsContextModuleBase {
                 deviceToken: Uint8Array,
                 notification: ApnsAlertNotification,
                 options?: ApnsAlertNotificationOptions,
-            ) => Promise<void>,
+            ) => Promise<{wasDeviceTokenUnregistered: boolean}>,
         ) => Promise<Value>,
     ): Promise<Value> {
         return this._connectionPool.withSendAlert(this._context, action);
@@ -100,10 +108,11 @@ export class TestApnsContextModule extends ApnsContextModuleBase {
 
     public async sendAlert() {
         // Noop in tests...
+        return {wasDeviceTokenUnregistered: false};
     }
 
     public withSendAlert<Value>(
-        action: (sendAlert: () => Promise<void>) => Promise<Value>,
+        action: (sendAlert: () => Promise<{wasDeviceTokenUnregistered: boolean}>) => Promise<Value>,
     ): Promise<Value> {
         return action((...args) => this.sendAlert(...args));
     }

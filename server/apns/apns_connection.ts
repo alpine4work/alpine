@@ -16,6 +16,7 @@ import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {convertIdIntoUuid} from "~/shared/id/convert_id_into_uuid.js";
 import {generateId} from "~/shared/id/id.js";
 import {ApnsConnectionId} from "~/shared/id/types/id_types.js";
@@ -319,6 +320,10 @@ export class ApnsConnection {
      * For more information on supported properties on a notification object
      * see “[Generating a remove notification][1]”.
      *
+     * If this function returns `wasDeviceTokenUnregistered` then you should delete
+     * the provided device token from the database to avoid sending notifications
+     * to it again.
+     *
      * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
      */
     public sendAlert(
@@ -331,7 +336,7 @@ export class ApnsConnection {
             priority = 10,
             collapseId,
         }: ApnsAlertNotificationOptions = {},
-    ) {
+    ): Promise<{wasDeviceTokenUnregistered: boolean}> {
         return context.tracer.withSpan("Sending APNs alert notification", async (context, span) => {
             if (this._startClosePromiseResolver.isSettled())
                 throw new InternalError("APNs connection is closed");
@@ -407,6 +412,9 @@ export class ApnsConnection {
             if (statusCode === undefined)
                 throw new InternalError("APNs request is missing status code");
 
+            const body: {reason: string} | null =
+                statusCode !== 200 ? JSON.parse(response.body.toString()) : null;
+
             span.addData({
                 http: {
                     statusCode,
@@ -418,17 +426,30 @@ export class ApnsConnection {
                         ),
                     },
                 },
+                apns: {
+                    errorReason:
+                        statusCode !== 200 && typeof body?.reason === "string"
+                            ? body.reason
+                            : undefined,
+                },
             });
 
-            if (statusCode !== 200) {
+            const wasDeviceTokenUnregistered: boolean =
+                statusCode !== 200 && body?.reason === "Unregistered";
+
+            if (!wasDeviceTokenUnregistered && statusCode !== 200) {
                 const errorMessage = getApnsErrorMessageFromStatusCode(statusCode);
 
                 throw new (errorMessage !== null ? InternalError : UnknownError)(
                     `APNs request failed${
                         errorMessage !== null ? `: ${errorMessage}` : ""
-                    } (status code: ${statusCode})`,
+                    } (status code: ${statusCode}${
+                        body?.reason ? `, reason: ${quote(body.reason)}` : ""
+                    })`,
                 );
             }
+
+            return {wasDeviceTokenUnregistered};
         });
     }
 }

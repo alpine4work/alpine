@@ -309,6 +309,10 @@ export class ApnsConnectionPool {
      * For more information on supported properties on a notification object
      * see “[Generating a remove notification][1]”.
      *
+     * If this function returns `wasDeviceTokenUnregistered` then you should delete
+     * the provided device token from the database to avoid sending notifications
+     * to it again.
+     *
      * [1]: https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification
      */
     public sendAlert(
@@ -316,7 +320,7 @@ export class ApnsConnectionPool {
         deviceToken: Uint8Array,
         notification: ApnsAlertNotification,
         options?: ApnsAlertNotificationOptions,
-    ): Promise<void> {
+    ): Promise<{wasDeviceTokenUnregistered: boolean}> {
         return this._withConnection(context, connection =>
             connection.sendAlert(context, deviceToken, notification, options),
         );
@@ -332,6 +336,10 @@ export class ApnsConnectionPool {
      *
      * Use this function as an optimization when you want to connect to APNs in
      * parallel with some other work.
+     *
+     * If the `sendAlert()` function returns `wasDeviceTokenUnregistered` then you
+     * should delete the provided device token from the database to avoid sending
+     * notifications to it again.
      */
     public async withSendAlert<Value>(
         context: ServerActionContext,
@@ -340,7 +348,7 @@ export class ApnsConnectionPool {
                 deviceToken: Uint8Array,
                 notification: ApnsAlertNotification,
                 options?: ApnsAlertNotificationOptions,
-            ) => Promise<void>,
+            ) => Promise<{wasDeviceTokenUnregistered: boolean}>,
         ) => Promise<Value>,
     ): Promise<Value> {
         const connectionPromiseResolver = createPromiseResolver<ApnsConnection>();
@@ -351,7 +359,7 @@ export class ApnsConnectionPool {
             options?: ApnsAlertNotificationOptions,
         ) => {
             const connection = await connectionPromiseResolver.promise;
-            await connection.sendAlert(context, deviceToken, notification, options);
+            return connection.sendAlert(context, deviceToken, notification, options);
         };
 
         const actionPromise = action(sendAlert);
