@@ -25,7 +25,7 @@ import {
     serializeProsemirrorFragmentToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Renders content from `content_schema.tsx` into HTML. Contains all the same
@@ -220,7 +220,12 @@ export function renderContentFragmentToHtmlStore(
                         toolbarFlexHtml.appendChild(copyButtonHtml);
                         copyButtonHtml.setAttribute(
                             "class",
-                            contentSchemaStyles.codeBlockCopyButtonClassName,
+                            classNames(
+                                contentSchemaStyles.codeBlockCopyButtonClassName,
+                                // This class will be removed when the copy button is pressed and replaced
+                                // with a `grey-100` class. We need to add the class here for server rendering.
+                                sprinkles({color: "grey-60"}),
+                            ),
                         );
                         copyButtonHtml.appendChild({
                             generateHtml: () =>

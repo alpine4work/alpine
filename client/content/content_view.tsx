@@ -708,11 +708,11 @@ export function ContentView({
                     }),
                     hoverClassName: sprinkles({
                         color: "grey-60",
-                        backgroundColor: isBackgroundColorGrey5 ? "grey-10" : "grey-5",
+                        backgroundColor: "grey-5",
                     }),
                     pressClassName: sprinkles({
                         color: "grey-100",
-                        backgroundColor: isBackgroundColorGrey5 ? "grey-20" : "grey-10",
+                        backgroundColor: "grey-10",
                     }),
                     onHoverStart: () => {
                         const wasCodeBlockCopyButtonHovered = isCodeBlockCopyButtonHovered;

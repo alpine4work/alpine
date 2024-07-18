@@ -1343,7 +1343,7 @@ export const currentAccountMentionClassName = style({
         },
         [`${darkColorSchemeSelector} &::after`]: {
             backgroundColor: colorSchemeVars["theme-40"],
-            opacity: 0.5,
+            opacity: 0.4,
         },
     },
 });
