@@ -43,11 +43,7 @@ import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
 import {PostContentView, PostContentViewEditingActions} from "~/client/forum/post_content_view.js";
 import {
     PostListChannelHeader,
-    PostListChannelHeaderItem,
     PostListInterface,
-    PostListItem,
-    PostListMoreUnloadedPostsItem,
-    PostListPostCommentInputItem,
     PostListPostContentItem,
     PostListWithChannelHeader,
 } from "~/client/forum/post_list.js";
@@ -91,7 +87,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {
@@ -1840,27 +1835,4 @@ function PostListView(
             </div>
         </>
     );
-}
-
-type PostListPostCommentItem = Exclude<
-    PostListItem,
-    | PostListChannelHeaderItem
-    | PostListPostContentItem
-    | PostListPostCommentInputItem
-    | PostListMoreUnloadedPostsItem
->;
-
-function getPostListPostCommentItemKey(item: PostListPostCommentItem) {
-    switch (item.type) {
-        case "LoadedPostComment":
-            return `PostComment:${item.post.id}:${item.postComment.index}`;
-        case "OptimisticPostComment":
-            return `PostComment:${item.post.id}:${item.postCommentIndex}`;
-        case "UnloadedPostComment":
-            return `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`;
-        case "PostCommentsTypingIndicator":
-            return `PostCommentsTypingIndicator:${item.post.id}`;
-        default:
-            throw exhaustive(item);
-    }
 }

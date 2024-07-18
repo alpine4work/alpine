@@ -450,7 +450,7 @@ function MessagingViewShimmer({
 }: {
     messages: "fill" | "few";
     withTopAlignedMessages: boolean;
-    paddingX?: Spacing | {desktop?: Spacing; mobile?: Spacing};
+    paddingX?: Spacing | {desktop: Spacing; mobile: Spacing};
 }) {
     return (
         <>

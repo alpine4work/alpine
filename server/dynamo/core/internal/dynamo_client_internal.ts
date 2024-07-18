@@ -1,7 +1,6 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
-import {inspect} from "util";
 import {
     isConstructedDynamoTableSchemaIndexName,
     isConstructedDynamoTableSchemaName,

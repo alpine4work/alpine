@@ -1,4 +1,4 @@
-import {getInteractionModality, usePress} from "@react-aria/interactions";
+import {getInteractionModality, setInteractionModality, usePress} from "@react-aria/interactions";
 import _Fuse from "fuse.js";
 import {
     MutableRefObject,
