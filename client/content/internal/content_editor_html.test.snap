@@ -1642,19 +1642,29 @@ exports[`code (multiline) plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <pre>
+  <pre
+    data-scrollbar="false"
+  >
     <code>
       <div>
-        Hello world!
-      </div>
-      <div>
-        <br />
-      </div>
-      <div>
+        <div>
           Hello world!
+        </div>
       </div>
       <div>
-        Hello world!
+        <div>
+          <br />
+        </div>
+      </div>
+      <div>
+        <div>
+            Hello world!
+        </div>
+      </div>
+      <div>
+        <div>
+          Hello world!
+        </div>
       </div>
     </code>
   </pre>
@@ -1831,10 +1841,14 @@ exports[`code plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <pre>
+  <pre
+    data-scrollbar="false"
+  >
     <code>
       <div>
-        Hello world!
+        <div>
+          Hello world!
+        </div>
       </div>
     </code>
   </pre>

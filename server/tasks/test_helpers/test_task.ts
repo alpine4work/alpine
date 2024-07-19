@@ -48,6 +48,7 @@ export class TestTask {
     public readonly context: TestContext;
     public readonly space: TestSpace;
     public readonly id: TaskId;
+    public readonly createdTime: HybridLogicalTime;
 
     private readonly _titleState: MutexValue<TaskTitle>;
 
@@ -60,11 +61,13 @@ export class TestTask {
         context: TestContext,
         space: TestSpace,
         id: TaskId,
+        createdTime: HybridLogicalTime,
         titleState: MutexValue<TaskTitle>,
     ) {
         this.context = context;
         this.space = space;
         this.id = id;
+        this.createdTime = createdTime;
         this._titleState = titleState;
         this._notesState = new MutexValue({lastVersion: 0, lastUpdatePos: 1});
     }
@@ -123,7 +126,7 @@ export class TestTask {
 
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, actions);
 
-        return new TestTask(session.context, session.space, id, titleState);
+        return new TestTask(session.context, session.space, id, time, titleState);
     }
 
     /**

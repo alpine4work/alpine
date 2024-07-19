@@ -1,3 +1,4 @@
+import fs from "fs";
 import {internalUpdateOurAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
@@ -14,6 +15,7 @@ import {
 } from "~/server/tasks/data/task_index_doc.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {
     TaskCollectionTestInterface,
@@ -27,6 +29,18 @@ const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
 import.meta.jest.setTimeout(1000 * 30);
+
+beforeAll(() => {
+    const shardStatusPath = assertExists(process.env.TEST_SHARD_STATUS_FILE);
+    const currentTime = new Date();
+
+    try {
+        fs.utimesSync(shardStatusPath, currentTime, currentTime);
+    } catch (e) {
+        const descriptor = fs.openSync(shardStatusPath, "a");
+        fs.closeSync(descriptor);
+    }
+});
 
 testTaskActionPermutations({
     // This test takes a ridiculously long time to run given it needs to talk to

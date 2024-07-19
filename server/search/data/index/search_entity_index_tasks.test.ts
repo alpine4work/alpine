@@ -1,7 +1,9 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
+import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
@@ -133,7 +135,7 @@ test("will index a task after a timeout", async () => {
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     // Make sure there are no more jobs in the queue.
@@ -183,7 +185,7 @@ test("will only index a task once if update happened within the timeout", async 
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.runAllTimers();
@@ -216,7 +218,7 @@ test("will index a task again if update happened after timeout", async () => {
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
@@ -226,7 +228,7 @@ test("will index a task again if update happened after timeout", async () => {
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(60 * 1000);
@@ -235,7 +237,7 @@ test("will index a task again if update happened after timeout", async () => {
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     // Make sure there are no more jobs in the queue.
@@ -266,7 +268,7 @@ test("will index a task again if update happened after timeout with more updates
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     await task.typeTitle(session, ": What Do They Know?");
@@ -276,7 +278,7 @@ test("will index a task again if update happened after timeout with more updates
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -285,7 +287,7 @@ test("will index a task again if update happened after timeout with more updates
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     await task.typeTitle(session, " Do They Know Things? Let’s Find Out.");
@@ -295,7 +297,7 @@ test("will index a task again if update happened after timeout with more updates
     expect(indexSearchEntityJobCount).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -304,7 +306,7 @@ test("will index a task again if update happened after timeout with more updates
     expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     // Make sure there are no more jobs in the queue.
@@ -364,7 +366,7 @@ test("will schedule another indexing job if task assignee is updated after creat
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -374,7 +376,7 @@ test("will schedule another indexing job if task assignee is updated after creat
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     // Make sure there are no more jobs in the queue.
@@ -413,7 +415,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     await task.typeTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
@@ -424,7 +426,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -434,7 +436,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     await task.updateAssignee(session1, session2);
@@ -445,7 +447,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -455,7 +457,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -465,7 +467,7 @@ test("will schedule another indexing job if task authorization is updated after 
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     // Make sure there are no more jobs in the queue.
@@ -505,7 +507,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     await task.typeTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
@@ -516,7 +518,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -526,7 +528,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     await task.updateAssignee(session1, session2);
@@ -537,7 +539,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(30 * 1000);
@@ -547,7 +549,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(15 * 1000);
@@ -561,7 +563,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     import.meta.jest.advanceTimersByTime(15 * 1000);
@@ -571,7 +573,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "",
+        body: null,
     });
 
     // Make sure there are no more jobs in the queue.
@@ -1921,4 +1923,281 @@ test("can get affinitive collections for an account", async () => {
 
     import.meta.jest.runAllTimers();
     await ProcessContextModule.waitForTestTasks();
+});
+
+// Tests that would be in `get_search_entity.test.ts` except we don't want to
+// start OpenSearch in that file.
+describe("getSearchEntity", () => {
+    test("can get task search entity", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+        const session3 = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const privateCollection = await TestTaskCollection.createPrivate(session1, {
+            otherGrantedAccounts: [session2],
+        });
+
+        const publicCollection = await TestTaskCollection.createPublic(session1);
+
+        const task1 = await TestTask.create(session2, {title: "Test Task 1"});
+
+        const parentTask = await TestTask.create(session2);
+        await task1.updateParentTask(session2, parentTask);
+
+        await parentTask.addCollection(session2, privateCollection);
+
+        const task2 = await TestTask.create(session3, {title: "Test Task 2"});
+        await task2.addCollection(session3, publicCollection);
+
+        const taskNotes =
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque ultricies mattis pharetra. Phasellus pulvinar vitae mauris sed sollicitudin. Vestibulum in tortor vel magna iaculis sagittis. Nunc tempor sodales velit ut posuere. Quisque venenatis bibendum risus ac consequat. Pellentesque ornare mauris nec dolor cursus imperdiet. Sed finibus pellentesque mauris ut dapibus. Duis non lorem lacus.";
+
+        const taskNotesWords = taskNotes.split(" ");
+
+        for (let i = 0; i < taskNotesWords.length; i++) {
+            await task2.typeNotes(
+                i % 6 === 0 ? session1 : i % 2 === 0 ? session3 : session2,
+                `${taskNotesWords[i]!} `,
+            );
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task1.id},
+                tokenizer,
+            ),
+        ).toEqual({
+            dependencyIds: new Set([
+                `Task:${parentTask.id}:Authorization`,
+                `TaskCollection:${privateCollection.id}:Authorization`,
+            ]),
+            entity: {
+                id: `Task:${task1.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
+                    defaultGrantType: null,
+                },
+                createdTime: new Date(task1.createdTime[0]),
+                title: "Test Task 1",
+                body: null,
+                embeddingChunks: [],
+                media: null,
+                creatorId: session2.account.id,
+                contributorIds: new Map([[session2.account.id, "Major"]]),
+            },
+        });
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "Task", taskId: task2.id},
+                tokenizer,
+            ),
+        ).toEqual({
+            dependencyIds: new Set([`TaskCollection:${publicCollection.id}:Authorization`]),
+            entity: {
+                id: `Task:${task2.id}`,
+                accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                createdTime: new Date(task2.createdTime[0]),
+                title: "Test Task 2",
+                body: taskNotes,
+                embeddingChunks: [
+                    {
+                        preambleEndIndex: 15,
+                        text: `# Test Task 2\n\n${taskNotes}`,
+                        tokenCountWithoutPreamble: 143,
+                    },
+                ],
+                media: null,
+                creatorId: session3.account.id,
+                contributorIds: new Map([
+                    [session3.account.id, "Major"],
+                    [session2.account.id, "Major"],
+                    [session1.account.id, "Minor"],
+                ]),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
+
+    test("can get task collection search entity", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+        const session3 = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const privateCollection = await TestTaskCollection.createPrivate(session1, {
+            name: "Private Test Task Collection",
+            otherGrantedAccounts: [session2],
+        });
+
+        const publicCollection = await TestTaskCollection.createPublic(session3, {
+            name: "Public Test Task Collection",
+        });
+
+        await publicCollection.updateColor(session3, "purple");
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "TaskCollection", collectionId: privateCollection.id},
+                tokenizer,
+            ),
+        ).toEqual({
+            dependencyIds: new Set(),
+            entity: {
+                id: `TaskCollection:${privateCollection.id}`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
+                    defaultGrantType: null,
+                },
+                createdTime: new Date(privateCollection.createdTime[0]),
+                title: "Private Test Task Collection",
+                body: null,
+                embeddingChunks: [],
+                media: {type: "TaskCollectionColor", color: null},
+                creatorId: session1.account.id,
+                contributorIds: new Map(),
+            },
+        });
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "TaskCollection", collectionId: publicCollection.id},
+                tokenizer,
+            ),
+        ).toEqual({
+            dependencyIds: new Set(),
+            entity: {
+                id: `TaskCollection:${publicCollection.id}`,
+                accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                createdTime: new Date(publicCollection.createdTime[0]),
+                title: "Public Test Task Collection",
+                body: null,
+                embeddingChunks: [],
+                media: {type: "TaskCollectionColor", color: "purple"},
+                creatorId: session3.account.id,
+                contributorIds: new Map(),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
+
+    test("can get task comment search entity", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+        const session3 = await space.createSession();
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const privateCollection = await TestTaskCollection.createPrivate(session1, {
+            otherGrantedAccounts: [session2],
+        });
+
+        const publicCollection = await TestTaskCollection.createPublic(session1);
+
+        const task1 = await TestTask.create(session2, {title: "Test Task 1"});
+
+        const parentTask = await TestTask.create(session2);
+        await task1.updateParentTask(session2, parentTask);
+
+        await parentTask.addCollection(session2, privateCollection);
+
+        const comment1 = await createTaskComment(session1.action(), {
+            taskId: task1.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test task comment content 1."),
+        });
+
+        const task2 = await TestTask.create(session3, {title: "Test Task 2"});
+        await task2.addCollection(session3, publicCollection);
+
+        const comment2 = await createTaskComment(session2.action(), {
+            taskId: task2.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test task comment content 2."),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "TaskComment", taskId: task1.id, commentIndex: 0},
+                tokenizer,
+            ),
+        ).toEqual({
+            dependencyIds: new Set([
+                `Task:${task1.id}:Authorization`,
+                `Task:${parentTask.id}:Authorization`,
+                `TaskCollection:${privateCollection.id}:Authorization`,
+            ]),
+            entity: {
+                id: `TaskComment:${task1.id}-0`,
+                accessPolicy: {
+                    accountGrantAccountIds: new Set([session2.account.id, session1.account.id]),
+                    defaultGrantType: null,
+                },
+                createdTime: comment1.createdTime,
+                title: null,
+                body: "Test task comment content 1.",
+                embeddingChunks: [
+                    {
+                        preambleEndIndex: 30,
+                        text: "This is a comment on a task:\n\nTest task comment content 1.",
+                        tokenCountWithoutPreamble: 6,
+                    },
+                ],
+                media: {type: "Account", accountId: session1.account.id},
+                creatorId: session1.account.id,
+                contributorIds: new Map(),
+            },
+        });
+
+        expect(
+            await getSearchEntity(
+                space.systemAction(),
+                {type: "TaskComment", taskId: task2.id, commentIndex: 0},
+                tokenizer,
+            ),
+        ).toEqual({
+            dependencyIds: new Set([
+                `Task:${task2.id}:Authorization`,
+                `TaskCollection:${publicCollection.id}:Authorization`,
+            ]),
+            entity: {
+                id: `TaskComment:${task2.id}-0`,
+                accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                createdTime: comment2.createdTime,
+                title: null,
+                body: "Test task comment content 2.",
+                embeddingChunks: [
+                    {
+                        preambleEndIndex: 30,
+                        text: "This is a comment on a task:\n\nTest task comment content 2.",
+                        tokenCountWithoutPreamble: 6,
+                    },
+                ],
+                media: {type: "Account", accountId: session2.account.id},
+                creatorId: session2.account.id,
+                contributorIds: new Map(),
+            },
+        });
+
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    });
 });

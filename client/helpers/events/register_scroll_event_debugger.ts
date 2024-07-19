@@ -57,40 +57,46 @@ if (typeof window !== "undefined") {
         return debugId;
     }
 
-    const originalScrollTopPropertyDescriptor = assertExists(
-        Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop"),
-    );
-    const originalScrollLeftPropertyDescriptor = assertExists(
-        Object.getOwnPropertyDescriptor(Element.prototype, "scrollLeft"),
-    );
+    const setterPropertyNames = ["scrollTop", "scrollLeft"];
 
-    Object.defineProperty(Element.prototype, "scrollTop", {
-        ...originalScrollTopPropertyDescriptor,
-        set: function (this: Element) {
+    for (const setterPropertyName of setterPropertyNames) {
+        const originalPropertyDescriptor = assertExists(
+            Object.getOwnPropertyDescriptor(Element.prototype, setterPropertyName),
+        );
+
+        Object.defineProperty(Element.prototype, setterPropertyName, {
+            ...originalPropertyDescriptor,
+            set: function (this: Element) {
+                const debugId = getScrollElementDebugId(this);
+                if (debugId !== null) {
+                    console.log(
+                        `[ScrollEventDebugger#${debugId}] set ${setterPropertyName}`,
+                        ...arguments,
+                    );
+                }
+                originalPropertyDescriptor.set!.apply(this, arguments as any);
+            },
+        });
+    }
+
+    const methodNames = [
+        "scroll",
+        "scrollBy",
+        "scrollIntoView",
+        "scrollIntoViewIfNeeded",
+        "scrollTo",
+    ];
+
+    for (const methodName of methodNames) {
+        const originalMethod = (Element.prototype as any)[methodName];
+        if (!originalMethod) continue;
+
+        (Element.prototype as any)[methodName] = function () {
             const debugId = getScrollElementDebugId(this);
-            if (debugId !== null)
-                console.log(`[ScrollEventDebugger#${debugId}] set scrollTop`, ...arguments);
-            originalScrollTopPropertyDescriptor.set!.apply(this, arguments as any);
-        },
-    });
-
-    Object.defineProperty(Element.prototype, "scrollLeft", {
-        ...originalScrollLeftPropertyDescriptor,
-        set: function (this: Element) {
-            const debugId = getScrollElementDebugId(this);
-            if (debugId !== null)
-                console.log(`[ScrollEventDebugger#${debugId}] set scrollLeft`, ...arguments);
-            originalScrollLeftPropertyDescriptor.set!.apply(this, arguments as any);
-        },
-    });
-
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    const originalScrollTo = Element.prototype.scrollTo;
-
-    Element.prototype.scrollTo = function () {
-        const debugId = getScrollElementDebugId(this);
-        if (debugId !== null)
-            console.log(`[ScrollEventDebugger#${debugId}] scrollTo()`, ...arguments);
-        return originalScrollTo.apply(this, arguments as any);
-    };
+            if (debugId !== null) {
+                console.log(`[ScrollEventDebugger#${debugId}] ${methodName}()`, ...arguments);
+            }
+            return originalMethod.apply(this, arguments as any);
+        };
+    }
 }

@@ -494,6 +494,7 @@ function ContentEditorPointerToolbarOverlay({
                     }}
                 >
                     <Box
+                        data-testid="ContentEditorPointerToolbar"
                         display="flex"
                         paddingLeft="1"
                         paddingRight="0.5"
@@ -892,6 +893,7 @@ function ContentEditorPointerToolbarButton({
             <div
                 {...mergeProps(pressProps, hoverProps)}
                 ref={localRef}
+                aria-label={description}
                 // Disable the ability to focus this icon button! The icon buttons in the
                 // selection toolbar are only mouse accessible. They are not keyboard
                 // accessible. By being focusable then the button steals focus when you click

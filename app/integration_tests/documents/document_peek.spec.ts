@@ -51,6 +51,8 @@ test("can create document from peek", async ({browser, context: browserContext1,
 
     await expect(page1.getByText("Test Channel")).toBeHidden();
     await expect(page1.getByRole("heading", {name: "Hello, world!"})).toBeVisible();
+
+    await browserContext2.close();
 });
 
 test("clicking a link will open a peek", async ({context: browserContext, page, isMobile}) => {

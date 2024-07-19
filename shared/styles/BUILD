@@ -15,16 +15,10 @@ ts_project(
             "internal/**/*.tsx",
         ],
     ),
-    test_srcs = glob(
-        [
-            "**/*.test.ts",
-            "**/*.test.tsx",
-        ],
-        exclude = [
-            "internal/**/*.test.ts",
-            "internal/**/*.test.tsx",
-        ],
-    ),
+    test_srcs = glob([
+        "**/*.test.ts",
+        "**/*.test.tsx",
+    ]),
     visibility = ["//visibility:public"],
     deps = [
         ":styles_bundle_file",
@@ -48,12 +42,7 @@ ts_project(
             "internal/**/*.test.tsx",
         ],
     ),
-    test_srcs = glob(
-        [
-            "internal/**/*.test.ts",
-            "internal/**/*.test.tsx",
-        ],
-    ),
+    test_srcs = [],
     deps = [
         "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/css",

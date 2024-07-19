@@ -292,10 +292,19 @@ export function buildContentEditorKeymapPlugin(
     // Pressing alt+enter creates a hard break (aka a new line). You can use
     // alt+enter to create a list item with multiple lines, for instance.
     const altEnterCommand: Command = (state, dispatch) => {
-        if (dispatch) {
-            dispatch(state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView());
+        const {$from} = state.selection;
+        const fromNode = $from.node();
+        const isSelectionInCodeBlockLine = fromNode.type.name === "codeBlockLine";
+
+        if (!isSelectionInCodeBlockLine) {
+            dispatch?.(state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView());
+            return true;
+        } else {
+            // In a code block, alt+enter always creates a new code block line. Unlike
+            // `Enter` which will stop creating newlines at the end of a code block and
+            // will convert to a paragraph.
+            return splitBlockWithCodeBlockLineLeadingIndentation(state, dispatch);
         }
-        return true;
     };
 
     keys.set("Alt-Enter", altEnterCommand);

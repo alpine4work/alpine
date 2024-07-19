@@ -1,0 +1,429 @@
+import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createChannel, createPost, createPostComment} from "~/server/forum/data/forum_table.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
+import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
+
+const context = createTestContext();
+
+// We should have at least one `getSearchEntity()` test for every search entity
+// type. This object will have a TypeScript error whenever a new search entity
+// is added reminding developers to add a new test for the search entity.
+const testCasesBySearchEntityType: {[Key in SearchEntityIdObject["type"]]: () => void} = {
+    Account: () => {
+        test("can get account search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({name: "Caleb Meredith"});
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Account", accountId: session.account.id},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `Account:${session.account.id}`,
+                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    createdTime: (await session.get()).initialData.space.joinedTime,
+                    title: "Caleb Meredith",
+                    body: null,
+                    media: {type: "Account", accountId: session.account.id},
+                    embeddingChunks: [],
+                    creatorId: null,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+    },
+    Document: () => {
+        test("can get document search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const session3 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const document = await TestDocument.create(session1, {title: "Lorem Ipsum"});
+
+            const documentBody =
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque ultricies mattis pharetra. Phasellus pulvinar vitae mauris sed sollicitudin. Vestibulum in tortor vel magna iaculis sagittis. Nunc tempor sodales velit ut posuere. Quisque venenatis bibendum risus ac consequat. Pellentesque ornare mauris nec dolor cursus imperdiet. Sed finibus pellentesque mauris ut dapibus. Duis non lorem lacus.";
+
+            const documentBodyWords = documentBody.split(" ");
+
+            for (let i = 0; i < documentBodyWords.length; i++) {
+                await document.type(
+                    i % 6 === 0 ? session3 : i % 2 === 0 ? session1 : session2,
+                    `${documentBodyWords[i]!} `,
+                );
+            }
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Document", documentId: document.id},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `Document:${document.id}`,
+                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    createdTime: document.createdTime,
+                    title: "Lorem Ipsum",
+                    body: documentBody,
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 15,
+                            text: `# Lorem Ipsum\n\n${documentBody}`,
+                            tokenCountWithoutPreamble: 143,
+                        },
+                    ],
+                    media: null,
+                    creatorId: session1.account.id,
+                    contributorIds: new Map([
+                        [session3.account.id, "Minor"],
+                        [session2.account.id, "Major"],
+                        [session1.account.id, "Major"],
+                    ]),
+                },
+            });
+        });
+    },
+    DocumentComment: () => {
+        test("can get document comment search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const document = await TestDocument.create(session1, {title: "Test Document"});
+
+            await document.type(session1, "foo");
+
+            const commentThread = await document.createCommentThread(
+                session2,
+                {from: 3, to: 6},
+                "Test document comment content.",
+            );
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {
+                        type: "DocumentComment",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                        commentIndex: 0,
+                    },
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set([]),
+                entity: {
+                    id: `DocumentComment:${document.id}-${commentThread.id}-0`,
+                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    createdTime: expect.any(Date),
+                    title: null,
+                    body: "Test document comment content.",
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 34,
+                            text: "This is a comment on a document:\n\nTest document comment content.",
+                            tokenCountWithoutPreamble: 5,
+                        },
+                    ],
+                    media: {type: "Account", accountId: session2.account.id},
+                    creatorId: session2.account.id,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+    },
+    Channel: () => {
+        test("can get channel search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const channel = await createChannel(session.action(), {
+                spaceId: space.id,
+                name: "Test Channel",
+                description: createSimpleMessageContent("Test channel description content."),
+            });
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Channel", channelId: channel.id},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set([]),
+                entity: {
+                    id: `Channel:${channel.id}`,
+                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    createdTime: channel.createdTime,
+                    title: "Test Channel",
+                    body: "Test channel description content.",
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 56,
+                            text: "This is the description of the “Test Channel” channel:\n\nTest channel description content.",
+                            tokenCountWithoutPreamble: 5,
+                        },
+                    ],
+                    media: null,
+                    creatorId: session.account.id,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+    },
+    Post: () => {
+        test("can get post search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const channel = await createChannel(session1.action(), {
+                spaceId: space.id,
+                name: "Test Channel",
+            });
+
+            const post = await createPost(session2.action(), {
+                channelId: channel.id,
+                content: createSimplePostContent("Test post content."),
+            });
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Post", postId: post.id},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set([`Channel:${channel.id}:Preview`]),
+                entity: {
+                    id: `Post:${post.id}`,
+                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    createdTime: post.createdTime,
+                    title: null,
+                    body: "Test post content.",
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 47,
+                            text: "This is a post in the “Test Channel” channel:\n\nTest post content.",
+                            tokenCountWithoutPreamble: 4,
+                        },
+                    ],
+                    media: {type: "Account", accountId: session2.account.id},
+                    creatorId: session2.account.id,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+    },
+    PostComment: () => {
+        test("can get post comment search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
+            const session3 = await space.createSession();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const channel = await createChannel(session1.action(), {
+                spaceId: space.id,
+                name: "Test Channel",
+            });
+
+            const post = await createPost(session2.action(), {
+                channelId: channel.id,
+                content: createSimplePostContent("Test post content."),
+            });
+
+            const comment = await createPostComment(session3.action(), {
+                postId: post.id,
+                parentCommentIndex: null,
+                content: createSimpleMessageContent("Test post comment content."),
+            });
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "PostComment", postId: post.id, commentIndex: 0},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set([]),
+                entity: {
+                    id: `PostComment:${post.id}-0`,
+                    accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
+                    createdTime: comment.createdTime,
+                    title: null,
+                    body: "Test post comment content.",
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 30,
+                            text: "This is a comment on a post:\n\nTest post comment content.",
+                            tokenCountWithoutPreamble: 5,
+                        },
+                    ],
+                    media: {type: "Account", accountId: session3.account.id},
+                    creatorId: session3.account.id,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+    },
+    Chat: () => {
+        test("can get chat search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession({name: "Caleb Meredith"});
+            const session2 = await space.createSession({name: "Josh Meredith"});
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const chatId = await getOrCreateChatForAccounts(session1.action(), {
+                spaceId: space.id,
+                otherAccountIds: [session2.account.id],
+            });
+
+            expect(
+                await getSearchEntity(space.systemAction(), {type: "Chat", chatId}, tokenizer),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `Chat:${chatId}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set([session1.account.id, session2.account.id]),
+                        defaultGrantType: null,
+                    },
+                    createdTime: expect.any(Date),
+                    title: null,
+                    body: null,
+                    embeddingChunks: [],
+                    media: null,
+                    creatorId: null,
+                    contributorIds: new Map(),
+                },
+            });
+
+            await sendChatMessage(session2.action(), {
+                chatId,
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("Test chat message content."),
+            });
+
+            expect(
+                await getSearchEntity(space.systemAction(), {type: "Chat", chatId}, tokenizer),
+            ).toEqual({
+                dependencyIds: new Set(
+                    [
+                        `Account:${session1.account.id}:WithoutSpace`,
+                        `Account:${session2.account.id}:WithoutSpace`,
+                    ].sort(defaultCompareStrings),
+                ),
+                entity: {
+                    id: `Chat:${chatId}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(
+                            [session1.account.id, session2.account.id].sort(defaultCompareStrings),
+                        ),
+                        defaultGrantType: null,
+                    },
+                    createdTime: expect.any(Date),
+                    title: "Caleb Meredith and Josh Meredith",
+                    body: null,
+                    embeddingChunks: [],
+                    media: {
+                        type: "AccountPile",
+                        accountIds: [session1.account.id, session2.account.id].sort(
+                            defaultCompareStrings,
+                        ),
+                    },
+                    creatorId: null,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+    },
+    ChatMessage: () => {
+        test("can get chat message comment search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession({name: "Caleb Meredith"});
+            const session2 = await space.createSession({name: "Josh Meredith"});
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const chatId = await getOrCreateChatForAccounts(session1.action(), {
+                spaceId: space.id,
+                otherAccountIds: [session2.account.id],
+            });
+
+            const message = await sendChatMessage(session2.action(), {
+                chatId,
+                parentMessageIndex: null,
+                content: createSimpleMessageContent("Test chat message content."),
+            });
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "ChatMessage", chatId, messageIndex: 0},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set([`Chat:${chatId}`]),
+                entity: {
+                    id: `ChatMessage:${chatId}-0`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(
+                            [session1.account.id, session2.account.id].sort(defaultCompareStrings),
+                        ),
+                        defaultGrantType: null,
+                    },
+                    createdTime: message.createdTime,
+                    title: null,
+                    body: "Test chat message content.",
+                    embeddingChunks: [
+                        {
+                            preambleEndIndex: 49,
+                            text: "This is a message in a chat between two people:\n\nTest chat message content.",
+                            tokenCountWithoutPreamble: 5,
+                        },
+                    ],
+                    media: {type: "Account", accountId: session2.account.id},
+                    creatorId: session2.account.id,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+    },
+    Task: () => {
+        // Our `getSearchEntity()` tests for tasks are in
+        // `search_entity_index_tasks.test.ts` because we don't want to start
+        // OpenSearch in this test.
+    },
+    TaskCollection: () => {
+        // Our `getSearchEntity()` tests for tasks are in
+        // `search_entity_index_tasks.test.ts` because we don't want to start
+        // OpenSearch in this test.
+    },
+    TaskComment: () => {
+        // Our `getSearchEntity()` tests for tasks are in
+        // `search_entity_index_tasks.test.ts` because we don't want to start
+        // OpenSearch in this test.
+    },
+};
+
+for (const testCases of Object.values(testCasesBySearchEntityType)) {
+    testCases();
+}

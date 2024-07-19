@@ -1807,6 +1807,10 @@ export async function authorizePostAccess(
         },
         {
             attributes: ["spaceId", "channelId"],
+            // It's ok to call this function when expecting strong read consistency.
+            // Authorization is mostly strongly consistent since we retry with strong
+            // consistency if our eventually consistent read fails.
+            allowsEventualReadConsistency: true,
         },
     );
 

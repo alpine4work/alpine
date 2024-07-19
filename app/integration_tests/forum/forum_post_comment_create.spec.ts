@@ -309,6 +309,9 @@ test("can see comments appear in realtime", async ({
     await expect(page1.getByText("Test post comment content 2")).toBeVisible();
     await expect(page1.getByText("Test post comment content 3")).toBeVisible();
     await expect(page1.getByText("Test post comment content 4")).toBeVisible();
+
+    await browserContext2.close();
+    await browserContext3.close();
 });
 
 test("can see new comments when opening post comments", async ({
@@ -467,4 +470,7 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 2")).toBeVisible();
     await expect(page1.getByText("Test post comment content 3")).toBeVisible();
     await expect(page1.getByText("Test post comment content 4")).toBeVisible();
+
+    await browserContext2.close();
+    await browserContext3.close();
 });

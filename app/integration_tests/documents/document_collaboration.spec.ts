@@ -127,6 +127,8 @@ test("can write collaboratively in a document", async ({
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1Test document content 2Test document content 3Test document content 4",
     );
+
+    await browserContext2.close();
 });
 
 test("can write collaboratively at the same time in a document", async ({
@@ -276,4 +278,6 @@ test("can write collaboratively at the same time in a document", async ({
         ["e", 75],
         ["f", 75],
     ]);
+
+    await browserContext2.close();
 });

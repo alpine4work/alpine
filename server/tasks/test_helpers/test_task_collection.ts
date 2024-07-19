@@ -10,6 +10,8 @@ import {
     getTaskCollectionItemForTest,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {
@@ -23,11 +25,18 @@ export class TestTaskCollection {
     public readonly context: TestContext;
     public readonly space: TestSpace;
     public readonly id: TaskCollectionId;
+    public readonly createdTime: HybridLogicalTime;
 
-    private constructor(context: TestContext, space: TestSpace, id: TaskCollectionId) {
+    private constructor(
+        context: TestContext,
+        space: TestSpace,
+        id: TaskCollectionId,
+        createdTime: HybridLogicalTime,
+    ) {
         this.context = context;
         this.space = space;
         this.id = id;
+        this.createdTime = createdTime;
     }
 
     public static getNewName() {
@@ -46,10 +55,12 @@ export class TestTaskCollection {
     ) {
         const id = generateId<TaskCollectionId>();
 
+        const time = testClock.nowLogical();
+
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateCollection",
-                time: testClock.nowLogical(),
+                time,
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
@@ -74,7 +85,7 @@ export class TestTaskCollection {
             },
         ]);
 
-        return new TestTaskCollection(session.context, session.space, id);
+        return new TestTaskCollection(session.context, session.space, id, time);
     }
 
     public static async createPublic(
@@ -83,10 +94,12 @@ export class TestTaskCollection {
     ) {
         const id = generateId<TaskCollectionId>();
 
+        const time = testClock.nowLogical();
+
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateCollection",
-                time: testClock.nowLogical(),
+                time,
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
@@ -100,7 +113,7 @@ export class TestTaskCollection {
             },
         ]);
 
-        return new TestTaskCollection(session.context, session.space, id);
+        return new TestTaskCollection(session.context, session.space, id, time);
     }
 
     public getItem(): Promise<TaskCollectionEssentialAttributesItem> {
@@ -142,6 +155,20 @@ export class TestTaskCollection {
                 collectionAction: {
                     type: "UpdateName",
                     name,
+                },
+            },
+        ]);
+    }
+
+    public async updateColor(session: TestSpaceSession, color: ThemeColor | null) {
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+            {
+                type: "UpdateCollection",
+                time: testClock.nowLogical(),
+                collectionId: this.id,
+                collectionAction: {
+                    type: "UpdateColor",
+                    color,
                 },
             },
         ]);

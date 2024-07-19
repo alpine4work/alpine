@@ -35,6 +35,7 @@ import {
     getTaskNotesContentWithoutReferences,
 } from "~/server/tasks/data/task_table.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
@@ -531,7 +532,6 @@ export async function getSearchEntity(
     idObject: SearchEntityIdObject,
     tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
 ): Promise<{
-    id: SearchEntityId;
     dependencyIds: Iterable<SearchEntityDependencyId>;
     entity: SearchEntity;
 }> {
@@ -542,7 +542,6 @@ export async function getSearchEntity(
     const entity = await actuallyGetSearchEntity(state, idObject);
 
     return {
-        id,
         dependencyIds: state.getDependencyIds(),
         entity,
     };
@@ -1180,22 +1179,26 @@ async function getTaskSearchEntity(
         ),
     );
 
-    const {getFullText, embeddingChunks} = await chunkSearchContent(notesContent.content, {
-        tokenizer: state.tokenizer,
-        getAccountIfExists: state.getAccountIfExists,
-        getChunkPreamble: ({context, isInitialChunk}) => {
-            if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
+    const notesChunkResult = !isContentEmpty(notesContent.content)
+        ? await chunkSearchContent(notesContent.content, {
+              tokenizer: state.tokenizer,
+              getAccountIfExists: state.getAccountIfExists,
+              getChunkPreamble: ({context, isInitialChunk}) => {
+                  if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
 
-            return {
-                text: `This is from the “${truncatedTitle.get()}” task${
-                    context.sectionHeading !== null
-                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
-                        : ""
-                }:`,
-                lineMarginBottom: 2,
-            };
-        },
-    });
+                  return {
+                      text: `This is from the “${truncatedTitle.get()}” task${
+                          context.sectionHeading !== null
+                              ? ` in the “${truncatedSectionHeading.get(
+                                    context.sectionHeading,
+                                )}” section`
+                              : ""
+                      }:`,
+                      lineMarginBottom: 2,
+                  };
+              },
+          })
+        : null;
 
     // Calculate task contributors. For tasks we have discrete updates (update
     // assignee, update priority) and continuous updates (update title, update
@@ -1279,9 +1282,9 @@ async function getTaskSearchEntity(
         accessPolicy,
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
-        body: getFullText(),
+        body: notesChunkResult?.getFullText() ?? null,
         media: null,
-        embeddingChunks,
+        embeddingChunks: notesChunkResult?.embeddingChunks ?? [],
         creatorId: task.getCreator().accountId,
         contributorIds,
     };

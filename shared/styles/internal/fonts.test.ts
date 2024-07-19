@@ -1,7 +1,7 @@
 import {parseRemLengthNumber, remPxByPlatform} from "~/shared/design/spacing.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 // eslint-disable-next-line no-restricted-imports
-import {fontSizesByPlatform} from "~/shared/styles/internal/styles.js";
+import {fontSizesByPlatform} from "~/shared/styles/styles.js";
 
 test("letter spacing matches Inter tracking formula", () => {
     // Inter formula for letter spacing:

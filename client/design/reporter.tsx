@@ -140,7 +140,6 @@ const reporterForTest: Reporter | null = import.meta.jest
     : null;
 
 export function useReporter(): Reporter {
-    const context = useAppContext();
     const reporter = useContext(ReporterContext);
 
     if (reporter === null) {
@@ -149,6 +148,12 @@ export function useReporter(): Reporter {
 
         throw new InternalError("Must render in a `<ReporterContextProvider>` to display errors");
     }
+
+    // We only return early in unit tests. So we're ok with breaking the rules of
+    // hooks here.
+    //
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const context = useAppContext();
 
     return reporter.cache.getOrSetDefault(context);
 }

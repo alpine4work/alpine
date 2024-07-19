@@ -1,7 +1,5 @@
 # Cyberworlds
 
-![Test GitHub Workflow badge](https://github.com/cyberworlds/cyberworlds/workflows/Test/badge.svg)
-
 ## Getting started
 
 To develop for Cyberworlds, run the following after you've cloned the repo:

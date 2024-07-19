@@ -17,7 +17,7 @@ import {
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
-import {JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
+import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -28,6 +28,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const receiveMessageTestCounter = new TestCounter<void>();
@@ -416,6 +417,7 @@ export class JobQueueConsumer {
     }) {
         let span: TracerSpan | undefined;
         let finishSpan: (() => void) | undefined;
+        let messageBodyForError: JobQueueMessageBody | undefined;
         try {
             const serializedMessageBody = JSON.parse(assertExists(message.Body));
 
@@ -426,6 +428,7 @@ export class JobQueueConsumer {
             serializedMessageBody.type ??= "Regular";
 
             const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
+            messageBodyForError = messageBody;
 
             let handleSpanName = `${
                 messageBody.type === "Maintenance" ? "Process maintenance job" : "Process job"
@@ -546,8 +549,22 @@ export class JobQueueConsumer {
             // When there's an error processing a job in development, log an error so the
             // user can see it in the console since they might not see it in the UI.
             if (process.env.NODE_ENV !== "production") {
-                // eslint-disable-next-line no-console
-                console.error("Job processing failed:", error);
+                if (messageBodyForError === undefined) {
+                    // eslint-disable-next-line no-console
+                    console.error("Job processing failed:", error);
+                } else if (messageBodyForError.type === "Maintenance") {
+                    // eslint-disable-next-line no-console
+                    console.error(
+                        quote`Maintenance job ${messageBodyForError.job.type} processing failed:`,
+                        error,
+                    );
+                } else {
+                    // eslint-disable-next-line no-console
+                    console.error(
+                        quote`Job ${messageBodyForError.job.type} processing failed:`,
+                        error,
+                    );
+                }
             }
 
             if (span) {

@@ -6,6 +6,8 @@ import {createChannel, createPost, createPostComment} from "~/server/forum/data/
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
+const modifier = process.platform === "darwin" ? "Meta" : "Control";
+
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
@@ -66,7 +68,13 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     await expect(page.getByText("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page, "LR")).toBeVisible();
 
-    await page.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
+    if (!isMobile) {
+        await page.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
+    } else {
+        await page
+            .getByRole("textbox", {name: "Comment", exact: true})
+            .press(`${modifier}+ArrowRight`);
+    }
     await page.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
     await page.getByRole("textbox", {name: "Comment", exact: true}).press("2");
     await expect(page.getByRole("textbox", {name: "Comment", exact: true})).toBeVisible();
@@ -200,7 +208,13 @@ test("can see a post comment edited in realtime", async ({
 
     await editTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
-    await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
+    if (!isMobile) {
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
+    } else {
+        await page2
+            .getByRole("textbox", {name: "Comment", exact: true})
+            .press(`${modifier}+ArrowRight`);
+    }
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("2");
     if (!isMobile) {
@@ -213,6 +227,8 @@ test("can see a post comment edited in realtime", async ({
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Test post comment content 2")).toBeVisible();
+
+    await browserContext2.close();
 });
 
 test("can delete a post comment", async ({page, context: browserContext, isMobile}) => {
@@ -352,6 +368,8 @@ test("can see a post comment deleted in realtime", async ({
     await expect(getAvatarInPileByInitials(page1, "SR")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
     await expect(page1.getByText("Comment deleted")).toBeVisible();
+
+    await browserContext2.close();
 });
 
 test("will backfill an edit in realtime when comments are reopened", async ({
@@ -421,7 +439,13 @@ test("will backfill an edit in realtime when comments are reopened", async ({
 
     await editTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
-    await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
+    if (!isMobile) {
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
+    } else {
+        await page2
+            .getByRole("textbox", {name: "Comment", exact: true})
+            .press(`${modifier}+ArrowRight`);
+    }
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("2");
     if (!isMobile) {
@@ -435,6 +459,8 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     await page1.getByRole("button", {name: "1 comment"}).click();
     await expect(page1.getByText("Test post comment content 2")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+
+    await browserContext2.close();
 });
 
 test("will backfill a delete in realtime when comments are reopened", async ({
@@ -516,4 +542,6 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     await page1.getByRole("button", {name: "1 comment"}).click();
     await expect(page1.getByText("Comment deleted")).toBeVisible();
     await expect(page1.getByText("Test post comment content 1")).toBeHidden();
+
+    await browserContext2.close();
 });

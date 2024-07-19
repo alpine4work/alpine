@@ -43,12 +43,15 @@ export async function validateEmailAddress(
     const domain = emailAddress.split("@", 2)[1]!;
 
     // In development and test environments, we skip MX DNS record validation for
-    // the `test.cyberworlds.dev` domain. Letting you create any number of these
-    // addresses. This is because we don't actually send emails in development and
-    // test environments.
+    // domains we own and know to accept emails (e.g. the `test.cyberworlds.dev`
+    // domain). Letting you create any number of these addresses. This is because
+    // we don't actually send emails in development and test environments.
     if (
         process.env.NODE_ENV !== "production" &&
-        (domain === "test.cyberworlds.dev" || domain.endsWith(".test.cyberworlds.dev"))
+        (domain === "alpine.inc" ||
+            domain === "cyberworlds.dev" ||
+            domain === "test.cyberworlds.dev" ||
+            domain.endsWith(".test.cyberworlds.dev"))
     ) {
         return emailAddress as EmailAddress;
     }
@@ -76,7 +79,7 @@ export async function validateEmailAddress(
     );
 
     if (body.Status !== 0 || body.Answer.length === 0) {
-        throw new InvalidArgumentError("Could not find MX DNS records for email domain", {
+        throw new InvalidArgumentError("Couldn't find MX DNS records for email domain", {
             displayMessage: errorDisplayMessage`The domain “${domain}” does not accept emails. Try providing a different email address where you can receive emails.`,
         });
     }

@@ -613,9 +613,9 @@ test("moved single value", () => {
 
     expect(symmetricDiffIterable([1, 3, 2, 4], [1, 2, 3, 4])).toEqual([
         {type: null, value: 1},
-        {type: "Added", value: 2},
-        {type: null, value: 3},
-        {type: "Deleted", value: 2},
+        {type: "Deleted", value: 3},
+        {type: null, value: 2},
+        {type: "Added", value: 3},
         {type: null, value: 4},
     ]);
 

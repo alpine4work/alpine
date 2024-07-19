@@ -168,4 +168,6 @@ test("can see a mention added by another user", async ({
         await expect(page2.getByText("Siobahn", {exact: true})).toBeHidden();
         await expect(page2.getByText("Kendall Roy", {exact: true})).toBeHidden();
     }
+
+    await browserContext2.close();
 });

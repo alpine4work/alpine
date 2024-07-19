@@ -22,6 +22,10 @@ import {generateId} from "~/shared/id/id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
+// ProseMirror calls this function when `state.tr.scrollIntoView()`
+// transactions. Instead of logging a warning, do nothing.
+window.scrollBy = () => {};
+
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 const createdTime = new Date();
@@ -1016,11 +1020,44 @@ test("pressing enter in an empty code block will create a new line in the block"
     expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
+
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(state.selection.from - 2))),
+    );
+
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     expect(getDoc().toString()).toEqual(
         "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine))",
     );
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual(
+        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine, codeBlockLine))",
+    );
+});
+
+test("pressing enter in an empty code block will create a new line in the block unless at end", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine), paragraph)");
+});
+
+test("pressing alt-enter in an empty code block will create a new line in the block", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    expect(getDoc().toString()).toEqual(
+        "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine))",
+    );
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
     expect(getDoc().toString()).toEqual(
         "doc(codeBlock(codeBlockLine, codeBlockLine, codeBlockLine, codeBlockLine))",
     );
@@ -1448,8 +1485,8 @@ test("tab indents the selected lines, but not on empty lines", async () => {
 
     await simulateTyping("```");
     await simulateTyping("test 1");
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
     await simulateTyping("test 2");
 
     expect(getDoc().toString()).toEqual(
@@ -1614,8 +1651,8 @@ test("shift-tab de-dents multiple lines inside a code block", async () => {
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
     await simulateTyping("test 1");
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
     fireEvent.keyDown(getTextbox(), tabKeyboardEvent());
@@ -4123,13 +4160,13 @@ test("pressing enter will reuse current indentation level in code block", async 
 
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test1")))');
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine("  ")))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("  ")))',
@@ -4142,7 +4179,7 @@ test("pressing enter will reuse current indentation level in code block", async 
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2")))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("    ")))',
@@ -4160,7 +4197,7 @@ test("pressing enter will reuse current indentation level in code block", async 
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("      test3")))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test1"), codeBlockLine, codeBlockLine("    test2"), codeBlockLine("      test3"), codeBlockLine("      ")))',
@@ -4786,13 +4823,13 @@ test("enter in code block uses adjacent indentation level if there is no indenta
 
     expect(getDoc().toString()).toEqual('doc(codeBlock(codeBlockLine("  test 1")))');
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine("  ")))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine("  ")))',
@@ -4804,7 +4841,7 @@ test("enter in code block uses adjacent indentation level if there is no indenta
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine))',
     );
 
-    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
 
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine, codeBlockLine("  ")))',

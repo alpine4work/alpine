@@ -15,6 +15,7 @@ import {
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -131,6 +132,14 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
 
     element.removeAttribute("class");
 
+    // Remove code block toolbars from the DOM since they contribute the text of
+    // their language picker button label.
+    for (const childElement of element.getElementsByClassName(
+        contentSchemaStyles.codeBlockToolbarClassName,
+    )) {
+        childElement.remove();
+    }
+
     for (const childElement of element.querySelectorAll("[class]")) {
         childElement.removeAttribute("class");
     }
@@ -167,10 +176,12 @@ for (const blockTestCase of blockTestCases) {
             />,
         );
 
-        expect(screen.getByRole("textbox")).toHaveTextContent("");
+        const strippedElement = stripHtml(screen.getByRole("textbox"));
+
+        expect(strippedElement).toHaveTextContent("");
 
         if (blockTestCase.disableContentTests) {
-            expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+            expect(strippedElement).toMatchSnapshot();
         }
 
         expectClipboardRoundtripToWork();

@@ -30,6 +30,7 @@ export class TestDocument {
     public readonly context: TestContext;
     public readonly space: TestSpace;
     public readonly id: DocumentId;
+    public readonly createdTime: Date;
 
     // NOTE(calebmer): A cool capability would be to allow testers to create
     // multiple `TestDocumentClient`s that have their own state so you can make
@@ -43,6 +44,7 @@ export class TestDocument {
         context: TestContext,
         space: TestSpace,
         id: DocumentId,
+        createdTime: Date,
         state: MutexValue<{
             lastVersion: number;
             lastUpdatePos: number;
@@ -51,6 +53,7 @@ export class TestDocument {
         this.context = context;
         this.space = space;
         this.id = id;
+        this.createdTime = createdTime;
         this._state = state;
     }
 
@@ -90,6 +93,7 @@ export class TestDocument {
             session.context,
             session.space,
             document.id,
+            document.createdTime,
             new MutexValue({
                 lastVersion: document.version,
                 lastUpdatePos: content.nodeSize - 3,

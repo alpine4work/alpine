@@ -181,7 +181,7 @@ const testCases: Array<{
                 // move focus.
                 await page.getByLabel("Comment").click();
             } else {
-                await page.getByRole("button", {name: "Comment"}).click();
+                await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
             }
 
             return {

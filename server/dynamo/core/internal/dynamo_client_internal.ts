@@ -7,9 +7,11 @@ import {
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -27,6 +29,26 @@ export type DynamoClientDebugItemType = {
     readonly partitionType: string;
     readonly sortRangeType: string;
 };
+
+function printDynamoClientDebugItemTypesForErrorMessage(
+    debugItemTypes: DynamoClientDebugItemTypes,
+) {
+    const printedDebugItemTypes = [];
+
+    for (const debugItemType of debugItemTypes) {
+        printedDebugItemTypes.push(
+            `${quote(`${debugItemType.partitionType}#${debugItemType.sortRangeType}`)} in ${quote(
+                debugItemType.tableName,
+            )}`,
+        );
+    }
+
+    if (printedDebugItemTypes.length === 0) {
+        return "(empty)";
+    }
+
+    return joinPrettyConjunctionList(printedDebugItemTypes);
+}
 
 /**
  * Type-safe DynamoDB client. We initially created this abstraction when our
@@ -166,7 +188,11 @@ export class DynamoClientInternal {
             });
 
             if (expectsStrongReadConsistency && !input.ConsistentRead) {
-                const error = new InternalError("Expected DynamoDB strong read consistency");
+                const error = new InternalError(
+                    `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
+                        debugItemTypes,
+                    )}`,
+                );
 
                 if (process.env.NODE_ENV !== "production") {
                     throw error;
@@ -256,7 +282,11 @@ export class DynamoClientInternal {
             });
 
             if (expectsStrongReadConsistency && !everyConsistentRead) {
-                const error = new InternalError("Expected DynamoDB strong read consistency");
+                const error = new InternalError(
+                    `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
+                        debugItemTypes,
+                    )}`,
+                );
 
                 if (process.env.NODE_ENV !== "production") {
                     throw error;
@@ -681,7 +711,11 @@ export class DynamoClientInternal {
             });
 
             if (expectsStrongReadConsistency && !input.ConsistentRead) {
-                const error = new InternalError("Expected DynamoDB strong read consistency");
+                const error = new InternalError(
+                    `Expected DynamoDB strong consistency when reading ${printDynamoClientDebugItemTypesForErrorMessage(
+                        debugItemTypes,
+                    )}`,
+                );
 
                 if (process.env.NODE_ENV !== "production") {
                     throw error;

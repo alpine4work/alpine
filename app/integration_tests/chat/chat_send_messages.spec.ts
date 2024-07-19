@@ -852,4 +852,6 @@ test("two accounts can look at an empty chat and see new messages appear in real
     await expect(page1.getByText("message6")).toBeVisible();
     await expect(page2.getByText("message5")).toBeVisible();
     await expect(page2.getByText("message6")).toBeVisible();
+
+    await browserContext2.close();
 });

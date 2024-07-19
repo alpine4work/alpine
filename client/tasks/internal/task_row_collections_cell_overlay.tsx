@@ -1,7 +1,6 @@
 import {Memo, Ref, RefObject, forwardRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -64,8 +63,6 @@ function TaskRowCollectionsCellOverlay(
             fallbackPlacements={[]}
             offset={`-${taskRowViewMinHeight}`}
             offsetAlong="-3"
-            // Don't allow interaction with anything below the cell overlay.
-            isBlocking={true}
             overlay={
                 <Box
                     ref={useMergedRefs<HTMLDivElement>(ref, childFocusRingTargetRef)}
@@ -79,22 +76,7 @@ function TaskRowCollectionsCellOverlay(
                     boxShadow="elevation-20"
                 >
                     <Box
-                        ref={useMergedRefs<HTMLDivElement>(
-                            useScrollbar(),
-                            useOutsidePress(event => {
-                                // Make sure the click event which closes our blocking cover doesn't trigger
-                                // the click handler for some other element.
-                                //
-                                // Without this, if you've opened say a priority input in task grid view (you
-                                // must have opened it at least once first so the editable version is mounted),
-                                // then you open this overlay, then you click on the priority input to close
-                                // the overlay it'll open the priority input! Since the click event falls
-                                // through.
-                                event.preventDefault();
-
-                                onClose();
-                            }),
-                        )}
+                        ref={useScrollbar()}
                         position="relative"
                         backgroundColor="grey-0"
                         overflowY="scroll"

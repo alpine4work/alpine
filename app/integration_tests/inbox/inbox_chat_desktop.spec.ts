@@ -160,6 +160,9 @@ test("can see new chat notifications on inbox button and preview", async ({
     await expect(page3.getByText("test5")).toBeHidden();
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeHidden();
+
+    await browserContext2.close();
+    await browserContext3.close();
 });
 
 test("can see new chat notifications from inbox", async ({
@@ -313,6 +316,9 @@ test("can see new chat notifications from inbox", async ({
 
     await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
     await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
+
+    await browserContext2.close();
+    await browserContext3.close();
 });
 
 test("can go offline then when reconnecting notifications catch up", async ({
@@ -400,4 +406,7 @@ test("can go offline then when reconnecting notifications catch up", async ({
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("4")).toBeVisible();
     await expect(page3.getByRole("listbox", {name: "Inbox"}).getByText("test10")).toBeHidden();
     await expect(page3.getByRole("listbox", {name: "Inbox"}).getByText("test11")).toBeVisible();
+
+    await browserContext2.close();
+    await browserContext3.close();
 });

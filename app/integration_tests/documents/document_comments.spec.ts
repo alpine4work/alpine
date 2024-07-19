@@ -72,7 +72,7 @@ test("can comment on a document and use the comment thread sidebar", async ({
         // move focus.
         await page1.getByLabel("Comment").click();
     } else {
-        await page1.getByRole("button", {name: "Comment"}).click();
+        await page1.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
     }
 
     await expect(page1.getByRole("textbox", {name: "New comment"})).toBeVisible();
@@ -411,6 +411,8 @@ test("can comment on a document and use the comment thread sidebar", async ({
             page2.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).getByText("3"),
         ).toBeVisible();
     }
+
+    await browserContext2.close();
 });
 
 test("can leave multiple comments on a document and navigate between them", async ({
@@ -465,7 +467,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
         // move focus.
         await page.getByLabel("Comment").click();
     } else {
-        await page.getByRole("button", {name: "Comment", exact: true}).click();
+        await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
     }
 
     await page.getByRole("textbox", {name: "New comment"}).fill("Test comment content 1");
@@ -506,7 +508,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
         // move focus.
         await page.getByLabel("Comment").click();
     } else {
-        await page.getByRole("button", {name: "Comment", exact: true}).click();
+        await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
     }
 
     if (isMobile) {
@@ -631,7 +633,7 @@ test("can leave a document comment across multiple paragraphs", async ({
         // move focus.
         await page.getByLabel("Comment").click();
     } else {
-        await page.getByRole("button", {name: "Comment", exact: true}).click();
+        await page.getByTestId("ContentEditorPointerToolbar").getByLabel("Comment").click();
     }
 
     await page.getByRole("textbox", {name: "New comment"}).fill("Test comment content 3");
