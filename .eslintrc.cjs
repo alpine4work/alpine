@@ -38,8 +38,64 @@ const baseNoRestrictedImports = {
     patterns: [],
 };
 
+// All the TypeScript ESLint rules that require type checking. We have them in
+// their own separate config to turn them off individually.
+const typeCheckingConfigOverride = {
+    files: ["**/*.{ts,tsx}"],
+    parserOptions: {
+        tsconfigRootDir: __dirname,
+        project: ["./tsconfig.json"],
+    },
+    extends: ["plugin:@typescript-eslint/recommended-type-checked-only"],
+    rules: {
+        // We trust our developers to use `any` appropriately. So we disable eslint
+        // rules surrounding `any`.
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+
+        // There are reasonable code style reasons to have an async function with no
+        // awaits.
+        "@typescript-eslint/require-await": "off",
+
+        // Error is too loud. An unnecessary type assertion is a noop.
+        "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+
+        // We want to warn when you're coercing a value to a string but allow booleans
+        // and numbers which have reasonable string semantics. Also allow any since we
+        // trust developers to use it appropriately.
+        "@typescript-eslint/restrict-plus-operands": ["warn", {allowAny: true}],
+        "@typescript-eslint/restrict-template-expressions": [
+            "warn",
+            {allowAny: true, allowBoolean: true, allowNumber: true},
+        ],
+
+        // This is catching stringification of `Id`. It's perfectly fine to stringify
+        // an `Id` or any other opaque string type.
+        "@typescript-eslint/no-base-to-string": "off",
+
+        // If a function returns a promise, the developer must await it! Otherwise they
+        // may miss important errors.
+        "@typescript-eslint/no-floating-promises": [
+            "error",
+            {
+                // We define a promise type that doesn't have to be awaited since in some cases
+                // that's ok.
+                allowForKnownSafePromises: ["SafeFloatingPromise"],
+            },
+        ],
+    },
+};
+
 /** @type {import('eslint').Linter.Config} */
 module.exports = {
+    // The test `//admin/typescript/workspace:workspace_test` will only run
+    // ESLint's type checking rules. So provide access to only the type checking
+    // config.
+    [Symbol.for("cyberworlds.typeCheckingOverride")]: typeCheckingConfigOverride,
+
     extends: ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
     plugins: ["@typescript-eslint", "jest", "jest-dom", "testing-library"],
     reportUnusedDisableDirectives: true,
@@ -170,6 +226,16 @@ module.exports = {
         // refactor, and mixing the styles in one JSX element looks weird.
         "react/jsx-curly-brace-presence": ["warn", {props: "never", propElementValues: "always"}],
 
+        // React display name isn't necessary with functional components.
+        "react/display-name": "warn",
+
+        // When using React, you must follow the rules of hooks. Thankfully there's a lint
+        // rule (originally by [yours truly][1]) that points out when you've made a
+        // mistake.
+        //
+        // [1]: https://github.com/facebook/react/commit/ddbfe2ed50c7a3476ceff20f5924011ac1ad6428
+        "react-hooks/rules-of-hooks": "error",
+
         // Use the exhaustive deps lint rule on some custom hooks.
         //
         // Please use this sparingly! Prefer patterns where you pass in a
@@ -186,36 +252,11 @@ module.exports = {
     overrides: [
         {
             files: ["**/*.{ts,tsx}"],
-            parserOptions: {
-                tsconfigRootDir: __dirname,
-                project: ["./tsconfig.json"],
-            },
-            extends: ["plugin:@typescript-eslint/recommended-requiring-type-checking"],
+            extends: ["plugin:@typescript-eslint/recommended"],
             rules: {
                 // We trust our developers to use `any` appropriately. So we disable eslint
                 // rules surrounding `any`.
                 "@typescript-eslint/no-explicit-any": "off",
-                "@typescript-eslint/no-unsafe-argument": "off",
-                "@typescript-eslint/no-unsafe-assignment": "off",
-                "@typescript-eslint/no-unsafe-call": "off",
-                "@typescript-eslint/no-unsafe-member-access": "off",
-                "@typescript-eslint/no-unsafe-return": "off",
-
-                // There are reasonable code style reasons to have an async function with no
-                // awaits.
-                "@typescript-eslint/require-await": "off",
-
-                // Error is too loud. An unnecessary type assertion is a noop.
-                "@typescript-eslint/no-unnecessary-type-assertion": "warn",
-
-                // We want to warn when you're coercing a value to a string but allow booleans
-                // and numbers which have reasonable string semantics. Also allow any since we
-                // trust developers to use it appropriately.
-                "@typescript-eslint/restrict-plus-operands": ["warn", {allowAny: true}],
-                "@typescript-eslint/restrict-template-expressions": [
-                    "warn",
-                    {allowAny: true, allowBoolean: true, allowNumber: true},
-                ],
 
                 // `x as T` is unsound as we perform no runtime check that `x` is actually
                 // `T`. You can use it but provide a comment explaining why.
@@ -259,10 +300,6 @@ module.exports = {
                 // Modules are the clear default in our codebase, let developers reach for
                 // advanced tools as they need them.
                 "@typescript-eslint/no-namespace": "off",
-
-                // This is catching stringification of `Id`. It's perfectly fine to stringify
-                // an `Id` or any other opaque string type.
-                "@typescript-eslint/no-base-to-string": "off",
 
                 // Remove `{}` and `object` from the ban types rule. The default lint rule
                 // is too picky.
@@ -308,21 +345,11 @@ module.exports = {
                 // Inconvenient to annotate every type import with `import type`.
                 "@typescript-eslint/consistent-type-imports": "off",
 
-                // If a function returns a promise, the developer must await it! Otherwise they
-                // may miss important errors.
-                "@typescript-eslint/no-floating-promises": [
-                    "error",
-                    {
-                        // We define a promise type that doesn't have to be awaited since in some cases
-                        // that's ok.
-                        allowForKnownSafePromises: ["SafeFloatingPromise"],
-                    },
-                ],
-
                 // The recommended type checking rules upgrade this to an error.
                 "prefer-const": "warn",
             },
         },
+        ...(process.env.WITHOUT_TYPE_CHECKING !== "true" ? [typeCheckingConfigOverride] : []),
         {
             files: ["!**/*.{ts,tsx}"],
             // Assume plain JS files are scripts and not modules.

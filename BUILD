@@ -109,6 +109,15 @@ copy_to_bin(
 )
 
 copy_to_bin(
+    name = "eslint_config_files",
+    srcs = [
+        ".eslintignore",
+        ".eslintrc.cjs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
     name = "jest_config_file",
     srcs = ["jest.config.cjs"],
     visibility = ["//visibility:public"],

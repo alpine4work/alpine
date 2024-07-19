@@ -6,6 +6,7 @@ with any related tests for the project.
 load("@aspect_rules_swc//swc:defs.bzl", "swc", _swc_compile = "swc_compile")
 load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
+load("@aspect_rules_js//npm:providers.bzl", "NpmPackageStoreInfo")
 load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
@@ -22,6 +23,7 @@ def ts_project(
         test_deps = [],
         test_data = [],
         tests = {},
+        visibility = [],
         **kwargs):
     """
     Macro for creating a TypeScript project that implements some codebase conventions.
@@ -40,6 +42,7 @@ def ts_project(
         test_deps: Any dependencies this project needs to run tests.
         test_data: Any data for this project that is only available in tests.
         tests: Provide extra arguments to individual tests. Keyed by test label.
+        visibility: Controls who may depend on your target.
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
 
@@ -70,6 +73,11 @@ def ts_project(
         # https://github.com/aspect-build/rules_ts/issues/361
         supports_workers = 0,
         tags = ["typescript", "dev-check"] + tags,
+        # `ts_project()`s are all visible to the `//admin/typescript/workspace` package
+        # which runs tests against all TypeScript files in the repository.
+        visibility =
+            (["//admin/typescript/workspace:__pkg__"] if not ("//visibility:public" in visibility) else []) +
+            visibility,
         **kwargs
     )
 
@@ -226,39 +234,50 @@ def ts_lint_and_format_test(
         testonly = True,
     )
 
-    eslint_bin.eslint_test(
-        name = "{}_lint_test".format(name),
-        args = [
-            "--rulesdir",
-            "{}/admin/eslint/rules".format("." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])),
-            "--max-warnings",
-            "0",
-            # Bazel will strip color if necessary.
-            "--color",
-        ] + [src.replace("$", "$$") for src in srcs if src.endswith(".js") or src.endswith(".jsx") or src.endswith(".ts") or src.endswith(".tsx") or src.endswith(".mjs") or src.endswith(".cjs")],
-        chdir = native.package_name(),
-        copy_data_to_bin = False,
-        data = _dedupe_labels(srcs + [
-            "//:node_modules/@remix-run/eslint-config",
-            "//:node_modules/@typescript-eslint/eslint-plugin",
-            "//:node_modules/eslint-plugin-jest",
-            "//:node_modules/eslint-plugin-jest-dom",
-            "//:node_modules/eslint-plugin-playwright",
-            "//:node_modules/eslint-plugin-testing-library",
-            "//:node_modules/react",
-            "//:node_modules/typescript",
-            "//:.eslintrc.cjs",
-            "//:.eslintignore",
-            "//:package.json",
-            "//:tsconfig.json",
-            "//admin/eslint:eslint_custom_rules",
-            # Include the type information of our dependencies since we use type-aware
-            # lint rules.
-            ":{}_deps_typings".format(name),
-        ]),
-        size = "small",
-        tags = ["eslint", "dev-check"],
-    )
+    lint_srcs = [
+        src
+        for src in srcs
+        if src.endswith(".js") or src.endswith(".jsx") or
+           src.endswith(".ts") or src.endswith(".tsx") or
+           src.endswith(".mjs") or src.endswith(".cjs")
+    ]
+
+    if len(lint_srcs) > 0:
+        eslint_bin.eslint_test(
+            name = "{}_lint_test".format(name),
+            args = [
+                "--rulesdir",
+                "{}/admin/eslint/rules".format("." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])),
+                "--max-warnings",
+                "0",
+                # Bazel will strip color if necessary.
+                "--color",
+            ] + [src.replace("$", "$$") for src in lint_srcs],
+            env = {
+                # Don't run ESLint rules that require type checking in our package level
+                # ESLint test.
+                "WITHOUT_TYPE_CHECKING": "true",
+            },
+            chdir = native.package_name(),
+            copy_data_to_bin = False,
+            data = _dedupe_labels(srcs + [
+                "//:node_modules/@remix-run/eslint-config",
+                "//:node_modules/@typescript-eslint/eslint-plugin",
+                "//:node_modules/eslint-plugin-jest",
+                "//:node_modules/eslint-plugin-jest-dom",
+                "//:node_modules/eslint-plugin-playwright",
+                "//:node_modules/eslint-plugin-testing-library",
+                "//:node_modules/react",
+                "//:node_modules/typescript",
+                "//:.eslintrc.cjs",
+                "//:.eslintignore",
+                "//:package.json",
+                "//:tsconfig.json",
+                "//admin/eslint:eslint_custom_rules",
+            ]),
+            size = "small",
+            tags = ["eslint", "dev-check"],
+        )
 
 def ts_typecheck_test(
         name,
@@ -335,6 +354,10 @@ def _ts_typings_impl(ctx):
     for src in ctx.attr.srcs:
         if JsInfo in src:
             typings.append(src[JsInfo].transitive_declarations)
+            typings.append(src[JsInfo].transitive_npm_linked_package_files)
+
+        if NpmPackageStoreInfo in src:
+            typings.append(src[NpmPackageStoreInfo].transitive_files)
 
     return DefaultInfo(files = depset(transitive = typings))
 
