@@ -293,7 +293,8 @@
             "@remix-run/react@2.9.2": "admin/patches/@remix-run__react@2.9.2.patch",
             "@remix-run/dev@2.9.2": "admin/patches/@remix-run__dev@2.9.2.patch",
             "@web3-storage/multipart-parser@1.0.0": "admin/patches/@web3-storage__multipart-parser@1.0.0.patch",
-            "tough-cookie@4.1.3": "admin/patches/tough-cookie@4.1.3.patch"
+            "tough-cookie@4.1.3": "admin/patches/tough-cookie@4.1.3.patch",
+            "eslint@8.57.0": "admin/patches/eslint@8.57.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",
