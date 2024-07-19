@@ -346,7 +346,9 @@ module.exports = {
                 "prefer-const": "warn",
             },
         },
-        ...(process.env.WITHOUT_TYPE_CHECKING !== "true" ? [typeCheckingConfigOverride] : []),
+        // Check a global variable to let our ESLint test script disable lint rules
+        // that require TypeScript type checking.
+        ...(!globalThis.__eslintDisableTypeChecking ? [typeCheckingConfigOverride] : []),
         {
             files: ["!**/*.{ts,tsx}"],
             // Assume plain JS files are scripts and not modules.

@@ -5,11 +5,11 @@ with any related tests for the project.
 
 load("@aspect_rules_swc//swc:defs.bzl", "swc", _swc_compile = "swc_compile")
 load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
+load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@aspect_rules_js//npm:providers.bzl", "NpmPackageStoreInfo")
 load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
-load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm//:typescript/package_json.bzl", typescript_bin = "bin")
 load("@npm//:jest/package_json.bzl", jest_bin = "bin")
 
@@ -243,36 +243,36 @@ def ts_lint_and_format_test(
     ]
 
     if len(lint_srcs) > 0:
-        eslint_bin.eslint_test(
+        js_test(
             name = "{}_lint_test".format(name),
             args = [
-                "--rulesdir",
-                "{}/admin/eslint/rules".format("." if native.package_name() == "" else "/".join([".." for segment in native.package_name().split("/")])),
-                "--max-warnings",
-                "0",
-                # Bazel will strip color if necessary.
-                "--color",
-            ] + [src.replace("$", "$$") for src in lint_srcs],
+                "{}{}".format(
+                    "{}/".format(native.package_name()) if native.package_name() != "" else "",
+                    src.replace("$", "$$"),
+                )
+                for src in lint_srcs
+            ],
             env = {
-                # Don't run ESLint rules that require type checking in our package level
-                # ESLint test.
-                "WITHOUT_TYPE_CHECKING": "true",
+                "NODE_ENV": "test",
+                # Make sure `chalk` (used by ESLint) always renders colors. Bazel will strip
+                # Ansi codes when appropriate.
+                "FORCE_COLOR": "1",
             },
-            chdir = native.package_name(),
-            copy_data_to_bin = False,
+            node_options = ["--no-deprecation"],
+            entry_point = "//admin/eslint:eslint_test_file",
             data = _dedupe_labels(srcs + [
                 "//:node_modules/@remix-run/eslint-config",
                 "//:node_modules/@typescript-eslint/eslint-plugin",
+                "//:node_modules/eslint",
                 "//:node_modules/eslint-plugin-jest",
                 "//:node_modules/eslint-plugin-jest-dom",
                 "//:node_modules/eslint-plugin-playwright",
                 "//:node_modules/eslint-plugin-testing-library",
                 "//:node_modules/react",
                 "//:node_modules/typescript",
-                "//:.eslintrc.cjs",
-                "//:.eslintignore",
-                "//:package.json",
-                "//:tsconfig.json",
+                "//:package_light_json_file",
+                "//:tsconfig_files",
+                "//:eslint_config_files",
                 "//admin/eslint:eslint_custom_rules",
             ]),
             size = "small",

@@ -4,24 +4,30 @@ const path = require("path");
 const ts = require("typescript");
 const {ESLint} = require("eslint");
 const typescriptEslint = require("@typescript-eslint/eslint-plugin");
-
 const eslintConfig = require("../../../.eslintrc.cjs");
 
 const workspacePath = process.cwd();
 
 const runfilesPath = process.env.RUNFILES;
-if (!process.env.RUNFILES) {
-    throw new Error('Expected "RUNFILES" environment variable');
-}
+if (!process.env.RUNFILES) throw new Error('Expected "RUNFILES" environment variable');
 
 const execrootPath = process.env.JS_BINARY__EXECROOT;
-if (!process.env.JS_BINARY__EXECROOT) {
+if (!process.env.JS_BINARY__EXECROOT)
     throw new Error('Expected "JS_BINARY__EXECROOT" environment variable');
-}
 
 const eslintTypeCheckingRuleIds = new Set(
     Object.keys(typescriptEslint.configs["disable-type-checked"].rules),
 );
+
+const eslintTypeCheckingConfigOverride =
+    eslintConfig[Symbol.for("cyberworlds.typeCheckingOverride")];
+
+if (
+    !eslintTypeCheckingConfigOverride.parserOptions ||
+    !eslintTypeCheckingConfigOverride.parserOptions.project
+) {
+    throw new Error("Expected ESLint type checking configuration to be properly setup");
+}
 
 async function main() {
     const configPath = ts.findConfigFile(workspacePath, ts.sys.fileExists, "tsconfig.json");
@@ -57,15 +63,6 @@ async function main() {
         return 1;
     }
 
-    const eslintTypeCheckingConfigOverride =
-        eslintConfig[Symbol.for("cyberworlds.typeCheckingOverride")];
-    if (
-        !eslintTypeCheckingConfigOverride.parserOptions ||
-        !eslintTypeCheckingConfigOverride.parserOptions.project
-    ) {
-        throw new Error("Expected ESLint type checking configuration to be properly setup");
-    }
-
     // Create a `parserOptions` object which has removed our existing TypeScript
     // configuration and add `program`. So we can reuse the type checking work
     // we've already done.
@@ -74,8 +71,27 @@ async function main() {
 
     eslintTypeCheckingConfigOverrideParserOptions.programs = [program];
 
+    // Since we run ESLint twice with different configurations, there are some
+    // missing rules in this configuration. We don't want to report missing rule
+    // errors or unused directive errors unless they're related to the rules we're
+    // running in this configuration (`@typescript-eslint/eslint-plugin`'s rules
+    // that require type checking).
+    //
+    // These globals are added by a patch. There isn't an official ESLint feature
+    // to get this behavior.
+    {
+        globalThis.__eslintIgnoreMissingRule = ruleId => {
+            return !eslintTypeCheckingRuleIds.has(ruleId);
+        };
+
+        globalThis.__eslintIgnoreUnusedDirective = ruleId => {
+            return !eslintTypeCheckingRuleIds.has(ruleId);
+        };
+    }
+
     const eslint = new ESLint({
         cwd: workspacePath,
+        globInputPaths: false,
         fix: false,
         useEslintrc: false,
         overrideConfig: {
@@ -90,24 +106,6 @@ async function main() {
         },
     });
 
-    // Since we run ESLint twice with different configurations, there are some
-    // missing rules in this configuration. We don't want to report missing rule
-    // errors or unused directive errors unless they're related to the rules we're
-    // running in this configuration (`@typescript-eslint/eslint-plugin`'s rules
-    // that require type checking).
-    //
-    // These globals are added by a patch. There isn't an official ESLint feature
-    // to achieve this behavior.
-    {
-        globalThis.__eslintIgnoreMissingRule = ruleId => {
-            return !eslintTypeCheckingRuleIds.has(ruleId);
-        };
-
-        globalThis.__eslintIgnoreUnusedDirective = ruleId => {
-            return !eslintTypeCheckingRuleIds.has(ruleId);
-        };
-    }
-
     const results = await eslint.lintFiles(rootNames);
 
     const newResults = [];
@@ -117,7 +115,8 @@ async function main() {
 
         newResults.push({
             ...result,
-            messages: result.messages,
+            // Use a nice, short, relative path instead of a long, obscure, path into a
+            // Bazel test sandbox.
             filePath: path.relative(path.join(runfilesPath, "cyberworlds"), result.filePath),
         });
     }
