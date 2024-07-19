@@ -226,9 +226,6 @@ module.exports = {
         // refactor, and mixing the styles in one JSX element looks weird.
         "react/jsx-curly-brace-presence": ["warn", {props: "never", propElementValues: "always"}],
 
-        // React display name isn't necessary with functional components.
-        "react/display-name": "warn",
-
         // When using React, you must follow the rules of hooks. Thankfully there's a lint
         // rule (originally by [yours truly][1]) that points out when you've made a
         // mistake.

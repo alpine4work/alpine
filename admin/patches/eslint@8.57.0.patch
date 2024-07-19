@@ -1,0 +1,102 @@
+diff --git a/lib/linter/apply-disable-directives.js b/lib/linter/apply-disable-directives.js
+index c5e3c9ddc1ced52eec29821785cd14de08dc6b8a..c7d4488d4825898124fbac2214199c4e992d6fa7 100644
+--- a/lib/linter/apply-disable-directives.js
++++ b/lib/linter/apply-disable-directives.js
+@@ -345,11 +345,21 @@ function applyDirectives(options) {
+     }
+ 
+     const unusedDisableDirectivesToReport = options.directives
+-        .filter(directive => directive.type === "disable" && !usedDisableDirectives.has(directive));
++        // NOTE(calebmer): Allow ignoring errors for unused disable directives.
++        //
++        // We run ESLint twice with two different configurations. So one
++        // configuration may be missing some rules present in another. We don't
++        // want to log warnings for those configuration mismatches.
++        .filter(directive => directive.type === "disable" && !usedDisableDirectives.has(directive) && (!globalThis.__eslintIgnoreUnusedDirective || !globalThis.__eslintIgnoreUnusedDirective(directive.ruleId)));
+ 
+ 
+     const unusedEnableDirectivesToReport = new Set(
+-        options.directives.filter(directive => directive.unprocessedDirective.type === "enable")
++        // NOTE(calebmer): Allow ignoring errors for unused enable directives.
++        //
++        // We run ESLint twice with two different configurations. So one
++        // configuration may be missing some rules present in another. We don't
++        // want to log warnings for those configuration mismatches.
++        options.directives.filter(directive => directive.unprocessedDirective.type === "enable" && (!globalThis.__eslintIgnoreUnusedDirective || !globalThis.__eslintIgnoreUnusedDirective(directive.ruleId)))
+     );
+ 
+     /*
+diff --git a/lib/linter/linter.js b/lib/linter/linter.js
+index f74d0ecd13f2e240aa581d6c36bf382c76628bf0..47c5b0d746547a89efad1e4f6f2176468c9019b7 100644
+--- a/lib/linter/linter.js
++++ b/lib/linter/linter.js
+@@ -310,7 +310,14 @@ function createDisableDirectives(options) {
+                     justification
+                 });
+             }
+-        } else {
++        } else if (
++            // NOTE(calebmer): Allow ignoring errors for missing rules.
++            //
++            // We run ESLint twice with two different configurations. So one
++            // configuration may be missing some rules present in another. We don't
++            // want to log warnings for those configuration mismatches.
++            !globalThis.__eslintIgnoreMissingRule || !globalThis.__eslintIgnoreMissingRule(ruleId)
++        ) {
+             result.directiveProblems.push(createLintingProblem({ ruleId, loc: commentToken.loc }));
+         }
+     }
+@@ -432,7 +439,16 @@ function getDirectiveComments(sourceCode, ruleMapper, warnInlineConfig) {
+                         const ruleValue = parseResult.config[name];
+ 
+                         if (!rule) {
+-                            problems.push(createLintingProblem({ ruleId: name, loc: comment.loc }));
++                            if (
++                                // NOTE(calebmer): Allow ignoring errors for missing rules.
++                                //
++                                // We run ESLint twice with two different configurations. So one
++                                // configuration may be missing some rules present in another. We don't
++                                // want to log warnings for those configuration mismatches.
++                                !globalThis.__eslintIgnoreMissingRule || !globalThis.__eslintIgnoreMissingRule(name)
++                            ) {
++                                problems.push(createLintingProblem({ ruleId: name, loc: comment.loc }));
++                            }
+                             return;
+                         }
+ 
+@@ -1011,7 +1027,16 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
+         const rule = ruleMapper(ruleId);
+ 
+         if (!rule) {
+-            lintingProblems.push(createLintingProblem({ ruleId }));
++            if (
++                // NOTE(calebmer): Allow ignoring errors for missing rules.
++                //
++                // We run ESLint twice with two different configurations. So one
++                // configuration may be missing some rules present in another. We don't
++                // want to log warnings for those configuration mismatches.
++                !globalThis.__eslintIgnoreMissingRule || !globalThis.__eslintIgnoreMissingRule(ruleId)
++            ) {
++                lintingProblems.push(createLintingProblem({ ruleId }));
++            }
+             return;
+         }
+ 
+@@ -1673,7 +1698,16 @@ class Linter {
+                         const ruleValue = inlineConfig.rules[ruleId];
+ 
+                         if (!rule) {
+-                            inlineConfigProblems.push(createLintingProblem({ ruleId, loc: node.loc }));
++                            if (
++                                // NOTE(calebmer): Allow ignoring errors for missing rules.
++                                //
++                                // We run ESLint twice with two different configurations. So one
++                                // configuration may be missing some rules present in another. We don't
++                                // want to log warnings for those configuration mismatches.
++                                !globalThis.__eslintIgnoreMissingRule || !globalThis.__eslintIgnoreMissingRule(ruleId)
++                            ) {
++                                inlineConfigProblems.push(createLintingProblem({ ruleId, loc: node.loc }));
++                            }
+                             return;
+                         }
+ 

@@ -6,6 +6,10 @@ load("//admin/typescript/workspace:workspace_typescript_test.bzl", "workspace_ty
 workspace_typescript_test(
     name = "workspace_test",
     size = "medium",
+    tags = [
+        "eslint",
+        "typescript",
+    ],
 )
 
 ts_lint_and_format_test(
