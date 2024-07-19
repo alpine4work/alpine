@@ -17,6 +17,6 @@ ts_project(
 aws_lambda(
     name = "deploy",
     srcs = [":deploy_lib"],
-    entry_point = "opensearch_deploy_script.js",
+    entry_point = "opensearch_deploy_lambda.js",
     visibility = ["//admin/aws:__pkg__"],
 )
