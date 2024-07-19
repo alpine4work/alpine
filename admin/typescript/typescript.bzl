@@ -260,7 +260,7 @@ def ts_lint_and_format_test(
             },
             node_options = ["--no-deprecation"],
             entry_point = "//admin/eslint:eslint_test_file",
-            data = _dedupe_labels(srcs + [
+            data = _dedupe_labels(lint_srcs + [
                 "//:node_modules/@remix-run/eslint-config",
                 "//:node_modules/@typescript-eslint/eslint-plugin",
                 "//:node_modules/eslint",
