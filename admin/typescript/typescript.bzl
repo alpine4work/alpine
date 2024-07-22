@@ -50,10 +50,14 @@ def ts_project(
         srcs = native.glob(
             ["**/*.ts", "**/*.tsx"],
             exclude = ["**/*.test.ts", "**/*.test.tsx"],
+            allow_empty = True,
         )
 
     if test_srcs == None:
-        test_srcs = native.glob(["**/*.test.ts", "**/*.test.tsx"])
+        test_srcs = native.glob(
+            ["**/*.test.ts", "**/*.test.tsx"],
+            allow_empty = True,
+        )
 
     tags = kwargs.pop("tags", default = [])
 
@@ -165,7 +169,7 @@ def ts_project(
                                           "{}_transpile".format(name),
                                       ] +
                                       # Will include a snapshot file if it exists.
-                                      native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])])),
+                                      native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])], allow_empty = True)),
                 size = extra_kwargs.pop("size", default = "small"),
                 tags = ["jest", "dev-test"] + extra_tags,
                 **extra_kwargs
@@ -211,7 +215,7 @@ def ts_lint_and_format_test(
             "**/*.md",
             "**/*.html",
             "**/*.hbs",
-        ])
+        ], allow_empty = True)
 
     if len(srcs) == 0:
         return

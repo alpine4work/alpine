@@ -8,6 +8,7 @@ ts_project(
             "**/*.ts",
             "**/*.tsx",
         ],
+        allow_empty = True,
         exclude = [
             "**/*.test.ts",
             "**/*.test.tsx",
@@ -15,10 +16,13 @@ ts_project(
             "internal/**/*.tsx",
         ],
     ),
-    test_srcs = glob([
-        "**/*.test.ts",
-        "**/*.test.tsx",
-    ]),
+    test_srcs = glob(
+        [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+        ],
+        allow_empty = True,
+    ),
     visibility = ["//visibility:public"],
     deps = [
         ":styles_bundle_file",
@@ -37,6 +41,7 @@ ts_project(
             "internal/**/*.ts",
             "internal/**/*.tsx",
         ],
+        allow_empty = True,
         exclude = [
             "internal/**/*.test.ts",
             "internal/**/*.test.tsx",

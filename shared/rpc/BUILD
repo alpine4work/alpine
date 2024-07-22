@@ -33,6 +33,7 @@ genrule(
                 "**/*.ts",
                 "**/*.tsx",
             ],
+            allow_empty = True,
             exclude = [
                 "**/*.test.ts",
                 "**/*.test.tsx",

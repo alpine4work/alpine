@@ -20,14 +20,8 @@ ts_project(
 ts_project(
     name = "error",
     srcs = glob(
-        [
-            "**/*.ts",
-            "**/*.tsx",
-        ],
-        exclude = CORE_SRCS + [
-            "**/*.test.ts",
-            "**/*.test.tsx",
-        ],
+        ["**/*.ts"],
+        exclude = CORE_SRCS + ["**/*.test.ts"],
     ),
     visibility = ["//visibility:public"],
     deps = [

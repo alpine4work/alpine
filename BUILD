@@ -51,6 +51,7 @@ ts_lint_and_format_test(
     srcs = glob(
         ["*.{}".format(extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS] +
         ["{}/**/*.{}".format(folder, extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS for folder in ROOT_LINT_AND_FORMAT_FOLDERS],
+        allow_empty = True,
     ),
 )
 
