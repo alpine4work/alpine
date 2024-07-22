@@ -29,8 +29,9 @@ jobs:
             # a lower total cost for CI since we can stop executing tests early on a type
             # system failure.
             - name: Test (tier 1)
+              # NOCOMMIT: Remove `--jobs=3`!
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=dev-check,-playwright
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=dev-check,-playwright --jobs=3
 
             # After our tier 1 tests pass run all other tests except integration tests
             # written for Playwright. Playwright integration tests are expensive so we only
