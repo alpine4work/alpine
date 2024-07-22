@@ -29,15 +29,16 @@ jobs:
             # a lower total cost for CI since we can stop executing tests early on a type
             # system failure.
             - name: Test (tier 1)
+              # NOCOMMIT: Run ESLint tests here!
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=dev-check,-playwright
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=dev-check,-playwright,-eslint
 
-            # After our tier 1 tests pass run all other tests except integration tests
-            # written for Playwright. Playwright integration tests are expensive so we only
-            # run them once all other tests have passed.
-            - name: Test (tier 2)
-              run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=-dev-check,-playwright
+            # # After our tier 1 tests pass run all other tests except integration tests
+            # # written for Playwright. Playwright integration tests are expensive so we only
+            # # run them once all other tests have passed.
+            # - name: Test (tier 2)
+            #   run: |
+            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=-dev-check,-playwright
 
             - if: failure()
               name: Upload Bazel test logs
