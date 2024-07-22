@@ -3,7 +3,6 @@ import {
     FargateRunnerProvider,
     GitHubRunners,
     LambdaAccess,
-    Os,
     RunnerImageComponent,
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
@@ -20,7 +19,6 @@ export class AwsGithubRunners extends Construct {
             vpc,
             labels: ["aws-test"],
             imageBuilder: FargateRunnerProvider.imageBuilder(this, "FargateRunnerImageBuilder", {
-                os: Os.LINUX_AMAZON_2,
                 // Use arm64 instances since it's cheaper. From our initial [CI pricing
                 // calculator][1] it's estimated x64 instances are ~25% more expensive than
                 // arm64 instances.
@@ -35,11 +33,10 @@ export class AwsGithubRunners extends Construct {
                     RunnerImageComponent.awsCli(),
                     RunnerImageComponent.githubRunner(RunnerVersion.latest()),
 
-                    // Installs `gcc` and `make` which are needed for building some npm
-                    // dependencies.
+                    // Installs `gcc` and `make` among other common build tools.
                     RunnerImageComponent.custom({
-                        name: "DevelopmentTools",
-                        commands: ["yum install -y gcc make"],
+                        name: "BuildEssential",
+                        commands: ["apt-get install -y build-essential"],
                     }),
                 ],
             }),
