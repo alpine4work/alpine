@@ -69,8 +69,10 @@ export class AwsGithubRunners extends Construct {
             cluster: new Cluster(this, "Cluster", {
                 vpc,
                 enableFargateCapacityProviders: true,
-                // TODO(calebmer): Maybe I should remove container insights after I'm finished
-                // debugging?
+                // NOTE(calebmer, 2024-07-22): Enabling container insights provides metrics on
+                // CPU utilization and memory utilization for our GitHub runners but does add
+                // some extra costs. Unclear what the costs are right now but the metrics are
+                // definitely useful to make sure we're sizing runners correctly.
                 containerInsights: true,
             }),
         });
