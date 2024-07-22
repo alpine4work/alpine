@@ -1,4 +1,9 @@
-import {FargateRunnerProvider, GitHubRunners, LambdaAccess} from "@cloudsnorkel/cdk-github-runners";
+import {
+    Architecture,
+    FargateRunnerProvider,
+    GitHubRunners,
+    LambdaAccess,
+} from "@cloudsnorkel/cdk-github-runners";
 import {App, Stack} from "aws-cdk-lib";
 import {fileURLToPath} from "url";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
@@ -81,16 +86,39 @@ function addAwsLifecycleResources(stack: Stack, {vpc}: {vpc: AwsVpc}) {
     const runnerProvider = new FargateRunnerProvider(stack, "FargateRunnerProvider", {
         vpc,
         labels: ["aws-test"],
+        imageBuilder: FargateRunnerProvider.imageBuilder(stack, "FargateRunnerImageBuilder", {
+            // Use arm64 instances since it's cheaper. From our initial [CI pricing
+            // calculator][1] it's estimated x64 instances are ~25% more expensive than
+            // arm64 instances.
+            //
+            // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
+            architecture: Architecture.ARM64,
+        }),
         cpu: 16384, // 16 vCPUs
         memoryLimitMiB: 32768, // 32 GB
         ephemeralStorageGiB: 20, // First 20 is free
 
-        // Save with spot pricing. From our initial [CI pricing calculator][1] it's
-        // estimated non-spot x64 instances are ~2x more expensive. Non-spot arm64
-        // instances are ~1.7x more expensive.
+        // NOTE(calebmer, 2024-07-22): In theory, CI is a good use case for spot
+        // capacity. However, when trying to set this up I have one test job that's
+        // been running for >12 minutes and still hasn't been able to get spot
+        // capacity. Without knowing too much about cloud economics, I'm guessing that
+        // trying to get such a large instance (16 vCPU, the max for Fargate) is
+        // competitive and so there's not available excess capacity.
+        //
+        // To optimize cost we could still try:
+        //
+        // 1. Trying to get spot capacity in a different availability zone that's less
+        //    competitive
+        // 2. Try to get spot capacity 2-3 times and if that doesn't work request
+        //    regular capacity
+        //
+        // Not doing this for now due to implementation complexity.
+        //
+        // From our initial [CI pricing calculator][1] it's estimated spot x64
+        // instances would save us 63%.
         //
         // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
-        spot: true,
+        spot: false,
     });
 
     // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing

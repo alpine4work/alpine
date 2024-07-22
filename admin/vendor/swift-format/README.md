@@ -18,13 +18,17 @@ To build on an Apple Silicon (M1) Mac run the following:
 swift build -c release
 # Output at: `.build/arm64-apple-macosx/release/swift-format`
 
+# For `swift-format-darwin-x86_64`:
+arch -x86_64 swift build -c release
+# Output at: `.build/x86_64-apple-macosx/release/swift-format`
+
 # For `swift-format-linux-x86_64`:
 docker run -v "$PWD:/code" -w /code --platform linux/amd64 -e QEMU_CPU=max swift:latest swift build -c release
 # Output at: `.build/x86_64-unknown-linux-gnu/release/swift-format` (took ~30min to build on my machine)
 
-# For `swift-format-darwin-x86_64`:
-arch -x86_64 swift build -c release
-# Output at: `.build/x86_64-apple-macosx/release/swift-format`
+# For `swift-format-linux-arm64`:
+docker run -v "$PWD:/code" -w /code --platform linux/arm64 -e QEMU_CPU=max swift:latest swift build -c release
+# Output at: `.build/aarch64-unknown-linux-gnu/release/swift-format`
 ```
 
 For more information read the
