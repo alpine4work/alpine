@@ -7,6 +7,7 @@ import {
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
 import {Stack} from "aws-cdk-lib";
+import {Cluster} from "aws-cdk-lib/aws-ecs";
 import {Construct} from "constructs";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 
@@ -64,6 +65,14 @@ export class AwsGithubRunners extends Construct {
             //
             // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
             spot: false,
+
+            cluster: new Cluster(this, "Cluster", {
+                vpc,
+                enableFargateCapacityProviders: true,
+                // TODO(calebmer): Maybe I should remove container insights after I'm finished
+                // debugging?
+                containerInsights: true,
+            }),
         });
 
         // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
