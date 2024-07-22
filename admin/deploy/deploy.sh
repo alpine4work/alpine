@@ -11,7 +11,7 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 # --- end runfiles.bash initialization v3 ---
 
-"$(rlocation cyberworlds/admin/aws/cdk.sh)" deploy
+"$(rlocation cyberworlds/admin/aws/cdk.sh)" deploy --all
 
 # TODO(calebmer): Someday, deploy to Cloudflare in an AWS custom resource so
 # everything we deploy goes through the AWS CDK.

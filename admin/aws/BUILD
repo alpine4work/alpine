@@ -18,6 +18,7 @@ ts_project(
         "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
     ],
     deps = [
+        "//:node_modules/@cloudsnorkel/cdk-github-runners",
         "//:node_modules/aws-cdk-lib",
         "//:node_modules/chalk",
         "//:node_modules/constructs",

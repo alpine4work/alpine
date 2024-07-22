@@ -1,3 +1,4 @@
+import {FargateRunnerProvider, GitHubRunners, LambdaAccess} from "@cloudsnorkel/cdk-github-runners";
 import {App, Stack} from "aws-cdk-lib";
 import {fileURLToPath} from "url";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
@@ -15,8 +16,17 @@ const outputDirectoryPath = fileURLToPath(new URL("output", import.meta.url));
 
 export async function createAwsApp() {
     const app = new App({autoSynth: false, outdir: outputDirectoryPath});
+
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    await addAwsResources(stack);
+    const {vpc} = await addAwsResources(stack);
+
+    // Resources related to continuous integration and continuous deployment live in
+    // this stack.
+    const lifecycleStack = new Stack(app, "CyberworldsLifecycleStack", {
+        env: {region: "us-east-1"},
+    });
+    addAwsLifecycleResources(lifecycleStack, {vpc});
+
     return app;
 }
 
@@ -62,5 +72,29 @@ async function addAwsResources(stack: Stack) {
         dynamo,
         opensearch,
         sqs,
+    });
+
+    return {vpc};
+}
+
+function addAwsLifecycleResources(stack: Stack, {vpc}: {vpc: AwsVpc}) {
+    const runnerProvider = new FargateRunnerProvider(stack, "FargateRunnerProvider", {
+        vpc,
+        labels: ["aws-test"],
+        cpu: 16384, // 16 vCPUs
+        memoryLimitMiB: 32768, // 32 GB
+
+        // Save with spot pricing. From our initial [CI pricing calculator][1] it's
+        // estimated non-spot x64 instances are ~2x more expensive. Non-spot arm64
+        // instances are ~1.7x more expensive.
+        //
+        // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
+        spot: true,
+    });
+
+    new GitHubRunners(stack, "Runners", {
+        providers: [runnerProvider],
+        setupAccess: LambdaAccess.noAccess(),
+        webhookAccess: LambdaAccess.apiGateway({allowedIps: LambdaAccess.githubWebhookIps()}),
     });
 }
