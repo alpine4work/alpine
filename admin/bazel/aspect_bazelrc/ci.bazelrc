@@ -8,18 +8,22 @@
 # Docs: https://bazel.build/docs/user-manual#test-timeout-filters
 build --test_timeout_filters=-eternal
 
-# Set this flag to enable re-tries of failed tests on CI.
-# When any test target fails, try one or more times. This applies regardless of whether the "flaky"
-# tag appears on the target definition.
-# This is a tradeoff: legitimately failing tests will take longer to report,
-# but we can paper over flaky tests that pass most of the time.
-# The alternative is to mark every flaky test with the `flaky = True` attribute, but this requires
-# the buildcop to make frequent code edits.
-# Not recommended for local builds so that the flakiness is observed during development and thus
-# is more likely to get fixed.
-# Note that when passing after the first attempt, Bazel will give a special "FLAKY" status.
-# Docs: https://bazel.build/docs/user-manual#flaky-test-attempts
-build --flaky_test_attempts=2
+# NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration. We'll manually mark
+# flaky tests as flaky. We prefer fast failure in the tradeoff described below. Especially for tests
+# like TypeScript, ESLint, and Prettier.
+#
+# # Set this flag to enable re-tries of failed tests on CI.
+# # When any test target fails, try one or more times. This applies regardless of whether the "flaky"
+# # tag appears on the target definition.
+# # This is a tradeoff: legitimately failing tests will take longer to report,
+# # but we can paper over flaky tests that pass most of the time.
+# # The alternative is to mark every flaky test with the `flaky = True` attribute, but this requires
+# # the buildcop to make frequent code edits.
+# # Not recommended for local builds so that the flakiness is observed during development and thus
+# # is more likely to get fixed.
+# # Note that when passing after the first attempt, Bazel will give a special "FLAKY" status.
+# # Docs: https://bazel.build/docs/user-manual#flaky-test-attempts
+# build --flaky_test_attempts=2
 
 # Announce all announces command options read from the bazelrc file(s) when starting up at the
 # beginning of each Bazel invocation. This is very useful on CI to be able to inspect what Bazel rc
