@@ -6,6 +6,9 @@ arch_name="$(uname -m)"
 if [ "$arch_name" = "amd64" ]; then
     arch_name="x86_64"
 fi
+if [ "$arch_name" = "aarch64" ]; then
+    arch_name="arm64"
+fi
 
 "admin/vendor/swift-format/swift-format-$platform_name-$arch_name" lint \
     --color-diagnostics \
