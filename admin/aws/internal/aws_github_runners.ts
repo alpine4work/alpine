@@ -3,6 +3,7 @@ import {
     FargateRunnerProvider,
     GitHubRunners,
     LambdaAccess,
+    Os,
     RunnerImageComponent,
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
@@ -19,6 +20,7 @@ export class AwsGithubRunners extends Construct {
             vpc,
             labels: ["aws-test"],
             imageBuilder: FargateRunnerProvider.imageBuilder(this, "FargateRunnerImageBuilder", {
+                os: Os.LINUX_AMAZON_2,
                 // Use arm64 instances since it's cheaper. From our initial [CI pricing
                 // calculator][1] it's estimated x64 instances are ~25% more expensive than
                 // arm64 instances.
