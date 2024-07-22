@@ -35,10 +35,11 @@ export class AwsGithubRunners extends Construct {
                     RunnerImageComponent.awsCli(),
                     RunnerImageComponent.githubRunner(RunnerVersion.latest()),
 
-                    // Installs `gcc` and `make` among other common build tools.
+                    // Installs `gcc` and `make` which are needed for building some npm
+                    // dependencies.
                     RunnerImageComponent.custom({
-                        name: "BuildEssential",
-                        commands: ["apt-get install -y build-essential"],
+                        name: "DevelopmentTools",
+                        commands: ["yum install -y gcc make"],
                     }),
                 ],
             }),
