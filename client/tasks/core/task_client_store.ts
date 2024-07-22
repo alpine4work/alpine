@@ -65,10 +65,6 @@ import {
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskTitleUpdate, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
 
-// NOCOMMIT: Bust cache
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const x: number = 42;
-
 export type TaskClientStoreTaskEntry =
     // Task initialized and known authorization state:
     | {

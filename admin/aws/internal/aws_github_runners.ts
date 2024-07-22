@@ -7,7 +7,7 @@ import {
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
 import {Stack} from "aws-cdk-lib";
-import {Cluster} from "aws-cdk-lib/aws-ecs";
+import {Cluster, FargateTaskDefinition} from "aws-cdk-lib/aws-ecs";
 import {Construct} from "constructs";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 
@@ -40,7 +40,7 @@ export class AwsGithubRunners extends Construct {
                     }),
                 ],
             }),
-            cpu: 16384, // 16 vCPUs
+            cpu: 8192, // 8 vCPUs
             memoryLimitMiB: 32768, // 32 GB
             ephemeralStorageGiB: 20, // First 20 is free
 
