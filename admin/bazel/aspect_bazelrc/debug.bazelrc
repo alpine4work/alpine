@@ -1,5 +1,5 @@
 # We use the Aspect .bazelrc preset with some modifications from:
-# https://github.com/aspect-build/bazel-lib/tree/018fb2db18bf45678a434922432c6cd116016ab6/.aspect/bazelrc
+# https://github.com/aspect-build/bazel-lib/tree/6bad7f3d3c39e085d3c089dc9ac8ea292ad6f69a/.aspect/bazelrc
 
 ############################################################
 # Use `bazel test --config=debug` to enable these settings #

@@ -3,7 +3,7 @@
 always --noenable_bzlmod
 
 # Import Aspect bazelrc presets
-import %workspace%/admin/bazel/aspect_bazelrc/bazel6.bazelrc
+import %workspace%/admin/bazel/aspect_bazelrc/bazel7.bazelrc
 import %workspace%/admin/bazel/aspect_bazelrc/convenience.bazelrc
 import %workspace%/admin/bazel/aspect_bazelrc/correctness.bazelrc
 import %workspace%/admin/bazel/aspect_bazelrc/debug.bazelrc

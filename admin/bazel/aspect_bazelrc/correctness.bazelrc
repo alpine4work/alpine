@@ -1,5 +1,5 @@
 # We use the Aspect .bazelrc preset with some modifications from:
-# https://github.com/aspect-build/bazel-lib/tree/018fb2db18bf45678a434922432c6cd116016ab6/.aspect/bazelrc
+# https://github.com/aspect-build/bazel-lib/tree/6bad7f3d3c39e085d3c089dc9ac8ea292ad6f69a/.aspect/bazelrc
 
 # Do not upload locally executed action results to the remote cache.
 # This should be the default for local builds so local builds cannot poison the remote cache.
@@ -63,3 +63,16 @@ query --experimental_allow_tags_propagation
 # https://github.com/bazelbuild/bazel/issues/10076.
 # Docs: https://bazel.build/reference/command-line-reference#flag--incompatible_default_to_explicit_init_py
 build --incompatible_default_to_explicit_init_py
+
+# Set default value of `allow_empty` to `False` in `glob()`. This prevents a common mistake when
+# attempting to use `glob()` to match files in a subdirectory that is opaque to the current package
+# because it contains a BUILD file. See https://github.com/bazelbuild/bazel/issues/8195.
+# Docs: https://bazel.build/reference/command-line-reference#flag--incompatible_disallow_empty_glob
+common --incompatible_disallow_empty_glob
+
+# Always download coverage files for tests from the remote cache. By default, coverage files are not
+# downloaded on test result cache hits when --remote_download_minimal is enabled, making it impossible
+# to generate a full coverage report.
+# Docs: https://bazel.build/reference/command-line-reference#flag--experimental_fetch_all_coverage_outputs
+# detching remote cache results
+test --experimental_fetch_all_coverage_outputs

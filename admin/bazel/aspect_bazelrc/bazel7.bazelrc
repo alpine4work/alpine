@@ -1,5 +1,5 @@
 # We use the Aspect .bazelrc preset with some modifications from:
-# https://github.com/aspect-build/bazel-lib/tree/018fb2db18bf45678a434922432c6cd116016ab6/.aspect/bazelrc
+# https://github.com/aspect-build/bazel-lib/tree/6bad7f3d3c39e085d3c089dc9ac8ea292ad6f69a/.aspect/bazelrc
 
 # Speed up all builds by not checking if external repository files have been modified.
 # Docs: https://github.com/bazelbuild/bazel/blob/1af61b21df99edc2fc66939cdf14449c2661f873/src/main/java/com/google/devtools/build/lib/bazel/repository/RepositoryOptions.java#L244
@@ -12,7 +12,3 @@ query --noexperimental_check_external_repository_files
 # build.
 # Docs: https://bazel.build/reference/command-line-reference#flag--reuse_sandbox_directories
 build --reuse_sandbox_directories
-
-# Avoid this flag being enabled by remote_download_minimal or remote_download_toplevel
-# See https://meroton.com/blog/bazel-6-errors-build-without-the-bytes/
-build --noexperimental_action_cache_store_output_metadata
