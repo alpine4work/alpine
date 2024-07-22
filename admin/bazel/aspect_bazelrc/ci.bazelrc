@@ -1,9 +1,16 @@
 # We use the Aspect .bazelrc preset with some modifications from:
 # https://github.com/aspect-build/bazel-lib/tree/018fb2db18bf45678a434922432c6cd116016ab6/.aspect/bazelrc
 
-# NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration. We'll manually mark
-# flaky tests as flaky. We prefer fast failure in the tradeoff described below. Especially for tests
-# like TypeScript, ESLint, and Prettier.
+# NOTE(calebmer): Make sure to fully use the host's available hardware when
+# running in CI.
+build --jobs=HOST_CPUS
+build --local_resources=cpu=HOST_CPUS
+build --local_resources=memory=HOST_RAM
+
+# NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration.
+# We'll manually mark flaky tests as flaky. We prefer fast failure in the
+# tradeoff described below. Especially for tests like TypeScript, ESLint, and
+# Prettier.
 #
 # # Set this flag to enable re-tries of failed tests on CI.
 # # When any test target fails, try one or more times. This applies regardless of whether the "flaky"
