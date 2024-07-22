@@ -6,57 +6,36 @@ jobs:
         name: Test
         runs-on: [self-hosted, aws-test]
         steps:
-            - run: echo Hello, world!
-# NOCOMMIT:
-#
-# jobs:
-#     test:
-#         name: Test
-#         runs-on: ubuntu-latest
-#
-#         steps:
-#             - name: Checkout repo
-#               uses: actions/checkout@v3
-#
-#             - name: Get date
-#               id: date
-#               shell: bash
-#               run: |
-#                   echo "date=$(/bin/date -u "+%Y-%m-%d")" >> $GITHUB_OUTPUT
-#
-#             - name: Cache Bazel output
-#               id: bazel-cache
-#               uses: actions/cache@v3
-#               with:
-#                   path: |
-#                       ~/.cache/bazelisk
-#                       ~/.cache/bazel
-#                   key: test-${{ runner.os }}-${{ steps.date.outputs.date }}
-#                   restore-keys: |
-#                       test-${{ runner.os }}-
-#
-#             - name: Test
-#               run: |
-#                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=-playwright
-#
-#             # Currently `actions/upload-artifact` doesn't work with symlinked directories.
-#             # A PR to fix this has been merged but hasn't been released. So read the actual path and
-#             # put it in our output.
-#             # https://github.com/actions/upload-artifact/issues/92
-#             - if: failure()
-#               name: Get Bazel test logs directory
-#               id: bazel_test_logs_path
-#               shell: bash
-#               run: |
-#                   echo "path=$(readlink -f bazel-testlogs)" >> $GITHUB_OUTPUT
-#
-#             - if: failure()
-#               name: Upload Bazel test logs
-#               uses: actions/upload-artifact@v3
-#               with:
-#                   name: test_bazel_testlogs
-#                   path: ${{ steps.bazel_test_logs_path.outputs.path }}
-#                   retention-days: 7
+            - name: Checkout repo
+              uses: actions/checkout@v3
+
+            # From: https://github.com/actions/cache/blob/main/examples.md#---bazel
+            - name: Cache Bazel
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      ~/.cache/bazel
+                      ~/.cache/bazelisk
+                  key: |
+                      ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'admin/bazel/aspect_bazelrc/*.bazelrc', 'WORKSPACE') }}
+                  restore-keys: |
+                      ${{ runner.os }}-bazel-
+
+            - name: Test (tier 1)
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=dev-check,-playwright
+
+            - name: Test (tier 2)
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=-dev-check,-playwright
+
+            - if: failure()
+              name: Upload Bazel test logs
+              uses: actions/upload-artifact@v4
+              with:
+                  name: bazel_testlogs
+                  path: bazel-testlogs
+                  retention-days: 7
 #
 #     test_playwright:
 #         name: Test Playwright

@@ -83,6 +83,7 @@ function addAwsLifecycleResources(stack: Stack, {vpc}: {vpc: AwsVpc}) {
         labels: ["aws-test"],
         cpu: 16384, // 16 vCPUs
         memoryLimitMiB: 32768, // 32 GB
+        ephemeralStorageGiB: 20, // First 20 is free
 
         // Save with spot pricing. From our initial [CI pricing calculator][1] it's
         // estimated non-spot x64 instances are ~2x more expensive. Non-spot arm64
@@ -92,6 +93,18 @@ function addAwsLifecycleResources(stack: Stack, {vpc}: {vpc: AwsVpc}) {
         spot: true,
     });
 
+    // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
+    // the following deprecation warning:
+    //
+    // ```
+    // [WARNING] aws-cdk-lib.aws_lambda.FunctionOptions#logFormat is deprecated.
+    //   Use `loggingFormat` as a property instead.
+    //   This API will be removed in the next major release.
+    // ```
+    //
+    // [Tracking issue][1] in their repository.
+    //
+    // [1]: https://github.com/CloudSnorkel/cdk-github-runners/issues/596
     new GitHubRunners(stack, "Runners", {
         providers: [runnerProvider],
         setupAccess: LambdaAccess.noAccess(),
