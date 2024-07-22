@@ -35,12 +35,13 @@ def ts_playwright_tests(
     """
 
     if srcs == None:
-        srcs = native.glob(["**/*.spec.ts", "**/*.spec.tsx"])
+        srcs = native.glob(["**/*.spec.ts", "**/*.spec.tsx"], allow_empty = True)
 
     if lib_srcs == None:
         lib_srcs = native.glob(
             ["**/*.ts", "**/*.tsx"],
             exclude = ["**/*.spec.ts", "**/*.spec.tsx"],
+            allow_empty = True,
         )
 
     deps = deps + [
