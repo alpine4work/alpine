@@ -9,6 +9,8 @@ process.title = "adhoc (cyberworlds, node)";
 
 async function main() {
     try {
+        // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+        // @ts-ignore: If there's no `adhoc_local.js` file (e.g. in CI) that's fine.
         await import("./adhoc_local.js");
     } catch (error) {
         throw InternalError.from(error, 'Could not import "adhoc_local.ts" file');
