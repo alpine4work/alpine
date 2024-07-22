@@ -14,6 +14,7 @@ alias(
     actual = select({
         "@bazel_tools//src/conditions:darwin_arm64": "bazelisk/bazelisk-darwin-arm64",
         "@bazel_tools//src/conditions:darwin_x86_64": "bazelisk/bazelisk-darwin-x86_64",
+        "@bazel_tools//src/conditions:linux_arm64": "bazelisk/bazelisk-linux-arm64",
         "@bazel_tools//src/conditions:linux_x86_64": "bazelisk/bazelisk-linux-x86_64",
     }),
 )
@@ -38,6 +39,7 @@ alias(
     actual = select({
         "@bazel_tools//src/conditions:darwin_arm64": "swift-format/swift-format-darwin-arm64",
         "@bazel_tools//src/conditions:darwin_x86_64": "swift-format/swift-format-darwin-x86_64",
+        "@bazel_tools//src/conditions:linux_arm64": "swift-format/swift-format-linux-arm64",
         "@bazel_tools//src/conditions:linux_x86_64": "swift-format/swift-format-linux-x86_64",
     }),
 )
