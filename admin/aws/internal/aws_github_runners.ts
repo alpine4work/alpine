@@ -1,56 +1,63 @@
 import {
     Architecture,
-    CodeBuildRunnerProvider,
+    EcsRunnerProvider,
     GitHubRunners,
     LambdaAccess,
     Os,
     RunnerImageComponent,
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Duration, Stack} from "aws-cdk-lib";
-import {ComputeType} from "aws-cdk-lib/aws-codebuild";
-import {IVpc} from "aws-cdk-lib/aws-ec2";
+import {Stack} from "aws-cdk-lib";
+import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Construct} from "constructs";
 
 export class AwsGithubRunners extends Construct {
     constructor(parentScope: Stack, {vpc}: {vpc: IVpc}) {
         super(parentScope, "GithubRunners");
 
-        const runnerProvider = new CodeBuildRunnerProvider(this, "CodebuildRunnerProvider", {
+        const runnerProvider = new EcsRunnerProvider(this, "EcsRunnerProvider", {
             vpc,
+            // Run our GitHub runners in a public subnet so they can communicate with
+            // GitHub and can download dependencies from the network. All without having to
+            // go through a paid NAT gateway.
+            subnetSelection: {subnetType: SubnetType.PUBLIC},
+
             labels: ["aws-test"],
-            computeType: ComputeType.LARGE,
-            timeout: Duration.minutes(90),
-            imageBuilder: CodeBuildRunnerProvider.imageBuilder(
-                this,
-                "CodebuildRunnerImageBuilder",
-                {
-                    os: Os.LINUX_UBUNTU,
 
-                    // Use arm64 instances since it's cheaper. From our initial [CI pricing
-                    // calculator][1] it's estimated x64 instances are ~2x more expensive than
-                    // arm64 instances.
-                    //
-                    // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
-                    architecture: Architecture.ARM64,
+            cpu: 1024 * 16, // 16 vCPU
+            memoryReservationMiB: 30517, // 32 GB
+            instanceType: InstanceType.of(InstanceClass.C6G, InstanceSize.XLARGE4),
+            minInstances: 0,
+            maxInstances: 5,
+            // TODO(calebmer): Try spot pricing. Can we get capacity?
+            // spot: true,
 
-                    components: [
-                        RunnerImageComponent.requiredPackages(),
-                        RunnerImageComponent.runnerUser(),
-                        RunnerImageComponent.git(),
-                        RunnerImageComponent.githubCli(),
-                        RunnerImageComponent.awsCli(),
-                        RunnerImageComponent.docker(),
-                        RunnerImageComponent.githubRunner(RunnerVersion.latest()),
+            imageBuilder: EcsRunnerProvider.imageBuilder(this, "EcsRunnerImageBuilder", {
+                os: Os.LINUX_UBUNTU,
 
-                        // Installs `gcc` and `make` among other common build tools.
-                        RunnerImageComponent.custom({
-                            name: "BuildEssential",
-                            commands: ["apt-get install -y build-essential"],
-                        }),
-                    ],
-                },
-            ),
+                // Use arm64 instances since it's cheaper. From our initial [CI pricing
+                // calculator][1] it's estimated x64 instances are ~2x more expensive than
+                // arm64 instances.
+                //
+                // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
+                architecture: Architecture.ARM64,
+
+                components: [
+                    RunnerImageComponent.requiredPackages(),
+                    RunnerImageComponent.runnerUser(),
+                    RunnerImageComponent.git(),
+                    RunnerImageComponent.githubCli(),
+                    RunnerImageComponent.awsCli(),
+                    RunnerImageComponent.docker(),
+                    RunnerImageComponent.githubRunner(RunnerVersion.latest()),
+
+                    // Installs `gcc` and `make` among other common build tools.
+                    RunnerImageComponent.custom({
+                        name: "BuildEssential",
+                        commands: ["apt-get install -y build-essential"],
+                    }),
+                ],
+            }),
         });
 
         // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
@@ -68,7 +75,7 @@ export class AwsGithubRunners extends Construct {
         new GitHubRunners(this, "Runners", {
             providers: [runnerProvider],
             setupAccess: LambdaAccess.noAccess(),
-            webhookAccess: LambdaAccess.apiGateway({allowedIps: LambdaAccess.githubWebhookIps()}),
+            webhookAccess: LambdaAccess.lambdaUrl(),
         });
     }
 }
