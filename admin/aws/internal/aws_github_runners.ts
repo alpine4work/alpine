@@ -51,10 +51,15 @@ export class AwsGithubRunners extends Construct {
                     RunnerImageComponent.docker(),
                     RunnerImageComponent.githubRunner(RunnerVersion.latest()),
 
-                    // Installs `gcc` and `make` among other common build tools.
+                    // Installs:
+                    //
+                    // - `zstd` for better GitHub `actions/cache` compression/decompression
+                    //   performance.
+                    // - `build-essential` which includes `gcc` and `make` among other common
+                    //   build tools.
                     RunnerImageComponent.custom({
-                        name: "BuildEssential",
-                        commands: ["apt-get install -y build-essential"],
+                        name: "AptGetInstall",
+                        commands: ["apt-get install -y zstd build-essential"],
                     }),
                 ],
             }),
