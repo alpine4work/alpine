@@ -146,6 +146,25 @@ import {sprinkles} from "~/shared/styles/styles.js";
  * mentioning their Engineering Lead counterpart on a design specification.
  * Being able to quickly interpret the purpose of a mention through your social
  * connection to the mentioner is why we put the mentioner first.
+ *
+ * ### Don't use the comment brand icon variant
+ *
+ * For products that have a comment brand icon (e.g. `<TaskCommentBrandIcon>`,
+ * `<DocumentCommentBrandIcon>`, and `<PostCommentBrandIcon>`) don't use them
+ * for the inbox entry brand icon. Instead use the main product brand icon:
+ *
+ * - `<TaskCommentBrandIcon>` → `<TaskBrandIcon>`
+ * - `<DocumentCommentBrandIcon>` → `<DocumentBrandIcon>`
+ * - `<PostCommentBrandIcon>` → `<PostBrandIcon>`
+ * - etc.
+ *
+ * We use the comment brand icons in search.
+ *
+ * **Why?** Most inbox entries are communication related (comments, messages,
+ * posts). The purpose of brand icons on inbox entries is to help the user
+ * interpret at a glance the content of each inbox entry. However, if a
+ * majority of inbox entry brand icons include the comment symbol it makes it
+ * harder to differentiate inbox entries.
  */
 export type InboxEntryDisplay = {
     readonly time: Date;
