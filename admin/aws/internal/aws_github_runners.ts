@@ -28,7 +28,7 @@ export class AwsGithubRunners extends Construct {
             memoryReservationMiB: 30517, // 32 GB
             instanceType: InstanceType.of(InstanceClass.C6G, InstanceSize.XLARGE4),
             minInstances: 0,
-            maxInstances: 5,
+            maxInstances: 3,
             // TODO(calebmer): Try spot pricing. Can we get capacity?
             // spot: true,
 
