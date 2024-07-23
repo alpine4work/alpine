@@ -1304,6 +1304,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set.
      * At this time we do not batch `getPartialItem()` commands.
      *
+     * Generally, you should prefer calling `getItemIfExists()` since
+     * `getPartialItemIfExists()` does not batch get requests! Whereas
+     * `getItemIfExists()` will batch multiple requests into one network request.
+     * Only call `getPartialItemIfExists()` if there's some large property on your
+     * item you don't need that you have strong reason (ideally evidence) to
+     * believe will hurt network performance. Even then, you still have to pay the
+     * RCUs when reading this large item! So reaching for
+     * `getPartialItemIfExists()` may be a sign of poor table design. Instead of
+     * reading a small property on your large item with `getPartialItemIfExists()`
+     * you should consider splitting the item into two so you can read small pieces
+     * of metadata separately.
+     *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
     public async getPartialItemIfExists<
@@ -1411,6 +1423,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set.
      * At this time we do not batch `getPartialItem()` commands.
+     *
+     * Generally, you should prefer calling `getItem()` since `getPartialItem()`
+     * does not batch get requests! Whereas `getItem()` will batch multiple
+     * requests into one network request. Only call `getPartialItem()` if there's
+     * some large property on your item you don't need that you have strong reason
+     * (ideally evidence) to believe will hurt network performance. Even then, you
+     * still have to pay the RCUs when reading this large item! So reaching for
+     * `getPartialItem()` may be a sign of poor table design. Instead of reading a
+     * small property on your large item with `getPartialItem()` you should
+     * consider splitting the item into two so you can read small pieces of
+     * metadata separately.
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
