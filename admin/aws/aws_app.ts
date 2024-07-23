@@ -1,4 +1,5 @@
 import {App, Stack} from "aws-cdk-lib";
+import {IVpc} from "aws-cdk-lib/aws-ec2";
 import {fileURLToPath} from "url";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
@@ -21,7 +22,8 @@ export async function createAwsApp() {
     const {vpc} = await addAwsResources(stack);
 
     // Resources related to continuous integration and continuous deployment live in
-    // this stack.
+    // this stack. The term "lifecycle" is from the industry term
+    // "software development lifecycle" (SDLC).
     const lifecycleStack = new Stack(app, "CyberworldsLifecycleStack", {
         env: {region: "us-east-1"},
     });
@@ -77,6 +79,6 @@ async function addAwsResources(stack: Stack) {
     return {vpc};
 }
 
-function addAwsLifecycleResources(stack: Stack, {vpc}: {vpc: AwsVpc}) {
+function addAwsLifecycleResources(stack: Stack, {vpc}: {vpc: IVpc}) {
     new AwsGithubRunners(stack, {vpc});
 }

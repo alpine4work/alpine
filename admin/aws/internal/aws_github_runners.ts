@@ -1,80 +1,56 @@
 import {
     Architecture,
-    FargateRunnerProvider,
+    CodeBuildRunnerProvider,
     GitHubRunners,
     LambdaAccess,
+    Os,
     RunnerImageComponent,
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Stack} from "aws-cdk-lib";
-import {Cluster} from "aws-cdk-lib/aws-ecs";
+import {Duration, Stack} from "aws-cdk-lib";
+import {ComputeType} from "aws-cdk-lib/aws-codebuild";
+import {IVpc} from "aws-cdk-lib/aws-ec2";
 import {Construct} from "constructs";
-import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 
 export class AwsGithubRunners extends Construct {
-    constructor(parentScope: Stack, {vpc}: {vpc: AwsVpc}) {
+    constructor(parentScope: Stack, {vpc}: {vpc: IVpc}) {
         super(parentScope, "GithubRunners");
 
-        const runnerProvider = new FargateRunnerProvider(this, "FargateRunnerProvider", {
+        const runnerProvider = new CodeBuildRunnerProvider(this, "CodebuildRunnerProvider", {
             vpc,
             labels: ["aws-test"],
-            imageBuilder: FargateRunnerProvider.imageBuilder(this, "FargateRunnerImageBuilder", {
-                // Use arm64 instances since it's cheaper. From our initial [CI pricing
-                // calculator][1] it's estimated x64 instances are ~25% more expensive than
-                // arm64 instances.
-                //
-                // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
-                architecture: Architecture.ARM64,
-                components: [
-                    RunnerImageComponent.requiredPackages(),
-                    RunnerImageComponent.runnerUser(),
-                    RunnerImageComponent.git(),
-                    RunnerImageComponent.githubCli(),
-                    RunnerImageComponent.awsCli(),
-                    RunnerImageComponent.githubRunner(RunnerVersion.latest()),
+            computeType: ComputeType.LARGE,
+            timeout: Duration.minutes(90),
+            imageBuilder: CodeBuildRunnerProvider.imageBuilder(
+                this,
+                "CodebuildRunnerImageBuilder",
+                {
+                    os: Os.LINUX_UBUNTU,
 
-                    // Installs `gcc` and `make` among other common build tools.
-                    RunnerImageComponent.custom({
-                        name: "BuildEssential",
-                        commands: ["apt-get install -y build-essential"],
-                    }),
-                ],
-            }),
-            cpu: 16384, // 16 vCPUs
-            memoryLimitMiB: 65536, // 64 GB
-            ephemeralStorageGiB: 20, // First 20 is free
+                    // Use arm64 instances since it's cheaper. From our initial [CI pricing
+                    // calculator][1] it's estimated x64 instances are ~2x more expensive than
+                    // arm64 instances.
+                    //
+                    // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
+                    architecture: Architecture.ARM64,
 
-            // NOTE(calebmer, 2024-07-22): In theory, CI is a good use case for spot
-            // capacity. However, when trying to set this up I have one test job that's
-            // been running for >12 minutes and still hasn't been able to get spot
-            // capacity. Without knowing too much about cloud economics, I'm guessing that
-            // trying to get such a large instance (16 vCPU, the max for Fargate) is
-            // competitive and so there's not available excess capacity.
-            //
-            // To optimize cost we could still try:
-            //
-            // 1. Trying to get spot capacity in a different availability zone that's less
-            //    competitive
-            // 2. Try to get spot capacity 2-3 times and if that doesn't work request
-            //    regular capacity
-            //
-            // Not doing this for now due to implementation complexity.
-            //
-            // From our initial [CI pricing calculator][1] it's estimated spot x64
-            // instances would save us 63%.
-            //
-            // [1]: https://docs.google.com/spreadsheets/d/1MdwqNYwHfVeo9ShYztWSjOTf4h30x36C9R0uAutYy1I/edit
-            spot: false,
+                    components: [
+                        RunnerImageComponent.requiredPackages(),
+                        RunnerImageComponent.runnerUser(),
+                        RunnerImageComponent.git(),
+                        RunnerImageComponent.githubCli(),
+                        RunnerImageComponent.awsCli(),
+                        RunnerImageComponent.docker(),
+                        RunnerImageComponent.githubRunner(RunnerVersion.latest()),
 
-            cluster: new Cluster(this, "Cluster", {
-                vpc,
-                enableFargateCapacityProviders: true,
-                // NOTE(calebmer, 2024-07-22): Enabling container insights provides metrics on
-                // CPU utilization and memory utilization for our GitHub runners but does add
-                // some extra costs. Unclear what the costs are right now but the metrics are
-                // definitely useful to make sure we're sizing runners correctly.
-                containerInsights: true,
-            }),
+                        // Installs `gcc` and `make` among other common build tools.
+                        RunnerImageComponent.custom({
+                            name: "BuildEssential",
+                            commands: ["apt-get install -y build-essential"],
+                        }),
+                    ],
+                },
+            ),
         });
 
         // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
