@@ -44,13 +44,13 @@ async function main() {
 
             const req2Headers = {...req1.headers};
 
-            req2Headers["date"] ??= new Date().toUTCString();
+            if (!req2Headers["date"]) req2Headers["date"] = new Date().toUTCString();
 
             const signatureString = [
                 req1.method,
-                req2Headers["content-md5"] ?? "",
-                req2Headers["content-type"] ?? "",
-                req2Headers["date"] ?? "",
+                req2Headers["content-md5"] || "",
+                req2Headers["content-type"] || "",
+                req2Headers["date"] || "",
                 `/cyberworlds-bazel-remote${req1.path}`,
             ].join("\n");
 
