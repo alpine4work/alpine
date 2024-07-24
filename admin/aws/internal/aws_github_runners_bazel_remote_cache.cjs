@@ -22,6 +22,10 @@ async function getRequest(url) {
             });
 
             res.on("end", () => {
+                // eslint-disable-next-line no-commit-blockers
+                // NOCOMMIT: Remove this
+                // eslint-disable-next-line no-console
+                console.log("[DEBUG] get request finished", data);
                 resolve(data);
             });
         });
