@@ -7,10 +7,11 @@ const https = require("https");
 
 const keepAliveAgent = new https.Agent({keepAlive: true});
 
-// eslint-disable-next-line no-commit-blockers
 // NOCOMMIT: Delete `admin/vendor/bazel-remote` and `BAZEL_REMOTE_GRPC_PORT` if
 // this works. Also document what this file does. Also that it runs in
 // Node.js v12.
+// NOCOMMIT: Link to this as documentation:
+// https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html
 
 async function httpRequest(urlString, options) {
     return new Promise((resolve, reject) => {
