@@ -28,7 +28,7 @@ export class AwsGithubRunners extends Construct {
             labels: ["aws-test"],
 
             instanceType,
-            storageSize: Size.gibibytes(10),
+            storageSize: Size.gibibytes(20),
 
             // TODO(calebmer): Try enabling spot instances again.
             //
