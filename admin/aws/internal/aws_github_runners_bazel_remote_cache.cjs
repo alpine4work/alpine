@@ -1,3 +1,21 @@
+/**
+ * This file runs a small proxy server we can pass to Bazel's `--remote_cache`
+ * option in our GitHub runner. The proxy server adds an `Authorization` header
+ * and redirects the request to our S3 remote cache bucket.
+ *
+ * This file can't use any third-party dependencies since it runs before Bazel
+ * downloads our npm dependencies from `package.json`. It also runs before
+ * Bazel installs Node.js so we have to use an Node.js v12 which is what's
+ * installed by Ubuntu's package manager (`apt-get install nodejs`). Make sure
+ * to only use JavaScript features and Node.js APIs supported by Node.js 12.
+ *
+ * How to sign requests to S3 is documented in “[Signing and authenticating
+ * REST requests][1].” There's a pretty thorough specification we follow in
+ * this file.
+ *
+ * [1]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html
+ */
+
 "use strict";
 
 const crypto = require("crypto");
@@ -6,12 +24,6 @@ const http = require("http");
 const https = require("https");
 
 const keepAliveAgent = new https.Agent({keepAlive: true});
-
-// NOCOMMIT: Delete `admin/vendor/bazel-remote` and `BAZEL_REMOTE_GRPC_PORT` if
-// this works. Also document what this file does. Also that it runs in
-// Node.js v12.
-// NOCOMMIT: Link to this as documentation:
-// https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html
 
 async function httpRequest(urlString, options) {
     return new Promise((resolve, reject) => {
@@ -173,8 +185,8 @@ async function main() {
     });
 
     await new Promise((resolve, reject) => {
-        // Manually inline `BAZEL_REMOTE_PORT` from `.env.development`. We can't have
-        // any third-party dependencies in this file.
+        // Manually inline `BAZEL_REMOTE_CACHE_PORT` from `.env.development`. We can't
+        // have any third-party dependencies in this file.
         server.listen(3501, error => {
             if (error) reject(error);
             else resolve();
