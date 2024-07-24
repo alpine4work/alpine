@@ -8,30 +8,45 @@ const keepAliveAgent = new https.Agent({keepAlive: true});
 
 // eslint-disable-next-line no-commit-blockers
 // NOCOMMIT: Delete `admin/vendor/bazel-remote` and `BAZEL_REMOTE_GRPC_PORT` if
-// this works. Also document what this file does.
+// this works. Also document what this file does. Also that it runs in
+// Node.js v12.
+
+async function getRequest(url) {
+    return new Promise(resolve => {
+        http.get(url, res => {
+            res.setEncoding("utf8");
+
+            let data = "";
+            res.on("data", chunk => {
+                data += chunk;
+            });
+
+            res.on("end", () => {
+                resolve(data);
+            });
+        });
+    });
+}
 
 async function main() {
     const [iamRoleCredentials, instanceIdentity] = await Promise.all([
         (async () => {
-            // eslint-disable-next-line no-global-fetch
-            const iamRoleNameResponse = await fetch(
-                "http://169.254.169.254/latest/meta-data/iam/security-credentials",
-            );
+            const iamRoleName = (
+                await getRequest("http://169.254.169.254/latest/meta-data/iam/security-credentials")
+            ).trim();
 
-            const iamRoleName = await iamRoleNameResponse.text();
-
-            // eslint-disable-next-line no-global-fetch
-            const iamRoleCredentialsResponse = await fetch(
-                `http://169.254.169.254/latest/meta-data/iam/security-credentials/${iamRoleName}`,
+            return JSON.parse(
+                await getRequest(
+                    `http://169.254.169.254/latest/meta-data/iam/security-credentials/${iamRoleName}`,
+                ),
             );
-            return iamRoleCredentialsResponse.json();
         })(),
         (async () => {
-            // eslint-disable-next-line no-global-fetch
-            const instanceIdentityResponse = await fetch(
-                "http://169.254.169.254/latest/dynamic/instance-identity/document",
+            return JSON.parse(
+                await getRequest(
+                    "http://169.254.169.254/latest/dynamic/instance-identity/document",
+                ),
             );
-            return instanceIdentityResponse.json();
         })(),
     ]);
 
