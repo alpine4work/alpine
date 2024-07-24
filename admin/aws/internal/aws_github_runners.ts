@@ -93,9 +93,11 @@ export class AwsGithubRunners extends Construct {
                     //   performance.
                     // - `build-essential` which includes `gcc` and `make` among other common
                     //   build tools.
+                    // - `nodejs` since we need to run `aws_github_runners_bazel_remote_cache.cjs`
+                    //   before anything from Bazel.
                     RunnerImageComponent.custom({
                         name: "AptGetInstall",
-                        commands: ["apt-get install -y zstd build-essential"],
+                        commands: ["apt-get install -y zstd build-essential nodejs"],
                     }),
 
                     // Install Swift. Unfortunately `build_bazel_rules_swift_local_config` is not
