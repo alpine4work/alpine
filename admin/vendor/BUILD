@@ -43,3 +43,22 @@ alias(
         "@bazel_tools//src/conditions:linux_x86_64": "swift-format/swift-format-linux-x86_64",
     }),
 )
+
+filegroup(
+    name = "bazel-remote",
+    srcs = [
+        "bazel-remote/bazel-remote",
+        ":bazel-remote_bin",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "bazel-remote_bin",
+    actual = select({
+        "@bazel_tools//src/conditions:darwin_arm64": "bazel-remote/bazel-remote-darwin-arm64",
+        "@bazel_tools//src/conditions:darwin_x86_64": "bazel-remote/bazel-remote-darwin-x86_64",
+        "@bazel_tools//src/conditions:linux_aarch64": "bazel-remote/bazel-remote-linux-arm64",
+        "@bazel_tools//src/conditions:linux_x86_64": "bazel-remote/bazel-remote-linux-x86_64",
+    }),
+)

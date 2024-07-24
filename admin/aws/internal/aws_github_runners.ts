@@ -7,13 +7,35 @@ import {
     RunnerImageComponent,
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Size, Stack} from "aws-cdk-lib";
+import {Duration, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
+import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 
 export class AwsGithubRunners extends Construct {
     constructor(parentScope: Stack, {vpc}: {vpc: IVpc}) {
         super(parentScope, "GithubRunners");
+
+        const bucket = new Bucket(this, "BazelRemoteBucket", {
+            // Manually assign a bucket name so that we can reference it by name in
+            // `aws_github_runners_bazel_remote.sh`. Since
+            // `@cloudsnorkel/cdk-github-runners` doesn't give us a way to pass in
+            // parameters.
+            bucketName: "cyberworlds-bazel-remote",
+            // Security best practice to require HTTPS access.
+            enforceSSL: true,
+            minimumTLSVersion: 1.2,
+            // Don't allow public access. We only allow access through IAM policies.
+            removalPolicy: RemovalPolicy.DESTROY,
+            blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+            // If this bucket is deleted from a stack, we can delete the objects within.
+            // They're cache artifacts which can easily be rebuilt.
+            autoDeleteObjects: true,
+            // Delete artifacts after 14 days (two weeks) if they haven't been used.
+            // `bazel-remote` is configured to update the modification time when there's a
+            // cache hit.
+            lifecycleRules: [{expiration: Duration.days(14)}],
+        });
 
         // 16 vCPU, 32 GiB memory
         const instanceType = InstanceType.of(InstanceClass.C6G, InstanceSize.XLARGE4);
@@ -93,6 +115,9 @@ export class AwsGithubRunners extends Construct {
                 ],
             }),
         });
+
+        // Allow reading/writing to Bazel remote cache bucket.
+        bucket.grantReadWrite(runnerProvider);
 
         // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
         // the following deprecation warning:

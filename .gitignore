@@ -5,7 +5,7 @@ node_modules
 .pnpm-store
 
 # Bazel
-bazel-*
+/bazel-*
 
 # Misc
 .DS_Store
