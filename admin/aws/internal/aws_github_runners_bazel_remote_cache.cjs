@@ -5,6 +5,8 @@ const url = require("url");
 const http = require("http");
 const https = require("https");
 
+console.log("YOYOYO 0");
+
 const keepAliveAgent = new https.Agent({keepAlive: true});
 
 // eslint-disable-next-line no-commit-blockers
@@ -14,7 +16,7 @@ const keepAliveAgent = new https.Agent({keepAlive: true});
 
 async function httpRequest(urlString, options) {
     return new Promise((resolve, reject) => {
-        http.request(
+        const req = http.request(
             {
                 ...url.parse(urlString),
                 method: options && options.method ? options.method : "GET",
@@ -41,16 +43,22 @@ async function httpRequest(urlString, options) {
                 });
             },
         );
+
+        req.end();
     });
 }
 
 async function main() {
+    console.log("YOYOYO 1");
+
     const imdsToken = (
         await httpRequest("http://169.254.169.254/latest/api/token", {
             method: "PUT",
             headers: {"x-aws-ec2-metadata-token-ttl-seconds": "60"},
         })
     ).trim();
+
+    console.log("YOYOYO 2");
 
     const [iamRoleCredentials, instanceIdentity] = await Promise.all([
         (async () => {
@@ -78,8 +86,12 @@ async function main() {
         })(),
     ]);
 
+    console.log("YOYOYO 3");
+
     const {region} = instanceIdentity;
     if (!region) throw new Error("EC2 instance region not found");
+
+    console.log("YOYOYO 4");
 
     const server = http.createServer((req1, res1) => {
         try {
@@ -137,6 +149,8 @@ async function main() {
         }
     });
 
+    console.log("YOYOYO 5");
+
     await new Promise((resolve, reject) => {
         // Manually inline `BAZEL_REMOTE_PORT` from `.env.development`. We can't have
         // any third-party dependencies in this file.
@@ -145,6 +159,8 @@ async function main() {
             else resolve();
         });
     });
+
+    console.log("YOYOYO 6");
 
     // eslint-disable-next-line no-console
     console.log("Bazel remote cache server listening on port 3501");
