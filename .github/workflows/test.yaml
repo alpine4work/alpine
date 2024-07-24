@@ -32,13 +32,13 @@ jobs:
             # system failure.
             - name: Test (tier 1)
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc --config=github-runner test //... --test_tag_filters=dev-check,-playwright
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright
 
             # NOCOMMIT:
             #
             # - name: Test (tier 2)
             #   run: |
-            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc --config=github-runner test //server/accounts:accounts_table_test
+            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //server/accounts:accounts_table_test --config=github-runner
 
             # NOCOMMIT:
             #
@@ -47,7 +47,7 @@ jobs:
             # # run them once all other tests have passed.
             # - name: Test (tier 2)
             #   run: |
-            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc --config=github-runner test //... --test_tag_filters=-dev-check,-playwright
+            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-dev-check,-playwright
 
             - if: failure()
               name: Upload Bazel test logs
