@@ -99,7 +99,7 @@ async function main() {
             if (!req2Headers["date"]) req2Headers["date"] = new Date().toUTCString();
 
             const signatureString = [
-                req1.method,
+                "BROKEN",
                 req2Headers["content-md5"] || "",
                 req2Headers["content-type"] || "",
                 req2Headers["date"] || "",
