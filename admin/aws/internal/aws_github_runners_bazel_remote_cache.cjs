@@ -100,17 +100,42 @@ async function main() {
 
             if (!req2Headers["date"]) req2Headers["date"] = new Date().toUTCString();
 
-            const signatureString = [
-                req1.method,
-                req2Headers["content-md5"] || "",
-                req2Headers["content-type"] || "",
-                req2Headers["date"] || "",
-                `/${bucket}${req1.url}`,
-            ].join("\n");
+            // The temporary token provided to us by the instance metadata service expires
+            // more than 4 hours in the future. This is plenty of time for our test to run.
+            req2Headers["x-amz-security-token"] = roleCredentials.Token;
+
+            // Follows the algorithm defined here:
+            // https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html
+            const canonicalizedAmzHeaders = Object.entries(req2Headers)
+                .filter(([key]) => /^x-amz-/i.test(key))
+                .map(([key, value]) => [
+                    key.toLowerCase(),
+                    (Array.isArray(value) ? value.join(",") : value).trim(),
+                ])
+                .sort(([key1], [key2]) => {
+                    if (key1 < key2) return -1;
+                    if (key1 > key2) return 1;
+                    return 0;
+                })
+                .map(([key, value]) => `${key}:${value}\n`)
+                .join("");
+
+            // Follows the algorithm defined here:
+            // https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#ConstructingTheAuthenticationHeader
+            const stringToSign =
+                req1.method +
+                "\n" +
+                (req2Headers["content-md5"] || "") +
+                "\n" +
+                (req2Headers["content-type"] || "") +
+                "\n" +
+                (req2Headers["date"] || "") +
+                canonicalizedAmzHeaders +
+                `/${bucket}${req1.url}`;
 
             const signature = crypto
                 .createHmac("sha1", roleCredentials.SecretAccessKey, {encoding: "utf8"})
-                .update(signatureString, "utf8")
+                .update(stringToSign, "utf8")
                 .digest("base64");
 
             req2Headers["authorization"] = `AWS ${roleCredentials.AccessKeyId}:${signature}`;
@@ -123,7 +148,7 @@ async function main() {
                 headers: req2Headers,
             });
 
-            console.log(JSON.stringify(signatureString), req2Headers);
+            console.log(JSON.stringify(stringToSign), req2Headers);
 
             req2.on("error", error => {
                 // eslint-disable-next-line no-console
