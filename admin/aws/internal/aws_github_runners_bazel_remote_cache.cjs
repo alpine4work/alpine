@@ -5,8 +5,6 @@ const url = require("url");
 const http = require("http");
 const https = require("https");
 
-console.log("YOYOYO 0");
-
 const keepAliveAgent = new https.Agent({keepAlive: true});
 
 // eslint-disable-next-line no-commit-blockers
@@ -16,9 +14,14 @@ const keepAliveAgent = new https.Agent({keepAlive: true});
 
 async function httpRequest(urlString, options) {
     return new Promise((resolve, reject) => {
+        const parsedUrl = url.parse(urlString);
+
+        if (parsedUrl.protocol !== "http:") throw new Error("Unexpected protocol");
+
         const req = http.request(
             {
-                ...url.parse(urlString),
+                hostname: parsedUrl.hostname,
+                path: parsedUrl.path,
                 method: options && options.method ? options.method : "GET",
                 headers: options && options.headers ? options.headers : undefined,
             },
@@ -34,10 +37,6 @@ async function httpRequest(urlString, options) {
                     if (res.statusCode !== 200) {
                         reject(new Error(`Request failed with status code ${res.statusCode}`));
                     } else {
-                        // eslint-disable-next-line no-commit-blockers
-                        // NOCOMMIT: Remove this
-                        // eslint-disable-next-line no-console
-                        console.log("[DEBUG] get request finished", data);
                         resolve(data);
                     }
                 });
@@ -49,16 +48,12 @@ async function httpRequest(urlString, options) {
 }
 
 async function main() {
-    console.log("YOYOYO 1");
-
     const imdsToken = (
         await httpRequest("http://169.254.169.254/latest/api/token", {
             method: "PUT",
             headers: {"x-aws-ec2-metadata-token-ttl-seconds": "60"},
         })
     ).trim();
-
-    console.log("YOYOYO 2");
 
     const [iamRoleCredentials, instanceIdentity] = await Promise.all([
         (async () => {
@@ -86,16 +81,12 @@ async function main() {
         })(),
     ]);
 
-    console.log("YOYOYO 3");
-
     const {region} = instanceIdentity;
     if (!region) throw new Error("EC2 instance region not found");
 
-    console.log("YOYOYO 4");
-
     const server = http.createServer((req1, res1) => {
         try {
-            if (!req1.path.startsWith("/")) throw new Error('Expected path to start with "/"');
+            if (!req1.url.startsWith("/")) throw new Error('Expected path to start with "/"');
 
             const req2Headers = {...req1.headers};
 
@@ -106,7 +97,7 @@ async function main() {
                 req2Headers["content-md5"] || "",
                 req2Headers["content-type"] || "",
                 req2Headers["date"] || "",
-                `/cyberworlds-bazel-remote${req1.path}`,
+                `/cyberworlds-bazel-remote${req1.url}`,
             ].join("\n");
 
             const signature = crypto
@@ -119,7 +110,7 @@ async function main() {
             const req2 = https.request({
                 agent: keepAliveAgent,
                 hostname: `cyberworlds-bazel-remote.s3.${region}.amazonaws.com`,
-                path: req1.path,
+                path: req1.url,
                 method: req1.method,
                 headers: req2Headers,
             });
@@ -149,8 +140,6 @@ async function main() {
         }
     });
 
-    console.log("YOYOYO 5");
-
     await new Promise((resolve, reject) => {
         // Manually inline `BAZEL_REMOTE_PORT` from `.env.development`. We can't have
         // any third-party dependencies in this file.
@@ -159,8 +148,6 @@ async function main() {
             else resolve();
         });
     });
-
-    console.log("YOYOYO 6");
 
     // eslint-disable-next-line no-console
     console.log("Bazel remote cache server listening on port 3501");
