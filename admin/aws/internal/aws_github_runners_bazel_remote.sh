@@ -4,6 +4,9 @@ workspace_path=$(cd $(dirname $0)/../../.. && pwd)
 
 AWS_REGION=$(curl -fsSL http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}')
 
+# We set `GOMAXPROCS=1` to make sure `bazel-remote` only uses a single core
+# on our test runner. Then Bazel can use the rest.
+#
 # Ports 3501 and 3502 are reserved by `BAZEL_REMOTE_PORT` and
 # `BAZEL_REMOTE_GRPC_PORT` respectively in `.env.development` for
 # `bazel-remote`. We don't use the env file here and instead manually write
@@ -16,7 +19,7 @@ AWS_REGION=$(curl -fsSL http://169.254.169.254/latest/dynamic/instance-identity/
 # The `&` at the end of this command will make sure we run `bazel-remote`
 # in the background. GitHub Actions should kill the `bazel-remote` server
 # once the test run has finished.
-"$workspace_path/admin/vendor/bazel-remote/bazel-remote" \
+GOMAXPROCS=1 "$workspace_path/admin/vendor/bazel-remote/bazel-remote" \
     --dir ~/.cache/bazel-remote \
     --max_size 30 \
     --port 3501 \
