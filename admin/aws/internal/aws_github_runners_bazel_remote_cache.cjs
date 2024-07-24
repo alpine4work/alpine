@@ -84,7 +84,8 @@ async function main() {
     const {region} = instanceIdentity;
     if (!region) throw new Error("EC2 instance region not found");
 
-    const host = `cyberworlds-bazel-remote.s3.${region}.amazonaws.com`;
+    const bucket = "cyberworlds-bazel-remote";
+    const host = `${bucket}.s3.${region}.amazonaws.com`;
 
     const server = http.createServer((req1, res1) => {
         try {
@@ -101,7 +102,7 @@ async function main() {
                 req2Headers["content-md5"] || "",
                 req2Headers["content-type"] || "",
                 req2Headers["date"] || "",
-                `/cyberworlds-bazel-remote${req1.url}`,
+                `/${bucket}${req1.url}`,
             ].join("\n");
 
             const signature = crypto
@@ -118,6 +119,8 @@ async function main() {
                 method: req1.method,
                 headers: req2Headers,
             });
+
+            console.log(JSON.stringify(signatureString), req2Headers);
 
             req2.on("error", error => {
                 // eslint-disable-next-line no-console
