@@ -24,8 +24,8 @@ AWS_REGION=$(curl http://169.254.169.254/latest/dynamic/instance-identity/docume
     --s3.endpoint "s3.$AWS_REGION.amazonaws.com" \
     --s3.bucket cyberworlds-bazel-remote \
     --s3.auth_method iam_role \
-    --s3.update_timestamps true \
+    --s3.update_timestamps \
     &
 
 # Wait for `bazel-remote` to start its HTTP server before exiting the script.
-"$workspace_path/server/helpers/node/wait_for_http_server.sh" "$BAZEL_REMOTE_SERVER_PORT"
+"$workspace_path/server/helpers/node/wait_for_http_server.sh" 3501
