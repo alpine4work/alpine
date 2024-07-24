@@ -130,6 +130,7 @@ async function main() {
                 (req2Headers["content-type"] || "") +
                 "\n" +
                 (req2Headers["date"] || "") +
+                "\n" +
                 canonicalizedAmzHeaders +
                 `/${bucket}${req1.url}`;
 
