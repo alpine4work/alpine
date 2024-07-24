@@ -49,26 +49,26 @@ async function httpRequest(urlString, options) {
 }
 
 async function main() {
-    const imdsToken = (
+    const metadataToken = (
         await httpRequest("http://169.254.169.254/latest/api/token", {
             method: "PUT",
             headers: {"x-aws-ec2-metadata-token-ttl-seconds": "60"},
         })
     ).trim();
 
-    const [iamRoleCredentials, instanceIdentity] = await Promise.all([
+    const [roleCredentials, instanceIdentity] = await Promise.all([
         (async () => {
             const iamRoleName = (
                 await httpRequest(
                     "http://169.254.169.254/latest/meta-data/iam/security-credentials",
-                    {headers: {"x-aws-ec2-metadata-token": imdsToken}},
+                    {headers: {"x-aws-ec2-metadata-token": metadataToken}},
                 )
             ).trim();
 
             return JSON.parse(
                 await httpRequest(
                     `http://169.254.169.254/latest/meta-data/iam/security-credentials/${iamRoleName}`,
-                    {headers: {"x-aws-ec2-metadata-token": imdsToken}},
+                    {headers: {"x-aws-ec2-metadata-token": metadataToken}},
                 ),
             );
         })(),
@@ -76,7 +76,7 @@ async function main() {
             return JSON.parse(
                 await httpRequest(
                     "http://169.254.169.254/latest/dynamic/instance-identity/document",
-                    {headers: {"x-aws-ec2-metadata-token": imdsToken}},
+                    {headers: {"x-aws-ec2-metadata-token": metadataToken}},
                 ),
             );
         })(),
@@ -87,6 +87,8 @@ async function main() {
 
     const bucket = "cyberworlds-bazel-remote";
     const host = `${bucket}.s3.${region}.amazonaws.com`;
+
+    console.log(roleCredentials);
 
     const server = http.createServer((req1, res1) => {
         try {
@@ -99,7 +101,7 @@ async function main() {
             if (!req2Headers["date"]) req2Headers["date"] = new Date().toUTCString();
 
             const signatureString = [
-                "BROKEN",
+                req1.method,
                 req2Headers["content-md5"] || "",
                 req2Headers["content-type"] || "",
                 req2Headers["date"] || "",
@@ -107,11 +109,11 @@ async function main() {
             ].join("\n");
 
             const signature = crypto
-                .createHmac("sha1", iamRoleCredentials.SecretAccessKey, {encoding: "utf8"})
+                .createHmac("sha1", roleCredentials.SecretAccessKey, {encoding: "utf8"})
                 .update(signatureString, "utf8")
                 .digest("base64");
 
-            req2Headers["authorization"] = `AWS ${iamRoleCredentials.AccessKeyId}:${signature}`;
+            req2Headers["authorization"] = `AWS ${roleCredentials.AccessKeyId}:${signature}`;
 
             const req2 = https.request({
                 agent: keepAliveAgent,
