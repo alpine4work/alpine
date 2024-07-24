@@ -9,8 +9,10 @@ import {
 } from "@cloudsnorkel/cdk-github-runners";
 import {Duration, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
+import {ManagedPolicy, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export class AwsGithubRunners extends Construct {
     constructor(parentScope: Stack, {vpc}: {vpc: IVpc}) {
@@ -115,6 +117,15 @@ export class AwsGithubRunners extends Construct {
                 ],
             }),
         });
+
+        const runnerProviderRole: unknown = (runnerProvider as any).role;
+        assert(runnerProviderRole instanceof Role);
+
+        // Add the ability to connect to our EC2 instances with Session Manager.
+        // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html
+        runnerProviderRole.addManagedPolicy(
+            ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
+        );
 
         // Allow reading/writing to Bazel remote cache bucket.
         bucket.grantReadWrite(runnerProvider);
