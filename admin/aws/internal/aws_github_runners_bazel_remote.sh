@@ -2,10 +2,7 @@
 
 workspace_path=$(cd $(dirname $0)/../../.. && pwd)
 
-if [ -z "$AWS_REGION" ]; then
-    echo "Expected environment variable \"\$AWS_REGION\" to be set"
-    exit 1
-fi
+AWS_REGION=$(curl http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}')
 
 # Ports 3501 and 3502 are reserved by `BAZEL_REMOTE_PORT` and
 # `BAZEL_REMOTE_GRPC_PORT` respectively in `.env.development` for
