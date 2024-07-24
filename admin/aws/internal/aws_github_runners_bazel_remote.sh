@@ -2,7 +2,7 @@
 
 workspace_path=$(cd $(dirname $0)/../../.. && pwd)
 
-AWS_REGION=$(curl http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}')
+AWS_REGION=$(curl -fsSL http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | awk -F\" '{print $4}')
 
 # Ports 3501 and 3502 are reserved by `BAZEL_REMOTE_PORT` and
 # `BAZEL_REMOTE_GRPC_PORT` respectively in `.env.development` for
