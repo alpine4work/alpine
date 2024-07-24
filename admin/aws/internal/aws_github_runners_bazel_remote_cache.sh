@@ -11,4 +11,4 @@ node "$workspace_path/admin/aws/internal/aws_github_runners_bazel_remote_cache.c
 "$workspace_path/server/helpers/node/wait_for_http_server.sh" 3501
 
 # NOCOMMIT: Remove this test CURL
-curl -f -XPUT -H 'content-type: text/plain' -d 'foobar' 'http://localhost:3501/foo/bar.txt'
+curl -vf -XPUT -H 'content-type: text/plain' -d 'foobar' 'http://localhost:3501/foo/bar.txt'
