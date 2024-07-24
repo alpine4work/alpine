@@ -88,8 +88,6 @@ async function main() {
     const bucket = "cyberworlds-bazel-remote";
     const host = `${bucket}.s3.${region}.amazonaws.com`;
 
-    console.log(roleCredentials);
-
     const server = http.createServer((req1, res1) => {
         try {
             if (!req1.url.startsWith("/")) throw new Error('Expected path to start with "/"');
@@ -148,8 +146,6 @@ async function main() {
                 method: req1.method,
                 headers: req2Headers,
             });
-
-            console.log(JSON.stringify(stringToSign), req2Headers);
 
             req2.on("error", error => {
                 // eslint-disable-next-line no-console
