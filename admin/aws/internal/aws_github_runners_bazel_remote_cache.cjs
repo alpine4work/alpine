@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("crypto");
+const url = require("url");
 const http = require("http");
 const https = require("https");
 
@@ -11,47 +12,68 @@ const keepAliveAgent = new https.Agent({keepAlive: true});
 // this works. Also document what this file does. Also that it runs in
 // Node.js v12.
 
-async function httpGet(url) {
+async function httpRequest(urlString, options) {
     return new Promise((resolve, reject) => {
-        http.get(url, res => {
-            res.setEncoding("utf8");
+        http.request(
+            {
+                ...url.parse(urlString),
+                method: options && options.method ? options.method : "GET",
+                headers: options && options.headers ? options.headers : undefined,
+            },
+            res => {
+                res.setEncoding("utf8");
 
-            let data = "";
-            res.on("data", chunk => {
-                data += chunk;
-            });
+                let data = "";
+                res.on("data", chunk => {
+                    data += chunk;
+                });
 
-            res.on("end", () => {
-                if (res.statusCode !== 200) {
-                    reject(new Error(`Request failed with status code ${res.statusCode}`));
-                } else {
-                    // eslint-disable-next-line no-commit-blockers
-                    // NOCOMMIT: Remove this
-                    // eslint-disable-next-line no-console
-                    console.log("[DEBUG] get request finished", data);
-                    resolve(data);
-                }
-            });
-        });
+                res.on("end", () => {
+                    if (res.statusCode !== 200) {
+                        reject(new Error(`Request failed with status code ${res.statusCode}`));
+                    } else {
+                        // eslint-disable-next-line no-commit-blockers
+                        // NOCOMMIT: Remove this
+                        // eslint-disable-next-line no-console
+                        console.log("[DEBUG] get request finished", data);
+                        resolve(data);
+                    }
+                });
+            },
+        );
     });
 }
 
 async function main() {
+    const imdsToken = (
+        await httpRequest("http://169.254.169.254/latest/api/token", {
+            method: "PUT",
+            headers: {"x-aws-ec2-metadata-token-ttl-seconds": "60"},
+        })
+    ).trim();
+
     const [iamRoleCredentials, instanceIdentity] = await Promise.all([
         (async () => {
             const iamRoleName = (
-                await httpGet("http://169.254.169.254/latest/meta-data/iam/security-credentials")
+                await httpRequest(
+                    "http://169.254.169.254/latest/meta-data/iam/security-credentials",
+                    {headers: {"x-aws-ec2-metadata-token": imdsToken}},
+                )
             ).trim();
 
             return JSON.parse(
-                await httpGet(
+                await httpRequest(
                     `http://169.254.169.254/latest/meta-data/iam/security-credentials/${iamRoleName}`,
+                    {headers: {"x-aws-ec2-metadata-token": imdsToken}},
                 ),
             );
         })(),
         (async () => {
             return JSON.parse(
-                await httpGet("http://169.254.169.254/latest/dynamic/instance-identity/document"),
+                await httpRequest(
+                    "http://169.254.169.254/latest/dynamic/instance-identity/document",
+                    {headers: {"x-aws-ec2-metadata-token": imdsToken}},
+                ),
             );
         })(),
     ]);
