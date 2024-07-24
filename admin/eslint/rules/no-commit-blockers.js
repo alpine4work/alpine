@@ -11,7 +11,7 @@ module.exports = {
     meta: {
         schema: [],
         messages: {
-            noCommitBlocker: `Must remove all "${commitBlocker}" instances before committing`,
+            commitBlocker: `Must remove all "${commitBlocker}" instances before committing`,
         },
     },
 
@@ -28,7 +28,7 @@ module.exports = {
                     start: context.sourceCode.getLocFromIndex(match.index),
                     end: context.sourceCode.getLocFromIndex(match.index + match[0].length),
                 },
-                messageId: "noCommitBlocker",
+                messageId: "commitBlocker",
             });
         }
 
