@@ -84,11 +84,15 @@ async function main() {
     const {region} = instanceIdentity;
     if (!region) throw new Error("EC2 instance region not found");
 
+    const host = `cyberworlds-bazel-remote.s3.${region}.amazonaws.com`;
+
     const server = http.createServer((req1, res1) => {
         try {
             if (!req1.url.startsWith("/")) throw new Error('Expected path to start with "/"');
 
             const req2Headers = {...req1.headers};
+
+            req2Headers["host"] = host;
 
             if (!req2Headers["date"]) req2Headers["date"] = new Date().toUTCString();
 
@@ -109,7 +113,7 @@ async function main() {
 
             const req2 = https.request({
                 agent: keepAliveAgent,
-                hostname: `cyberworlds-bazel-remote.s3.${region}.amazonaws.com`,
+                hostname: host,
                 path: req1.url,
                 method: req1.method,
                 headers: req2Headers,
@@ -150,7 +154,7 @@ async function main() {
     });
 
     // eslint-disable-next-line no-console
-    console.log("Bazel remote cache server listening on port 3501");
+    console.log("Bazel remote cache proxy server listening on port 3501");
 }
 
 main().catch(error => {
