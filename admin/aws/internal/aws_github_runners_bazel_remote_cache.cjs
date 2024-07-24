@@ -11,8 +11,8 @@ const keepAliveAgent = new https.Agent({keepAlive: true});
 // this works. Also document what this file does. Also that it runs in
 // Node.js v12.
 
-async function getRequest(url) {
-    return new Promise(resolve => {
+async function httpGet(url) {
+    return new Promise((resolve, reject) => {
         http.get(url, res => {
             res.setEncoding("utf8");
 
@@ -22,11 +22,15 @@ async function getRequest(url) {
             });
 
             res.on("end", () => {
-                // eslint-disable-next-line no-commit-blockers
-                // NOCOMMIT: Remove this
-                // eslint-disable-next-line no-console
-                console.log("[DEBUG] get request finished", data);
-                resolve(data);
+                if (res.statusCode !== 200) {
+                    reject(new Error(`Request failed with status code ${res.statusCode}`));
+                } else {
+                    // eslint-disable-next-line no-commit-blockers
+                    // NOCOMMIT: Remove this
+                    // eslint-disable-next-line no-console
+                    console.log("[DEBUG] get request finished", data);
+                    resolve(data);
+                }
             });
         });
     });
@@ -36,20 +40,18 @@ async function main() {
     const [iamRoleCredentials, instanceIdentity] = await Promise.all([
         (async () => {
             const iamRoleName = (
-                await getRequest("http://169.254.169.254/latest/meta-data/iam/security-credentials")
+                await httpGet("http://169.254.169.254/latest/meta-data/iam/security-credentials")
             ).trim();
 
             return JSON.parse(
-                await getRequest(
+                await httpGet(
                     `http://169.254.169.254/latest/meta-data/iam/security-credentials/${iamRoleName}`,
                 ),
             );
         })(),
         (async () => {
             return JSON.parse(
-                await getRequest(
-                    "http://169.254.169.254/latest/dynamic/instance-identity/document",
-                ),
+                await httpGet("http://169.254.169.254/latest/dynamic/instance-identity/document"),
             );
         })(),
     ]);
