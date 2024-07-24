@@ -40,7 +40,7 @@ export class AwsGithubRunners extends Construct {
         });
 
         // 16 vCPU, 32 GiB memory
-        const instanceType = InstanceType.of(InstanceClass.C6G, InstanceSize.XLARGE4);
+        const instanceType = InstanceType.of(InstanceClass.C7G, InstanceSize.XLARGE4);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
             vpc,
@@ -74,7 +74,7 @@ export class AwsGithubRunners extends Construct {
 
                 awsImageBuilderOptions: {instanceType},
                 os: Os.LINUX_UBUNTU,
-                // `c6g.4xlarge` instances use an arm64 instruction set. The "g" stands for
+                // `c7g.4xlarge` instances use an arm64 instruction set. The "g" stands for
                 // Gravitron2 processors which are arm64 processors.
                 architecture: Architecture.ARM64,
 
