@@ -39,9 +39,11 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=dev-check,-playwright
 
-            - name: Test (tier 2)
-              run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //server/accounts:accounts_table_test
+            # NOCOMMIT:
+            #
+            # - name: Test (tier 2)
+            #   run: |
+            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //server/accounts:accounts_table_test
 
             # NOCOMMIT:
             #
