@@ -8,11 +8,12 @@ build --local_resources=cpu=HOST_CPUS
 build --local_resources=memory=HOST_RAM
 common --loading_phase_threads=HOST_CPUS
 
-# NOTE(calebmer): On GitHub runners we use Bazel remote caching. Set
-# `--config=github-runner` when running Bazel to enable remote caching.
+# NOTE(calebmer): Enable remote caching when executing in a GitHub runner. The
+# GitHub runner should have started our AWS S3 proxy server on this port.
 build:github-runner --remote_cache=http://localhost:3501
 
-build:github-runner --jobs=HOST_CPUS-4
+# NOCOMMIT: Document what's going on with resources here
+build:github-runner --jobs=HOST_CPUS
 build:github-runner --local_resources=cpu=HOST_CPUS
 build:github-runner --local_resources=memory=HOST_RAM
 common:github-runner --loading_phase_threads=HOST_CPUS
