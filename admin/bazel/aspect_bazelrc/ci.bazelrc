@@ -13,7 +13,7 @@ common --loading_phase_threads=HOST_CPUS
 build:github-runner --remote_cache=http://localhost:3501
 
 # NOCOMMIT: Document what's going on with resources here
-build:github-runner --jobs=HOST_CPUS-2
+build:github-runner --jobs=HOST_CPUS-4
 build:github-runner --local_resources=cpu=HOST_CPUS
 build:github-runner --local_resources=memory=HOST_RAM
 common:github-runner --loading_phase_threads=HOST_CPUS
@@ -21,10 +21,7 @@ common:github-runner --loading_phase_threads=HOST_CPUS
 # NOTE(calebmer): Don't upload the results of copy or SWC compile actions to
 # the remote cache. These actions are fast to execute locally and have small
 # outputs. Spending I/O resources uploading/downloading these is wasteful.
-build:github-runner --modify_execution_info=CopyFile=+no-remote-cache
-build:github-runner --modify_execution_info=CopyDirectory=+no-remote-cache
-build:github-runner --modify_execution_info=CopyToDirectory=+no-remote-cache
-build:github-runner --modify_execution_info=SWCCompile=+no-remote-cache
+build:github-runner --modify_execution_info='(CopyFile|CopyDirectory|CopyToDirectory|NpmPackageExtract|SWCCompile|TsValidateOptions)=+no-remote-cache'
 
 # NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration.
 # We'll manually mark flaky tests as flaky. We prefer fast failure in the
