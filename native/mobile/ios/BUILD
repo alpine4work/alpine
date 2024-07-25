@@ -251,6 +251,8 @@ ios_build_test(
     name = "build_test",
     size = "small",
     minimum_os_version = IOS_MINIMUM_VERSION,
+    # Can only run this test on MacOS where we have XCode CC toolchains.
+    tags = ["macos"],
     targets = [":lib"],
 )
 

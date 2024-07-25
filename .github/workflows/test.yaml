@@ -59,7 +59,7 @@ jobs:
               name: Fetch Bazel repositories
               shell: bash
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --build_tests_only --toolchain_resolution_debug='@@bazel_tools//tools/cpp:toolchain_type'
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --build_tests_only --test_tag_filters=-macos
 
             # Save our repository cache after we finish fetching but before we run our
             # tests! The ordering here is important since we don't want to include test
@@ -155,7 +155,7 @@ jobs:
             # system failure.
             - name: Test (tier 1)
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright,-macos
 
             # NOCOMMIT:
             #
@@ -170,7 +170,7 @@ jobs:
             # # run them once all other tests have passed.
             # - name: Test (tier 2)
             #   run: |
-            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-dev-check,-playwright
+            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-dev-check,-playwright,-macos
 
             - if: failure()
               name: Upload Bazel test logs
