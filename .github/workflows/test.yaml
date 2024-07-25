@@ -49,7 +49,8 @@ jobs:
               name: Fetch Bazel repositories
               shell: bash
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --build_tests_only --test_tag_filters=-macos
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --build_tests_only --test_tag_filters=-macos
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules
 
             # Save our repository cache after we finish fetching but before we run our
             # tests! The ordering here is important since we don't want to include test
