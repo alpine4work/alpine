@@ -10,15 +10,36 @@ common --loading_phase_threads=HOST_CPUS
 
 # NOTE(calebmer): Enable remote caching when executing in a GitHub runner. The
 # GitHub runner should have started our AWS S3 proxy server on this port.
-build:github-runner --remote_cache=http://localhost:3501
+# build:github-runner --remote_cache=http://localhost:3501
 
 # NOCOMMIT: Document what's going on with resources here
-build:github-runner --jobs=HOST_CPUS-4
+# build:github-runner --jobs=HOST_CPUS-4
 
-# NOTE(calebmer): Don't upload the results of small, frequent, actions to the remote cache. Don't upload the results of copy or SWC compile actions to
-# the remote cache. These actions are fast to execute locally and have small
-# outputs. Spending I/O resources uploading/downloading these is wasteful.
-build:github-runner --modify_execution_info='(CopyFile|CopyDirectory|CopyToDirectory|NpmPackageExtract|SWCCompile|TsValidateOptions)=+no-remote-cache'
+# NOTE(calebmer): Don't upload the results of small, frequent, actions to the
+# remote cache. `rules_js` copies all source files into `bazel-bin` and copies
+# npm packages into the right place in `node_modules/.aspect_rules_js` in
+# `bazel-bin`. These actions are fast to run locally and it's wasteful to put
+# the result in our remote cache.
+#
+# 1. It wastes storage space to put file copies in our cache
+# 2. It wastes I/O resources having to GET/PUT on S3 for each file
+#
+# Wasting I/O resources is especially bad since while our EC2 instance is busy
+# networking it throttles the CPU work we can do causing our tests to take much
+# longer (~5x longer in some cases!).
+#
+# We've disabled remote caching for all the fast, cheap, actions that run when
+# you build a `ts_library()`. To reproduce this list run:
+#
+# ```
+# bazel clean && \
+#     bazel build --subcommands //shared/helpers 2>&1 >/dev/null | \
+#     grep mnemonic | \
+#     sed -E "s/.*mnemonic: (.+)].*/\1/" | \
+#     sort | \
+#     uniq
+# ```
+# build:github-runner --modify_execution_info='(CopyFile|CopyDirectory|CopyToDirectory|NpmPackageExtract|SWCCompile|TsValidateOptions)=+no-remote-cache'
 
 # NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration.
 # We'll manually mark flaky tests as flaky. We prefer fast failure in the
