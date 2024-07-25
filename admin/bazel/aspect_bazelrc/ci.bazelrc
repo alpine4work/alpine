@@ -3,7 +3,7 @@
 
 # NOTE(calebmer): Make sure to fully use the host's available hardware when
 # running in CI.
-build --jobs=HOST_CPUS
+build --jobs=HOST_CPUS-4
 build --local_resources=cpu=HOST_CPUS
 build --local_resources=memory=HOST_RAM
 common --loading_phase_threads=HOST_CPUS
