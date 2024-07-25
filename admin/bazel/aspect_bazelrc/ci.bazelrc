@@ -13,7 +13,7 @@ common --loading_phase_threads=HOST_CPUS
 build:github-runner --remote_cache=http://localhost:3501
 
 # NOCOMMIT: Document what's going on with resources here
-build:github-runner --jobs=HOST_CPUS
+build:github-runner --jobs=HOST_CPUS-2
 build:github-runner --local_resources=cpu=HOST_CPUS
 build:github-runner --local_resources=memory=HOST_RAM
 common:github-runner --loading_phase_threads=HOST_CPUS
