@@ -5,16 +5,6 @@ jobs:
     test:
         name: Test
         runs-on: [self-hosted, aws-test]
-        env:
-            # Bazel should `clang` instead of `gcc` when compiling C++ code. This is
-            # required for compiling Swift code on Linux. See the [`rules_swift`
-            # documentation][1]. Generally [`clang` and `gcc` are interchangeable][2].
-            # The big difference is `clang` has an LLVM backend whereas `gcc` has its
-            # own backend.
-            #
-            # [1]: https://github.com/bazelbuild/rules_swift
-            # [2]: https://www.reddit.com/r/C_Programming/comments/som4ys/gcc_or_clang/
-            CC: clang
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
