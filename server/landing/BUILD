@@ -50,8 +50,9 @@ filegroup(
 filegroup(
     name = "landing_public",
     srcs = glob(
-        ["public/**/*"],
-        exclude = ["**/.DS_Store"],
+        ["public/**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
     ),
 )
 

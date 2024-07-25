@@ -5,10 +5,12 @@ node_modules
 .pnpm-store
 
 # Bazel
-/bazel-*
+bazel-*
 
-# Misc
+# MacOS
 .DS_Store
+
+# Certificates
 *.pem
 !/server/apns/certificates/*.pem
 

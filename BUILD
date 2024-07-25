@@ -141,6 +141,11 @@ copy_to_bin(
 
 copy_to_bin(
     name = "env_files",
-    srcs = glob([".env*"]),
+    srcs = glob(
+        [".env*"],
+        # Exclude local env files since they'll break remote caching given local env
+        # files are different on different machines.
+        exclude = [".env*.local"],
+    ),
     visibility = ["//visibility:public"],
 )

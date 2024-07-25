@@ -20,13 +20,21 @@ filegroup(
 
 filegroup(
     name = "AppIcon.appiconset",
-    srcs = glob(["AppIcon.appiconset/**/*"]),
+    srcs = glob(
+        ["AppIcon.appiconset/**/*"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
     visibility = ["//native/mobile/ios:__subpackages__"],
 )
 
 filegroup(
     name = "RootTabBarShadow.imageset",
-    srcs = glob(["RootTabBarShadow.imageset/**/*"]),
+    srcs = glob(
+        ["RootTabBarShadow.imageset/**/*"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
 )
 
 ts_project(

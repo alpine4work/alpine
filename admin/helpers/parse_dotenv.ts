@@ -1,6 +1,7 @@
 import dotenv, {DotenvParseOutput} from "dotenv";
 import fs from "fs-extra";
 import path from "path";
+import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -25,7 +26,11 @@ const env = new Lazy(() => {
     const files = [
         loadDotenvFile(path.join(runfilesPath, "cyberworlds/.env")),
         loadDotenvFile(path.join(runfilesPath, `cyberworlds/.env.${nodeEnv}`)),
-        loadDotenvFile(path.join(runfilesPath, `cyberworlds/.env.${nodeEnv}.local`)),
+
+        // Load the local `.env` file from the workspace path, not the runfiles path.
+        // We don't include the local `.env` file in runfiles because it changes from
+        // machine-to-machine which will break Bazel's remote caching.
+        loadDotenvFile(path.join(workspacePath, `.env.${nodeEnv}.local`)),
     ];
 
     return Object.assign({}, ...files);

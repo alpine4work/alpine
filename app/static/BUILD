@@ -16,7 +16,7 @@ filegroup(
 copy_to_bin(
     name = "files",
     srcs = glob(
-        ["**/*"],
+        ["**"],
         exclude = [
             # Everything in `static` is available at the root of our domain except files
             # and folders that start with an underscore (`_`). This convention comes from
@@ -24,11 +24,13 @@ copy_to_bin(
             #
             # e.g. `favicon.ico` is available at https://cyberworlds.dev/favicon.ico
             #
+            # Also important to exclude dot files like `.DS_Store` on MacOS.
+            #
             # [1]: https://jekyllrb.com/docs/structure
             "**/_*",
-            "**/_*/**/*",
+            "**/_*/**",
             "**/.*",
-            "**/.*/**/*",
+            "**/.*/**",
             "BUILD",
         ],
     ),

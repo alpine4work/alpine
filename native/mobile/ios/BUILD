@@ -19,7 +19,11 @@ filegroup(
 
 filegroup(
     name = "resources_fonts",
-    srcs = glob(["Resources/Fonts/**/*"]),
+    srcs = glob(
+        ["Resources/Fonts/**/*"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
 )
 
 filegroup(

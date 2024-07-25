@@ -90,6 +90,14 @@ install_pypi_deps()
 # =========================================================================== #
 
 http_archive(
+    name = "rules_nodejs",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/rules_nodejs.patch"],
+    sha256 = "8fc8e300cb67b89ceebd5b8ba6896ff273c84f6099fc88d23f24e7102319d8fd",
+    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.4/rules_nodejs-core-5.8.4.tar.gz"],
+)
+
+http_archive(
     name = "aspect_rules_js",
     sha256 = "2cfb3875e1231cefd3fada6774f2c0c5a99db0070e0e48ea398acbff7c6c765b",
     strip_prefix = "rules_js-1.42.3",
@@ -224,7 +232,11 @@ exports_files(
 
 filegroup(
     name = "DynamoDBLocal_lib",
-    srcs = glob(["**/*"]),
+    srcs = glob(
+        ["**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
     visibility = ["//visibility:public"],
 )
 """,
@@ -306,7 +318,11 @@ http_archive(
     build_file_content = """\
 filegroup(
     name = "opensearch_local",
-    srcs = glob(["bin/*"]),
+    srcs = glob(
+        ["bin/*"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
     visibility = ["//visibility:public"],
 )
 """,
