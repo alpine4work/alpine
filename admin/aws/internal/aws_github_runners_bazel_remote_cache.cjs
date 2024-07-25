@@ -18,10 +18,13 @@
 
 "use strict";
 
+const path = require("path");
 const crypto = require("crypto");
 const url = require("url");
 const http = require("http");
 const https = require("https");
+
+process.title = `node ${path.basename(__filename)}`;
 
 const keepAliveAgent = new https.Agent({keepAlive: true});
 
@@ -70,7 +73,7 @@ async function main() {
 
     const [roleCredentials, instanceIdentity] = await Promise.all([
         (async () => {
-            const iamRoleName = (
+            const roleName = (
                 await httpRequest(
                     "http://169.254.169.254/latest/meta-data/iam/security-credentials",
                     {headers: {"x-aws-ec2-metadata-token": metadataToken}},
@@ -79,7 +82,7 @@ async function main() {
 
             return JSON.parse(
                 await httpRequest(
-                    `http://169.254.169.254/latest/meta-data/iam/security-credentials/${iamRoleName}`,
+                    `http://169.254.169.254/latest/meta-data/iam/security-credentials/${roleName}`,
                     {headers: {"x-aws-ec2-metadata-token": metadataToken}},
                 ),
             );
