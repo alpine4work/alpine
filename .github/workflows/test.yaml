@@ -36,7 +36,9 @@ jobs:
                       bazel-${{ runner.os }}-${{ runner.arch }}-
 
             # If we don't have an exact cache entry match then we need to fetch
-            # repositories we'll need for our build.
+            # repositories we'll need for our build. We also build `//:node_modules` which
+            # will make sure all `package.json` dependencies are extracted, their lifecycle
+            # methods have run, and they're in the right place in `bazel-bin`.
             #
             # From the [`actions/cache` documentation][1]:
             #
