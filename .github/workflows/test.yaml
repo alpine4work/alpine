@@ -57,7 +57,7 @@ jobs:
             #
             # We only save new cache entries on the `main` branch. So if you're iterating
             # on a PR we don't save a bunch of cache entries that'll never be used again.
-            - if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/master'
+            - if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
               name: Save Bazel repositories cache
               uses: actions/cache/save@v3
               with:
