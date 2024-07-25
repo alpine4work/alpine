@@ -6,6 +6,7 @@
 build --jobs=HOST_CPUS
 build --local_resources=cpu=HOST_CPUS
 build --local_resources=memory=HOST_RAM
+common --loading_phase_threads=HOST_CPUS
 
 # NOTE(calebmer): On GitHub runners we use Bazel remote caching. Set
 # `--config=github-runner` when running Bazel to enable remote caching.
@@ -17,8 +18,10 @@ build --local_resources=memory=HOST_RAM
 #
 # This way we don't overload the system.
 build:github-runner --remote_cache=http://localhost:3501
-build:github-runner --jobs=HOST_CPUS-2
-build:github-runner --local_resources=cpu=HOST_CPUS-2
+build:github-runner --jobs=HOST_CPUS-6
+build:github-runner --local_resources=cpu=HOST_CPUS
+build:github-runner --local_resources=memory=HOST_RAM
+common:github-runner --loading_phase_threads=HOST_CPUS
 
 # NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration.
 # We'll manually mark flaky tests as flaky. We prefer fast failure in the
