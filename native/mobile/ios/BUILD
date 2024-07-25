@@ -1,6 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
+load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_build_test")
 load("@build_bazel_rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 load(
@@ -194,6 +193,8 @@ apple_bundle_version(
     short_version_string = "1.0",
 )
 
+IOS_MINIMUM_VERSION = "17.0"
+
 ios_application(
     name = "app",
     app_icons = ["//native/mobile/ios/Resources/Assets.xcassets:AppIcon.appiconset"],
@@ -215,7 +216,7 @@ ios_application(
     ],
     infoplists = [":build_config_plist_files"],
     launch_storyboard = "Resources/Launch.storyboard",
-    minimum_os_version = "17.0",
+    minimum_os_version = IOS_MINIMUM_VERSION,
     # To build with the local provisioning profile:
     #
     # ```
@@ -246,9 +247,10 @@ sh_test(
     ],
 )
 
-build_test(
+ios_build_test(
     name = "build_test",
-    targets = [":app"],
+    minimum_os_version = IOS_MINIMUM_VERSION,
+    targets = [":lib"],
 )
 
 xcodeproj(
