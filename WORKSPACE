@@ -245,7 +245,19 @@ filegroup(
     patch_args = ["-p1"],
     patch_cmds = [
         "zip -d DynamoDBLocal.jar log4j2.xml",
-        "zip -u DynamoDBLocal.jar log4j2.xml",
+        # NOTE(calebmer, 2024-07-25): In order to create a reproducible `.zip` file
+        # across builds we need to set the modification timestamp to a constant
+        # (`touch -t`) and ignore all other OS timestamps like access time (`-X`).
+        # If we don't create a reproducible `.zip` file then remote caching breaks!
+        # Anything that depends on this rule will need to rebuild.
+        #
+        # Great article on building reproducible zip files:
+        # https://tanzu.vmware.com/content/blog/barriers-to-deterministic-reproducible-zip-files
+        #
+        # The touch timestamp we're using is copied from that file and doesn't have
+        # anything to do with reality.
+        "touch -t 201401010000 log4j2.xml",
+        "zip -u -X DynamoDBLocal.jar log4j2.xml",
     ],
     patches = ["//admin/patches:bazel/dynamo_local.patch"],
     # You can find DynamoDB local versions here:
