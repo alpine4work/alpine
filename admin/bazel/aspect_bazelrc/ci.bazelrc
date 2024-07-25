@@ -3,16 +3,17 @@
 
 # NOTE(calebmer): Make sure to fully use the host's available hardware when
 # running in CI.
-build --jobs=HOST_CPUS-6
+build --jobs=HOST_CPUS
 build --local_resources=cpu=HOST_CPUS
 build --local_resources=memory=HOST_RAM
 common --loading_phase_threads=HOST_CPUS
 
 # NOTE(calebmer): Enable remote caching when executing in a GitHub runner. The
 # GitHub runner should have started our AWS S3 proxy server on this port.
+# NOCOMMIT: Resource usage???
 # build:github-runner --remote_cache=http://localhost:3501
 
-# NOCOMMIT: Document what's going on with resources here
+# NOCOMMIT: Resource usage???
 # build:github-runner --jobs=HOST_CPUS-4
 
 # NOTE(calebmer): Don't upload the results of small, frequent, actions to the
