@@ -39,8 +39,8 @@ export class AwsGithubRunners extends Construct {
             lifecycleRules: [{expiration: Duration.days(14)}],
         });
 
-        // 16 vCPU, 32 GiB memory
-        const instanceType = InstanceType.of(InstanceClass.C7G, InstanceSize.XLARGE4);
+        // 8 vCPU, 32 GiB memory
+        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
             vpc,
