@@ -39,7 +39,7 @@ common --loading_phase_threads=HOST_CPUS
 #     sort | \
 #     uniq
 # ```
-# build:github-runner --modify_execution_info='(CopyFile|CopyDirectory|CopyToDirectory|NpmPackageExtract|SWCCompile|TsValidateOptions)=+no-remote-cache'
+build:github-runner --modify_execution_info='(CopyFile|CopyDirectory|CopyToDirectory|NpmPackageExtract|SWCCompile|TsValidateOptions)=+no-remote-cache'
 
 # NOTE(calebmer): Disable the Aspect bazelrc default flaky test configuration.
 # We'll manually mark flaky tests as flaky. We prefer fast failure in the
