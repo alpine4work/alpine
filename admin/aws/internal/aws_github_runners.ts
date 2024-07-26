@@ -39,8 +39,8 @@ export class AwsGithubRunners extends Construct {
             lifecycleRules: [{expiration: Duration.days(14)}],
         });
 
-        // 8 vCPU, 32 GiB memory, Intel (x86) processor
-        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE4);
+        // 8 vCPU, 32 GiB memory, Gravitron (ARM) processor
+        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
             vpc,
@@ -101,6 +101,9 @@ export class AwsGithubRunners extends Construct {
                     // Install Swift. Unfortunately `build_bazel_rules_swift_local_config` is not
                     // hermetic and requires Swift to be installed on the machine. So to run tests
                     // for `native/mobile/ios` we need to install Swift in our image.
+                    //
+                    // TODO(calebmer): Now that we've disabled Swift tests on Linux, we might be
+                    // able to get rid of this.
                     RunnerImageComponent.custom({
                         name: "Swift",
                         commands: [
