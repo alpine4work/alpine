@@ -40,7 +40,7 @@ export class AwsGithubRunners extends Construct {
         });
 
         // 8 vCPU, 32 GiB memory, Intel (x86) processor
-        const instanceType = InstanceType.of(InstanceClass.M7I, InstanceSize.XLARGE);
+        const instanceType = InstanceType.of(InstanceClass.M7A, InstanceSize.XLARGE);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
             vpc,
