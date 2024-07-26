@@ -331,7 +331,7 @@ http_archive(
 filegroup(
     name = "opensearch_local",
     srcs = glob(
-        ["bin/*"],
+        ["**/*"],
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = ["**/.*"],
     ),

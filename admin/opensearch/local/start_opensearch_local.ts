@@ -24,7 +24,8 @@ const javaBasePathPromise = new Lazy(async () => {
     return joinPath(runfilesPath, javaPath.slice("external/".length));
 });
 
-const opensearchLocalBinPath = joinPath(runfilesPath, "opensearch_local/bin/opensearch");
+const opensearchLocalHomePath = joinPath(runfilesPath, "opensearch_local");
+const opensearchLocalBinPath = joinPath(opensearchLocalHomePath, "bin/opensearch");
 
 export type OpensearchLocal = {
     readonly port: number;
@@ -49,8 +50,39 @@ export async function startOpensearchLocal({
     const [javaBasePath, transportPort] = await runAllPromises([
         javaBasePathPromise.get(),
         getPort(),
-        fs.ensureDir(dataPath),
         fs.ensureDir(logsPath),
+        fs.ensureDir(dataPath).then(async () => {
+            const dataChildNames = await fs.readdir(dataPath);
+
+            // NOTE(calebmer, 2024-07-26): Migrate from the old data directory layout
+            // (without `data` subdirectory) to new data directory layout (with `data`
+            // subdirectory). We need to migrate to avoid breaking developer Alpine
+            // instances.
+            if (
+                dataChildNames.length > 0 &&
+                !dataChildNames.includes("home") &&
+                !dataChildNames.includes("data")
+            ) {
+                await runAllPromises([
+                    fs.mkdir(joinPath(dataPath, "home")),
+                    fs.mkdir(joinPath(dataPath, "data")),
+                ]);
+
+                await runAllPromises(
+                    dataChildNames.map(async dataChildName => {
+                        await fs.move(
+                            joinPath(dataPath, dataChildName),
+                            joinPath(dataPath, "data", dataChildName),
+                        );
+                    }),
+                );
+            } else {
+                await runAllPromises([
+                    fs.ensureDir(joinPath(dataPath, "home")),
+                    fs.ensureDir(joinPath(dataPath, "data")),
+                ]);
+            }
+        }),
     ]);
 
     const hash = murmurhash.v3(dataPath).toString(16).padStart(8, "0");
@@ -60,6 +92,46 @@ export async function startOpensearchLocal({
     // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
     const host = process.platform === "darwin" ? "[::1]" : "localhost";
 
+    // Symlink all files in the actual OpenSearch home directory to the new,
+    // writable home directory.
+    //
+    // We need to set OpenSearch's home directory to a path in a writable
+    // directory. Since OpenSearch writes some files (e.g. a [temporary keystore
+    // file][1]) to its home directory on startup. If the home directory is not
+    // writable (e.g. when running tests on our CI Linux server) there will be an
+    // exception that prevents OpenSearch tests from starting.
+    //
+    // [1]: https://github.com/opensearch-project/OpenSearch/blob/59302a3d5ea255be7f2bb72187b8df1f0aa33572/server/src/main/java/org/opensearch/bootstrap/Bootstrap.java#L275-L277
+    const homePath = joinPath(dataPath, "home");
+    await symlinkHome(opensearchLocalHomePath, homePath);
+
+    async function symlinkHome(actualHomePath: string, newHomePath: string) {
+        const actualHomeChildNames = await fs.readdir(actualHomePath);
+
+        await runAllPromises(
+            actualHomeChildNames.map(async actualHomeChildName => {
+                const actualHomeChildPath = joinPath(actualHomePath, actualHomeChildName);
+                const newHomeChildPath = joinPath(newHomePath, actualHomeChildName);
+
+                // `lstat()` resolves symbolic links and gets the stats of the resolved path.
+                if ((await fs.lstat(actualHomeChildPath)).isDirectory()) {
+                    await fs.ensureDir(newHomeChildPath);
+                    await symlinkHome(actualHomeChildPath, newHomeChildPath);
+                } else if (actualHomeChildName.endsWith(".jar")) {
+                    // For some reason, OpenSearch's [`checkJarHell()` function's `new JarFile()`
+                    // call][1] throws a permission denied error if `.jar` files are symlinked
+                    // instead of copied. Copying the `.jar` file fixes it I guess. Though I'd
+                    // expect a symlink to still be readable?
+                    //
+                    // [1]: https://github.com/opensearch-project/OpenSearch/blob/4dcad6dd1fd45b6bd91f041a041829c8687278fa/libs/common/src/main/java/org/opensearch/bootstrap/JarHell.java#L203
+                    await fs.copyFile(actualHomeChildPath, newHomeChildPath);
+                } else {
+                    await fs.symlink(actualHomeChildPath, newHomeChildPath);
+                }
+            }),
+        );
+    }
+
     const subprocess = spawn(
         opensearchLocalBinPath,
         [
@@ -68,7 +140,7 @@ export async function startOpensearchLocal({
             `-Enetwork.host=${host}`,
             `-Ehttp.port=${port}`,
             `-Etransport.port=${transportPort}`,
-            `-Epath.data=${dataPath}`,
+            `-Epath.data=${joinPath(dataPath, "data")}`,
             `-Epath.logs=${logsPath}`,
             // When running in tests, we'll be starting many OpenSearch nodes. Limit the
             // CPU processors OpenSearch can use. To reserve these processors on the Bazel
@@ -80,6 +152,7 @@ export async function startOpensearchLocal({
             env: {
                 NODE_ENV: "development",
                 JAVA_HOME: javaBasePath,
+                OPENSEARCH_HOME: homePath,
                 OPENSEARCH_JAVA_OPTS: [
                     // Should improve OpenSearch startup times. See discussion here:
                     // https://github.com/elastic/elasticsearch/issues/28650#issuecomment-365905076
