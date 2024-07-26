@@ -1,9 +1,9 @@
 import dotenv, {DotenvParseOutput} from "dotenv";
 import fs from "fs-extra";
 import path from "path";
-import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 
@@ -30,7 +30,17 @@ const env = new Lazy(() => {
         // Load the local `.env` file from the workspace path, not the runfiles path.
         // We don't include the local `.env` file in runfiles because it changes from
         // machine-to-machine which will break Bazel's remote caching.
-        loadDotenvFile(path.join(workspacePath, `.env.${nodeEnv}.local`)),
+        //
+        // We inline the definition of `workspacePath` since we can't import
+        // `workspacePath` since it'll fail in tests.
+        process.env.NODE_ENV !== "test"
+            ? loadDotenvFile(
+                  path.join(
+                      assertExists(process.env.BUILD_WORKSPACE_DIRECTORY),
+                      `.env.${nodeEnv}.local`,
+                  ),
+              )
+            : null,
     ];
 
     return Object.assign({}, ...files);
