@@ -6,7 +6,6 @@
 build --jobs=HOST_CPUS
 build --local_resources=cpu=HOST_CPUS
 build --local_resources=memory=HOST_RAM
-common --loading_phase_threads=HOST_CPUS
 
 # NOTE(calebmer): Enable remote caching when executing in a GitHub runner. The
 # GitHub runner should have started our AWS S3 proxy server on this port.

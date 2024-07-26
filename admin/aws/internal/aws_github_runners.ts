@@ -52,7 +52,9 @@ export class AwsGithubRunners extends Construct {
             labels: ["aws-test"],
 
             instanceType,
-            storageSize: Size.gibibytes(30),
+            // eslint-disable-next-line no-commit-blockers
+            // NOCOMMIT: What happens with a lot more storage?
+            storageSize: Size.gibibytes(120),
 
             // TODO(calebmer): Try enabling spot instances again.
             //
@@ -96,26 +98,6 @@ export class AwsGithubRunners extends Construct {
                     RunnerImageComponent.custom({
                         name: "AptGetInstall",
                         commands: ["apt-get install -y zstd build-essential nodejs"],
-                    }),
-
-                    // Install Swift. Unfortunately `build_bazel_rules_swift_local_config` is not
-                    // hermetic and requires Swift to be installed on the machine. So to run tests
-                    // for `native/mobile/ios` we need to install Swift in our image.
-                    //
-                    // TODO(calebmer): Now that we've disabled Swift tests on Linux, we might be
-                    // able to get rid of this.
-                    RunnerImageComponent.custom({
-                        name: "Swift",
-                        commands: [
-                            "mkdir /tmp/swift-install",
-                            "pushd /tmp/swift-install",
-                            "curl -fsSLO https://download.swift.org/swift-5.10.1-release/ubuntu2204-aarch64/swift-5.10.1-RELEASE/swift-5.10.1-RELEASE-ubuntu22.04-aarch64.tar.gz",
-                            "mkdir /usr/share/swift",
-                            "tar -C /usr/share/swift -xzf swift-5.10.1-RELEASE-ubuntu22.04-aarch64.tar.gz --strip-components 2",
-                            "popd",
-                            "rm -rf /tmp/swift-install",
-                            "ln -s /usr/share/swift/bin/* /usr/bin/",
-                        ],
                     }),
                 ],
             }),
