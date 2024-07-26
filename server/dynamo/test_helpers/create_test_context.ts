@@ -48,8 +48,6 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -358,6 +356,10 @@ export function createTestContext({
     const beforeAllTimeoutMs = 1000 * 30;
 
     testSharedHooks.beforeAll(async () => {
+        // Anything in this directory will be available in an `output.zip` file in the
+        // `bazel-testlogs` directory. Put our service logs in this directory.
+        const testUndeclaredOutputsPath = assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR);
+
         const [tempPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] = await runAllPromises(
             [
                 fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
@@ -367,124 +369,58 @@ export function createTestContext({
             ],
         );
 
-        const testUndeclaredOutputsPath = assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR);
+        [dynamoLocal, opensearchLocal, sqsLocal] = await runAllPromises([
+            startDynamoLocal({
+                dataPath: joinPath(tempPath, "dynamo_data"),
+                logsPath: joinPath(testUndeclaredOutputsPath, "dynamo_logs"),
+                port: dynamoLocalPort,
+            }),
+            shouldStartOpensearch
+                ? startOpensearchLocal({
+                      dataPath: joinPath(tempPath, "opensearch_data"),
+                      logsPath: joinPath(testUndeclaredOutputsPath, "opensearch_logs"),
+                      port: assertExists(opensearchLocalPort),
+                  })
+                : null,
+            shouldSendJobsToSqs
+                ? startSqsLocal({
+                      dataPath: joinPath(tempPath, "sqs_data"),
+                      logsPath: joinPath(testUndeclaredOutputsPath, "sqs_logs"),
+                      port: assertExists(sqsLocalPort),
+                      statsPort: null,
+                  })
+                : null,
+        ]);
 
-        // If we aren't able to start our services before the timeout that kills our
-        // `beforeAll()` hook, then move log files into the
-        // `TEST_UNDECLARED_OUTPUTS_DIR` directory which ends up in `bazel-testlogs` so
-        // we can debug.
-        const timeout = createTimeout(() => {
-            runPromiseWithoutAwaiting(async () => {
-                await runAllPromises([
-                    fs
-                        .move(
-                            joinPath(tempPath, "dynamo/logs"),
-                            joinPath(testUndeclaredOutputsPath, "dynamo"),
-                        )
-                        .then(() => {
-                            // eslint-disable-next-line no-console
-                            console.log(
-                                "Moved DynamoDB logs to `bazel-testlogs` to help debug `beforeAll()` timeout.",
-                            );
-                        }),
-                    shouldStartOpensearch
-                        ? fs
-                              .move(
-                                  joinPath(tempPath, "opensearch/logs"),
-                                  joinPath(testUndeclaredOutputsPath, "opensearch"),
-                              )
-                              .then(() => {
-                                  // eslint-disable-next-line no-console
-                                  console.log(
-                                      "Moved OpenSearch logs to `bazel-testlogs` to help debug `beforeAll()` timeout.",
-                                  );
-                              })
-                        : null,
-                    shouldSendJobsToSqs
-                        ? fs
-                              .move(
-                                  joinPath(tempPath, "sqs/logs"),
-                                  joinPath(testUndeclaredOutputsPath, "sqs"),
-                              )
-                              .then(() => {
-                                  // eslint-disable-next-line no-console
-                                  console.log(
-                                      "Moved SQS logs to `bazel-testlogs` to help debug `beforeAll()` timeout.",
-                                  );
-                              })
-                        : null,
-                ]);
-            });
-        }, beforeAllTimeoutMs);
+        const awsSigner = new AwsRequestSigner({
+            accessKeyId: "local",
+            secretAccessKey: "local",
+        });
 
-        try {
-            [dynamoLocal, opensearchLocal, sqsLocal] = await runAllPromises([
-                startDynamoLocal({
-                    dataPath: joinPath(tempPath, "dynamo/data"),
-                    logsPath: joinPath(tempPath, "dynamo/logs"),
-                    port: dynamoLocalPort,
-                }).then(dynamoLocal => {
-                    // eslint-disable-next-line no-console
-                    console.log("[DEBUG] startDynamoLocal() finished");
-                    return dynamoLocal;
+        dynamoContextModule.initialize(`http://localhost:${dynamoLocalPort}`, awsSigner);
+
+        if (!opensearchLocal) {
+            opensearchContextModule.initialize(new TestDisabledOpensearchClient());
+        } else {
+            opensearchContextModule.initialize(
+                new OpensearchClient(`http://localhost:${opensearchLocal.port}`, awsSigner),
+            );
+        }
+
+        if (!sqsLocal) {
+            jobsContextModule.initialize(
+                new TestLocalJobSender({
+                    processJob,
+                    createSystemContext,
                 }),
-                shouldStartOpensearch
-                    ? startOpensearchLocal({
-                          dataPath: joinPath(tempPath, "opensearch/data"),
-                          logsPath: joinPath(tempPath, "opensearch/logs"),
-                          port: assertExists(opensearchLocalPort),
-                      }).then(dynamoLocal => {
-                          // eslint-disable-next-line no-console
-                          console.log("[DEBUG] startOpensearchLocal() finished");
-                          return dynamoLocal;
-                      })
-                    : null,
-                shouldSendJobsToSqs
-                    ? startSqsLocal({
-                          dataPath: joinPath(tempPath, "sqs/data"),
-                          logsPath: joinPath(tempPath, "sqs/logs"),
-                          port: assertExists(sqsLocalPort),
-                          statsPort: null,
-                      }).then(dynamoLocal => {
-                          // eslint-disable-next-line no-console
-                          console.log("[DEBUG] startSqsLocal() finished");
-                          return dynamoLocal;
-                      })
-                    : null,
-            ]);
-
-            const awsSigner = new AwsRequestSigner({
-                accessKeyId: "local",
-                secretAccessKey: "local",
-            });
-
-            dynamoContextModule.initialize(`http://localhost:${dynamoLocalPort}`, awsSigner);
-
-            if (!opensearchLocal) {
-                opensearchContextModule.initialize(new TestDisabledOpensearchClient());
-            } else {
-                opensearchContextModule.initialize(
-                    new OpensearchClient(`http://localhost:${opensearchLocal.port}`, awsSigner),
-                );
-            }
-
-            if (!sqsLocal) {
-                jobsContextModule.initialize(
-                    new TestLocalJobSender({
-                        processJob,
-                        createSystemContext,
-                    }),
-                );
-            } else {
-                jobsContextModule.initialize(
-                    new JobSender({
-                        region: "us-east-1",
-                        queueUrl: `http://localhost:${sqsLocal.port}/local/JobQueue`,
-                    }),
-                );
-            }
-        } finally {
-            timeout.clear();
+            );
+        } else {
+            jobsContextModule.initialize(
+                new JobSender({
+                    region: "us-east-1",
+                    queueUrl: `http://localhost:${sqsLocal.port}/local/JobQueue`,
+                }),
+            );
         }
     }, beforeAllTimeoutMs);
 
