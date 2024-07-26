@@ -67,7 +67,7 @@ export async function runProcess(
     });
 
     await new Promise<void>((resolve, reject) => {
-        const nameMessage = quote`${path.basename(subprocess.spawnfile)}`;
+        const nameMessage = quote(path.basename(subprocess.spawnfile));
         let finished = false;
 
         subprocess.on("exit", (exitCode, signal) => {
@@ -75,8 +75,9 @@ export async function runProcess(
             finished = true;
 
             const stderrMessage =
-                // stdout/stderr is not included in production since it may have sensitive data.
-                process.env["NODE_ENV"] === "production"
+                // stdout/stderr is not included in production since it may have sensitive
+                // data.
+                process.env.NODE_ENV === "production"
                     ? ""
                     : ` (stdout and stderr included for debugging)\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`;
 
@@ -91,7 +92,7 @@ export async function runProcess(
                     resolve();
                 }
             } else {
-                const signalMessage = signal !== null ? quote`${signal}` : "null";
+                const signalMessage = signal !== null ? quote(signal) : "null";
                 reject(
                     new UnknownError(
                         `${nameMessage} process exited by signal ${signalMessage}${stderrMessage}`,

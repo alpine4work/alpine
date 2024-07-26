@@ -7,9 +7,12 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
+import {UnknownError} from "~/shared/error/error.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 const javaBasePathPromise = new Lazy(async () => {
     const javaPathPath = joinPath(
@@ -93,17 +96,84 @@ export async function startOpensearchLocal({
                         : []),
                     // NOTE(calebmer, 2023-11-22): Set `jna.debug_load` and `jna.debug_load.jna` to
                     // help us debug issues with the JNA load which caused problems in the past.
-                    `-Djna.nosys=true -Djna.debug_load=true -Djna.debug_load.jna=true`,
+                    "-Djna.nosys=true -Djna.debug_load=true -Djna.debug_load.jna=true",
                 ].join(" "),
             },
-            stdio: ["ignore", "ignore", "ignore"],
+            stdio: ["ignore", "pipe", "pipe"],
         },
     );
 
-    await waitForProcessSpawn(subprocess);
+    let stdout = "";
+    let stderr = "";
 
-    // Wait for the DynamoDB local server to start.
-    await waitForHttpServer(port);
+    const handleStdoutData = (chunk: Buffer) => {
+        const string = chunk.toString("utf8");
+        stdout += string;
+    };
+
+    const handleStderrData = (chunk: Buffer) => {
+        const string = chunk.toString("utf8");
+        stderr += string;
+    };
+
+    subprocess.stdout.on("data", handleStdoutData);
+    subprocess.stderr.on("data", handleStderrData);
+
+    const errorPromiseResolver = createPromiseResolver<never>();
+
+    const handleExit = (exitCode: number | null, signal: NodeJS.Signals | null) => {
+        if (errorPromiseResolver.isSettled()) return;
+
+        const stderrMessage =
+            // stdout/stderr is not included in production since it may have sensitive
+            // data. This is the same error message used by `runProcess()`.
+            process.env.NODE_ENV === "production"
+                ? ""
+                : ` (stdout and stderr included for debugging)\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`;
+
+        if (typeof exitCode === "number") {
+            errorPromiseResolver.reject(
+                new UnknownError(
+                    `"opensearch" process exited with code ${exitCode}${stderrMessage}`,
+                ),
+            );
+        } else {
+            const signalMessage = signal !== null ? quote(signal) : "null";
+            errorPromiseResolver.reject(
+                new UnknownError(
+                    `"opensearch" process exited by signal ${signalMessage}${stderrMessage}`,
+                ),
+            );
+        }
+    };
+
+    const handleError = (error: unknown) => {
+        if (errorPromiseResolver.isSettled()) return;
+
+        errorPromiseResolver.reject(error);
+    };
+
+    subprocess.on("exit", handleExit);
+    subprocess.on("error", handleError);
+
+    try {
+        await Promise.race([
+            // Wait for the OpenSearch local server to start.
+            waitForProcessSpawn(subprocess).then(() => waitForHttpServer(port)),
+            // If the process closes before the HTTP server starts, we'll throw an error.
+            errorPromiseResolver.promise,
+        ]);
+    } finally {
+        subprocess.off("exit", handleExit);
+        subprocess.off("error", handleError);
+
+        // Once the OpenSearch server starts, we don't care about stdout/stderr
+        // anymore. All logs should go to the logs path.
+        subprocess.stdout.off("data", handleStdoutData);
+        subprocess.stderr.off("data", handleStderrData);
+        stdout = "";
+        stderr = "";
+    }
 
     return {
         port,

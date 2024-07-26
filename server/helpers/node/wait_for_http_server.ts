@@ -46,7 +46,7 @@ export async function waitForHttpServer(port: number) {
     // We can't use `wait()` or `setTimeout()` since Jest will override
     // `setTimeout()` when `jest.useFakeTimers()` is on. But we want to wait the
     // timeout anyway.
-    const timeoutId = originalSetTimeout(timeoutPromiseResolver.resolve, 60 * 1000);
+    const timeoutId = originalSetTimeout(timeoutPromiseResolver.resolve, 30 * 1000);
 
     try {
         const {hasTimedOut} = await Promise.race([
