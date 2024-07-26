@@ -14,7 +14,7 @@ common --loading_phase_threads=HOST_CPUS
 # build:github-runner --remote_cache=http://localhost:3501
 
 # NOCOMMIT: Resource usage???
-# build:github-runner --jobs=HOST_CPUS-4
+build:github-runner --jobs=HOST_CPUS*0.5
 
 # NOTE(calebmer): Don't upload the results of small, frequent, actions to the
 # remote cache. `rules_js` copies all source files into `bazel-bin` and copies

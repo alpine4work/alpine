@@ -40,7 +40,7 @@ export class AwsGithubRunners extends Construct {
         });
 
         // 8 vCPU, 32 GiB memory, Intel (x86) processor
-        const instanceType = InstanceType.of(InstanceClass.M7A, InstanceSize.XLARGE);
+        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE4);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
             vpc,
@@ -74,7 +74,7 @@ export class AwsGithubRunners extends Construct {
 
                 awsImageBuilderOptions: {instanceType},
                 os: Os.LINUX_UBUNTU,
-                architecture: Architecture.X86_64,
+                architecture: Architecture.ARM64,
 
                 components: [
                     RunnerImageComponent.requiredPackages(),
