@@ -77,17 +77,6 @@ export async function startOpensearchLocal({
             ...(process.env.NODE_ENV === "test" ? ["-Enode.processors=2"] : []),
         ],
         {
-            // Run OpenSearch in `logsPath` since OpenSearch wants to write some GC log
-            // files relative to the directory it's running in. But when we're running in a
-            // test sandbox everything is read-only! Except `logsPath`.
-            //
-            // - [Source for OpenSearch configuring GC logging][1]
-            // - [Source for the default GC log path being the relative path `logs/gc.log`][2]
-            //
-            // [1]: https://github.com/opensearch-project/OpenSearch/blob/4dcad6dd1fd45b6bd91f041a041829c8687278fa/distribution/src/config/jvm.options#L66-L77
-            // [2]: https://github.com/opensearch-project/OpenSearch/blob/59302a3d5ea255be7f2bb72187b8df1f0aa33572/distribution/build.gradle#L590
-            cwd: logsPath,
-
             env: {
                 NODE_ENV: "development",
                 JAVA_HOME: javaBasePath,

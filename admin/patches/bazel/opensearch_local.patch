@@ -1,6 +1,39 @@
+diff -bur a/config/jvm.options b/config/jvm.options
+--- a/config/jvm.options	2023-10-12 21:49:13
++++ b/config/jvm.options	2024-07-26 17:07:11
+@@ -60,21 +60,14 @@
+ # has sufficient space
+ -XX:HeapDumpPath=data
+
+-# specify an alternative path for JVM fatal error logs
+--XX:ErrorFile=logs/hs_err_pid%p.log
+-
+-## JDK 8 GC logging
+-8:-XX:+PrintGCDetails
+-8:-XX:+PrintGCDateStamps
+-8:-XX:+PrintTenuringDistribution
+-8:-XX:+PrintGCApplicationStoppedTime
+-8:-Xloggc:logs/gc.log
+-8:-XX:+UseGCLogFileRotation
+-8:-XX:NumberOfGCLogFiles=32
+-8:-XX:GCLogFileSize=64m
+-
+-# JDK 9+ GC logging
+-9-:-Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
++# NOTE(calebmer): Remove GC logging from local OpenSearch instance. GC logging
++# specifies a relative path which is a problem when running in a Linux sandbox
++# where most of the file system is read-only to the executing program. Trying
++# to write to this relative path was causing all tests that us OpenSearch to
++# fail on our Linux CI servers!
++#
++# If we want GC logging we can add it back in `startOpensearchLocal()` under
++# `logsPath` which is a writable directory.
+
+ # Explicitly allow security manager (https://bugs.openjdk.java.net/browse/JDK-8270380)
+ 18-:-Djava.security.manager=allow
 diff -bur a/config/opensearch.yml b/config/opensearch.yml
---- a/config/opensearch.yml	2023-07-27 12:03:24.000000000 -0400
-+++ b/config/opensearch.yml	2023-07-27 12:42:25.000000000 -0400
+--- a/config/opensearch.yml	2023-07-27 12:03:24
++++ b/config/opensearch.yml	2023-07-27 12:42:25
 @@ -14,7 +14,7 @@
  #
  # Use a descriptive name for your cluster:
@@ -10,7 +43,7 @@ diff -bur a/config/opensearch.yml b/config/opensearch.yml
  #
  # ------------------------------------ Node ------------------------------------
  #
-@@ -132,3 +132,27 @@
+@@ -121,3 +121,27 @@
  # index searcher threadpool.
  #
  #opensearch.experimental.feature.concurrent_segment_search.enabled: false
