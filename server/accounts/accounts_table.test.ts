@@ -103,29 +103,25 @@ const sessionInfo = {
     userAgent: null,
 };
 
-// eslint-disable-next-line jest/no-focused-tests
-test.only("generates a one time password login hash", async () => {
-    // eslint-disable-next-line no-console
-    console.log("All good");
+test("generates a one time password login hash", async () => {
+    const account = await createTestAccount();
 
-    // const account = await createTestAccount();
+    expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
+        isVerified: false,
+        oneTimePassword: null,
+    });
 
-    // expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
-    //     isVerified: false,
-    //     oneTimePassword: null,
-    // });
+    const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
+        await regenerateOneTimePasswordSignIn(
+            context.unauthenticatedAction(),
+            account.emailAddress,
+        );
+    });
 
-    // const oneTimePasswordEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
-    //     await regenerateOneTimePasswordSignIn(
-    //         context.unauthenticatedAction(),
-    //         account.emailAddress,
-    //     );
-    // });
-
-    // expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
-    //     isVerified: false,
-    //     oneTimePassword: oneTimePasswordEmails[0]?.oneTimePassword,
-    // });
+    expect(await getAccountEmailAddressItemForExpect(account)).toEqual({
+        isVerified: false,
+        oneTimePassword: oneTimePasswordEmails[0]?.oneTimePassword,
+    });
 });
 
 test("regenerating one time password updates the lock version", async () => {
