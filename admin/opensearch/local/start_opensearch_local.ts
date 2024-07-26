@@ -97,6 +97,9 @@ export async function startOpensearchLocal({
                     // NOTE(calebmer, 2023-11-22): Set `jna.debug_load` and `jna.debug_load.jna` to
                     // help us debug issues with the JNA load which caused problems in the past.
                     "-Djna.nosys=true -Djna.debug_load=true -Djna.debug_load.jna=true",
+                    // Make sure the GC log is written to our logs directory. Otherwise OpenSearch
+                    // startup fails in a Bazel test sandbox because the file system is read-only.
+                    `-Xloggc:${logsPath}/gc.log`,
                 ].join(" "),
             },
             stdio: ["ignore", "pipe", "pipe"],
