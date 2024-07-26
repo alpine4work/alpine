@@ -150,6 +150,10 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright,-macos
 
+            # NOCOMMIT: Remove this! Adding to check whether OpenSearch can run.
+            - name: Sleep
+              run: sleep 5h
+
             # After our tier 1 tests pass run all other tests except integration tests
             # written for Playwright. Playwright integration tests are expensive so we only
             # run them once all other tests have passed.
