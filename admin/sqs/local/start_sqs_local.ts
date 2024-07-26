@@ -21,7 +21,6 @@ const javaPathPromise = new Lazy(async () => {
 const elasticmqJarPath = joinPath(runfilesPath, "elasticmq/file/elasticmq-server.jar");
 
 export type SqsLocal = {
-    readonly dataPath: string;
     readonly logsPath: string;
     readonly port: number;
 
@@ -48,69 +47,88 @@ export async function startSqsLocal({
     port,
     statsPort,
 }: {
-    dataPath: string;
     logsPath: string;
     port: number;
     statsPort: number | null;
-}): Promise<SqsLocal> {
+} & (
+    | {
+          dataPath: string;
+          withInMemoryData?: undefined;
+      }
+    | {
+          withInMemoryData: true;
+          dataPath?: undefined;
+      }
+)): Promise<SqsLocal> {
     const [, logFileDescriptor, javaPath] = await runAllPromises([
-        fs.ensureDir(dataPath),
+        dataPath !== undefined ? fs.ensureDir(dataPath) : undefined,
         fs.ensureDir(logsPath).then(() => fs.open(joinPath(logsPath, "elasticmq.log"), "a")),
         javaPathPromise.get(),
     ]);
 
-    const configPath = joinPath(dataPath, "config.conf");
-    const queuesStoragePath = joinPath(dataPath, "queues_storage.conf");
-    const messagesStoragePath = joinPath(dataPath, "messages_storage");
+    const configPath = joinPath(dataPath ?? logsPath, "config.conf");
+    const queuesStoragePath =
+        dataPath !== undefined ? joinPath(dataPath, "queues_storage.conf") : undefined;
+    const messagesStoragePath =
+        dataPath !== undefined ? joinPath(dataPath, "messages_storage") : undefined;
 
     // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but
     // you can bind to IPv6 localhost. See:
     // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
     const bindHostname = process.platform === "darwin" ? "[::1]" : "localhost";
 
-    const configContents = `\
-include classpath("application.conf")
+    const configContents = [];
 
+    configContents.push('include classpath("application.conf")');
+
+    configContents.push(`\
 node-address {
     protocol = "http"
     host = "localhost"
     port = ${port}
     context-path = ""
-}
+}`);
 
+    configContents.push(`\
 rest-sqs {
     enabled = true
     bind-port = ${port}
     bind-hostname = "${bindHostname}"
     sqs-limits = "strict"
-}
-${
-    statsPort !== null
-        ? `\
+}`);
 
+    if (statsPort !== null) {
+        configContents.push(`\
 rest-stats {
     enabled = true
     bind-port = ${statsPort}
     bind-hostname = "${bindHostname}"
-}`
-        : ""
-}
+}`);
+    }
 
+    configContents.push(`\
 aws {
     region = "us-east-1"
     accountId = "local"
-}
+}`);
 
+    if (queuesStoragePath !== undefined) {
+        configContents.push(`\
 queues-storage {
     enabled = true
     path = "${queuesStoragePath}"
-}
+}`);
+    }
 
+    if (messagesStoragePath !== undefined) {
+        configContents.push(`\
 messages-storage {
     enabled = true
     uri = "jdbc:h2:${messagesStoragePath}"
-}
+}`);
+    }
 
+    configContents.push(`\
 queues {
     JobDeadLetterQueue {}
 
@@ -120,10 +138,9 @@ queues {
             maxReceiveCount = 5
         }
     }
-}
-`;
+}`);
 
-    await fs.writeFile(configPath, configContents);
+    await fs.writeFile(configPath, configContents.join("\n\n") + "\n");
 
     const subprocess = spawn(javaPath, [`-Dconfig.file=${configPath}`, "-jar", elasticmqJarPath], {
         env: {NODE_ENV: "development"},
@@ -160,7 +177,6 @@ queues {
     }
 
     return {
-        dataPath,
         logsPath,
         port,
         stop: async ({force}: {force: boolean}) => {

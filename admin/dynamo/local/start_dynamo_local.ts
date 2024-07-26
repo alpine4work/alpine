@@ -35,12 +35,20 @@ export async function startDynamoLocal({
     logsPath,
     port,
 }: {
-    dataPath: string;
     logsPath: string;
     port: number;
-}): Promise<DynamoLocal> {
+} & (
+    | {
+          dataPath: string;
+          withInMemoryData?: undefined;
+      }
+    | {
+          withInMemoryData: true;
+          dataPath?: undefined;
+      }
+)): Promise<DynamoLocal> {
     const [, logFileDescriptor, javaPath] = await runAllPromises([
-        fs.ensureDir(dataPath),
+        dataPath !== undefined ? fs.ensureDir(dataPath) : undefined,
         fs.ensureDir(logsPath).then(() => fs.open(joinPath(logsPath, "dynamo.log"), "a")),
         javaPathPromise.get(),
     ]);
@@ -51,8 +59,7 @@ export async function startDynamoLocal({
             `-Djava.library.path=${dynamoLocalLibPath}`,
             "-jar",
             dynamoLocalJarPath,
-            "-dbPath",
-            dataPath,
+            ...(dataPath !== undefined ? ["-dbPath", dataPath] : ["-inMemory"]),
             "-port",
             String(port),
         ],

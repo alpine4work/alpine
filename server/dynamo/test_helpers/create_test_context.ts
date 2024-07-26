@@ -235,7 +235,7 @@ export function createTestContext({
         await currentSqsLocal.stop({force: true});
 
         sqsLocal = await startSqsLocal({
-            dataPath: currentSqsLocal.dataPath,
+            withInMemoryData: true,
             logsPath: currentSqsLocal.logsPath,
             port: currentSqsLocal.port,
             statsPort: null,
@@ -379,7 +379,7 @@ export function createTestContext({
 
         [dynamoLocal, opensearchLocal, sqsLocal] = await runAllPromises([
             startDynamoLocal({
-                dataPath: joinPath(tempPath, "dynamo_data"),
+                withInMemoryData: true,
                 logsPath: joinPath(testUndeclaredOutputsPath, "dynamo_logs"),
                 port: dynamoLocalPort,
             }),
@@ -392,7 +392,7 @@ export function createTestContext({
                 : null,
             shouldSendJobsToSqs
                 ? startSqsLocal({
-                      dataPath: joinPath(tempPath, "sqs_data"),
+                      withInMemoryData: true,
                       logsPath: joinPath(testUndeclaredOutputsPath, "sqs_logs"),
                       port: assertExists(sqsLocalPort),
                       statsPort: null,
