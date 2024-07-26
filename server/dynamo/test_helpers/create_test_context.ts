@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import getPort from "get-port";
 import {join as joinPath} from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
+import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {
     OpensearchLocal,
     startOpensearchLocal,
@@ -59,6 +60,13 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // or Playwright.
 assert(process.release.name === "node");
 assert(process.env.NODE_ENV === "test");
+
+const env = parseDotenv();
+
+// Assign AWS env variables to `process.env` so
+// `@aws-sdk/credential-provider-node` picks them up.
+process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
+process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
 export type TestContext = Context<ServerProcessContextModules> &
     TestContextHelpers<ServerProcessContextModules>;
@@ -393,8 +401,8 @@ export function createTestContext({
         ]);
 
         const awsSigner = new AwsRequestSigner({
-            accessKeyId: "local",
-            secretAccessKey: "local",
+            accessKeyId: assertExists(process.env.AWS_ACCESS_KEY_ID),
+            secretAccessKey: assertExists(process.env.AWS_SECRET_ACCESS_KEY),
         });
 
         dynamoContextModule.initialize(`http://localhost:${dynamoLocalPort}`, awsSigner);
