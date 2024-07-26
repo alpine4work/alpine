@@ -52,9 +52,7 @@ export class AwsGithubRunners extends Construct {
             labels: ["aws-test"],
 
             instanceType,
-            // eslint-disable-next-line no-commit-blockers
-            // NOCOMMIT: What happens with a lot more storage?
-            storageSize: Size.gibibytes(120),
+            storageSize: Size.gibibytes(30),
 
             // TODO(calebmer): Try enabling spot instances again.
             //

@@ -150,11 +150,9 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright,-macos
 
-            # NOCOMMIT:
-            #
-            # - name: Test (tier 2)
-            #   run: |
-            #       admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //server/accounts:accounts_table_test --config=github-runner
+            - name: Test (tier 2)
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //server/accounts:accounts_table_test --config=github-runner
 
             # NOCOMMIT:
             #
