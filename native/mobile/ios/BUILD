@@ -245,6 +245,8 @@ sh_test(
         "//:Package.swift",
         "//admin/vendor:swift-format",
     ],
+    # Can only run this test on MacOS where we have Swift installed on the system.
+    tags = ["macos"],
 )
 
 ios_build_test(
