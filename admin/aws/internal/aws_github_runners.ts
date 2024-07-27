@@ -40,7 +40,7 @@ export class AwsGithubRunners extends Construct {
         });
 
         // 8 vCPU, 32 GiB memory, Gravitron (ARM) processor
-        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2);
+        const instanceType = InstanceType.of(InstanceClass.C6G, InstanceSize.XLARGE4);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
             vpc,
