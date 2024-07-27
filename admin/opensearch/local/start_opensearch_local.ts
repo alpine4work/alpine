@@ -120,11 +120,11 @@ export async function startOpensearchLocal({
                 } else if (actualHomeChildName.endsWith(".jar")) {
                     // For some reason, OpenSearch's [`checkJarHell()` function's `new JarFile()`
                     // call][1] throws a permission denied error if `.jar` files are symlinked
-                    // instead of copied. Copying the `.jar` file fixes it I guess. Though I'd
-                    // expect a symlink to still be readable?
+                    // instead of hardlinked. Copying the `.jar` also works. Using hard linking to
+                    // reduce I/O resource usage.
                     //
                     // [1]: https://github.com/opensearch-project/OpenSearch/blob/4dcad6dd1fd45b6bd91f041a041829c8687278fa/libs/common/src/main/java/org/opensearch/bootstrap/JarHell.java#L203
-                    await fs.copyFile(actualHomeChildPath, newHomeChildPath);
+                    await fs.link(actualHomeChildPath, newHomeChildPath);
                 } else {
                     await fs.symlink(actualHomeChildPath, newHomeChildPath);
                 }
