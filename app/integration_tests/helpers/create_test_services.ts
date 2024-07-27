@@ -5,17 +5,7 @@ import getPort from "get-port";
 import {join as joinPath} from "path";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {Readable} from "stream";
-import {
-    devAppServicePrivateKeyPath,
-    devAppServicePublicKeyPath,
-    devEdgeServiceFamilyPrivateKeyPath,
-    devEdgeServiceFamilyPublicKeyPath,
-    devJobQueueServicePrivateKeyPath,
-    devJobQueueServicePublicKeyPath,
-    devTaskRealtimeServicePrivateKeyPath,
-    devTaskRealtimeServicePublicKeyPath,
-    ensureDevServiceKeys,
-} from "~/admin/helpers/dev_service_keys.js";
+import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -27,6 +17,7 @@ import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_priva
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
 // This file can only run in tests.
@@ -103,17 +94,12 @@ export function createTestServices(): {context: TestContext; services: TestServi
         },
     });
 
+    let appServiceTokenAgentPrivateSide: AppServiceTokenAgentPrivateSide | undefined;
+
     let appServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
     let edgeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
     let taskRealtimeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
     let jobQueueServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
-
-    const appServiceTokenAgentPrivateSidePromise = (async () => {
-        return AppServiceTokenAgentPrivateSide.new({
-            serviceName: "AppService",
-            servicePrivateKey: await fs.readFile(devAppServicePrivateKeyPath, "utf8"),
-        });
-    })();
 
     let oneTimePasswords: Array<{emailAddress: string; oneTimePassword: string}> = [];
 
@@ -123,12 +109,51 @@ export function createTestServices(): {context: TestContext; services: TestServi
     });
 
     test.beforeAll(async () => {
-        const [edgeServicePort, taskRealtimeServicePort, appServicePort] = await runAllPromises([
+        const keysDirectoryPath = joinPath(context.getTempPath(), "keys");
+
+        const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
+        const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
+
+        const edgeServiceFamilyPrivateKeyPath = joinPath(
+            keysDirectoryPath,
+            "edge_service_family_rsa",
+        );
+        const edgeServiceFamilyPublicKeyPath = joinPath(
+            keysDirectoryPath,
+            "edge_service_family_rsa.pub",
+        );
+
+        const taskRealtimeServicePrivateKeyPath = joinPath(
+            keysDirectoryPath,
+            "task_realtime_service_rsa",
+        );
+        const taskRealtimeServicePublicKeyPath = joinPath(
+            keysDirectoryPath,
+            "task_realtime_service_rsa.pub",
+        );
+
+        const jobQueueServicePrivateKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa");
+        const jobQueueServicePublicKeyPath = joinPath(
+            keysDirectoryPath,
+            "job_queue_service_rsa.pub",
+        );
+
+        const [
+            edgeServicePort,
+            taskRealtimeServicePort,
+            appServicePort,
+            newAppServiceTokenAgentPrivateSide,
+        ] = await runAllPromises([
             edgeServicePortPromise,
             getPort(),
             getPort(),
-            ensureDevServiceKeys(),
+            AppServiceTokenAgentPrivateSide.new({
+                serviceName: "AppService",
+                servicePrivateKey: await fs.readFile(appServicePrivateKeyPath, "utf8"),
+            }),
+            ensureServiceKeys(keysDirectoryPath),
         ]);
+        appServiceTokenAgentPrivateSide = newAppServiceTokenAgentPrivateSide;
 
         const allMiniLmL6V2LanguageModelPath = joinPath(runfilesPath, "all_mini_lm_l6_v2");
 
@@ -148,11 +173,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--port=${appServicePort}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeServicePort}`,
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--servicePrivateKey=${devAppServicePrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
@@ -191,11 +216,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
             [
                 `--port=${edgeServicePort}`,
                 `--appServiceUrl=http://localhost:${appServicePort}`,
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
             ],
             {
                 env: process.env,
@@ -212,11 +237,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
             joinPath(runfilesPath, "cyberworlds/server/tasks/realtime/realtime.sh"),
             [
                 `--portBase=${taskRealtimeServicePort}`,
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--servicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
@@ -237,11 +262,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
             joinPath(runfilesPath, "cyberworlds/server/jobs/queue/queue.sh"),
             [
                 `--taskRealtimeServiceLocalPort=${taskRealtimeServicePort}`,
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--servicePrivateKey=${devJobQueueServicePrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
@@ -285,10 +310,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
             | {sessionId: SessionId; accountId: AccountId}
             | {id: SessionId; account: {id: AccountId}},
     ) => {
-        const tokenAgentPrivateSide = await appServiceTokenAgentPrivateSidePromise;
-
         const sessionCookieHeader = await getSessionCookieSetCookieHeaderForTest(
-            tokenAgentPrivateSide,
+            assertExists(appServiceTokenAgentPrivateSide),
             {
                 type: "Session",
                 sessionId: "id" in session ? session.id : session.sessionId,

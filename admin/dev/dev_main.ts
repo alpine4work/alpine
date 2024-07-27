@@ -22,17 +22,7 @@ import {
 } from "~/admin/dev/stdio_coordinator.js";
 import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
-import {
-    devAppServicePrivateKeyPath,
-    devAppServicePublicKeyPath,
-    devEdgeServiceFamilyPrivateKeyPath,
-    devEdgeServiceFamilyPublicKeyPath,
-    devJobQueueServicePrivateKeyPath,
-    devJobQueueServicePublicKeyPath,
-    devTaskRealtimeServicePrivateKeyPath,
-    devTaskRealtimeServicePublicKeyPath,
-    ensureDevServiceKeys,
-} from "~/admin/helpers/dev_service_keys.js";
+import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
@@ -107,6 +97,23 @@ const sqsLocalLogsPath = joinPath(devEnvPaths.log, "sqs");
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
 const sqsLocalStatsPort = parsePort(env.SQS_LOCAL_STATS_PORT);
 
+const keysDirectoryPath = joinPath(devEnvPaths.config, "keys");
+
+const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
+const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
+
+const edgeServiceFamilyPrivateKeyPath = joinPath(keysDirectoryPath, "edge_service_family_rsa");
+const edgeServiceFamilyPublicKeyPath = joinPath(keysDirectoryPath, "edge_service_family_rsa.pub");
+
+const taskRealtimeServicePrivateKeyPath = joinPath(keysDirectoryPath, "task_realtime_service_rsa");
+const taskRealtimeServicePublicKeyPath = joinPath(
+    keysDirectoryPath,
+    "task_realtime_service_rsa.pub",
+);
+
+const jobQueueServicePrivateKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa");
+const jobQueueServicePublicKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa.pub");
+
 const apnsCertificatePath = joinPath(
     runfilesPath,
     "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
@@ -169,11 +176,11 @@ async function createArtifacts() {
             },
             args: [
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--servicePrivateKey=${devAppServicePrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--remixDevServerPort=${remixDevServerPort}`,
                 "--shouldSeedDynamo",
                 `--dynamoLocalPort=${dynamoLocalPort}`,
@@ -202,11 +209,11 @@ async function createArtifacts() {
             },
             args: [
                 `--appServiceUrl=http://localhost:${appDevPort}`,
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
@@ -224,11 +231,11 @@ async function createArtifacts() {
                 privatePortArg: "portBase",
             },
             args: [
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--servicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
@@ -243,11 +250,11 @@ async function createArtifacts() {
             executablePath: "server/jobs/queue/queue.sh",
             stdioPrefix: "job",
             args: [
-                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
-                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
-                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
-                `--servicePrivateKey=${devJobQueueServicePrivateKeyPath}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
@@ -290,7 +297,7 @@ let fileUpdateQueue: {
 const remixDevServerPromise = startRemixDevServer({remixDevServerPort, logError});
 
 const fastSetupPromise = runAllPromises([
-    ensureDevServiceKeys(),
+    ensureServiceKeys(keysDirectoryPath),
     startDynamoLocal({
         dataPath: dynamoLocalDataPath,
         logsPath: dynamoLocalLogsPath,

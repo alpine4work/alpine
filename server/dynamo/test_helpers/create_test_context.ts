@@ -75,6 +75,7 @@ type TestContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> 
     ContextWithDestroy<Modules> & TestContextHelpers<Modules>;
 
 type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
+    getTempPath(): string;
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
     readonly isOpensearchEnabled: boolean;
@@ -186,9 +187,15 @@ export function createTestContext({
     // actual test failures due to timeout.
     if (import.meta.jest) import.meta.jest.setTimeout(1000 * 10);
 
+    let tempPath: string | null = null;
     let dynamoLocal: DynamoLocal | null = null;
     let opensearchLocal: OpensearchLocal | null = null;
     let sqsLocal: SqsLocal | null = null;
+
+    const getTempPath = () => {
+        if (tempPath === null) throw new InternalError("Temporary directory has not been created");
+        return tempPath;
+    };
 
     const getDynamoLocalPort = () => {
         if (dynamoLocal === null) throw new InternalError("DynamoDB local has not started");
@@ -343,6 +350,7 @@ export function createTestContext({
     });
 
     const helpers: TestContextHelpers<any> = {
+        getTempPath,
         getDynamoLocalPort,
         getOpensearchLocalPort,
         isOpensearchEnabled: shouldStartOpensearch,
@@ -368,14 +376,14 @@ export function createTestContext({
         // `bazel-testlogs` directory. Put our service logs in this directory.
         const testUndeclaredOutputsPath = assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR);
 
-        const [tempPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] = await runAllPromises(
-            [
+        const [newTempPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] =
+            await runAllPromises([
                 fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
                 getPort(),
                 shouldStartOpensearch ? getPort() : null,
                 shouldSendJobsToSqs ? getPort() : null,
-            ],
-        );
+            ]);
+        tempPath = newTempPath;
 
         [dynamoLocal, opensearchLocal, sqsLocal] = await runAllPromises([
             startDynamoLocal({
