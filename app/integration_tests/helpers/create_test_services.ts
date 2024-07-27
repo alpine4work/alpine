@@ -147,11 +147,12 @@ export function createTestServices(): {context: TestContext; services: TestServi
             edgeServicePortPromise,
             getPort(),
             getPort(),
-            AppServiceTokenAgentPrivateSide.new({
-                serviceName: "AppService",
-                servicePrivateKey: await fs.readFile(appServicePrivateKeyPath, "utf8"),
-            }),
-            ensureServiceKeys(keysDirectoryPath),
+            ensureServiceKeys(keysDirectoryPath).then(async () =>
+                AppServiceTokenAgentPrivateSide.new({
+                    serviceName: "AppService",
+                    servicePrivateKey: await fs.readFile(appServicePrivateKeyPath, "utf8"),
+                }),
+            ),
         ]);
         appServiceTokenAgentPrivateSide = newAppServiceTokenAgentPrivateSide;
 
