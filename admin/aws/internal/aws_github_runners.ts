@@ -119,7 +119,33 @@ export class AwsGithubRunners extends Construct {
                     //   before anything from Bazel.
                     RunnerImageComponent.custom({
                         name: "AptGetInstall",
-                        commands: ["apt-get install -y zstd build-essential nodejs"],
+                        commands: [
+                            `apt-get install -y ${[
+                                // Better GitHub `actions/cache` compression/decompression performance.
+                                "zstd",
+                                // Includes `gcc` and `make` among other common build tools. Necessary for
+                                // building some npm packages.
+                                "build-essential",
+                                // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
+                                // enable remote caching before anything is built by Bazel.
+                                "nodejs",
+                                // Dependencies required by Playwright for running browsers. We could also run
+                                // `playwright install-deps` but it's more efficient to install these
+                                // dependencies on the host machine.
+                                "libatk-bridge2.0-0",
+                                "libcups2",
+                                "libxkbcommon0",
+                                "libatspi2.0-0",
+                                "libxcomposite1",
+                                "libxdamage1",
+                                "libxfixes3",
+                                "libxrandr2",
+                                "libgbm1",
+                                "libpango-1.0-0",
+                                "libcairo2",
+                                "libasound2",
+                            ].join(" ")}`,
+                        ],
                     }),
                 ],
             }),
