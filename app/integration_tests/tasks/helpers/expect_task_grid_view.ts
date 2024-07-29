@@ -1,5 +1,6 @@
 import {Locator, Page, expect} from "@playwright/test";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 type ExpectTaskGridViewTaskDefinitionAttributes = [
@@ -139,10 +140,6 @@ export async function expectTaskGridView(
     await expect(page.getByTestId(/^TaskRowView:/)).toHaveCount(
         taskCount + (hasGhostTaskRow ? 1 : 0),
     );
-}
-
-function escapeRegExp(string: string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export async function expectTaskRowViewPriority(locator: Locator, priority: string) {

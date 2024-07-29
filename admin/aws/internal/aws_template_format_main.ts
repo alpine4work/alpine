@@ -3,6 +3,7 @@ import {extname} from "path";
 import * as prettier from "prettier";
 import Yaml from "yaml";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 
 async function main() {
     await runAllPromises(
@@ -17,11 +18,24 @@ async function main() {
                 indent: 4,
             });
 
-            const templateYamlString = prettier.format(unformattedTemplateYamlString, {
+            let templateYamlString = prettier.format(unformattedTemplateYamlString, {
                 parser: "yaml",
                 printWidth: 100,
                 tabWidth: 4,
             });
+
+            // The container hash added to this string is different on MacOS compared to
+            // our Linux CI GitHub runner. So replace with a placeholder tag, `latest`.
+            templateYamlString = templateYamlString.replaceAll(
+                new RegExp(
+                    `(${escapeRegExp(
+                        // eslint-disable-next-line no-template-curly-in-string
+                        "${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:",
+                    )})[0-9a-fA-F]+`,
+                    "g",
+                ),
+                "$1latest",
+            );
 
             await fs.writeFile(
                 `${templatePath.slice(0, -extname(templatePath).length)}.yaml`,

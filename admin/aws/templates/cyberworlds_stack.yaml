@@ -1762,7 +1762,7 @@ Resources:
                       StartPeriod: 240
                       Timeout: 5
                   Image:
-                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:3c4db6fc9229ee138d6a308a2553e8bd630b87402e784e95b40fa59ffe960c9b
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
                   LogConfiguration:
                       LogDriver: awslogs
                       Options:
@@ -1845,7 +1845,7 @@ Resources:
                       Retries: 3
                       Timeout: 5
                   Image:
-                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:3c4db6fc9229ee138d6a308a2553e8bd630b87402e784e95b40fa59ffe960c9b
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
                   LogConfiguration:
                       LogDriver: awslogs
                       Options:
@@ -2431,7 +2431,7 @@ Resources:
                       Retries: 3
                       Timeout: 5
                   Image:
-                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:3c4db6fc9229ee138d6a308a2553e8bd630b87402e784e95b40fa59ffe960c9b
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
                   LogConfiguration:
                       LogDriver: awslogs
                       Options:
@@ -3191,7 +3191,7 @@ Resources:
                       Retries: 3
                       Timeout: 5
                   Image:
-                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:3c4db6fc9229ee138d6a308a2553e8bd630b87402e784e95b40fa59ffe960c9b
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
                   LogConfiguration:
                       LogDriver: awslogs
                       Options:
@@ -3606,7 +3606,7 @@ Resources:
                         Value: production
                   Essential: true
                   Image:
-                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:3c4db6fc9229ee138d6a308a2553e8bd630b87402e784e95b40fa59ffe960c9b
+                      Fn::Sub: ${AWS::AccountId}.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-us-east-1:latest
                   LogConfiguration:
                       LogDriver: awslogs
                       Options:
