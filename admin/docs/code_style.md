@@ -943,3 +943,62 @@ accessibility friendly way.
 **Why?** `data-testid` attributes add unnecessary bloat to the DOM. Someday we’d like to write an
 SWC plugin that strips `data-testid` attributes away in non-production builds. Today we sometimes
 manually check that `NODE_ENV` is not production when assigning `data-testid`.
+
+### When performing a network request in a `useEffect()` protect the request from being executed unnecessarily with a ref
+
+If you have a network request (e.g. an RPC call) in a `useEffect()` then consider creating a ref
+that tracks some value and only send the network request when that value changes. You should also
+consider applying this recommendation for any other resource consuming side effect you may make in a
+`useEffect()` besides network requests.
+
+For example:
+
+```ts
+const lastTimeZoneRef = useRef(null);
+
+useEffect(() => {
+    if (lastTimeZoneRef.current === clientInfo.timeZone) return;
+    lastTimeZoneRef.current = clientInfo.timeZone;
+
+    updateOurAccountLastClientTimeZone(context, {
+        timeZone: clientInfo.timeZone,
+    });
+}, [context, clientInfo.timeZone]);
+```
+
+Here `lastTimeZoneRef` tracks `clientInfo.timeZone`. We only send our network request (the RPC
+`updateOurAccountLastClientTimeZone()`) when `clientInfo.timeZone` changes. Don't set your effect's
+dependency array to `[clientInfo.timeZone]`. You'd have to add an `eslint-disable` directive for
+`react-hooks/exhaustive-deps`.
+
+Another example is if you only want to run your network request on initial mount. Don't set your
+effect's dependency array to `[]`, instead use a ref:
+
+```ts
+const hasInitiallyMountedRef = useRef(null);
+
+useEffect(() => {
+    if (hasInitiallyMountedRef.current) return;
+    hasInitiallyMountedRef.current = true;
+
+    updateOurAccountLastClientTimeZone(context, {
+        timeZone: clientInfo.timeZone,
+    });
+}, [context, clientInfo.timeZone]);
+```
+
+**Why?** React may re-run an effect at any time. In
+[strict mode each effect runs twice](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development)
+as a way to help you find bugs. Even outside of strict mode you may have a dependency on a value
+that changes frequently. Even if all the values in your dependency array don't change frequently
+when you write the effect, some developer may make a change later that violates your assumptions.
+
+For instance, in the above examples we have a dependency on `context`. Right now that variable
+basically only changes when the URL changes but maybe in the future someone will decide `context`
+should update when a peek opens in addition to when the URL changes. By putting the network request
+behind a `lastTimeZoneRef.current === clientInfo.timeZone` check we make sure we won't send our
+network request when `context` changes.
+
+Also, the ESLint `react-hooks/exhaustive-deps` rule's auto fix is really handy and can help catch
+real bugs where your effect captures a stale value. Disabling it means you may run into bugs where
+your effect captures a stale value.
