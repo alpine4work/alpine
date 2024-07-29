@@ -157,10 +157,17 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-dev-check,-playwright,-macos
 
-            # NOCOMMIT: Document
+            # Run integration tests with Plawright after all other tests have passed. These
+            # tests are expensive to run and are flaky. We run them last since if any other
+            # test fails there's a good chance integration tests will also fail. So we
+            # save resources by not running integration tests.
+            #
+            # We set `--notest_keep_going`. If any integration test fails we immediately
+            # fail the build and exit to speed up test result turnaround time for
+            # developers.
             - name: Test (tier 3)
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=playwright,-dev-check,-macos
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=playwright,-dev-check,-macos --nokeep_going --notest_keep_going
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
