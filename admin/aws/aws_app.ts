@@ -1,5 +1,5 @@
 import {App, CfnOutput, Fn, Stack} from "aws-cdk-lib";
-import {IVpc, Vpc} from "aws-cdk-lib/aws-ec2";
+import {IVpc, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
@@ -19,7 +19,7 @@ export async function createAwsApp() {
     const app = new App({autoSynth: false});
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    const {importVpc} = await addAwsResources(stack);
+    await addAwsResources(stack);
 
     // Resources related to continuous integration and continuous deployment live in
     // this stack. The term "lifecycle" is from the industry term
@@ -27,7 +27,7 @@ export async function createAwsApp() {
     const lifecycleStack = new Stack(app, "CyberworldsLifecycleStack", {
         env: {region: "us-east-1"},
     });
-    addAwsLifecycleResources(lifecycleStack, {importVpc});
+    addAwsLifecycleResources(lifecycleStack);
 
     return app;
 }
@@ -186,8 +186,24 @@ function exportVpc(exportStack: Stack, vpc: IVpc) {
     };
 }
 
-function addAwsLifecycleResources(stack: Stack, {importVpc}: {importVpc: (stack: Stack) => IVpc}) {
-    const vpc = importVpc(stack);
+function addAwsLifecycleResources(stack: Stack) {
+    // Create our own VPC for lifecycle resources. Right now, we put most resources
+    // in public subnets anyway so this doesn't add too much security. What this
+    // does that's really useful is allows us to launch GitHub runner instances in
+    // all availability zones. In case the first few availability zone we try don't
+    // have capacity.
+    const vpc = new Vpc(stack, "Vpc", {
+        natGateways: 0,
+        availabilityZones: [
+            "us-east-1a",
+            "us-east-1b",
+            "us-east-1c",
+            "us-east-1d",
+            "us-east-1e",
+            "us-east-1f",
+        ],
+        subnetConfiguration: [{subnetType: SubnetType.PUBLIC, name: "Public"}],
+    });
 
     new AwsGithubRunners(stack, {vpc});
 }
