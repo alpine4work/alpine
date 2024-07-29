@@ -32,5 +32,6 @@ else
         # log a file a second time).
         rm "$(dirname $1)/test.xml"
         rm "$(dirname $1)/test.cache_status"
+        rm "$(dirname $1)/test_attempts/attempt_*.xml"
     fi
 fi

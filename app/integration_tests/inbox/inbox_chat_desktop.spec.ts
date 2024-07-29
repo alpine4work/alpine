@@ -57,8 +57,8 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByText("test1")).toBeHidden();
     await page3.getByRole("button", {name: "Inbox"}).click();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
     await expect(page3.getByText("test1")).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
     await expect(page3.getByText("test2")).toBeHidden();
@@ -75,8 +75,8 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByText("test2")).toBeHidden();
     await page3.getByRole("button", {name: "Inbox"}).click();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
     await expect(page3.getByText("test2")).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
     await expect(page3.getByText("test1")).toBeHidden();
@@ -93,8 +93,8 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByText("test2")).toBeHidden();
     await page3.getByRole("button", {name: "Inbox"}).click();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
     await expect(page3.getByText("test2")).toBeVisible();
     await expect(page3.getByText("test3")).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
@@ -106,15 +106,15 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByText("test2")).toBeHidden();
     await page3.getByRole("button", {name: "Inbox"}).click();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
     await expect(page3.getByText("test2")).toBeVisible();
     await expect(page3.getByText("test3")).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
     await expect(page3.getByText("test1")).toBeHidden();
 
     await expect(page3.getByText("test1")).toBeHidden();
-    await page3.getByText("Siobahn sent you a chat message").click();
+    await page3.getByText("Siobahn sent you a message").click();
     await expect(page3.getByText("test1")).toBeVisible();
     await expect(page3.getByText("test3")).toBeHidden();
 
@@ -137,14 +137,14 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByText("test3")).toBeHidden();
     await page3.getByRole("button", {name: "Inbox"}).click();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeHidden();
     await expect(page3.getByText("test3")).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
     await expect(page3.getByText("test1")).toBeHidden();
     await expect(page3.getByText("test2")).toBeHidden();
 
-    await page3.getByText("Kendall sent you a chat message").click();
+    await page3.getByText("Kendall sent you a message").click();
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
 
@@ -200,15 +200,15 @@ test("can see new chat notifications from inbox", async ({
         .click();
 
     await expect(page3.getByText("No new notifications")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeHidden();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeHidden();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
 
     await page1.getByRole("textbox", {name: "New message"}).type("test6");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByText("No new notifications")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
 
@@ -217,19 +217,19 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByText("No new notifications")).toBeHidden();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
 
     await page2.getByRole("textbox", {name: "New message"}).type("test7");
     await page2.getByRole("button", {name: "Send message"}).click();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByText("No new notifications")).toBeHidden();
 
-    await page3.getByText("Kendall sent you a chat message").click();
+    await page3.getByText("Kendall sent you a message").click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();
@@ -250,8 +250,8 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
 
     await expect(page3.getByRole("button", {name: "Done"})).toBeEnabled();
@@ -260,8 +260,8 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
     await expect(page3.getByText("No new notifications")).toBeHidden();
 
     await page3.getByRole("button", {name: "Old"}).click();
@@ -269,16 +269,16 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeHidden();
 
     await page3.getByRole("button", {name: "New", exact: true}).click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
 
     await expect(page3.getByRole("button", {name: "Done"})).toBeEnabled();
     await page3.getByRole("button", {name: "Done"}).click();
@@ -288,8 +288,8 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeHidden();
 
     await expect(page3.getByRole("button", {name: "Done"})).toBeDisabled();
 
@@ -298,24 +298,24 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
 
     await page3.getByRole("button", {name: "Move to new"}).click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeVisible();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeHidden();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeVisible();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeHidden();
+    await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeHidden();
 
     await page3.getByRole("button", {name: "New", exact: true}).click();
 
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Kendall")).toBeHidden();
     await expect(page3.getByTestId("ChatViewTopBar").getByText("Siobahn")).toBeVisible();
 
-    await expect(page3.getByText("Kendall sent you a chat message")).toBeHidden();
-    await expect(page3.getByText("Siobahn sent you a chat message")).toBeVisible();
+    await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
+    await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
 
     await browserContext2.close();
     await browserContext3.close();
