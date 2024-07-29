@@ -1,4 +1,5 @@
 import {
+    AmiRecipe,
     Architecture,
     Ec2RunnerProvider,
     GitHubRunners,
@@ -64,7 +65,8 @@ export class AwsGithubRunners extends Construct {
         // completely forget what the conditions for this run were.
         //
         // [1]: https://github.com/cyberworlds/cyberworlds/actions/runs/10065127027/job/27823987319
-        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.XLARGE2);
+        const instanceClass = InstanceClass.M7G;
+        const instanceType = InstanceType.of(instanceClass, InstanceSize.XLARGE2);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
             vpc,
@@ -96,7 +98,10 @@ export class AwsGithubRunners extends Construct {
                 vpc,
                 subnetSelection: {subnetType: SubnetType.PUBLIC},
 
-                awsImageBuilderOptions: {instanceType},
+                awsImageBuilderOptions: {
+                    // We can use a different size when building our image.
+                    instanceType: InstanceType.of(instanceClass, InstanceSize.MEDIUM),
+                },
                 os: Os.LINUX_UBUNTU,
                 architecture: Architecture.ARM64,
 
@@ -120,31 +125,108 @@ export class AwsGithubRunners extends Construct {
                     RunnerImageComponent.custom({
                         name: "AptGetInstall",
                         commands: [
-                            `apt-get install -y ${[
-                                // Better GitHub `actions/cache` compression/decompression performance.
-                                "zstd",
-                                // Includes `gcc` and `make` among other common build tools. Necessary for
-                                // building some npm packages.
-                                "build-essential",
-                                // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
-                                // enable remote caching before anything is built by Bazel.
-                                "nodejs",
-                                // Dependencies required by Playwright for running browsers. We could also run
-                                // `playwright install-deps` but it's more efficient to install these
-                                // dependencies on the host machine.
-                                "libatk-bridge2.0-0",
-                                "libcups2",
-                                "libxkbcommon0",
-                                "libatspi2.0-0",
-                                "libxcomposite1",
-                                "libxdamage1",
-                                "libxfixes3",
-                                "libxrandr2",
-                                "libgbm1",
-                                "libpango-1.0-0",
-                                "libcairo2",
-                                "libasound2",
-                            ].join(" ")}`,
+                            `apt-get install --no-install-recommends -y ${Array.from(
+                                new Set([
+                                    // Better GitHub `actions/cache` compression/decompression performance.
+                                    "zstd",
+                                    // Includes `gcc` and `make` among other common build tools. Necessary for
+                                    // building some npm packages.
+                                    "build-essential",
+                                    // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
+                                    // enable remote caching before anything is built by Bazel.
+                                    "nodejs",
+
+                                    // Dependencies required by Playwright for running Chromium:
+                                    // https://github.com/microsoft/playwright/blob/3049d99bc8c76799817585a359502368bd6ba366/packages/playwright-core/src/server/registry/nativeDeps.ts#L414-L437
+                                    //
+                                    // We could also run `playwright install-deps` but putting them on the machine
+                                    // image is more efficient.
+                                    "libasound2",
+                                    "libatk-bridge2.0-0",
+                                    "libatk1.0-0",
+                                    "libatspi2.0-0",
+                                    "libcairo2",
+                                    "libcups2",
+                                    "libdbus-1-3",
+                                    "libdrm2",
+                                    "libgbm1",
+                                    "libglib2.0-0",
+                                    "libnspr4",
+                                    "libnss3",
+                                    "libpango-1.0-0",
+                                    "libwayland-client0",
+                                    "libx11-6",
+                                    "libxcb1",
+                                    "libxcomposite1",
+                                    "libxdamage1",
+                                    "libxext6",
+                                    "libxfixes3",
+                                    "libxkbcommon0",
+                                    "libxrandr2",
+
+                                    // Dependencies required by Playwright for running WebKit:
+                                    // https://github.com/microsoft/playwright/blob/3049d99bc8c76799817585a359502368bd6ba366/packages/playwright-core/src/server/registry/nativeDeps.ts#L468-L523
+                                    //
+                                    // We could also run `playwright install-deps` but putting them on the machine
+                                    // image is more efficient.
+                                    "libsoup-3.0-0",
+                                    "libenchant-2-2",
+                                    "gstreamer1.0-libav",
+                                    "gstreamer1.0-plugins-bad",
+                                    "gstreamer1.0-plugins-base",
+                                    "gstreamer1.0-plugins-good",
+                                    "libicu70",
+                                    "libatk-bridge2.0-0",
+                                    "libatk1.0-0",
+                                    "libcairo2",
+                                    "libdbus-1-3",
+                                    "libdrm2",
+                                    "libegl1",
+                                    "libepoxy0",
+                                    "libevdev2",
+                                    "libffi7",
+                                    "libfontconfig1",
+                                    "libfreetype6",
+                                    "libgbm1",
+                                    "libgdk-pixbuf-2.0-0",
+                                    "libgles2",
+                                    "libglib2.0-0",
+                                    "libglx0",
+                                    "libgstreamer-gl1.0-0",
+                                    "libgstreamer-plugins-base1.0-0",
+                                    "libgstreamer1.0-0",
+                                    "libgtk-3-0",
+                                    "libgudev-1.0-0",
+                                    "libharfbuzz-icu0",
+                                    "libharfbuzz0b",
+                                    "libhyphen0",
+                                    "libjpeg-turbo8",
+                                    "liblcms2-2",
+                                    "libmanette-0.2-0",
+                                    "libnotify4",
+                                    "libopengl0",
+                                    "libopenjp2-7",
+                                    "libopus0",
+                                    "libpango-1.0-0",
+                                    "libpng16-16",
+                                    "libproxy1v5",
+                                    "libsecret-1-0",
+                                    "libwayland-client0",
+                                    "libwayland-egl1",
+                                    "libwayland-server0",
+                                    "libwebpdemux2",
+                                    "libwoff1",
+                                    "libx11-6",
+                                    "libxcomposite1",
+                                    "libxdamage1",
+                                    "libxkbcommon0",
+                                    "libxml2",
+                                    "libxslt1.1",
+                                    "libx264-163",
+                                    "libatomic1",
+                                    "libevent-2.1-7",
+                                ]),
+                            ).join(" ")}`,
                         ],
                     }),
                 ],
