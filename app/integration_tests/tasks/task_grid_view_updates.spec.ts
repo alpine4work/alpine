@@ -828,7 +828,10 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
 
-    await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowCollectionsCell").click();
+    await page
+        .getByTestId(`TaskRowView:${task.id}`)
+        .getByTestId("TaskRowCollectionsCell")
+        .click({position: {x: 0, y: 0}});
 
     const overlayLocator = page.getByTestId("TaskRowCollectionsCellOverlay");
 
@@ -855,7 +858,10 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeHidden();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeHidden();
 
-    await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowCollectionsCell").click();
+    await page
+        .getByTestId(`TaskRowView:${task.id}`)
+        .getByTestId("TaskRowCollectionsCell")
+        .click({position: {x: 0, y: 0}});
 
     await overlayLocator.getByLabel("Collections").focus();
 
@@ -881,7 +887,10 @@ test("can update collections", async ({page, context: browserContext}) => {
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("test3")).toBeVisible();
     await expect(page.getByTestId(`TaskRowView:${task.id}`).getByText("+1")).toBeVisible();
 
-    await page.getByTestId(`TaskRowView:${task.id}`).getByTestId("TaskRowCollectionsCell").click();
+    await page
+        .getByTestId(`TaskRowView:${task.id}`)
+        .getByTestId("TaskRowCollectionsCell")
+        .click({position: {x: 0, y: 0}});
 
     await expect(overlayLocator.getByText("test1")).toBeVisible();
     await expect(overlayLocator.getByText("test2")).toBeVisible();

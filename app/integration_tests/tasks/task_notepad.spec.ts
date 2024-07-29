@@ -166,7 +166,14 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
         [true, "Yet another task"],
     ]);
 
-    await page.keyboard.press(`${modifier}+ArrowLeft`);
+    // Run three times for platforms like Linux where Ctrl+ArrowLeft moves a single
+    // word not the entire line.
+    if (process.platform === "darwin") {
+        await page.keyboard.press(`${modifier}+ArrowLeft`);
+    } else {
+        for (let i = 0; i < 3; i++) await page.keyboard.press(`${modifier}+ArrowLeft`);
+    }
+
     await page.keyboard.press("Enter");
     await page.keyboard.press("ArrowUp");
 
