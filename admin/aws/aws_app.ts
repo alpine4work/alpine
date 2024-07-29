@@ -1,6 +1,5 @@
 import {App, CfnOutput, Fn, Stack} from "aws-cdk-lib";
 import {IVpc, Vpc} from "aws-cdk-lib/aws-ec2";
-import {fileURLToPath} from "url";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
@@ -16,10 +15,8 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 
-const outputDirectoryPath = fileURLToPath(new URL("output", import.meta.url));
-
 export async function createAwsApp() {
-    const app = new App({autoSynth: false, outdir: outputDirectoryPath});
+    const app = new App({autoSynth: false});
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
     const {importVpc} = await addAwsResources(stack);
