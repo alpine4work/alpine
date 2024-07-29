@@ -25,15 +25,6 @@ export function createServerTracer({
         untrusted: false,
         clock: unsynchronizedSystemClock,
         sendEvent: event => {
-            // Don't send events to tracer when running tests. To detect whether we're
-            // running a Playwright integration test we must check `PLAYWRIGHT_TEST_PATH`.
-            //
-            // This mirrors the behavior in `test_tracer.ts`. See `test_tracer.ts` for more
-            // information on why we don't log tracer events in tests. We need to check
-            // whether we're running in a test here because integration tests will create a
-            // server tracer for test services.
-            if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) return;
-
             honeycombClient?.sendEvent(event);
 
             if (process.env.NODE_ENV !== "production") {

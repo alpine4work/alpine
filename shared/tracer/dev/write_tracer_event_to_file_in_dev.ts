@@ -55,6 +55,20 @@ export function writeTracerEventToFileInDev(event: TracerEvent) {
         return globalWriteTracerEventToFileInDev(event);
     }
 
+    // Don't send events to tracer when running tests. To detect whether we're
+    // running a Playwright integration test we must check `PLAYWRIGHT_TEST_PATH`.
+    //
+    // This mirrors the behavior in `test_tracer.ts`. See `test_tracer.ts` for more
+    // information on why we don't log tracer events in tests.
+    //
+    // We need to check whether we're running in a test here because integration
+    // tests will create a `server_tracer.ts` for test services. We can't add this
+    // check to `server_tracer.ts` since `server_tracer.ts` is used in edge service
+    // which runs in a Cloudflare Worker which doesn't have the `process.env`
+    // global. If this function is called from a Cloudflare Worker we'll have
+    // returned early above.
+    if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) return;
+
     runPromiseWithoutAwaiting(async () => {
         const {joinPath, fs, tracerLogDirectoryPath} = await nodeSetupPromise.get();
 
