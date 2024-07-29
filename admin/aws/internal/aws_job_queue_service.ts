@@ -106,7 +106,9 @@ export class AwsJobQueueService extends Construct {
             image: ContainerImage.fromTarball(
                 joinPath(
                     runfilesPath,
-                    "cyberworlds/server/jobs/queue/queue_image_tarball/tarball.tar",
+                    process.env.CDK_LITE === "true"
+                        ? "cyberworlds/admin/aws/empty_image_tarball/tarball.tar"
+                        : "cyberworlds/server/jobs/queue/queue_image_tarball/tarball.tar",
                 ),
             ),
             // This appears to be the available memory for our containers. Unclear how we

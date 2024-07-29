@@ -142,7 +142,12 @@ export class AwsAppService extends Construct {
 
         taskDefinition.addContainer("Container", {
             image: ContainerImage.fromTarball(
-                joinPath(runfilesPath, "cyberworlds/app/app_image_tarball/tarball.tar"),
+                joinPath(
+                    runfilesPath,
+                    process.env.CDK_LITE === "true"
+                        ? "cyberworlds/admin/aws/empty_image_tarball/tarball.tar"
+                        : "cyberworlds/app/app_image_tarball/tarball.tar",
+                ),
             ),
             // This appears to be the available memory for our containers. Unclear how we
             // get this number from 1024 (the instance type's memory). It makes sense that

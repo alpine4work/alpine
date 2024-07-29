@@ -1,6 +1,9 @@
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 load("@npm//:aws-cdk/package_json.bzl", cdk_bin = "bin")
+load("//admin/aws:aws_lambda.bzl", "aws_lambda")
+load("//admin/bazel:linux_x86_64_platform_and_opt_compilation_mode.bzl", "linux_x86_64_platform_and_opt_compilation_mode")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 # A manually built OCI layer that creates a directory `/var/www-data` and
@@ -11,14 +14,6 @@ exports_files([
 
 ts_project(
     name = "aws",
-    data = [
-        "//admin/opensearch/deploy",
-        "//app:app_image_tarball_linux_x86_64_opt",
-        "//server/jobs/queue:queue_image_tarball_linux_x86_64_opt",
-        "//server/migration:migration_image_tarball_linux_x86_64_opt",
-        "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
-        "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
-    ],
     deps = [
         "//:node_modules/@cloudsnorkel/cdk-github-runners",
         "//:node_modules/@types/prettier",
@@ -43,6 +38,12 @@ cdk_bin.cdk_binary(
     data = [
         ":aws",
         "//:cdk_files",
+        "//admin/opensearch/deploy",
+        "//app:app_image_tarball_linux_x86_64_opt",
+        "//server/jobs/queue:queue_image_tarball_linux_x86_64_opt",
+        "//server/migration:migration_image_tarball_linux_x86_64_opt",
+        "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
+        "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
     ],
     env = {
         "NODE_ENV": "production",
@@ -50,14 +51,72 @@ cdk_bin.cdk_binary(
     visibility = ["//admin/deploy:__pkg__"],
 )
 
+# The "lite" CDK binary is configured to reference empty container images
+# instead of the full service container images. That way the output of
+# `cdk_lite` doesn't change when the code for one of our services changes.
+#
+# Useful since remote caching won't need to invalidate anything depending on
+# this whenever any code changes.
+cdk_bin.cdk_binary(
+    name = "cdk_lite",
+    data = [
+        ":aws",
+        ":empty_image_tarball_linux_x86_64_opt",
+        ":empty_lambda",
+        "//:cdk_files",
+    ],
+    env = {
+        "NODE_ENV": "production",
+        "CDK_LITE": "true",
+    },
+)
+
+aws_lambda(
+    name = "empty_lambda",
+    entry_point = "internal/empty.cjs",
+)
+
+js_binary(
+    name = "empty",
+    entry_point = "internal/empty.cjs",
+    visibility = ["//app/integration_tests:__pkg__"],
+)
+
+js_image_layer(
+    name = "empty_image_layer",
+    binary = ":empty",
+    root = "/var/www",
+)
+
+oci_image(
+    name = "empty_image",
+    base = "@debian",
+    tars = [":empty_image_layer"],
+    user = "www-data",
+)
+
+oci_tarball(
+    name = "empty_image_tarball",
+    image = ":empty_image",
+    repo_tags = ["cyberworlds-empty-service:latest"],
+)
+
+linux_x86_64_platform_and_opt_compilation_mode(
+    name = "empty_image_tarball_linux_x86_64_opt",
+    src = ":empty_image_tarball",
+)
+
 js_run_binary(
     name = "aws_app_templates_json",
     outs = [
-        "output/CyberworldsLifecycleStack.template.json",
-        "output/CyberworldsStack.template.json",
+        "output_lite/CyberworldsLifecycleStack.template.json",
+        "output_lite/CyberworldsStack.template.json",
     ],
-    args = ["synth"],
-    tool = ":cdk",
+    args = [
+        "synth",
+        "--output=admin/aws/output_lite",
+    ],
+    tool = ":cdk_lite",
 )
 
 js_binary(
@@ -70,16 +129,16 @@ js_binary(
 js_run_binary(
     name = "aws_app_templates",
     srcs = [
-        "output/CyberworldsLifecycleStack.template.json",
-        "output/CyberworldsStack.template.json",
+        "output_lite/CyberworldsLifecycleStack.template.json",
+        "output_lite/CyberworldsStack.template.json",
     ],
     outs = [
-        "output/CyberworldsLifecycleStack.template.yaml",
-        "output/CyberworldsStack.template.yaml",
+        "output_lite/CyberworldsLifecycleStack.template.yaml",
+        "output_lite/CyberworldsStack.template.yaml",
     ],
     args = [
-        "output/CyberworldsLifecycleStack.template.json",
-        "output/CyberworldsStack.template.json",
+        "output_lite/CyberworldsLifecycleStack.template.json",
+        "output_lite/CyberworldsStack.template.json",
     ],
     chdir = "admin/aws",
     tool = ":aws_template_format",
@@ -98,7 +157,7 @@ js_run_binary(
 write_source_files(
     name = "write_aws_app_templates",
     files = {
-        "templates/cyberworlds_lifecycle_stack.yaml": "output/CyberworldsLifecycleStack.template.yaml",
-        "templates/cyberworlds_stack.yaml": "output/CyberworldsStack.template.yaml",
+        "templates/cyberworlds_lifecycle_stack.yaml": "output_lite/CyberworldsLifecycleStack.template.yaml",
+        "templates/cyberworlds_stack.yaml": "output_lite/CyberworldsStack.template.yaml",
     },
 )

@@ -45,7 +45,7 @@ js_binary(
 # ```
 WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//admin/adhoc",
-    "//admin/aws",
+    "//admin/aws:cdk",
     "//admin/dev",
     "//admin/eslint",
     "//app/integration_tests:integration_tests_lib",

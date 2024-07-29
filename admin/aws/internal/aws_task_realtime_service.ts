@@ -180,7 +180,9 @@ export class AwsTaskRealtimeService extends Construct {
             image: ContainerImage.fromTarball(
                 joinPath(
                     runfilesPath,
-                    "cyberworlds/server/tasks/realtime/realtime_image_tarball/tarball.tar",
+                    process.env.CDK_LITE === "true"
+                        ? "cyberworlds/admin/aws/empty_image_tarball/tarball.tar"
+                        : "cyberworlds/server/tasks/realtime/realtime_image_tarball/tarball.tar",
                 ),
             ),
             memoryReservationMiB:
@@ -274,7 +276,9 @@ export class AwsTaskRealtimeService extends Construct {
             image: ContainerImage.fromTarball(
                 joinPath(
                     runfilesPath,
-                    "cyberworlds/server/tasks/realtime/gateway/gateway_image_tarball/tarball.tar",
+                    process.env.CDK_LITE === "true"
+                        ? "cyberworlds/admin/aws/empty_image_tarball/tarball.tar"
+                        : "cyberworlds/server/tasks/realtime/gateway/gateway_image_tarball/tarball.tar",
                 ),
             ),
             memoryReservationMiB: Math.floor(memoryLimitMiB * gatewayMemoryPercent),

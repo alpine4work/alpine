@@ -14,7 +14,9 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
 const opensearchDeployScriptLambdaDirectoryPath = joinPath(
     runfilesPath,
-    "cyberworlds/admin/opensearch/deploy/deploy",
+    process.env.CDK_LITE === "true"
+        ? "cyberworlds/admin/aws/empty_lambda"
+        : "cyberworlds/admin/opensearch/deploy/deploy",
 );
 
 const opensearchDeployScriptLambdaIndexPath = joinPath(
