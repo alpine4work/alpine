@@ -21,6 +21,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@cloudsnorkel/cdk-github-runners",
+        "//:node_modules/@types/prettier",
         "//:node_modules/aws-cdk-lib",
         "//:node_modules/chalk",
         "//:node_modules/constructs",
