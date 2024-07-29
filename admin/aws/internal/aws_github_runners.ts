@@ -224,6 +224,9 @@ export class AwsGithubRunners extends Construct {
                                     "libx264-163",
                                     "libatomic1",
                                     "libevent-2.1-7",
+                                    // Playwright errs if this isn't installed when running WebKit, but it's not
+                                    // present in the list we linked above.
+                                    "libxtst6",
                                 ]),
                             ).join(" ")}`,
                         ],
