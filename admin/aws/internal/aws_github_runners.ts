@@ -124,7 +124,7 @@ export class AwsGithubRunners extends Construct {
                     RunnerImageComponent.custom({
                         name: "AptGetInstall",
                         commands: [
-                            `apt-get install --no-install-recommends -y ${Array.from(
+                            `apt-get install -y ${Array.from(
                                 new Set([
                                     // Better GitHub `actions/cache` compression/decompression performance.
                                     "zstd",
