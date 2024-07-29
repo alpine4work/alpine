@@ -1,5 +1,4 @@
 import {
-    AmiRecipe,
     Architecture,
     Ec2RunnerProvider,
     GitHubRunners,
