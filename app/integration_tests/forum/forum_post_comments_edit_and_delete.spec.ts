@@ -17,7 +17,7 @@ function getAvatarInPileByInitials(page: Page, initials: string) {
     return page.getByTestId(/PostContentViewFooter/).getByText(initials);
 }
 
-test.only("can edit a post comment", async ({page, context: browserContext, isMobile}) => {
+test("can edit a post comment", async ({page, context: browserContext, isMobile}) => {
     const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
