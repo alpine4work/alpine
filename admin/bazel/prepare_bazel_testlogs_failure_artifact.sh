@@ -14,7 +14,11 @@ if [ -z "$1" ]; then
     #    file. Will delete files for passing tests.
     find "$testlogs" -name test.xml -exec "$this" {} \;
 
-    # 3. Recursively cleanup empty directories.
+    # 3. Delete all flaky test attempt `.xml` files. This has the same content as
+    #    `test.xml` but for a failed flaky test attempt.
+    find "$testlogs" -name "attempt_*.xml" -type f -exec rm {} \;
+
+    # 4. Recursively cleanup empty directories.
     find "$testlogs" -type d -empty -delete
 else
     # Determine whether the test was successful or not by parsing the JUnit
@@ -32,6 +36,5 @@ else
         # log a file a second time).
         rm "$(dirname $1)/test.xml"
         rm "$(dirname $1)/test.cache_status"
-        rm "$(dirname $1)/test_attempts/attempt_"*".xml"
     fi
 fi
