@@ -15,15 +15,15 @@ const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
-// Our test where we're doing a bunch of concurrent updates takes some time.
-test.setTimeout(5 * 60 * 1000);
-
 test("can write collaboratively in a document", async ({
     browser,
     context: browserContext1,
     page: page1,
     viewport,
 }) => {
+    // We do a bunch of concurrent updates in this test which may take a while.
+    test.setTimeout(60 * 1000);
+
     assert(viewport);
 
     const document = await createDocument(context.action(session1), {
@@ -145,6 +145,9 @@ test("can write collaboratively at the same time in a document", async ({
     page: page1,
     viewport,
 }) => {
+    // We do a bunch of concurrent updates in this test which may take a while.
+    test.setTimeout(2 * 60 * 1000);
+
     assert(viewport);
 
     const document = await createDocument(context.action(session1), {
