@@ -12,6 +12,7 @@ import {UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -123,13 +124,6 @@ export async function startOpensearchLocal({
 
     const securityPolicyPath = joinPath(homePath, "config/opensearch_security.policy");
 
-    const resolvedOpensearchLocalHomePath = resolvePath(
-        (await unpatchedFs.lstat(opensearchLocalBinPath)).isSymbolicLink()
-            ? await unpatchedFs.readlink(opensearchLocalBinPath)
-            : opensearchLocalBinPath,
-        "../..",
-    );
-
     const securityPolicyContents = `\
 grant {
     permission java.lang.RuntimePermission "exitVM";
@@ -140,7 +134,10 @@ grant {
     permission java.util.PropertyPermission "opensearch.*", "read";
     permission java.security.SecurityPermission "setProperty.networkaddress.cache.ttl";
     permission java.security.SecurityPermission "setProperty.networkaddress.cache.negative.ttl";
-    permission java.io.FilePermission "${joinPath(resolvedOpensearchLocalHomePath, "-")}", "read";
+    permission java.io.FilePermission "${resolvePath(
+        assertExists(process.env.JS_BINARY__EXECROOT),
+        "../../external/opensearch_local/-",
+    )}", "read";
 };
 `;
 
