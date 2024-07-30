@@ -14,7 +14,11 @@ import {
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
-import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {
+    ApnsContextModule,
+    ApnsContextModuleBase,
+    TestApnsContextModule,
+} from "~/server/apns/apns_context_module.js";
 import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -195,16 +199,23 @@ runService({
                       ),
                   });
 
-        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
-            certificate: apnsCertificate,
-            certificatePrivateKey: apnsCertificatePrivateKey,
-        });
+        // In tests, don't send push notifications. Otherwise in development and
+        // production set up a connection pool to APNs so we can send notifications.
+        let apnsContextModule: ApnsContextModuleBase;
+        if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) {
+            apnsContextModule = new TestApnsContextModule();
+        } else {
+            const apnsConnectionPool = new ApnsConnectionPool(processContext, {
+                certificate: apnsCertificate,
+                certificatePrivateKey: apnsCertificatePrivateKey,
+            });
 
-        registerShutdownListener(async () => {
-            await apnsConnectionPool.destroy();
-        });
+            registerShutdownListener(async () => {
+                await apnsConnectionPool.destroy();
+            });
 
-        const apnsContextModule = new ApnsContextModule(apnsConnectionPool);
+            apnsContextModule = new ApnsContextModule(apnsConnectionPool);
+        }
 
         let hasSeededDynamo = false;
 

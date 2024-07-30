@@ -4,7 +4,11 @@ import {
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
-import {ApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {
+    ApnsContextModule,
+    ApnsContextModuleBase,
+    TestApnsContextModule,
+} from "~/server/apns/apns_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -135,16 +139,23 @@ runService({
                       ),
                   });
 
-        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
-            certificate: apnsCertificate,
-            certificatePrivateKey: apnsCertificatePrivateKey,
-        });
+        // In tests, don't send push notifications. Otherwise in development and
+        // production set up a connection pool to APNs so we can send notifications.
+        let apnsContextModule: ApnsContextModuleBase;
+        if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) {
+            apnsContextModule = new TestApnsContextModule();
+        } else {
+            const apnsConnectionPool = new ApnsConnectionPool(processContext, {
+                certificate: apnsCertificate,
+                certificatePrivateKey: apnsCertificatePrivateKey,
+            });
 
-        registerShutdownListener(async () => {
-            await apnsConnectionPool.destroy();
-        });
+            registerShutdownListener(async () => {
+                await apnsConnectionPool.destroy();
+            });
 
-        const apnsContextModule = new ApnsContextModule(apnsConnectionPool);
+            apnsContextModule = new ApnsContextModule(apnsConnectionPool);
+        }
 
         const consumer = JobQueueConsumer.start(processContext, {
             region: "us-east-1",
