@@ -59,7 +59,9 @@ test("can write collaboratively in a document", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    await page1.getByRole("textbox", {name: "Document"}).type("Test document content 1");
+    await page1
+        .getByRole("textbox", {name: "Document"})
+        .pressSequentially("Test document content 1");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1",
@@ -79,7 +81,9 @@ test("can write collaboratively in a document", async ({
     }
 
     await page2.getByRole("textbox", {name: "Document"}).press("Enter");
-    await page2.getByRole("textbox", {name: "Document"}).type("Test document content 2");
+    await page2
+        .getByRole("textbox", {name: "Document"})
+        .pressSequentially("Test document content 2");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1Test document content 2",
@@ -99,7 +103,9 @@ test("can write collaboratively in a document", async ({
     }
 
     await page1.getByRole("textbox", {name: "Document"}).press("Enter");
-    await page1.getByRole("textbox", {name: "Document"}).type("Test document content 3");
+    await page1
+        .getByRole("textbox", {name: "Document"})
+        .pressSequentially("Test document content 3");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1Test document content 2Test document content 3",
@@ -119,7 +125,9 @@ test("can write collaboratively in a document", async ({
     }
 
     await page2.getByRole("textbox", {name: "Document"}).press("Enter");
-    await page2.getByRole("textbox", {name: "Document"}).type("Test document content 4");
+    await page2
+        .getByRole("textbox", {name: "Document"})
+        .pressSequentially("Test document content 4");
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
         "Test document content 1Test document content 2Test document content 3Test document content 4",
@@ -175,12 +183,14 @@ test("can write collaboratively at the same time in a document", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    await runAllPromiseThunks(
-        async () => {
-            const reload1 = randomInteger(0, 25);
-            const reload2 = randomInteger(0, 25);
+    const reload1 = randomInteger(0, 25);
+    const reload2 = randomInteger(0, 25);
+    const reload3 = randomInteger(0, 25);
+    const reload4 = randomInteger(0, 25);
 
-            for (let i = 0; i < 25; i++) {
+    for (let index = 0; index < 25; index++) {
+        await runAllPromiseThunks(
+            async () => {
                 if (canPrimaryInputHover) {
                     await page1
                         .getByRole("textbox", {name: "Document"})
@@ -193,17 +203,12 @@ test("can write collaboratively at the same time in a document", async ({
 
                 await page1
                     .getByRole("textbox", {name: "Document"})
-                    .type("123456123456123456", {delay: randomInteger(0, 10)});
+                    .pressSequentially("123456123456123456", {delay: randomInteger(0, 10)});
                 await page1.getByRole("textbox", {name: "Document"}).press("Enter");
 
-                if (i === reload1 || i === reload2) await page1.reload();
-            }
-        },
-        async () => {
-            const reload1 = randomInteger(0, 25);
-            const reload2 = randomInteger(0, 25);
-
-            for (let i = 0; i < 25; i++) {
+                if (index === reload1 || index === reload2) await page1.reload();
+            },
+            async () => {
                 if (canPrimaryInputHover) {
                     await page2
                         .getByRole("textbox", {name: "Document"})
@@ -216,13 +221,13 @@ test("can write collaboratively at the same time in a document", async ({
 
                 await page2
                     .getByRole("textbox", {name: "Document"})
-                    .type("abcdefabcdefabcdef", {delay: randomInteger(0, 10)});
+                    .pressSequentially("abcdefabcdefabcdef", {delay: randomInteger(0, 10)});
                 await page2.getByRole("textbox", {name: "Document"}).press("Enter");
 
-                if (i === reload1 || i === reload2) await page2.reload();
-            }
-        },
-    );
+                if (index === reload3 || index === reload4) await page2.reload();
+            },
+        );
+    }
 
     await page1.getByRole("textbox", {name: "Document"}).blur();
     await page2.getByRole("textbox", {name: "Document"}).blur();
