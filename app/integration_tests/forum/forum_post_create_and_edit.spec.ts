@@ -119,7 +119,14 @@ test("can edit a post in a channel", async ({
     // On mobile, the selection starts at the beginning of the input not the end.
     // Move selection to the end.
     if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        // Run four times for platforms like Linux where Ctrl+ArrowRight moves a single
+        // word not the entire line.
+        if (process.platform === "darwin") {
+            await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        } else {
+            for (let i = 0; i < 4; i++)
+                await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        }
     }
 
     // Can update with the save button.
@@ -142,7 +149,14 @@ test("can edit a post in a channel", async ({
     // On mobile, the selection starts at the beginning of the input not the end.
     // Move selection to the end.
     if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        // Run four times for platforms like Linux where Ctrl+ArrowRight moves a single
+        // word not the entire line.
+        if (process.platform === "darwin") {
+            await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        } else {
+            for (let i = 0; i < 4; i++)
+                await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        }
     }
 
     // Can update with Cmd-Enter keyboard shortcut.
@@ -182,7 +196,14 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     // On mobile, the selection starts at the beginning of the input not the end.
     // Move selection to the end.
     if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        // Run four times for platforms like Linux where Ctrl+ArrowRight moves a single
+        // word not the entire line.
+        if (process.platform === "darwin") {
+            await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        } else {
+            for (let i = 0; i < 4; i++)
+                await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        }
     }
 
     // Can update with the save button.
@@ -210,7 +231,14 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     // On mobile, the selection starts at the beginning of the input not the end.
     // Move selection to the end.
     if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        // Run four times for platforms like Linux where Ctrl+ArrowRight moves a single
+        // word not the entire line.
+        if (process.platform === "darwin") {
+            await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        } else {
+            for (let i = 0; i < 4; i++)
+                await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        }
     }
 
     // Can update with Cmd-Enter keyboard shortcut.
@@ -260,7 +288,14 @@ test("asks for confirmation to save edited post", async ({
     // On mobile, the selection starts at the beginning of the input not the end.
     // Move selection to the end.
     if (isMobile) {
-        await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        // Run four times for platforms like Linux where Ctrl+ArrowRight moves a single
+        // word not the entire line.
+        if (process.platform === "darwin") {
+            await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        } else {
+            for (let i = 0; i < 4; i++)
+                await page.getByLabel("Post", {exact: true}).press(`${modifier}+ArrowRight`);
+        }
     }
 
     await page.getByLabel("Post", {exact: true}).press("Backspace");
