@@ -65,16 +65,23 @@ export function createTestServices(): {context: TestContext; services: TestServi
     // For instance, the job queue needs to finish processing its jobs before we
     // can kill OpenSearch.
     test.afterAll(async () => {
-        appServiceSubprocess?.kill("SIGINT");
-        edgeServiceSubprocess?.kill("SIGINT");
-        taskRealtimeServiceSubprocess?.kill("SIGINT");
+        // First wait for `JobQueueService` and `EdgeServiceFamily` to finish since
+        // they may need to make requests to `AppService` while finishing up ingress
+        // traffic.
         jobQueueServiceSubprocess?.kill("SIGINT");
+        edgeServiceSubprocess?.kill("SIGINT");
+
+        await runAllPromises([
+            jobQueueServiceSubprocess && waitForProcessExit(jobQueueServiceSubprocess),
+            edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
+        ]);
+
+        appServiceSubprocess?.kill("SIGINT");
+        taskRealtimeServiceSubprocess?.kill("SIGINT");
 
         await runAllPromises([
             appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
-            edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
             taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
-            jobQueueServiceSubprocess && waitForProcessExit(jobQueueServiceSubprocess),
         ]);
     });
 
