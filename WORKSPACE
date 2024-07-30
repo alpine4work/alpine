@@ -339,9 +339,15 @@ filegroup(
 )
 """,
     patch_args = ["-p1"],
-    # Remove all plugins except the KNN plugin. This improves local OpenSearch
-    # startup time since we don't need to load plugins.
-    patch_cmds = ["cd plugins && ls | grep -v knn | xargs rm -rf"],
+    patch_cmds = [
+        # Remove the `jdk` directory. The `jdk` binaries are built for an x86_64 Linux
+        # so we can't use them. We'll instead use a Bazel installed Java
+        # implementation.
+        "rm -rf jdk",
+        # Remove all plugins except the KNN plugin. This improves local OpenSearch
+        # startup time since we don't need to load plugins.
+        "cd plugins && ls | grep -v knn | xargs rm -rf",
+    ],
     patches = ["//admin/patches:bazel/opensearch_local.patch"],
     sha256 = "8fd6cdd3d1385629033eabe14542df3a301399ee4a8151ab76fd2b20f75de12c",
     strip_prefix = "opensearch-2.11.0",
