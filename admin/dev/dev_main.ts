@@ -88,6 +88,7 @@ const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
 const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 
+const opensearchLocalConfigPath = joinPath(devEnvPaths.config, "opensearch");
 const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
 const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
 const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
@@ -328,6 +329,7 @@ const fastSetupPromise = runAllPromises([
 // may think they must wait.
 const slowSetupPromise = runAllPromises([
     startOpensearchLocal({
+        configPath: opensearchLocalConfigPath,
         dataPath: opensearchLocalDataPath,
         logsPath: opensearchLocalLogsPath,
         port: opensearchLocalPort,

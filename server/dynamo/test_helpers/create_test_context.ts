@@ -393,7 +393,8 @@ export function createTestContext({
             }),
             shouldStartOpensearch
                 ? startOpensearchLocal({
-                      dataPath: joinPath(tempPath, "opensearch"),
+                      configPath: joinPath(tempPath, "opensearch/config"),
+                      dataPath: joinPath(tempPath, "opensearch/data"),
                       logsPath: joinPath(testUndeclaredOutputsPath, "opensearch"),
                       port: assertExists(opensearchLocalPort),
                   })

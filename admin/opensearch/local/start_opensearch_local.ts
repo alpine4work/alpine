@@ -1,8 +1,9 @@
 import {spawn} from "child_process";
 import fs from "fs-extra";
+import _fs from "fs/promises";
 import getPort from "get-port";
 import murmurhash from "murmurhash";
-import {join as joinPath} from "path";
+import {join as joinPath, resolve as resolvePath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
@@ -12,7 +13,12 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+
+// Use the Node.js implementation of `fs` that doesn't include the `rules_js`
+// `fs` patch.
+const unpatchedFs: typeof _fs = (_fs as any)._unpatched ?? _fs;
 
 const javaBasePathPromise = new Lazy(async () => {
     const javaPathPath = joinPath(
@@ -39,10 +45,12 @@ export type OpensearchLocal = {
  * [1]: https://opensearch.org/
  */
 export async function startOpensearchLocal({
+    configPath: homePath,
     dataPath,
     logsPath,
     port,
 }: {
+    configPath: string;
     dataPath: string;
     logsPath: string;
     port: number;
@@ -50,39 +58,9 @@ export async function startOpensearchLocal({
     const [javaBasePath, transportPort] = await runAllPromises([
         javaBasePathPromise.get(),
         getPort(),
+        fs.ensureDir(homePath),
+        fs.ensureDir(dataPath),
         fs.ensureDir(logsPath),
-        fs.ensureDir(dataPath).then(async () => {
-            const dataChildNames = await fs.readdir(dataPath);
-
-            // NOTE(calebmer, 2024-07-26): Migrate from the old data directory layout
-            // (without `data` subdirectory) to new data directory layout (with `data`
-            // subdirectory). We need to migrate to avoid breaking developer Alpine
-            // instances.
-            if (
-                dataChildNames.length > 0 &&
-                !dataChildNames.includes("home") &&
-                !dataChildNames.includes("data")
-            ) {
-                await runAllPromises([
-                    fs.mkdir(joinPath(dataPath, "home")),
-                    fs.mkdir(joinPath(dataPath, "data")),
-                ]);
-
-                await runAllPromises(
-                    dataChildNames.map(async dataChildName => {
-                        await fs.move(
-                            joinPath(dataPath, dataChildName),
-                            joinPath(dataPath, "data", dataChildName),
-                        );
-                    }),
-                );
-            } else {
-                await runAllPromises([
-                    fs.ensureDir(joinPath(dataPath, "home")),
-                    fs.ensureDir(joinPath(dataPath, "data")),
-                ]);
-            }
-        }),
     ]);
 
     const hash = murmurhash.v3(dataPath).toString(16).padStart(8, "0");
@@ -92,7 +70,7 @@ export async function startOpensearchLocal({
     // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
     const host = process.platform === "darwin" ? "[::1]" : "localhost";
 
-    // Symlink all files in the actual OpenSearch home directory to the new,
+    // Symlink all files in the actual OpenSearch home directory to a new,
     // writable home directory.
     //
     // We need to set OpenSearch's home directory to a path in a writable
@@ -102,7 +80,6 @@ export async function startOpensearchLocal({
     // exception that prevents OpenSearch tests from starting.
     //
     // [1]: https://github.com/opensearch-project/OpenSearch/blob/59302a3d5ea255be7f2bb72187b8df1f0aa33572/server/src/main/java/org/opensearch/bootstrap/Bootstrap.java#L275-L277
-    const homePath = joinPath(dataPath, "home");
     await symlinkHome(opensearchLocalHomePath, homePath);
 
     async function symlinkHome(actualHomePath: string, newHomePath: string) {
@@ -110,27 +87,74 @@ export async function startOpensearchLocal({
 
         await runAllPromises(
             actualHomeChildNames.map(async actualHomeChildName => {
-                const actualHomeChildPath = joinPath(actualHomePath, actualHomeChildName);
+                let actualHomeChildPath = joinPath(actualHomePath, actualHomeChildName);
                 const newHomeChildPath = joinPath(newHomePath, actualHomeChildName);
 
-                // `lstat()` resolves symbolic links and gets the stats of the resolved path.
-                if ((await fs.lstat(actualHomeChildPath)).isDirectory()) {
+                let actualHomeChildStats = await unpatchedFs.lstat(actualHomeChildPath);
+
+                if (actualHomeChildStats.isSymbolicLink()) {
+                    actualHomeChildPath = await unpatchedFs.readlink(actualHomeChildPath);
+                    actualHomeChildStats = await unpatchedFs.lstat(actualHomeChildPath);
+                }
+
+                if (actualHomeChildStats.isDirectory()) {
                     await fs.ensureDir(newHomeChildPath);
                     await symlinkHome(actualHomeChildPath, newHomeChildPath);
-                } else if (actualHomeChildName.endsWith(".jar")) {
-                    // For some reason, OpenSearch's [`checkJarHell()` function's `new JarFile()`
-                    // call][1] throws a permission denied error if `.jar` files are symlinked
-                    // instead of copied. Copying the `.jar` file fixes it I guess. Though I'd
-                    // expect a symlink to still be readable?
-                    //
-                    // [1]: https://github.com/opensearch-project/OpenSearch/blob/4dcad6dd1fd45b6bd91f041a041829c8687278fa/libs/common/src/main/java/org/opensearch/bootstrap/JarHell.java#L203
-                    await fs.copyFile(actualHomeChildPath, newHomeChildPath);
                 } else {
-                    await fs.symlink(actualHomeChildPath, newHomeChildPath);
+                    try {
+                        await fs.symlink(actualHomeChildPath, newHomeChildPath, "file");
+                    } catch (error) {
+                        // If the symlink file already exists and is linked to the right place, then we
+                        // can ignore this error. Everything's all right.
+                        if (
+                            isObject(error) &&
+                            error.code === "EEXIST" &&
+                            error.path === actualHomeChildPath
+                        ) {
+                            // All good...
+                        } else {
+                            throw error;
+                        }
+                    }
                 }
             }),
         );
     }
+
+    const securityPolicyPath = joinPath(homePath, "config/opensearch_security.policy");
+
+    const resolvedOpensearchLocalHomePath = resolvePath(
+        (await unpatchedFs.lstat(opensearchLocalBinPath)).isSymbolicLink()
+            ? await unpatchedFs.readlink(opensearchLocalBinPath)
+            : opensearchLocalBinPath,
+        "../..",
+    );
+
+    // Includes the permissions OpenSearch needs to bootstrap. Once OpenSearch has
+    // bootstrapped it'll extend this security policy with its own
+    // `security.policy` file ([source][1]) and `plugin-security.policy` files
+    // ([example][2]).
+    //
+    // The `java.io.FilePermission` line is the critical line we need to add.
+    //
+    // [1]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/server/src/main/resources/org/opensearch/bootstrap/security.policy
+    // [2]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/modules/reindex/src/main/plugin-metadata/plugin-security.policy
+    await fs.writeFile(
+        securityPolicyPath,
+        `\
+grant {
+    permission java.lang.RuntimePermission "exitVM";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "setSecurityManager";
+    permission java.lang.RuntimePermission "getenv.*";
+    permission java.util.PropertyPermission "opensearch.*", "read";
+    permission java.security.SecurityPermission "setProperty.networkaddress.cache.ttl";
+    permission java.security.SecurityPermission "setProperty.networkaddress.cache.negative.ttl";
+    permission java.io.FilePermission "${joinPath(resolvedOpensearchLocalHomePath, "-")}", "read";
+};
+`,
+    );
 
     const subprocess = spawn(
         opensearchLocalBinPath,
@@ -140,7 +164,7 @@ export async function startOpensearchLocal({
             `-Enetwork.host=${host}`,
             `-Ehttp.port=${port}`,
             `-Etransport.port=${transportPort}`,
-            `-Epath.data=${joinPath(dataPath, "data")}`,
+            `-Epath.data=${dataPath}`,
             `-Epath.logs=${logsPath}`,
             // When running in tests, we'll be starting many OpenSearch nodes. Limit the
             // CPU processors OpenSearch can use. To reserve these processors on the Bazel
@@ -170,6 +194,13 @@ export async function startOpensearchLocal({
                     // NOTE(calebmer, 2023-11-22): Set `jna.debug_load` and `jna.debug_load.jna` to
                     // help us debug issues with the JNA load which caused problems in the past.
                     "-Djna.nosys=true -Djna.debug_load=true -Djna.debug_load.jna=true",
+                    // NOTE(calebmer, 2024-07-30): We need to include a custom [Java security
+                    // policy][1] to allow OpenSearch to read the original
+                    // `external/opensearch_local` directory when it follows symlinks created by
+                    // `symlinkHome()`.
+                    //
+                    // [1]: https://docs.oracle.com/javase/8/docs/technotes/guides/security/PolicyFiles.html
+                    `-Djava.security.manager -Djava.security.policy=${securityPolicyPath}`,
                 ].join(" "),
             },
             stdio: ["ignore", "pipe", "pipe"],
