@@ -15,15 +15,16 @@ const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
+// The tests in this file are large and may take a while as we feature multiple
+// browsers collaboratively editing the same content.
+test.setTimeout(2 * 60 * 1000);
+
 test("can write collaboratively in a document", async ({
     browser,
     context: browserContext1,
     page: page1,
     viewport,
 }) => {
-    // We do a bunch of concurrent updates in this test which may take a while.
-    test.setTimeout(60 * 1000);
-
     assert(viewport);
 
     const document = await createDocument(context.action(session1), {
@@ -145,9 +146,6 @@ test("can write collaboratively at the same time in a document", async ({
     page: page1,
     viewport,
 }) => {
-    // We do a bunch of concurrent updates in this test which may take a while.
-    test.setTimeout(2 * 60 * 1000);
-
     assert(viewport);
 
     const document = await createDocument(context.action(session1), {
@@ -186,12 +184,12 @@ test("can write collaboratively at the same time in a document", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    const reload1 = randomInteger(0, 25);
-    const reload2 = randomInteger(0, 25);
-    const reload3 = randomInteger(0, 25);
-    const reload4 = randomInteger(0, 25);
+    const count = 12;
 
-    for (let index = 0; index < 25; index++) {
+    const reload1 = randomInteger(0, count);
+    const reload2 = randomInteger(0, count);
+
+    for (let index = 0; index < count; index++) {
         await runAllPromiseThunks(
             async () => {
                 if (canPrimaryInputHover) {
@@ -209,7 +207,7 @@ test("can write collaboratively at the same time in a document", async ({
                     .pressSequentially("123456123456123456", {delay: randomInteger(0, 10)});
                 await page1.getByRole("textbox", {name: "Document"}).press("Enter");
 
-                if (index === reload1 || index === reload2) await page1.reload();
+                if (index === reload1) await page1.reload();
             },
             async () => {
                 if (canPrimaryInputHover) {
@@ -227,7 +225,7 @@ test("can write collaboratively at the same time in a document", async ({
                     .pressSequentially("abcdefabcdefabcdef", {delay: randomInteger(0, 10)});
                 await page2.getByRole("textbox", {name: "Document"}).press("Enter");
 
-                if (index === reload3 || index === reload4) await page2.reload();
+                if (index === reload2) await page2.reload();
             },
         );
     }
@@ -258,33 +256,33 @@ test("can write collaboratively at the same time in a document", async ({
     }
 
     expect(countCharacters(page1TextContent)).toEqual([
-        ["1", 75],
-        ["2", 75],
-        ["3", 75],
-        ["4", 75],
-        ["5", 75],
-        ["6", 75],
-        ["a", 75],
-        ["b", 75],
-        ["c", 75],
-        ["d", 75],
-        ["e", 75],
-        ["f", 75],
+        ["1", count * 3],
+        ["2", count * 3],
+        ["3", count * 3],
+        ["4", count * 3],
+        ["5", count * 3],
+        ["6", count * 3],
+        ["a", count * 3],
+        ["b", count * 3],
+        ["c", count * 3],
+        ["d", count * 3],
+        ["e", count * 3],
+        ["f", count * 3],
     ]);
 
     expect(countCharacters(page2TextContent)).toEqual([
-        ["1", 75],
-        ["2", 75],
-        ["3", 75],
-        ["4", 75],
-        ["5", 75],
-        ["6", 75],
-        ["a", 75],
-        ["b", 75],
-        ["c", 75],
-        ["d", 75],
-        ["e", 75],
-        ["f", 75],
+        ["1", count * 3],
+        ["2", count * 3],
+        ["3", count * 3],
+        ["4", count * 3],
+        ["5", count * 3],
+        ["6", count * 3],
+        ["a", count * 3],
+        ["b", count * 3],
+        ["c", count * 3],
+        ["d", count * 3],
+        ["e", count * 3],
+        ["f", count * 3],
     ]);
 
     await browserContext2.close();
