@@ -1,4 +1,4 @@
-import {GetQueueUrlCommand, SQSClient} from "@aws-sdk/client-sqs";
+import {CreateQueueCommand, SQSClient} from "@aws-sdk/client-sqs";
 import {spawn} from "child_process";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
@@ -6,7 +6,6 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -77,6 +76,9 @@ export async function startSqsLocal({
     // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
     const bindHostname = process.platform === "darwin" ? "[::1]" : "localhost";
 
+    const awsRegion = "us-east-1";
+    const awsAccountId = "local";
+
     const configContents = [];
 
     configContents.push('include classpath("application.conf")');
@@ -108,8 +110,8 @@ rest-stats {
 
     configContents.push(`\
 aws {
-    region = "us-east-1"
-    accountId = "local"
+    region = "${awsRegion}"
+    accountId = "${awsAccountId}"
 }`);
 
     if (queuesStoragePath !== undefined) {
@@ -128,18 +130,6 @@ messages-storage {
 }`);
     }
 
-    configContents.push(`\
-queues {
-    JobDeadLetterQueue {}
-
-    JobQueue {
-        deadLettersQueue {
-            name = "JobDeadLetterQueue"
-            maxReceiveCount = 5
-        }
-    }
-}`);
-
     await fs.writeFile(configPath, configContents.join("\n\n") + "\n");
 
     const subprocess = spawn(javaPath, [`-Dconfig.file=${configPath}`, "-jar", elasticmqJarPath], {
@@ -152,27 +142,23 @@ queues {
     // Wait for ElasticMQ to start.
     await waitForHttpServer(port);
 
-    // Wait for the queue to be created. Queue may only be created after the HTTP
-    // server starts.
-    {
-        const client = new SQSClient({
-            region: "us-east-1",
-            endpoint: `http://localhost:${port}`,
-        });
+    // Immediately create SQS queues once ElasticMQ has started up.
+    const client = new SQSClient({
+        region: awsRegion,
+        endpoint: `http://localhost:${port}`,
+    });
+    try {
+        await client.send(new CreateQueueCommand({QueueName: "JobDeadLetterQueue"}));
 
-        await retryWithExponentialBackoff(async retry => {
-            try {
-                await client.send(
-                    new GetQueueUrlCommand({
-                        QueueName: "JobQueue",
-                        QueueOwnerAWSAccountId: "local",
-                    }),
-                );
-            } catch (error) {
-                retry(error);
-            }
-        });
-
+        await client.send(
+            new CreateQueueCommand({
+                QueueName: "JobQueue",
+                Attributes: {
+                    RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:JobDeadLetterQueue","maxReceiveCount":"5"}`,
+                },
+            }),
+        );
+    } finally {
         client.destroy();
     }
 
