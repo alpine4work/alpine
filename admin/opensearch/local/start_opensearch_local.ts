@@ -12,7 +12,6 @@ import {UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -88,9 +87,9 @@ export async function startOpensearchLocal({
 
         await runAllPromises(
             actualHomeChildNames.map(async actualHomeChildName => {
-                let actualHomeChildPath = joinPath(actualHomePath, actualHomeChildName);
                 const newHomeChildPath = joinPath(newHomePath, actualHomeChildName);
 
+                let actualHomeChildPath = joinPath(actualHomePath, actualHomeChildName);
                 let actualHomeChildStats = await unpatchedFs.lstat(actualHomeChildPath);
 
                 if (actualHomeChildStats.isSymbolicLink()) {
@@ -124,6 +123,22 @@ export async function startOpensearchLocal({
 
     const securityPolicyPath = joinPath(homePath, "config/opensearch_security.policy");
 
+    let resolvedHomePath = resolvePath(
+        (await unpatchedFs.lstat(opensearchLocalBinPath)).isSymbolicLink()
+            ? await unpatchedFs.readlink(opensearchLocalBinPath)
+            : opensearchLocalBinPath,
+        "../..",
+    );
+
+    // If we're in `${bazelOutputBase}/execroot/cyberworlds/external/opensearch_local`
+    // we want to change our resolved path to `${bazelOutputBase}/external/opensearch_local`
+    // which is where the `.jar` files OpenSearch needs to read actually live.
+    const resolvedHomePathParts = resolvedHomePath.split("/");
+    if (resolvedHomePathParts[resolvedHomePathParts.length - 4] === "execroot") {
+        resolvedHomePathParts.splice(resolvedHomePathParts.length - 4, 2);
+        resolvedHomePath = resolvedHomePathParts.join("/");
+    }
+
     const securityPolicyContents = `\
 grant {
     permission java.lang.RuntimePermission "exitVM";
@@ -134,10 +149,7 @@ grant {
     permission java.util.PropertyPermission "opensearch.*", "read";
     permission java.security.SecurityPermission "setProperty.networkaddress.cache.ttl";
     permission java.security.SecurityPermission "setProperty.networkaddress.cache.negative.ttl";
-    permission java.io.FilePermission "${resolvePath(
-        assertExists(process.env.JS_BINARY__EXECROOT),
-        "../../external/opensearch_local/-",
-    )}", "read";
+    permission java.io.FilePermission "${joinPath(resolvedHomePath, "-")}", "read";
 };
 `;
 
