@@ -491,7 +491,9 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 });
             }, 500);
 
-            const touch = event.touches[0]!;
+            // Support the case where we have 0 touches since this happens in integration
+            // tests. Shouldn't happen in a production browser.
+            const touch = event.touches[0] ?? {clientX: 0, clientY: 0};
 
             touchState = {
                 gesture: null,
@@ -510,6 +512,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             const gestureFinishedPromise = touchState?.finishGesture?.();
             const hasReplyGestureActivated = touchState?.hasReplyGestureActivated ?? false;
             touchState = null;
+
             if (!gestureFinishedPromise) {
                 setShowTouchReplyIcon(false);
             } else {
@@ -525,141 +528,140 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             touchState?.longTouchTimeout?.clear();
             if (touchState) touchState.longTouchTimeout = null;
 
-            if (touchState && event.touches.length === 1) {
-                const touch = event.touches[0]!;
+            if (!touchState || event.touches.length !== 1) return;
+            const touch = event.touches[0]!;
 
-                if (touchState.gesture === null) {
-                    const clientXDifferenceMagnitude = Math.abs(
-                        touch.clientX - touchState.initialClientX,
-                    );
-                    const clientYDifferenceMagnitude = Math.abs(
-                        touch.clientY - touchState.initialClientY,
-                    );
+            if (touchState.gesture === null) {
+                const clientXDifferenceMagnitude = Math.abs(
+                    touch.clientX - touchState.initialClientX,
+                );
+                const clientYDifferenceMagnitude = Math.abs(
+                    touch.clientY - touchState.initialClientY,
+                );
 
-                    if (clientXDifferenceMagnitude > clientYDifferenceMagnitude) {
-                        if (touch.clientX < touchState.initialClientX) {
-                            touchState.gesture = "Other";
-                        } else if (touchState.isReplyGestureDisabled) {
-                            touchState.gesture = "Other";
-                        } else {
-                            touchState.gesture = "Reply";
-
-                            touchState.finishGesture = () => {
-                                const elements = [messageElement];
-                                if (accountNameElement) elements.push(accountNameElement);
-                                if (parentMessageElement) elements.push(parentMessageElement);
-
-                                const touchReplyIconElement = touchReplyIconRef.current;
-
-                                const animation = timeline(
-                                    [
-                                        [
-                                            elements,
-                                            {x: 0},
-                                            {
-                                                easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                                // Make sure we use hardware acceleration for this animation in WebKit. By
-                                                // default `motion` turns it off.
-                                                // https://motion.dev/guides/performance#webkits-exceptions
-                                                allowWebkitAcceleration: true,
-                                            },
-                                        ],
-                                        [
-                                            touchReplyIconElement ?? [],
-                                            {x: 0, opacity: 0},
-                                            {
-                                                at: 0,
-                                                easing: parseCubicBezier(easeOutExpo.cubicBezier),
-                                                // Make sure we use hardware acceleration for this animation in WebKit. By
-                                                // default `motion` turns it off.
-                                                // https://motion.dev/guides/performance#webkits-exceptions
-                                                allowWebkitAcceleration: true,
-                                            },
-                                        ],
-                                    ],
-                                    {
-                                        duration: 0.5,
-                                    },
-                                );
-
-                                return animation.finished;
-                            };
-                        }
-                    } else if (clientXDifferenceMagnitude < clientYDifferenceMagnitude) {
+                if (clientXDifferenceMagnitude > clientYDifferenceMagnitude) {
+                    if (touch.clientX < touchState.initialClientX) {
                         touchState.gesture = "Other";
-                    }
-                }
-
-                if (touchState.gesture === "Reply") {
-                    event.preventDefault();
-
-                    const translateX = Math.max(
-                        0,
-                        (touch.clientX - touchState.initialClientX - 10) *
-                            // We slow the drag animation down to make it feel like the user is dragging
-                            // something heavy. But also this ends up smoothing out the animation! We only
-                            // get `touchmove` events every whole pixel. But on devices like iPhone every
-                            // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
-                            // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
-                            // across multiple hardware pixels per move.
-                            (1 / 3),
-                    );
-
-                    const elements = [messageElement];
-                    if (accountNameElement) elements.push(accountNameElement);
-                    if (parentMessageElement) elements.push(parentMessageElement);
-
-                    const touchReplyIconElement = touchReplyIconRef.current;
-
-                    const remPx = getRemPxWithoutListening();
-
-                    const maxTouchReplyIconElementTranslateX =
-                        messageViewTouchReplyIconStartOffsetRem * remPx;
-
-                    const touchReplyIconElementTranslateX = Math.min(
-                        Math.max(
-                            0,
-                            translateX -
-                                // Start translating the touch reply icon once the message bubble has moved out
-                                // of the way.
-                                (messageViewTouchReplyIconSizeRem -
-                                    messageViewTouchReplyIconStartOffsetRem) *
-                                    remPx,
-                        ) *
-                            // The touch reply icon should move slower than the message bubble.
-                            (1 / 2),
-                        // The touch reply icon finishes its animation once its left edge is where the
-                        // message bubble left edge started.
-                        maxTouchReplyIconElementTranslateX,
-                    );
-
-                    if (touchReplyIconElementTranslateX === maxTouchReplyIconElementTranslateX) {
-                        if (!touchState.hasReplyGestureActivated) {
-                            NativeMobileBridge?.haptic.playHeavyImpact();
-                        }
-
-                        touchState.hasReplyGestureActivated = true;
+                    } else if (touchState.isReplyGestureDisabled) {
+                        touchState.gesture = "Other";
                     } else {
-                        touchState.hasReplyGestureActivated = false;
+                        touchState.gesture = "Reply";
+
+                        touchState.finishGesture = () => {
+                            const elements = [messageElement];
+                            if (accountNameElement) elements.push(accountNameElement);
+                            if (parentMessageElement) elements.push(parentMessageElement);
+
+                            const touchReplyIconElement = touchReplyIconRef.current;
+
+                            const animation = timeline(
+                                [
+                                    [
+                                        elements,
+                                        {x: 0},
+                                        {
+                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                            // Make sure we use hardware acceleration for this animation in WebKit. By
+                                            // default `motion` turns it off.
+                                            // https://motion.dev/guides/performance#webkits-exceptions
+                                            allowWebkitAcceleration: true,
+                                        },
+                                    ],
+                                    [
+                                        touchReplyIconElement ?? [],
+                                        {x: 0, opacity: 0},
+                                        {
+                                            at: 0,
+                                            easing: parseCubicBezier(easeOutExpo.cubicBezier),
+                                            // Make sure we use hardware acceleration for this animation in WebKit. By
+                                            // default `motion` turns it off.
+                                            // https://motion.dev/guides/performance#webkits-exceptions
+                                            allowWebkitAcceleration: true,
+                                        },
+                                    ],
+                                ],
+                                {
+                                    duration: 0.5,
+                                },
+                            );
+
+                            return animation.finished;
+                        };
+                    }
+                } else if (clientXDifferenceMagnitude < clientYDifferenceMagnitude) {
+                    touchState.gesture = "Other";
+                }
+            }
+
+            if (touchState.gesture === "Reply") {
+                event.preventDefault();
+
+                const translateX = Math.max(
+                    0,
+                    (touch.clientX - touchState.initialClientX - 10) *
+                        // We slow the drag animation down to make it feel like the user is dragging
+                        // something heavy. But also this ends up smoothing out the animation! We only
+                        // get `touchmove` events every whole pixel. But on devices like iPhone every
+                        // virtual pixel is actually rendered by 2 to 3 hardware pixels. So animating
+                        // 1:1 with `touchmove` events can looking subtly coarse since we're jumping
+                        // across multiple hardware pixels per move.
+                        (1 / 3),
+                );
+
+                const elements = [messageElement];
+                if (accountNameElement) elements.push(accountNameElement);
+                if (parentMessageElement) elements.push(parentMessageElement);
+
+                const touchReplyIconElement = touchReplyIconRef.current;
+
+                const remPx = getRemPxWithoutListening();
+
+                const maxTouchReplyIconElementTranslateX =
+                    messageViewTouchReplyIconStartOffsetRem * remPx;
+
+                const touchReplyIconElementTranslateX = Math.min(
+                    Math.max(
+                        0,
+                        translateX -
+                            // Start translating the touch reply icon once the message bubble has moved out
+                            // of the way.
+                            (messageViewTouchReplyIconSizeRem -
+                                messageViewTouchReplyIconStartOffsetRem) *
+                                remPx,
+                    ) *
+                        // The touch reply icon should move slower than the message bubble.
+                        (1 / 2),
+                    // The touch reply icon finishes its animation once its left edge is where the
+                    // message bubble left edge started.
+                    maxTouchReplyIconElementTranslateX,
+                );
+
+                if (touchReplyIconElementTranslateX === maxTouchReplyIconElementTranslateX) {
+                    if (!touchState.hasReplyGestureActivated) {
+                        NativeMobileBridge?.haptic.playHeavyImpact();
                     }
 
-                    timeline(
-                        [
-                            [elements, {x: translateX}],
-                            [
-                                touchReplyIconElement ?? [],
-                                {
-                                    x: touchReplyIconElementTranslateX,
-                                    opacity:
-                                        touchReplyIconElementTranslateX /
-                                        maxTouchReplyIconElementTranslateX,
-                                },
-                                {at: 0},
-                            ],
-                        ],
-                        {duration: 0},
-                    );
+                    touchState.hasReplyGestureActivated = true;
+                } else {
+                    touchState.hasReplyGestureActivated = false;
                 }
+
+                timeline(
+                    [
+                        [elements, {x: translateX}],
+                        [
+                            touchReplyIconElement ?? [],
+                            {
+                                x: touchReplyIconElementTranslateX,
+                                opacity:
+                                    touchReplyIconElementTranslateX /
+                                    maxTouchReplyIconElementTranslateX,
+                            },
+                            {at: 0},
+                        ],
+                    ],
+                    {duration: 0},
+                );
             }
         };
 
