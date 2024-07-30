@@ -139,7 +139,18 @@ export async function startOpensearchLocal({
         resolvedHomePath = resolvedHomePathParts.join("/");
     }
 
-    const securityPolicyContents = `\
+    // Includes the permissions OpenSearch needs to bootstrap. Once OpenSearch has
+    // bootstrapped it'll extend this security policy with its own
+    // `security.policy` file ([source][1]) and `plugin-security.policy` files
+    // ([example][2]).
+    //
+    // The `java.io.FilePermission` line is the critical line we need to add.
+    //
+    // [1]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/server/src/main/resources/org/opensearch/bootstrap/security.policy
+    // [2]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/modules/reindex/src/main/plugin-metadata/plugin-security.policy
+    await fs.writeFile(
+        securityPolicyPath,
+        `\
 grant {
     permission java.lang.RuntimePermission "exitVM";
     permission java.lang.RuntimePermission "shutdownHooks";
@@ -151,23 +162,8 @@ grant {
     permission java.security.SecurityPermission "setProperty.networkaddress.cache.negative.ttl";
     permission java.io.FilePermission "${joinPath(resolvedHomePath, "-")}", "read";
 };
-`;
-
-    // eslint-disable-next-line no-commit-blockers
-    // NOCOMMIT: Remove!
-    // eslint-disable-next-line no-console
-    console.log(securityPolicyContents);
-
-    // Includes the permissions OpenSearch needs to bootstrap. Once OpenSearch has
-    // bootstrapped it'll extend this security policy with its own
-    // `security.policy` file ([source][1]) and `plugin-security.policy` files
-    // ([example][2]).
-    //
-    // The `java.io.FilePermission` line is the critical line we need to add.
-    //
-    // [1]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/server/src/main/resources/org/opensearch/bootstrap/security.policy
-    // [2]: https://github.com/opensearch-project/OpenSearch/blob/2.11.0/modules/reindex/src/main/plugin-metadata/plugin-security.policy
-    await fs.writeFile(securityPolicyPath, securityPolicyContents);
+`,
+    );
 
     const subprocess = spawn(
         opensearchLocalBinPath,
