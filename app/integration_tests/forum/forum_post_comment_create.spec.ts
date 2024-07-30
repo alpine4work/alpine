@@ -218,7 +218,7 @@ test("can see comments appear in realtime", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
-    await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 1");
+    await page2.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 1");
     await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 1",
     );
@@ -244,7 +244,7 @@ test("can see comments appear in realtime", async ({
     const page3 = await browserContext3.newPage();
     await page3.goto(`/s/${space.id}/posts/${post.id}`);
 
-    await page3.getByRole("textbox", {name: "New comment"}).type("Test post comment content 2");
+    await page3.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 2");
     await expect(page3.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 2",
     );
@@ -266,7 +266,7 @@ test("can see comments appear in realtime", async ({
     await expect(page1.getByText("Test post comment content 3")).toBeHidden();
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
-    await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 3");
+    await page2.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 3");
     await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 3",
     );
@@ -288,7 +288,7 @@ test("can see comments appear in realtime", async ({
     await expect(page1.getByText("Test post comment content 3")).toBeVisible();
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
-    await page1.getByRole("textbox", {name: "New comment"}).type("Test post comment content 4");
+    await page1.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 4");
     await expect(page1.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 4",
     );
@@ -350,7 +350,7 @@ test("can see new comments when opening post comments", async ({
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/posts/${post.id}`);
 
-    await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 1");
+    await page2.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 1");
     await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 1",
     );
@@ -393,7 +393,7 @@ test("can see new comments when opening post comments", async ({
     const page3 = await browserContext3.newPage();
     await page3.goto(`/s/${space.id}/posts/${post.id}`);
 
-    await page3.getByRole("textbox", {name: "New comment"}).type("Test post comment content 2");
+    await page3.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 2");
     await expect(page3.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 2",
     );
@@ -414,7 +414,7 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 3")).toBeHidden();
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
-    await page2.getByRole("textbox", {name: "New comment"}).type("Test post comment content 3");
+    await page2.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 3");
     await expect(page2.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 3",
     );
@@ -449,7 +449,7 @@ test("can see new comments when opening post comments", async ({
     await expect(page1.getByText("Test post comment content 3")).toBeVisible();
     await expect(page1.getByText("Test post comment content 4")).toBeHidden();
 
-    await page1.getByRole("textbox", {name: "New comment"}).type("Test post comment content 4");
+    await page1.getByRole("textbox", {name: "New comment"}).fill("Test post comment content 4");
     await expect(page1.getByRole("textbox", {name: "New comment"})).toHaveText(
         "Test post comment content 4",
     );
