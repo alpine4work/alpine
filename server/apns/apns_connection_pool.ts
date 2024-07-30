@@ -9,6 +9,7 @@ import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
  * The maximum number of connections we create in our pool.
@@ -70,24 +71,34 @@ export class ApnsConnectionPool {
         this._certificatePrivateKey = certificatePrivateKey;
 
         this._idleInterval = createInterval(() => {
-            // Close any connections that haven't had a request since our last
-            // interval run.
-            for (
-                let connectionIndex = 0;
-                connectionIndex < this._connections.length;
-                connectionIndex++
-            ) {
-                const connection = this._connections[connectionIndex]!;
+            void this._processContext.tracer.withSpan(
+                "Expiring idle APNs connections",
+                async (context, span) => {
+                    // Don't send this span if a connection wasn't closed. If a connection is closed
+                    // then we'll send a "close" event which references the parent span. If a
+                    // connection is not closed then this span will have no references.
+                    span.setWillNotSendIfNotReferenced(true);
 
-                if (!connection.isIdle) {
-                    connection.isIdle = true;
-                } else {
-                    this._processContext.process.waitUntil(async () => {
-                        const actualConnection = await connection.promise;
-                        await actualConnection.close();
-                    });
-                }
-            }
+                    // Close any connections that haven't had a request since our last
+                    // interval run.
+                    for (
+                        let connectionIndex = 0;
+                        connectionIndex < this._connections.length;
+                        connectionIndex++
+                    ) {
+                        const connection = this._connections[connectionIndex]!;
+
+                        if (!connection.isIdle) {
+                            connection.isIdle = true;
+                        } else {
+                            context.process.waitUntil(async () => {
+                                const actualConnection = await connection.promise;
+                                await actualConnection.close(span);
+                            });
+                        }
+                    }
+                },
+            );
         }, idleIntervalMs);
     }
 
@@ -96,7 +107,7 @@ export class ApnsConnectionPool {
      * return once connections have successfully closed which means requests made
      * by each connection must successfully close.
      */
-    public async destroy() {
+    public async destroy(tracer: TracerBase) {
         assert(!this._isDestroyed);
         this._isDestroyed = true;
 
@@ -104,7 +115,7 @@ export class ApnsConnectionPool {
 
         const closePromises = this._connections.map(async connection => {
             const actualConnection = await connection.promise;
-            await actualConnection.close();
+            await actualConnection.close(tracer);
         });
 
         await runAllPromises(closePromises);

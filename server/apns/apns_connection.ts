@@ -21,6 +21,7 @@ import {convertIdIntoUuid} from "~/shared/id/convert_id_into_uuid.js";
 import {generateId} from "~/shared/id/id.js";
 import {ApnsConnectionId} from "~/shared/id/types/id_types.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const apnsHostname =
     process.env.NODE_ENV === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
@@ -197,7 +198,7 @@ export class ApnsConnection {
      * Close the connection. Returns a promise that resolves once the connection
      * has successfully closed (the same promise returned by `waitForClose()`).
      */
-    public close(): Promise<void> {
+    public close(tracer: TracerBase): Promise<void> {
         if (this._startClosePromiseResolver.isSettled())
             return this._endClosePromiseResolver.promise;
 
@@ -205,9 +206,7 @@ export class ApnsConnection {
 
         this._startClosePromiseResolver.resolve();
 
-        const {span, finishSpan} = this._processContext.tracer
-            .getRoot()
-            .startSpan("Closing APNs connection");
+        const {span, finishSpan} = tracer.startSpan("Closing APNs connection");
 
         span.addData({apns: {connectionId: this._id}});
 

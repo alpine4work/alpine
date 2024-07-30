@@ -9,7 +9,7 @@ import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {registerShutdownWaitUntilPromise} from "~/server/node/shutdown_manager.js";
+import {ShutdownManager, registerShutdownWaitUntilPromise} from "~/server/node/shutdown_manager.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -37,11 +37,13 @@ export const serverProcessContextParseOptions = {
  */
 export function createServerProcessContext({
     tracer,
+    shutdownManager,
     tokenAgent,
     awsSigner,
     options,
 }: {
     tracer: TracerRoot;
+    shutdownManager: ShutdownManager;
     tokenAgent: TokenAgent | "Unimplemented";
     awsSigner: AwsRequestSigner;
     options: {

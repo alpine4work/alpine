@@ -18,6 +18,8 @@ import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
 // This file can only run in tests.
@@ -68,21 +70,37 @@ export function createTestServices(): {context: TestContext; services: TestServi
         // First wait for `JobQueueService` and `EdgeServiceFamily` to finish since
         // they may need to make requests to `AppService` while finishing up ingress
         // traffic.
-        jobQueueServiceSubprocess?.kill("SIGINT");
-        edgeServiceSubprocess?.kill("SIGINT");
+        //
+        // Catch any errors so we can still shutdown `AppService` even if the shutdown
+        // of one of these processes fails.
+        const result1 = await captureResultPromise(async () => {
+            jobQueueServiceSubprocess?.kill("SIGINT");
+            edgeServiceSubprocess?.kill("SIGINT");
 
-        await runAllPromises([
-            jobQueueServiceSubprocess && waitForProcessExit(jobQueueServiceSubprocess),
-            edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
-        ]);
+            await runAllPromises([
+                jobQueueServiceSubprocess && waitForProcessExit(jobQueueServiceSubprocess),
+                edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
+            ]);
+        });
 
-        appServiceSubprocess?.kill("SIGINT");
-        taskRealtimeServiceSubprocess?.kill("SIGINT");
+        jobQueueServiceSubprocess = undefined;
+        edgeServiceSubprocess = undefined;
 
-        await runAllPromises([
-            appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
-            taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
-        ]);
+        const result2 = await captureResultPromise(async () => {
+            appServiceSubprocess?.kill("SIGINT");
+            taskRealtimeServiceSubprocess?.kill("SIGINT");
+
+            await runAllPromises([
+                appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
+                taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
+            ]);
+        });
+
+        appServiceSubprocess = undefined;
+        taskRealtimeServiceSubprocess = undefined;
+
+        unwrapResult(result1);
+        unwrapResult(result2);
     });
 
     const context = createTestContext({

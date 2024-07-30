@@ -22,7 +22,7 @@
 
 import {Server} from "http";
 import {Socket} from "net";
-import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
+import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 
 // If the server needs to be stopped and it seems to be having trouble keeping
@@ -76,7 +76,7 @@ const timeoutToTryEndIdle = 1000 * 65;
  * open, all connections will be forced closed and ongoing requests will not
  * send a response.
  */
-export function registerGracefulServerShutdown(server: Server) {
+export function registerGracefulServerShutdown(shutdownManager: ShutdownManager, server: Server) {
     // We need to keep track of requests per connection so that we can detect when
     // we have responded to a request in a keep-alive connection. This is the only
     // way in node that we can close a keep-alive connection after handling
@@ -127,7 +127,7 @@ export function registerGracefulServerShutdown(server: Server) {
 
     // Register a listener for the ingress traffic shutdown phase. Database
     // resources and the like should be shutdown after ingress traffic completes.
-    registerShutdownListenerForIngressTraffic(async () => {
+    shutdownManager.registerListenerForIngressTraffic("Closing HTTP server", async () => {
         isShuttingDown = true;
 
         const timeout1 = createTimeout(() => {

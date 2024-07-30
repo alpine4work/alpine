@@ -25,7 +25,6 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
-import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
 import {
     authorizeSpaceAccess,
     isAccountMemberOfSpaceWithoutAuthorization,
@@ -94,7 +93,7 @@ runService({
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
-    run: async ({options, tracer, workerIndex}) => {
+    run: async ({options, tracer, shutdownManager, workerIndex}) => {
         const portBase = options.portBase ? parseInt(options.portBase, 10) : null;
         if (!portBase || !Number.isInteger(portBase))
             throw new InternalError("Missing integer `portBase` arg");
@@ -112,6 +111,7 @@ runService({
 
         const processContext = createServerProcessContext({
             tracer,
+            shutdownManager,
             tokenAgent,
             awsSigner,
             options,
@@ -203,13 +203,18 @@ runService({
 
         // Gracefully shutdown WebSocket servers when the process is instructed to
         // shutdown. We'll wait for any pending requests before fully shutting down.
-        registerShutdownListenerForIngressTraffic(async () => {
-            await runAllPromises(
-                mapIterable(webSocketServerBySpaceId.values(), webSocketServer =>
-                    webSocketServer.softCloseAll(processContext),
-                ),
-            );
-        });
+        shutdownManager.registerListenerForIngressTraffic(
+            "Closing all WebSocket connections",
+            async (signal, span) => {
+                await runAllPromises(
+                    mapIterable(webSocketServerBySpaceId.values(), webSocketServer =>
+                        webSocketServer.softCloseAll(
+                            processContext.clone({tracer: new TracerContextModule(span)}),
+                        ),
+                    ),
+                );
+            },
+        );
 
         const handleRequest = async (
             request: Request,
@@ -418,6 +423,7 @@ runService({
 
         const httpServer = createStandardizedServerWithWebSockets<TaskRealtimeServiceRoute>(
             tracer,
+            shutdownManager,
             url => {
                 if (url.pathname === "/healthcheck") {
                     return ["/healthcheck", {type: "HealthCheck"}];

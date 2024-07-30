@@ -42,7 +42,6 @@ import {
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {runService} from "~/server/node/run_service.js";
-import {registerShutdownListener} from "~/server/node/shutdown_manager.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {
@@ -129,7 +128,7 @@ runService({
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
-    run: async ({options, tracer}) => {
+    run: async ({options, tracer, shutdownManager}) => {
         const port = options.port ? parseInt(options.port, 10) : null;
         if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
 
@@ -169,6 +168,7 @@ runService({
 
         const processContext = createServerProcessContext({
             tracer,
+            shutdownManager,
             tokenAgent,
             awsSigner,
             options,
@@ -210,9 +210,12 @@ runService({
                 certificatePrivateKey: apnsCertificatePrivateKey,
             });
 
-            registerShutdownListener(async () => {
-                await apnsConnectionPool.destroy();
-            });
+            shutdownManager.registerListener(
+                "Destroying APNs connection pool",
+                async (signal, span) => {
+                    await apnsConnectionPool.destroy(span);
+                },
+            );
 
             apnsContextModule = new ApnsContextModule(apnsConnectionPool);
         }
@@ -417,7 +420,7 @@ runService({
             tracer.logUncaughtException("Uncaught exception from HTTP server", error);
         });
 
-        registerGracefulServerShutdown(server);
+        registerGracefulServerShutdown(shutdownManager, server);
 
         // TODO(calebmer): The way the Node.js `cluster` module works is when multiple
         // workers listen to the same `port` it randomly picks the worker to send a

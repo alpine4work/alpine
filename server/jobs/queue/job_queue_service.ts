@@ -35,10 +35,6 @@ import {
     serviceTokenAgentParseOptions,
 } from "~/server/node/create_service_token_agent.js";
 import {runService} from "~/server/node/run_service.js";
-import {
-    registerShutdownListener,
-    registerShutdownListenerForIngressTraffic,
-} from "~/server/node/shutdown_manager.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
@@ -62,7 +58,7 @@ runService({
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
-    run: async ({options, tracer}) => {
+    run: async ({options, tracer, shutdownManager}) => {
         const jobQueueUrl = assertExists(options.jobQueueUrl, "Missing `jobQueueUrl` option");
 
         // In development, wait for our local SQS server to start before starting
@@ -109,6 +105,7 @@ runService({
 
         const processContext = createServerProcessContext({
             tracer,
+            shutdownManager,
             tokenAgent,
             awsSigner,
             options,
@@ -150,9 +147,12 @@ runService({
                 certificatePrivateKey: apnsCertificatePrivateKey,
             });
 
-            registerShutdownListener(async () => {
-                await apnsConnectionPool.destroy();
-            });
+            shutdownManager.registerListener(
+                "Destroying APNs connection pool",
+                async (signal, span) => {
+                    await apnsConnectionPool.destroy(span);
+                },
+            );
 
             apnsContextModule = new ApnsContextModule(apnsConnectionPool);
         }
@@ -287,9 +287,12 @@ runService({
             },
         });
 
-        registerShutdownListenerForIngressTraffic(async () => {
-            await consumer.stop();
-        });
+        shutdownManager.registerListenerForIngressTraffic(
+            "Stopping job queue consumer",
+            async () => {
+                await consumer.stop();
+            },
+        );
 
         // In production, we communicate that our process is healthy by writing to a
         // healthcheck file.

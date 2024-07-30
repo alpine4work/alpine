@@ -51,8 +51,8 @@ export class HoneycombTracerClient {
             this._scheduledEventBatch = [];
 
             const promise = (async () => {
-                // We send events in a batch to Honeycomb every second.
-                await wait(1000);
+                // We send events in a batch to Honeycomb every half second.
+                await wait(500);
 
                 const eventBatch = this._scheduledEventBatch;
                 this._scheduledEventBatch = null;

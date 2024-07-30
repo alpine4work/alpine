@@ -5,6 +5,7 @@ import {Socket} from "net";
 import {Readable} from "stream";
 import {WebSocketServer} from "ws";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
+import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {coupleWebSocket} from "~/server/web_socket/couple_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -180,6 +181,7 @@ export function sendStandardizedResponse(res: ServerResponse, response: Response
  */
 export function createStandardizedServer<Route>(
     tracer: TracerRoot,
+    shutdownManager: ShutdownManager,
     parseRoute: (url: URL) => [string, Route],
     handleRequest: (
         request: Request,
@@ -201,7 +203,7 @@ export function createStandardizedServer<Route>(
         tracer.logUncaughtException("Uncaught exception from HTTP server", error);
     });
 
-    registerGracefulServerShutdown(server);
+    registerGracefulServerShutdown(shutdownManager, server);
 
     return server;
 }
@@ -218,6 +220,7 @@ export function createStandardizedServer<Route>(
  */
 export function createStandardizedServerWithWebSockets<Route>(
     tracer: TracerRoot,
+    shutdownManager: ShutdownManager,
     parseRoute: (url: URL) => [string, Route],
     handleRequest: (
         request: Request,
@@ -226,7 +229,7 @@ export function createStandardizedServerWithWebSockets<Route>(
         span: TracerSpan,
     ) => Promise<Response>,
 ) {
-    const server = createStandardizedServer(tracer, parseRoute, handleRequest);
+    const server = createStandardizedServer(tracer, shutdownManager, parseRoute, handleRequest);
 
     // WebSocket server implementation is adapted from Miniflare. Cloudflare's
     // Node.js implementation of their runtime.
