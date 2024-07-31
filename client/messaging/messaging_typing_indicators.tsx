@@ -23,6 +23,7 @@ import {
     getMessageBubbleMarginLeft,
     messageViewBubbleBorderRadius,
     messageViewMarginY,
+    messageViewMaxWidth,
 } from "~/shared/styles/messaging_shared_styles.js";
 
 export const messagingTypingIndicatorsMinHeight = "3.875rem";
@@ -121,7 +122,13 @@ function MessagingTypingIndicator({
     }, []);
 
     return (
-        <Box width="full" maxWidth="160" marginX="center" position="relative" zIndex="0">
+        <Box
+            width="full"
+            maxWidth={messageViewMaxWidth}
+            marginX="center"
+            position="relative"
+            zIndex="0"
+        >
             <Box
                 fontSize="50"
                 fontStyle="truncate"

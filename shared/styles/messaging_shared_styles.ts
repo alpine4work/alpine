@@ -41,6 +41,7 @@ export const messageViewBubbleMinHeight: {desktop: RemLength; mobile: RemLength}
     ),
 };
 
+export const messageViewMaxWidth: Spacing = "160";
 export const messageViewMarginY: Spacing = "3";
 export const messageViewMergedMarginY: Spacing = "0.5";
 export const messageViewTimestampDividerMarginTop: Spacing = "8";

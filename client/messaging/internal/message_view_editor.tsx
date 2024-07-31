@@ -19,6 +19,7 @@ import {
     messageViewBubbleMinWidth,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewMaxWidth,
 } from "~/shared/styles/messaging_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
@@ -74,7 +75,7 @@ function MessageViewEditor<RoomKey extends string>(
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
                     pointerEvents="auto"
-                    maxWidth="160"
+                    maxWidth={messageViewMaxWidth}
                     overflow="hidden"
                     display="inline-block"
                     paddingX={messageViewBubblePaddingX}

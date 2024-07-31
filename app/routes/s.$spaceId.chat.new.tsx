@@ -31,6 +31,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {messageViewMaxWidth} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -250,8 +251,8 @@ export default function NewChatRoute({
                 )}
                 <Box
                     width="full"
-                    maxWidth="160"
-                    style={{margin: "0 auto"}}
+                    maxWidth={messageViewMaxWidth}
+                    marginX="auto"
                     // For Playwright so we can tell when we're done loading a chat.
                     data-testid={
                         isAccountPickerPending ? "ChatAccountPickerContainer:Pending" : undefined

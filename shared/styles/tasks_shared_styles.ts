@@ -20,7 +20,6 @@ export const taskCommentsHeaderNavigationBarSpacing = "10";
 export const desktopTaskDetailViewStatusButtonSize = "6";
 export const mobileTaskDetailViewStatusButtonSize = "7";
 export const mobileTaskDetailViewStatusButtonPaddingTop = "3";
-export const mobileTaskCommentsNavigationBarPaddingBottom = "3";
 export const mobileTaskDetailViewStatusButtonPaddingBottom = "2";
 export const desktopTaskDetailViewNavigationBarSpacerMarginBottom = "-1";
 

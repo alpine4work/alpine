@@ -80,6 +80,7 @@ import {
     messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewMaxWidth,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
     messageViewReplyPreviewScale,
@@ -591,7 +592,12 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 // Render an overlay scope here so that overlays are animated with the
                 // keyboard opening.
                 >
-                    <Box ref={inputContentRef} width="full" maxWidth="160" marginX="center">
+                    <Box
+                        ref={inputContentRef}
+                        width="full"
+                        maxWidth={messageViewMaxWidth}
+                        marginX="center"
+                    >
                         {isEditingMessage && (
                             <Box
                                 position="relative"

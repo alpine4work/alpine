@@ -51,6 +51,7 @@ import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
+    messageViewMaxWidth,
     messageViewTimestampDividerMarginBottom,
     messageViewTimestampDividerMarginTop,
 } from "~/shared/styles/messaging_shared_styles.js";
@@ -72,7 +73,6 @@ import {
     desktopTaskDetailViewNavigationBarSpacerMarginBottom,
     desktopTaskDetailViewStatusButtonSize,
     desktopTaskNotepadViewActiveSectionMarginBottom,
-    mobileTaskCommentsNavigationBarPaddingBottom,
     mobileTaskDetailViewStatusButtonPaddingBottom,
     mobileTaskDetailViewStatusButtonPaddingTop,
     mobileTaskDetailViewStatusButtonSize,
@@ -142,7 +142,7 @@ const shimmerComponentByRouteId: {
     "routes/s.$spaceId.posts.new.$draftId": NewPostRouteShimmer,
     "routes/s.$spaceId.search": SearchRouteShimmer,
     "routes/s.$spaceId.tasks.$taskId._index": TaskDetailRouteShimmer,
-    "routes/s.$spaceId.tasks.$taskId.comments": TaskCommentsViewShimmer,
+    "routes/s.$spaceId.tasks.$taskId.comments": TaskCommentsRouteShimmer,
     "routes/s.$spaceId.tasks._index": TaskNotepadRouteShimmer,
     "routes/s.$spaceId.tasks.collections.$collectionId": TaskGridRouteShimmer,
     "routes/s.$spaceId.tasks.view": TaskQueryRouteShimmer,
@@ -380,7 +380,7 @@ function ChatRouteShimmer() {
                         alignItems="center"
                         gap={!isMobile ? "2" : "1"}
                         width="full"
-                        maxWidth="160"
+                        maxWidth={messageViewMaxWidth}
                         height="full"
                         marginX="center"
                         paddingX={screenPaddingX}
@@ -429,7 +429,7 @@ function NewChatRouteShimmer() {
                         display="flex"
                         alignItems="center"
                         width="full"
-                        maxWidth="160"
+                        maxWidth={messageViewMaxWidth}
                         height="full"
                         marginX="center"
                         paddingX={screenPaddingX}
@@ -576,7 +576,7 @@ function MessageInputShimmer({
                 display="flex"
                 alignItems="center"
                 width="full"
-                maxWidth="160"
+                maxWidth={messageViewMaxWidth}
                 height="full"
                 marginX="center"
                 paddingX={paddingX}
@@ -1337,16 +1337,25 @@ function TaskDetailRouteShimmer({withMobileLayout}: {withMobileLayout: boolean})
     );
 }
 
-export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
+function TaskCommentsRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
+    return <TaskCommentsViewShimmer withMobileLayout={withMobileLayout} withNavigationBar={true} />;
+}
+
+export function TaskCommentsViewShimmer({
+    withMobileLayout,
+    withNavigationBar,
+}: {
+    withMobileLayout: boolean;
+    withNavigationBar?: boolean;
+}) {
     const isMobile = useIsMobile();
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            {withMobileLayout && (
+            {withNavigationBar && (
                 <Box flexShrink="0" paddingTop="safe-area-inset">
                     <Box
                         position="relative"
-                        marginBottom={mobileTaskCommentsNavigationBarPaddingBottom}
                         height={navigationBarHeight}
                         borderBottom="grey-10"
                         maxWidth={taskDetailViewMaxWidth}
@@ -1357,7 +1366,7 @@ export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: b
                             justifyContent="center"
                             alignItems={!isMobile ? "flex-start" : "center"}
                             width="full"
-                            maxWidth="160"
+                            maxWidth={messageViewMaxWidth}
                             height="full"
                             paddingX={screenPaddingX}
                         >
@@ -1367,7 +1376,7 @@ export function TaskCommentsViewShimmer({withMobileLayout}: {withMobileLayout: b
                     </Box>
                 </Box>
             )}
-            {!withMobileLayout && <Spacer space={taskCommentsHeaderNavigationBarSpacing} />}
+            <Spacer space={taskCommentsHeaderNavigationBarSpacing} />
             <MessagingViewShimmer
                 withTopAlignedMessages={true}
                 messages="few"

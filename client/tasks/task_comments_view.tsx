@@ -123,7 +123,7 @@ export function TaskCommentsView({
     }, [initialScrollToCommentIndex, initialComments]);
 
     const header = useMemo(() => {
-        if (!withMobileLayout) {
+        if (!scrollbarInsetTop) {
             return {
                 minHeight: spacing[taskCommentsHeaderNavigationBarSpacing],
                 node: <Spacer space={taskCommentsHeaderNavigationBarSpacing} />,
@@ -145,7 +145,7 @@ export function TaskCommentsView({
                 ),
             };
         }
-    }, [withMobileLayout, isMobile]);
+    }, [scrollbarInsetTop, isMobile]);
 
     const getMessagesFromStart = useCallback(
         async (input: {

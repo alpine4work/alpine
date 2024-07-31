@@ -17,6 +17,7 @@ import {
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
     messageViewMarginY,
+    messageViewMaxWidth,
     messageViewMergedMarginY,
 } from "~/shared/styles/messaging_shared_styles.js";
 import {
@@ -69,7 +70,7 @@ function MessageShimmer(
                 pulseAnimationClassName,
                 sprinkles({
                     width: "full",
-                    maxWidth: "160",
+                    maxWidth: messageViewMaxWidth,
                     marginX: "center",
                 }),
             )}

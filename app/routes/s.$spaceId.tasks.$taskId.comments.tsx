@@ -1,11 +1,10 @@
 import {useParams, useSearchParams} from "@remix-run/react";
-import {redirect} from "@remix-run/router";
 import {useCallback, useEffect} from "react";
 import {usePress} from "react-aria";
 import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
-import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
@@ -18,6 +17,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {messageViewMaxWidth} from "~/shared/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
@@ -32,30 +32,10 @@ const LoaderSchema = Schema.object({
     otherReferencedComments: Schema.array(TaskCommentModel.schema()),
 });
 
-export async function loader({
-    context: unauthenticatedContext,
-    params,
-    request,
-    isPeek = false,
-}: LoaderArgs & {isPeek?: boolean}) {
+export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
     const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
-
-    const url = new URL(request.url);
-
-    const commentIndexString = url.searchParams.get("comment");
-    const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
-
-    const clientInfo = context.loader.getClientInfo();
-    const isMobile = getInitialAppRenderIsMobile(clientInfo);
-
-    if (!isMobile && !isPeek) {
-        if (commentIndex === null) {
-            return redirect(`/s/${spaceId}/tasks/${taskId}`);
-        }
-        return redirect(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`);
-    }
 
     const [{task}, {commentCount, comments, otherReferencedComments, lastCommentChangeTime}] =
         await runAllPromises([
@@ -115,7 +95,6 @@ export default function TaskCommentsRoute({
         title: <TaskCommentsViewHeaderTitle spaceId={spaceId} taskId={taskId} title={taskTitle} />,
         subtitle: "Comments",
         withoutDisappearingTitle: true,
-        isDisabled: !withMobileLayout,
         replaceActions: null,
         menuActions: [
             {
@@ -125,6 +104,7 @@ export default function TaskCommentsRoute({
             },
         ],
         titleJustifyContent: !isMobile ? "flex-start" : "center",
+        desktopTitleMaxWidth: messageViewMaxWidth,
         isAlwaysOpaque: true,
     });
 
@@ -132,9 +112,13 @@ export default function TaskCommentsRoute({
         if (withMobileLayout) return;
 
         if (commentIndex === null) {
-            void navigate(`/s/${spaceId}/tasks/${taskId}`, {stopPropagation: true});
+            void navigate(`/s/${spaceId}/tasks/${taskId}`, {
+                replace: true,
+                stopPropagation: true,
+            });
         } else {
             void navigate(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`, {
+                replace: true,
                 stopPropagation: true,
             });
         }

@@ -41,11 +41,10 @@ import {
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     messageViewMarginY,
+    messageViewMaxWidth,
     messageViewTimestampDividerMarginTop,
 } from "~/shared/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/shared/styles/styles.js";
-
-export const chatViewMaxWidth = "160";
 
 export function ChatView({
     withMobileLayout,
@@ -120,7 +119,7 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                 )}
                 <Box
                     width="full"
-                    maxWidth={chatViewMaxWidth}
+                    maxWidth={messageViewMaxWidth}
                     paddingX={screenPaddingX}
                     display="flex"
                     flexDirection={!isMobile ? "row" : "column"}

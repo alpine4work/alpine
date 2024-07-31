@@ -358,11 +358,9 @@ function makeSpaceDataRouteReuseInflightRequest(
                 // end up parsing the `Response` body twice.
                 .then(processLoaderResult);
 
-            void responsePromise.finally(() =>
+            return responsePromise.finally(() =>
                 inflightResponsePromiseByRequestKey.delete(requestKey),
             );
-
-            return responsePromise;
         });
     };
 }

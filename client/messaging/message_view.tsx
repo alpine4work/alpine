@@ -57,6 +57,7 @@ import {
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
     messageViewMarginY,
+    messageViewMaxWidth,
     messageViewMergedMarginY,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
@@ -1081,7 +1082,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 ref={containerRef}
                 className={sprinkles({
                     width: "full",
-                    maxWidth: "160",
+                    maxWidth: messageViewMaxWidth,
                     marginX: "center",
                     position: "relative",
                     zIndex: "0",

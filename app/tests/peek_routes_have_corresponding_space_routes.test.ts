@@ -50,13 +50,6 @@ test("every peek route has a corresponding space route and exports the same thin
         setWillManuallyFinishInitializingAllDynamoTableSchemas();
     }
 
-    const peekRoutesWhichAllowDifferentLoaders = new Set([
-        // Allowed to have a different loader function since this peek's loader calls
-        // `originalLoader({...args, isPeek: true})` directly. The `isPeek` parameter
-        // is only used to perform a redirect.
-        "s.$spaceId.peek.tasks.$taskId.comments.js",
-    ]);
-
     const actual = Object.fromEntries(
         await runAllPromises(
             peekRoutes.map(async peekRoute => {
@@ -80,9 +73,7 @@ test("every peek route has a corresponding space route and exports the same thin
                               // The peek module loader function must be exactly equal to the space module
                               // loader function. This way we can use the data between the two
                               // interchangeably.
-                              loader: peekRoutesWhichAllowDifferentLoaders.has(peekRoute)
-                                  ? null
-                                  : spaceModule.loader,
+                              loader: spaceModule.loader,
                               exportNames: Object.keys(spaceModule).sort(),
                           }
                         : null,
@@ -102,9 +93,7 @@ test("every peek route has a corresponding space route and exports the same thin
                         // The peek module loader function must be exactly equal to the space module
                         // loader function. This way we can use the data between the two
                         // interchangeably.
-                        loader: peekRoutesWhichAllowDifferentLoaders.has(peekRoute)
-                            ? null
-                            : peekModule.loader,
+                        loader: peekModule.loader,
                         exportNames: Object.keys(peekModule).sort(),
                     },
                 ];

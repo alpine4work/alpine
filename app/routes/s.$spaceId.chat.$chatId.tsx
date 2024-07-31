@@ -1,6 +1,6 @@
 import {useSearchParams} from "@remix-run/react";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
-import {ChatView, chatViewMaxWidth} from "~/client/chat/chat_view.js";
+import {ChatView} from "~/client/chat/chat_view.js";
 import {Box} from "~/client/design/box.js";
 import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
@@ -23,6 +23,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {messageViewMaxWidth} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
@@ -139,7 +140,7 @@ export default function ChatRoute({
         return (
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
-                maxWidth={chatViewMaxWidth}
+                maxWidth={messageViewMaxWidth}
                 // Since chats have a permanent top bar, use `grey-5` border to create the
                 // illusion that the banner is of the same physical material.
                 borderBottom="grey-5"
