@@ -162,7 +162,7 @@ test("can edit a post in a channel", async ({
     // Can update with Cmd-Enter keyboard shortcut.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
-    await page.getByLabel("Post", {exact: true}).press(`${modifier}+Enter`);
+    await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();
@@ -216,7 +216,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
 
         // TODO(calebmer): We should open a `<MobileModal>` on mobile when editing a
         // post so we can have a save button in the header.
-        await page.getByLabel("Post", {exact: true}).press(`${modifier}+Enter`);
+        await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
     }
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
@@ -244,7 +244,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     // Can update with Cmd-Enter keyboard shortcut.
     await page.getByLabel("Post", {exact: true}).press("Backspace");
     await page.getByLabel("Post", {exact: true}).type("3");
-    await page.getByLabel("Post", {exact: true}).press(`${modifier}+Enter`);
+    await page.getByLabel("Post", {exact: true}).press(`${isMobile ? "Meta" : modifier}+Enter`);
 
     await expect(page.getByRole("button", {name: "Save"})).toBeHidden();
     await expect(page.getByText("Test post content 2")).toBeHidden();

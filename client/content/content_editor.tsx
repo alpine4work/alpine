@@ -1005,7 +1005,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     event.key === "Enter" &&
                     !event.altKey &&
                     !event.shiftKey &&
-                    // Cmd+Enter triggers this on MacOS and Ctrl-Enter triggers this elsewhere
+                    // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
                     (isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     propsRef.current.onModEnter(event);
