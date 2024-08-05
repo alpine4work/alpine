@@ -64,7 +64,7 @@ export class AwsGithubRunners extends Construct {
         // completely forget what the conditions for this run were.
         //
         // [1]: https://github.com/cyberworlds/cyberworlds/actions/runs/10065127027/job/27823987319
-        const instanceClass = InstanceClass.M7G;
+        const instanceClass = InstanceClass.M7GD;
         const instanceType = InstanceType.of(instanceClass, InstanceSize.XLARGE2);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
