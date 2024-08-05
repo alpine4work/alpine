@@ -7,6 +7,32 @@ build --jobs=HOST_CPUS
 build --local_resources=cpu=HOST_CPUS
 build --local_resources=memory=HOST_RAM
 
+# NOTE(calebmer, 2024-08-05): Use machine memory for Bazel sandboxes instead of
+# machine storage. This improves performance a lot on EC2 instances with EBS
+# storage volumes. Thanks so much to Philip Zeyliger for investigating and
+# figuring out this performance boost! He wrote a [blog post on why this
+# helps][1].
+#
+# The short version is Bazel does a lot of storage IO when building/testing.
+# But EC2 instances with EBS volumes have pretty low IOPS throughput. So
+# instead of using storage for Bazel sandboxes we use memory (RAM). Writing
+# to memory is much faster than writing to storage but we need to make sure
+# the machine has enough memory to hold each test's Bazel sandbox. Shouldn't
+# be a problem for small tests since Bazel cleans up the sandbox after
+# each use.
+#
+# If we find ourselves running out of memory, other solutions proposed by
+# Philip is:
+#
+# > 1. Switch to an EC2 instance with local storage (e.g., “m7gd.2xlarge”), and
+# >    convince Bazel and the GitHub stuff to use that (and mount it!)
+# > 2. Configure the EC2 instances to get more IO by asking AWS for it either
+# >    via a bigger disk (the initial allotment is proportional to disk size)
+# >    or explicitly requesting it.
+#
+# [1]: https://philz.dev/blog/ci-debugging/
+build:github-runner --sandbox_base=/dev/shm
+
 # NOTE(calebmer): Enable remote caching when executing in a GitHub runner. The
 # GitHub runner should have started our AWS S3 proxy server on this port.
 build:github-runner --remote_cache=http://localhost:3501

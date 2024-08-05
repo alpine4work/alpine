@@ -41,30 +41,9 @@ export class AwsGithubRunners extends Construct {
 
         // 8 vCPU, 32 GiB memory, Gravitron (ARM) processor
         //
-        // NOTE(calebmer, 2024-07-27): I tried a bunch of EC2 instance types and this
-        // one gave the best performance for CI. Some stats when running just tier 1
-        // tests without remote caching:
-        //
-        // - Local M1 MacBook Pro (baseline): 4 minutes, 25 seconds (10 cores)
-        // - `m7g.2xlarge`: 11 minutes (8 cores)
-        // - `m7g.4xlarge`: 13 minutes, 22 seconds (16 cores)
-        // - `m7i.2xlarge`: 12 minutes, 41 seconds (8 cores)
-        // - `m7i.xlarge`: 13 minutes, 26 seconds (4 cores)
-        //
-        // I had previously tested `c7g` instances and got slightly worse performance.
-        // `c7g` instances are CPU optimized, `m7g` instances are balanced between CPU
-        // and memory.
-        //
-        // I do not understand why `m7g.2xlarge` instances consistently performed
-        // better than `m7g.4xlarge` instances. More cores should make everything
-        // faster I'd think? I'm also disappointed that I can't get CI to beat my local
-        // M1 MacBook Pro's performance.
-        //
-        // I did have [one run][1] while testing that ran in 3 minutes! But I
-        // completely forget what the conditions for this run were.
-        //
-        // [1]: https://github.com/cyberworlds/cyberworlds/actions/runs/10065127027/job/27823987319
-        const instanceClass = InstanceClass.M7GD;
+        // NOTE(calebmer, 2024-08-05): This instance type gives us best performance for
+        // the cost based on some simple testing.
+        const instanceClass = InstanceClass.M7G;
         const instanceType = InstanceType.of(instanceClass, InstanceSize.XLARGE2);
 
         const runnerProvider = new Ec2RunnerProvider(this, "RunnerProvider", {
@@ -89,7 +68,7 @@ export class AwsGithubRunners extends Construct {
             //
             // [1]: https://aws.amazon.com/ec2/pricing/on-demand
             // [2]: https://aws.amazon.com/ec2/spot/pricing
-            spot: false,
+            spot: true,
 
             imageBuilder: Ec2RunnerProvider.imageBuilder(this, "RunnerImageBuilder", {
                 vpc,
