@@ -3243,8 +3243,6 @@ export async function getInboxChannelPostsEntryPosts(
                     accountId: context.actor.getAccountId(),
                 },
                 item => {
-                    assert(item);
-
                     // If the generation was updated concurrently, we don't need to update
                     // it again.
                     if (item.generation !== bucketGeneration) return item;
@@ -3425,8 +3423,6 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                     accountId: context.actor.getAccountId(),
                 },
                 item => {
-                    assert(item);
-
                     // If the generation was updated concurrently, we don't need to update
                     // it again.
                     if (item.generation !== bucketGeneration) return item;

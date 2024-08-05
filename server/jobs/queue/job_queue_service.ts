@@ -105,7 +105,6 @@ runService({
 
         const processContext = createServerProcessContext({
             tracer,
-            shutdownManager,
             tokenAgent,
             awsSigner,
             options,

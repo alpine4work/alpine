@@ -13,11 +13,11 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export function quote(string: string): string;
 export function quote(
     templateStrings: TemplateStringsArray,
-    ...values: Array<string | number | boolean | null>
+    ...values: Array<string | number | boolean | null | undefined>
 ): string;
 export function quote(
     templateStrings: TemplateStringsArray | string,
-    ...values: Array<string | number | boolean | null>
+    ...values: Array<string | number | boolean | null | undefined>
 ): string {
     if (typeof templateStrings === "string") {
         return JSON.stringify(templateStrings);
@@ -30,7 +30,8 @@ export function quote(
 
     for (let i = 0; i < templateStrings.length; i++) {
         if (i !== 0) {
-            string += JSON.stringify(values[i - 1]);
+            const value = values[i - 1];
+            string += JSON.stringify(value === undefined ? null : value);
         }
         string += templateStrings[i];
     }

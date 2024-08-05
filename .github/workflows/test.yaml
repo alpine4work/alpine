@@ -30,6 +30,8 @@ jobs:
                   path: |
                       ~/.cache/bazelisk
                       ~/.cache/bazel
+                  # IMPORTANT: If you change the cache key here, you also need to change it in
+                  # `deploy.yaml` since the cache should be shared between the two actions.
                   key: |
                       bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements.txt', 'admin/patches/bazel/*.patch') }}
                   restore-keys: |
@@ -183,67 +185,3 @@ jobs:
                   name: bazel_testlogs
                   path: bazel-testlogs
                   retention-days: 7
-#
-#     NOCOMMIT:
-#
-#     test_playwright:
-#         name: Test Playwright
-#
-#         # Run Playwright tests on MacOS. Browser testing is terribly inconsistent.
-#         # Since we develop on MacOS, running MacOS in CI helps remove one big
-#         # inconsistency variable.
-#         #
-#         # This does mean Playwright tests don't need to sniff the operating system to
-#         # choose between "cmd" and "ctrl" for keyboard shortcuts like "cmd-c" so tests
-#         # may end up being a little less resilient by not running on two OSs.
-#         runs-on: macos-latest
-#
-#         steps:
-#             - name: Checkout repo
-#               uses: actions/checkout@v3
-#
-#             - name: Get date
-#               id: date
-#               shell: bash
-#               run: |
-#                   echo "date=$(/bin/date -u "+%Y-%m-%d")" >> $GITHUB_OUTPUT
-#
-#             - name: Cache Bazel output
-#               id: bazel-cache
-#               uses: actions/cache@v3
-#               with:
-#                   path: |
-#                       ~/.cache/bazelisk
-#                       ~/.cache/bazel
-#                   key: test_playwright-${{ runner.os }}-${{ steps.date.outputs.date }}
-#                   restore-keys: |
-#                       test_playwright-${{ runner.os }}-
-#
-#             # Run Playwright tests sequentially instead of in parallel. The current
-#             # machines running GitHub actions are resource constrained and frequently run
-#             # into timeouts when executing Playwright tests. Running locally on my laptop,
-#             # parallel execution of Playwright tests is fine. When we upgrade our GitHub
-#             # Actions machines we can go back to executing these tests in parallel to
-#             # speed up CI.
-#             - name: Test Playwright
-#               run: |
-#                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=playwright --flaky_test_attempts=3 --jobs=1
-#
-#             # Currently `actions/upload-artifact` doesn't work with symlinked directories.
-#             # A PR to fix this has been merged but hasn't been released. So read the actual path and
-#             # put it in our output.
-#             # https://github.com/actions/upload-artifact/issues/92
-#             - if: failure()
-#               name: Get Bazel test logs directory
-#               id: bazel_test_logs_path
-#               shell: bash
-#               run: |
-#                   echo "path=$(readlink -f bazel-testlogs)" >> $GITHUB_OUTPUT
-#
-#             - if: failure()
-#               name: Upload Bazel test logs
-#               uses: actions/upload-artifact@v3
-#               with:
-#                   name: test_playwright_bazel_testlogs
-#                   path: ${{ steps.bazel_test_logs_path.outputs.path }}
-#                   retention-days: 7

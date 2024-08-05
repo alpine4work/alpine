@@ -72,7 +72,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     // from our service.
     const honeycombApiKey: string | undefined = (parsedOptions.values as any).honeycombApiKey;
     if (!honeycombApiKey && process.env.NODE_ENV === "production")
-        throw new InternalError("Must provide `honeycombApiKey` arg in production");
+        throw new InternalError('Must provide "honeycombApiKey" option in production');
 
     const tracer = createServerTracer({
         serviceName,
@@ -198,6 +198,6 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     run({options: parsedOptions.values, tracer, shutdownManager, workerIndex}).catch(error => {
         // eslint-disable-next-line no-console
         console.error(error);
-        process.exit(1);
+        process.exitCode = 1;
     });
 }

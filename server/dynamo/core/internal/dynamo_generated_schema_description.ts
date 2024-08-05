@@ -1129,6 +1129,63 @@ export const dynamoGeneratedSchemaDescription: {
                 }
             ]
         },
+        "Deploy": {
+            "name": "Deploy",
+            "partitionByType": {
+                "Deploy": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {},
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "commitSha": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": false
+                                    },
+                                    "ongoingDeployment": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "workflowRunId": {
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "commitSha": {
+                                                        "valueSchema": {
+                                                            "type": "String"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
         "Documents": {
             "name": "Documents",
             "partitionByType": {

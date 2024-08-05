@@ -24,7 +24,6 @@ import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
 import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
-import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
 import {startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -34,6 +33,7 @@ import {
     waitForProcessExitWithAnyCode,
 } from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
+import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -280,7 +280,7 @@ const bazelPackageByPath = new Map<string, BazelPackage | null>();
 
 const lastDependencyBazelPackagePathsByTarget = new Map<string, ReadonlySet<string>>();
 
-const watcher = chokidar.watch(workspacePath, {
+const watcher = chokidar.watch(getWorkspacePath(), {
     ignoreInitial: true,
     // `.build` is the Swift build directory for Swift's VSCode integration.
     ignored: /(^|\/)(node_modules|bazel-[^/]+|\.git|\.DS_Store|\.build)(\/|$)/,
@@ -470,7 +470,7 @@ async function rebuildArtifact(artifact: Artifact) {
         );
 
         const executablePath = joinPath(
-            `${workspacePath}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
+            `${getWorkspacePath()}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
             artifact.executablePath,
         );
 
@@ -534,6 +534,7 @@ type BazelPackage = {
  * `/Users/calebmer/Projects/cyberworlds/shared/helpers/control/assert.ts`.
  */
 function getBazelPackageByAbsoluteFilePath(path: string): BazelPackage {
+    const workspacePath = getWorkspacePath();
     const absoluteDirectoryPath = dirname(path);
 
     if (
@@ -560,7 +561,7 @@ function getBazelPackageByRelativeDirectoryPath(path: string): BazelPackage {
         bazelPackageByPath,
         path,
         (): BazelPackage | null => {
-            const absolutePath = joinPath(workspacePath, path);
+            const absolutePath = joinPath(getWorkspacePath(), path);
 
             // Only directories are allowed in `bazelPackageByPath`.
             assert(fs.statSync(absolutePath).isDirectory());

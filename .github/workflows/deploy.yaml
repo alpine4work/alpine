@@ -1,0 +1,69 @@
+name: Deploy
+on: workflow_dispatch
+
+concurrency: deploy
+
+jobs:
+    test:
+        name: Deploy
+        runs-on: [self-hosted, aws-deploy]
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v3
+
+            # We cache Bazel external repositories with [GitHub's cache action][1]. We
+            # cache individual build rule results with [Bazel remote caching][2].
+            #
+            # The following restores the previously saved Bazel repository cache. The Bazel
+            # repository's cache key includes a hash of all files that contribute to the
+            # external repositories we download. All external repositories are defined in
+            # `WORKSPACE` or a file referenced by `WORKSPACE` (e.g. `pnpm-lock.yaml` which
+            # is used by the `npm_translate_lock()` call in `WORKSPACE`).
+            #
+            # We also include the Bazel binary installed by Bazelisk in this cache so we
+            # include a hash of `.bazelversion`.
+            #
+            # [1]: https://github.com/actions/cache
+            # [2]: https://bazel.build/remote/caching
+            - id: cache
+              name: Restore Bazel repositories cache
+              uses: actions/cache/restore@v3
+              with:
+                  path: |
+                      ~/.cache/bazelisk
+                      ~/.cache/bazel
+                  # IMPORTANT: If you change the cache key here, you also need to change it in
+                  # `test.yaml` since the cache should be shared between the two actions.
+                  key: |
+                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements.txt', 'admin/patches/bazel/*.patch') }}
+                  restore-keys: |
+                      bazel-${{ runner.os }}-${{ runner.arch }}-
+
+            # This starts the [Bazel remote cache][1] proxy server. For more information
+            # see `test.yaml`.
+            #
+            # [1]: https://bazel.build/remote/caching
+            - name: Start Bazel remote cache
+              shell: bash
+              run: |
+                  admin/aws/internal/aws_github_runners_bazel_remote_cache.sh
+
+            - name: Prepare deploy
+              shell: bash
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
+                      --action=Prepare \
+                      --commitSha=$GITHUB_SHA \
+                      --workflowRunId=${{ github.run_id }}
+
+            - if: ${{ !cancelled() }}
+              name: Cleanup deploy
+              shell: bash
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
+                      --action=Cleanup \
+                      --status=${{ success() && "Success" || "Failure" }} \
+                      --commitSha=$GITHUB_SHA \
+                      --workflowRunId=${{ github.run_id }}

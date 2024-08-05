@@ -1,6 +1,6 @@
 import {spawn} from "child_process";
 import path from "path";
-import {workspacePath} from "~/admin/helpers/workspace_path.js";
+import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -21,7 +21,7 @@ export async function runProcess(
     command: string,
     args: ProcessArgs,
     {
-        cwd = workspacePath,
+        cwd = getWorkspacePath(),
         env,
         isErrorExitCode = exitCode => exitCode !== 0,
     }: {

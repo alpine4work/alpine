@@ -55,6 +55,7 @@ export type TracerServiceName =
     | "Adhoc"
     | "Test"
     | "MigrationService"
+    | "DeployService"
     | "AppClient"
     | "AppService"
     | "EdgeService"
@@ -174,6 +175,10 @@ export class TracerRoot extends TracerBase {
         });
     }
 
+    public getNonMonotonicClock() {
+        return this._clock;
+    }
+
     public getRoot(): TracerRoot {
         return this;
     }
@@ -220,6 +225,28 @@ export class TracerRoot extends TracerBase {
         });
 
         return {span, finishSpan};
+    }
+
+    /**
+     * Same as `withSpan()` but internally calls
+     * `startSpanFromPropagationContext()` to start the span instead of
+     * `startSpan()`. See the documentation on `withSpan()` for more information.
+     */
+    public async withSpanFromPropagationContext<Value>(
+        name: string,
+        propagationContext: TracerSpanPropagationContext,
+        action: (span: TracerSpan) => Promise<Value>,
+    ): Promise<Value> {
+        const {span, finishSpan} = this.startSpanFromPropagationContext(name, propagationContext);
+        try {
+            const value = await action(span);
+            finishSpan();
+            return value;
+        } catch (error) {
+            span.addException(error);
+            finishSpan();
+            throw error;
+        }
     }
 
     /**

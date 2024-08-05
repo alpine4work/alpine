@@ -615,8 +615,34 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerActionContext,
         itemKey: Key,
         update: (
+            item: MergeObjectIntersection<Types["Item"] & Key>,
+        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
+        options: {initialItem: Types["Item"] & Key},
+    ): Promise<{
+        getRealtimeItem: () => Promise<
+            DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
+        >;
+        getCursorByIndexName: () => Map<string, DynamoIndexCursor>;
+    }>;
+    public async updateItem<Key extends Types["ItemKey"]>(
+        context: ServerActionContext,
+        itemKey: Key,
+        update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
+        options?: {initialItem?: Types["Item"] & Key},
+    ): Promise<{
+        getRealtimeItem: () => Promise<
+            DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
+        >;
+        getCursorByIndexName: () => Map<string, DynamoIndexCursor>;
+    }>;
+    public async updateItem<Key extends Types["ItemKey"]>(
+        context: ServerActionContext,
+        itemKey: Key,
+        // Typed as `never` since a caller should always match one of the overloads,
+        // not this base definition.
+        update: never,
         {initialItem}: {initialItem?: Types["Item"] & Key} = {},
     ): Promise<{
         getRealtimeItem: () => Promise<
@@ -642,7 +668,7 @@ export class DynamoGeneralRealtimeTableSchema<
             context,
             itemKey,
             async item => {
-                const newItem = await update(item);
+                const newItem: (Types["Item"] & Key) | null = await (update as any)(item);
                 assert(newItem, "Deleting items is currently unsupported with a realtime schema");
                 return newItem;
             },

@@ -1,5 +1,5 @@
 import {bazelExecutableMutex, bazelExecutablePath} from "~/admin/dev/bazel/bazel_executable.js";
-import {runProcess} from "~/admin/helpers/run_process.js";
+import {runProcess} from "~/server/helpers/node/run_process.js";
 
 /**
  * Query the packages that the provided Bazel target depends on.

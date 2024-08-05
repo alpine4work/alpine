@@ -1,6 +1,6 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
-assert(process.env.BUILD_WORKSPACE_DIRECTORY);
+let workspacePath: string | null = null;
 
 /**
  * The absolute file system path to the source directory our Cyberworlds
@@ -14,5 +14,14 @@ assert(process.env.BUILD_WORKSPACE_DIRECTORY);
  * For example, if the developer has checked out their copy of Cyberworlds on
  * their machine at `/Users/calebmer/Projects/cyberworlds` this path will be
  * `/Users/calebmer/Projects/cyberworlds`.
+ *
+ * Throws an error if we're running in a sandboxed Bazel environment which
+ * doesn't have access to the build workspace directory.
  */
-export const workspacePath = process.env.BUILD_WORKSPACE_DIRECTORY;
+export function getWorkspacePath() {
+    workspacePath ??= assertExists(
+        process.env.BUILD_WORKSPACE_DIRECTORY,
+        "Can't get the workspace path when running in a Bazel sandbox",
+    );
+    return workspacePath;
+}

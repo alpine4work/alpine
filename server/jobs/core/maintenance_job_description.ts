@@ -11,6 +11,15 @@ export type MaintenanceJobDescription = SchemaType<typeof MaintenanceJobDescript
 
 export const MaintenanceJobDescriptionSchema = Schema.union({
     /**
+     * Attempts to start our deployment GitHub action. Only starts the deploy if
+     * the right conditions are met. Namely it's during business hours and there's
+     * not currently an active deploy.
+     */
+    AttemptStartDeploy: Schema.object({
+        type: Schema.value("AttemptStartDeploy"),
+    }),
+
+    /**
      * This job is queued every few minutes so if we failed to process a
      * task action transaction it can be processed by the job.
      *

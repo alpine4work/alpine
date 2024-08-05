@@ -111,6 +111,8 @@ export class TracerSpan extends TracerBase {
             propagatedEventData?: LinkedList<TracerEventData>;
             propagatedEventFlatData?: TracerEventFlatData | null;
         } | null,
+        spanId: TraceSpanId = generateId(),
+        startTime: number = clock.now(),
     ) {
         if (
             parentSpan !== null &&
@@ -126,8 +128,8 @@ export class TracerSpan extends TracerBase {
         this.clock = clock;
         this._name = name;
         this.traceId = parentSpan?.traceId ?? generateId();
-        this._spanId = generateId();
-        this._startTime = this.clock.now();
+        this._spanId = spanId;
+        this._startTime = startTime;
         this._propagatedEventData = parentSpan
             ? parentSpan.propagatedEventData ?? null
             : this._tracer.propagatedEventData
@@ -160,8 +162,10 @@ export class TracerSpan extends TracerBase {
             propagatedEventData?: LinkedList<TracerEventData>;
             propagatedEventFlatData?: TracerEventFlatData | null;
         } | null,
+        spanId?: TraceSpanId,
+        startTime?: number,
     ) {
-        const span = new TracerSpan(tracer, clock, name, parentSpan);
+        const span = new TracerSpan(tracer, clock, name, parentSpan, spanId, startTime);
         const finishSpan = () => span._finish();
         return {span, finishSpan};
     }

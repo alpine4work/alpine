@@ -1615,8 +1615,24 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         context: DynamoContext,
         key: Key,
         update: (
+            item: MergeObjectIntersection<Types["Item"] & Key>,
+        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key> | null>,
+        options: {initialItem: Types["Item"] & Key},
+    ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
+    public updateItem<Key extends Types["ItemKey"]>(
+        context: DynamoContext,
+        key: Key,
+        update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key> | null>,
+        options?: {initialItem?: Types["Item"] & Key},
+    ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
+    public updateItem<Key extends Types["ItemKey"]>(
+        context: DynamoContext,
+        key: Key,
+        // Typed as `never` since a caller should always match one of the overloads,
+        // not this base definition.
+        update: never,
         {initialItem}: {initialItem?: Types["Item"] & Key} = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         let hasAttempted = false;
@@ -1630,7 +1646,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     ? initialItem
                     : await this.getItemIfExists(context, key);
 
-            const newItem = await update(item);
+            const newItem: (Types["Item"] & Key) | null = await (update as any)(item);
 
             // Update was short-circuited.
             if (item === newItem) return item;
