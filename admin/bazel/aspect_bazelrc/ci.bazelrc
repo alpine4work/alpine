@@ -22,13 +22,20 @@ build --local_resources=memory=HOST_RAM
 # each use.
 #
 # If we find ourselves running out of memory, other solutions proposed by
-# Philip is:
+# Phil include:
 #
 # > 1. Switch to an EC2 instance with local storage (e.g., “m7gd.2xlarge”), and
 # >    convince Bazel and the GitHub stuff to use that (and mount it!)
 # > 2. Configure the EC2 instances to get more IO by asking AWS for it either
 # >    via a bigger disk (the initial allotment is proportional to disk size)
 # >    or explicitly requesting it.
+#
+# Phil recommends `--sandbox_base=/dev/shm` as a fast/cheap solution however
+# prefers local storage with an instance like `m7gd.2xlarge` long term. As I'm
+# writing this `m7gd.2xlarge` is ~31% more expensive than `m7g.2xlarge`. And
+# when I tried to run a test, I was having difficulty getting spot capacity for
+# `m7gd.2xlarge`. So for cost reasons we're sticking with `m7g.2xlarge`
+# and saving sandboxes to memory.
 #
 # [1]: https://philz.dev/blog/ci-debugging/
 build:github-runner --sandbox_base=/dev/shm

@@ -1252,22 +1252,22 @@ Resources:
             ResourceType: AMI_IMAGE
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/RunnerImageBuilder/Lifecycle Policy AMI
-    GithubRunnersRunnerProviderSG4FF5FFE9:
+    GithubRunnersTestRunnerProviderSGC459F644:
         Type: AWS::EC2::SecurityGroup
         Properties:
-            GroupDescription: CyberworldsLifecycleStack/GithubRunners/RunnerProvider/SG
+            GroupDescription: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/SG
             SecurityGroupEgress:
                 - CidrIp: 0.0.0.0/0
                   Description: Allow all outbound traffic by default
                   IpProtocol: "-1"
             Tags:
                 - Key: GitHubRunners:Provider
-                  Value: CyberworldsLifecycleStack/GithubRunners/RunnerProvider
+                  Value: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider
             VpcId:
                 Ref: Vpc8378EB38
         Metadata:
-            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/RunnerProvider/SG/Resource
-    GithubRunnersRunnerProviderRoleE6CEDC54:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/SG/Resource
+    GithubRunnersTestRunnerProviderRoleF5EA9289:
         Type: AWS::IAM::Role
         Properties:
             AssumeRolePolicyDocument:
@@ -1285,10 +1285,10 @@ Resources:
                         - :iam::aws:policy/AmazonSSMManagedInstanceCore
             Tags:
                 - Key: GitHubRunners:Provider
-                  Value: CyberworldsLifecycleStack/GithubRunners/RunnerProvider
+                  Value: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider
         Metadata:
-            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/RunnerProvider/Role/Resource
-    GithubRunnersRunnerProviderRoleDefaultPolicy635828D6:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/Role/Resource
+    GithubRunnersTestRunnerProviderRoleDefaultPolicyC5F9D7D8:
         Type: AWS::IAM::Policy
         Properties:
             PolicyDocument:
@@ -1318,7 +1318,7 @@ Resources:
                       Effect: Allow
                       Resource:
                           Fn::GetAtt:
-                              - GithubRunnersRunnerProviderLogsC6E42789
+                              - GithubRunnersTestRunnerProviderLogs0D5ED8AB
                               - Arn
                     - Action:
                           - s3:Abort*
@@ -1343,30 +1343,30 @@ Resources:
                                         - Arn
                                   - /*
                 Version: 2012-10-17
-            PolicyName: GithubRunnersRunnerProviderRoleDefaultPolicy635828D6
+            PolicyName: GithubRunnersTestRunnerProviderRoleDefaultPolicyC5F9D7D8
             Roles:
-                - Ref: GithubRunnersRunnerProviderRoleE6CEDC54
+                - Ref: GithubRunnersTestRunnerProviderRoleF5EA9289
         Metadata:
-            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/RunnerProvider/Role/DefaultPolicy/Resource
-    GithubRunnersRunnerProviderLogsC6E42789:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/Role/DefaultPolicy/Resource
+    GithubRunnersTestRunnerProviderLogs0D5ED8AB:
         Type: AWS::Logs::LogGroup
         Properties:
             RetentionInDays: 30
             Tags:
                 - Key: GitHubRunners:Provider
-                  Value: CyberworldsLifecycleStack/GithubRunners/RunnerProvider
+                  Value: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
-            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/RunnerProvider/Logs/Resource
-    GithubRunnersRunnerProviderInstanceProfileF57D2C74:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/Logs/Resource
+    GithubRunnersTestRunnerProviderInstanceProfile301DE8F2:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Roles:
-                - Ref: GithubRunnersRunnerProviderRoleE6CEDC54
+                - Ref: GithubRunnersTestRunnerProviderRoleF5EA9289
         Metadata:
-            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/RunnerProvider/Instance Profile
-    GithubRunnersRunnerProviderAMIRootDeviceF6E27D72:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/Instance Profile
+    GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A:
         Type: Custom::AmiRootDevice
         Properties:
             ServiceToken:
@@ -1409,7 +1409,165 @@ Resources:
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
-            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/RunnerProvider/AMI Root Device/Default
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider/AMI Root Device/Default
+    GithubRunnersDeployRunnerProviderSGE1E32AF5:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/SG
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            Tags:
+                - Key: GitHubRunners:Provider
+                  Value: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/SG/Resource
+    GithubRunnersDeployRunnerProviderRole28792878:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: ec2.amazonaws.com
+                Version: 2012-10-17
+            ManagedPolicyArns:
+                - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - :iam::aws:policy/AmazonSSMManagedInstanceCore
+            Tags:
+                - Key: GitHubRunners:Provider
+                  Value: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/Role/Resource
+    GithubRunnersDeployRunnerProviderRoleDefaultPolicyDB018ED1:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - states:SendTaskFailure
+                          - states:SendTaskHeartbeat
+                          - states:SendTaskSuccess
+                      Condition:
+                          StringEquals:
+                              aws:ResourceTag/aws:cloudformation:stack-id:
+                                  Ref: AWS::StackId
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - s3:GetEncryptionConfiguration
+                          - ssm:UpdateInstanceInformation
+                          - ssmmessages:CreateControlChannel
+                          - ssmmessages:CreateDataChannel
+                          - ssmmessages:OpenControlChannel
+                          - ssmmessages:OpenDataChannel
+                      Effect: Allow
+                      Resource: "*"
+                    - Action:
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                              - Arn
+                    - Action:
+                          - s3:Abort*
+                          - s3:DeleteObject*
+                          - s3:GetBucket*
+                          - s3:GetObject*
+                          - s3:List*
+                          - s3:PutObject
+                          - s3:PutObjectLegalHold
+                          - s3:PutObjectRetention
+                          - s3:PutObjectTagging
+                          - s3:PutObjectVersionTagging
+                      Effect: Allow
+                      Resource:
+                          - Fn::GetAtt:
+                                - GithubRunnersBazelRemoteBucket2843E0D0
+                                - Arn
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - GithubRunnersBazelRemoteBucket2843E0D0
+                                        - Arn
+                                  - /*
+                Version: 2012-10-17
+            PolicyName: GithubRunnersDeployRunnerProviderRoleDefaultPolicyDB018ED1
+            Roles:
+                - Ref: GithubRunnersDeployRunnerProviderRole28792878
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/Role/DefaultPolicy/Resource
+    GithubRunnersDeployRunnerProviderLogs3C9A86A5:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            RetentionInDays: 30
+            Tags:
+                - Key: GitHubRunners:Provider
+                  Value: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/Logs/Resource
+    GithubRunnersDeployRunnerProviderInstanceProfile8A464F20:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Roles:
+                - Ref: GithubRunnersDeployRunnerProviderRole28792878
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/Instance Profile
+    GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4:
+        Type: Custom::AmiRootDevice
+        Properties:
+            ServiceToken:
+                Fn::GetAtt:
+                    - AMIRootDeviceReaderdcc036c8876b451ea2c1552f9e06e9e1C64D247C
+                    - Arn
+            Ami:
+                Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+        DependsOn:
+            - GithubRunnersRunnerImageBuilderAMIDistributionCC29264E
+            - GithubRunnersRunnerImageBuilderAMIImage490ED7FF
+            - GithubRunnersRunnerImageBuilderAmiLog77026DD3
+            - GithubRunnersRunnerImageBuilderAMIPipeline976562D8
+            - GithubRunnersRunnerImageBuilderAmiRecipe7C9C68BD
+            - GithubRunnersRunnerImageBuilderAmiRecipeVersionD35BB04F
+            - GithubRunnersRunnerImageBuilderComponent0RequiredPackagesComponent7C1C0190
+            - GithubRunnersRunnerImageBuilderComponent0RequiredPackagesVersion4DF22AA0
+            - GithubRunnersRunnerImageBuilderComponent1RunnerUserComponentB977DDB0
+            - GithubRunnersRunnerImageBuilderComponent1RunnerUserVersionD10E19FD
+            - GithubRunnersRunnerImageBuilderComponent2GitComponent6707C84C
+            - GithubRunnersRunnerImageBuilderComponent2GitVersion24A0DCDA
+            - GithubRunnersRunnerImageBuilderComponent3GithubCliComponent691BFD8C
+            - GithubRunnersRunnerImageBuilderComponent3GithubCliVersionD5701705
+            - GithubRunnersRunnerImageBuilderComponent4AwsCliComponent4AB39BB6
+            - GithubRunnersRunnerImageBuilderComponent4AwsCliVersion8017CEB1
+            - GithubRunnersRunnerImageBuilderComponent5DockerComponent049BA691
+            - GithubRunnersRunnerImageBuilderComponent5DockerVersionDBC9F57C
+            - GithubRunnersRunnerImageBuilderComponent6GithubRunnerComponent90176547
+            - GithubRunnersRunnerImageBuilderComponent6GithubRunnerVersion7D2A6A94
+            - GithubRunnersRunnerImageBuilderComponent7CustomAptGetInstallComponent18EBBF9B
+            - GithubRunnersRunnerImageBuilderComponent7CustomAptGetInstallVersionAF1CAD28
+            - GithubRunnersRunnerImageBuilderImageCleanerEAFBA281
+            - GithubRunnersRunnerImageBuilderInfrastructureB322E227
+            - GithubRunnersRunnerImageBuilderInstanceProfile9FC21555
+            - GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+            - GithubRunnersRunnerImageBuilderLifecyclePolicyAMI14526389
+            - GithubRunnersRunnerImageBuilderLifecyclePolicyAMIRoleB82E2615
+            - GithubRunnersRunnerImageBuilderRoleDA675E1F
+            - GithubRunnersRunnerImageBuilderSGB1CBC01C
+        UpdateReplacePolicy: Delete
+        DeletionPolicy: Delete
+        Metadata:
+            aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider/AMI Root Device/Default
     GithubRunnersSecretsWebhook8D50A82F:
         Type: AWS::SecretsManager::Secret
         Properties:
@@ -1798,9 +1956,12 @@ Resources:
                               iam:PassedToService: ec2.amazonaws.com
                       Effect: Allow
                       Resource:
-                          Fn::GetAtt:
-                              - GithubRunnersRunnerProviderRoleE6CEDC54
-                              - Arn
+                          - Fn::GetAtt:
+                                - GithubRunnersDeployRunnerProviderRole28792878
+                                - Arn
+                          - Fn::GetAtt:
+                                - GithubRunnersTestRunnerProviderRoleF5EA9289
+                                - Arn
                     - Action: ec2:createTags
                       Effect: Allow
                       Resource:
@@ -1845,9 +2006,12 @@ Resources:
                             - Arn
                       - "\"},\"Choose
                         provider\":{\"Type\":\"Choice\",\"Choices\":[{\"And\":[{\"Variable\":\"$.pr\
-                        ovider\",\"StringEquals\":\"CyberworldsLifecycleStack/GithubRunners/RunnerP\
-                        rovider\"}],\"Next\":\"aws-test data\"}],\"Default\":\"Unknown
-                        label\"},\"Unknown label\":{\"Type\":\"Succeed\"},\"aws-test
+                        ovider\",\"StringEquals\":\"CyberworldsLifecycleStack/GithubRunners/TestRun\
+                        nerProvider\"}],\"Next\":\"aws-test
+                        data\"},{\"And\":[{\"Variable\":\"$.provider\",\"StringEquals\":\"Cyberworl\
+                        dsLifecycleStack/GithubRunners/DeployRunnerProvider\"}],\"Next\":\"aws-depl\
+                        oy data\"}],\"Default\":\"Unknown label\"},\"Unknown
+                        label\":{\"Type\":\"Succeed\"},\"aws-test
                         data\":{\"Type\":\"Pass\",\"ResultPath\":\"$.ec2\",\"Parameters\":{\"userda\
                         taTemplate\":\"#!/bin/bash
                         -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
@@ -1897,23 +2061,23 @@ Resources:
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
-                      - Ref: GithubRunnersRunnerProviderLogsC6E42789
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test',
                         $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
                         ate\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderInstanceProfileF57D2C74
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
                       - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderSG4FF5FFE9
+                            - GithubRunnersTestRunnerProviderSGC459F644
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet1Subnet5C2D37C4
                       - '","BlockDeviceMappings":[{"DeviceName":"'
-                      - Ref: GithubRunnersRunnerProviderAMIRootDeviceF6E27D72
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]}]}},"aws-test
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet3"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
@@ -1924,23 +2088,23 @@ Resources:
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
-                      - Ref: GithubRunnersRunnerProviderLogsC6E42789
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test',
                         $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
                         ate\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderInstanceProfileF57D2C74
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
                       - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderSG4FF5FFE9
+                            - GithubRunnersTestRunnerProviderSGC459F644
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet2Subnet691E08A3
                       - '","BlockDeviceMappings":[{"DeviceName":"'
-                      - Ref: GithubRunnersRunnerProviderAMIRootDeviceF6E27D72
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]}]}},"aws-test
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet4"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
@@ -1951,23 +2115,23 @@ Resources:
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
-                      - Ref: GithubRunnersRunnerProviderLogsC6E42789
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test',
                         $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
                         ate\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderInstanceProfileF57D2C74
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
                       - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderSG4FF5FFE9
+                            - GithubRunnersTestRunnerProviderSGC459F644
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet3SubnetBE12F0B6
                       - '","BlockDeviceMappings":[{"DeviceName":"'
-                      - Ref: GithubRunnersRunnerProviderAMIRootDeviceF6E27D72
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]}]}},"aws-test
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet5"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
@@ -1978,23 +2142,23 @@ Resources:
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
-                      - Ref: GithubRunnersRunnerProviderLogsC6E42789
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test',
                         $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
                         ate\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderInstanceProfileF57D2C74
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
                       - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderSG4FF5FFE9
+                            - GithubRunnersTestRunnerProviderSGC459F644
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet4SubnetD274F391
                       - '","BlockDeviceMappings":[{"DeviceName":"'
-                      - Ref: GithubRunnersRunnerProviderAMIRootDeviceF6E27D72
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]}]}},"aws-test
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-test
                         subnet6"}],"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
@@ -2005,23 +2169,23 @@ Resources:
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
-                      - Ref: GithubRunnersRunnerProviderLogsC6E42789
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test',
                         $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
                         ate\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderInstanceProfileF57D2C74
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
                       - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderSG4FF5FFE9
+                            - GithubRunnersTestRunnerProviderSGC459F644
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet5Subnet9D29380E
                       - '","BlockDeviceMappings":[{"DeviceName":"'
-                      - Ref: GithubRunnersRunnerProviderAMIRootDeviceF6E27D72
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]}]}},"aws-test
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider"}]}]}},"aws-test
                         subnet6":{"End":true,"Type":"Task","Comment":"'
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","HeartbeatSeconds":600,"Resource":"arn:'
@@ -2031,23 +2195,229 @@ Resources:
                       - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.2xlarge\",\"UserD\
                         ata.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
-                      - Ref: GithubRunnersRunnerProviderLogsC6E42789
+                      - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test',
                         $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
                         ate\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderInstanceProfileF57D2C74
+                            - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
                       - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderSG4FF5FFE9
+                            - GithubRunnersTestRunnerProviderSGC459F644
                             - GroupId
                       - '"],"SubnetId":"'
                       - Ref: VpcPublicSubnet6Subnet86A826C5
                       - '","BlockDeviceMappings":[{"DeviceName":"'
-                      - Ref: GithubRunnersRunnerProviderAMIRootDeviceF6E27D72
-                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":30}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider"}]}]}}}}]},"Delete
+                      - Ref: GithubRunnersTestRunnerProviderAMIRootDeviceA077AB8A
+                      - "\",\"Ebs\":{\"DeleteOnTermination\":true,\"VolumeSize\":30}}],\"InstanceMa\
+                        rketOptions\":{\"MarketType\":\"spot\",\"SpotOptions\":{\"SpotInstanceType\
+                        \":\"one-time\"}},\"TagSpecifications\":[{\"ResourceType\":\"instance\",\"T\
+                        ags\":[{\"Key\":\"GitHubRunners:Provider\",\"Value\":\"CyberworldsLifecycle\
+                        Stack/GithubRunners/TestRunnerProvider\"}]},{\"ResourceType\":\"volume\",\"\
+                        Tags\":[{\"Key\":\"GitHubRunners:Provider\",\"Value\":\"CyberworldsLifecycl\
+                        eStack/GithubRunners/TestRunnerProvider\"}]}]}},\"aws-deploy
+                        data\":{\"Type\":\"Pass\",\"ResultPath\":\"$.ec2\",\"Parameters\":{\"userda\
+                        taTemplate\":\"#!/bin/bash
+                        -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
+                        \\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\\\"{}\
+                        \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationURL=\\\
+                        \"{}\\\"\\n\\nheartbeat () \\\\{\\n  while true; do\\n    aws stepfunctions
+                        send-task-heartbeat --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
+                        60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  cat <<EOF > /tmp/log.conf ||
+                        exit 1\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
+                        \\\"unknown\\\",\\n      \\\"logs_collected\\\":
+                        \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
+                        [\\n            \\\\{\\n              \\\"file_path\\\":
+                        \\\"/var/log/runner.log\\\",\\n              \\\"log_group_name\\\":
+                        \\\"$logGroupName\\\",\\n              \\\"log_stream_name\\\":
+                        \\\"$runnerNamePath\\\",\\n              \\\"timezone\\\":
+                        \\\"UTC\\\"\\n            \\\\}\\n          ]\\n        \\\\}\\n      \\\\}\
+                        \\n    \\\\}\\n  \\\\}\\nEOF\\n  /opt/aws/amazon-cloudwatch-agent/bin/amazo\
+                        n-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/tmp/log.conf ||
+                        exit 2\\n\\\\}\\naction () \\\\{\\n  # Determine the value of
+                        RUNNER_FLAGS\\n  if [ \\\"$(< RUNNER_VERSION)\\\" = \\\"latest\\\" ];
+                        then\\n    RUNNER_FLAGS=\\\"\\\"\\n  else\\n    RUNNER_FLAGS=\\\"--disableu\
+                        pdate\\\"\\n  fi\\n\\n  labelsTemplate=\\\"$labels,cdkghr:started:$(date
+                        +%s)\\\"\\n\\n  # Execute the configuration command for runner
+                        registration\\n  sudo -Hu runner /home/runner/config.sh --unattended --url
+                        \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
+                        _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
+                        \\\"$runnerNamePath\\\" || exit 1\\n\\n  # Execute the run command\\n  sudo
+                        --preserve-env=AWS_REGION -Hu runner /home/runner/run.sh || exit 2\\n\\n  #
+                        Retrieve the status\\n  STATUS=$(grep -Phors \\\"finish job request for job
+                        [0-9a-f\\\\-]+ with result: K.*\\\" /home/runner/_diag/ | tail -n1)\\n\\n  #
+                        Check and print the job status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB
+                        DONE \\\"$labels\\\" \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs
+                        && action | tee /var/log/runner.log 2>&1; then\\n  aws stepfunctions
+                        send-task-success --task-token \\\"$TASK_TOKEN\\\" --task-output
+                        '\\\\{\\\"ok\\\": true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure
+                        --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent
+                        its default 5 seconds buffer duration to upload
+                        logs\\npoweroff\\n\"},\"Next\":\"aws-deploy subnet1\"},\"aws-deploy
+                        subnet1\":{\"End\":true,\"Catch\":[{\"ErrorEquals\":[\"Ec2.Ec2Exception\",\
+                        \"States.Timeout\"],\"ResultPath\":\"$.lastSubnetError\",\"Next\":\"aws-dep\
+                        loy subnet2\"}],\"Type\":\"Task\",\"Comment\":\""
+                      - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy',
+                        $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
+                        ate\",\"IamInstanceProfile\":{\"Arn\":\""
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet1Subnet5C2D37C4
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":10}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                        subnet2":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
+                        subnet3"}],"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet2Subnet691E08A3
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy',
+                        $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
+                        ate\",\"IamInstanceProfile\":{\"Arn\":\""
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet2Subnet691E08A3
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":10}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                        subnet3":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
+                        subnet4"}],"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet3SubnetBE12F0B6
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy',
+                        $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
+                        ate\",\"IamInstanceProfile\":{\"Arn\":\""
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet3SubnetBE12F0B6
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":10}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                        subnet4":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
+                        subnet5"}],"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet4SubnetD274F391
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy',
+                        $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
+                        ate\",\"IamInstanceProfile\":{\"Arn\":\""
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet4SubnetD274F391
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":10}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                        subnet5":{"End":true,"Catch":[{"ErrorEquals":["Ec2.Ec2Exception","States.Timeout"],"ResultPath":"$.lastSubnetError","Next":"aws-deploy
+                        subnet6"}],"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet5Subnet9D29380E
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy',
+                        $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
+                        ate\",\"IamInstanceProfile\":{\"Arn\":\""
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet5Subnet9D29380E
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":10}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}},"aws-deploy
+                        subnet6":{"End":true,"Type":"Task","Comment":"'
+                      - Ref: VpcPublicSubnet6Subnet86A826C5
+                      - '","HeartbeatSeconds":600,"Resource":"arn:'
+                      - Ref: AWS::Partition
+                      - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
+                      - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
+                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                        $$.Task.Token, '"
+                      - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
+                      - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
+                        'aws-deploy',
+                        $.runner.registrationUrl))\",\"InstanceInitiatedShutdownBehavior\":\"termin\
+                        ate\",\"IamInstanceProfile\":{\"Arn\":\""
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
+                            - Arn
+                      - '"},"MetadataOptions":{"HttpTokens":"required"},"SecurityGroupIds":["'
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                      - '"],"SubnetId":"'
+                      - Ref: VpcPublicSubnet6Subnet86A826C5
+                      - '","BlockDeviceMappings":[{"DeviceName":"'
+                      - Ref: GithubRunnersDeployRunnerProviderAMIRootDeviceC38B17F4
+                      - '","Ebs":{"DeleteOnTermination":true,"VolumeSize":10}}],"InstanceMarketOptions":{"MarketType":"spot","SpotOptions":{"SpotInstanceType":"one-time"}},"TagSpecifications":[{"ResourceType":"instance","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]},{"ResourceType":"volume","Tags":[{"Key":"GitHubRunners:Provider","Value":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider"}]}]}}}}]},"Delete
                         Failed
                         Runner":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["RunnerBusy"],"IntervalSeconds":60,"MaxAttempts":60,"BackoffRate":1}],"Type":"Task","ResultPath":"$.delete","Resource":"'
                       - Fn::GetAtt:
@@ -2126,7 +2496,7 @@ Resources:
                         Ref: GithubRunnersSecretsGitHubC8776C73
                     GITHUB_PRIVATE_KEY_SECRET_ARN:
                         Ref: GithubRunnersSecretsGitHubPrivateKey8994DEBA
-                    SUPPORTED_LABELS: '[{"provider":"CyberworldsLifecycleStack/GithubRunners/RunnerProvider","labels":["aws-test"]}]'
+                    SUPPORTED_LABELS: '[{"provider":"CyberworldsLifecycleStack/GithubRunners/TestRunnerProvider","labels":["aws-test"]},{"provider":"CyberworldsLifecycleStack/GithubRunners/DeployRunnerProvider","labels":["aws-deploy"]}]'
                     REQUIRE_SELF_HOSTED_LABEL: "1"
                     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
             Handler: index.handler
@@ -2393,14 +2763,32 @@ Resources:
                       - aws-test
                   securityGroups:
                       - Fn::GetAtt:
-                            - GithubRunnersRunnerProviderSG4FF5FFE9
+                            - GithubRunnersTestRunnerProviderSGC459F644
                             - GroupId
                   roleArn:
                       Fn::GetAtt:
-                          - GithubRunnersRunnerProviderRoleE6CEDC54
+                          - GithubRunnersTestRunnerProviderRoleF5EA9289
                           - Arn
                   logGroup:
-                      Ref: GithubRunnersRunnerProviderLogsC6E42789
+                      Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
+                  ami:
+                      launchTemplate:
+                          Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
+                      amiBuilderLogGroup:
+                          Ref: GithubRunnersRunnerImageBuilderAmiLog77026DD3
+                - type: Ec2RunnerProvider
+                  labels:
+                      - aws-deploy
+                  securityGroups:
+                      - Fn::GetAtt:
+                            - GithubRunnersDeployRunnerProviderSGE1E32AF5
+                            - GroupId
+                  roleArn:
+                      Fn::GetAtt:
+                          - GithubRunnersDeployRunnerProviderRole28792878
+                          - Arn
+                  logGroup:
+                      Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                   ami:
                       launchTemplate:
                           Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
