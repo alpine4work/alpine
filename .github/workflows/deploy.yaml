@@ -72,7 +72,7 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
                       --action=Cleanup \
-                      --status=${{ job.status == "success" && "Success" || "Failure" }} \
+                      --status=${{ job.status == 'success' && 'Success' || 'Failure' }} \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
                       --opensearchHost "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
