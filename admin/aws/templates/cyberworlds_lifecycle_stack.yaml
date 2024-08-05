@@ -2288,11 +2288,12 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                        'aws-deploy', $.runner.registrationUrl,
+                        '{\\\\\\\"opensearchHost\\\\\\\":\\\\\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
+                      - \\\",\\\"jobQueueUrl\\\":\\\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \\\",\\\"edgeServiceUrl\\\":\\\"https://cyberworlds.dev\\\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2317,11 +2318,12 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                        'aws-deploy', $.runner.registrationUrl,
+                        '{\\\\\\\"opensearchHost\\\\\\\":\\\\\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
+                      - \\\",\\\"jobQueueUrl\\\":\\\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \\\",\\\"edgeServiceUrl\\\":\\\"https://cyberworlds.dev\\\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2346,11 +2348,12 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                        'aws-deploy', $.runner.registrationUrl,
+                        '{\\\\\\\"opensearchHost\\\\\\\":\\\\\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
+                      - \\\",\\\"jobQueueUrl\\\":\\\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \\\",\\\"edgeServiceUrl\\\":\\\"https://cyberworlds.dev\\\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2375,11 +2378,12 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                        'aws-deploy', $.runner.registrationUrl,
+                        '{\\\\\\\"opensearchHost\\\\\\\":\\\\\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
+                      - \\\",\\\"jobQueueUrl\\\":\\\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \\\",\\\"edgeServiceUrl\\\":\\\"https://cyberworlds.dev\\\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2404,11 +2408,12 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                        'aws-deploy', $.runner.registrationUrl,
+                        '{\\\\\\\"opensearchHost\\\\\\\":\\\\\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
+                      - \\\",\\\"jobQueueUrl\\\":\\\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \\\",\\\"edgeServiceUrl\\\":\\\"https://cyberworlds.dev\\\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2432,11 +2437,12 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                        'aws-deploy', $.runner.registrationUrl,
+                        '{\\\\\\\"opensearchHost\\\\\\\":\\\\\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
+                      - \\\",\\\"jobQueueUrl\\\":\\\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \\\",\\\"edgeServiceUrl\\\":\\\"https://cyberworlds.dev\\\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn

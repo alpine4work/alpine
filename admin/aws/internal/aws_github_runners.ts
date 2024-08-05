@@ -266,11 +266,11 @@ export class AwsGithubRunners extends Construct {
             // environment variable. We add this option to
             // `@cloudsnorkel/cdk-github-runners` through a patch.
             userDataExtra: Fn.join("", [
-                '{"opensearchHost":"',
+                '{\\"opensearchHost\\":\\"',
                 opensearchHost,
-                '","jobQueueUrl":"',
+                '\\",\\"jobQueueUrl\\":\\"',
                 jobQueueUrl,
-                '","edgeServiceUrl":"https://cyberworlds.dev"}',
+                '\\",\\"edgeServiceUrl\\":\\"https://cyberworlds.dev\\"}',
             ]),
         });
 
