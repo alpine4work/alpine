@@ -2041,18 +2041,17 @@ Resources:
                         \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
                         _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
                         \\\"$runnerNamePath\\\" || exit 1\\n\\n  # Execute the run command\\n  sudo
-                        --preserve-env=AWS_REGION --preserve-env=USER_DATA_EXTRA -Hu runner
-                        /home/runner/run.sh || exit 2\\n\\n  # Retrieve the status\\n  STATUS=$(grep
-                        -Phors \\\"finish job request for job [0-9a-f\\\\-]+ with result: K.*\\\"
-                        /home/runner/_diag/ | tail -n1)\\n\\n  # Check and print the job
-                        status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB DONE \\\"$labels\\\"
-                        \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs && action | tee
-                        /var/log/runner.log 2>&1; then\\n  aws stepfunctions send-task-success
-                        --task-token \\\"$TASK_TOKEN\\\" --task-output '\\\\{\\\"ok\\\":
-                        true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent its default 5
-                        seconds buffer duration to upload logs\\npoweroff\\n\"},\"Next\":\"aws-test
-                        subnet1\"},\"aws-test
+                        --preserve-env=AWS_REGION,USER_DATA_EXTRA -Hu runner /home/runner/run.sh ||
+                        exit 2\\n\\n  # Retrieve the status\\n  STATUS=$(grep -Phors \\\"finish job
+                        request for job [0-9a-f\\\\-]+ with result: K.*\\\" /home/runner/_diag/ |
+                        tail -n1)\\n\\n  # Check and print the job status\\n  [ -n \\\"$STATUS\\\" ]
+                        && echo CDKGHA JOB DONE \\\"$labels\\\" \\\"$STATUS\\\"\\n\\\\}\\nheartbeat
+                        &\\nif setup_logs && action | tee /var/log/runner.log 2>&1; then\\n  aws
+                        stepfunctions send-task-success --task-token \\\"$TASK_TOKEN\\\"
+                        --task-output '\\\\{\\\"ok\\\": true\\\\}'\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give
+                        cloudwatch agent its default 5 seconds buffer duration to upload
+                        logs\\npoweroff\\n\"},\"Next\":\"aws-test subnet1\"},\"aws-test
                         subnet1\":{\"End\":true,\"Catch\":[{\"ErrorEquals\":[\"Ec2.Ec2Exception\",\
                         \"States.Timeout\"],\"ResultPath\":\"$.lastSubnetError\",\"Next\":\"aws-test
                         subnet2\"}],\"Type\":\"Task\",\"Comment\":\""
@@ -2256,17 +2255,16 @@ Resources:
                         \\\"$registrationURL\\\" --token \\\"$runnerTokenPath\\\" --ephemeral --work
                         _work --labels \\\"$labelsTemplate\\\" $RUNNER_FLAGS --name
                         \\\"$runnerNamePath\\\" || exit 1\\n\\n  # Execute the run command\\n  sudo
-                        --preserve-env=AWS_REGION --preserve-env=USER_DATA_EXTRA -Hu runner
-                        /home/runner/run.sh || exit 2\\n\\n  # Retrieve the status\\n  STATUS=$(grep
-                        -Phors \\\"finish job request for job [0-9a-f\\\\-]+ with result: K.*\\\"
-                        /home/runner/_diag/ | tail -n1)\\n\\n  # Check and print the job
-                        status\\n  [ -n \\\"$STATUS\\\" ] && echo CDKGHA JOB DONE \\\"$labels\\\"
-                        \\\"$STATUS\\\"\\n\\\\}\\nheartbeat &\\nif setup_logs && action | tee
-                        /var/log/runner.log 2>&1; then\\n  aws stepfunctions send-task-success
-                        --task-token \\\"$TASK_TOKEN\\\" --task-output '\\\\{\\\"ok\\\":
-                        true\\\\}'\\nelse\\n  aws stepfunctions send-task-failure --task-token
-                        \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give cloudwatch agent its default 5
-                        seconds buffer duration to upload
+                        --preserve-env=AWS_REGION,USER_DATA_EXTRA -Hu runner /home/runner/run.sh ||
+                        exit 2\\n\\n  # Retrieve the status\\n  STATUS=$(grep -Phors \\\"finish job
+                        request for job [0-9a-f\\\\-]+ with result: K.*\\\" /home/runner/_diag/ |
+                        tail -n1)\\n\\n  # Check and print the job status\\n  [ -n \\\"$STATUS\\\" ]
+                        && echo CDKGHA JOB DONE \\\"$labels\\\" \\\"$STATUS\\\"\\n\\\\}\\nheartbeat
+                        &\\nif setup_logs && action | tee /var/log/runner.log 2>&1; then\\n  aws
+                        stepfunctions send-task-success --task-token \\\"$TASK_TOKEN\\\"
+                        --task-output '\\\\{\\\"ok\\\": true\\\\}'\\nelse\\n  aws stepfunctions
+                        send-task-failure --task-token \\\"$TASK_TOKEN\\\"\\nfi\\nsleep 10  # give
+                        cloudwatch agent its default 5 seconds buffer duration to upload
                         logs\\npoweroff\\n\"},\"Next\":\"aws-deploy subnet1\"},\"aws-deploy
                         subnet1\":{\"End\":true,\"Catch\":[{\"ErrorEquals\":[\"Ec2.Ec2Exception\",\
                         \"States.Timeout\"],\"ResultPath\":\"$.lastSubnetError\",\"Next\":\"aws-dep\
