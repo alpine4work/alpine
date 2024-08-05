@@ -64,6 +64,6 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
                       --action=Cleanup \
-                      --status=${{ success() && "Success" || "Failure" }} \
+                      --status=${{ job.status == "success" && "Success" || "Failure" }} \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }}
