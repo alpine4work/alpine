@@ -3768,20 +3768,55 @@ Resources:
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            Analytics: v2:deflate64:H4sIAAAAAAAA/31UTW/bMAz9LburWpftsqObfiBAgWVO0WvByIyjRpY8UUoRGP7vo+XPpcAu1uMTSYlPpFfy24+f8vYLfNCNKk43Ru9lswugToKptwbVSjavtRLrg33drsU27o1Wu7i3GDpuRrmLAV9gb3DmZy4jckpD0M5OzmLr9RkCzjk2NqBn/MTsB1yGQwcrC3ytY4U2iB2q6HW4PHkX63Tcf4mNLT0SfeIfEt0KVCSbtYnEp3dOn+EaalActvXurAv0i3JIZFRe76fQa+5BrV6ATvd40FaPSlwzzgbQFv2C47gd+rNWvbIDfARfQqfuMr4VrkZLCF4dqXeUzb2rOGUX26NWGFdyxc+unPSaMIMcA4ucshmo9gVwR2hbGgzOPkar0qUmwMEjboWGSjZbxy2SHm9AueubYlw3lgJYhazMQRtsBX1/AyIMJLNuYVs2d1GdMNwBoehhFzmgfpnPWdqc7Q8X9ztiTIf1IH3ngIXJz3/mcjkkj8M1Y3en4mKhcgWPw9TUCbQCYnCkwLAmssnY2PXGLCawIEd+yoMuo5+a/tq1azw/Fv4Cfg/GbCoosReBN2WOtSMdnL8kIdAABa2Mg4KdWUJOdeYBzeqaS0kHPfPeXdrru/Afe+mnua/t4DPixT7fp+RBHEtamK3gVEEfOkeswPKFPY/PzKXmn822FTmSi56bVvE0uerNDzaLnn3QOpGTzzgvrbja6J5mxEki/k+VrEDqNPBQ4TC0v2KoY2iFdQXKd/p6Xt3K7if3Tlrf+Mi9XaHM+/UvUyC8YAEFAAA=
+            Analytics: v2:deflate64:H4sIAAAAAAAA/31UyW7bMBD9lt4ZNnV76VFxFhgIUFcOcg3G1FhmTJEqh3RgCPr3jqi1DtCL+GYjOY9vtJLffvyUt1/gg25Ucboxei+bXQB1Eux6a1CtZPNaK7E+2NftWmzj3mi1i3uLofPNKHcx4AvsDc7+2ZcROaUhaGenZLH1+gwB5z02NqBn/MTeD7gMhw5WFvhaxwptEDtU0etwefIu1um4/zo2tvRI9Mn/kNytQEWyWZtIfHqX9BmuoQbFZVvvzrpAv2iHREbldTyVXvse1OoF6HSPB231yMS1x9kA2qJf+Lhuh/6sVc/sAB/Bl9Cxu6xvhavREoJXR+oTZXPvKt6yq+1RK4wrueNnV058TZhBjoFJTrsZqPYFsCK0LQ0GZx+jVelSE+DiEbdCQyWbrWOJpMcbUO56UYzrxlIAq5CZOWiDraDvb0CEgWTWLWzL5i6qE4Y7IBQ97CoH1C/zOUubd/vDzf2OGNNhPUjfuWBh8vOfuV0uyeNwzdjdqbhYqFzB4zCJOoFWQAyOFBjmRDYZG7vemMkEJuTIT3nQZfST6K9TO+H5sfEX8HswZlNBiT0JHJQ51o50cP6SiEADFLQyDgpOZgp5qzMPaFbX3Eo66JljdynWq/Afe5mnWdd2yBnxIs73KXkQx5YWZit4q6APXSJWYPnCnsdn9iXxz2bbihzJRd/r91cMdQxC8Vy56s0PEaY/+6B1ck7Z4+S04irQPdKIE1n8xyqZi6Q58FCxgrnKugLlO309r25l95N7J61vfGRtVyjzfv0LfdxebgEFAAA=
         Metadata:
             aws:cdk:path: CyberworldsStack/CDKMetadata/Default
-Parameters:
-    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
-        Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-        Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
-    BootstrapVersion:
-        Type: AWS::SSM::Parameter::Value<String>
-        Default: /cdk-bootstrap/hnb659fds/version
-        Description:
-            Version of the CDK Bootstrap resources in this environment, automatically retrieved
-            from SSM Parameter Store. [cdk:skip]
 Outputs:
+    VpcIdExport4F2BE699:
+        Value:
+            Ref: Vpc8378EB38
+        Export:
+            Name: CyberworldsStack:VpcId
+    VpcPublicSubnet1IdExport94383A24:
+        Value:
+            Ref: VpcPublicSubnet1Subnet5C2D37C4
+        Export:
+            Name: CyberworldsStack:VpcPublicSubnet1Id
+    VpcPublicSubnet1RouteTableIdExport63FC6C06:
+        Value:
+            Ref: VpcPublicSubnet1RouteTable6C95E38E
+        Export:
+            Name: CyberworldsStack:VpcPublicSubnet1RouteTableId
+    VpcPublicSubnet2IdExportA8437F6F:
+        Value:
+            Ref: VpcPublicSubnet2Subnet691E08A3
+        Export:
+            Name: CyberworldsStack:VpcPublicSubnet2Id
+    VpcPublicSubnet2RouteTableIdExport681B5ED4:
+        Value:
+            Ref: VpcPublicSubnet2RouteTable94F7E489
+        Export:
+            Name: CyberworldsStack:VpcPublicSubnet2RouteTableId
+    VpcIsolatedSubnet1IdExport7105EE1B:
+        Value:
+            Ref: VpcIsolatedSubnet1SubnetE48C5737
+        Export:
+            Name: CyberworldsStack:VpcIsolatedSubnet1Id
+    VpcIsolatedSubnet1RouteTableIdExportA75509AD:
+        Value:
+            Ref: VpcIsolatedSubnet1RouteTable4771E3E5
+        Export:
+            Name: CyberworldsStack:VpcIsolatedSubnet1RouteTableId
+    VpcIsolatedSubnet2IdExportC6DA78E7:
+        Value:
+            Ref: VpcIsolatedSubnet2Subnet16364B91
+        Export:
+            Name: CyberworldsStack:VpcIsolatedSubnet2Id
+    VpcIsolatedSubnet2RouteTableIdExport2354D4D6:
+        Value:
+            Ref: VpcIsolatedSubnet2RouteTable1D30AF7D
+        Export:
+            Name: CyberworldsStack:VpcIsolatedSubnet2RouteTableId
     OpensearchHostExport:
         Value:
             Fn::GetAtt:
@@ -3794,51 +3829,23 @@ Outputs:
             Ref: SqsJobQueue62388F96
         Export:
             Name: CyberworldsStack:JobQueueUrl
-    VpcIdExport:
+    DeployTableArnExport:
         Value:
-            Ref: Vpc8378EB38
+            Fn::GetAtt:
+                - DeployTableF6562626
+                - Arn
         Export:
-            Name: CyberworldsStack:VpcId
-    VpcPublicSubnet1IdExport:
-        Value:
-            Ref: VpcPublicSubnet1Subnet5C2D37C4
-        Export:
-            Name: CyberworldsStack:VpcPublicSubnet1Id
-    VpcPublicSubnet1RouteTableIdExport:
-        Value:
-            Ref: VpcPublicSubnet1RouteTable6C95E38E
-        Export:
-            Name: CyberworldsStack:VpcPublicSubnet1RouteTableId
-    VpcPublicSubnet2IdExport:
-        Value:
-            Ref: VpcPublicSubnet2Subnet691E08A3
-        Export:
-            Name: CyberworldsStack:VpcPublicSubnet2Id
-    VpcPublicSubnet2RouteTableIdExport:
-        Value:
-            Ref: VpcPublicSubnet2RouteTable94F7E489
-        Export:
-            Name: CyberworldsStack:VpcPublicSubnet2RouteTableId
-    VpcIsolatedSubnet1IdExport:
-        Value:
-            Ref: VpcIsolatedSubnet1SubnetE48C5737
-        Export:
-            Name: CyberworldsStack:VpcIsolatedSubnet1Id
-    VpcIsolatedSubnet1RouteTableIdExport:
-        Value:
-            Ref: VpcIsolatedSubnet1RouteTable4771E3E5
-        Export:
-            Name: CyberworldsStack:VpcIsolatedSubnet1RouteTableId
-    VpcIsolatedSubnet2IdExport:
-        Value:
-            Ref: VpcIsolatedSubnet2Subnet16364B91
-        Export:
-            Name: CyberworldsStack:VpcIsolatedSubnet2Id
-    VpcIsolatedSubnet2RouteTableIdExport:
-        Value:
-            Ref: VpcIsolatedSubnet2RouteTable1D30AF7D
-        Export:
-            Name: CyberworldsStack:VpcIsolatedSubnet2RouteTableId
+            Name: CyberworldsStack:DeployTableArn
+Parameters:
+    SsmParameterValueawsserviceecsoptimizedamiamazonlinux2recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+        Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+        Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
+    BootstrapVersion:
+        Type: AWS::SSM::Parameter::Value<String>
+        Default: /cdk-bootstrap/hnb659fds/version
+        Description:
+            Version of the CDK Bootstrap resources in this environment, automatically retrieved
+            from SSM Parameter Store. [cdk:skip]
 Rules:
     CheckBootstrapVersion:
         Assertions:

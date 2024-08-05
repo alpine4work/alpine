@@ -8,6 +8,7 @@ import {
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
 import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
+import {ITable} from "aws-cdk-lib/aws-dynamodb";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {ManagedPolicy, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
@@ -21,10 +22,12 @@ export class AwsGithubRunners extends Construct {
             vpc,
             opensearchHost,
             jobQueueUrl,
+            deployTable,
         }: {
             vpc: IVpc;
             opensearchHost: string;
             jobQueueUrl: string;
+            deployTable: ITable;
         },
     ) {
         super(parentScope, "GithubRunners");
@@ -279,6 +282,9 @@ export class AwsGithubRunners extends Construct {
 
         // Allow reading/writing to Bazel remote cache bucket.
         bucket.grantReadWrite(deployRunnerProvider);
+
+        // Allow reading/writing to the deploy DynamoDB table.
+        deployTable.grantReadWriteData(deployRunnerProvider);
 
         // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
         // the following deprecation warning:

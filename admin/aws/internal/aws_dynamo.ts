@@ -1,20 +1,26 @@
-import {Stack} from "aws-cdk-lib";
+import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
 import {AttributeType, BillingMode, ProjectionType, Table} from "aws-cdk-lib/aws-dynamodb";
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {getAllDynamoTableSchemas} from "~/admin/dynamo/get_all_dynamo_table_schemas.js";
 import {DynamoClientAction} from "~/server/dynamo/core/dynamo_client_action.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
 export class AwsDynamo {
-    private readonly _tables: ReadonlyArray<Table>;
+    private readonly stack: Stack;
+    private readonly _tables: ReadonlyArray<{readonly tableName: string; readonly table: Table}>;
 
-    constructor(tables: ReadonlyArray<Table>) {
+    constructor(
+        stack: Stack,
+        tables: ReadonlyArray<{readonly tableName: string; readonly table: Table}>,
+    ) {
+        this.stack = stack;
         this._tables = tables;
     }
 
     public static async new(parentScope: Stack) {
-        const tables: Array<Table> = [];
+        const tables: Array<{readonly tableName: string; readonly table: Table}> = [];
 
         for (const tableSchema of await getAllDynamoTableSchemas()) {
             const tableName = tableSchema.getName();
@@ -53,7 +59,7 @@ export class AwsDynamo {
                 billingMode: BillingMode.PAY_PER_REQUEST,
             });
 
-            tables.push(table);
+            tables.push({tableName, table});
 
             for (const [i, indexDescription] of tableDescription.indexes.entries()) {
                 const indexNumber = i + 1;
@@ -79,7 +85,7 @@ export class AwsDynamo {
             }
         }
 
-        return new AwsDynamo(tables);
+        return new AwsDynamo(parentScope, tables);
     }
 
     /**
@@ -118,7 +124,7 @@ export class AwsDynamo {
             ([action, isAllowed]) => (isAllowed ? action : null),
         );
 
-        for (const table of this._tables) {
+        for (const {table} of this._tables) {
             grantee.grantPrincipal.addToPrincipalPolicy(
                 new PolicyStatement({
                     resources: [table.tableArn, `${table.tableArn}/index/*`],
@@ -131,5 +137,23 @@ export class AwsDynamo {
                 }),
             );
         }
+    }
+
+    public export(tableName: string) {
+        const {table} = assertExists(
+            this._tables.find(({tableName: otherTableName}) => otherTableName === tableName),
+        );
+
+        new CfnOutput(this.stack, `${tableName}TableArnExport`, {
+            value: table.tableArn,
+            exportName: `${this.stack.stackName}:${tableName}TableArn`,
+        });
+
+        return (importStack: Stack) =>
+            Table.fromTableArn(
+                importStack,
+                `${tableName}TableImport`,
+                Fn.importValue(`${this.stack.stackName}:${tableName}TableArn`),
+            );
     }
 }
