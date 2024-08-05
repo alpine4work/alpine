@@ -262,6 +262,9 @@ export class AwsGithubRunners extends Construct {
 
             imageBuilder,
 
+            // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
+            // environment variable. We add this option to
+            // `@cloudsnorkel/cdk-github-runners` through a patch.
             userDataExtra: Fn.join("", [
                 '{"opensearchHost":"',
                 opensearchHost,

@@ -2034,12 +2034,11 @@ Resources:
                         -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
                         \\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\\\"{}\
                         \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationURL=\\\
-                        \"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\n\\nheartbeat () \\\\{\\n  while true; do\\n    aws
-                        stepfunctions send-task-heartbeat --task-token
-                        \\\"$TASK_TOKEN\\\"\\n    sleep 60\\n  done\\n\\\\}\\nsetup_logs ()
-                        \\\\{\\n  cat <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        \"{}\\\"\\nexport USER_DATA_EXTRA=\\\"{}\\\"\\n\\nheartbeat ()
+                        \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
+                        --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
+                        60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  cat <<EOF > /tmp/log.conf ||
+                        exit 1\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -2082,9 +2081,8 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-test', $.runner.registrationUrl, '"
-                      - Fn::Base64: ""
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
+                        'aws-test', $.runner.registrationUrl,
+                        ''))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
                         file\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
@@ -2110,9 +2108,8 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-test', $.runner.registrationUrl, '"
-                      - Fn::Base64: ""
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
+                        'aws-test', $.runner.registrationUrl,
+                        ''))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
                         file\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
@@ -2138,9 +2135,8 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-test', $.runner.registrationUrl, '"
-                      - Fn::Base64: ""
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
+                        'aws-test', $.runner.registrationUrl,
+                        ''))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
                         file\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
@@ -2166,9 +2162,8 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-test', $.runner.registrationUrl, '"
-                      - Fn::Base64: ""
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
+                        'aws-test', $.runner.registrationUrl,
+                        ''))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
                         file\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
@@ -2194,9 +2189,8 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-test', $.runner.registrationUrl, '"
-                      - Fn::Base64: ""
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
+                        'aws-test', $.runner.registrationUrl,
+                        ''))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
                         file\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
@@ -2221,9 +2215,8 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-test', $.runner.registrationUrl, '"
-                      - Fn::Base64: ""
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
+                        'aws-test', $.runner.registrationUrl,
+                        ''))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
                         file\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
@@ -2248,12 +2241,11 @@ Resources:
                         -x\\nTASK_TOKEN=\\\"{}\\\"\\nlogGroupName=\\\"{}\\\"\\nrunnerNamePath=\\\"{}\
                         \\\"\\ngithubDomainPath=\\\"{}\\\"\\nownerPath=\\\"{}\\\"\\nrepoPath=\\\"{}\
                         \\\"\\nrunnerTokenPath=\\\"{}\\\"\\nlabels=\\\"{}\\\"\\nregistrationURL=\\\
-                        \"{}\\\"\\nexport USER_DATA_EXTRA=\\\"$(echo \\\"{}\\\" | base64
-                        --decode)\\\"\\n\\nheartbeat () \\\\{\\n  while true; do\\n    aws
-                        stepfunctions send-task-heartbeat --task-token
-                        \\\"$TASK_TOKEN\\\"\\n    sleep 60\\n  done\\n\\\\}\\nsetup_logs ()
-                        \\\\{\\n  cat <<EOF > /tmp/log.conf || exit 1\\n  \\\\{\\n    \\\"logs\\\":
-                        \\\\{\\n      \\\"log_stream_name\\\":
+                        \"{}\\\"\\nexport USER_DATA_EXTRA=\\\"{}\\\"\\n\\nheartbeat ()
+                        \\\\{\\n  while true; do\\n    aws stepfunctions send-task-heartbeat
+                        --task-token \\\"$TASK_TOKEN\\\"\\n    sleep
+                        60\\n  done\\n\\\\}\\nsetup_logs () \\\\{\\n  cat <<EOF > /tmp/log.conf ||
+                        exit 1\\n  \\\\{\\n    \\\"logs\\\": \\\\{\\n      \\\"log_stream_name\\\":
                         \\\"unknown\\\",\\n      \\\"logs_collected\\\":
                         \\\\{\\n        \\\"files\\\": \\\\{\\n          \\\"collect_list\\\":
                         [\\n            \\\\{\\n              \\\"file_path\\\":
@@ -2296,17 +2288,11 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '"
-                      - Fn::Base64:
-                            Fn::Join:
-                                - ""
-                                - - '{\"opensearchHost\":\"'
-                                  - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                                  - \",\"jobQueueUrl\":\"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                                  - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
-                        file\":{\"Arn\":\""
+                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
+                      - \",\"jobQueueUrl\":\"
+                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2331,17 +2317,11 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '"
-                      - Fn::Base64:
-                            Fn::Join:
-                                - ""
-                                - - '{\"opensearchHost\":\"'
-                                  - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                                  - \",\"jobQueueUrl\":\"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                                  - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
-                        file\":{\"Arn\":\""
+                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
+                      - \",\"jobQueueUrl\":\"
+                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2366,17 +2346,11 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '"
-                      - Fn::Base64:
-                            Fn::Join:
-                                - ""
-                                - - '{\"opensearchHost\":\"'
-                                  - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                                  - \",\"jobQueueUrl\":\"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                                  - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
-                        file\":{\"Arn\":\""
+                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
+                      - \",\"jobQueueUrl\":\"
+                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2401,17 +2375,11 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '"
-                      - Fn::Base64:
-                            Fn::Join:
-                                - ""
-                                - - '{\"opensearchHost\":\"'
-                                  - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                                  - \",\"jobQueueUrl\":\"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                                  - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
-                        file\":{\"Arn\":\""
+                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
+                      - \",\"jobQueueUrl\":\"
+                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2436,17 +2404,11 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '"
-                      - Fn::Base64:
-                            Fn::Join:
-                                - ""
-                                - - '{\"opensearchHost\":\"'
-                                  - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                                  - \",\"jobQueueUrl\":\"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                                  - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
-                        file\":{\"Arn\":\""
+                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
+                      - \",\"jobQueueUrl\":\"
+                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2470,17 +2432,11 @@ Resources:
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
-                        'aws-deploy', $.runner.registrationUrl, '"
-                      - Fn::Base64:
-                            Fn::Join:
-                                - ""
-                                - - '{\"opensearchHost\":\"'
-                                  - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                                  - \",\"jobQueueUrl\":\"
-                                  - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                                  - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}
-                      - "'))\",\"InstanceInitiatedShutdownBehavior\":\"terminate\",\"IamInstancePro\
-                        file\":{\"Arn\":\""
+                        'aws-deploy', $.runner.registrationUrl, '{\\\"opensearchHost\\\":\\\""
+                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
+                      - \",\"jobQueueUrl\":\"
+                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn

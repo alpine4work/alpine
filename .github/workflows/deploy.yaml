@@ -64,9 +64,9 @@ jobs:
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
                       --honeycombApiKey=$HONEYCOMB_API_KEY \
-                      --opensearchHost "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
-                      --jobQueueUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
-                      --edgeServiceUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
+                      "--opensearchHost=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
+                      "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
+                      "--edgeServiceUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
 
             - if: ${{ !cancelled() }}
               name: Cleanup deploy
@@ -78,6 +78,6 @@ jobs:
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
                       --honeycombApiKey=$HONEYCOMB_API_KEY \
-                      --opensearchHost "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
-                      --jobQueueUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
-                      --edgeServiceUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
+                      "--opensearchHost=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
+                      "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
+                      "--edgeServiceUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
