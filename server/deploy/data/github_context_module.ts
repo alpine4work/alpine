@@ -1,12 +1,6 @@
 import {createActionAuth} from "@octokit/auth-action";
 import {request} from "@octokit/request";
-import type {
-    Endpoints,
-    OctokitResponse,
-    RequestParameters,
-    RequestRequestOptions,
-    Route,
-} from "@octokit/types";
+import type {Endpoints, RequestParameters, RequestRequestOptions} from "@octokit/types";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
