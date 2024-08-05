@@ -3782,6 +3782,18 @@ Parameters:
             Version of the CDK Bootstrap resources in this environment, automatically retrieved
             from SSM Parameter Store. [cdk:skip]
 Outputs:
+    OpensearchHostExport:
+        Value:
+            Fn::GetAtt:
+                - OpensearchDomainCED7C974
+                - DomainEndpoint
+        Export:
+            Name: CyberworldsStack:OpensearchHost
+    JobQueueUrlExport:
+        Value:
+            Ref: SqsJobQueue62388F96
+        Export:
+            Name: CyberworldsStack:JobQueueUrl
     VpcIdExport:
         Value:
             Ref: Vpc8378EB38

@@ -7,7 +7,7 @@ import {
     RunnerImageComponent,
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
-import {Duration, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
+import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {ManagedPolicy, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
@@ -15,7 +15,18 @@ import {Construct} from "constructs";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export class AwsGithubRunners extends Construct {
-    constructor(parentScope: Stack, {vpc}: {vpc: IVpc}) {
+    constructor(
+        parentScope: Stack,
+        {
+            vpc,
+            opensearchHost,
+            jobQueueUrl,
+        }: {
+            vpc: IVpc;
+            opensearchHost: string;
+            jobQueueUrl: string;
+        },
+    ) {
         super(parentScope, "GithubRunners");
 
         const bucket = new Bucket(this, "BazelRemoteBucket", {
@@ -247,6 +258,14 @@ export class AwsGithubRunners extends Construct {
             spot: true,
 
             imageBuilder,
+
+            userDataExtra: Fn.join("", [
+                '{"opensearchHost":"',
+                opensearchHost,
+                '","jobQueueUrl":"',
+                jobQueueUrl,
+                '","edgeServiceUrl":"https://cyberworlds.dev"}',
+            ]),
         });
 
         const deployRunnerProviderRole: unknown = (deployRunnerProvider as any).role;

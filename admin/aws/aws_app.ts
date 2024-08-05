@@ -19,7 +19,7 @@ export async function createAwsApp() {
     const app = new App({autoSynth: false});
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    await addAwsResources(stack);
+    const {importOpensearchHost, importJobQueueUrl} = await addAwsResources(stack);
 
     // Resources related to continuous integration and continuous deployment live in
     // this stack. The term "lifecycle" is from the industry term
@@ -27,7 +27,7 @@ export async function createAwsApp() {
     const lifecycleStack = new Stack(app, "CyberworldsLifecycleStack", {
         env: {region: "us-east-1"},
     });
-    addAwsLifecycleResources(lifecycleStack);
+    addAwsLifecycleResources(lifecycleStack, {importOpensearchHost, importJobQueueUrl});
 
     return app;
 }
@@ -76,7 +76,22 @@ async function addAwsResources(stack: Stack) {
         sqs,
     });
 
-    return {importVpc: exportVpc(stack, vpc)};
+    new CfnOutput(stack, "OpensearchHostExport", {
+        value: opensearch.opensearchHost,
+        exportName: `${stack.stackName}:OpensearchHost`,
+    });
+
+    new CfnOutput(stack, "JobQueueUrlExport", {
+        value: sqs.getJobQueueUrl(),
+        exportName: `${stack.stackName}:JobQueueUrl`,
+    });
+
+    return {
+        importVpc: exportVpc(stack, vpc),
+        importOpensearchHost: (importStack: Stack) =>
+            Fn.importValue(`${stack.stackName}:OpensearchHost`),
+        importJobQueueUrl: (importStack: Stack) => Fn.importValue(`${stack.stackName}:JobQueueUrl`),
+    };
 }
 
 /**
@@ -186,7 +201,19 @@ function exportVpc(exportStack: Stack, vpc: IVpc) {
     };
 }
 
-function addAwsLifecycleResources(stack: Stack) {
+function addAwsLifecycleResources(
+    stack: Stack,
+    {
+        importOpensearchHost,
+        importJobQueueUrl,
+    }: {
+        importOpensearchHost: (stack: Stack) => string;
+        importJobQueueUrl: (stack: Stack) => string;
+    },
+) {
+    const opensearchHost = importOpensearchHost(stack);
+    const jobQueueUrl = importJobQueueUrl(stack);
+
     // Create our own VPC for lifecycle resources. Right now, we put most resources
     // in public subnets anyway so this doesn't add too much security. What this
     // does that's really useful is allows us to launch GitHub runner instances in
@@ -205,5 +232,5 @@ function addAwsLifecycleResources(stack: Stack) {
         subnetConfiguration: [{subnetType: SubnetType.PUBLIC, name: "Public"}],
     });
 
-    new AwsGithubRunners(stack, {vpc});
+    new AwsGithubRunners(stack, {vpc, opensearchHost, jobQueueUrl});
 }

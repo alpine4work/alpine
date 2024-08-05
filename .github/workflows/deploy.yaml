@@ -10,6 +10,11 @@ jobs:
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
+            # TODO(calebmer, #deploy): Remove debug
+            - name: Debug user data
+              shell: bash
+              run: echo $USER_DATA_EXTRA
+
             - name: Checkout repo
               uses: actions/checkout@v3
 
@@ -56,7 +61,10 @@ jobs:
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
                       --action=Prepare \
                       --commitSha=$GITHUB_SHA \
-                      --workflowRunId=${{ github.run_id }}
+                      --workflowRunId=${{ github.run_id }} \
+                      --opensearchHost "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
+                      --jobQueueUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
+                      --edgeServiceUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
 
             - if: ${{ !cancelled() }}
               name: Cleanup deploy
@@ -66,4 +74,7 @@ jobs:
                       --action=Cleanup \
                       --status=${{ job.status == "success" && "Success" || "Failure" }} \
                       --commitSha=$GITHUB_SHA \
-                      --workflowRunId=${{ github.run_id }}
+                      --workflowRunId=${{ github.run_id }} \
+                      --opensearchHost "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
+                      --jobQueueUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
+                      --edgeServiceUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
