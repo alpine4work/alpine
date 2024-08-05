@@ -89,7 +89,7 @@ export class AwsGithubRunners extends Construct {
             //
             // [1]: https://aws.amazon.com/ec2/pricing/on-demand
             // [2]: https://aws.amazon.com/ec2/spot/pricing
-            spot: true,
+            spot: false,
 
             imageBuilder: Ec2RunnerProvider.imageBuilder(this, "RunnerImageBuilder", {
                 vpc,
