@@ -9,6 +9,7 @@ jobs:
         runs-on: [self-hosted, aws-deploy]
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            HONEYCOMB_API_KEY: ${{ secrets.DEPLOY_HONEYCOMB_API_KEY }}
         steps:
             # TODO(calebmer, #deploy): Remove debug
             - name: Debug user data
@@ -62,6 +63,7 @@ jobs:
                       --action=Prepare \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
+                      --honeycombApiKey=$HONEYCOMB_API_KEY \
                       --opensearchHost "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
                       --jobQueueUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
                       --edgeServiceUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
@@ -75,6 +77,7 @@ jobs:
                       --status=${{ job.status == 'success' && 'Success' || 'Failure' }} \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
+                      --honeycombApiKey=$HONEYCOMB_API_KEY \
                       --opensearchHost "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
                       --jobQueueUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
                       --edgeServiceUrl "$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
