@@ -251,7 +251,7 @@ export class AwsGithubRunners extends Construct {
             labels: ["aws-deploy"],
 
             instanceType: deployInstanceType,
-            storageSize: Size.gibibytes(10),
+            storageSize: Size.gibibytes(30),
 
             // Use spot instances to save money. It's ok if test runs are interrupted. We
             // can retry processing the test job.
