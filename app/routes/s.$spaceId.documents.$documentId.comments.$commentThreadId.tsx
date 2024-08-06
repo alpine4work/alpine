@@ -208,6 +208,7 @@ export default function DocumentCommentThreadRoute({
         return (
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
+                withMobileLayout={withMobileLayout}
                 maxWidth={documentCommentThreadListViewMaxWidth}
                 borderBottom="grey-10"
             >

@@ -35,6 +35,7 @@ import {
     getTaskNotesContent,
     getTaskNotesContentAndInitialComments,
     getTaskNotesContentWithoutReferences,
+    getTaskOwner,
     updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
@@ -19479,4 +19480,66 @@ test("throws error for users that only have view access when trying to get task 
             newCommentLimit: 100,
         }),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("throws error for users without proper access trying to get the Task Owner", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+
+    const [
+        unauthorizedSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        manageSession,
+        creatorSession,
+        assigneeSession,
+    ] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const task = await TestTask.create(creatorSession);
+
+    const collection = await TestTaskCollection.createPublic(creatorSession);
+    await task.addCollection(creatorSession, collection);
+
+    await collection.updateAccessPolicy(creatorSession, {
+        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+            [creatorSession.account.id, {level: "Manage"}],
+            [manageSession.account.id, {level: "Manage"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [assigneeSession.account.id, {level: "Edit"}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+    });
+
+    await expect(getTaskOwner(creatorSession.action(), task.id)).resolves.not.toBeNull();
+
+    await expect(getTaskOwner(manageSession.action(), task.id)).resolves.not.toBeNull();
+
+    await expect(getTaskOwner(editorSession.action(), task.id)).resolves.not.toBeNull();
+
+    await expect(getTaskOwner(assigneeSession.action(), task.id)).resolves.not.toBeNull();
+
+    await expect(getTaskOwner(commenterSession.action(), task.id)).resolves.not.toBeNull();
+
+    await expect(getTaskOwner(viewerSession.action(), task.id)).resolves.not.toBeNull();
+
+    await expect(getTaskOwner(unauthorizedSession.action(), task.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(getTaskOwner(space.systemAction(), task.id)).resolves.not.toBeNull();
+
+    await expect(getTaskOwner(otherSpace.systemAction(), task.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
 });

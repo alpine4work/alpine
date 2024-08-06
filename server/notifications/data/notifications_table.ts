@@ -41,6 +41,7 @@ import {
     NotificationCreateDocumentCommentEvent,
     NotificationCreatePostCommentEvent,
     NotificationCreatePostEvent,
+    NotificationCreateTaskCommentEvent,
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
 import {
@@ -51,6 +52,7 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
+import {getTaskNotificationSubscribers, getTaskOwner} from "~/server/tasks/data/task_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
     isTextEndedWithPunctuation,
@@ -100,6 +102,7 @@ import {
     NotificationEventId,
     PostId,
     SpaceId,
+    TaskId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
@@ -112,6 +115,7 @@ import {
     InboxItemModelSchema,
     InboxModel,
     InboxPostCommentsEntryModel,
+    InboxTaskEntryModel,
     getInboxEntryKeyPath,
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
@@ -574,6 +578,46 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         latestCommentThreadCreatedTime: Schema.date,
                     }),
                 },
+                {
+                    name: "TaskEntry",
+                    sortKeyAttributes: {
+                        taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+                    },
+                    attributes: Schema.object({
+                        /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
+                        isArchived: Schema.boolean,
+                        /** See the documentation on `generation` in `InboxEntriesIndex`. */
+                        generation: Schema.integer.min(initialInboxGeneration),
+                        /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
+                        enteredTime: Schema.date,
+                        /** See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item. */
+                        loudNotificationCount: Schema.integer.min(0),
+
+                        /**
+                         * The last comment on the task. Will be used to render a preview of the task
+                         * on the entry before the user clicks in.
+                         *
+                         * `isStickyMention` means the comment contains a mention and we want to keep
+                         * it as the `latestComment` until there's either a new mention or this inbox
+                         * entry is archived.
+                         */
+                        latestComment: Schema.object({
+                            index: Schema.integer,
+                            authorId: Schema.id<AccountId>(),
+                            createdTime: Schema.date,
+                            contentSnippet: MessageContentSchema,
+                            isStickyMention: Schema.boolean,
+                        }),
+
+                        /**
+                         * A second commenting account which we'll show on the inbox entry to imply a
+                         * conversation between multiple users. We compute this as the account which
+                         * commented before `latestComment`. Will never be the same account as the
+                         * `latestComment`'s author.
+                         */
+                        otherCommentAuthorId: Schema.id<AccountId>().nullable().default(null),
+                    }),
+                },
             ],
         },
     ],
@@ -845,6 +889,47 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     });
                 },
             },
+
+            // The Task owner object is either the assignee or creator of the task. Since
+            // tasks can be reassigned the "owner" of the task can constantly change over time.
+            TaskEntry: {
+                async build(context, item) {
+                    const [taskOwner, latestComment, otherCommentAuthor] = await runAllPromises([
+                        getTaskOwner(context, item.taskId),
+                        runAllObjectPromises({
+                            comment: item.latestComment,
+                            author: getAccount(context, item.spaceId, item.latestComment.authorId),
+                            references: getContentReferencesForNode(
+                                context,
+                                item.spaceId,
+                                item.latestComment.contentSnippet,
+                            ),
+                        }),
+                        item.otherCommentAuthorId
+                            ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                            : null,
+                    ]);
+
+                    return new InboxTaskEntryModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
+                        taskId: item.taskId,
+                        taskOwner,
+                        loudNotificationCount: item.loudNotificationCount,
+                        isArchived: item.isArchived,
+                        latestComment: {
+                            author: latestComment.author,
+                            createdTime: latestComment.comment.createdTime,
+                            contentTextSnippet: printContentSingleLineTextSnippet({
+                                doc: latestComment.comment.contentSnippet,
+                                references: latestComment.references,
+                            }),
+                            isStickyMention: latestComment.comment.isStickyMention,
+                        },
+                        otherCommentAuthor,
+                    });
+                },
+            },
         },
     },
     sendEventTransaction: async (context, readTime, eventTransaction) => {
@@ -899,6 +984,7 @@ const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "ChannelPostsEntry"},
     {partitionType: "Inbox", sortRangeType: "DocumentCommentThreadEntry"},
     {partitionType: "Inbox", sortRangeType: "DocumentNewCommentThreadsEntry"},
+    {partitionType: "Inbox", sortRangeType: "TaskEntry"},
 ] as const;
 
 type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
@@ -1393,6 +1479,15 @@ function getInboxEntryItemKey({
                 bucketGeneration: key.bucketGeneration,
             };
         }
+        case "Task": {
+            return {
+                partitionType: "Inbox",
+                sortRangeType: "TaskEntry",
+                spaceId,
+                accountId,
+                taskId: key.taskId,
+            };
+        }
         default:
             throw exhaustive(key);
     }
@@ -1431,6 +1526,12 @@ function getInboxEntryKey(itemKey: InboxEntryItemKey): InboxEntryKey {
                 type: "DocumentNewCommentThreads",
                 documentId: itemKey.documentId,
                 bucketGeneration: itemKey.bucketGeneration,
+            };
+        }
+        case "TaskEntry": {
+            return {
+                type: "Task",
+                taskId: itemKey.taskId,
             };
         }
         default:
@@ -1693,6 +1794,8 @@ function actuallyProcessNotificationEvent(
             return processNotificationCreatePostEvent(context, event, span);
         case "CreateDocumentComment":
             return processNotificationCreateDocumentCommentEvent(context, event, span);
+        case "CreateTaskComment":
+            return processNotificationCreateTaskCommentEvent(context, event, span);
         default:
             throw exhaustive(event);
     }
@@ -2091,6 +2194,8 @@ function getApnsNotificationThreadId(item: InboxEntryItem): string | undefined {
             return `${item.documentId}-${item.commentThreadId}`;
         case "DocumentNewCommentThreadsEntry":
             return `${item.documentId}-${item.bucketGeneration}`;
+        case "TaskEntry":
+            return item.taskId;
         default:
             throw exhaustive(item);
     }
@@ -2123,6 +2228,7 @@ function isInboxEntryItemKeyConstructionFromNotificationEventIdempotent(
     switch (sortRangeType) {
         case "ChatEntry":
         case "PostCommentsEntry":
+        case "TaskEntry":
         case "DocumentCommentThreadEntry":
             return true;
         case "ChannelPostsEntry":
@@ -2411,6 +2517,8 @@ function getInboxEntryLatestUpdateTime(
             return entryItem.latestComment.createdTime;
         case "DocumentNewCommentThreadsEntry":
             return entryItem.latestCommentThreadCreatedTime;
+        case "TaskEntry":
+            return entryItem.latestComment.createdTime;
         default:
             throw exhaustive(entryItem);
     }
@@ -3168,6 +3276,148 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             default:
                 throw exhaustive(entryItem);
         }
+
+        return {title: author.initialData.name, subtitle, body};
+    },
+});
+
+const processNotificationCreateTaskCommentEvent = createNotificationEventProcessor<
+    NotificationCreateTaskCommentEvent,
+    {}
+>({
+    getSubscribers: async (context, event) => {
+        const {accountIds} = await getTaskNotificationSubscribers(context, event.taskId, {
+            consistency: "Strong",
+        });
+        return {
+            info: {},
+            accountIds,
+        };
+    },
+    updateInboxEntry: (context, event, {info: {}, accountId}) => {
+        return updateInboxEntry(
+            context,
+            event,
+            accountId,
+            {
+                partitionType: "Inbox",
+                sortRangeType: "TaskEntry",
+                spaceId: event.spaceId,
+                accountId,
+                taskId: event.taskId,
+            },
+            oldItem => {
+                // When the user comments on a task we archive the corresponding inbox entry. Or
+                // if the entry is already archived, we keep it archived. By sending a comment
+                // the user implicitly marks their entry as done.
+                //
+                // If the events were received out-of-order we keep the last archive state
+                // of the entry.
+                const isArchived =
+                    !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
+                        ? accountId === event.authorId
+                        : oldItem.isArchived;
+
+                let isMention;
+                let loudNotificationCount;
+                if (isArchived) {
+                    isMention = false;
+                    loudNotificationCount = 0;
+                } else {
+                    isMention = event.mentionedAccountIds.has(accountId);
+
+                    // We increment the loud notification count only if someone is explicitly
+                    // trying to get your attention by mentioning your account. Otherwise, we
+                    // expect users will respond to new post comments in their own time.
+                    const shouldIncrementLoudNotificationCount = isMention;
+
+                    loudNotificationCount =
+                        (oldItem?.loudNotificationCount ?? 0) +
+                        (shouldIncrementLoudNotificationCount ? 1 : 0);
+                }
+
+                let latestComment: {
+                    index: number;
+                    authorId: AccountId;
+                    createdTime: Date;
+                    contentSnippet: MessageContent;
+                    isStickyMention: boolean;
+                };
+                let otherCommentAuthorId: AccountId | null;
+
+                // Our events may arrive out-of-order. If we have an earlier message index then
+                // what's in the entry's latest message then don't bother updating the latest
+                // message.
+                //
+                // Or if the latest comment was a mention then we'll leave that in place even
+                // if there are further comments added.
+                if (
+                    oldItem?.latestComment &&
+                    (oldItem.latestComment.index >= event.commentIndex ||
+                        (oldItem.latestComment.isStickyMention && !isMention && !isArchived))
+                ) {
+                    latestComment = oldItem.latestComment;
+                    otherCommentAuthorId = oldItem.otherCommentAuthorId;
+                } else {
+                    latestComment = {
+                        index: event.commentIndex,
+                        authorId: event.authorId,
+                        createdTime: event.createdTime,
+                        contentSnippet: event.contentSnippet,
+                        isStickyMention: isMention,
+                    };
+
+                    if (!oldItem) {
+                        otherCommentAuthorId = null;
+                    } else {
+                        // If the `latestComment`'s author changed then move the old `latestComment`
+                        // author into `otherCommentAuthorId`. But not if the old `latestComment`
+                        // had our inbox's account as the author.
+                        otherCommentAuthorId =
+                            oldItem.latestComment &&
+                            oldItem.latestComment.authorId !== latestComment.authorId &&
+                            oldItem.latestComment.authorId !== accountId
+                                ? oldItem.latestComment.authorId
+                                : oldItem.otherCommentAuthorId;
+                    }
+                }
+
+                return {
+                    isArchived,
+                    loudNotificationCount,
+                    latestComment:
+                        isArchived && latestComment.isStickyMention
+                            ? {...latestComment, isStickyMention: false}
+                            : latestComment,
+                    otherCommentAuthorId,
+                };
+            },
+        );
+    },
+    getAlertContent: async (context, event, {accountId}) => {
+        const [author, task, body] = await runAllPromises([
+            getAccount(context, event.spaceId, event.authorId),
+            getTaskOwner(context, event.taskId),
+            printNotificationEventAlertContentBody(context, event),
+        ]);
+
+        let subtitle = "";
+
+        if (!event.mentionedAccountIds.has(accountId)) {
+            subtitle += "on ";
+        } else {
+            subtitle += "mentioned you on ";
+        }
+
+        if (task.id === accountId) {
+            subtitle += "your";
+        } else if (task.id === event.authorId) {
+            subtitle += "their";
+        } else {
+            subtitle += `${getAccountShortNameWithoutFullNameTooltip(task.initialData)}’s`;
+        }
+
+        subtitle += ` task`;
 
         return {title: author.initialData.name, subtitle, body};
     },

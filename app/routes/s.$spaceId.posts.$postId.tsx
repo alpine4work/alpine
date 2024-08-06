@@ -80,7 +80,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
     },
 ]);
 
-export default function PostRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+export default function PostRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const [searchParams] = useSearchParams();
     const {post, initialPostComments, initialOtherReferencedPostComments, inboxEntry} =
         useLoaderDataWithSchema(LoaderSchema);
@@ -116,6 +116,7 @@ export default function PostRoute({withMobileLayout}: {withMobileLayout?: boolea
         return (
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
+                withMobileLayout={withMobileLayout}
                 maxWidth={postViewMaxWidth}
                 borderBottom="grey-10"
             >

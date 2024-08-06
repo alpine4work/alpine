@@ -8,6 +8,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -20,12 +21,14 @@ import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_d
 import {TaskDetailView} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
+import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
     getTaskNotesContent,
     getTaskNotesContentAndInitialComments,
 } from "~/server/tasks/data/task_table.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -33,6 +36,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {taskDetailViewCommentSidebarWidth} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
@@ -54,16 +58,19 @@ const LoaderSchema = Schema.object({
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
     }).nullable(),
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {initialMetaTitleText}}) => [
     {title: addFallbackToTaskTitle(initialMetaTitleText)},
 ]);
 
-export async function loader({params, context: _context}: LoaderArgs) {
+export async function loader({params, context: _context, request}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
     const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+
+    const url = new URL(request.url);
 
     const clientInfo = context.loader.getClientInfo();
     const isMobile = getInitialAppRenderIsMobile(clientInfo);
@@ -108,6 +115,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
             notes: {version: notesVersion, content: notesContent},
             initialComments,
         },
+        inboxEntry,
     ] = await runAllPromises([
         context.tasks.loadQueries(spaceId, {
             queries: [childrenQuery],
@@ -120,6 +128,12 @@ export async function loader({params, context: _context}: LoaderArgs) {
                   taskId,
                   commentsLimit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               }),
+        url.searchParams.get("inbox") === "show"
+            ? getInboxEntry(context, {
+                  spaceId,
+                  key: {type: "Task", taskId},
+              })
+            : null,
     ]);
 
     const backfillTask = updateEvent.backfillTasks.find(
@@ -138,6 +152,7 @@ export async function loader({params, context: _context}: LoaderArgs) {
             notesVersion,
             notesContent,
             initialComments,
+            inboxEntry,
         },
         {
             propagateEventData: {
@@ -176,6 +191,7 @@ export default function TaskRoute({
         notesVersion: initialNotesVersion,
         notesContent: initialNotesContent,
         initialComments,
+        inboxEntry,
     } = useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [childrenQuery],
@@ -281,7 +297,7 @@ export default function TaskRoute({
         [notesClient],
     );
 
-    return (
+    const node = (
         <Box
             flexGrow="1"
             overflow="hidden"
@@ -326,4 +342,20 @@ export default function TaskRoute({
             )}
         </Box>
     );
+
+    if (!inboxEntry) {
+        return node;
+    } else {
+        return (
+            <InboxBannerOutletContainer
+                initialEntry={inboxEntry}
+                withMobileLayout={withMobileLayout}
+                maxWidth="full"
+                borderBottom="grey-10"
+                sidebarRightWidth={taskDetailViewCommentSidebarWidth}
+            >
+                {node}
+            </InboxBannerOutletContainer>
+        );
+    }
 }

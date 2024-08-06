@@ -33,16 +33,21 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {inboxBannerHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {taskDetailViewMaxWidth} from "~/shared/styles/tasks_shared_styles.js";
 
 export function InboxBannerOutletContainer({
     initialEntry,
+    withMobileLayout,
     maxWidth,
     borderBottom,
+    sidebarRightWidth,
     children,
 }: {
     initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    withMobileLayout: boolean;
     maxWidth: Spacing | "full";
     borderBottom: "grey-5" | "grey-10";
+    sidebarRightWidth?: Spacing;
     children?: ReactNode;
 }) {
     const context = useAppContext();
@@ -63,6 +68,8 @@ export function InboxBannerOutletContainer({
 
     const [entry, updateEntry, updateEntryOptimistically] =
         useStateWithOptimisticUpdates(initialEntry);
+
+    const isInboxEntryTask = entry.model.type === "Task";
 
     useEffect(() => {
         return subscribeToArchiveInboxEntryOptimistically(event => {
@@ -179,87 +186,106 @@ export function InboxBannerOutletContainer({
                         maxWidth={maxWidth}
                         height={inboxBannerHeight}
                         marginX="center"
-                        paddingLeft="3"
-                        paddingRight="1.5"
                         display="flex"
-                        alignItems="center"
+                        justifyContent="center"
+                        flexDirection="row"
                     >
-                        <Box color="grey-50" fontSize="75" fontStyle="truncate" paddingRight="0.5">
-                            {isMobile ? "Notification" : `Notification: ${entryDisplaySummaryText}`}
-                        </Box>
-                        {!isMobile && (
-                            <IconButton
-                                size="xs"
-                                description="Open in inbox"
-                                tooltipPlacement="bottom"
-                                // The inbox will show a loading shimmer when it opens. We don't need to
-                                // also show a loading indicator here.
-                                withoutLoadingIndicator
-                                pressErrorTitle="Couldn’t open in inbox"
-                                onPress={async () => {
-                                    // base64 encode the initial path to hide the fact that it's a URL.
-                                    const textEncoder = new TextEncoder();
+                        <Box
+                            display="flex"
+                            paddingLeft="3"
+                            paddingRight="1.5"
+                            alignItems="center"
+                            width={isInboxEntryTask ? taskDetailViewMaxWidth : "full"}
+                        >
+                            <Box
+                                color="grey-50"
+                                fontSize="75"
+                                fontStyle="truncate"
+                                paddingRight="0.5"
+                            >
+                                {isMobile
+                                    ? "Notification"
+                                    : `Notification: ${entryDisplaySummaryText}`}
+                            </Box>
+                            {!isMobile && (
+                                <IconButton
+                                    size="xs"
+                                    description="Open in inbox"
+                                    tooltipPlacement="bottom"
+                                    // The inbox will show a loading shimmer when it opens. We don't need to
+                                    // also show a loading indicator here.
+                                    withoutLoadingIndicator
+                                    pressErrorTitle="Couldn’t open in inbox"
+                                    onPress={async () => {
+                                        // base64 encode the initial path to hide the fact that it's a URL.
+                                        const textEncoder = new TextEncoder();
 
-                                    const newSearchParams = new URLSearchParams(location.search);
-                                    newSearchParams.delete("inbox");
+                                        const newSearchParams = new URLSearchParams(
+                                            location.search,
+                                        );
+                                        newSearchParams.delete("inbox");
 
-                                    const newLocation = {
-                                        ...location,
-                                        search: newSearchParams.toString(),
-                                    };
+                                        const newLocation = {
+                                            ...location,
+                                            search: newSearchParams.toString(),
+                                        };
 
-                                    const selectedSearchParam = encodeBase64(
-                                        textEncoder.encode(
-                                            createPath(newLocation).replace(
-                                                /^(\/s\/[^/]+\/(peek\/)?)/,
-                                                "",
+                                        const selectedSearchParam = encodeBase64(
+                                            textEncoder.encode(
+                                                createPath(newLocation).replace(
+                                                    /^(\/s\/[^/]+\/(peek\/)?)/,
+                                                    "",
+                                                ),
                                             ),
-                                        ),
-                                        "Rfc4648Url",
-                                    );
+                                            "Rfc4648Url",
+                                        );
 
-                                    await rootNavigate(
-                                        `/s/${space.id}/inbox?${
-                                            entry.model.isArchived ? `tab=old&` : ""
-                                        }selected=${selectedSearchParam}`,
-                                    );
+                                        await rootNavigate(
+                                            `/s/${space.id}/inbox?${
+                                                entry.model.isArchived ? `tab=old&` : ""
+                                            }selected=${selectedSearchParam}`,
+                                        );
+                                    }}
+                                >
+                                    <ArrowUpRight />
+                                </IconButton>
+                            )}
+                            <Box minWidth="10" flexGrow="1" />
+                            <Button
+                                ref={doneButtonRef}
+                                variant={entry.model.isArchived ? "neutral-disabled" : "neutral"}
+                                height="6"
+                                paddingX="2"
+                                icon={<Check />}
+                                keyboardShortcutHint={isAppleDevice ? "⌘+D" : "Ctrl+D"}
+                                pressErrorTitle="Can’t mark as done"
+                                onPress={async () => {
+                                    if (!entry.model.isArchived) {
+                                        archiveInboxEntry({
+                                            entry,
+                                            withAnimation: true,
+                                        });
+
+                                        // Navigate back, if this is in a peek we'll close the peek. If this is on
+                                        // mobile we'll go back to inbox.
+                                        await navigate(-1);
+                                    }
+                                    // This button works as a toggle button. If you click it when the notification
+                                    // has already been archived then we'll unarchive.
+                                    else {
+                                        unarchiveInboxEntry({
+                                            entry,
+                                            withAnimation: true,
+                                        });
+                                    }
                                 }}
                             >
-                                <ArrowUpRight />
-                            </IconButton>
-                        )}
-                        <Box minWidth="10" flexGrow="1" />
-                        <Button
-                            ref={doneButtonRef}
-                            variant={entry.model.isArchived ? "neutral-disabled" : "neutral"}
-                            height="6"
-                            paddingX="2"
-                            icon={<Check />}
-                            keyboardShortcutHint={isAppleDevice ? "⌘+D" : "Ctrl+D"}
-                            pressErrorTitle="Can’t mark as done"
-                            onPress={async () => {
-                                if (!entry.model.isArchived) {
-                                    archiveInboxEntry({
-                                        entry,
-                                        withAnimation: true,
-                                    });
-
-                                    // Navigate back, if this is in a peek we'll close the peek. If this is on
-                                    // mobile we'll go back to inbox.
-                                    await navigate(-1);
-                                }
-                                // This button works as a toggle button. If you click it when the notification
-                                // has already been archived then we'll unarchive.
-                                else {
-                                    unarchiveInboxEntry({
-                                        entry,
-                                        withAnimation: true,
-                                    });
-                                }
-                            }}
-                        >
-                            Done
-                        </Button>
+                                Done
+                            </Button>
+                        </Box>
+                        {sidebarRightWidth && !withMobileLayout ? (
+                            <Box height="full" flexShrink="0" width={sidebarRightWidth}></Box>
+                        ) : null}
                     </Box>
                 </Box>
                 <InboxContextProvider entry={entry}>{children}</InboxContextProvider>

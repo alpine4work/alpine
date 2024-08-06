@@ -9,6 +9,7 @@ import {
     DocumentId,
     PostId,
     SpaceId,
+    TaskId,
 } from "~/shared/id/types/id_types.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
@@ -55,12 +56,18 @@ const InboxDocumentNewCommentThreadsEntryKeySchema = Schema.object({
     bucketGeneration: Schema.integer,
 });
 
+const InboxTaskEntryKeySchema = Schema.object({
+    type: Schema.value("Task"),
+    taskId: Schema.id<TaskId>(),
+});
+
 export const InboxEntryKeySchema = Schema.union({
     Chat: InboxChatEntryKeySchema,
     PostComments: InboxPostCommentsEntryKeySchema,
     ChannelPosts: InboxChannelPostsEntryKeySchema,
     DocumentCommentThread: InboxDocumentCommentThreadEntryKeySchema,
     DocumentNewCommentThreads: InboxDocumentNewCommentThreadsEntryKeySchema,
+    Task: InboxTaskEntryKeySchema,
 });
 
 export function getInboxEntryKeyPath(spaceId: SpaceId, key: InboxEntryKey): string {
@@ -75,6 +82,8 @@ export function getInboxEntryKeyPath(spaceId: SpaceId, key: InboxEntryKey): stri
             return `/s/${spaceId}/documents/${key.documentId}/comments/${key.commentThreadId}`;
         case "DocumentNewCommentThreads":
             return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}`;
+        case "Task":
+            return `/s/${spaceId}/tasks/${key.taskId}/comments`;
         default:
             throw exhaustive(key);
     }
@@ -243,6 +252,33 @@ export class InboxDocumentNewCommentThreadsEntryModel
     }
 }
 
+export class InboxTaskEntryModel
+    extends Model(
+        Schema.object({
+            spaceId: Schema.id<SpaceId>(),
+            accountId: Schema.id<AccountId>(),
+            taskId: Schema.id<TaskId>(),
+            taskOwner: AccountModel.schema,
+            loudNotificationCount: Schema.integer.min(0),
+            isArchived: Schema.boolean,
+            latestComment: Schema.object({
+                author: AccountModel.schema,
+                createdTime: Schema.date,
+                contentTextSnippet: Schema.string,
+                isStickyMention: Schema.boolean,
+            }),
+            otherCommentAuthor: AccountModel.schema.nullable(),
+        }),
+    )
+    implements InboxEntryModelInterface
+{
+    public readonly type = "Task" as const;
+
+    public getKey(): InboxEntryKey {
+        return {type: "Task", taskId: this.taskId};
+    }
+}
+
 export type InboxEntryModel = SchemaType<typeof InboxEntryModelSchema>;
 
 export const InboxEntryModelSchema = createModelUnionSchema({
@@ -251,6 +287,7 @@ export const InboxEntryModelSchema = createModelUnionSchema({
     InboxChannelPostsEntry: InboxChannelPostsEntryModel,
     InboxDocumentCommentThreadEntry: InboxDocumentCommentThreadEntryModel,
     InboxDocumentNewCommentThreadsEntry: InboxDocumentNewCommentThreadsEntryModel,
+    InboxTaskEntry: InboxTaskEntryModel,
 });
 
 export type InboxItemModel = SchemaType<typeof InboxItemModelSchema>;
@@ -262,4 +299,5 @@ export const InboxItemModelSchema = createModelUnionSchema({
     InboxChannelPostsEntry: InboxChannelPostsEntryModel,
     InboxDocumentCommentThreadEntry: InboxDocumentCommentThreadEntryModel,
     InboxDocumentNewCommentThreadsEntry: InboxDocumentNewCommentThreadsEntryModel,
+    InboxTaskEntry: InboxTaskEntryModel,
 });

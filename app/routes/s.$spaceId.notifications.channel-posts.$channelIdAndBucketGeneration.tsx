@@ -175,6 +175,7 @@ export default function ChannelPostsRouteWrapper({
         return (
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
+                withMobileLayout={withMobileLayout}
                 maxWidth={postViewMaxWidth}
                 borderBottom="grey-10"
             >

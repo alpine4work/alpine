@@ -26,7 +26,7 @@ export async function createNotificationsScenario(context: TestContext) {
         space.createSession(),
     ]);
 
-    await otherSpace.addAccount(sharedSession.account);
+    const sharedSessionInOtherSpace = await otherSpace.createSession(sharedSession.account);
 
     const mentionAccount1MessageContent = assertMessageContent(
         MessageContentProsemirrorSchema.node("doc", {}, [
@@ -84,6 +84,7 @@ export async function createNotificationsScenario(context: TestContext) {
         session3,
         otherSession,
         sharedSession,
+        sharedSessionInOtherSpace,
         mentionAccount1MessageContent,
         mentionAccount2MessageContent,
         mentionAccount3MessageContent,

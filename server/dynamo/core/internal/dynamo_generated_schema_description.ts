@@ -4455,6 +4455,98 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             }
+                        },
+                        "TaskEntry": {
+                            "id": 6,
+                            "orderKey": "a6",
+                            "sortKeyAttributeByKey": {
+                                "taskId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "isArchived": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "enteredTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "latestComment": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "index": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "authorId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "createdTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "contentSnippet": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "05d7837f"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "isStickyMention": {
+                                                    "valueSchema": {
+                                                        "type": "Boolean"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "otherCommentAuthorId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -4530,6 +4622,10 @@ export const dynamoGeneratedSchemaDescription: {
                                 {
                                     "partitionType": "Inbox",
                                     "sortRangeType": "DocumentNewCommentThreadsEntry"
+                                },
+                                {
+                                    "partitionType": "Inbox",
+                                    "sortRangeType": "TaskEntry"
                                 }
                             ],
                             "partitionKeyAttributeByKey": {

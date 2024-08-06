@@ -7,6 +7,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
 import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
 import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
+import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
@@ -18,6 +19,7 @@ import {
     InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryModel,
     InboxPostCommentsEntryModel,
+    InboxTaskEntryModel,
 } from "~/shared/notifications/inbox_model.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -255,6 +257,8 @@ export function getInboxEntryDisplay({
             return getInboxDocumentCommentThreadEntryDisplay({entry, currentAccount});
         case "DocumentNewCommentThreads":
             return getInboxDocumentNewCommentThreadsEntryDisplay({entry, locale});
+        case "Task":
+            return getInboxTaskEntryDisplay({entry, currentAccount});
         default:
             throw exhaustive(entry);
     }
@@ -561,6 +565,57 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
         firstAccount: firstAccount,
         secondAccount: secondAccount,
         latestMessage: entry.firstComment,
+        summary,
+    };
+}
+
+function getInboxTaskEntryDisplay({
+    entry,
+    currentAccount,
+}: {
+    entry: InboxTaskEntryModel;
+    currentAccount: AccountModel;
+}): InboxEntryDisplay {
+    const firstAccount = entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.taskOwner;
+
+    const secondAccount =
+        entry.latestComment?.author.id !== firstAccount.id
+            ? entry.latestComment?.author ?? null
+            : null;
+
+    const summary: Array<InboxEntryDisplaySummaryItem> = [];
+
+    if (entry.latestComment?.isStickyMention) {
+        summary.push(entry.latestComment.author);
+        summary.push(" mentioned you in a comment on ");
+
+        if (currentAccount.id === entry.taskOwner.id) {
+            summary.push("your");
+        } else if (entry.latestComment.author.id === entry.taskOwner.id) {
+            summary.push("their");
+        } else {
+            summary.push(entry.taskOwner);
+            summary.push("’s");
+        }
+
+        summary.push(" task");
+    } else {
+        if (currentAccount.id === entry.taskOwner.id) {
+            summary.push("Your");
+        } else {
+            summary.push(entry.taskOwner);
+            summary.push("’s");
+        }
+
+        summary.push(" task has new comments");
+    }
+
+    return {
+        time: entry.latestComment.createdTime,
+        brandIcon: <TaskBrandIcon />,
+        firstAccount,
+        secondAccount,
+        latestMessage: entry.latestComment,
         summary,
     };
 }

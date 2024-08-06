@@ -34,6 +34,7 @@ export function InboxContextProvider({
         switch (entry.model.type) {
             case "Chat":
             case "PostComments":
+            case "Task":
             case "DocumentCommentThread":
                 shouldImplicitlyDismissAfterCreateMessage = true;
                 break;

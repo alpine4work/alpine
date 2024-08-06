@@ -1,7 +1,9 @@
 import {useParams, useSearchParams} from "@remix-run/react";
 import {useCallback, useEffect} from "react";
 import {usePress} from "react-aria";
-import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {Box} from "~/client/design/box.js";
+import {NavigationBarContent} from "~/client/design/navigation_bar.js";
+import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -10,15 +12,18 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
+import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskCommentsFromEnd} from "~/server/tasks/data/task_table.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {messageViewMaxWidth} from "~/shared/styles/messaging_shared_styles.js";
 import {sprinkles} from "~/shared/styles/styles.js";
+import {taskDetailViewMaxWidth} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
@@ -30,23 +35,35 @@ const LoaderSchema = Schema.object({
     lastCommentChangeTime: Schema.date.nullable(),
     comments: Schema.array(TaskCommentModel.schema()),
     otherReferencedComments: Schema.array(TaskCommentModel.schema()),
+    inboxEntry: createDynamoGeneralRealtimeItemSchema(InboxEntryModelSchema).nullable(),
 });
 
-export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {
+export async function loader({context: unauthenticatedContext, params, request}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
     const taskId = Schema.id<TaskId>().deserialize(params.taskId ?? null);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
-    const [{task}, {commentCount, comments, otherReferencedComments, lastCommentChangeTime}] =
-        await runAllPromises([
-            context.tasks.getTaskWithoutDependencies(spaceId, taskId),
-            getTaskCommentsFromEnd(context, {
-                taskId,
-                limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
-                afterCommentIndex: null,
-                beforeCommentIndex: null,
-            }),
-        ]);
+    const url = new URL(request.url);
+
+    const [
+        {task},
+        {commentCount, comments, otherReferencedComments, lastCommentChangeTime},
+        inboxEntry,
+    ] = await runAllPromises([
+        context.tasks.getTaskWithoutDependencies(spaceId, taskId),
+        getTaskCommentsFromEnd(context, {
+            taskId,
+            limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+        url.searchParams.get("inbox") === "show"
+            ? getInboxEntry(context, {
+                  spaceId,
+                  key: {type: "Task", taskId},
+              })
+            : null,
+    ]);
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -62,6 +79,7 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
             lastCommentChangeTime,
             comments,
             otherReferencedComments,
+            inboxEntry,
         },
         {propagateEventData},
     );
@@ -75,8 +93,14 @@ export default function TaskCommentsRoute({
     withMobileLayout?: boolean;
 }) {
     const [searchParams] = useSearchParams();
-    const {taskTitle, commentCount, lastCommentChangeTime, comments, otherReferencedComments} =
-        useLoaderDataWithSchema(LoaderSchema);
+    const {
+        taskTitle,
+        commentCount,
+        lastCommentChangeTime,
+        comments,
+        otherReferencedComments,
+        inboxEntry,
+    } = useLoaderDataWithSchema(LoaderSchema);
 
     const isMobile = useIsMobile();
     const navigate = useNavigate();
@@ -90,39 +114,22 @@ export default function TaskCommentsRoute({
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
 
-    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        withMobileLayout,
-        title: <TaskCommentsViewHeaderTitle spaceId={spaceId} taskId={taskId} title={taskTitle} />,
-        subtitle: "Comments",
-        withoutDisappearingTitle: true,
-        replaceActions: null,
-        menuActions: [
-            {
-                label: "Open task",
-                pressErrorTitle: "Couldn't open task",
-                onPress: () => navigate(`/s/${spaceId}/tasks/${taskId}/`),
-            },
-        ],
-        titleJustifyContent: !isMobile ? "flex-start" : "center",
-        desktopTitleMaxWidth: messageViewMaxWidth,
-        isAlwaysOpaque: true,
-    });
-
     useEffect(() => {
         if (withMobileLayout) return;
+        const inboxParam = searchParams.get("inbox") === "show" ? "inbox=show" : "";
 
         if (commentIndex === null) {
-            void navigate(`/s/${spaceId}/tasks/${taskId}`, {
+            void navigate(`/s/${spaceId}/tasks/${taskId}?${inboxParam}`, {
                 replace: true,
                 stopPropagation: true,
             });
         } else {
-            void navigate(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}`, {
+            void navigate(`/s/${spaceId}/tasks/${taskId}?comment=${commentIndex}?${inboxParam}`, {
                 replace: true,
                 stopPropagation: true,
             });
         }
-    }, [withMobileLayout, spaceId, taskId, navigate, commentIndex]);
+    }, [withMobileLayout, spaceId, taskId, navigate, searchParams, commentIndex]);
 
     useSearchAffinityViewInteraction(`Task:${taskId}`);
 
@@ -143,34 +150,76 @@ export default function TaskCommentsRoute({
         [subscribeToEvents],
     );
 
-    return (
-        <TaskCommentsView
-            key={taskId}
-            taskId={taskId}
-            withMobileLayout={withMobileLayout}
-            initialComments={{
-                commentCount,
-                lastCommentChangeTime,
-                comments,
-                otherReferencedComments,
-            }}
-            initialScrollToCommentIndex={commentIndex}
-            getCommentUrl={useCallback(
-                commentIndex =>
-                    new URL(
-                        `/s/${spaceId}/tasks/${taskId}/comments?comment=${commentIndex}`,
-                        window.location.href,
-                    ),
-                [taskId, spaceId],
-            )}
-            scrollViewRef={scrollViewRef}
-            extraChildren={navigationBar}
-            scrollbarInsetTop={scrollbarInsetTop}
-            isConnected={isConnected}
-            procedures={procedures}
-            subscribeToEvents={subscribeToCommentsEvents}
-        />
+    const node = (
+        <Box width="full" height="full" display="flex" flexDirection="column">
+            <Box
+                flexShrink="0"
+                width="full"
+                paddingTop="safe-area-inset"
+                display="flex"
+                borderBottom="grey-10"
+            >
+                <NavigationBarContent
+                    withMobileLayout={withMobileLayout}
+                    title={
+                        <TaskCommentsViewHeaderTitle
+                            spaceId={spaceId}
+                            taskId={taskId}
+                            title={taskTitle}
+                        />
+                    }
+                    subtitle="Comments"
+                    replaceActions={null}
+                    menuActions={[
+                        {
+                            label: "Open task",
+                            pressErrorTitle: "Couldn't open task",
+                            onPress: () => navigate(`/s/${spaceId}/tasks/${taskId}/`),
+                        },
+                    ]}
+                    titleJustifyContent={!isMobile ? "flex-start" : "center"}
+                />
+            </Box>
+            <TaskCommentsView
+                key={taskId}
+                taskId={taskId}
+                withMobileLayout={withMobileLayout}
+                initialComments={{
+                    commentCount,
+                    lastCommentChangeTime,
+                    comments,
+                    otherReferencedComments,
+                }}
+                initialScrollToCommentIndex={commentIndex}
+                getCommentUrl={useCallback(
+                    commentIndex =>
+                        new URL(
+                            `/s/${spaceId}/tasks/${taskId}/comments?comment=${commentIndex}`,
+                            window.location.href,
+                        ),
+                    [taskId, spaceId],
+                )}
+                isConnected={isConnected}
+                procedures={procedures}
+                subscribeToEvents={subscribeToCommentsEvents}
+            />
+        </Box>
     );
+
+    if (!inboxEntry) {
+        return node;
+    } else {
+        return (
+            <InboxBannerOutletContainer
+                initialEntry={inboxEntry}
+                withMobileLayout={withMobileLayout}
+                maxWidth={taskDetailViewMaxWidth}
+                borderBottom="grey-5"
+            >
+                {node}
+            </InboxBannerOutletContainer>
+        );
+    }
 }
 
 function TaskCommentsViewHeaderTitle({
@@ -195,16 +244,12 @@ function TaskCommentsViewHeaderTitle({
         <a
             {...pressProps}
             className={sprinkles({
-                // This design has a weak link affordance so use a pointer cursor to make it
-                // clear this text is clickable.
                 cursor: "pointer",
                 opacity: isPressed ? "60" : undefined,
             })}
             href={`/s/${spaceId}/tasks/${taskId}`}
             onClick={event => {
-                // Custom link navigation handling...
                 event.preventDefault();
-
                 pressProps.onClick?.(event);
             }}
         >

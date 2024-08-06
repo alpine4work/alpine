@@ -1,7 +1,6 @@
 import {Memo, ReactNode, Ref, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
@@ -11,10 +10,9 @@ import {
     getInitialLoadMessageCount,
 } from "~/client/messaging/messaging_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
-import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -69,8 +67,6 @@ export function TaskCommentsView({
     const [errorState, setErrorState] = useState({hasError: false, error: {}});
     if (errorState.hasError) throw errorState.error;
 
-    const isMobile = useIsMobile();
-
     const clientInfo = useClientInfo();
 
     const isLoadingInitialCommentsRef = useRef(false);
@@ -123,29 +119,26 @@ export function TaskCommentsView({
     }, [initialScrollToCommentIndex, initialComments]);
 
     const header = useMemo(() => {
-        if (!scrollbarInsetTop) {
+        if (!withMobileLayout) {
             return {
                 minHeight: spacing[taskCommentsHeaderNavigationBarSpacing],
-                node: <Spacer space={taskCommentsHeaderNavigationBarSpacing} />,
-            };
-        } else {
-            return {
-                minHeight: addRemLengths(
-                    spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]],
-                    spacing[taskCommentsHeaderNavigationBarSpacing],
-                ),
                 node: (
                     <>
-                        <Box height="safe-area-inset-top" />
-                        <Box
-                            marginBottom={taskCommentsHeaderNavigationBarSpacing}
-                            height={navigationBarHeight}
-                        />
+                        <Box height="safe-area-inset-top"> </Box>
+                        <Spacer space={taskCommentsHeaderNavigationBarSpacing} />
                     </>
                 ),
             };
-        }
-    }, [scrollbarInsetTop, isMobile]);
+        } else
+            return {
+                minHeight: spacing[taskCommentsHeaderNavigationBarSpacing],
+                node: (
+                    <>
+                        <Spacer space={taskCommentsHeaderNavigationBarSpacing} />
+                    </>
+                ),
+            };
+    }, [withMobileLayout]);
 
     const getMessagesFromStart = useCallback(
         async (input: {
@@ -261,37 +254,39 @@ export function TaskCommentsView({
         return <TaskCommentsViewShimmer withMobileLayout={withMobileLayout} />;
     } else {
         return (
-            <MessagingView
-                ref={messagingRef}
-                elementRef={scrollViewRef}
-                extraChildren={extraChildren}
-                scrollbarInsetTop={scrollbarInsetTop}
-                withMobileLayout={withMobileLayout}
-                initialScrollOffset="bottom"
-                messageNoun="comment"
-                initialMessagesResult={{
-                    messageCount: initialComments.commentCount,
-                    messages: initialComments.comments,
-                    otherReferencedMessages: initialComments.otherReferencedComments,
-                    lastMessageChangeTime: initialComments.lastCommentChangeTime,
-                }}
-                header={header}
-                randomSeedForShimmer={taskId}
-                getMessagesFromStart={getMessagesFromStart}
-                getMessagesFromEnd={getMessagesFromEnd}
-                backfillMessages={backfillMessages}
-                createMessage={createMessage}
-                updateMessageContent={updateMessageContent}
-                deleteMessage={deleteMessage}
-                startTypingInMessageInput={procedures.startTypingInCommentInput}
-                stopTypingInMessageInput={procedures.stopTypingInCommentInput}
-                isConnected={isConnected}
-                subscribeToEvents={subscribeToEvents}
-                getMessageUrl={getCommentUrl}
-                // Slightly reduce the amount of margin on messages in a desktop comment thread
-                // because we have less space in the sidebar.
-                paddingX={!withMobileLayout ? "4" : undefined}
-            />
+            <>
+                <MessagingView
+                    ref={messagingRef}
+                    elementRef={scrollViewRef}
+                    extraChildren={extraChildren}
+                    scrollbarInsetTop={scrollbarInsetTop}
+                    withMobileLayout={withMobileLayout}
+                    initialScrollOffset="bottom"
+                    messageNoun="comment"
+                    initialMessagesResult={{
+                        messageCount: initialComments.commentCount,
+                        messages: initialComments.comments,
+                        otherReferencedMessages: initialComments.otherReferencedComments,
+                        lastMessageChangeTime: initialComments.lastCommentChangeTime,
+                    }}
+                    header={header}
+                    randomSeedForShimmer={taskId}
+                    getMessagesFromStart={getMessagesFromStart}
+                    getMessagesFromEnd={getMessagesFromEnd}
+                    backfillMessages={backfillMessages}
+                    createMessage={createMessage}
+                    updateMessageContent={updateMessageContent}
+                    deleteMessage={deleteMessage}
+                    startTypingInMessageInput={procedures.startTypingInCommentInput}
+                    stopTypingInMessageInput={procedures.stopTypingInCommentInput}
+                    isConnected={isConnected}
+                    subscribeToEvents={subscribeToEvents}
+                    getMessageUrl={getCommentUrl}
+                    // Slightly reduce the amount of margin on messages in a desktop comment thread
+                    // because we have less space in the sidebar.
+                    paddingX={!withMobileLayout ? "4" : undefined}
+                />
+            </>
         );
     }
 }

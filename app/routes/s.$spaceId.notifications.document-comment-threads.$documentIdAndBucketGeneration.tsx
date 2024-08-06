@@ -426,6 +426,7 @@ function DocumentNewCommentThreadsRouteInner({
         return (
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
+                withMobileLayout={withMobileLayout}
                 maxWidth={documentCommentThreadListViewMaxWidth}
                 borderBottom="grey-10"
             >

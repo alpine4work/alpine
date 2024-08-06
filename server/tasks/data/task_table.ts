@@ -11,6 +11,7 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
     ServerSessionActionContextModules,
+    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -23,6 +24,7 @@ import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
+import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
@@ -72,6 +74,7 @@ import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
@@ -3979,9 +3982,9 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     context: ServerActionContext,
     taskId: TaskId,
     expectedAccessLevel: TaskCollectionAccessLevel,
+    consistency?: DynamoReadConsistency,
 ): Promise<{
-    spaceId: SpaceId;
-    createdTime: HybridLogicalTime;
+    item: TaskEssentialAttributesItem;
     commentsSummaryItem: TaskCommentsSummaryItem | null;
 }> {
     let taskItem: TaskEssentialAttributesItem | null = null;
@@ -3999,6 +4002,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
             sortRangeType: "CommentsSummary",
         },
         limit: "All",
+        consistency,
     })) {
         if (item.sortRangeType === "EssentialAttributes") {
             taskItem = item;
@@ -4020,8 +4024,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
             await authorizeSpaceAccess(context, taskItem.spaceId);
 
             return {
-                spaceId: taskItem.spaceId,
-                createdTime: taskItem.createdTime,
+                item: taskItem,
                 commentsSummaryItem: taskCommentsSummaryItem,
             };
         }
@@ -4055,8 +4058,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
             }
 
             return {
-                spaceId: taskItem.spaceId,
-                createdTime: taskItem.createdTime,
+                item: taskItem,
                 commentsSummaryItem: taskCommentsSummaryItem,
             };
         }
@@ -4288,6 +4290,59 @@ async function createTaskCommentModelFromItem(
     });
 }
 
+// This enables us to get the current owner of the Task. Since Tasks can
+// constantly be re-assigned we return the current Assignee or the
+// original Task creator.
+export async function getTaskOwner(
+    context: ServerActionContext,
+    taskId: TaskId,
+): Promise<AccountModel> {
+    await authorizeTaskAccess(context, taskId, "View", null);
+
+    const taskItem = await getTaskItemForAuthorization(context, taskId, null);
+
+    const owner = taskItem.assigneeId.value
+        ? await getAccount(context, taskItem.spaceId, taskItem.assigneeId.value)
+        : await getAccount(context, taskItem.spaceId, taskItem.creatorId);
+
+    return owner;
+}
+
+export async function getTaskNotificationSubscribers(
+    context: ServerSystemActionContext,
+    id: TaskId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<{
+    accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
+}> {
+    const {item: taskItem, commentsSummaryItem} =
+        await authorizeTaskAccessAndGetCommentsSummaryItem(context, id, "Comment", consistency);
+
+    const commentCountByAuthorId = commentsSummaryItem
+        ? commentsSummaryItem.commentCountByAuthorId.keys()
+        : [];
+    const mentionCountByAccountId = commentsSummaryItem
+        ? commentsSummaryItem.mentionCountByAccountId.keys()
+        : [];
+
+    const assigneeId = taskItem.assigneeId?.value;
+
+    // note(maximchen, 2024-07-24): It is an open design question whether a old assignee
+    // should stay subscribed to notifications even after they have been unassigned.
+    const accountIds = new Set<ContentMentionAccountId>(
+        concatIterables(
+            [taskItem.creatorId],
+            assigneeId ? [assigneeId] : [],
+            commentCountByAuthorId,
+            mentionCountByAccountId,
+        ),
+    );
+
+    return {
+        accountIds,
+    };
+}
+
 export function updateTaskCommentContent(
     context: ServerSessionActionContext,
     {
@@ -4304,17 +4359,15 @@ export function updateTaskCommentContent(
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [{spaceId, createdTime, commentsSummaryItem}, taskCommentItem] = await runAllPromises(
-            [
-                authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
-                TaskTable.getItemIfExists(context, {
-                    partitionType: "Task",
-                    sortRangeType: "Comments",
-                    taskId,
-                    commentIndex,
-                }),
-            ],
-        );
+        const [{item, commentsSummaryItem}, taskCommentItem] = await runAllPromises([
+            authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
+            TaskTable.getItemIfExists(context, {
+                partitionType: "Task",
+                sortRangeType: "Comments",
+                taskId,
+                commentIndex,
+            }),
+        ]);
         if (!commentsSummaryItem) throw new NotFoundError("Task comments summary item not found");
         if (!taskCommentItem) throw new NotFoundError("Task comment not found");
 
@@ -4327,7 +4380,7 @@ export function updateTaskCommentContent(
 
         const contentUpdatedTime = new Date(
             Math.max(
-                (commentsSummaryItem.lastChangeTime ?? new Date(createdTime[0])).getTime() + 1,
+                (commentsSummaryItem.lastChangeTime ?? new Date(item.createdTime[0])).getTime() + 1,
                 Date.now(),
             ),
         );
@@ -4379,7 +4432,7 @@ export function updateTaskCommentContent(
 
         context.jobs.send({
             type: "IndexSearchEntity",
-            spaceId,
+            spaceId: item.spaceId,
             update: {
                 type: "TaskComment",
                 taskId,
@@ -4388,7 +4441,7 @@ export function updateTaskCommentContent(
             },
         });
 
-        return {spaceId, contentUpdatedTime};
+        return {spaceId: item.spaceId, contentUpdatedTime};
     });
 }
 
@@ -4397,17 +4450,15 @@ export function deleteTaskComment(
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
-        const [{spaceId, createdTime, commentsSummaryItem}, taskCommentItem] = await runAllPromises(
-            [
-                authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
-                TaskTable.getItemIfExists(context, {
-                    partitionType: "Task",
-                    sortRangeType: "Comments",
-                    taskId,
-                    commentIndex,
-                }),
-            ],
-        );
+        const [{item, commentsSummaryItem}, taskCommentItem] = await runAllPromises([
+            authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment"),
+            TaskTable.getItemIfExists(context, {
+                partitionType: "Task",
+                sortRangeType: "Comments",
+                taskId,
+                commentIndex,
+            }),
+        ]);
         if (!commentsSummaryItem) throw new NotFoundError("Task comments summary item not found");
         if (!taskCommentItem) throw new NotFoundError("Task comment not found");
 
@@ -4419,7 +4470,7 @@ export function deleteTaskComment(
 
         const deletedTime = new Date(
             Math.max(
-                (commentsSummaryItem.lastChangeTime ?? new Date(createdTime[0])).getTime() + 1,
+                (commentsSummaryItem.lastChangeTime ?? new Date(item.createdTime[0])).getTime() + 1,
                 Date.now(),
             ),
         );
@@ -4466,7 +4517,7 @@ export function deleteTaskComment(
 
         context.jobs.send({
             type: "IndexSearchEntity",
-            spaceId,
+            spaceId: item.spaceId,
             update: {
                 type: "TaskComment",
                 taskId,
@@ -4498,8 +4549,9 @@ export async function createTaskComment(
     return context.dynamo.retryTransaction(async context => {
         const [{spaceId, commentsSummaryItem}] = await runAllPromiseThunks(
             async () => {
-                const {spaceId, commentsSummaryItem} =
+                const {item, commentsSummaryItem} =
                     await authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment");
+                const spaceId = item.spaceId;
 
                 return {spaceId, commentsSummaryItem};
             },
@@ -4571,6 +4623,23 @@ export async function createTaskComment(
         ]);
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+        const contentSnippet = getNotificationMessageContentSnippet(content);
+
+        context.jobs.send({
+            type: "NotificationEvent",
+            event: {
+                type: "CreateTaskComment",
+                id: generateId(),
+                spaceId: spaceId,
+                taskId,
+                commentIndex,
+                createdTime,
+                authorId,
+                mentionedAccountIds,
+                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                contentSnippet,
+            },
+        });
 
         context.jobs.send({
             type: "IndexSearchEntity",
@@ -4643,7 +4712,7 @@ export async function getTaskCommentsFromStart(
         authorizationPromise,
         getTaskCommentsFromStartAssumingAuthorizedTask(context, {
             taskId,
-            getSpaceId: () => authorizationPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => authorizationPromise.then(({item}) => item.spaceId),
             limit,
             afterCommentIndex,
             beforeCommentIndex,
@@ -4897,7 +4966,7 @@ export async function getTaskCommentsFromEnd(
         authorizationPromise,
         getTaskCommentsFromEndAssumingAuthorizedTask(context, {
             taskId,
-            getSpaceId: () => authorizationPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => authorizationPromise.then(({item}) => item.spaceId),
             limit,
             afterCommentIndex,
             beforeCommentIndex,
@@ -5080,7 +5149,7 @@ export async function backfillTaskComments(
             authorizationPromise,
             getTaskCommentsFromStartAssumingAuthorizedTask(context, {
                 taskId,
-                getSpaceId: () => authorizationPromise.then(({spaceId}) => spaceId),
+                getSpaceId: () => authorizationPromise.then(({item}) => item.spaceId),
                 limit: newCommentLimit,
                 afterCommentIndex: clientCommentCount - 1,
                 beforeCommentIndex: null,
@@ -5091,13 +5160,13 @@ export async function backfillTaskComments(
                 consistency: "Strong",
             }),
             (async () => {
-                const {spaceId, createdTime, commentsSummaryItem} = await authorizationPromise;
+                const {item, commentsSummaryItem} = await authorizationPromise;
                 if (!commentsSummaryItem) return null;
 
                 return queryTaskCommentChangeLogAssumingAuthorizedTask(context, {
                     commentsSummaryItem,
-                    spaceId,
-                    createdTime,
+                    spaceId: item.spaceId,
+                    createdTime: item.createdTime,
                     lastCommentChangeTime: clientLastCommentChangeTime,
                     // Use a strong read consistency when backfilling. This guarantees the caller
                     // will observe all realtime events before this function call. Realtime events

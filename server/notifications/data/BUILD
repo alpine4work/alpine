@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//server/dynamo/test_helpers",
         "//server/notifications/data/test_helpers",
+        "//server/tasks/test_helpers",
     ],
     tests = {
         # Large test suites that run three times each.
@@ -30,6 +31,7 @@ ts_project(
         "//server/helpers",
         "//server/notifications/core",
         "//server/spaces",
+        "//server/tasks/data",
         "//shared/accounts",
         "//shared/chat",
         "//shared/content",
@@ -42,5 +44,6 @@ ts_project(
         "//shared/messaging",
         "//shared/notifications",
         "//shared/schema",
+        "//shared/tasks",
     ],
 )

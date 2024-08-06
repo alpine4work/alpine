@@ -141,6 +141,7 @@ export default function ChatRoute({
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
                 maxWidth={messageViewMaxWidth}
+                withMobileLayout={withMobileLayout}
                 // Since chats have a permanent top bar, use `grey-5` border to create the
                 // illusion that the banner is of the same physical material.
                 borderBottom="grey-5"
