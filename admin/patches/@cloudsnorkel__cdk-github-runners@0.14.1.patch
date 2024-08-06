@@ -54,7 +54,7 @@ index d1a6f14ad2a72fc3abd53cec9c197ed9d28eb019..0ba583989d3df38c8a1e13f7efd13b71
              parameters.runnerTokenPath,
              this.labels.join(','),
              parameters.registrationUrl,
-+            aws_cdk_lib_1.aws_stepfunctions.JsonPath.base64Encode(aws_cdk_lib_1.aws_stepfunctions.JsonPath.stringToJson(this.userDataExtra)),
++            aws_cdk_lib_1.aws_stepfunctions.JsonPath.base64Encode(this.userDataExtra),
          ];
          const passUserData = new aws_cdk_lib_1.aws_stepfunctions.Pass(this, `${this.labels.join(', ')} data`, {
              parameters: {
