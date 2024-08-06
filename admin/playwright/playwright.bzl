@@ -219,6 +219,9 @@ def _playwright_project_test(
             "PLAYWRIGHT_DISABLE_TRANSFORMS": "true",
             # Bazel will strip colors when necessary.
             "FORCE_COLOR": "true",
+            # TODO(calebmer, #deploy): Add some debugging to help us figure out why the
+            # WebKit browser keeps crashing.
+            "DEBUG": "pw:browser*",
         },
         tags = tags + [
                    "playwright",
