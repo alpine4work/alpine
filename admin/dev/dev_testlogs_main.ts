@@ -323,23 +323,37 @@ async function getTestOutputPlaywrightTraces(testName: string, testOutputPath: s
         }
 
         relativePathPrefix = relativePathPrefix.replaceAll("/", "-");
-        relativePathPrefix = `${relativePathPrefix}-`;
 
         const relativePath = match[1]!;
+        let name = relativePath;
 
-        if (!relativePath.startsWith(relativePathPrefix)) {
+        let hasStrippedRelativePathPrefix = false;
+
+        for (let i = 0; i < relativePathPrefix.length + 1; i++) {
+            if (i === relativePathPrefix.length || name[i] !== relativePathPrefix[i]) {
+                if (name[i] !== "-") break;
+
+                if (i + 1 >= 5) {
+                    hasStrippedRelativePathPrefix = true;
+                    name = name.slice(i + 1);
+                }
+                break;
+            }
+        }
+
+        if (!hasStrippedRelativePathPrefix) {
             throw new InternalError(
                 quote`Expected Playwright trace path to start with ${relativePathPrefix} (actual trace path: ${relativePath})`,
             );
         }
 
-        if (!relativePath.endsWith(relativePathSuffix)) {
+        if (!name.endsWith(relativePathSuffix)) {
             throw new InternalError(
                 quote`Expected Playwright trace path to end with ${relativePathSuffix} (actual trace path: ${relativePath})`,
             );
         }
 
-        const name = relativePath.slice(relativePathPrefix.length, -relativePathSuffix.length);
+        name = name.slice(0, -relativePathSuffix.length);
 
         return {name, relativePath};
     });

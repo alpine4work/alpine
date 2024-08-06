@@ -86,6 +86,9 @@ const typeCheckingConfigOverride = {
                 allowForKnownSafePromises: ["SafeFloatingPromise"],
             },
         ],
+
+        // The recommended type checking rules upgrade this to an error.
+        "prefer-const": "warn",
     },
 };
 
@@ -341,9 +344,6 @@ module.exports = {
 
                 // Inconvenient to annotate every type import with `import type`.
                 "@typescript-eslint/consistent-type-imports": "off",
-
-                // The recommended type checking rules upgrade this to an error.
-                "prefer-const": "warn",
             },
         },
         // Check a global variable to let our ESLint test script disable lint rules
