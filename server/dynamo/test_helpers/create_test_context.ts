@@ -241,9 +241,15 @@ export function createTestContext({
         sqsLocal = null;
         await currentSqsLocal.stop({force: true});
 
+        const counterMatch = currentSqsLocal.logsPath.match(/-([0-9]+)$/);
+        let counter = Math.max(2, parseInt(counterMatch?.[1] ?? "1", 10) + 1);
+        while (await fs.pathExists(`${currentSqsLocal.logsPath}-${counter}`)) {
+            counter++;
+        }
+
         sqsLocal = await startSqsLocal({
             withInMemoryData: true,
-            logsPath: currentSqsLocal.logsPath,
+            logsPath: `${currentSqsLocal.logsPath}-${counter}`,
             port: currentSqsLocal.port,
             statsPort: null,
         });
