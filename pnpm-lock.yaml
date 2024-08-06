@@ -22,7 +22,7 @@ patchedDependencies:
     hash: hd2oz2xlphxbe5w65c4x3qmfrm
     path: admin/patches/@cloudflare__workers-types@3.18.0.patch
   '@cloudsnorkel/cdk-github-runners@0.14.1':
-    hash: 4cbrmzyjputep2hgbje6tbd25i
+    hash: ttjerwiuvxqz6tljm63y6tfgsq
     path: admin/patches/@cloudsnorkel__cdk-github-runners@0.14.1.patch
   '@dnd-kit/core@6.0.8':
     hash: 7phbxv4pzfr6sphz6gpqy6mxeu
@@ -178,7 +178,7 @@ dependencies:
     version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
   '@cloudsnorkel/cdk-github-runners':
     specifier: 0.14.1
-    version: 0.14.1(patch_hash=4cbrmzyjputep2hgbje6tbd25i)(aws-cdk-lib@2.149.0)(constructs@10.1.143)
+    version: 0.14.1(patch_hash=ttjerwiuvxqz6tljm63y6tfgsq)(aws-cdk-lib@2.149.0)(constructs@10.1.143)
   '@codemirror/lang-sql':
     specifier: ^6.7.0
     version: 6.7.0(@codemirror/view@6.28.6)
@@ -2376,7 +2376,7 @@ packages:
     dev: false
     patched: true
 
-  /@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=4cbrmzyjputep2hgbje6tbd25i)(aws-cdk-lib@2.149.0)(constructs@10.1.143):
+  /@cloudsnorkel/cdk-github-runners@0.14.1(patch_hash=ttjerwiuvxqz6tljm63y6tfgsq)(aws-cdk-lib@2.149.0)(constructs@10.1.143):
     resolution: {integrity: sha512-0hHpRdX0k37CzK+e+IWaEaqbKYasc9m7LwqbiYFVdD9eZDsG7M2HM8+fN1Ie8Mk4OJxwyVt8v1ABDXWcVD4gXQ==}
     peerDependencies:
       aws-cdk-lib: ^2.123.0
