@@ -117,9 +117,9 @@ patchedDependencies:
   phosphor-react@1.4.1:
     hash: 3pobfw7ffmyaylen7ch3f6ioba
     path: admin/patches/phosphor-react@1.4.1.patch
-  playwright@1.39.0:
-    hash: 2cilo76hjm2rkc2l4kmysee6ya
-    path: admin/patches/playwright@1.39.0.patch
+  playwright@1.46.0:
+    hash: 7bacgscipg36gd66id6h76g654
+    path: admin/patches/playwright@1.46.0.patch
   prosemirror-view@1.27.2:
     hash: h4ljyes5ung7gghgvcypzyr77u
     path: admin/patches/prosemirror-view@1.27.2.patch
@@ -279,8 +279,8 @@ dependencies:
     specifier: ^2.3.1
     version: 2.3.1
   '@playwright/test':
-    specifier: 1.39.0
-    version: 1.39.0
+    specifier: 1.46.0
+    version: 1.46.0
   '@popperjs/core':
     specifier: 2.11.6
     version: 2.11.6(patch_hash=tltraktq5mjexvnyazyo6z5vd4)
@@ -734,9 +734,12 @@ dependencies:
   pidtree:
     specifier: ^0.6.0
     version: 0.6.0
+  playwright:
+    specifier: 1.46.0
+    version: 1.46.0(patch_hash=7bacgscipg36gd66id6h76g654)
   playwright-core:
-    specifier: 1.39.0
-    version: 1.39.0
+    specifier: 1.46.0
+    version: 1.46.0
   postcss:
     specifier: ^8.4.29
     version: 8.4.29
@@ -4459,12 +4462,12 @@ packages:
       tslib: 2.6.3
     dev: false
 
-  /@playwright/test@1.39.0:
-    resolution: {integrity: sha512-3u1iFqgzl7zr004bGPYiN/5EZpRUSFddQBra8Rqll5N0/vfpqlP9I9EXqAoGacuAbX6c9Ulg/Cjqglp5VkK6UQ==}
-    engines: {node: '>=16'}
+  /@playwright/test@1.46.0:
+    resolution: {integrity: sha512-/QYft5VArOrGRP5pgkrfKksqsKA6CEFyGQ/gjNe6q0y4tZ1aaPfq4gIjudr1s3D+pXyrPRdsy4opKDrjBabE5w==}
+    engines: {node: '>=18'}
     hasBin: true
     dependencies:
-      playwright: 1.39.0(patch_hash=2cilo76hjm2rkc2l4kmysee6ya)
+      playwright: 1.46.0(patch_hash=7bacgscipg36gd66id6h76g654)
     dev: false
 
   /@popperjs/core@2.11.6(patch_hash=tltraktq5mjexvnyazyo6z5vd4):
@@ -14069,18 +14072,18 @@ packages:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
     dev: false
 
-  /playwright-core@1.39.0:
-    resolution: {integrity: sha512-+k4pdZgs1qiM+OUkSjx96YiKsXsmb59evFoqv8SKO067qBA+Z2s/dCzJij/ZhdQcs2zlTAgRKfeiiLm8PQ2qvw==}
-    engines: {node: '>=16'}
+  /playwright-core@1.46.0:
+    resolution: {integrity: sha512-9Y/d5UIwuJk8t3+lhmMSAJyNP1BUC/DqP3cQJDQQL/oWqAiuPTLgy7Q5dzglmTLwcBRdetzgNM/gni7ckfTr6A==}
+    engines: {node: '>=18'}
     hasBin: true
     dev: false
 
-  /playwright@1.39.0(patch_hash=2cilo76hjm2rkc2l4kmysee6ya):
-    resolution: {integrity: sha512-naE5QT11uC/Oiq0BwZ50gDmy8c8WLPRTEWuSSFVG2egBka/1qMoSqYQcROMT9zLwJ86oPofcTH2jBY/5wWOgIw==}
-    engines: {node: '>=16'}
+  /playwright@1.46.0(patch_hash=7bacgscipg36gd66id6h76g654):
+    resolution: {integrity: sha512-XYJ5WvfefWONh1uPAUAi0H2xXV5S3vrtcnXe6uAOgdGi3aSpqOSXX08IAjXW34xitfuOJsvXU5anXZxPSEQiJw==}
+    engines: {node: '>=18'}
     hasBin: true
     dependencies:
-      playwright-core: 1.39.0
+      playwright-core: 1.46.0
     optionalDependencies:
       fsevents: 2.3.2
     dev: false

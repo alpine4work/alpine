@@ -107,7 +107,7 @@ export class AwsGithubRunners extends Construct {
                                 "nodejs",
 
                                 // Dependencies required by Playwright for running Chromium:
-                                // https://github.com/microsoft/playwright/blob/3049d99bc8c76799817585a359502368bd6ba366/packages/playwright-core/src/server/registry/nativeDeps.ts#L414-L437
+                                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L252-L275
                                 //
                                 // We could also run `playwright install-deps` but putting them on the machine
                                 // image is more efficient.
@@ -135,7 +135,7 @@ export class AwsGithubRunners extends Construct {
                                 "libxrandr2",
 
                                 // Dependencies required by Playwright for running WebKit:
-                                // https://github.com/microsoft/playwright/blob/3049d99bc8c76799817585a359502368bd6ba366/packages/playwright-core/src/server/registry/nativeDeps.ts#L468-L523
+                                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L305-L362
                                 //
                                 // We could also run `playwright install-deps` but putting them on the machine
                                 // image is more efficient.
