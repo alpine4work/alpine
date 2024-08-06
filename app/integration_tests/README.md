@@ -7,10 +7,18 @@ tests, we recommend taking a look at Playwright's tooling capabilities.
 
 Some useful things to know when working with Playwright tests:
 
--   When a test fails Playwright generates videos, images, and traces you can view. These files are
-    available in `bazel-testlogs/app/integration_tests/**/test.outputs`. On test failure we also
-    will log a command you can run to quickly open the trace (e.g.
+-   When a test fails Playwright generates videos, images, and traces you can view. You can find
+    these files by running `dev testlogs`. To find the files manually, they're available in
+    `bazel-testlogs/app/integration_tests/**/test.outputs`. On test failure we also will log a
+    command you can run to quickly open the trace (e.g.
     `bazel run //app/integration_tests:tasks/task_notepad_chromium_test_show_trace -- tasks-task_notepad-can-create-new-notepad-pages-chromium/trace.zip`)
+
+-   If your test fails in CI after you push to GitHub you can download the `bazel-testlogs` folder
+    from the run under the GitHub action run's artifacts section. If you pass the path of this
+    directory to `dev testlogs` you can easily inspect the outputs and Playwright traces in this
+    folder. To manually show a trace you can use the
+    `bazel run //admin/playwright:playwright_show_trace -- [path]` command (replacing `[path]` with
+    the trace you want to view).
 
 -   By default, when running a Playwright test the browser is hidden. If you want to see the browser
     while you may run a test in headed mode by adding the `--headed` flag. (e.g.

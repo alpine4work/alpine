@@ -19,12 +19,13 @@ if has_arg "--help" "$@"; then
     echo "Command: dev
 
 Usage:
-    dev                 Starts developer environment
-    dev check           Run source code checks for changed files
-    dev check --all     Run all source code checks
-    dev test            Run unit tests for changed files
-    dev test --all      Run all unit tests
-    dev --help          Print this message"
+    dev                    Starts developer environment
+    dev check              Run source code checks for changed files
+    dev check --all        Run all source code checks
+    dev test               Run unit tests for changed files
+    dev test --all         Run all unit tests
+    dev testlogs [path]    Inspect the logs of failing tests
+    dev --help             Print this message"
     exit 0
 fi
 
@@ -77,6 +78,13 @@ case "$1" in
                 ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs bazel test
             fi
         fi
+        ;;
+
+    testlogs)
+        # Base64 encode argument to support arguments with spaces in them (e.g.
+        # downloads from a web browser like `bazel_testlogs (3).zip`).
+        # `bazel run` doesn't work well with paths that contain spaces.
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:testlogs -- "$(echo -n "$2" | base64)"
         ;;
 
     *)

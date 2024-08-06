@@ -30,6 +30,7 @@
         "@dnd-kit/sortable": "^7.0.2",
         "@dnd-kit/utilities": "3.2.1",
         "@fig/lezer-bash": "^1.2.5",
+        "@inquirer/prompts": "^5.3.8",
         "@internationalized/date": "^3.5.0",
         "@juggle/resize-observer": "^3.4.0",
         "@lezer/common": "^1.2.1",

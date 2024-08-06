@@ -9,6 +9,7 @@ ts_project(
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
     ],
     deps = [
+        "//:node_modules/@inquirer/prompts",
         "//:node_modules/@types/express",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
@@ -16,8 +17,10 @@ ts_project(
         "//:node_modules/chalk",
         "//:node_modules/chokidar",
         "//:node_modules/express",
+        "//:node_modules/fast-glob",
         "//:node_modules/fs-extra",
         "//:node_modules/get-port",
+        "//:node_modules/murmurhash",
         "//:node_modules/pretty-ms",
         "//:node_modules/strip-ansi",
         "//:node_modules/ws",
@@ -47,5 +50,15 @@ js_binary(
         "//server/migration",
     ],
     entry_point = "dev_migrate_main.js",
+    env = {"NODE_ENV": "development"},
+)
+
+js_binary(
+    name = "testlogs",
+    data = [
+        ":dev_lib",
+        "//admin/playwright:playwright_show_trace",
+    ],
+    entry_point = "dev_testlogs_main.js",
     env = {"NODE_ENV": "development"},
 )

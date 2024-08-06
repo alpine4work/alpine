@@ -20,4 +20,5 @@ copy_to_bin(
 bin.playwright_binary(
     name = "playwright_show_trace",
     args = ["show-trace"],
+    visibility = ["//admin/dev:__pkg__"],
 )
