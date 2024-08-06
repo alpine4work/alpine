@@ -68,6 +68,11 @@ jobs:
                       "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
                       "--edgeServiceUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
 
+            - name: Deploy
+              shell: bash
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //admin/deploy --config=github-runner
+
             - if: ${{ !cancelled() }}
               name: Cleanup deploy
               shell: bash
