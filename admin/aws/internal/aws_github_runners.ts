@@ -207,7 +207,7 @@ export class AwsGithubRunners extends Construct {
                                 // ```
                                 "libfaad2",
                                 "libkate1",
-                                "libfdk-aac1",
+                                "libfdk-aac2",
                                 "libwpewebkit-1.0-3",
                             ]),
                         ).join(" ")}`,
