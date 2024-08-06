@@ -116,10 +116,10 @@ export class TracerSpan extends TracerBase {
     ) {
         if (
             parentSpan !== null &&
-            !(parentSpan.traceId === undefined && parentSpan.parentId === undefined) &&
-            !(parentSpan.traceId !== undefined && parentSpan.parentId !== undefined)
+            parentSpan.parentId !== undefined &&
+            parentSpan.traceId === undefined
         ) {
-            throw new InternalError("Both `traceId` and `parentId` must be set if available");
+            throw new InternalError("If `parentId` is set then `traceId` must also be set");
         }
 
         super();
