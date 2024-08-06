@@ -77,7 +77,7 @@ runService({
 
                 const startTime = clock.now();
 
-                {
+                try {
                     const {span, finishSpan} = TracerSpan._start(tracer, clock, "Prepare deploy", {
                         traceId,
                         parentId: rootSpanId,
@@ -96,24 +96,24 @@ runService({
                         finishSpan();
                         throw error;
                     }
+                } finally {
+                    const prepareEndTime = clock.now();
+
+                    await fs.ensureDir(envPaths.data);
+                    await fs.writeFile(
+                        joinPath(envPaths.data, "deploy_state.json"),
+                        JSON.stringify(
+                            DeployStateSchema.serialize({
+                                commitSha,
+                                workflowRunId,
+                                traceId,
+                                rootSpanId,
+                                startTime,
+                                prepareEndTime,
+                            }),
+                        ),
+                    );
                 }
-
-                const prepareEndTime = clock.now();
-
-                await fs.ensureDir(envPaths.data);
-                await fs.writeFile(
-                    joinPath(envPaths.data, "deploy_state.json"),
-                    JSON.stringify(
-                        DeployStateSchema.serialize({
-                            commitSha,
-                            workflowRunId,
-                            traceId,
-                            rootSpanId,
-                            startTime,
-                            prepareEndTime,
-                        }),
-                    ),
-                );
                 break;
             }
             case "Cleanup": {
@@ -160,7 +160,7 @@ runService({
                 }
 
                 // Actually run cleanup...
-                {
+                try {
                     const {span, finishSpan} = TracerSpan._start(tracer, clock, "Cleanup deploy", {
                         traceId,
                         parentId: rootSpanId,
@@ -179,11 +179,9 @@ runService({
                         finishSpan();
                         throw error;
                     }
-                }
-
-                // Send a span that covers the entire deploy including prepare/cleanup. The
-                // span ends here now that we have nothing else to do.
-                {
+                } finally {
+                    // Send a span that covers the entire deploy including prepare/cleanup. The
+                    // span ends here now that we have nothing else to do.
                     const {finishSpan} = TracerSpan._start(
                         tracer,
                         clock,
