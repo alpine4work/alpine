@@ -13,7 +13,7 @@ import {
 } from "~/server/node/create_server_process_context.js";
 import {runService} from "~/server/node/run_service.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError, UnknownError} from "~/shared/error/error.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
@@ -148,7 +148,7 @@ runService({
                 // Send a span that only covers the AWS CDK deploy. Which starts at the end of
                 // our prepare call and ends at the start of our cleanup call.
                 {
-                    const {finishSpan} = TracerSpan._start(
+                    const {span, finishSpan} = TracerSpan._start(
                         tracer,
                         clock,
                         "AWS CDK deploy",
@@ -156,6 +156,11 @@ runService({
                         generateId<TraceSpanId>(),
                         prepareEndTime,
                     );
+
+                    if (status === "Failure") {
+                        span.addException(new UnknownError("AWS CDK deploy failed"));
+                    }
+
                     finishSpan();
                 }
 
