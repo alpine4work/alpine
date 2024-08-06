@@ -2083,8 +2083,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson(''))))\",\"InstanceInitiatedShutdow\
-                        nBehavior\":\"terminate\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
+                        te\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2110,8 +2110,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson(''))))\",\"InstanceInitiatedShutdow\
-                        nBehavior\":\"terminate\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
+                        te\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2137,8 +2137,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson(''))))\",\"InstanceInitiatedShutdow\
-                        nBehavior\":\"terminate\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
+                        te\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2164,8 +2164,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson(''))))\",\"InstanceInitiatedShutdow\
-                        nBehavior\":\"terminate\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
+                        te\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2191,8 +2191,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson(''))))\",\"InstanceInitiatedShutdow\
-                        nBehavior\":\"terminate\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
+                        te\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2217,8 +2217,8 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson(''))))\",\"InstanceInitiatedShutdow\
-                        nBehavior\":\"terminate\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
+                        te\",\"IamInstanceProfile\":{\"Arn\":\""
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2291,11 +2291,11 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson('{\\\"opensearchHost\\\":\\\""
+                        States.Base64Encode('{\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
                       - \",\"jobQueueUrl\":\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2321,11 +2321,11 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson('{\\\"opensearchHost\\\":\\\""
+                        States.Base64Encode('{\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
                       - \",\"jobQueueUrl\":\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2351,11 +2351,11 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson('{\\\"opensearchHost\\\":\\\""
+                        States.Base64Encode('{\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
                       - \",\"jobQueueUrl\":\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2381,11 +2381,11 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson('{\\\"opensearchHost\\\":\\\""
+                        States.Base64Encode('{\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
                       - \",\"jobQueueUrl\":\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2411,11 +2411,11 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson('{\\\"opensearchHost\\\":\\\""
+                        States.Base64Encode('{\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
                       - \",\"jobQueueUrl\":\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -2440,11 +2440,11 @@ Resources:
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
-                        States.Base64Encode(States.StringToJson('{\\\"opensearchHost\\\":\\\""
+                        States.Base64Encode('{\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
                       - \",\"jobQueueUrl\":\"
                       - Fn::ImportValue: CyberworldsStack:JobQueueUrl
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}'))))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
