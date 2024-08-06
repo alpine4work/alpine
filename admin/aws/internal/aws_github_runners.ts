@@ -198,6 +198,17 @@ export class AwsGithubRunners extends Construct {
                                 // Playwright errs if this isn't installed when running WebKit, but it's not
                                 // present in the list we linked above.
                                 "libxt6",
+
+                                // Dependencies for fixing the following error when `DEBUG=pw:browser*` is set.
+                                // https://github.com/microsoft/playwright/issues/27855#issuecomment-1789282663
+                                //
+                                // ```
+                                // pw:browser [pid=1594][err] (MiniBrowser:1600): GLib-GIO-CRITICAL **: 18:21:12.441: g_application_quit: assertion 'G_IS_APPLICATION (application)' failed
+                                // ```
+                                "libfaad2",
+                                "libkate1",
+                                "libfdk-aac1",
+                                "libwpewebkit-1.0-3",
                             ]),
                         ).join(" ")}`,
                     ],
