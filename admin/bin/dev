@@ -1,5 +1,6 @@
 #!/bin/bash
 
+base_path=$(pwd)
 workspace_path=$(cd $(dirname $0)/../.. && pwd)
 cd $workspace_path
 
@@ -19,13 +20,16 @@ if has_arg "--help" "$@"; then
     echo "Command: dev
 
 Usage:
-    dev                    Starts developer environment
-    dev check              Run source code checks for changed files
-    dev check --all        Run all source code checks
-    dev test               Run unit tests for changed files
-    dev test --all         Run all unit tests
-    dev testlogs [path]    Inspect the logs of failing tests
-    dev --help             Print this message"
+    dev                     Starts developer environment
+    dev check               Run source code checks for changed files
+    dev check [...paths]    Run source code checks for the provided files
+    dev check --all         Run all source code checks
+    dev test                Run unit tests for changed files
+    dev test [...paths]     Run unit tests for the provided files
+    dev test --all          Run all unit tests
+    dev testlogs            Inspect failed tests
+    dev testlogs [path]     Inspect failed tests from a \"bazel_testlogs.zip\" file
+    dev --help              Print this message"
     exit 0
 fi
 
@@ -33,7 +37,7 @@ case "$1" in
     check)
         if has_arg "--all" "${@:2}"; then
             ./admin/bin/bazel test //... --test_tag_filters=dev-check
-        else
+        elif [ -z "$2" ]; then
             # - `git diff --name-only main`: Finds all the files which are different from
             #   the `main` branch.
             #
@@ -50,7 +54,19 @@ case "$1" in
             if [ -z "$files" ]; then
                 echo "No changed files"
             else
-                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-check\b', tests(//...)), $files))" | xargs bazel test
+                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-check\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
+            fi
+        else
+            # - `echo "${@:2}"`: Use files from the command line.
+            #
+            # - `xargs | sed "s/ / union /g"`: Put files on one line with the string
+            #   " union " between each file.
+            files="$(echo "${@:2}" | xargs | sed "s/ / union /g")"
+
+            if [ -z "$files" ]; then
+                echo "No changed files"
+            else
+                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-check\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
             fi
         fi
         ;;
@@ -58,7 +74,7 @@ case "$1" in
     test)
         if has_arg "--all" "${@:2}"; then
             ./admin/bin/bazel test //... --test_tag_filters=dev-test
-        else
+        elif [ -z "$2" ]; then
             # - `git diff --name-only main`: Finds all the files which are different from
             #   the `main` branch.
             #
@@ -75,7 +91,19 @@ case "$1" in
             if [ -z "$files" ]; then
                 echo "No changed files"
             else
-                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs bazel test
+                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
+            fi
+        else
+            # - `echo "${@:2}"`: Use files from the command line.
+            #
+            # - `xargs | sed "s/ / union /g"`: Put files on one line with the string
+            #   " union " between each file.
+            files="$(echo "${@:2}" | xargs | sed "s/ / union /g")"
+
+            if [ -z "$files" ]; then
+                echo "No tests for sources"
+            else
+                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
             fi
         fi
         ;;
