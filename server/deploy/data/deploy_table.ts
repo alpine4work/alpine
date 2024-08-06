@@ -9,6 +9,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+const githubOwner = "cyberworlds";
+const githubRepo = "cyberworlds";
+
+// You can find the GitHub `workflow_id` with the CLI command
+// `gh workflow list`.
+const testGithubWorkflowId = 45008180;
+
 // TODO(calebmer, #deploy): I'd love to create a quick `dev deployed` script
 // which logs "yes this commit is deployed" or "this commit is currently
 // deploying" or "this commit is not deployed".
@@ -66,9 +73,9 @@ export async function attemptStartDeploy(context: DynamoContext) {
     // TODO(calebmer, #deploy): Implement
     //
     // const commitTestResult = await octokit.actions.listWorkflowRuns({
-    //     owner: "cyberworlds",
-    //     repo: "cyberworlds",
-    //     workflow_id: "test",
+    //     owner: githubOwner,
+    //     repo: githubRepo,
+    //     workflow_id: testGithubWorkflowId,
     //     status: "success",
     //     head_sha: commitSha,
     // });
@@ -110,9 +117,9 @@ export async function prepareDeployFromWorkflow(
             {consistency: "Strong"},
         ),
         context.github.request("GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs", {
-            owner: "cyberworlds",
-            repo: "cyberworlds",
-            workflow_id: "test",
+            owner: githubOwner,
+            repo: githubRepo,
+            workflow_id: testGithubWorkflowId,
             status: "success",
             head_sha: commitSha,
         }),
@@ -137,8 +144,8 @@ export async function prepareDeployFromWorkflow(
         const workflowRunResult = await context.github.request(
             "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
             {
-                owner: "cyberworlds",
-                repo: "cyberworlds",
+                owner: githubOwner,
+                repo: githubRepo,
                 run_id: deployItem.ongoingDeployment.workflowRunId,
             },
         );
