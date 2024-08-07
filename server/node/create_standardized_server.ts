@@ -149,8 +149,6 @@ export function createStandardizedRequestHeaders(reqHeaders: IncomingHttpHeaders
  * Convert a WhatWG response object to a Node.js response.
  */
 export function sendStandardizedResponse(res: ServerResponse, response: Response) {
-    res.statusCode = response.status;
-
     for (const [key, value] of response.headers.entries()) {
         // The [`Set-Cookie` header][1] can be sent multiple times however the
         // `Headers` object acts as a simple key/value store. We need to use our
@@ -163,6 +161,8 @@ export function sendStandardizedResponse(res: ServerResponse, response: Response
             res.setHeader(key, value);
         }
     }
+
+    res.writeHead(response.status);
 
     if (response.body) {
         Readable.fromWeb(

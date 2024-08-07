@@ -141,6 +141,7 @@ export type Artifact = {
               readonly publicPort: number;
               privatePort: number;
               readonly privatePortArg?: string;
+              readonly waitForHttpServerPath?: string;
           };
       }
 );
@@ -207,6 +208,13 @@ async function createArtifacts() {
             ports: {
                 publicPort: edgeDevPort,
                 privatePort: privatePort2,
+                // Check the `/api/time` path while waiting for the HTTP server to start. We
+                // pick this path since it's handled immediately in `EdgeService` and not
+                // forwarded to `AppService`. Forwarding requests to `AppService` will stall
+                // forever because of a circular dependency. `--appServiceUrl` won't respond to
+                // requests until `mainPromise` resolves which requires `EdgeService` to
+                // be ready.
+                waitForHttpServerPath: "/api/time",
             },
             args: [
                 `--appServiceUrl=http://localhost:${appDevPort}`,
@@ -490,7 +498,10 @@ async function rebuildArtifact(artifact: Artifact) {
 
         const httpServerStartPromise = artifact.ports
             ? PromiseImmediate.resolve(
-                  waitForHttpServer(artifact.ports.privatePort).catch(error => {
+                  waitForHttpServer(
+                      artifact.ports.privatePort,
+                      artifact.ports.waitForHttpServerPath,
+                  ).catch(error => {
                       // Don't log an error. If a server never starts, the user will see a 504
                       // gateway timeout when they try to access the artifact's URL.
                   }),

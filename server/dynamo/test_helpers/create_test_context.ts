@@ -249,7 +249,11 @@ export function createTestContext({
 
         sqsLocal = await startSqsLocal({
             withInMemoryData: true,
-            logsPath: `${currentSqsLocal.logsPath}-${counter}`,
+            logsPath: `${
+                counterMatch
+                    ? currentSqsLocal.logsPath.slice(0, -counterMatch[0].length)
+                    : currentSqsLocal.logsPath
+            }-${counter}`,
             port: currentSqsLocal.port,
             statsPort: null,
         });
