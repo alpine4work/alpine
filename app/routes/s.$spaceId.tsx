@@ -664,7 +664,12 @@ function SpaceLayoutRouteInner({
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
                 switch (event.key) {
-                    // Disable Home/End browser behavior. Don't let them scroll our page. Scrolling
+                    // Disable Home/End browser behavior when not focused in a text input. When
+                    // focused in a text input Home/End go to the beginning or end of the input.
+                    // When not focused in a text input Home/End scroll to the beginning or end of
+                    // the page.
+                    //
+                    // We don't want to let these keyboard shortcuts scroll our page. Scrolling
                     // to the extremity of a lazy loaded virtualized scroll view with Home/End
                     // doesn't make sense. Forces the user to scroll continuously with the scroll
                     // wheel or scroll bar.
@@ -674,8 +679,10 @@ function SpaceLayoutRouteInner({
                     // page disruptive navigations. (Which a user may trigger on accident.)
                     case "Home":
                     case "End": {
-                        event.preventDefault();
-                        event.stopPropagation();
+                        if (!isTextInputElement(document.activeElement)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
                         break;
                     }
 

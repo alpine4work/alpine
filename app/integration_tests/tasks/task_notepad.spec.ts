@@ -4,8 +4,6 @@ import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_t
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 
 test("can create tasks in notepad", async ({page, context: browserContext, viewport}) => {
@@ -166,13 +164,7 @@ test("can create tasks in notepad", async ({page, context: browserContext, viewp
         [true, "Yet another task"],
     ]);
 
-    // Run three times for platforms like Linux where Ctrl+ArrowLeft moves a single
-    // word not the entire line.
-    if (process.platform === "darwin") {
-        await page.keyboard.press(`${modifier}+ArrowLeft`);
-    } else {
-        for (let i = 0; i < 3; i++) await page.keyboard.press(`${modifier}+ArrowLeft`);
-    }
+    await page.keyboard.press("Home");
 
     await page.keyboard.press("Enter");
     await page.keyboard.press("ArrowUp");

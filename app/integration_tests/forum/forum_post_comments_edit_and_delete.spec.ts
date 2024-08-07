@@ -6,8 +6,6 @@ import {createChannel, createPost, createPostComment} from "~/server/forum/data/
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
-const modifier = process.platform === "darwin" ? "Meta" : "Control";
-
 const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
@@ -71,19 +69,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     if (!isMobile) {
         await page.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     } else {
-        // Run three five for platforms like Linux where Ctrl+ArrowRight moves a single
-        // word not the entire line.
-        if (process.platform === "darwin") {
-            await page
-                .getByRole("textbox", {name: "Comment", exact: true})
-                .press(`${modifier}+ArrowRight`);
-        } else {
-            for (let i = 0; i < 5; i++) {
-                await page
-                    .getByRole("textbox", {name: "Comment", exact: true})
-                    .press(`${modifier}+ArrowRight`);
-            }
-        }
+        await page.getByRole("textbox", {name: "Comment", exact: true}).press("End");
     }
     await page.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
     await page.getByRole("textbox", {name: "Comment", exact: true}).press("2");
@@ -221,19 +207,7 @@ test("can see a post comment edited in realtime", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     } else {
-        // Run three five for platforms like Linux where Ctrl+ArrowRight moves a single
-        // word not the entire line.
-        if (process.platform === "darwin") {
-            await page2
-                .getByRole("textbox", {name: "Comment", exact: true})
-                .press(`${modifier}+ArrowRight`);
-        } else {
-            for (let i = 0; i < 5; i++) {
-                await page2
-                    .getByRole("textbox", {name: "Comment", exact: true})
-                    .press(`${modifier}+ArrowRight`);
-            }
-        }
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).press("End");
     }
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("2");
@@ -462,19 +436,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     } else {
-        // Run three five for platforms like Linux where Ctrl+ArrowRight moves a single
-        // word not the entire line.
-        if (process.platform === "darwin") {
-            await page2
-                .getByRole("textbox", {name: "Comment", exact: true})
-                .press(`${modifier}+ArrowRight`);
-        } else {
-            for (let i = 0; i < 5; i++) {
-                await page2
-                    .getByRole("textbox", {name: "Comment", exact: true})
-                    .press(`${modifier}+ArrowRight`);
-            }
-        }
+        await page2.getByRole("textbox", {name: "Comment", exact: true}).press("End");
     }
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("Backspace");
     await page2.getByRole("textbox", {name: "Comment", exact: true}).press("2");
