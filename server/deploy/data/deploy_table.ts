@@ -1,7 +1,7 @@
+import {inspect} from "util";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {runProcess} from "~/server/helpers/node/run_process.js";
 import {Context} from "~/shared/context/context.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -87,10 +87,20 @@ export async function attemptStartDeploy(context: DynamoContext) {
     //     throw new FailedPreconditionError("Passing test workflow not found for commit");
 }
 
+/**
+ * Run a deploy.
+ *
+ * This function is written to work in `DeployService` and nowhere else. It
+ * looks for runfiles declared as dependencies of `DeployService`. It uses the
+ * `git` CLI which is only available in GitHub action runners. Trying to call
+ * this function from anywhere but `DeployService` will likely fail.
+ */
 export async function deploy(
     context: Context<DynamoContextModules & {github: GithubContextModule}>,
     options: {commitSha: string; workflowRunId: number},
 ) {
+    assert(context.tracer.getRoot().serviceName === "DeployService");
+
     const handleSpanName = "Deploy";
 
     return context.tracer.withSpan(`Handle: ${handleSpanName}`, (context, span) => {
@@ -135,17 +145,23 @@ async function prepareDeploy(
 ): Promise<DeployAttributesItem> {
     assert(context.tracer.getRoot().serviceName === "DeployService");
 
-    try {
-        await runProcess("git", ["merge-base", "--is-ancestor", commitSha, "main"], {
-            // `git` won't output sensitive user data so we can set this to true.
-            withOutputInErrorMessage: true,
-        });
-    } catch (error) {
-        throw new FailedPreconditionError(
-            quote`Commit ${commitSha} is not present in "main" branch`,
-            {cause: error},
-        );
-    }
+    const mainCompareResult = await context.github.request(
+        "GET /repos/{owner}/{repo}/compare/{base}...{head}",
+        {
+            owner: githubOwner,
+            repo: githubRepo,
+            base: commitSha,
+            head: "main",
+            per_page: 1,
+        },
+    );
+
+    // eslint-disable-next-line no-console
+    console.log(inspect(mainCompareResult, {colors: true, depth: Infinity}));
+
+    // TODO(calebmer, #deploy): Throw this!
+    //
+    // throw new FailedPreconditionError(quote`Commit ${commitSha} is not present in "main" branch`);
 
     const [deployItem, commitTestResult] = await runAllPromises([
         DeployTable.getItem(
@@ -207,16 +223,34 @@ async function prepareDeploy(
 
     // Make sure the commit we're deploying is later than the currently
     // deployed commit.
-    try {
-        await runProcess("git", ["merge-base", "--is-ancestor", deployItem.commitSha, commitSha], {
-            // `git` won't output sensitive user data so we can set this to true.
-            withOutputInErrorMessage: true,
-        });
-    } catch (error) {
-        throw new FailedPreconditionError(quote`Commit ${commitSha} was already deployed`, {
-            cause: error,
-        });
-    }
+    const compareResult1 = await context.github.request(
+        "GET /repos/{owner}/{repo}/compare/{base}...{head}",
+        {
+            owner: githubOwner,
+            repo: githubRepo,
+            base: deployItem.commitSha,
+            head: commitSha,
+            per_page: 1,
+        },
+    );
+    const compareResult2 = await context.github.request(
+        "GET /repos/{owner}/{repo}/compare/{base}...{head}",
+        {
+            owner: githubOwner,
+            repo: githubRepo,
+            base: commitSha,
+            head: deployItem.commitSha,
+            per_page: 1,
+        },
+    );
+
+    // eslint-disable-next-line no-console
+    console.log(inspect(compareResult1, {colors: true, depth: Infinity}));
+    // eslint-disable-next-line no-console
+    console.log(inspect(compareResult2, {colors: true, depth: Infinity}));
+
+    // TODO(calebmer, #deploy): Figure out how to interpret the `console.log()`ed result.
+    throw new FailedPreconditionError(quote`Commit ${commitSha} was already deployed`);
 
     return DeployTable.updateItem(
         context,

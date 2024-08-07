@@ -130,6 +130,7 @@ filegroup(
         ":app_build_assets",
         "//app/static",
     ],
+    visibility = ["//server/deploy/tool:__pkg__"],
 )
 
 js_binary(
