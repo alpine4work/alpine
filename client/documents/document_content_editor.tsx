@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {AnimationControls, animate, spring, timeline} from "motion";
 import {
     ArrowLeft,
@@ -76,7 +77,12 @@ import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/clien
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -108,8 +114,11 @@ import {
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
     messageInputMinHeight,
+    messageInputPaddingY,
     messageViewBubbleBorderRadius,
     messageViewBubbleMinHeight,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
 } from "~/shared/styles/messaging_shared_styles.js";
 import {
     colorSchemeVars,
@@ -1775,25 +1784,33 @@ export function DocumentContentEditor({
                                         }}
                                     >
                                         <Box
-                                            padding="3"
+                                            paddingX={screenPaddingX}
+                                            paddingY={messageInputPaddingY}
                                             display="flex"
                                             gap="2"
-                                            style={{height: messageInputMinHeight}}
+                                            style={{
+                                                height: messageInputMinHeight[
+                                                    isMobile ? "mobile" : "desktop"
+                                                ],
+                                            }}
                                         >
                                             <Box
                                                 ref={mobileFakeCommentInputEditorRef}
-                                                className={contentSchemaStyles.docClassName}
+                                                className={classNames(
+                                                    contentSchemaStyles.docClassName,
+                                                    isMobile &&
+                                                        contentSchemaStyles.extraCompactDocClassName,
+                                                )}
                                                 flexGrow="1"
                                                 borderRadius={messageViewBubbleBorderRadius}
-                                                paddingX="1"
-                                                paddingY="2"
+                                                paddingX={messageViewBubblePaddingX}
+                                                paddingY={messageViewBubblePaddingY}
                                                 // If the user has a mouse, make this feel like a text input.
                                                 cursor="text"
                                                 style={{
-                                                    minHeight:
-                                                        messageViewBubbleMinHeight[
-                                                            isMobile ? "mobile" : "desktop"
-                                                        ],
+                                                    height: messageViewBubbleMinHeight[
+                                                        isMobile ? "mobile" : "desktop"
+                                                    ],
                                                     boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                                                 }}
                                                 onPointerDown={() => {
@@ -1881,7 +1898,13 @@ export function DocumentContentEditor({
                                             // React finishes hydrating. This is expected, React can ignore the difference.
                                             suppressHydrationWarning={true}
                                         >
-                                            <Box style={{height: messageInputMinHeight}} />
+                                            <Box
+                                                style={{
+                                                    height: messageInputMinHeight[
+                                                        isMobile ? "mobile" : "desktop"
+                                                    ],
+                                                }}
+                                            />
                                         </Box>
                                     )}
                                 </>
@@ -2249,7 +2272,7 @@ function DocumentContentEditorSidebar({
                                 alignItems="center"
                                 style={{
                                     paddingBottom: addRemLengths(
-                                        messageInputMinHeight,
+                                        messageInputMinHeight[isMobile ? "mobile" : "desktop"],
                                         isMobile &&
                                             (!mobileState.isFullScreen ||
                                                 mobileState.animationState === "Expanding")

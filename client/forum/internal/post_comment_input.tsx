@@ -18,9 +18,6 @@ import {PostId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {getPostWithStrongReadConsistency} from "~/shared/rpc/forum_rpc_definitions.js";
-import {messageInputMinHeight} from "~/shared/styles/messaging_shared_styles.js";
-
-export const postCommentInputMinHeight = messageInputMinHeight;
 
 export type PostRealtimeProcedures = {
     updateCommentContent: (input: {commentIndex: number; content: MessageContent}) => Promise<{}>;

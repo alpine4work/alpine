@@ -68,12 +68,12 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
-    documentCommentInputMinHeight,
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderMinHeightWithoutPaddingTop,
     documentCommentThreadHeaderPaddingY,
     documentCommentThreadListViewMaxWidth,
 } from "~/shared/styles/document_shared_styles.js";
+import {messageInputMinHeight} from "~/shared/styles/messaging_shared_styles.js";
 import {
     documentCommentThreadsStyles,
     inputPlaceholderStyles,
@@ -1071,7 +1071,7 @@ function DocumentCommentThreadListView(
 
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: documentCommentInputMinHeight,
+                        minHeight: messageInputMinHeight[isMobile ? "mobile" : "desktop"],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({

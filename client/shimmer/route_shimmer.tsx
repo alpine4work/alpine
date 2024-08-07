@@ -571,7 +571,11 @@ function MessageInputShimmer({
     const isMobile = useIsMobile();
 
     return (
-        <Box flexShrink="0" backgroundColor="grey-0" style={{height: messageInputMinHeight}}>
+        <Box
+            flexShrink="0"
+            backgroundColor="grey-0"
+            style={{height: messageInputMinHeight[isMobile ? "mobile" : "desktop"]}}
+        >
             <Box
                 display="flex"
                 alignItems="center"

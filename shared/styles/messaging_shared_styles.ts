@@ -12,8 +12,6 @@ import {
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles.js";
 
-export const messageInputMinHeight: RemLength = "3.875rem";
-
 export const messageViewBubbleMinWidth: Spacing = "6";
 export const messageViewBubbleBorderRadius = {desktop: "4", mobile: "3.5"} as const;
 export const messageViewBubbleMergedBorderRadius = "1";
@@ -93,4 +91,14 @@ export const messageInputAccountAvatarPaddingY = mapObjectValues(
                 parseRemLengthNumber(spacing[messageInputAccountAvatarSize])) /
             2
         }rem`,
+);
+
+export const messageInputMinHeight = mapObjectValues(
+    messageViewBubbleMinHeight,
+    messageViewBubbleMinHeight =>
+        addRemLengths(
+            spacing[messageInputPaddingY],
+            messageViewBubbleMinHeight,
+            spacing[messageInputPaddingY],
+        ),
 );

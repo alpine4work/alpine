@@ -36,7 +36,6 @@ import {
 import {
     PostCommentInput,
     PostRealtimeProcedures,
-    postCommentInputMinHeight,
 } from "~/client/forum/internal/post_comment_input.js";
 import {PostEditing, usePostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
@@ -104,6 +103,7 @@ import {
     postViewMaxWidth,
 } from "~/shared/styles/forum_shared_styles.js";
 import {
+    messageInputMinHeight,
     messageViewMinHeight,
     messageViewTimestampDividerMarginTop,
 } from "~/shared/styles/messaging_shared_styles.js";
@@ -1278,7 +1278,7 @@ function PostListView(
 
                     return {
                         key: `PostCommentInput:${item.post.id}`,
-                        minHeight: postCommentInputMinHeight,
+                        minHeight: messageInputMinHeight[isMobile ? "mobile" : "desktop"],
                         withManualLayout: true,
                         stayCompletelyVisibleAfterResize: true,
                         render: ({

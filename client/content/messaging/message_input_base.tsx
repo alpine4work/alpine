@@ -526,8 +526,15 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                 backgroundColor="grey-0"
                 style={{
                     minHeight: !isBottomBar
-                        ? messageInputMinHeight
-                        : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
+                        ? messageInputMinHeight[isMobile ? "mobile" : "desktop"]
+                        : `calc(${
+                              isMobile
+                                  ? addRemLengths(
+                                        messageInputMinHeight.mobile,
+                                        spacing[mobileBottomBarKeyboardToolbarHeight],
+                                    )
+                                  : messageInputMinHeight.desktop
+                          } + var(--window-safe-area-inset-bottom, 0px))`,
                     paddingBottom: isBottomBar
                         ? clientInfo.isNativeMobile
                             ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`

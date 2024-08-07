@@ -6,7 +6,6 @@ import {
 } from "~/shared/styles/messaging_shared_styles.js";
 
 export const documentCommentThreadPreviewHeight = "48";
-export const documentCommentInputMinHeight = messageInputMinHeight;
 
 export const documentCommentThreadListViewMaxWidth = "160";
 export const documentCommentThreadActionsHeight = "7";
@@ -26,8 +25,8 @@ export const documentCommentThreadHeaderMinHeight = addRemLengths(
 
 export const documentCommentThreadCountAgainstLimit = mapObjectValues(
     messageViewMinHeight,
-    messageViewMinHeight =>
+    (messageViewMinHeight, platform) =>
         parseRemLengthNumber(
-            addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight),
+            addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight[platform]),
         ) / parseRemLengthNumber(messageViewMinHeight),
 );
