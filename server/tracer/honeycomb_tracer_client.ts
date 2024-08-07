@@ -51,10 +51,10 @@ export class HoneycombTracerClient {
             this._scheduledEventBatch = [];
 
             const promise = (async () => {
-                // We send events in a batch to Honeycomb five times a second. We want the
+                // We send events in a batch to Honeycomb twice a second. We want the
                 // delay to be long enough to include a meaningful amount of data but also
                 // short enough that it's tolerable to delay process shutdown by this duration.
-                await wait(200);
+                await wait(500);
 
                 const eventBatch = this._scheduledEventBatch;
                 this._scheduledEventBatch = null;

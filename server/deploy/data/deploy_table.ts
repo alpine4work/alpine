@@ -1,20 +1,22 @@
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {Context} from "~/shared/context/context.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const githubOwner = "cyberworlds";
-const githubRepo = "cyberworlds";
+export const githubOwner = "cyberworlds";
+export const githubRepo = "cyberworlds";
 
 // You can find the GitHub `workflow_id` with the CLI command
 // `gh workflow list`.
-const testGithubWorkflowId = 45008180;
+export const testGithubWorkflowId = 45008180;
 
 // TODO(calebmer, #deploy): I'd love to create a quick `dev deployed` script
 // which logs "yes this commit is deployed" or "this commit is currently
@@ -69,6 +71,8 @@ const DeployTable = DynamoTableSchema.new({
     ],
 });
 
+type DeployAttributesItem = DynamoTableItemType<typeof DeployTable, "Deploy", "Attributes">;
+
 export async function attemptStartDeploy(context: DynamoContext) {
     // TODO(calebmer, #deploy): Implement
     //
@@ -83,6 +87,39 @@ export async function attemptStartDeploy(context: DynamoContext) {
     //     throw new FailedPreconditionError("Passing test workflow not found for commit");
 }
 
+export async function deploy(
+    context: Context<DynamoContextModules & {github: GithubContextModule}>,
+    options: {commitSha: string; workflowRunId: number},
+) {
+    const handleSpanName = "Deploy";
+
+    return context.tracer.withSpan(`Handle: ${handleSpanName}`, (context, span) => {
+        span.addPropagatedDataForChildrenOnly({context: {handler: handleSpanName}});
+        return actuallyDeploy(context, options);
+    });
+}
+
+async function actuallyDeploy(
+    context: Context<DynamoContextModules & {github: GithubContextModule}>,
+    {commitSha, workflowRunId}: {commitSha: string; workflowRunId: number},
+) {
+    const deployItem = await prepareDeploy(context, {
+        commitSha,
+        workflowRunId,
+    });
+
+    const result = await captureResultPromise(async () => {
+        // TODO(calebmer, #deploy): Implement!
+    });
+
+    await cleanupDeploy(context, {
+        commitSha,
+        workflowRunId,
+        result,
+        initialItem: deployItem,
+    });
+}
+
 /**
  * Prepare for a deploy from a GitHub workflow. Does the following:
  *
@@ -92,10 +129,10 @@ export async function attemptStartDeploy(context: DynamoContext) {
  *   - Makes sure there's a successful test run for the commit
  * - Updates an item in DynamoDB letting it know a deploy has started
  */
-export async function prepareDeployFromWorkflow(
+async function prepareDeploy(
     context: Context<DynamoContextModules & {github: GithubContextModule}>,
     {commitSha, workflowRunId}: {commitSha: string; workflowRunId: number},
-) {
+): Promise<DeployAttributesItem> {
     assert(context.tracer.getRoot().serviceName === "DeployService");
 
     try {
@@ -181,7 +218,7 @@ export async function prepareDeployFromWorkflow(
         });
     }
 
-    await DeployTable.updateItem(
+    return DeployTable.updateItem(
         context,
         {partitionType: "Deploy", sortRangeType: "Attributes"},
         item => ({
@@ -195,16 +232,18 @@ export async function prepareDeployFromWorkflow(
     );
 }
 
-export async function cleanupDeployFromWorkflow(
+async function cleanupDeploy(
     context: DynamoContext,
     {
         commitSha,
         workflowRunId,
-        status,
+        initialItem,
+        result,
     }: {
         commitSha: string;
         workflowRunId: number;
-        status: "Success" | "Failure";
+        initialItem: DeployAttributesItem;
+        result: Result<void>;
     },
 ) {
     await DeployTable.updateItem(
@@ -228,15 +267,10 @@ export async function cleanupDeployFromWorkflow(
                 // If the deploy was successful update the deployed commit SHA. Otherwise leave
                 // the old commit SHA in place since a failed deploy reverts all infrastructure
                 // changes.
-                commitSha: status === "Success" ? commitSha : item.commitSha,
+                commitSha: result.ok ? commitSha : item.commitSha,
                 ongoingDeployment: null,
             };
         },
-        {
-            initialItem: await DeployTable.getItem(context, {
-                partitionType: "Deploy",
-                sortRangeType: "Attributes",
-            }),
-        },
+        {initialItem},
     );
 }

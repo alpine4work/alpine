@@ -52,11 +52,13 @@ def _remix_app_impl(ctx):
         DefaultInfo(
             files = depset([server_build_output]),
             runfiles = ctx.runfiles(
-                [assets_build_output] +
                 ([server_map_build_output] if server_map_build_output else []),
             ).merge(
                 ctx.attr._app_lib[DefaultInfo].default_runfiles,
             ),
+        ),
+        OutputGroupInfo(
+            assets = depset([assets_build_output]),
         ),
     ]
 

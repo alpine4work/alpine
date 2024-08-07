@@ -9,13 +9,7 @@ jobs:
         runs-on: [self-hosted, aws-deploy]
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            HONEYCOMB_API_KEY: ${{ secrets.DEPLOY_HONEYCOMB_API_KEY }}
         steps:
-            # TODO(calebmer, #deploy): Remove debug
-            - name: Debug user data
-              shell: bash
-              run: echo $USER_DATA_EXTRA
-
             - name: Checkout repo
               uses: actions/checkout@v3
 
@@ -56,33 +50,13 @@ jobs:
               run: |
                   admin/aws/internal/aws_github_runners_bazel_remote_cache.sh
 
-            - name: Prepare deploy
-              shell: bash
-              run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
-                      --action=Prepare \
-                      --commitSha=$GITHUB_SHA \
-                      --workflowRunId=${{ github.run_id }} \
-                      --honeycombApiKey=$HONEYCOMB_API_KEY \
-                      "--opensearchHost=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
-                      "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
-                      "--edgeServiceUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"
-
             - name: Deploy
               shell: bash
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //admin/deploy --config=github-runner
-
-            - if: ${{ !cancelled() }}
-              name: Cleanup deploy
-              shell: bash
-              run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
-                      --action=Cleanup \
-                      --status=${{ job.status == 'success' && 'Success' || 'Failure' }} \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
-                      --honeycombApiKey=$HONEYCOMB_API_KEY \
+                      --honeycombApiKey=${{ secrets.DEPLOY_HONEYCOMB_API_KEY }} \
                       "--opensearchHost=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
                       "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
                       "--edgeServiceUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).edgeServiceUrl)")"

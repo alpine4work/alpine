@@ -118,13 +118,27 @@ remix_app(
     name = "app_build",
 )
 
+filegroup(
+    name = "app_build_assets",
+    srcs = [":app_build"],
+    output_group = "assets",
+)
+
+filegroup(
+    name = "app_static",
+    srcs = [
+        ":app_build_assets",
+        "//app/static",
+    ],
+)
+
 js_binary(
     name = "app",
     data = [
         ":app_build",
         ":app_lib",
+        ":app_static",
         "//:remix_config_files",
-        "//app/static",
     ],
     entry_point = ":app_build",
     visibility = ["//app/integration_tests:__pkg__"],

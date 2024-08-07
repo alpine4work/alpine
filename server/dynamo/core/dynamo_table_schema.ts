@@ -1616,6 +1616,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         key: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key>,
+        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
+        options: {initialItem: Types["Item"] & Key},
+    ): Promise<MergeObjectIntersection<Types["Item"] & Key>>;
+    public updateItem<Key extends Types["ItemKey"]>(
+        context: DynamoContext,
+        key: Key,
+        update: (
+            item: MergeObjectIntersection<Types["Item"] & Key>,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key> | null>,
         options: {initialItem: Types["Item"] & Key},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
