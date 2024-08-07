@@ -417,7 +417,7 @@ Resources:
                 VolumeType: gp2
             EncryptionAtRestOptions:
                 Enabled: false
-            EngineVersion: OpenSearch_2.11
+            EngineVersion: OpenSearch_2.13
             LogPublishingOptions:
                 SEARCH_SLOW_LOGS:
                     CloudWatchLogsLogGroupArn:
