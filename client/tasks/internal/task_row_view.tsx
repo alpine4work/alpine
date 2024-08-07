@@ -894,7 +894,7 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "Home": {
-                    if (capabilities.hasColumns) {
+                    if (capabilities.hasColumns && !isTextInputElement(document.activeElement)) {
                         event.preventDefault();
                         event.stopPropagation();
 
@@ -911,7 +911,7 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "End": {
-                    if (capabilities.hasColumns) {
+                    if (capabilities.hasColumns && !isTextInputElement(document.activeElement)) {
                         event.preventDefault();
                         event.stopPropagation();
 
