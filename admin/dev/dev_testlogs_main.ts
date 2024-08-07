@@ -390,6 +390,7 @@ async function showTestOutputPlaywrightTrace(
     const unzippedTestOutputPath = joinPath(testOutputPathDirname, "outputs");
 
     if (!(await fs.pathExists(unzippedTestOutputPath))) {
+        await runProcess("chmod", ["+w", testOutputPathDirname]);
         await runProcess("unzip", ["-o", testOutputPath, "-d", unzippedTestOutputPath]);
     }
 

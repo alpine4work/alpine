@@ -1,8 +1,11 @@
 #!/bin/bash
 
+set -euo pipefail
+
 test_outputs_path="$BUILD_WORKING_DIRECTORY/bazel-testlogs/$TEST_PACKAGE_NAME/$TEST_TARGET_NAME/test.outputs"
 
 if [ ! -d "$test_outputs_path/outputs" ]; then
+    chmod +w "$test_outputs_path"
     unzip -o "$test_outputs_path/outputs.zip" -d "$test_outputs_path/outputs"
 fi
 
