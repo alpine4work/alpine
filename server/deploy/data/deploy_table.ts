@@ -99,7 +99,10 @@ export async function prepareDeployFromWorkflow(
     assert(context.tracer.getRoot().serviceName === "DeployService");
 
     try {
-        await runProcess("git", ["merge-base", "--is-ancestor", commitSha, "main"]);
+        await runProcess("git", ["merge-base", "--is-ancestor", commitSha, "main"], {
+            // `git` won't output sensitive user data so we can set this to true.
+            withOutputInErrorMessage: true,
+        });
     } catch (error) {
         throw new FailedPreconditionError(
             quote`Commit ${commitSha} is not present in "main" branch`,
@@ -168,7 +171,10 @@ export async function prepareDeployFromWorkflow(
     // Make sure the commit we're deploying is later than the currently
     // deployed commit.
     try {
-        await runProcess("git", ["merge-base", "--is-ancestor", deployItem.commitSha, commitSha]);
+        await runProcess("git", ["merge-base", "--is-ancestor", deployItem.commitSha, commitSha], {
+            // `git` won't output sensitive user data so we can set this to true.
+            withOutputInErrorMessage: true,
+        });
     } catch (error) {
         throw new FailedPreconditionError(quote`Commit ${commitSha} was already deployed`, {
             cause: error,

@@ -24,6 +24,7 @@ export async function runProcess(
         cwd = getWorkspacePath(),
         env,
         isErrorExitCode = exitCode => exitCode !== 0,
+        withOutputInErrorMessage = process.env.NODE_ENV !== "production",
     }: {
         /**
          * What directory should the process run in? By default runs in the root
@@ -41,6 +42,18 @@ export async function runProcess(
          * exit code is an error.
          */
         isErrorExitCode?: (exitCode: number) => boolean;
+
+        /**
+         * Should we include stdout and stderr in the error message?
+         *
+         * True by default in development and test environments. False in production
+         * since error messages are included in logging and the command's output
+         * might contain sensitive data we can't send to our logging providers.
+         *
+         * If you're certain the command won't include sensitive data you may set this
+         * to true for better debugging.
+         */
+        withOutputInErrorMessage?: boolean;
     } = {},
 ): Promise<string> {
     const flattenedArgs: Array<string | undefined | null | false> =
@@ -74,18 +87,15 @@ export async function runProcess(
             if (finished) return;
             finished = true;
 
-            const stderrMessage =
-                // stdout/stderr is not included in production since it may have sensitive
-                // data.
-                process.env.NODE_ENV === "production"
-                    ? ""
-                    : ` (stdout and stderr included for debugging)\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`;
+            const outputMessage = withOutputInErrorMessage
+                ? `\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`
+                : "";
 
             if (typeof exitCode === "number") {
                 if (isErrorExitCode(exitCode)) {
                     reject(
                         new UnknownError(
-                            `${nameMessage} process exited with code ${exitCode}${stderrMessage}`,
+                            `${nameMessage} process exited with code ${exitCode}${outputMessage}`,
                         ),
                     );
                 } else {
@@ -95,7 +105,7 @@ export async function runProcess(
                 const signalMessage = signal !== null ? quote(signal) : "null";
                 reject(
                     new UnknownError(
-                        `${nameMessage} process exited by signal ${signalMessage}${stderrMessage}`,
+                        `${nameMessage} process exited by signal ${signalMessage}${outputMessage}`,
                     ),
                 );
             }
