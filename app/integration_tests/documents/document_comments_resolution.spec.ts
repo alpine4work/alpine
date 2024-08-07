@@ -86,7 +86,11 @@ test("can resolve document comment threads", async ({
         ).toHaveText("world");
     }
 
-    await page1.getByText("Mark as resolved").click();
+    // Playwright tries to scroll this button into view if we don't have `force: true`
+    // which creates weird effects. We already know the button is visible from our check
+    // above.
+    // eslint-disable-next-line playwright/no-force-option
+    await page1.getByText("Mark as resolved").click({force: true});
 
     await expect(page1.getByText("Test comment 1")).toBeVisible();
     await expect(page1.getByText("Resolved", {exact: true})).toBeVisible();
