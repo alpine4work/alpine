@@ -128,7 +128,7 @@ export async function createDevProxyServer(
                 });
 
                 proxyRes.writeHead(res.statusCode!, res.headers);
-                res.pipe(proxyRes);
+                res.pipe(proxyRes, {end: true});
             });
 
             // If we're retrying a request then we need to replay writing any chunks from
@@ -273,7 +273,7 @@ export async function createDevProxyServer(
                         `${headers.join("\r\n")}\r\n` +
                         "\r\n",
                 );
-                res.pipe(proxySocket);
+                res.pipe(proxySocket, {end: true});
             });
 
             req.on("upgrade", (res, socket, head) => {
@@ -294,8 +294,8 @@ export async function createDevProxyServer(
 
                 proxySocket.write(head);
                 socket.write(proxyHead);
-                proxySocket.pipe(socket);
-                socket.pipe(proxySocket);
+                proxySocket.pipe(socket, {end: true});
+                socket.pipe(proxySocket, {end: true});
             });
 
             // If we're retrying a request then we need to replay writing any chunks from
