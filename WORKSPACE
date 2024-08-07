@@ -338,6 +338,7 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 """,
+    integrity = "sha256-cF2JZX5psuh7h8acazK9tcjNu6wralJtliwqaBnd/V8=",
     patch_args = ["-p1"],
     patch_cmds = [
         # Remove the `jdk` directory. The `jdk` binaries are built for an x86_64 Linux
@@ -349,9 +350,8 @@ filegroup(
         "cd plugins && ls | grep -v knn | xargs rm -rf",
     ],
     patches = ["//admin/patches:bazel/opensearch_local.patch"],
-    sha256 = "8fd6cdd3d1385629033eabe14542df3a301399ee4a8151ab76fd2b20f75de12c",
-    strip_prefix = "opensearch-2.11.0",
-    url = "https://artifacts.opensearch.org/releases/bundle/opensearch/2.11.0/opensearch-2.11.0-linux-x64.tar.gz",
+    strip_prefix = "opensearch-2.13.0",
+    url = "https://artifacts.opensearch.org/releases/bundle/opensearch/2.13.0/opensearch-2.13.0-linux-x64.tar.gz",
 )
 
 # =========================================================================== #

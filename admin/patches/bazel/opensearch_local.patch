@@ -1,10 +1,10 @@
-diff -bur a/config/jvm.options b/config/jvm.options
---- a/config/jvm.options	2023-10-12 21:49:13
-+++ b/config/jvm.options	2024-07-26 17:07:11
+diff --color -bur a/config/jvm.options b/config/jvm.options
+--- a/config/jvm.options	2024-03-25 13:59:25
++++ b/config/jvm.options	2024-08-07 14:06:58
 @@ -60,21 +60,14 @@
  # has sufficient space
  -XX:HeapDumpPath=data
-
+ 
 -# specify an alternative path for JVM fatal error logs
 --XX:ErrorFile=logs/hs_err_pid%p.log
 -
@@ -28,12 +28,12 @@ diff -bur a/config/jvm.options b/config/jvm.options
 +#
 +# If we want GC logging we can add it back in `startOpensearchLocal()` under
 +# `logsPath` which is a writable directory.
-
+ 
  # Explicitly allow security manager (https://bugs.openjdk.java.net/browse/JDK-8270380)
  18-:-Djava.security.manager=allow
-diff -bur a/config/opensearch.yml b/config/opensearch.yml
---- a/config/opensearch.yml	2023-07-27 12:03:24
-+++ b/config/opensearch.yml	2023-07-27 12:42:25
+diff --color -bur a/config/opensearch.yml b/config/opensearch.yml
+--- a/config/opensearch.yml	2024-03-25 13:59:25
++++ b/config/opensearch.yml	2024-08-07 14:06:00
 @@ -14,7 +14,7 @@
  #
  # Use a descriptive name for your cluster:
@@ -43,10 +43,10 @@ diff -bur a/config/opensearch.yml b/config/opensearch.yml
  #
  # ------------------------------------ Node ------------------------------------
  #
-@@ -121,3 +121,27 @@
- # index searcher threadpool.
+@@ -125,3 +125,27 @@
+ # Gates the functionality of enabling Opensearch to use pluggable caches with respective store names via setting.
  #
- #opensearch.experimental.feature.concurrent_segment_search.enabled: false
+ #opensearch.experimental.feature.pluggable.caching.enabled: false
 +
 +# NOTE(calebmer): We only run a single OpenSearch node locally.
 +discovery.type: single-node
