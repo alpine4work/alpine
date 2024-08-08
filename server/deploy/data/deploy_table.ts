@@ -1,3 +1,4 @@
+import {CloudflareR2ContextModule} from "~/server/deploy/data/cloudflare_r2_context_module.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -8,7 +9,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export const githubOwner = "cyberworlds";
 export const githubRepo = "cyberworlds";
@@ -95,8 +96,17 @@ export async function attemptStartDeploy(context: DynamoContext) {
  * this function from anywhere but `DeployService` will likely fail.
  */
 export async function deploy(
-    context: Context<DynamoContextModules & {github: GithubContextModule}>,
-    options: {commitSha: string; workflowRunId: number},
+    context: Context<
+        DynamoContextModules & {
+            github: GithubContextModule;
+            cloudflareR2: CloudflareR2ContextModule;
+        }
+    >,
+    options: {
+        commitSha: string;
+        workflowRunId: number;
+        appStaticDirectoryPath: string;
+    },
 ) {
     assert(context.tracer.getRoot().serviceName === "DeployService");
 
@@ -109,8 +119,21 @@ export async function deploy(
 }
 
 async function actuallyDeploy(
-    context: Context<DynamoContextModules & {github: GithubContextModule}>,
-    {commitSha, workflowRunId}: {commitSha: string; workflowRunId: number},
+    context: Context<
+        DynamoContextModules & {
+            github: GithubContextModule;
+            cloudflareR2: CloudflareR2ContextModule;
+        }
+    >,
+    {
+        commitSha,
+        workflowRunId,
+        appStaticDirectoryPath,
+    }: {
+        commitSha: string;
+        workflowRunId: number;
+        appStaticDirectoryPath: string;
+    },
 ) {
     const deployItem = await prepareDeploy(context, {
         commitSha,
@@ -118,7 +141,15 @@ async function actuallyDeploy(
     });
 
     const result = await captureResultPromise(async () => {
+        await context.tracer.withSpan("Upload app static files", context =>
+            uploadAppStaticFilesBeforeDeploy(context, {appStaticDirectoryPath}),
+        );
+
         // TODO(calebmer, #deploy): Implement!
+
+        await context.tracer.withSpan("Cleanup app static files", context =>
+            cleanupAppStaticFilesAfterDeploy(context, {appStaticDirectoryPath}),
+        );
     });
 
     await cleanupDeploy(context, {
@@ -298,4 +329,60 @@ async function cleanupDeploy(
         },
         {initialItem},
     );
+}
+
+const appStaticBucketName = "cyberworlds-app-static";
+
+const AppStaticBucketManifestFileStatusSchema = Schema.union({
+    New: Schema.object({type: Schema.value("New")}),
+    Current: Schema.object({type: Schema.value("Current")}),
+    Old: Schema.object({
+        type: Schema.value("Old"),
+        expirationTime: Schema.date,
+    }),
+});
+
+type AppStaticBucketManifest = SchemaType<typeof AppStaticBucketManifestSchema>;
+
+const AppStaticBucketManifestSchema = Schema.object({
+    files: Schema.array(
+        Schema.object({
+            key: Schema.string,
+            status: AppStaticBucketManifestFileStatusSchema,
+        }),
+    ),
+});
+
+async function uploadAppStaticFilesBeforeDeploy(
+    context: Context<DynamoContextModules & {cloudflareR2: CloudflareR2ContextModule}>,
+    {appStaticDirectoryPath}: {appStaticDirectoryPath: string},
+) {
+    let manifest: AppStaticBucketManifest;
+
+    try {
+        const manifestOutput = await context.cloudflareR2.GetObject({
+            Bucket: appStaticBucketName,
+            Key: "manifest.json",
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        manifest = AppStaticBucketManifestSchema.deserialize(
+            JSON.parse((await manifestOutput.Body?.transformToString("utf8")) ?? ""),
+        );
+    } catch (error) {
+        // TODO(calebmer, #deploy): Implement
+        //
+        // if (isCloudflareR2NoSuchKeyError(error)) {
+        //     manifest = {files: []};
+        // } else {
+        //     throw error;
+        // }
+    }
+}
+
+async function cleanupAppStaticFilesAfterDeploy(
+    context: Context<DynamoContextModules & {cloudflareR2: CloudflareR2ContextModule}>,
+    {appStaticDirectoryPath}: {appStaticDirectoryPath: string},
+) {
+    // TODO(calebmer, #deploy): Implement
 }

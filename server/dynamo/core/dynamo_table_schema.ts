@@ -637,11 +637,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 const attributeDefinitions = [
                     {
                         AttributeName: "partitionKey",
-                        AttributeType: "S",
+                        AttributeType: "S" as const,
                     },
                     {
                         AttributeName: "sortKey",
-                        AttributeType: "S",
+                        AttributeType: "S" as const,
                     },
                     ...this._initializationState.description.indexes.flatMap(
                         (indexDescription, i) => {
@@ -653,12 +653,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                     : [
                                           {
                                               AttributeName: `index${indexNumber}PartitionKey`,
-                                              AttributeType: "S",
+                                              AttributeType: "S" as const,
                                           },
                                       ]),
                                 {
                                     AttributeName: `index${indexNumber}SortKey`,
-                                    AttributeType: "S",
+                                    AttributeType: "S" as const,
                                 },
                             ];
                         },
@@ -705,8 +705,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                                   ],
                                                   Projection: {
                                                       ProjectionType: {
-                                                          KeysOnly: "KEYS_ONLY",
-                                                          All: "ALL",
+                                                          KeysOnly: "KEYS_ONLY" as const,
+                                                          All: "ALL" as const,
                                                       }[indexDescription.projection],
                                                   },
                                               };
@@ -741,17 +741,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                                     "Reused"
                                                         ? "partitionKey"
                                                         : `index${indexNumber}PartitionKey`,
-                                                KeyType: "HASH",
+                                                KeyType: "HASH" as const,
                                             },
                                             {
                                                 AttributeName: `index${indexNumber}SortKey`,
-                                                KeyType: "RANGE",
+                                                KeyType: "RANGE" as const,
                                             },
                                         ],
                                         Projection: {
                                             ProjectionType: {
-                                                KeysOnly: "KEYS_ONLY",
-                                                All: "ALL",
+                                                KeysOnly: "KEYS_ONLY" as const,
+                                                All: "ALL" as const,
                                             }[indexDescription.projection],
                                         },
                                     },

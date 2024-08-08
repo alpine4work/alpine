@@ -8,6 +8,7 @@ ts_project(
         "//server/jobs/queue:__pkg__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/client-s3",
         "//:node_modules/@octokit/auth-action",
         "//:node_modules/@octokit/request",
         "//:node_modules/@octokit/types",

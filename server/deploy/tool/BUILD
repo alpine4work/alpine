@@ -10,6 +10,7 @@ js_binary(
 
 ts_project(
     name = "tool_lib",
+    data = ["//app:app_static"],
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",

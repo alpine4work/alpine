@@ -309,6 +309,13 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         connectionId: Schema.id(),
         errorReason: Schema.string,
     },
+    cloudflare: {
+        r2: {
+            action: IdentifierStringSchema,
+            bucket: Schema.string,
+            objectKey: Schema.string,
+        },
+    },
 };
 
 /**

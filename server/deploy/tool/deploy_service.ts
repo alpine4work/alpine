@@ -1,6 +1,10 @@
+import {join as joinPath} from "path";
+import {CloudflareR2Client} from "~/server/deploy/data/cloudflare_r2_client.js";
+import {CloudflareR2ContextModule} from "~/server/deploy/data/cloudflare_r2_context_module.js";
 import {deploy} from "~/server/deploy/data/deploy_table.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     createServerProcessContext,
     serverProcessContextParseOptions,
@@ -14,13 +18,32 @@ runService({
     options: {
         commitSha: {type: "string"},
         workflowRunId: {type: "string"},
+        cloudflareAccountId: {type: "string"},
+        cloudflareAccessKeyId: {type: "string"},
+        cloudflareSecretAccessKey: {type: "string"},
         ...serverProcessContextParseOptions,
     },
-    run: async ({tracer, options: {commitSha, workflowRunId: workflowRunIdString, ...options}}) => {
+    run: async ({
+        tracer,
+        options: {
+            commitSha,
+            workflowRunId: workflowRunIdString,
+            cloudflareAccountId,
+            cloudflareAccessKeyId,
+            cloudflareSecretAccessKey,
+            ...options
+        },
+    }) => {
         if (commitSha === undefined)
             throw new InvalidArgumentError('"commitSha" option is required');
         if (workflowRunIdString === undefined || !/^[0-9]+$/.test(workflowRunIdString))
             throw new InvalidArgumentError('"workflowRunId" integer option is required');
+        if (cloudflareAccountId === undefined)
+            throw new InvalidArgumentError('"cloudflareAccountId" option is required');
+        if (cloudflareAccessKeyId === undefined)
+            throw new InvalidArgumentError('"cloudflareAccessKeyId" option is required');
+        if (cloudflareSecretAccessKey === undefined)
+            throw new InvalidArgumentError('"cloudflareSecretAccessKey" option is required');
 
         const workflowRunId = parseInt(workflowRunIdString, 10);
 
@@ -38,8 +61,19 @@ runService({
             options,
         }).clone({
             github: new GithubContextModule(),
+            cloudflareR2: new CloudflareR2ContextModule(
+                new CloudflareR2Client({
+                    accountId: cloudflareAccountId,
+                    accessKeyId: cloudflareAccessKeyId,
+                    secretAccessKey: cloudflareSecretAccessKey,
+                }),
+            ),
         });
 
-        await deploy(processContext, {commitSha, workflowRunId});
+        await deploy(processContext, {
+            commitSha,
+            workflowRunId,
+            appStaticDirectoryPath: joinPath(runfilesPath, "cyberworlds/app/static"),
+        });
     },
 });

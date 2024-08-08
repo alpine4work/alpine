@@ -14,6 +14,9 @@ import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_ser
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 
 export async function createAwsApp() {
+    // Hardcoded. We only have one production environment for now.
+    const cloudflareAccountId = "d496846050bfc973d24617456c59242b";
+
     const app = new App({autoSynth: false});
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
@@ -28,6 +31,7 @@ export async function createAwsApp() {
         env: {region: "us-east-1"},
     });
     addAwsLifecycleResources(lifecycleStack, {
+        cloudflareAccountId,
         importOpensearchHost,
         importJobQueueUrl,
         importDeployTable,
@@ -115,10 +119,12 @@ async function addAwsResources(stack: Stack) {
 function addAwsLifecycleResources(
     stack: Stack,
     {
+        cloudflareAccountId,
         importOpensearchHost,
         importJobQueueUrl,
         importDeployTable,
     }: {
+        cloudflareAccountId: string;
         importOpensearchHost: (stack: Stack) => string;
         importJobQueueUrl: (stack: Stack) => string;
         importDeployTable: (stack: Stack) => ITable;
@@ -146,5 +152,11 @@ function addAwsLifecycleResources(
         subnetConfiguration: [{subnetType: SubnetType.PUBLIC, name: "Public"}],
     });
 
-    new AwsGithubRunners(stack, {vpc, opensearchHost, jobQueueUrl, deployTable});
+    new AwsGithubRunners(stack, {
+        vpc,
+        cloudflareAccountId,
+        opensearchHost,
+        jobQueueUrl,
+        deployTable,
+    });
 }

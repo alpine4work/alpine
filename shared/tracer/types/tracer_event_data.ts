@@ -902,6 +902,28 @@ export type TracerEventData = {
          */
         readonly errorReason?: string;
     };
+
+    /**
+     * Any data related to Cloudflare services.
+     */
+    readonly cloudflare?: {
+        /**
+         * Information related to [Cloudflare R2][1]. Cloudflare's AWS S3
+         * compatible object storage service.
+         *
+         * [1]: https://developers.cloudflare.com/r2/
+         */
+        readonly r2?: {
+            /** The Cloudflare R2 action being executed. */
+            readonly action?: string;
+
+            /** The Cloudflare R2 bucket being accessed or modified. */
+            readonly bucket?: string;
+
+            /** The Cloudflare R2 object key being accessed or modified. */
+            readonly objectKey?: string;
+        };
+    };
 };
 
 /**

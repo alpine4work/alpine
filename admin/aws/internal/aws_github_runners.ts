@@ -20,11 +20,13 @@ export class AwsGithubRunners extends Construct {
         parentScope: Stack,
         {
             vpc,
+            cloudflareAccountId,
             opensearchHost,
             jobQueueUrl,
             deployTable,
         }: {
             vpc: IVpc;
+            cloudflareAccountId: string;
             opensearchHost: string;
             jobQueueUrl: string;
             deployTable: ITable;
@@ -277,7 +279,7 @@ export class AwsGithubRunners extends Construct {
             // environment variable. We add this option to
             // `@cloudsnorkel/cdk-github-runners` through a patch.
             userDataExtra: Fn.join("", [
-                '{"opensearchHost":"',
+                `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"opensearchHost":"`,
                 opensearchHost,
                 '","jobQueueUrl":"',
                 jobQueueUrl,
