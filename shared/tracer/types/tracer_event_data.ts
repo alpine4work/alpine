@@ -920,8 +920,14 @@ export type TracerEventData = {
             /** The Cloudflare R2 bucket being accessed or modified. */
             readonly bucket?: string;
 
-            /** The Cloudflare R2 object key being accessed or modified. */
-            readonly objectKey?: string;
+            /** Information about a single Cloudflare R2 object. */
+            readonly object?: {
+                /** The Cloudflare R2 object key being accessed or modified. */
+                readonly key?: string;
+
+                /** The content type of our Cloudflare R2 object. */
+                readonly contentType?: string;
+            };
         };
     };
 };

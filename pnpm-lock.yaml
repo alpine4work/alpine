@@ -14,6 +14,7 @@ overrides:
   '@remix-run/eslint-config@2.9.2>eslint-plugin-jest': 28.6.0
   '@remix-run/eslint-config@2.9.2>@typescript-eslint/eslint-plugin': 7.13.1
   '@remix-run/eslint-config@2.9.2>@typescript-eslint/parser': 7.13.1
+  '@types/serve-static@1.15.0>@types/mime': 1.3.5
 
 packageExtensionsChecksum: 5035d79ce868ce097347ba8485192a0f
 
@@ -6936,8 +6937,8 @@ packages:
     resolution: {integrity: sha512-+OWZQfAYyio6YkJb3HLxDrvnx6SWWDbC0zVPfBRzUk0/nqoDyf6dNxQi3eArPe8rJ473nobTMQ/8Zk+LxJ+Yuw==}
     dev: false
 
-  /@types/mime@3.0.1:
-    resolution: {integrity: sha512-Y4XFY5VJAuw0FgAqPNd6NNoV44jbq9Bz2L7Rh/J6jLTiHBSBJa9fxqQIvkIld4GsoDOcCbvzOUAbLPsSKKg+uA==}
+  /@types/mime@1.3.5:
+    resolution: {integrity: sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w==}
     dev: false
 
   /@types/mjml-core@4.7.1:
@@ -7037,7 +7038,7 @@ packages:
   /@types/serve-static@1.15.0:
     resolution: {integrity: sha512-z5xyF6uh8CbjAu9760KDKsH2FcDxZ2tFCsA4HIMWE6IkiYMXfVoa+4f9KX+FN0ZLsaMw1WNG2ETLA6N+/YA+cg==}
     dependencies:
-      '@types/mime': 3.0.1
+      '@types/mime': 1.3.5
       '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
     dev: false
 

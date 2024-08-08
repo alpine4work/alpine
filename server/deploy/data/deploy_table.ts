@@ -1,6 +1,7 @@
 import {max as maxDate} from "date-fns";
 import fs from "fs-extra";
-import {join as joinPath} from "path";
+import {extname, join as joinPath} from "path";
+import serveStatic from "serve-static";
 import {CloudflareR2ContextModule} from "~/server/deploy/data/cloudflare_r2_context_module.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -11,6 +12,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -445,8 +447,35 @@ async function uploadAppStaticFilesBeforeDeploy(
     await context.cloudflareR2.PutObject({
         Bucket: appStaticBucketName,
         Key: "manifest.json",
+        ContentType: "application/json",
         Body: JSON.stringify(AppStaticBucketManifestSchema.serialize(newManifest)),
     });
+
+    await runAllPromises(
+        mapIterable(addNewFilesByPath.values(), async newFile => {
+            // Use the same logic to determine the `Content-Type` as the `serve-static`
+            // module we use in development. Source code here:
+            // https://github.com/pillarjs/send/blob/b69cbb3dc4c09c37917d08a4c13fcd1bac97ade5/index.js#L825-L841
+            let contentType = serveStatic.mime.lookup(extname(newFile.path));
+
+            if (contentType) {
+                const charset = serveStatic.mime.charsets
+                    // @ts-expect-error: This is how the `send` module finds the charset.
+                    .lookup(contentType);
+
+                if (charset) {
+                    contentType += `; charset=${charset}`;
+                }
+            }
+
+            await context.cloudflareR2.PutObject({
+                Bucket: appStaticBucketName,
+                Key: `files/${newFile.path}`,
+                ContentType: contentType || "application/octet-stream",
+                Body: fs.createReadStream(joinPath(appStaticDirectoryPath, newFile.path)),
+            });
+        }),
+    );
 }
 
 async function cleanupAppStaticFilesAfterDeploy(

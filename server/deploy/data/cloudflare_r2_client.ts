@@ -66,18 +66,32 @@ export class CloudflareR2Client {
             spanName += ` ${input.Bucket}`;
         }
 
-        return tracer.withSpan(spanName, span => {
+        return tracer.withSpan(spanName, async span => {
             span.addData({
                 cloudflare: {
                     r2: {
                         action: "GetObject",
                         bucket: input.Bucket,
-                        objectKey: input.Key,
+                        object: {
+                            key: input.Key,
+                        },
                     },
                 },
             });
 
-            return this._client.send(new GetObjectCommand(input));
+            const output = await this._client.send(new GetObjectCommand(input));
+
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        object: {
+                            contentType: output.ContentType,
+                        },
+                    },
+                },
+            });
+
+            return output;
         });
     }
 
@@ -104,7 +118,10 @@ export class CloudflareR2Client {
                     r2: {
                         action: "PutObject",
                         bucket: input.Bucket,
-                        objectKey: input.Key,
+                        object: {
+                            key: input.Key,
+                            contentType: input.ContentType,
+                        },
                     },
                 },
             });
