@@ -1,4 +1,5 @@
-import {max as maxDate} from "date-fns";
+import crypto from "crypto";
+import {max as maxDate, subDays} from "date-fns";
 import fs from "fs-extra";
 import {extname, join as joinPath} from "path";
 import serveStatic from "serve-static";
@@ -8,10 +9,12 @@ import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_c
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {Context} from "~/shared/context/context.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -146,14 +149,15 @@ async function actuallyDeploy(
     });
 
     const result = await captureResultPromise(async () => {
-        await context.tracer.withSpan("Upload app static files", context =>
-            uploadAppStaticFilesBeforeDeploy(context, {appStaticDirectoryPath}),
+        const {manifest, paths} = await context.tracer.withSpan(
+            "Upload app static files",
+            context => uploadAppStaticFilesBeforeDeploy(context, {appStaticDirectoryPath}),
         );
 
         // TODO(calebmer, #deploy): Implement!
 
         await context.tracer.withSpan("Cleanup app static files", context =>
-            cleanupAppStaticFilesAfterDeploy(context, {appStaticDirectoryPath}),
+            cleanupAppStaticFilesAfterDeploy(context, {manifest, paths}),
         );
     });
 
@@ -342,6 +346,7 @@ type AppStaticBucketManifestFile = SchemaType<typeof AppStaticBucketManifestFile
 
 const AppStaticBucketManifestFileSchema = Schema.object({
     path: Schema.string,
+    contentMd5: Schema.string,
     uploadTime: Schema.date,
     shouldExpire: Schema.boolean,
 });
@@ -388,7 +393,7 @@ async function uploadAppStaticFilesBeforeDeploy(
         oldFilesByPath.set(file.path, file);
     }
 
-    const addNewFilesByPath = new Map<string, AppStaticBucketManifestFile>();
+    const uploadFilesByPath = new Map<string, AppStaticBucketManifestFile>();
 
     const traverse = async (relativePath: string, path: string) => {
         const childPathNames = await fs.readdir(path);
@@ -401,8 +406,9 @@ async function uploadAppStaticFilesBeforeDeploy(
                 if ((await fs.stat(childPath)).isDirectory()) {
                     await traverse(`${childRelativePath}/`, childPath);
                 } else {
-                    addNewFilesByPath.set(childRelativePath, {
+                    uploadFilesByPath.set(childRelativePath, {
                         path: childRelativePath,
+                        contentMd5: await getFileMd5Hash(childPath),
                         uploadTime: currentTime,
                         // Files we upload before a deploy should expire. If the deploy succeeds we
                         // switch this to false. If the deploy fails then the static files will be kept
@@ -425,7 +431,7 @@ async function uploadAppStaticFilesBeforeDeploy(
 
     const newFilesByPath = new Map(oldFilesByPath);
 
-    for (const newFile of addNewFilesByPath.values()) {
+    for (const newFile of uploadFilesByPath.values()) {
         const oldFile = oldFilesByPath.get(newFile.path);
 
         if (!oldFile) {
@@ -433,6 +439,7 @@ async function uploadAppStaticFilesBeforeDeploy(
         } else {
             newFilesByPath.set(oldFile.path, {
                 path: oldFile.path,
+                contentMd5: newFile.contentMd5,
                 uploadTime: maxDate([oldFile.uploadTime, newFile.uploadTime]),
                 shouldExpire: oldFile.shouldExpire && newFile.shouldExpire,
             });
@@ -452,7 +459,11 @@ async function uploadAppStaticFilesBeforeDeploy(
     });
 
     await runAllPromises(
-        mapIterable(addNewFilesByPath.values(), async newFile => {
+        mapIterable(uploadFilesByPath.values(), async newFile => {
+            // If the file content didn't change then don't upload the file again.
+            const oldFile = oldFilesByPath.get(newFile.path);
+            if (oldFile?.contentMd5 === newFile.contentMd5) return;
+
             // Use the same logic to determine the `Content-Type` as the `serve-static`
             // module we use in development. Source code here:
             // https://github.com/pillarjs/send/blob/b69cbb3dc4c09c37917d08a4c13fcd1bac97ade5/index.js#L825-L841
@@ -471,16 +482,81 @@ async function uploadAppStaticFilesBeforeDeploy(
             await context.cloudflareR2.PutObject({
                 Bucket: appStaticBucketName,
                 Key: `files/${newFile.path}`,
+                ContentMD5: newFile.contentMd5,
                 ContentType: contentType || "application/octet-stream",
                 Body: fs.createReadStream(joinPath(appStaticDirectoryPath, newFile.path)),
             });
         }),
     );
+
+    return {
+        manifest: newManifest,
+        paths: new Set(uploadFilesByPath.keys()),
+    };
+}
+
+async function getFileMd5Hash(path: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash("md5");
+        const stream = fs.createReadStream(path);
+        stream.on("error", reject);
+        stream.on("data", chunk => hash.update(chunk));
+        stream.on("end", () => resolve(hash.digest("base64")));
+    });
 }
 
 async function cleanupAppStaticFilesAfterDeploy(
     context: Context<DynamoContextModules & {cloudflareR2: CloudflareR2ContextModule}>,
-    {appStaticDirectoryPath}: {appStaticDirectoryPath: string},
+    {
+        manifest: oldManifest,
+        paths,
+    }: {
+        manifest: AppStaticBucketManifest;
+        paths: ReadonlySet<string>;
+    },
 ) {
-    // TODO(calebmer, #deploy): Implement
+    // If a file has `shouldExpire: true` and was uploaded before `expirationTime`
+    // then we'll delete the file. Files that aren't actively used by the current
+    // deploy are kept for 30 days before we delete them. This way `AppService`
+    // clients using an old asset manifest have 30 days to reload before they start
+    // getting errors when you try to navigate.
+    const expirationTime = subDays(new Date(), 30);
+    const expiredPaths = new Set<string>();
+
+    const newManifest: AppStaticBucketManifest = {
+        files: filterMapArray(oldManifest.files, oldFile => {
+            const newFile: AppStaticBucketManifestFile = {
+                path: oldFile.path,
+                contentMd5: oldFile.contentMd5,
+                uploadTime: oldFile.uploadTime,
+                shouldExpire: !paths.has(oldFile.path),
+            };
+
+            if (
+                newFile.shouldExpire &&
+                isDateDefinitelyLessThanWithUncertaintyWindow(newFile.uploadTime, expirationTime)
+            ) {
+                expiredPaths.add(newFile.path);
+                return null;
+            }
+
+            return newFile;
+        }),
+    };
+
+    await runAllPromises(
+        mapIterable(expiredPaths, async expiredPath => {
+            await context.cloudflareR2.DeleteObject({
+                Bucket: appStaticBucketName,
+                Key: `files/${expiredPath}`,
+            });
+        }),
+    );
+
+    await context.cloudflareR2.PutObject({
+        Bucket: appStaticBucketName,
+        Key: "manifest.json",
+        ContentType: "application/json",
+        Body: JSON.stringify(AppStaticBucketManifestSchema.serialize(newManifest)),
+    });
 }

@@ -1,7 +1,13 @@
 import {
+    DeleteObjectCommand,
+    DeleteObjectCommandInput,
+    DeleteObjectCommandOutput,
     GetObjectCommand,
     GetObjectCommandInput,
     GetObjectCommandOutput,
+    HeadObjectCommand,
+    HeadObjectCommandInput,
+    HeadObjectCommandOutput,
     PutObjectCommand,
     PutObjectCommandInput,
     PutObjectCommandOutput,
@@ -96,6 +102,52 @@ export class CloudflareR2Client {
     }
 
     /**
+     * S3 [`HeadObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    public HeadObject(
+        tracer: TracerBase,
+        input: HeadObjectCommandInput,
+    ): Promise<HeadObjectCommandOutput> {
+        let spanName = "Cloudflare R2 HeadObject";
+
+        if (input.Bucket !== undefined) {
+            spanName += ` ${input.Bucket}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        action: "HeadObject",
+                        bucket: input.Bucket,
+                        object: {
+                            key: input.Key,
+                        },
+                    },
+                },
+            });
+
+            const output = await this._client.send(new HeadObjectCommand(input));
+
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        object: {
+                            contentType: output.ContentType,
+                        },
+                    },
+                },
+            });
+
+            return output;
+        });
+    }
+
+    /**
      * S3 [`PutObject`][1] action. See [Cloudflare R2 S3 API compatibility
      * notes][2].
      *
@@ -127,6 +179,40 @@ export class CloudflareR2Client {
             });
 
             return this._client.send(new PutObjectCommand(input));
+        });
+    }
+
+    /**
+     * S3 [`DeleteObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    public DeleteObject(
+        tracer: TracerBase,
+        input: DeleteObjectCommandInput,
+    ): Promise<DeleteObjectCommandOutput> {
+        let spanName = "Cloudflare R2 DeleteObject";
+
+        if (input.Bucket !== undefined) {
+            spanName += ` ${input.Bucket}`;
+        }
+
+        return tracer.withSpan(spanName, span => {
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        action: "DeleteObject",
+                        bucket: input.Bucket,
+                        object: {
+                            key: input.Key,
+                        },
+                    },
+                },
+            });
+
+            return this._client.send(new DeleteObjectCommand(input));
         });
     }
 }
