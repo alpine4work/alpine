@@ -57,7 +57,7 @@ jobs:
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
                       --honeycombApiKey=${{ secrets.DEPLOY_HONEYCOMB_API_KEY }} \
-                      --cloudflareAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_ACCESS_KEY }} \
+                      --cloudflareAccessKeyId=${{ secrets.DEPLOY_CLOUDFLARE_ACCESS_KEY_ID }} \
                       --cloudflareSecretAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_SECRET_ACCESS_KEY }} \
                       "--cloudflareAccountId=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).cloudflareAccountId)")" \
                       "--opensearchHost=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
