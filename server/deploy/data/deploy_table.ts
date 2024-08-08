@@ -12,6 +12,7 @@ import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
@@ -159,6 +160,8 @@ async function actuallyDeploy(
         await context.tracer.withSpan("Cleanup app static files", context =>
             cleanupAppStaticFilesAfterDeploy(context, {manifest, paths}),
         );
+
+        // TODO(calebmer, #deploy): Add marker to Honeycomb at start or end of deploy.
     });
 
     await cleanupDeploy(context, {
@@ -167,6 +170,8 @@ async function actuallyDeploy(
         result,
         initialItem: deployItem,
     });
+
+    unwrapResult(result);
 }
 
 /**
