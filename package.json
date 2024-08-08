@@ -255,7 +255,7 @@
     "pnpm": {
         "updateNotifier": false,
         "overrides": {
-            "@remix-run/dev@1.18.0>esbuild": "0.17.10",
+            "@remix-run/dev@2.9.2>esbuild": "0.17.10",
             "@vanilla-extract/integration@5.0.1>esbuild": "0.17.10",
             "@vanilla-extract/integration@6.2.1>esbuild": "0.17.10",
             "@remix-run/eslint-config@2.9.2>eslint-plugin-jest": "28.6.0",

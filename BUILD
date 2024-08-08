@@ -17,6 +17,7 @@ exports_files([
     "tsconfig.bazel.json",
     "remix.config.cjs",
     "Package.swift",
+    "pnpm-lock.yaml",
 ])
 
 ts_config(

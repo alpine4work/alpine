@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary", "js_test")
 load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test")
 
 ts_lint_and_format_test(
@@ -18,4 +18,15 @@ js_run_binary(
     stdout = "package_light.json",
     tool = ":generate_package_light_json_file",
     visibility = ["//:__pkg__"],
+)
+
+js_test(
+    name = "pnpm_lock_test",
+    data = [
+        "//:node_modules/fs-extra",
+        "//:node_modules/yaml",
+        "//:pnpm-lock.yaml",
+    ],
+    entry_point = "pnpm_lock_test.cjs",
+    no_copy_to_bin = ["//:pnpm-lock.yaml"],
 )
