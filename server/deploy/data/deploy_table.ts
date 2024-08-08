@@ -190,12 +190,11 @@ async function prepareDeploy(
     assert(context.tracer.getRoot().serviceName === "DeployService");
 
     const mainCompareResult = await context.github.request(
-        "GET /repos/{owner}/{repo}/compare/{base}...{head}",
+        "GET /repos/{owner}/{repo}/compare/{basehead}",
         {
             owner: githubOwner,
             repo: githubRepo,
-            base: commitSha,
-            head: "main",
+            basehead: `${commitSha}...main`,
             per_page: 1,
         },
     );
@@ -270,12 +269,11 @@ async function prepareDeploy(
     // Make sure the commit we're deploying is later than the currently
     // deployed commit.
     const compareResult = await context.github.request(
-        "GET /repos/{owner}/{repo}/compare/{base}...{head}",
+        "GET /repos/{owner}/{repo}/compare/{basehead}",
         {
             owner: githubOwner,
             repo: githubRepo,
-            base: commitSha,
-            head: deployItem.commitSha,
+            basehead: `${commitSha}...${deployItem.commitSha}`,
             per_page: 1,
         },
     );
