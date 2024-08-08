@@ -1,3 +1,6 @@
+import {max as maxDate} from "date-fns";
+import fs from "fs-extra";
+import {join as joinPath} from "path";
 import {CloudflareR2ContextModule} from "~/server/deploy/data/cloudflare_r2_context_module.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -333,31 +336,25 @@ async function cleanupDeploy(
 
 const appStaticBucketName = "cyberworlds-app-static";
 
-const AppStaticBucketManifestFileStatusSchema = Schema.union({
-    New: Schema.object({type: Schema.value("New")}),
-    Current: Schema.object({type: Schema.value("Current")}),
-    Old: Schema.object({
-        type: Schema.value("Old"),
-        expirationTime: Schema.date,
-    }),
+type AppStaticBucketManifestFile = SchemaType<typeof AppStaticBucketManifestFileSchema>;
+
+const AppStaticBucketManifestFileSchema = Schema.object({
+    path: Schema.string,
+    uploadTime: Schema.date,
+    shouldExpire: Schema.boolean,
 });
 
 type AppStaticBucketManifest = SchemaType<typeof AppStaticBucketManifestSchema>;
 
 const AppStaticBucketManifestSchema = Schema.object({
-    files: Schema.array(
-        Schema.object({
-            key: Schema.string,
-            status: AppStaticBucketManifestFileStatusSchema,
-        }),
-    ),
+    files: Schema.array(AppStaticBucketManifestFileSchema),
 });
 
 async function uploadAppStaticFilesBeforeDeploy(
     context: Context<DynamoContextModules & {cloudflareR2: CloudflareR2ContextModule}>,
     {appStaticDirectoryPath}: {appStaticDirectoryPath: string},
 ) {
-    let manifest: AppStaticBucketManifest;
+    let oldManifest: AppStaticBucketManifest;
 
     try {
         const manifestOutput = await context.cloudflareR2.GetObject({
@@ -365,11 +362,12 @@ async function uploadAppStaticFilesBeforeDeploy(
             Key: "manifest.json",
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        manifest = AppStaticBucketManifestSchema.deserialize(
+        oldManifest = AppStaticBucketManifestSchema.deserialize(
             JSON.parse((await manifestOutput.Body?.transformToString("utf8")) ?? ""),
         );
     } catch (error) {
+        throw error;
+
         // TODO(calebmer, #deploy): Implement
         //
         // if (isCloudflareR2NoSuchKeyError(error)) {
@@ -378,6 +376,77 @@ async function uploadAppStaticFilesBeforeDeploy(
         //     throw error;
         // }
     }
+
+    const currentTime = new Date();
+
+    const oldFilesByPath = new Map<string, AppStaticBucketManifestFile>();
+
+    for (const file of oldManifest.files) {
+        assert(!oldFilesByPath.has(file.path));
+        oldFilesByPath.set(file.path, file);
+    }
+
+    const addNewFilesByPath = new Map<string, AppStaticBucketManifestFile>();
+
+    const traverse = async (relativePath: string, path: string) => {
+        const childPathNames = await fs.readdir(path);
+
+        await runAllPromises(
+            childPathNames.map(async childPathName => {
+                const childPath = joinPath(path, childPathName);
+                const childRelativePath = `${relativePath}${childPathName}`;
+
+                if ((await fs.stat(childPath)).isDirectory()) {
+                    await traverse(`${childRelativePath}/`, childPath);
+                } else {
+                    addNewFilesByPath.set(childRelativePath, {
+                        path: childRelativePath,
+                        uploadTime: currentTime,
+                        // Files we upload before a deploy should expire. If the deploy succeeds we
+                        // switch this to false. If the deploy fails then the static files will be kept
+                        // for our static file retention period (currently 30 days) after which they'll
+                        // be deleted.
+                        //
+                        // We need new static files during a deploy since some users may see newly
+                        // deployed services while other users will see the previously deployed
+                        // service. If the deploy rolls back, if a user has loaded a page with the new
+                        // `AppService` they'll continue to need the static assets from the deploy we
+                        // rolled back.
+                        shouldExpire: true,
+                    });
+                }
+            }),
+        );
+    };
+
+    await traverse("", appStaticDirectoryPath);
+
+    const newFilesByPath = new Map(oldFilesByPath);
+
+    for (const newFile of addNewFilesByPath.values()) {
+        const oldFile = oldFilesByPath.get(newFile.path);
+
+        if (!oldFile) {
+            newFilesByPath.set(newFile.path, newFile);
+        } else {
+            newFilesByPath.set(oldFile.path, {
+                path: oldFile.path,
+                uploadTime: maxDate([oldFile.uploadTime, newFile.uploadTime]),
+                shouldExpire: oldFile.shouldExpire && newFile.shouldExpire,
+            });
+        }
+    }
+
+    const newManifest: AppStaticBucketManifest = {files: Array.from(newFilesByPath.values())};
+
+    // We don't need to worry about multiple scripts trying to write to
+    // `manifest.json` at the same time since only one `deploy()` function may be
+    // run at a time. This is validated by our `prepareDeploy()` function.
+    await context.cloudflareR2.PutObject({
+        Bucket: appStaticBucketName,
+        Key: "manifest.json",
+        Body: JSON.stringify(AppStaticBucketManifestSchema.serialize(newManifest)),
+    });
 }
 
 async function cleanupAppStaticFilesAfterDeploy(

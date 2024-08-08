@@ -2,6 +2,9 @@ import {
     GetObjectCommand,
     GetObjectCommandInput,
     GetObjectCommandOutput,
+    PutObjectCommand,
+    PutObjectCommandInput,
+    PutObjectCommandOutput,
     S3Client,
 } from "@aws-sdk/client-s3";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -75,6 +78,38 @@ export class CloudflareR2Client {
             });
 
             return this._client.send(new GetObjectCommand(input));
+        });
+    }
+
+    /**
+     * S3 [`PutObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    public PutObject(
+        tracer: TracerBase,
+        input: PutObjectCommandInput,
+    ): Promise<PutObjectCommandOutput> {
+        let spanName = "Cloudflare R2 PutObject";
+
+        if (input.Bucket !== undefined) {
+            spanName += ` ${input.Bucket}`;
+        }
+
+        return tracer.withSpan(spanName, span => {
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        action: "PutObject",
+                        bucket: input.Bucket,
+                        objectKey: input.Key,
+                    },
+                },
+            });
+
+            return this._client.send(new PutObjectCommand(input));
         });
     }
 }

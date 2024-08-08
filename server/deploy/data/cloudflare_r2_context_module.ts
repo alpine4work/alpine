@@ -1,4 +1,9 @@
-import {GetObjectCommandInput, GetObjectCommandOutput} from "@aws-sdk/client-s3";
+import {
+    GetObjectCommandInput,
+    GetObjectCommandOutput,
+    PutObjectCommandInput,
+    PutObjectCommandOutput,
+} from "@aws-sdk/client-s3";
 import {CloudflareR2Client} from "~/server/deploy/data/cloudflare_r2_client.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -20,5 +25,16 @@ export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: Tracer
      */
     public GetObject(input: GetObjectCommandInput): Promise<GetObjectCommandOutput> {
         return this._client.GetObject(this._context.tracer.getTracer(), input);
+    }
+
+    /**
+     * S3 [`PutObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    public PutObject(input: PutObjectCommandInput): Promise<PutObjectCommandOutput> {
+        return this._client.PutObject(this._context.tracer.getTracer(), input);
     }
 }
