@@ -1,4 +1,3 @@
-import {inspect} from "util";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -156,12 +155,14 @@ async function prepareDeploy(
         },
     );
 
-    // eslint-disable-next-line no-console
-    console.log(inspect(mainCompareResult, {colors: true, depth: Infinity}));
-
-    // TODO(calebmer, #deploy): Throw this!
-    //
-    // throw new FailedPreconditionError(quote`Commit ${commitSha} is not present in "main" branch`);
+    if (
+        mainCompareResult.data.status !== "identical" &&
+        mainCompareResult.data.status !== "behind"
+    ) {
+        throw new FailedPreconditionError(
+            quote`Commit ${commitSha} is not present in "main" branch (compare status: ${mainCompareResult.data.status})`,
+        );
+    }
 
     const [deployItem, commitTestResult] = await runAllPromises([
         DeployTable.getItem(
@@ -223,17 +224,7 @@ async function prepareDeploy(
 
     // Make sure the commit we're deploying is later than the currently
     // deployed commit.
-    const compareResult1 = await context.github.request(
-        "GET /repos/{owner}/{repo}/compare/{base}...{head}",
-        {
-            owner: githubOwner,
-            repo: githubRepo,
-            base: deployItem.commitSha,
-            head: commitSha,
-            per_page: 1,
-        },
-    );
-    const compareResult2 = await context.github.request(
+    const compareResult = await context.github.request(
         "GET /repos/{owner}/{repo}/compare/{base}...{head}",
         {
             owner: githubOwner,
@@ -244,13 +235,13 @@ async function prepareDeploy(
         },
     );
 
-    // eslint-disable-next-line no-console
-    console.log(inspect(compareResult1, {colors: true, depth: Infinity}));
-    // eslint-disable-next-line no-console
-    console.log(inspect(compareResult2, {colors: true, depth: Infinity}));
-
-    // TODO(calebmer, #deploy): Figure out how to interpret the `console.log()`ed result.
-    throw new FailedPreconditionError(quote`Commit ${commitSha} was already deployed`);
+    // We check that `deployItem.commitSha` is behind `commitSha` so that the
+    // `files` array is empty and doesn't return all changed file patches.
+    if (compareResult.data.status !== "behind") {
+        throw new FailedPreconditionError(
+            quote`Commit ${commitSha} was already deployed (compare status: ${compareResult.data.status})`,
+        );
+    }
 
     return DeployTable.updateItem(
         context,
