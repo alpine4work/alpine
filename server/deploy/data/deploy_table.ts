@@ -157,6 +157,9 @@ async function actuallyDeploy(
             context => uploadAppStaticFilesBeforeDeploy(context, {appStaticDirectoryPath}),
         );
 
+        // TODO(calebmer, #deploy): I stashed the changes that serve Cloudflare R2
+        // files in production. Get the stash back and run a deploy.
+
         // TODO(calebmer, #deploy): Implement!
 
         await context.tracer.withSpan("Cleanup app static files", context =>
