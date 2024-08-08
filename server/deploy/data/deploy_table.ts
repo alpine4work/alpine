@@ -144,10 +144,12 @@ async function actuallyDeploy(
         appStaticDirectoryPath: string;
     },
 ) {
-    const deployItem = await prepareDeploy(context, {
-        commitSha,
-        workflowRunId,
-    });
+    const deployItem = await context.tracer.withSpan("Prepare deploy", context =>
+        prepareDeploy(context, {
+            commitSha,
+            workflowRunId,
+        }),
+    );
 
     const result = await captureResultPromise(async () => {
         const {manifest, paths} = await context.tracer.withSpan(
