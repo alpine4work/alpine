@@ -145,11 +145,6 @@ export async function deploy(
         finishRootSpan();
         throw error;
     }
-
-    return context.tracer.withSpan(`Handle: ${handleSpanName}`, (context, span) => {
-        span.addPropagatedDataForChildrenOnly({context: {handler: handleSpanName}});
-        return actuallyDeploy(context, {commitSha, workflowRunId});
-    });
 }
 
 async function actuallyDeploy(
