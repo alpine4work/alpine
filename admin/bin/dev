@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 base_path=$(pwd)
 workspace_path=$(cd $(dirname $0)/../.. && pwd)
 cd $workspace_path
@@ -20,16 +22,18 @@ if has_arg "--help" "$@"; then
     echo "Command: dev
 
 Usage:
-    dev                     Starts developer environment
-    dev check               Run source code checks for changed files
-    dev check [...paths]    Run source code checks for the provided files
-    dev check --all         Run all source code checks
-    dev test                Run unit tests for changed files
-    dev test [...paths]     Run unit tests for the provided files
-    dev test --all          Run all unit tests
-    dev testlogs            Inspect failed tests
-    dev testlogs [path]     Inspect failed tests from a \"bazel_testlogs.zip\" file
-    dev --help              Print this message"
+    dev                      Starts developer environment
+    dev check                Run source code checks for changed files
+    dev check [...paths]     Run source code checks for the provided files
+    dev check --all          Run all source code checks
+    dev test                 Run unit tests for changed files
+    dev test [...paths]      Run unit tests for the provided files
+    dev test --all           Run all unit tests
+    dev testlogs             Inspect failed tests
+    dev testlogs [path]      Inspect failed tests from a \"bazel_testlogs.zip\" file
+    dev deployed             Check if the head commit has been deployed
+    dev deployed [commit]    Check if the provided commit has been deployed
+    dev --help               Print this message"
     exit 0
 fi
 
@@ -113,6 +117,31 @@ case "$1" in
         # downloads from a web browser like `bazel_testlogs (3).zip`).
         # `bazel run` doesn't work well with paths that contain spaces.
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:testlogs -- "$(echo -n "$2" | base64)"
+        ;;
+
+    deployed)
+        commit="${2:-$(git rev-parse HEAD)}"
+
+        # Exit codes:
+        #
+        # - 0 = Commit is deployed
+        # - 1 = Commit isn't deployed
+        # - 2 = Commit is currently deploying, so the commit may be observable for some
+        #   users but not others
+
+        if ! git merge-base --is-ancestor "$commit" main; then
+            echo "Commit isn't in main branch"
+            exit 1
+        elif git merge-base --is-ancestor "$commit" "$(curl -fSsL https://cyberworlds.dev/api/internal/deploy/commit)"; then
+            echo "Deployed commit"
+            exit 0
+        elif git merge-base --is-ancestor "$commit" "$(curl -fSsL https://cyberworlds.dev/api/internal/deploy/commit?status=ongoing)"; then
+            echo "Commit is part of an ongoing deploy"
+            exit 2
+        else
+            echo "Commit isn't deployed"
+            exit 1
+        fi
         ;;
 
     *)

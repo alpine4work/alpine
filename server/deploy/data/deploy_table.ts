@@ -16,9 +16,7 @@ export const githubRepo = "cyberworlds";
 // `gh workflow list`.
 export const testGithubWorkflowId = 45008180;
 
-// TODO(calebmer, #deploy): I'd love to create a quick `dev deployed` script
-// which logs "yes this commit is deployed" or "this commit is currently
-// deploying" or "this commit is not deployed".
+// TODO(calebmer, #deploy): Check if `dev deployed` script works.
 
 const DeployTable = DynamoTableSchema.new({
     name: "Deploy",
@@ -70,6 +68,15 @@ const DeployTable = DynamoTableSchema.new({
 });
 
 export type DeployAttributesItem = DynamoTableItemType<typeof DeployTable, "Deploy", "Attributes">;
+
+/**
+ * Get the current deploy item. We allow reading the deploy item without any
+ * authorization so we can implement the `dev deployed` command which a
+ * developer can use to check if their commit has been deployed.
+ */
+export function getDeploy(context: DynamoContext): Promise<DeployAttributesItem> {
+    return DeployTable.getItem(context, {partitionType: "Deploy", sortRangeType: "Attributes"});
+}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function attemptStartDeploy(context: DynamoContext) {
