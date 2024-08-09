@@ -1,4 +1,4 @@
-import {ClientRect, DndContext, DraggableAttributes, Modifier, useDraggable} from "@dnd-kit/core";
+import {ClientRect, DndContext, Modifier, useDraggable} from "@dnd-kit/core";
 import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
 import {PressEvent} from "@react-types/shared";
 import {
@@ -748,7 +748,6 @@ function PeekStackDraggable({
     deltaXPercentage: number;
 }) {
     const {
-        attributes: draggableAttributes,
         listeners: draggableListeners,
         setNodeRef: setDraggableNodeRef,
         transform: dragTransform,
@@ -757,7 +756,6 @@ function PeekStackDraggable({
     } = useDraggable({id: "peek"});
 
     const isPointerDragging = isDragging && dragActivatorEvent instanceof PointerEvent;
-    const isKeyboardDragging = isDragging && dragActivatorEvent instanceof KeyboardEvent;
 
     const dragActivatorCursor = useMemo(
         () =>
@@ -872,8 +870,6 @@ function PeekStackDraggable({
                                 entry={entry}
                                 index={index}
                                 isDragging={isDragging}
-                                isKeyboardDragging={isKeyboardDragging}
-                                draggableAttributes={draggableAttributes}
                                 draggableListeners={draggableListeners}
                                 onClosePress={onClosePress}
                             />
@@ -889,8 +885,6 @@ function PeekStackDraggable({
                             entry={entry}
                             index={-(index + 1)}
                             isDragging={isDragging}
-                            isKeyboardDragging={isKeyboardDragging}
-                            draggableAttributes={draggableAttributes}
                             draggableListeners={draggableListeners}
                             onClosePress={onClosePress}
                         />
@@ -919,8 +913,6 @@ function PeekStackOverlay({
     entry,
     index,
     isDragging,
-    isKeyboardDragging,
-    draggableAttributes,
     draggableListeners,
     onClosePress,
 }: {
@@ -934,8 +926,6 @@ function PeekStackOverlay({
     entry: PeekStackEntry;
     index: number;
     isDragging: boolean;
-    isKeyboardDragging: boolean;
-    draggableAttributes: DraggableAttributes;
     draggableListeners: SyntheticListenerMap | undefined;
     onClosePress: (event: PressEvent) => void;
 }) {
@@ -1315,10 +1305,7 @@ function PeekStackOverlay({
                                         peekRoutes={peekRoutes}
                                         createPeekRouter={createPeekRouter}
                                         entry={entry}
-                                        index={index}
                                         isDragging={isDragging}
-                                        isKeyboardDragging={isKeyboardDragging}
-                                        draggableAttributes={draggableAttributes}
                                         draggableListeners={draggableListeners}
                                         onClosePress={onClosePress}
                                     />
@@ -1357,10 +1344,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
         peekRoutes,
         createPeekRouter,
         entry,
-        index,
         isDragging,
-        isKeyboardDragging,
-        draggableAttributes,
         draggableListeners,
         onClosePress,
     }: {
@@ -1372,10 +1356,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
             hydrationData?: HydrationState;
         }) => PeekRemixEmbedRouter;
         entry: PeekStackEntry;
-        index: number;
         isDragging: boolean;
-        isKeyboardDragging: boolean;
-        draggableAttributes: DraggableAttributes;
         draggableListeners: SyntheticListenerMap | undefined;
         onClosePress: (event: PressEvent) => void;
     },

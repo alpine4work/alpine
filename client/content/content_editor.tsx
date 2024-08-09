@@ -2068,7 +2068,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             )}
             {codeBlockLanguagePickerState && (
                 <ContentEditorCodeBlockLanguagePickerComboBox
-                    withMobileLayout={withMobileLayout}
                     targetElement={codeBlockLanguagePickerState.targetElement}
                     isVisible={codeBlockLanguagePickerState.isVisible}
                     onCloseWithAnimation={() => {

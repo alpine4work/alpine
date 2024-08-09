@@ -268,7 +268,6 @@ export function InboxView({
                                 <InboxViewPeekContent
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
-                                    filter={filter}
                                     peekId={activePeek.id}
                                     routerResult={activePeek.routerResult}
                                     entry={activeEntry?.item ?? null}
@@ -276,7 +275,7 @@ export function InboxView({
                             )}
                         </Box>
                     ),
-                    [activeEntry?.item, activePeek, filter],
+                    [activeEntry?.item, activePeek],
                 )}
             </Box>
         </GlobalKeyDownEvent>
@@ -593,12 +592,10 @@ function InboxViewEntries({
 }
 
 function InboxViewPeekContent({
-    filter,
     peekId,
     routerResult,
     entry,
 }: {
-    filter: "New" | "Archive";
     peekId: PeekId;
     routerResult: Result<PeekRemixEmbedRouter>;
     entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;

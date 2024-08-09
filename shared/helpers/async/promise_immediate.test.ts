@@ -139,7 +139,7 @@ test("will reject a promise synchronously that rejects with a resolved immediate
 
     const promise = new PromiseImmediate<number>((resolve, reject) => {
         reject(
-            new PromiseImmediate<number>((resolve, reject) => {
+            new PromiseImmediate<number>(resolve => {
                 resolve(42);
             }),
         );

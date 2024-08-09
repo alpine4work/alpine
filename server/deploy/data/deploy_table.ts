@@ -71,6 +71,7 @@ const DeployTable = DynamoTableSchema.new({
 
 export type DeployAttributesItem = DynamoTableItemType<typeof DeployTable, "Deploy", "Attributes">;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function attemptStartDeploy(context: DynamoContext) {
     // TODO(calebmer, #deploy): Implement
     //

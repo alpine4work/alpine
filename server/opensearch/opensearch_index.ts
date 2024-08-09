@@ -313,7 +313,7 @@ export class OpensearchIndex<
 
             for (const [name, customFilter] of customFilterByName) {
                 if (customFilterDefinitionByName.has(name)) continue;
-                customFilterDefinitionByName.set(name, customFilter.getDefinitionConfig(builder));
+                customFilterDefinitionByName.set(name, customFilter.getDefinitionConfig());
             }
 
             // Break out of our loop once there are no new custom analyzers/filters we need

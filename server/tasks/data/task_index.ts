@@ -1330,25 +1330,22 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
             if (import.meta.jest) {
                 await context.opensearch.refresh(TaskIndex);
             } else {
-                await context.tracer.withSpan(
-                    "Waiting for task index to refresh",
-                    async context => {
-                        await wait(
-                            taskIndexRefreshIntervalMs +
-                                // 1000ms added to protect against clock skew.
-                                1000 -
-                                // If we are retrying then subtract the time it took to run our
-                                // `updateByQuery()`s. This does assume `updateByQuery()` reads the index at
-                                // `lastUpdateByQueryStartTime` which is not quite true. There's some latency
-                                // from our service to OpenSearch. We consider our extra 1s enough to cover
-                                // that latency. Also if our index is not refreshed we'll get the same version
-                                // conflicts and try again.
-                                (lastUpdateByQueryStartTime !== null
-                                    ? Date.now() - lastUpdateByQueryStartTime
-                                    : 0),
-                        );
-                    },
-                );
+                await context.tracer.withSpan("Waiting for task index to refresh", async () => {
+                    await wait(
+                        taskIndexRefreshIntervalMs +
+                            // 1000ms added to protect against clock skew.
+                            1000 -
+                            // If we are retrying then subtract the time it took to run our
+                            // `updateByQuery()`s. This does assume `updateByQuery()` reads the index at
+                            // `lastUpdateByQueryStartTime` which is not quite true. There's some latency
+                            // from our service to OpenSearch. We consider our extra 1s enough to cover
+                            // that latency. Also if our index is not refreshed we'll get the same version
+                            // conflicts and try again.
+                            (lastUpdateByQueryStartTime !== null
+                                ? Date.now() - lastUpdateByQueryStartTime
+                                : 0),
+                    );
+                });
             }
 
             lastUpdateByQueryStartTime = Date.now();

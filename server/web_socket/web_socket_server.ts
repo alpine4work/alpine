@@ -1305,7 +1305,7 @@ class WebSocketServerConnectionWrapper<
                             message,
                         );
                     },
-                    error => {
+                    () => {
                         // Ignore authorization error. We send a `ClosingWithError` message when
                         // authorization fails so rejecting our `waitUntil()` is redundant.
                     },

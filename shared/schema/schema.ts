@@ -1521,7 +1521,7 @@ export class UnionSchema<Value> extends Schema<Value> {
         const schemaBySerializedTypeValue = new Map<
             string,
             UnionSchemaVariant<SchemaType<Config[keyof Config]>>
-        >(Array.from(schemaByType, ([type, schema]) => [schema.serializedTypeValue, schema]));
+        >(Array.from(schemaByType.values(), schema => [schema.serializedTypeValue, schema]));
 
         const validateByType = new Map<string, (value: SchemaType<Config[keyof Config]>) => void>(
             filterMapIterable(schemaByType, ([type, {schema}]) => {
@@ -1536,7 +1536,7 @@ export class UnionSchema<Value> extends Schema<Value> {
                 type: "Union",
                 typeKey: serializedTypeKey,
                 variantSchemaByTypeValue: Object.fromEntries(
-                    Array.from(schemaByType, ([type, {schema, serializedTypeValue}]) => [
+                    Array.from(schemaByType.values(), ({schema, serializedTypeValue}) => [
                         serializedTypeValue,
                         schema.getDescription(),
                     ]),

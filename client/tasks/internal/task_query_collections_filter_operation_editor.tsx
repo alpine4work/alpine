@@ -311,7 +311,6 @@ export function TaskQueryCollectionsFilterOperationEditor({
                     triggerButtonRef={valueTriggerButtonRef}
                     preview={
                         <TaskQueryCollectionsFilterOperationEditorPreview
-                            withMobileLayout={withMobileLayout}
                             conjunction={filter.operation.type === "IncludesOneOf" ? "or" : "and"}
                             collectionResults={collectionResults}
                         />
@@ -376,11 +375,9 @@ export function TaskQueryCollectionsFilterOperationEditor({
 }
 
 function TaskQueryCollectionsFilterOperationEditorPreview({
-    withMobileLayout,
     conjunction,
     collectionResults,
 }: {
-    withMobileLayout: boolean;
     conjunction: "or" | "and";
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {

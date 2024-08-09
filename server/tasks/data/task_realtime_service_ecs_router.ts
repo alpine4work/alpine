@@ -172,7 +172,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                         // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeNetworkInterfaces.html
                         const describeNetworkInterfacesOutput = await context.tracer.withSpan(
                             "EC2 DescribeNetworkInterfaces",
-                            (context, span) => {
+                            () => {
                                 const command = new DescribeNetworkInterfacesCommand({
                                     // Same `maxResults` as our `ListTasks` command. If `ListTasks` has more than
                                     // `maxResults` we'll be making multiple requests.

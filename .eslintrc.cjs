@@ -174,6 +174,18 @@ module.exports = {
         // have a solid knowledge of the JavaScript language and write tests.
         "no-loop-func": "off",
 
+        // Warn for all unused variables. Including those that begin with an
+        // underscore. Instead we use the underscore naming convention for denoting
+        // private things.
+        //
+        // We need this here and below in our `.ts` override rules to override the rule
+        // in `plugin:@typescript-eslint/recommended`.
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": [
+            "warn",
+            {args: "after-used", ignoreRestSiblings: true},
+        ],
+
         // Unused expressions are dead code, you may delete them.
         "no-unused-expressions": "off",
         "@typescript-eslint/no-unused-expressions": "warn",
@@ -263,9 +275,16 @@ module.exports = {
                 "@typescript-eslint/consistent-type-assertions": ["warn", {assertionStyle: "as"}],
 
                 // Warn for all unused variables. Including those that begin with an
-                // underscore. Instead use the underscore naming convention for denoting
+                // underscore. Instead we use the underscore naming convention for denoting
                 // private things.
-                "@typescript-eslint/no-unused-vars": "warn",
+                //
+                // We need this here and above in our main rules to override the rule
+                // in `plugin:@typescript-eslint/recommended`.
+                "no-unused-vars": "off",
+                "@typescript-eslint/no-unused-vars": [
+                    "warn",
+                    {args: "after-used", ignoreRestSiblings: true},
+                ],
 
                 // Consistent use of generics when writing array types. This also makes it
                 // much easier to see if a type is wrapped in array since the other array

@@ -163,16 +163,13 @@ async function main(): Promise<{exitCode: number}> {
                         );
                     })(),
                     runAllPromises(
-                        mapIterable(
-                            testInfo.attempts,
-                            async ([testAttemptName, testAttemptInfo]) => {
-                                testAttemptInfo.outputPlaywrightTraces =
-                                    await getTestOutputPlaywrightTraces(
-                                        testInfo.name,
-                                        testAttemptInfo.outputPath,
-                                    );
-                            },
-                        ),
+                        mapIterable(testInfo.attempts.values(), async testAttemptInfo => {
+                            testAttemptInfo.outputPlaywrightTraces =
+                                await getTestOutputPlaywrightTraces(
+                                    testInfo.name,
+                                    testAttemptInfo.outputPath,
+                                );
+                        }),
                     ),
                 ]);
 

@@ -41,12 +41,11 @@ export function SpaceLayoutSideBarCreateButton() {
                                 `/s/${space.id}/posts/new/${draftId}?focus=channel`,
                             );
                         },
-                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                        render: ({isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem
                                 icon={<PostBrandBigIcon />}
                                 label="Post"
                                 description="Share your ideas in a channel"
-                                isHovered={isHovered}
                                 isPressed={isPressed}
                                 shouldShowPendingSpinner={shouldShowPendingSpinner}
                             />
@@ -58,12 +57,11 @@ export function SpaceLayoutSideBarCreateButton() {
                         onPress: async () => {
                             await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
                         },
-                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                        render: ({isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem
                                 icon={<ChatBrandBigIcon />}
                                 label="Message"
                                 description="Start a chat with anyone"
-                                isHovered={isHovered}
                                 isPressed={isPressed}
                                 shouldShowPendingSpinner={shouldShowPendingSpinner}
                             />
@@ -78,12 +76,11 @@ export function SpaceLayoutSideBarCreateButton() {
                                 `/s/${space.id}/documents/${documentId}?create&focus`,
                             );
                         },
-                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                        render: ({isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem
                                 icon={<DocumentBrandBigIcon />}
                                 label="Document"
                                 description="Write what’s on your mind"
-                                isHovered={isHovered}
                                 isPressed={isPressed}
                                 shouldShowPendingSpinner={shouldShowPendingSpinner}
                             />
@@ -95,12 +92,11 @@ export function SpaceLayoutSideBarCreateButton() {
                         onPress: async () => {
                             await peekStackContext.push(`/s/${space.id}/tasks?focus=new`);
                         },
-                        render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
+                        render: ({isPressed, shouldShowPendingSpinner}) => (
                             <SpaceLayoutSideBarCreateButtonItem
                                 icon={<TaskBrandBigIcon />}
                                 label="Task"
                                 description="Keep track of work to do later"
-                                isHovered={isHovered}
                                 isPressed={isPressed}
                                 shouldShowPendingSpinner={shouldShowPendingSpinner}
                             />
@@ -160,14 +156,12 @@ function SpaceLayoutSideBarCreateButtonItem({
     icon,
     label,
     description,
-    isHovered,
     isPressed,
     shouldShowPendingSpinner,
 }: {
     icon: ReactNode;
     label: string;
     description: string;
-    isHovered: boolean;
     isPressed: boolean;
     shouldShowPendingSpinner: boolean;
 }) {

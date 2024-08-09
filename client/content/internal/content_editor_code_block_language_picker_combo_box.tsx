@@ -29,7 +29,6 @@ import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/style
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 export function ContentEditorCodeBlockLanguagePickerComboBox({
-    withMobileLayout,
     targetElement,
     isVisible,
     onCloseWithAnimation,
@@ -37,7 +36,6 @@ export function ContentEditorCodeBlockLanguagePickerComboBox({
     selectedLanguageId,
     onSelectedLanguageChange,
 }: {
-    withMobileLayout: boolean;
     targetElement: HTMLElement;
     isVisible: boolean;
     onCloseWithAnimation: () => void;

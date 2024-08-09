@@ -115,6 +115,7 @@ export default async function handleRequest(
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function handleError(error: unknown) {
     // Errors are already logged by our tracer. We add them to any span which
     // contains the error, then `ErrorBoundary` may choose to display the error to

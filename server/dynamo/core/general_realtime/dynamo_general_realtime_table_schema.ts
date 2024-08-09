@@ -1196,6 +1196,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public async realtimeQuery(context: ServerActionContext, options: {}): Promise<never> {
         if (this._isTableRealtimeQueryDisabled) {
             throw new InternalError("Realtime queries have been disabled");

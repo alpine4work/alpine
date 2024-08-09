@@ -282,7 +282,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                             .then(outputPromiseResolver.resolve, outputPromiseResolver.reject);
                     }
                 },
-                error => {
+                () => {
                     // Ignore errors when waiting for the client to open. Any relevant errors will
                     // be reported by `client.waitForSoftClose()` with a better description.
                 },

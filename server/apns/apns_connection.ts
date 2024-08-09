@@ -290,11 +290,7 @@ export class ApnsConnection {
         this._closeWithError(error);
     };
 
-    private readonly _handleGoaway = (
-        errorCode: number,
-        lastStreamId: number,
-        opaqueData: Buffer,
-    ) => {
+    private readonly _handleGoaway = (errorCode: number) => {
         // TODO(calebmer): According to [Apple's documentation][1], `opaqueData` will
         // be a JSON object with a `reason` string with more information. We should
         // consider parsing this JSON object and including it in the error.
@@ -305,7 +301,7 @@ export class ApnsConnection {
         );
     };
 
-    private readonly _handleFrameError = (type: number, errorCode: number, streamId: number) => {
+    private readonly _handleFrameError = (type: number, errorCode: number) => {
         this._closeWithError(
             new InternalError(
                 `Failed to send frame to APNs (type: ${type}, error code: ${errorCode})`,

@@ -296,6 +296,7 @@ export type TaskQueryDisplayStatusFilter = {
           };
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getTaskQueryDisplayStatusFilterByteLength(filter: TaskQueryDisplayStatusFilter) {
     return 1;
 }
@@ -479,6 +480,7 @@ export type TaskQueryPriorityFilter = {
           };
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getTaskQueryPriorityFilterByteLength(filter: TaskQueryPriorityFilter) {
     return 1;
 }
@@ -827,6 +829,7 @@ export type TaskQueryFilterDateOperationDuration =
       };
 
 function getTaskQueryFilterDateOperationDurationByteLength(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     duration: TaskQueryFilterDateOperationDuration,
 ) {
     return 1 + 4;

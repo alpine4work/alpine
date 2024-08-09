@@ -315,7 +315,6 @@ export class AwsTaskRealtimeService extends Construct {
         for (let partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {
             new AwsTaskRealtimeServicePartition(this, {
                 ecsCluster,
-                opensearch,
                 taskDefinition: this.taskDefinition,
                 capacityProvider: autoScalingGroupCapacityProvider,
                 partitionIndex,
@@ -331,7 +330,6 @@ class AwsTaskRealtimeServicePartition extends Construct {
         parentScope: Construct,
         {
             ecsCluster,
-            opensearch,
             taskDefinition,
             capacityProvider,
             partitionIndex,
@@ -339,7 +337,6 @@ class AwsTaskRealtimeServicePartition extends Construct {
             partitionInstanceCount,
         }: {
             ecsCluster: AwsEcsCluster;
-            opensearch: AwsOpensearch;
             taskDefinition: TaskDefinition;
             capacityProvider: AsgCapacityProvider;
             partitionIndex: number;

@@ -55,7 +55,7 @@ test("can create document from peek", async ({browser, context: browserContext1,
     await browserContext2.close();
 });
 
-test("clicking a link will open a peek", async ({context: browserContext, page, isMobile}) => {
+test("clicking a link will open a peek", async ({context: browserContext, page}) => {
     const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),

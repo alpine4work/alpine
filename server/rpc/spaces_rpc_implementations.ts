@@ -75,7 +75,7 @@ implementRpc(
 implementRpc(
     definition.getOurAccountSpaces,
     {visibility: ["AppClient"]},
-    async (unauthenticatedContext, input) => {
+    async unauthenticatedContext => {
         const context = unauthenticatedContext.actor.authorizeSession();
 
         const {spaceIds} = await getOurAccountSpaceIds(context);

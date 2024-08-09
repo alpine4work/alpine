@@ -296,7 +296,6 @@ function TaskRowView(
         cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
-        gridKey,
         parents,
         rowMaxWidth,
         disableExpensiveFeaturesDuringScroll,

@@ -527,6 +527,7 @@ export class MessagingRealtimeConnection<
 
     public async startTypingInMessageInput(
         context: WorkerSessionActionContext,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         input: {},
     ): Promise<{}> {
         await this._typingState.withLock(async typingStateRef => {
@@ -558,7 +559,11 @@ export class MessagingRealtimeConnection<
     // The stop typing function needs to be called outside of a `AppActionContext`
     // when the connection is closing. This means it may not have authorization
     // information.
-    public async stopTypingInMessageInput(context: WorkerProcessContext, input: {}): Promise<{}> {
+    public async stopTypingInMessageInput(
+        context: WorkerProcessContext,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        input: {},
+    ): Promise<{}> {
         await this._typingState.withLock(async typingState => {
             if (typingState.current === null) return;
 

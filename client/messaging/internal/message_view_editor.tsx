@@ -33,7 +33,6 @@ export {MessageViewEditorForwardRef as MessageViewEditor};
 function MessageViewEditor<RoomKey extends string>(
     {
         withMobileLayout,
-        messageNoun,
         messageStartOfSentenceNoun,
         shouldMergeWithPreviousMessage,
         shouldMergeWithNextMessage,
@@ -41,7 +40,6 @@ function MessageViewEditor<RoomKey extends string>(
     }: {
         ref?: Ref<MessageViewEditorRef>;
         withMobileLayout: boolean;
-        messageNoun: string;
         messageStartOfSentenceNoun: string;
         shouldMergeWithPreviousMessage: boolean;
         shouldMergeWithNextMessage: boolean;
@@ -120,10 +118,7 @@ function MessageViewEditor<RoomKey extends string>(
             </FocusRing>
             <Box alignSelf="center" paddingLeft="3" pointerEvents="auto">
                 <Box width={messageViewActionsWidth} position="relative" zIndex="20">
-                    <MessageViewEditorActions
-                        messageNoun={messageNoun}
-                        messageEditing={messageEditing}
-                    />
+                    <MessageViewEditorActions messageEditing={messageEditing} />
                 </Box>
             </Box>
         </Box>
@@ -210,9 +205,7 @@ function MessageContentEditor({
 
 function MessageViewEditorActions<RoomKey extends string>({
     messageEditing,
-    messageNoun,
 }: {
-    messageNoun: string;
     messageEditing: MessageEditing<RoomKey>;
 }) {
     assert(messageEditing.state.isEditing);

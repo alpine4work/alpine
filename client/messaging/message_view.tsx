@@ -1314,7 +1314,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             <MessageViewEditor
                                 ref={messageEditorRef}
                                 withMobileLayout={withMobileLayout}
-                                messageNoun={messageNoun}
                                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                                 shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
                                 shouldMergeWithNextMessage={shouldMergeWithNextMessage}

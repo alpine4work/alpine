@@ -18,6 +18,7 @@ type Not<Test> = Test extends true ? false : true;
  * [1]: https://github.com/mmkal/expect-type/tree/main
  */
 export function assertAssignableTypes<Type1, Type2>(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ...MISMATCH: MismatchArgs<Extends<Type1, Type2>>
 ): void {
     // Does nothing at runtime
@@ -32,6 +33,7 @@ export function assertAssignableTypes<Type1, Type2>(
  * more information.
  */
 export function assertNotAssignableTypes<Type1, Type2>(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ...MISMATCH: MismatchArgs<Not<Extends<Type1, Type2>>>
 ): void {
     // Does nothing at runtime

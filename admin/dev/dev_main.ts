@@ -501,7 +501,7 @@ async function rebuildArtifact(artifact: Artifact) {
                   waitForHttpServer(
                       artifact.ports.privatePort,
                       artifact.ports.waitForHttpServerPath,
-                  ).catch(error => {
+                  ).catch(() => {
                       // Don't log an error. If a server never starts, the user will see a 504
                       // gateway timeout when they try to access the artifact's URL.
                   }),
@@ -524,7 +524,7 @@ async function rebuildArtifact(artifact: Artifact) {
 
                     // If the process exits immediately after starting then immediately free the
                     // mutex instead of continuing to wait for the HTTP server to start.
-                    waitForProcessExit(subprocess).catch(error => {
+                    waitForProcessExit(subprocess).catch(() => {
                         // Don't log an error. If the process exits, the developer will see when they
                         // try to access the artifact's  URL.
                     }),

@@ -32,6 +32,7 @@ if (typeof navigator !== "undefined" && "virtualKeyboard" in navigator) {
  *
  * [1]: https://developer.chrome.com/docs/web-platform/virtual-keyboard/
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function isVirtualKeyboardEvent(event: KeyboardEvent): boolean {
     // Use the virtual keyboard API if available.
     if (isVirtualKeyboardVisible !== null) return isVirtualKeyboardVisible;

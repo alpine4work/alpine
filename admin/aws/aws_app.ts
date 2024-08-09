@@ -1,6 +1,6 @@
 import {App, CfnOutput, Fn, Stack} from "aws-cdk-lib";
 import {ITable} from "aws-cdk-lib/aws-dynamodb";
-import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {IVpc, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
@@ -40,7 +40,12 @@ export async function createAwsApp() {
     return app;
 }
 
-async function addAwsResources(stack: Stack) {
+async function addAwsResources(stack: Stack): Promise<{
+    importVpc: (stack: Stack) => IVpc;
+    importOpensearchHost: (stack: Stack) => string;
+    importJobQueueUrl: (stack: Stack) => string;
+    importDeployTable: (stack: Stack) => ITable;
+}> {
     const vpc = new AwsVpc(stack);
 
     const ecsCluster = new AwsEcsCluster(stack, vpc);
@@ -109,9 +114,8 @@ async function addAwsResources(stack: Stack) {
     // - Ensure the output is never implicitly deleted
     return {
         importVpc: vpc.export(),
-        importOpensearchHost: (importStack: Stack) =>
-            Fn.importValue(`${stack.stackName}:OpensearchHost`),
-        importJobQueueUrl: (importStack: Stack) => Fn.importValue(`${stack.stackName}:JobQueueUrl`),
+        importOpensearchHost: () => Fn.importValue(`${stack.stackName}:OpensearchHost`),
+        importJobQueueUrl: () => Fn.importValue(`${stack.stackName}:JobQueueUrl`),
         importDeployTable: dynamo.export("Deploy"),
     };
 }

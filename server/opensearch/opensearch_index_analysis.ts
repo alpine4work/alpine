@@ -116,7 +116,7 @@ export class OpensearchIndexAnalysisCustomFilter {
         return this.name;
     }
 
-    public getDefinitionConfig(builder: OpensearchIndexConfigBuilder) {
+    public getDefinitionConfig() {
         return this._config;
     }
 }

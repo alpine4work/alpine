@@ -108,6 +108,7 @@ export function usePeekSwitcherState<Extra>({
     };
 
     const [peekState, setPeekState] = useStateWithDependencies(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         (key): PeekSwitcherState<Extra> => {
             const peekData =
                 typeof initialPeekData === "function" ? initialPeekData() : initialPeekData;

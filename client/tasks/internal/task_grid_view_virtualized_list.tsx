@@ -758,7 +758,6 @@ export function useTaskGridViewVirtualizedList({
         popUndoStackEntry,
         popRedoStackEntry,
     } = useTaskUndoStackState({
-        clock: store.clock,
         // Whenever the query changes we reset our undo stack. If the query changes
         // it's unlikely we'll find the tasks the user was previously operating on so
         // we can't scroll to them.

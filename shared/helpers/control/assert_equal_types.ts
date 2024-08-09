@@ -20,6 +20,7 @@ type MismatchArgs<Test> = Test extends true ? [] : [never];
  * [1]: https://github.com/mmkal/expect-type/tree/main
  */
 export function assertEqualTypes<Type1, Type2>(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ...MISMATCH: MismatchArgs<Equals<Type1, Type2>>
 ): void {
     // Does nothing at runtime

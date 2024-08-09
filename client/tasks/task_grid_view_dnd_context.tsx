@@ -434,7 +434,7 @@ export function TaskGridViewDndContext({
                 unstableShouldPreserveDataAfterDraggableUnmounts={true}
             >
                 {children}
-                <TaskRowViewDragPortals store={store} />
+                <TaskRowViewDragPortals />
             </DndContext>
         </TaskGridViewHasDndContext.Provider>
     );
@@ -521,7 +521,7 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
     return nearestFallbackCollision ? [nearestFallbackCollision] : [];
 };
 
-function TaskRowViewDragPortals({store}: {store: TaskClientStore}) {
+function TaskRowViewDragPortals() {
     const {active, activatorEvent, activeNodeRect} = useDndContext();
 
     const isPointerDragging =

@@ -5,7 +5,6 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {TaskUndoActions} from "~/client/tasks/core/create_task_undo_actions_if_possible.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id} from "~/shared/id/id.js";
@@ -54,14 +53,9 @@ export type TaskUndoStackEntry =
  *   of time
  * - Clears redo stack when progress is made
  */
-export function useTaskUndoStackState({
-    clock,
-    stateKey,
-}: {
-    clock: HybridLogicalClock;
-    stateKey: Id | undefined;
-}) {
+export function useTaskUndoStackState({stateKey}: {stateKey: Id | undefined}) {
     const [undoState] = useStateWithDependencies(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         stateKey => ({
             undoStackRef: cast<
                 MutableRefObject<Array<TaskUndoStackEntry & {readonly fromRedo: boolean}>>

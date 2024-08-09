@@ -1478,7 +1478,7 @@ test("excludes collections account doesn't have access to when searching", async
         const results = await searchTaskCollections(session.action(), {
             spaceId: space.id,
             nameQuery: "test",
-            limit: 3,
+            limit,
         });
 
         return results.map(({collection}) => collection.id);
@@ -1486,7 +1486,7 @@ test("excludes collections account doesn't have access to when searching", async
 
     expect(await testSearch(session1, 3)).toEqual([collection9.id, collection7.id, collection5.id]);
     expect(await testSearch(session2, 3)).toEqual([collection9.id, collection8.id, collection6.id]);
-    expect(await testSearch(session3, 4)).toEqual([collection9.id, collection6.id, collection5.id]);
+    expect(await testSearch(session3, 3)).toEqual([collection9.id, collection6.id, collection5.id]);
 });
 
 test("updates approximate action counts", async () => {

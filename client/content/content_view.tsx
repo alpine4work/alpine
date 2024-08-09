@@ -489,6 +489,8 @@ export function ContentView({
     const handleCodeBlockCopyButtonHoverEnd = useCallback((targetElement: HTMLElement) => {
         // We intentionally do not remove our tooltip state when the hover ends. Since
         // we need to wait until the tooltip fades out on its own.
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        targetElement;
     }, []);
 
     const handleCodeBlockCopyButtonPress = useCallback((targetElement: HTMLElement) => {
@@ -591,12 +593,12 @@ export function ContentView({
                     handleContentLinkClick(event, navigate);
                 };
 
-                const handlePointerLeave = (event: MouseEvent) => {
+                const handlePointerLeave = () => {
                     isPointerDownAndOver = false;
                     maybeUpdateStyle();
                 };
 
-                const handleDragStart = (event: DragEvent) => {
+                const handleDragStart = () => {
                     isPointerDownAndOver = false;
                     maybeUpdateStyle();
                 };
@@ -656,7 +658,7 @@ export function ContentView({
                     event.preventDefault();
                 };
 
-                const handlePointerUp = (event: MouseEvent) => {
+                const handlePointerUp = () => {
                     const wasPointerDownAndOver = isPointerDownAndOver;
                     isPointerDownAndOver = false;
                     maybeUpdateStyle();
@@ -673,12 +675,12 @@ export function ContentView({
                     }
                 };
 
-                const handlePointerLeave = (event: MouseEvent) => {
+                const handlePointerLeave = () => {
                     isPointerDownAndOver = false;
                     maybeUpdateStyle();
                 };
 
-                const handleDragStart = (event: DragEvent) => {
+                const handleDragStart = () => {
                     isPointerDownAndOver = false;
                     maybeUpdateStyle();
                 };

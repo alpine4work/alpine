@@ -63,6 +63,7 @@ export class DynamoTransactionEntry {
      * in a `DynamoClient` to make sure you at least have access to a
      * `DynamoClient` which is in an internal directory.
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public _getTransactItemForClient(client: typeof DynamoClient): types.TransactWriteItem {
         return this._transactItem;
     }
@@ -73,6 +74,7 @@ export class DynamoTransactionEntry {
      * in a `DynamoClient` to make sure you at least have access to a
      * `DynamoClient` which is in an internal directory.
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public _onAfterTransactionExecutedSuccessfully(client: typeof DynamoClient): void {
         this._onAfterTransactionExecutedSuccessfullyCallback?.();
     }

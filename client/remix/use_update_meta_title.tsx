@@ -13,6 +13,7 @@ export const metaDefaultTitle = "Cyberworlds";
  */
 export const metaTitlePostfix = ` | ${metaDefaultTitle}`;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const noopUpdateMetaTitle = (title => {}) as Memo<(title: string) => void>;
 
 const UpdateMetaTitleContext = createContext<Memo<(title: string) => void> | null>(null);
