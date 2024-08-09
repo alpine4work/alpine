@@ -48,7 +48,7 @@ export function classifyDynamoError(error: {
         errorCode = ErrorCode.Internal;
     }
 
-    const message = `DynamoDB ${error.__type ?? "unknown error"}${
+    const message = `DynamoDB ${error.__type ? JSON.stringify(error.__type) : "unknown error"}${
         error.message ? `: ${error.message}` : error.Message ? `: ${error.Message}` : ""
     }`;
 
@@ -57,7 +57,7 @@ export function classifyDynamoError(error: {
         return new ErrorConstructor(message, {cause: error});
     }
 
-    if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV !== "production") {
         // eslint-disable-next-line no-console
         console.warn("Unclassified DynamoDB error:", error);
     }
