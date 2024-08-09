@@ -3,6 +3,7 @@ import {max as maxDate, subDays} from "date-fns";
 import fs from "fs-extra";
 import {extname, join as joinPath} from "path";
 import serveStatic from "serve-static";
+import {isCloudflareR2NoSuchKeyError} from "~/server/deploy/data/cloudflare_r2_client.js";
 import {CloudflareR2ContextModule} from "~/server/deploy/data/cloudflare_r2_context_module.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -381,15 +382,11 @@ async function uploadAppStaticFilesBeforeDeploy(
             JSON.parse((await manifestOutput.Body?.transformToString("utf8")) ?? ""),
         );
     } catch (error) {
-        throw error;
-
-        // TODO(calebmer, #deploy): Implement
-        //
-        // if (isCloudflareR2NoSuchKeyError(error)) {
-        //     manifest = {files: []};
-        // } else {
-        //     throw error;
-        // }
+        if (isCloudflareR2NoSuchKeyError(error)) {
+            oldManifest = {files: []};
+        } else {
+            throw error;
+        }
     }
 
     const currentTime = new Date();

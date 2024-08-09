@@ -13,6 +13,10 @@ import {
     PutObjectCommandOutput,
     S3Client,
 } from "@aws-sdk/client-s3";
+import {ErrorBase, UnknownError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -85,7 +89,9 @@ export class CloudflareR2Client {
                 },
             });
 
-            const output = await this._client.send(new GetObjectCommand(input));
+            const output = await this._client
+                .send(new GetObjectCommand(input))
+                .catch(rethrowClassifiedCloudflareR2Error);
 
             span.addData({
                 cloudflare: {
@@ -131,7 +137,9 @@ export class CloudflareR2Client {
                 },
             });
 
-            const output = await this._client.send(new HeadObjectCommand(input));
+            const output = await this._client
+                .send(new HeadObjectCommand(input))
+                .catch(rethrowClassifiedCloudflareR2Error);
 
             span.addData({
                 cloudflare: {
@@ -178,7 +186,9 @@ export class CloudflareR2Client {
                 },
             });
 
-            return this._client.send(new PutObjectCommand(input));
+            return this._client
+                .send(new PutObjectCommand(input))
+                .catch(rethrowClassifiedCloudflareR2Error);
         });
     }
 
@@ -212,7 +222,63 @@ export class CloudflareR2Client {
                 },
             });
 
-            return this._client.send(new DeleteObjectCommand(input));
+            return this._client
+                .send(new DeleteObjectCommand(input))
+                .catch(rethrowClassifiedCloudflareR2Error);
         });
     }
+}
+
+function rethrowClassifiedCloudflareR2Error(error: unknown): never {
+    throw classifyCloudflareR2Error(error);
+}
+
+function classifyCloudflareR2Error(error: unknown): ErrorBase {
+    const originalErrorCode = isObject(error) && typeof error.Code === "string" ? error.Code : null;
+
+    let errorCode: ErrorCode | null = null;
+    if (originalErrorCode === "NoSuchKey") {
+        errorCode = ErrorCode.NotFound;
+    }
+
+    const message = `Cloudflare R2 ${
+        originalErrorCode !== null ? JSON.stringify(originalErrorCode) : "unknown error"
+    }${isObject(error) && typeof error.message === "string" ? `: ${error.message}` : ""}`;
+
+    if (errorCode !== null) {
+        const ErrorConstructor = getErrorConstructorForCode(errorCode);
+        return new ErrorConstructor(message, {
+            // Return a non-Error object for `cause` so we don't include the same error
+            // twice in logging.
+            cause: originalErrorCode !== null ? {Code: originalErrorCode} : undefined,
+        });
+    } else {
+        if (process.env.NODE_ENV !== "production") {
+            // eslint-disable-next-line no-console
+            console.warn("Unclassified Cloudflare R2 error:", error);
+        }
+        return new UnknownError(message, {
+            // Return a non-Error object for `cause` so we don't include the same error
+            // twice in logging.
+            cause: originalErrorCode !== null ? {Code: originalErrorCode} : undefined,
+        });
+    }
+}
+
+/**
+ * Does this error have a `NoSuchKey` code thrown by a [`GetObject`][1] S3
+ * action? Recurses into the cause of an error looking for a `NoSuchKey` code.
+ *
+ * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+ */
+export function isCloudflareR2NoSuchKeyError(error: unknown): boolean {
+    if (isObject(error) && error.Code === "NoSuchKey") return true;
+
+    // Recurse into the error's cause if there is one.
+    // `classifyCloudflareR2Error()` puts put the original error in the cause
+    // property.
+    if (error instanceof Error && "cause" in error)
+        return isCloudflareR2NoSuchKeyError(error.cause);
+
+    return false;
 }
