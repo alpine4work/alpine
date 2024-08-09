@@ -54,7 +54,7 @@ jobs:
             - name: Wait
               shell: bash
               run: |
-                  wait 36000
+                  sleep 36000
 
             # We build `//server/deploy/tool` in a separate step so our tracing code can
             # log a separate span for the time it takes to build containers.
