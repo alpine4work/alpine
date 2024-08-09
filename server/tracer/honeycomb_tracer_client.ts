@@ -1,6 +1,7 @@
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError, UnknownError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
@@ -123,5 +124,52 @@ export class HoneycombTracerClient {
         }
 
         this._scheduledEventBatch.push(event);
+    }
+
+    /**
+     * [Create a marker][1] in Honeycomb. The API key must have the "manage
+     * markers" permission level. Useful for highlighting in Honeycomb when
+     * deploys occur.
+     *
+     * [1]: https://docs.honeycomb.io/api/tag/Markers#operation/createMarker
+     */
+    public async createMarker({
+        type,
+        message,
+        url,
+        startTime,
+        endTime,
+    }: {
+        type?: string;
+        message?: string;
+        url?: string;
+        startTime: Date;
+        endTime?: Date;
+    }) {
+        // eslint-disable-next-line no-global-fetch
+        const response = await fetch("https://api.honeycomb.io/1/markers/tracer", {
+            method: "POST",
+            headers: {
+                "x-honeycomb-team": this._apiKey,
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({
+                type,
+                message,
+                url,
+                start_time: startTime.getTime() / 1000,
+                end_time: endTime !== undefined ? endTime.getTime() / 1000 : undefined,
+            }),
+        });
+
+        const body = await response.json();
+
+        if (response.status !== 201) {
+            throw new UnknownError(
+                `Couldn't create Honeycomb marker${
+                    isObject(body) && typeof body.error === "string" ? `: ${body.error}` : ""
+                }`,
+            );
+        }
     }
 }

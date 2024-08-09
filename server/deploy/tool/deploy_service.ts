@@ -9,6 +9,7 @@ import {
 } from "~/server/node/create_server_process_context.js";
 import {runService} from "~/server/node/run_service.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 runService({
     serviceName: "DeployService",
@@ -16,6 +17,7 @@ runService({
     options: {
         commitSha: {type: "string"},
         workflowRunId: {type: "string"},
+        workflowRunNumber: {type: "string"},
         workflowRunAttempt: {type: "string"},
         cloudflareAccountId: {type: "string"},
         cloudflareAccessKeyId: {type: "string"},
@@ -24,9 +26,11 @@ runService({
     },
     run: async ({
         tracer,
+        honeycombClient,
         options: {
             commitSha,
             workflowRunId: workflowRunIdString,
+            workflowRunNumber: workflowRunNumberString,
             workflowRunAttempt: workflowRunAttemptString,
             cloudflareAccountId,
             cloudflareAccessKeyId,
@@ -38,6 +42,8 @@ runService({
             throw new InvalidArgumentError('"commitSha" option is required');
         if (workflowRunIdString === undefined || !/^[0-9]+$/.test(workflowRunIdString))
             throw new InvalidArgumentError('"workflowRunId" integer option is required');
+        if (workflowRunNumberString === undefined || !/^[0-9]+$/.test(workflowRunNumberString))
+            throw new InvalidArgumentError('"workflowRunNumber" integer option is required');
         if (workflowRunAttemptString === undefined || !/^[0-9]+$/.test(workflowRunAttemptString))
             throw new InvalidArgumentError('"workflowRunAttempt" integer option is required');
         if (cloudflareAccountId === undefined)
@@ -48,7 +54,12 @@ runService({
             throw new InvalidArgumentError('"cloudflareSecretAccessKey" option is required');
 
         const workflowRunId = parseInt(workflowRunIdString, 10);
+        const workflowRunNumber = parseInt(workflowRunNumberString, 10);
         const workflowRunAttempt = parseInt(workflowRunAttemptString, 10);
+
+        // Since this only runs with `NODE_ENV=production`, we should always have a
+        // Honeycomb client.
+        assert(honeycombClient);
 
         const awsSigner = new AwsRequestSigner();
 
@@ -76,7 +87,9 @@ runService({
         await deploy(processContext, {
             commitSha,
             workflowRunId,
+            workflowRunNumber,
             workflowRunAttempt,
+            honeycombClient,
         });
     },
 });

@@ -228,7 +228,7 @@ export async function cleanupDeploy(
         commitSha: string;
         workflowRunId: number;
         initialItem: DeployAttributesItem;
-        result: Result<void>;
+        result: Result<unknown>;
     },
 ) {
     // Should only be run from `DeployService`.

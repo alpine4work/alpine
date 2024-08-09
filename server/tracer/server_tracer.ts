@@ -8,7 +8,16 @@ import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
  * Create a tracer for a service running in a server Cloudflare
  * Workers environment.
  */
-export function createServerTracer({
+export function createServerTracer(options: {
+    serviceName: TracerServiceName;
+    jsHost: TracerEventJsHost;
+    honeycombApiKey: string | undefined;
+    waitUntil: (promise: Promise<unknown>) => void;
+}): TracerRoot {
+    return createServerTracerAndHoneycombClient(options)[0];
+}
+
+export function createServerTracerAndHoneycombClient({
     serviceName,
     jsHost,
     honeycombApiKey,
@@ -18,7 +27,7 @@ export function createServerTracer({
     jsHost: TracerEventJsHost;
     honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
-}): TracerRoot {
+}): [TracerRoot, HoneycombTracerClient | null] {
     const tracer = TracerRoot.new({
         serviceName,
         jsHost,
@@ -41,5 +50,5 @@ export function createServerTracer({
           })
         : null;
 
-    return tracer;
+    return [tracer, honeycombClient];
 }

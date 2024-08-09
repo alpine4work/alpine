@@ -12,6 +12,7 @@ import {
 } from "~/server/deploy/tool/internal/deploy_app_static_files.js";
 import {deployAwsCdk} from "~/server/deploy/tool/internal/deploy_aws_cdk.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnknownError} from "~/shared/error/error.js";
@@ -43,11 +44,15 @@ export async function deploy(
     {
         commitSha,
         workflowRunId,
+        workflowRunNumber,
         workflowRunAttempt,
+        honeycombClient,
     }: {
         commitSha: string;
         workflowRunId: number;
+        workflowRunNumber: number;
         workflowRunAttempt: number;
+        honeycombClient: HoneycombTracerClient;
     },
 ): Promise<void> {
     const tracer = context.tracer.getRoot();
@@ -135,6 +140,8 @@ export async function deploy(
                 actuallyDeploy(context, {
                     commitSha,
                     workflowRunId,
+                    workflowRunNumber,
+                    honeycombClient,
                 }),
             ),
         );
@@ -157,9 +164,13 @@ async function actuallyDeploy(
     {
         commitSha,
         workflowRunId,
+        workflowRunNumber,
+        honeycombClient,
     }: {
         commitSha: string;
         workflowRunId: number;
+        workflowRunNumber: number;
+        honeycombClient: HoneycombTracerClient;
     },
 ) {
     const deployItem = await context.tracer.withSpan("Prepare deploy", context =>
@@ -168,6 +179,8 @@ async function actuallyDeploy(
             workflowRunId,
         }),
     );
+
+    const deployStartTime = new Date();
 
     const result = await captureResultPromise(async () => {
         const {manifest, paths} = await context.tracer.withSpan(
@@ -185,8 +198,16 @@ async function actuallyDeploy(
         await context.tracer.withSpan("Cleanup app static files", context =>
             cleanupAppStaticFilesAfterDeploy(context, {manifest, paths}),
         );
+    });
 
-        // TODO(calebmer, #deploy): Add marker to Honeycomb at start or end of deploy.
+    const deployEndTime = new Date();
+
+    await honeycombClient.createMarker({
+        type: "deploy",
+        message: `Deploy #${workflowRunNumber}`,
+        url: `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${workflowRunId}`,
+        startTime: deployStartTime,
+        endTime: deployEndTime,
     });
 
     await cleanupDeploy(context, {

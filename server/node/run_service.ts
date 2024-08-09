@@ -4,7 +4,8 @@ import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
 import {ShutdownManager, registerShutdownWaitUntilPromise} from "~/server/node/shutdown_manager.js";
-import {createServerTracer} from "~/server/tracer/server_tracer.js";
+import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -47,6 +48,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     run: (options: {
         options: ParsedResults<{options: Options}>["values"];
         tracer: TracerRoot;
+        honeycombClient: HoneycombTracerClient | null;
         shutdownManager: ShutdownManager;
         workerIndex: number;
     }) => Promise<void>;
@@ -74,7 +76,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     if (!honeycombApiKey && process.env.NODE_ENV === "production")
         throw new InternalError('Must provide "honeycombApiKey" option in production');
 
-    const tracer = createServerTracer({
+    const [tracer, honeycombClient] = createServerTracerAndHoneycombClient({
         serviceName,
         jsHost: "Node",
         honeycombApiKey,
@@ -195,7 +197,13 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         tracer.logUncaughtException("Uncaught exception", error);
     });
 
-    run({options: parsedOptions.values, tracer, shutdownManager, workerIndex}).catch(error => {
+    run({
+        options: parsedOptions.values,
+        tracer,
+        honeycombClient,
+        shutdownManager,
+        workerIndex,
+    }).catch(error => {
         // eslint-disable-next-line no-console
         console.error(error);
         process.exitCode = 1;
