@@ -48,7 +48,7 @@ export function classifyDynamoError(error: {
         errorCode = ErrorCode.Internal;
     }
 
-    const message = `DynamoDB ${error.__type ? JSON.stringify(error.__type) : "unknown error"}${
+    const message = `DynamoDB ${error.__type ? error.__type : "unknown error"}${
         error.message ? `: ${error.message}` : error.Message ? `: ${error.Message}` : ""
     }`;
 
