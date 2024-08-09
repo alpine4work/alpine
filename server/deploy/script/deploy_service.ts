@@ -20,8 +20,9 @@ runService({
         workflowRunNumber: {type: "string"},
         workflowRunAttempt: {type: "string"},
         cloudflareAccountId: {type: "string"},
-        cloudflareAccessKeyId: {type: "string"},
-        cloudflareSecretAccessKey: {type: "string"},
+        cloudflareR2AccessKeyId: {type: "string"},
+        cloudflareR2SecretAccessKey: {type: "string"},
+        cloudflareWorkersToken: {type: "string"},
         ...serverProcessContextParseOptions,
     },
     run: async ({
@@ -33,8 +34,9 @@ runService({
             workflowRunNumber: workflowRunNumberString,
             workflowRunAttempt: workflowRunAttemptString,
             cloudflareAccountId,
-            cloudflareAccessKeyId,
-            cloudflareSecretAccessKey,
+            cloudflareR2AccessKeyId,
+            cloudflareR2SecretAccessKey,
+            cloudflareWorkersToken,
             ...options
         },
     }) => {
@@ -48,10 +50,12 @@ runService({
             throw new InvalidArgumentError('"workflowRunAttempt" integer option is required');
         if (cloudflareAccountId === undefined)
             throw new InvalidArgumentError('"cloudflareAccountId" option is required');
-        if (cloudflareAccessKeyId === undefined)
-            throw new InvalidArgumentError('"cloudflareAccessKeyId" option is required');
-        if (cloudflareSecretAccessKey === undefined)
-            throw new InvalidArgumentError('"cloudflareSecretAccessKey" option is required');
+        if (cloudflareR2AccessKeyId === undefined)
+            throw new InvalidArgumentError('"cloudflareR2AccessKeyId" option is required');
+        if (cloudflareR2SecretAccessKey === undefined)
+            throw new InvalidArgumentError('"cloudflareR2SecretAccessKey" option is required');
+        if (cloudflareWorkersToken === undefined)
+            throw new InvalidArgumentError('"cloudflareWorkersToken" option is required');
 
         const workflowRunId = parseInt(workflowRunIdString, 10);
         const workflowRunNumber = parseInt(workflowRunNumberString, 10);
@@ -78,8 +82,8 @@ runService({
             cloudflareR2: new CloudflareR2ContextModule(
                 new CloudflareR2Client({
                     accountId: cloudflareAccountId,
-                    accessKeyId: cloudflareAccessKeyId,
-                    secretAccessKey: cloudflareSecretAccessKey,
+                    accessKeyId: cloudflareR2AccessKeyId,
+                    secretAccessKey: cloudflareR2SecretAccessKey,
                 }),
             ),
         });
@@ -90,6 +94,8 @@ runService({
             workflowRunNumber,
             workflowRunAttempt,
             honeycombClient,
+            cloudflareAccountId,
+            cloudflareWorkersToken,
         });
     },
 });

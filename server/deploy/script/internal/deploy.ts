@@ -48,12 +48,16 @@ export async function deploy(
         workflowRunNumber,
         workflowRunAttempt,
         honeycombClient,
+        cloudflareAccountId,
+        cloudflareWorkersToken,
     }: {
         commitSha: string;
         workflowRunId: number;
         workflowRunNumber: number;
         workflowRunAttempt: number;
         honeycombClient: HoneycombTracerClient;
+        cloudflareAccountId: string;
+        cloudflareWorkersToken: string;
     },
 ): Promise<void> {
     const tracer = context.tracer.getRoot();
@@ -143,6 +147,8 @@ export async function deploy(
                     workflowRunId,
                     workflowRunNumber,
                     honeycombClient,
+                    cloudflareAccountId,
+                    cloudflareWorkersToken,
                 }),
             ),
         );
@@ -167,11 +173,15 @@ async function actuallyDeploy(
         workflowRunId,
         workflowRunNumber,
         honeycombClient,
+        cloudflareAccountId,
+        cloudflareWorkersToken,
     }: {
         commitSha: string;
         workflowRunId: number;
         workflowRunNumber: number;
         honeycombClient: HoneycombTracerClient;
+        cloudflareAccountId: string;
+        cloudflareWorkersToken: string;
     },
 ) {
     const deployItem = await context.tracer.withSpan("Prepare deploy", context =>
@@ -191,12 +201,15 @@ async function actuallyDeploy(
 
         await context.tracer.withSpan("Deploy AWS", (context, span) => deployAws(span));
 
-        await context.tracer.withSpan("Deploy Cloudflare", () => deployCloudflare());
+        await context.tracer.withSpan("Deploy Cloudflare", () =>
+            deployCloudflare({
+                accountId: cloudflareAccountId,
+                workersToken: cloudflareWorkersToken,
+            }),
+        );
 
         // TODO(calebmer, #deploy): I stashed the changes that serve Cloudflare R2
         // files in production. Get the stash back and run a deploy.
-
-        // TODO(calebmer, #deploy): Cloudflare Workers deploy with `wrangler`.
 
         await context.tracer.withSpan("Cleanup app static files", context =>
             cleanupAppStaticFilesAfterDeploy(context, {manifest, paths}),

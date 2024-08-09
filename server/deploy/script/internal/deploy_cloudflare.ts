@@ -1,3 +1,33 @@
-export async function deployCloudflare() {
-    // TODO(calebmer, #deploy): Implement
+import {spawn} from "child_process";
+import {join as joinPath} from "path";
+import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
+
+/**
+ * Deploy Cloudflare by running `bazel run //server/edge:wrangler -- deploy`.
+ * Should behave the same as if you run it locally. Except locally to
+ * authenticate you need to run `bazel run //server/edge:wrangler -- login`.
+ */
+export async function deployCloudflare({
+    accountId,
+    workersToken,
+}: {
+    accountId: string;
+    workersToken: string;
+}) {
+    const subprocess = spawn(
+        joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.sh"),
+        ["deploy"],
+        {
+            env: {
+                ...getProcessEnvToPropagate(),
+                CLOUDFLARE_ACCOUNT_ID: accountId,
+                CLOUDFLARE_API_TOKEN: workersToken,
+            },
+            stdio: ["ignore", "inherit", "inherit"],
+        },
+    );
+
+    await waitForProcessExit(subprocess);
 }
