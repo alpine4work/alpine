@@ -1,10 +1,8 @@
-import {join as joinPath} from "path";
-import {CloudflareR2Client} from "~/server/deploy/data/cloudflare_r2_client.js";
-import {CloudflareR2ContextModule} from "~/server/deploy/data/cloudflare_r2_context_module.js";
-import {deploy} from "~/server/deploy/data/deploy_table.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
+import {CloudflareR2Client} from "~/server/deploy/tool/cloudflare_r2_client.js";
+import {CloudflareR2ContextModule} from "~/server/deploy/tool/cloudflare_r2_context_module.js";
+import {deploy} from "~/server/deploy/tool/deploy.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     createServerProcessContext,
     serverProcessContextParseOptions,
@@ -73,7 +71,6 @@ runService({
         await deploy(processContext, {
             commitSha,
             workflowRunId,
-            appStaticDirectoryPath: joinPath(runfilesPath, "cyberworlds/app/static"),
         });
     },
 });
