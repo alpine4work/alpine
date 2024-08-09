@@ -130,11 +130,13 @@ export async function deploy(
             finishSpan(new Date(workflowRunJobStep.completed_at).getTime());
         }
 
-        await context.with({tracer: new TracerContextModule(rootSpan)}, context =>
-            actuallyDeploy(context, {
-                commitSha,
-                workflowRunId,
-            }),
+        await rootSpan.withSpan("Deploy", span =>
+            context.with({tracer: new TracerContextModule(span)}, context =>
+                actuallyDeploy(context, {
+                    commitSha,
+                    workflowRunId,
+                }),
+            ),
         );
 
         finishRootSpan();
