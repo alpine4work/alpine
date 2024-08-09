@@ -118,7 +118,6 @@ genrule(
 ts_project(
     name = "static_lib",
     deps = [
-        "//:node_modules/@node-rs/xxhash",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/opentype.js",
         "//:node_modules/@types/wawoff2",
