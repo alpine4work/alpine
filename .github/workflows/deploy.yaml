@@ -59,8 +59,10 @@ jobs:
 
             - name: Deploy
               shell: bash
+              env:
+                  BAZEL_BINDIR: .
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
+                  bazel-bin/server/deploy/tool/tool.sh \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
                       --workflowRunAttempt=${{ github.run_attempt }} \
