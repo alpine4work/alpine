@@ -99,6 +99,8 @@ http_archive(
 
 http_archive(
     name = "aspect_rules_js",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/aspect_rules_js.patch"],
     sha256 = "2cfb3875e1231cefd3fada6774f2c0c5a99db0070e0e48ea398acbff7c6c765b",
     strip_prefix = "rules_js-1.42.3",
     url = "https://github.com/aspect-build/rules_js/releases/download/v1.42.3/rules_js-v1.42.3.tar.gz",
