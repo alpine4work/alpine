@@ -16,6 +16,7 @@ runService({
     options: {
         commitSha: {type: "string"},
         workflowRunId: {type: "string"},
+        workflowRunAttempt: {type: "string"},
         cloudflareAccountId: {type: "string"},
         cloudflareAccessKeyId: {type: "string"},
         cloudflareSecretAccessKey: {type: "string"},
@@ -26,6 +27,7 @@ runService({
         options: {
             commitSha,
             workflowRunId: workflowRunIdString,
+            workflowRunAttempt: workflowRunAttemptString,
             cloudflareAccountId,
             cloudflareAccessKeyId,
             cloudflareSecretAccessKey,
@@ -36,6 +38,8 @@ runService({
             throw new InvalidArgumentError('"commitSha" option is required');
         if (workflowRunIdString === undefined || !/^[0-9]+$/.test(workflowRunIdString))
             throw new InvalidArgumentError('"workflowRunId" integer option is required');
+        if (workflowRunAttemptString === undefined || !/^[0-9]+$/.test(workflowRunAttemptString))
+            throw new InvalidArgumentError('"workflowRunAttempt" integer option is required');
         if (cloudflareAccountId === undefined)
             throw new InvalidArgumentError('"cloudflareAccountId" option is required');
         if (cloudflareAccessKeyId === undefined)
@@ -44,6 +48,7 @@ runService({
             throw new InvalidArgumentError('"cloudflareSecretAccessKey" option is required');
 
         const workflowRunId = parseInt(workflowRunIdString, 10);
+        const workflowRunAttempt = parseInt(workflowRunAttemptString, 10);
 
         const awsSigner = new AwsRequestSigner();
 
@@ -71,6 +76,7 @@ runService({
         await deploy(processContext, {
             commitSha,
             workflowRunId,
+            workflowRunAttempt,
         });
     },
 });

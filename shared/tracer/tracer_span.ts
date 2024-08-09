@@ -170,6 +170,40 @@ export class TracerSpan extends TracerBase {
         return {span, finishSpan};
     }
 
+    public static _startWithEndTime(
+        tracer: TracerRoot,
+        clock: MonotonicClock,
+        name: string,
+        parentSpan: {
+            traceId?: TraceId;
+            parentId?: TraceSpanId;
+            propagatedEventData?: LinkedList<TracerEventData>;
+            propagatedEventFlatData?: TracerEventFlatData | null;
+        } | null,
+        spanId?: TraceSpanId,
+        startTime?: number,
+    ) {
+        const span = new TracerSpan(tracer, clock, name, parentSpan, spanId, startTime);
+        const finishSpan = (endTime: number) => span._finish(endTime);
+        return {span, finishSpan};
+    }
+
+    /**
+     * Provide access to this property so you can build custom spans with
+     * `_start()`.
+     */
+    public _getPropagatedEventData() {
+        return this._propagatedEventData;
+    }
+
+    /**
+     * Provide access to this property so you can build custom spans with
+     * `_start()`.
+     */
+    public _getPropagatedEventFlatData() {
+        return this._propagatedEventFlatData;
+    }
+
     public getRoot(): TracerRoot {
         return this._tracer;
     }
@@ -383,11 +417,10 @@ export class TracerSpan extends TracerBase {
     /**
      * Finishes the span. Finished spans will be sent to our observability service.
      */
-    private _finish() {
+    private _finish(endTime = this.clock.now()) {
         assert(!this._isFinished);
         this._isFinished = true;
 
-        const endTime = this.clock.now();
         const durationMs = endTime - this._startTime;
 
         this._eventData = {

@@ -123,6 +123,43 @@ export class GithubContextModule extends ContextModuleBase<{tracer: TracerContex
             } as any) as any;
         });
     }
+
+    /**
+     * Same as `request()` but we don't create a span. Avoid using this! We ideally
+     * want to trace all network requests from our services.
+     */
+    public quietlyRequestWithoutTracing<R extends keyof Endpoints>(
+        githubRouteAndMethod: R,
+        options?: Endpoints[R]["parameters"] & RequestParameters,
+    ): Promise<Endpoints[R]["response"]> {
+        const [method, githubRoute] = githubRouteAndMethod.split(" ", 2);
+        assert(method !== undefined && githubRoute !== undefined);
+
+        const requestOptions: RequestRequestOptions = {
+            // Authorize the request to the GitHub API.
+            hook: this._auth.hook,
+
+            // Add the same tracer data as `fetchWithTracer()` to requests made against the
+            // GitHub API. Requests to GitHub are made with `@octokit/request` for proper
+            // parsing.
+            fetch: async (url: string, init?: RequestInit) => {
+                const request = new Request(url, init);
+
+                // eslint-disable-next-line no-global-fetch
+                const response = await fetch(request);
+
+                return response;
+            },
+        };
+
+        return request(githubRouteAndMethod, {
+            ...options,
+            request: {
+                ...options?.request,
+                ...requestOptions,
+            },
+        } as any) as any;
+    }
 }
 
 function formatGithubRoute(route: string): string {

@@ -319,6 +319,15 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             },
         },
     },
+    github: {
+        workflow: {
+            run: {
+                id: Schema.integer,
+                attempt: Schema.integer,
+                url: Schema.string,
+            },
+        },
+    },
 };
 
 /**

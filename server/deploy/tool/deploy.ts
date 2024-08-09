@@ -3,21 +3,34 @@ import {max as maxDate, subDays} from "date-fns";
 import fs from "fs-extra";
 import {extname, join as joinPath} from "path";
 import serveStatic from "serve-static";
-import {cleanupDeploy, prepareDeploy} from "~/server/deploy/data/deploy_table.js";
+import {
+    cleanupDeploy,
+    githubOwner,
+    githubRepo,
+    prepareDeploy,
+} from "~/server/deploy/data/deploy_table.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {isCloudflareR2NoSuchKeyError} from "~/server/deploy/tool/cloudflare_r2_client.js";
 import {CloudflareR2ContextModule} from "~/server/deploy/tool/cloudflare_r2_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {UnknownError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {generateId} from "~/shared/id/id.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Run a deploy.
@@ -34,23 +47,115 @@ export async function deploy(
             cloudflareR2: CloudflareR2ContextModule;
         }
     >,
-    options: {
+    {
+        commitSha,
+        workflowRunId,
+        workflowRunAttempt,
+    }: {
         commitSha: string;
         workflowRunId: number;
+        workflowRunAttempt: number;
     },
-) {
-    assert(context.tracer.getRoot().serviceName === "DeployService");
+): Promise<void> {
+    const tracer = context.tracer.getRoot();
 
-    // TODO(calebmer, #deploy): Count build time in the deploy span? Record
-    // workflow job start/end time.
-
-    // TODO(calebmer, #deploy): Include GitHub link in span.
+    assert(tracer.serviceName === "DeployService");
 
     const handleSpanName = "Deploy";
+    const clock = new MonotonicClock(tracer.getNonMonotonicClock());
+
+    // Request without tracing since we need the result of this request to
+    // initialize our trace with the correct start time.
+    const workflowRunJobsOutput = await context.github.quietlyRequestWithoutTracing(
+        "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs",
+        {
+            owner: githubOwner,
+            repo: githubRepo,
+            run_id: workflowRunId,
+            attempt_number: workflowRunAttempt,
+        },
+    );
+    assert(workflowRunJobsOutput.data.total_count === 1);
+    const workflowRunJob = assertExists(workflowRunJobsOutput.data.jobs[0]);
+
+    const traceId = generateId<TraceId>();
+    const rootSpanId = generateId<TraceSpanId>();
+
+    const {span: rootSpan, finishSpan: finishRootSpan} = TracerSpan._start(
+        tracer,
+        clock,
+        `Handle: ${handleSpanName}`,
+        {traceId},
+        rootSpanId,
+        new Date(workflowRunJob.started_at).getTime(),
+    );
+
+    rootSpan.addData({
+        github: {
+            workflow: {
+                run: {
+                    id: workflowRunId,
+                    attempt: workflowRunAttempt,
+                    url: `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${workflowRunId}`,
+                },
+            },
+        },
+    });
+
+    try {
+        rootSpan.addPropagatedDataForChildrenOnly({context: {handler: handleSpanName}});
+
+        for (const workflowRunJobStep of workflowRunJob.steps ?? []) {
+            if (
+                workflowRunJobStep.conclusion === null ||
+                !workflowRunJobStep.started_at ||
+                !workflowRunJobStep.completed_at
+            ) {
+                continue;
+            }
+
+            const {span, finishSpan} = TracerSpan._startWithEndTime(
+                tracer,
+                clock,
+                workflowRunJobStep.name,
+                {
+                    traceId,
+                    parentId: rootSpanId,
+                    propagatedEventData: rootSpan._getPropagatedEventData(),
+                    propagatedEventFlatData: rootSpan._getPropagatedEventFlatData(),
+                },
+                generateId<TraceSpanId>(),
+                new Date(workflowRunJobStep.started_at).getTime(),
+            );
+
+            if (workflowRunJobStep.conclusion !== "success") {
+                span.addException(
+                    new UnknownError(
+                        quote`Job step completed with ${workflowRunJobStep.conclusion}`,
+                    ),
+                );
+            }
+
+            finishSpan(new Date(workflowRunJobStep.completed_at).getTime());
+        }
+
+        await context.with({tracer: new TracerContextModule(rootSpan)}, context =>
+            actuallyDeploy(context, {
+                commitSha,
+                workflowRunId,
+            }),
+        );
+
+        finishRootSpan();
+    } catch (error) {
+        rootSpan.addException(error);
+        finishRootSpan();
+        throw error;
+    }
 
     return context.tracer.withSpan(`Handle: ${handleSpanName}`, (context, span) => {
         span.addPropagatedDataForChildrenOnly({context: {handler: handleSpanName}});
-        return actuallyDeploy(context, options);
+        return actuallyDeploy(context, {commitSha, workflowRunId});
     });
 }
 

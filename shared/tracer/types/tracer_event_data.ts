@@ -930,6 +930,26 @@ export type TracerEventData = {
             };
         };
     };
+
+    /**
+     * Any data related to GitHub services.
+     */
+    readonly github?: {
+        /** Information related to a GitHub action. */
+        readonly workflow?: {
+            /** Information related to a GitHub action run. */
+            readonly run?: {
+                /** The ID of a GitHub action run. */
+                readonly id?: number;
+
+                /** The attempt number of a GitHub action run. */
+                readonly attempt?: number;
+
+                /** The URL to the GitHub UI for a GitHub action run. */
+                readonly url?: string;
+            };
+        };
+    };
 };
 
 /**

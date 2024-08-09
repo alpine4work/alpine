@@ -50,12 +50,20 @@ jobs:
               run: |
                   admin/aws/internal/aws_github_runners_bazel_remote_cache.sh
 
+            # We build `//server/deploy/tool` in a separate step so our tracing code can
+            # log a separate span for the time it takes to build containers.
+            - name: Build artifacts
+              shell: bash
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/tool --config=github-runner
+
             - name: Deploy
               shell: bash
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc run //server/deploy/tool --config=github-runner -- \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
+                      --workflowRunAttempt=${{ github.run_attempt }} \
                       --honeycombApiKey=${{ secrets.DEPLOY_HONEYCOMB_API_KEY }} \
                       --cloudflareAccessKeyId=${{ secrets.DEPLOY_CLOUDFLARE_ACCESS_KEY_ID }} \
                       --cloudflareSecretAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_SECRET_ACCESS_KEY }} \
