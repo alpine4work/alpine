@@ -175,7 +175,7 @@ async function actuallyDeploy(
             context => uploadAppStaticFilesBeforeDeploy(context),
         );
 
-        await context.tracer.withSpan("Deploy AWS CDK", () => deployAwsCdk());
+        await context.tracer.withSpan("Deploy AWS CDK", (context, span) => deployAwsCdk(span));
 
         // TODO(calebmer, #deploy): I stashed the changes that serve Cloudflare R2
         // files in production. Get the stash back and run a deploy.

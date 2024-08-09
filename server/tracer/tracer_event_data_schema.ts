@@ -266,6 +266,14 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             taskCount: Schema.integer,
             containerInstanceCount: Schema.integer,
         },
+        cloudformation: {
+            startStatus: IdentifierStringSchema,
+            startStatusReason: Schema.string,
+            errorStatus: IdentifierStringSchema,
+            errorStatusReason: Schema.string,
+            finishStatus: IdentifierStringSchema,
+            finishStatusReason: Schema.string,
+        },
     },
     email: {
         template: IdentifierStringSchema,

@@ -746,6 +746,29 @@ export type TracerEventData = {
              */
             readonly containerInstanceCount?: number;
         };
+
+        /**
+         * Information regarding AWS CloudFormation templated deploys.
+         */
+        readonly cloudformation?: {
+            /** Status from the activity event which marks a resource as started deploying. */
+            readonly startStatus?: string;
+
+            /** Reason from the activity event which marks a resource as started deploying. */
+            readonly startStatusReason?: string;
+
+            /** Status from the activity event which marks an error deploying a resource. */
+            readonly errorStatus?: string;
+
+            /** Reason from the activity event which marks an error deploying a resource. */
+            readonly errorStatusReason?: string;
+
+            /** Status from the activity event which marks a resource as finished deploying. */
+            readonly finishStatus?: string;
+
+            /** Reason from the activity event which marks a resource as finished deploying. */
+            readonly finishStatusReason?: string;
+        };
     };
 
     readonly email?: {

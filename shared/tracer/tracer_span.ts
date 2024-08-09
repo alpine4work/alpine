@@ -190,7 +190,23 @@ export class TracerSpan extends TracerBase {
 
     /**
      * Provide access to this property so you can build custom spans with
-     * `_start()`.
+     * `_start()`. You must know what you're doing to directly call this
+     * function! Prefer the methods which don't start with an underscore.
+     *
+     * In the future consider auditing use cases of this function and providing
+     * proper public APIs.
+     */
+    public _getSpanId() {
+        return this._spanId;
+    }
+
+    /**
+     * Provide access to this property so you can build custom spans with
+     * `_start()`. You must know what you're doing to directly call this
+     * function! Prefer the methods which don't start with an underscore.
+     *
+     * In the future consider auditing use cases of this function and providing
+     * proper public APIs.
      */
     public _getPropagatedEventData() {
         return this._propagatedEventData;
@@ -198,7 +214,11 @@ export class TracerSpan extends TracerBase {
 
     /**
      * Provide access to this property so you can build custom spans with
-     * `_start()`.
+     * `_start()`. You must know what you're doing to directly call this
+     * function! Prefer the methods which don't start with an underscore.
+     *
+     * In the future consider auditing use cases of this function and providing
+     * proper public APIs.
      */
     public _getPropagatedEventFlatData() {
         return this._propagatedEventFlatData;
