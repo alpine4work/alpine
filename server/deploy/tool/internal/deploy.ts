@@ -10,6 +10,7 @@ import {
     cleanupAppStaticFilesAfterDeploy,
     uploadAppStaticFilesBeforeDeploy,
 } from "~/server/deploy/tool/internal/deploy_app_static_files.js";
+import {deployAwsCdk} from "~/server/deploy/tool/internal/deploy_aws_cdk.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -176,6 +177,8 @@ async function actuallyDeploy(
             "Upload app static files",
             context => uploadAppStaticFilesBeforeDeploy(context),
         );
+
+        await context.tracer.withSpan("Deploy AWS CDK", () => deployAwsCdk());
 
         // TODO(calebmer, #deploy): I stashed the changes that serve Cloudflare R2
         // files in production. Get the stash back and run a deploy.

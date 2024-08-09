@@ -33,8 +33,8 @@ ts_project(
     ],
 )
 
-cdk_bin.cdk_binary(
-    name = "cdk",
+filegroup(
+    name = "cdk_data",
     data = [
         ":aws",
         "//:cdk_files",
@@ -45,6 +45,12 @@ cdk_bin.cdk_binary(
         "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
     ],
+    visibility = ["//server/deploy/tool:__pkg__"],
+)
+
+cdk_bin.cdk_binary(
+    name = "cdk",
+    data = [":cdk_data"],
     env = {
         "NODE_ENV": "production",
     },

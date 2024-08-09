@@ -10,12 +10,16 @@ js_binary(
 
 ts_project(
     name = "tool_lib",
-    data = ["//app:app_static"],
+    data = [
+        "//admin/aws:cdk_data",
+        "//app:app_static",
+    ],
     deps = [
         "//:node_modules/@aws-sdk/client-s3",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
         "//:node_modules/@types/serve-static",
+        "//:node_modules/aws-cdk",
         "//:node_modules/date-fns",
         "//:node_modules/env-paths",
         "//:node_modules/fs-extra",
