@@ -74,8 +74,8 @@ jobs:
                       --workflowRunNumber=${{ github.run_number }} \
                       --workflowRunAttempt=${{ github.run_attempt }} \
                       --honeycombApiKey=${{ secrets.DEPLOY_HONEYCOMB_API_KEY }} \
-                      --cloudflareAccessKeyId=${{ secrets.DEPLOY_R2_CLOUDFLARE_ACCESS_KEY_ID }} \
-                      --cloudflareSecretAccessKey=${{ secrets.DEPLOY_R2_CLOUDFLARE_SECRET_ACCESS_KEY }} \
+                      --cloudflareAccessKeyId=${{ secrets.DEPLOY_CLOUDFLARE_R2_ACCESS_KEY_ID }} \
+                      --cloudflareSecretAccessKey=${{ secrets.DEPLOY_CLOUDFLARE_R2_SECRET_ACCESS_KEY }} \
                       "--cloudflareAccountId=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).cloudflareAccountId)")" \
                       "--opensearchHost=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).opensearchHost)")" \
                       "--jobQueueUrl=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
