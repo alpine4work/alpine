@@ -104,6 +104,10 @@ export class AwsGithubRunners extends Construct {
                                 // Includes `gcc` and `make` among other common build tools. Necessary for
                                 // building some npm packages.
                                 "build-essential",
+                                // Make sure we install the dependencies we need for crossbuilding x86_64 on
+                                // our arm64 machine or vice versa.
+                                "crossbuild-essential-amd64",
+                                "crossbuild-essential-arm64",
                                 // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
                                 // enable remote caching before anything is built by Bazel.
                                 "nodejs",
