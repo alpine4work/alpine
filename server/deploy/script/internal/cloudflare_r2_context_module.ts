@@ -8,7 +8,7 @@ import {
     PutObjectCommandInput,
     PutObjectCommandOutput,
 } from "@aws-sdk/client-s3";
-import {CloudflareR2Client} from "~/server/deploy/tool/internal/cloudflare_r2_client.js";
+import {CloudflareR2Client} from "~/server/deploy/script/internal/cloudflare_r2_client.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 

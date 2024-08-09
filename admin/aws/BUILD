@@ -45,7 +45,7 @@ filegroup(
         "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
     ],
-    visibility = ["//server/deploy/tool:__pkg__"],
+    visibility = ["//server/deploy/script:__pkg__"],
 )
 
 cdk_bin.cdk_binary(

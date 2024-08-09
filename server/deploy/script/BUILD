@@ -2,14 +2,14 @@ load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 js_binary(
-    name = "tool",
-    data = [":tool_lib"],
+    name = "script",
+    data = [":script_lib"],
     entry_point = "deploy_service.js",
     env = {"NODE_ENV": "production"},
 )
 
 ts_project(
-    name = "tool_lib",
+    name = "script_lib",
     data = [
         "//admin/aws:cdk_data",
         "//app:app_static",

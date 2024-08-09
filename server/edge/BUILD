@@ -65,6 +65,6 @@ wrangler_bin.wrangler_binary(
     ],
     visibility = [
         "//admin/deploy:__pkg__",
-        "//server/deploy/tool:__pkg__",
+        "//server/deploy/script:__pkg__",
     ],
 )

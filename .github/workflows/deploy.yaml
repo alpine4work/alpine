@@ -56,19 +56,19 @@ jobs:
               run: |
                   sleep 36000
 
-            # We build `//server/deploy/tool` in a separate step so our tracing code can
+            # We build `//server/deploy/script` in a separate step so our tracing code can
             # log a separate span for the time it takes to build containers.
             - name: Build artifacts
               shell: bash
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/tool --config=github-runner
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner
 
             - name: Deploy
               shell: bash
               env:
                   BAZEL_BINDIR: .
               run: |
-                  bazel-bin/server/deploy/tool/tool.sh \
+                  bazel-bin/server/deploy/script/script.sh \
                       --commitSha=$GITHUB_SHA \
                       --workflowRunId=${{ github.run_id }} \
                       --workflowRunNumber=${{ github.run_number }} \

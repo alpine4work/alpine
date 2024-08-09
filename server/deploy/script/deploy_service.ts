@@ -1,7 +1,7 @@
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
-import {CloudflareR2Client} from "~/server/deploy/tool/internal/cloudflare_r2_client.js";
-import {CloudflareR2ContextModule} from "~/server/deploy/tool/internal/cloudflare_r2_context_module.js";
-import {deploy} from "~/server/deploy/tool/internal/deploy.js";
+import {CloudflareR2Client} from "~/server/deploy/script/internal/cloudflare_r2_client.js";
+import {CloudflareR2ContextModule} from "~/server/deploy/script/internal/cloudflare_r2_context_module.js";
+import {deploy} from "~/server/deploy/script/internal/deploy.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerProcessContext,

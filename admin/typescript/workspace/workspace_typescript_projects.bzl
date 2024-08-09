@@ -58,7 +58,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/content:content_typings",
     "//server/context:context_typings",
     "//server/deploy/data:data_typings",
-    "//server/deploy/tool:tool_lib_typings",
+    "//server/deploy/script:script_lib_typings",
     "//server/documents/collaboration:collaboration_typings",
     "//server/documents/data:data_typings",
     "//server/documents/test_helpers:test_helpers_typings",
