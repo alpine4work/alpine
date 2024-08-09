@@ -63,5 +63,8 @@ wrangler_bin.wrangler_binary(
         "wrangler.toml",
         ":edge_service_bundle_file_opt",
     ],
-    visibility = ["//admin/deploy:__pkg__"],
+    visibility = [
+        "//admin/deploy:__pkg__",
+        "//server/deploy/tool:__pkg__",
+    ],
 )

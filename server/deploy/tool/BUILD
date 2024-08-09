@@ -13,6 +13,7 @@ ts_project(
     data = [
         "//admin/aws:cdk_data",
         "//app:app_static",
+        "//server/edge:wrangler",
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-s3",

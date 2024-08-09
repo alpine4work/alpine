@@ -10,7 +10,8 @@ import {
     cleanupAppStaticFilesAfterDeploy,
     uploadAppStaticFilesBeforeDeploy,
 } from "~/server/deploy/tool/internal/deploy_app_static_files.js";
-import {deployAwsCdk} from "~/server/deploy/tool/internal/deploy_aws_cdk.js";
+import {deployAws} from "~/server/deploy/tool/internal/deploy_aws.js";
+import {deployCloudflare} from "~/server/deploy/tool/internal/deploy_cloudflare.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {Context} from "~/shared/context/context.js";
@@ -188,7 +189,9 @@ async function actuallyDeploy(
             context => uploadAppStaticFilesBeforeDeploy(context),
         );
 
-        await context.tracer.withSpan("Deploy AWS CDK", (context, span) => deployAwsCdk(span));
+        await context.tracer.withSpan("Deploy AWS", (context, span) => deployAws(span));
+
+        await context.tracer.withSpan("Deploy Cloudflare", () => deployCloudflare());
 
         // TODO(calebmer, #deploy): I stashed the changes that serve Cloudflare R2
         // files in production. Get the stash back and run a deploy.

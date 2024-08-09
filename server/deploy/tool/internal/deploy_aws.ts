@@ -22,7 +22,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * files. This allows us to hook into `aws-cdk`'s internals to add custom
  * tracing.
  */
-export async function deployAwsCdk(span: TracerSpan) {
+export async function deployAws(span: TracerSpan) {
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalWithDefaultPrinter = StackActivityMonitor.withDefaultPrinter;
 
