@@ -1477,7 +1477,9 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                         event.preventDefault();
                         event.stopPropagation();
 
-                        const spacePath = convertPeekPathToSpacePath(entry.history.location);
+                        const spacePath = convertPeekPathToSpacePath(entry.history.location, {
+                            withMobileLayout: false,
+                        });
                         if (!spacePath) throw new InternalError("Can only expand peek routes");
 
                         navigate(spacePath);
@@ -1584,6 +1586,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                             onPress={async event => {
                                 const spacePath = convertPeekPathToSpacePath(
                                     entry.history.location,
+                                    {withMobileLayout: false},
                                 );
                                 if (!spacePath)
                                     throw new InternalError("Can only expand peek routes");

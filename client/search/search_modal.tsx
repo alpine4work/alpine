@@ -298,8 +298,13 @@ export function SearchModal({
 
                             // Open the selected peek when `Enter` is pressed. You've probably just
                             // selected a peek with the keyboard.
+                            //
+                            // We check `event.shiftKey`because this determines whether we open in a peek
+                            // or navigate to full screen. Therefore we want the route not to open in a
+                            // peek if `event.shiftKey` is pressed.
                             const spacePath = convertPeekPathToSpacePath(
                                 selectedPeek.history.location,
+                                {withMobileLayout: event.shiftKey},
                             );
                             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
@@ -583,7 +588,9 @@ function SearchModalResultList({
                 }),
             );
         } else {
-            const spacePath = convertPeekPathToSpacePath(selectedPeek.history.location);
+            const spacePath = convertPeekPathToSpacePath(selectedPeek.history.location, {
+                withMobileLayout: false,
+            });
             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
             // If the user double clicked there may be an ongoing pending transition
@@ -807,8 +814,13 @@ function SearchModalPeekContent({
                         // If we decide to call it something else publicly, this needs to be renamed.
                         tooltipContentOverride="Shift-click to open preview"
                         pressErrorTitle="Couldn’t expand"
+                        // We check `event.shiftKey`because this determines whether we open in a peek
+                        // or navigate to full screen. Therefore we want the route not to open in a
+                        // peek if `event.shiftKey` is pressed.
                         onPress={async event => {
-                            const spacePath = convertPeekPathToSpacePath(peek.history.location);
+                            const spacePath = convertPeekPathToSpacePath(peek.history.location, {
+                                withMobileLayout: event.shiftKey,
+                            });
                             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
                             if (

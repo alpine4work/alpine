@@ -30,6 +30,7 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {inboxBannerHeight} from "~/shared/styles/inbox_shared_styles.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
@@ -225,18 +226,20 @@ export function InboxBannerOutletContainer({
                                         );
                                         newSearchParams.delete("inbox");
 
+                                        const newPathname =
+                                            convertPeekPathToSpacePathParts(location.pathname, {
+                                                withMobileLayout: false,
+                                            })?.[1].slice(1) ??
+                                            location.pathname.replace(/^\/s\/[^/]+\//, "");
+
                                         const newLocation = {
                                             ...location,
+                                            pathname: newPathname,
                                             search: newSearchParams.toString(),
                                         };
 
                                         const selectedSearchParam = encodeBase64(
-                                            textEncoder.encode(
-                                                createPath(newLocation).replace(
-                                                    /^(\/s\/[^/]+\/(peek\/)?)/,
-                                                    "",
-                                                ),
-                                            ),
+                                            textEncoder.encode(createPath(newLocation)),
                                             "Rfc4648Url",
                                         );
 

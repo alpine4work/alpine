@@ -2,6 +2,8 @@ import {Path} from "@remix-run/router";
 
 const spacePathRegExp = /^(\/s\/[^/]+\/)(?!peek)(.*)$/;
 const peekPathRegExp = /^(\/s\/[^/]+)\/peek(\/.*)$/;
+const optionalPeekPathWithTasksGroupRegExp =
+    /^(\/s\/[^/]+)\/peek((?<taskComments>\/tasks\/[^/]+\/comments)|\/.*)$/;
 
 /**
  * Is the provided path a peek path?
@@ -34,15 +36,39 @@ export function convertSpacePathToPeekPath(path: Path): Path | null {
  *
  * Will return `null` if the provided path is not a peek path.
  */
-export function convertPeekPathToSpacePath(path: Path): Path | null {
-    const match = path.pathname.match(peekPathRegExp);
-    if (!match) return null;
-
-    const pathnamePart1 = match[1]!;
-    const pathnamePart2 = match[2]!;
+export function convertPeekPathToSpacePath(
+    path: Path,
+    options: {withMobileLayout: boolean},
+): Path | null {
+    const parts = convertPeekPathToSpacePathParts(path.pathname, options);
+    if (!parts) return null;
 
     return {
         ...path,
-        pathname: `${pathnamePart1}${pathnamePart2}`,
+        pathname: `${parts[0]}${parts[1]}`,
     };
+}
+
+/**
+ * This is a helper function that helps convert a Peek URL to different parts,
+ * in order to be used for `convertPeekPathToSpacePath`
+ */
+export function convertPeekPathToSpacePathParts(
+    pathname: string,
+    {withMobileLayout}: {withMobileLayout: boolean},
+): [string, string] | null {
+    const match = pathname.match(optionalPeekPathWithTasksGroupRegExp);
+    if (!match) return null;
+
+    const pathnamePart1 = match[1]!;
+    let pathnamePart2 = match[2]!;
+
+    // On desktop we do not want expanding a peek from task comments to navigate
+    // to Task comments route and then redirect to the main Task route. This check
+    // allows us to directly navigate to the Task route on desktop.
+    if (!withMobileLayout && match.groups?.taskComments) {
+        pathnamePart2 = pathnamePart2.slice(0, -9);
+    }
+
+    return [pathnamePart1, pathnamePart2];
 }
