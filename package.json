@@ -344,12 +344,12 @@
         "packageExtensions": {
             "bufferutil": {
                 "dependencies": {
-                    "node-gyp": "*"
+                    "node-gyp": "^8.4.1"
                 }
             },
             "utf-8-validate": {
                 "dependencies": {
-                    "node-gyp": "*"
+                    "node-gyp": "^8.4.1"
                 }
             },
             "psl": {
@@ -366,6 +366,11 @@
                 "peerDependencies": {
                     "react": "^18.0.0",
                     "react-dom": "^18.0.0"
+                }
+            },
+            "better-sqlite3": {
+                "dependencies": {
+                    "node-gyp": "^8.4.1"
                 }
             }
         }
