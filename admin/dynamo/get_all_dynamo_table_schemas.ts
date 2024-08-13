@@ -1,5 +1,6 @@
 import glob from "fast-glob";
 import {join as joinPath, relative} from "path";
+import {dynamoCoreVisibilityBazelPackagePaths} from "~/admin/dynamo/dynamo_core_visibility.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -14,7 +15,11 @@ import {quote} from "~/shared/helpers/string/quote.js";
 // must be private to the module.
 const importAllDynamoTableSchemasPromise = new Lazy(async () => {
     const runfilesRepoPath = joinPath(runfilesPath, "cyberworlds");
-    const paths = await glob(joinPath(runfilesRepoPath, "server/**/*.js"));
+    const paths = await glob(
+        dynamoCoreVisibilityBazelPackagePaths.map(path =>
+            joinPath(runfilesRepoPath, `${path}/**/*.js`),
+        ),
+    );
 
     const {
         DynamoTableSchema,
