@@ -17,7 +17,10 @@ def _remix_app_impl(ctx):
 
     inputs = depset(
         ctx.files._remix_config_files + ctx.files._remix_resolved_config,
-        transitive = [ctx.attr._app_lib[JsInfo].transitive_sources],
+        transitive = [
+            ctx.attr._app_lib[JsInfo].transitive_sources,
+            ctx.attr._app_lib[JsInfo].transitive_npm_linked_package_files,
+        ],
     )
 
     assets_build_output = ctx.actions.declare_directory("static/build")
