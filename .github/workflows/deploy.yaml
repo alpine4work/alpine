@@ -50,6 +50,12 @@ jobs:
               run: |
                   admin/aws/internal/aws_github_runners_bazel_remote_cache.sh
 
+            # TODO(calebmer, #deploy): Remove this!
+            - name: Wait
+              shell: bash
+              run: |
+                  sleep 36000
+
             # We build `//server/deploy/script` in a separate step so our tracing code can
             # log a separate span for the time it takes to build containers.
             - name: Build artifacts
