@@ -310,9 +310,10 @@ export class AwsGithubRunners extends Construct {
             new PolicyStatement({
                 actions: ["sts:AssumeRole"],
                 resources: [
-                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-deploy-role-*`,
+                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-lookup-role-*`,
                     `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-file-publishing-role-*`,
                     `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-image-publishing-role-*`,
+                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-deploy-role-*`,
                 ],
             }),
         );

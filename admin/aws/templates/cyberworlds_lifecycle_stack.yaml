@@ -1539,6 +1539,11 @@ Resources:
                                 - - "arn:aws:iam::"
                                   - Ref: AWS::AccountId
                                   - :role/cdk-hnb659fds-image-publishing-role-*
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:iam::"
+                                  - Ref: AWS::AccountId
+                                  - :role/cdk-hnb659fds-lookup-role-*
                 Version: 2012-10-17
             PolicyName: GithubRunnersDeployRunnerProviderRoleDefaultPolicyDB018ED1
             Roles:
