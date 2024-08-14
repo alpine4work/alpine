@@ -757,6 +757,9 @@ export type TracerEventData = {
             /** The actual AWS ID for a resource. */
             readonly physicalResourceId?: string;
 
+            /** What type of AWS resource is this referring to? */
+            readonly resourceType?: string;
+
             /** Status from the activity event which marks a resource as started deploying. */
             readonly startStatus?: string;
 

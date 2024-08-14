@@ -269,6 +269,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         cloudformation: {
             logicalResourceId: Schema.string,
             physicalResourceId: Schema.string,
+            resourceType: Schema.string,
             startStatus: IdentifierStringSchema,
             startStatusReason: Schema.string,
             errorStatus: IdentifierStringSchema,

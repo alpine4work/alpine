@@ -183,6 +183,7 @@ class TracerActivityPrinter implements IActivityPrinter {
                     cloudformation: {
                         logicalResourceId,
                         physicalResourceId: activity.event.PhysicalResourceId,
+                        resourceType: activity.event.ResourceType,
                         startStatus: resource.startStatus,
                         startStatusReason: resource.startStatusReason,
                         errorStatus: resource.errorStatus,
