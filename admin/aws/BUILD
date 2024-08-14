@@ -54,7 +54,6 @@ cdk_bin.cdk_binary(
     env = {
         "NODE_ENV": "production",
     },
-    visibility = ["//admin/deploy:__pkg__"],
 )
 
 # The "lite" CDK binary is configured to reference empty container images
