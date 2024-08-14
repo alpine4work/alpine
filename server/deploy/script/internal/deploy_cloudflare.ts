@@ -20,7 +20,7 @@ export async function deployCloudflare({
         joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.sh"),
         ["deploy"],
         {
-            cwd: joinPath(runfilesPath, "cyberworlds/server/edge"),
+            cwd: joinPath(runfilesPath, "cyberworlds"),
             env: {
                 ...getProcessEnvToPropagate(),
                 CLOUDFLARE_ACCOUNT_ID: accountId,
