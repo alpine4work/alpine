@@ -967,6 +967,12 @@ export type TracerEventData = {
      * Any data related to GitHub services.
      */
     readonly github?: {
+        /**
+         * A URL pointing to a GitHub repo's `/compare` route for easy comparing of two
+         * commits.
+         */
+        readonly compareUrl?: string;
+
         /** Information related to a GitHub action. */
         readonly workflow?: {
             /** Information related to a GitHub action run. */
@@ -974,13 +980,32 @@ export type TracerEventData = {
                 /** The ID of a GitHub action run. */
                 readonly id?: number;
 
+                /** The number of this GitHub action run. */
+                readonly number?: number;
+
                 /** The attempt number of a GitHub action run. */
                 readonly attempt?: number;
 
                 /** The URL to the GitHub UI for a GitHub action run. */
                 readonly url?: string;
+
+                /** The commit this GitHub workflow is running against. */
+                readonly commit?: string;
             };
         };
+    };
+
+    /**
+     * Any data related to our `DeployService`'s deploy script. Most data related
+     * to a deploy can be found in `github.workflow.run` but there's some workflow
+     * agnostic data we want to record.
+     */
+    readonly deploy?: {
+        /**
+         * When our deploy script is running this represents the currently deployed
+         * commit.
+         */
+        readonly oldCommit?: string;
     };
 };
 

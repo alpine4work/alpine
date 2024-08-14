@@ -1,3 +1,4 @@
+import {addMinutes, subMinutes} from "date-fns";
 import {
     cleanupDeploy,
     githubOwner,
@@ -26,6 +27,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId} from "~/shared/id/id.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+const honeycombTeam = "cyberworlds";
 
 /**
  * Run a deploy.
@@ -96,8 +99,10 @@ export async function deploy(
             workflow: {
                 run: {
                     id: workflowRunId,
+                    number: workflowRunNumber,
                     attempt: workflowRunAttempt,
                     url: `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${workflowRunId}`,
+                    commit: commitSha,
                 },
             },
         },
@@ -143,6 +148,7 @@ export async function deploy(
         await rootSpan.withSpan("Deploy", span =>
             context.with({tracer: new TracerContextModule(span)}, context =>
                 actuallyDeploy(context, {
+                    rootSpan,
                     commitSha,
                     workflowRunId,
                     workflowRunNumber,
@@ -169,6 +175,7 @@ async function actuallyDeploy(
         }
     >,
     {
+        rootSpan,
         commitSha,
         workflowRunId,
         workflowRunNumber,
@@ -176,6 +183,7 @@ async function actuallyDeploy(
         cloudflareAccountId,
         cloudflareWorkersToken,
     }: {
+        rootSpan: TracerSpan;
         commitSha: string;
         workflowRunId: number;
         workflowRunNumber: number;
@@ -192,6 +200,31 @@ async function actuallyDeploy(
     );
 
     const deployStartTime = new Date();
+
+    const githubCompareUrl = `https://github.com/${githubOwner}/${githubRepo}/compare/${deployItem.commitSha}...${commitSha}`;
+    const honeycombTraceUrl = `https://ui.honeycomb.io/${honeycombTeam}/environments/production/trace?trace_id=${
+        rootSpan.traceId
+    }&trace_start_ts=${Math.round(
+        subMinutes(deployStartTime, 60).getTime() / 1000,
+    )}&trace_end_ts=${Math.round(addMinutes(deployStartTime, 60).getTime() / 1000)}`;
+
+    rootSpan.addData({
+        deploy: {
+            oldCommit: deployItem.commitSha,
+        },
+        github: {
+            compareUrl: githubCompareUrl,
+        },
+    });
+
+    // These notices are added as annotations to the GitHub actions run deploy
+    // page. Allows you to quickly see what code was updated in a given deploy and
+    // lets you see the Honeycomb trace.
+    //
+    // eslint-disable-next-line no-console
+    console.log(`::notice title=Compare::${githubCompareUrl}`);
+    // eslint-disable-next-line no-console
+    console.log(`::notice title=Trace::${honeycombTraceUrl}`);
 
     const result = await captureResultPromise(async () => {
         const {manifest, paths} = await context.tracer.withSpan(
