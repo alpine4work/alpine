@@ -146,16 +146,6 @@ export class HoneycombTracerClient {
         startTime: Date;
         endTime?: Date;
     }) {
-        // TODO(calebmer, #deploy): For debugging. Remove this!
-        // eslint-disable-next-line no-console
-        console.log({
-            type,
-            message,
-            url,
-            start_time: startTime.getTime() / 1000,
-            end_time: endTime !== undefined ? endTime.getTime() / 1000 : undefined,
-        });
-
         // eslint-disable-next-line no-global-fetch
         const response = await fetch("https://api.honeycomb.io/1/markers/tracer", {
             method: "POST",
@@ -167,8 +157,8 @@ export class HoneycombTracerClient {
                 type,
                 message,
                 url,
-                start_time: startTime.getTime() / 1000,
-                end_time: endTime !== undefined ? endTime.getTime() / 1000 : undefined,
+                start_time: Math.round(startTime.getTime() / 1000),
+                end_time: endTime !== undefined ? Math.round(endTime.getTime() / 1000) : undefined,
             }),
         });
 
