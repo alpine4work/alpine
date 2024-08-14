@@ -56,7 +56,29 @@ export async function deployAws(span: TracerSpan) {
 
     try {
         StackActivityMonitor.withDefaultPrinter = overrideWithDefaultPrinter;
-        await exec(["deploy", "--all"]);
+        await exec([
+            "deploy",
+            "--all",
+            // Never ask for approval in CI for IAM or security group related changes.
+            // Instead of requiring approval when `cdk deploy` is run we have a separate
+            // mechanism to get approval.
+            //
+            // `//admin/aws:write_aws_app_templates` makes sure we have the full
+            // CloudFormation template written to our repository (e.g. the
+            // `admin/aws/templates/cyberworlds_stack.yaml` file). Any change to these
+            // template files requires a code review from our production engineering group.
+            // Who are trusted by the organization to carefully review changes to our AWS
+            // infrastructure to make sure there security vulnerabilities aren't
+            // introduced.
+            //
+            // Therefore, if tests have passed on our `main` branch for this commit that
+            // means approval for any IAM or security group changes has already been
+            // granted.
+            //
+            // See the documentation for this property here:
+            // https://docs.aws.amazon.com/cdk/v2/guide/cli.html
+            "--require-approval=never",
+        ]);
     } finally {
         StackActivityMonitor.withDefaultPrinter = originalWithDefaultPrinter;
     }
