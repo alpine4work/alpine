@@ -10,7 +10,7 @@ import {
 import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
 import {ITable} from "aws-cdk-lib/aws-dynamodb";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
-import {ManagedPolicy, Role} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -305,6 +305,17 @@ export class AwsGithubRunners extends Construct {
 
         // Allow reading/writing to the deploy DynamoDB table.
         deployTable.grantReadWriteData(deployRunnerProvider);
+
+        deployRunnerProvider.grantPrincipal.addToPrincipalPolicy(
+            new PolicyStatement({
+                actions: ["sts:AssumeRole"],
+                resources: [
+                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-deploy-role-*`,
+                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-file-publishing-role-*`,
+                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-image-publishing-role-*`,
+                ],
+            }),
+        );
 
         // NOTE(calebmer, 2024-07-22): `@cloudsnorkel/cdk-github-runners` is causing
         // the following deprecation warning:
