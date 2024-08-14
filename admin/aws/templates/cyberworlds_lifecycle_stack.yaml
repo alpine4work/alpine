@@ -1521,6 +1521,24 @@ Resources:
                       Resource:
                           - Fn::ImportValue: CyberworldsStack:DeployTableArn
                           - Ref: AWS::NoValue
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:iam::"
+                                  - Ref: AWS::AccountId
+                                  - :role/cdk-hnb659fds-deploy-role-*
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:iam::"
+                                  - Ref: AWS::AccountId
+                                  - :role/cdk-hnb659fds-file-publishing-role-*
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:iam::"
+                                  - Ref: AWS::AccountId
+                                  - :role/cdk-hnb659fds-image-publishing-role-*
                 Version: 2012-10-17
             PolicyName: GithubRunnersDeployRunnerProviderRoleDefaultPolicyDB018ED1
             Roles:
