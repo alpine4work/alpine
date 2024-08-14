@@ -181,6 +181,8 @@ class TracerActivityPrinter implements IActivityPrinter {
             span.addData({
                 aws: {
                     cloudformation: {
+                        logicalResourceId,
+                        physicalResourceId: activity.event.PhysicalResourceId,
                         startStatus: resource.startStatus,
                         startStatusReason: resource.startStatusReason,
                         errorStatus: resource.errorStatus,

@@ -751,6 +751,12 @@ export type TracerEventData = {
          * Information regarding AWS CloudFormation templated deploys.
          */
         readonly cloudformation?: {
+            /** The CloudFormation logic ID for a resource. */
+            readonly logicalResourceId?: string;
+
+            /** The actual AWS ID for a resource. */
+            readonly physicalResourceId?: string;
+
             /** Status from the activity event which marks a resource as started deploying. */
             readonly startStatus?: string;
 
