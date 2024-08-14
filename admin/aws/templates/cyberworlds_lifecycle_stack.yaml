@@ -2289,8 +2289,8 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
-                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.large\",\"UserDat\
+                        a.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
@@ -2320,8 +2320,8 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
-                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.large\",\"UserDat\
+                        a.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
@@ -2351,8 +2351,8 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
-                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.large\",\"UserDat\
+                        a.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
@@ -2382,8 +2382,8 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
-                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.large\",\"UserDat\
+                        a.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
@@ -2413,8 +2413,8 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
-                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.large\",\"UserDat\
+                        a.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
@@ -2443,8 +2443,8 @@ Resources:
                       - Ref: AWS::Partition
                       - :states:::aws-sdk:ec2:runInstances.waitForTaskToken","Parameters":{"LaunchTemplate":{"LaunchTemplateId":"
                       - Ref: GithubRunnersRunnerImageBuilderLaunchtemplate8C16FCC3
-                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.medium\",\"UserDa\
-                        ta.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
+                      - "\"},\"MinCount\":1,\"MaxCount\":1,\"InstanceType\":\"m7g.large\",\"UserDat\
+                        a.$\":\"States.Base64Encode(States.Format($.ec2.userdataTemplate,
                         $$.Task.Token, '"
                       - Ref: GithubRunnersDeployRunnerProviderLogs3C9A86A5
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,

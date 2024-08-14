@@ -64,7 +64,7 @@ export class AwsGithubRunners extends Construct {
 
         // Use smaller instances for our deploy workflow. Most of the time our deploy
         // workflow will be sitting idle waiting for CloudFormation.
-        const deployInstanceType = InstanceType.of(instanceClass, InstanceSize.MEDIUM);
+        const deployInstanceType = InstanceType.of(instanceClass, InstanceSize.LARGE);
 
         const imageBuilder = Ec2RunnerProvider.imageBuilder(this, "RunnerImageBuilder", {
             vpc,
