@@ -133,7 +133,7 @@ case "$1" in
             echo "Commit isn't in main branch"
             exit 1
         elif git merge-base --is-ancestor "$commit" "$(curl -fSsL https://cyberworlds.dev/api/internal/deploy/commit)"; then
-            echo "Deployed commit"
+            echo "Commit is deployed"
             exit 0
         elif git merge-base --is-ancestor "$commit" "$(curl -fSsL https://cyberworlds.dev/api/internal/deploy/commit?status=ongoing)"; then
             echo "Commit is part of an ongoing deploy"

@@ -16,8 +16,6 @@ export const githubRepo = "cyberworlds";
 // `gh workflow list`.
 export const testGithubWorkflowId = 45008180;
 
-// TODO(calebmer, #deploy): Check if `dev deployed` script works.
-
 const DeployTable = DynamoTableSchema.new({
     name: "Deploy",
     partitions: [
