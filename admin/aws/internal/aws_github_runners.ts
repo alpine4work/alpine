@@ -236,16 +236,12 @@ export class AwsGithubRunners extends Construct {
             instanceType: testInstanceType,
             storageSize: Size.gibibytes(30),
 
-            // Use spot instances to save money. It's ok if test runs are interrupted. We
-            // can retry processing the test job. As of 2024-07-23 here's the pricing for
-            // `c6g.4xlarge`:
+            // The historical average discount for `m7g.2xlarge` instances is 66% according
+            // to the [AWS Pricing Calculator][1]. It's fine for us to wait for spot
+            // capacity for test runs and it's fine if a test run is interrupted. Since we
+            // can re-run interrupted test runs with no consequences.
             //
-            // - On-demand: $0.544 hourly ([source][1])
-            // - Spot in `us-east-1`: $0.2079 hourly ([source][2], 62% cheaper than on-demand)
-            // - Spot in `ap-south-2`: $0.094 hourly ([source][2], 83% cheaper than on-demand)
-            //
-            // [1]: https://aws.amazon.com/ec2/pricing/on-demand
-            // [2]: https://aws.amazon.com/ec2/spot/pricing
+            // [1]: https://calculator.aws
             spot: true,
 
             imageBuilder,
@@ -284,9 +280,11 @@ export class AwsGithubRunners extends Construct {
             instanceType: deployInstanceType,
             storageSize: Size.gibibytes(30),
 
-            // Use spot instances to save money. It's ok if test runs are interrupted. We
-            // can retry processing the test job.
-            spot: true,
+            // Do not use spot pricing for deploy GitHub runners. If a deploy is
+            // interrupted production may be left in a bad state. (e.g. We interrupt during
+            // the CloudFormation deploy which prevents the Cloudflare deploy from
+            // running.)
+            spot: false,
 
             imageBuilder,
 
