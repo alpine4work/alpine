@@ -3202,6 +3202,12 @@ Resources:
                               - - "arn:aws:scheduler:us-east-1:"
                                 - Ref: AWS::AccountId
                                 - :schedule/default/ScheduleDeployAtDeployableTime
+                    - Action: iam:PassRole
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - JobQueueServiceTaskDefinitionTaskRole2F9357F1
+                              - Arn
                 Version: 2012-10-17
             PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
             Roles:

@@ -235,13 +235,21 @@ export class AwsJobQueueService extends Construct {
             }),
         );
 
-        // Allow scheduling deploys with AWS EventBridge Scheduler.
+        // Allow scheduling deploys with AWS EventBridge Scheduler. We need to allow
+        // `iam:PassRole` in addition to `scheduler:CreateSchedule`. Since the
+        // scheduler will need to use the role on execution.
         taskDefinition.addToTaskRolePolicy(
             new PolicyStatement({
                 actions: ["scheduler:CreateSchedule"],
                 resources: [
                     `arn:aws:scheduler:${stack.region}:${stack.account}:schedule/default/ScheduleDeployAtDeployableTime`,
                 ],
+            }),
+        );
+        taskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                actions: ["iam:PassRole"],
+                resources: [taskDefinition.taskRole.roleArn],
             }),
         );
 
