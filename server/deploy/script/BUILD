@@ -12,7 +12,7 @@ ts_project(
     name = "script_lib",
     data = [
         "//admin/aws:cdk_data",
-        "//app:app_static",
+        "//app:app_static_opt",
         "//server/edge:wrangler",
     ],
     deps = [

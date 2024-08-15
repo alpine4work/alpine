@@ -1,5 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("//admin/bazel:opt_compilation_mode.bzl", "opt_compilation_mode")
 load("//admin/bazel:linux_x86_64_platform_and_opt_compilation_mode.bzl", "linux_x86_64_platform_and_opt_compilation_mode")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//app:remix.bzl", "remix_app")
@@ -131,6 +132,11 @@ filegroup(
         ":app_build_assets",
         "//app/static",
     ],
+)
+
+opt_compilation_mode(
+    name = "app_static_opt",
+    src = ":app_static",
     visibility = ["//server/deploy/script:__pkg__"],
 )
 
