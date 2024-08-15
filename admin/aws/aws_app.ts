@@ -1,4 +1,4 @@
-import {App, CfnOutput, Stack} from "aws-cdk-lib";
+import {App, Stack} from "aws-cdk-lib";
 import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
