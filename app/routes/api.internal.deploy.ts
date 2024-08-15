@@ -17,7 +17,7 @@ export async function loader({request, context, span}: LoaderArgs) {
                 activeCommitSha: deploy.activeCommitSha,
                 ongoingDeployment: deploy.ongoingDeployment
                     ? {
-                          commitSha: deploy.ongoingDeployment,
+                          commitSha: deploy.ongoingDeployment.commitSha,
                           workflowRunId: deploy.ongoingDeployment.workflowRunId,
                       }
                     : deploy.dispatchedDeployment
