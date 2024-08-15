@@ -14,6 +14,7 @@ import {
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {Result} from "~/shared/helpers/control/result.js";
@@ -158,8 +159,16 @@ const DeployTable = DynamoTableSchema.new({
                          * deploy. New commits may be queued into the scheduled deploy.
                          */
                         scheduledDeployment: Schema.object({
+                            /**
+                             * The git commit SHA we'll deploy once this scheduled deployment is run.
+                             */
                             commitSha: Schema.string,
-                            hasCreatedScheduleForNextDeployableTime: Schema.boolean,
+
+                            /**
+                             * If we scheduled this deploy outside of business hours, this will be the time
+                             * within business hours we've scheduled our next deploy to run.
+                             */
+                            nextDeployableTime: Schema.date.nullable().default(null),
                         })
                             .nullable()
                             .default(null),
@@ -204,6 +213,16 @@ function isTimeDeployable(time: ZonedDateTime): boolean {
     return true;
 }
 
+/**
+ * Processes the `ScheduleDeploy` maintenance job.
+ *
+ * - If there's already a scheduled deploy, we'll run it if we're allowed to
+ *   deploy. (It's during work hours and there isn't an ongoing deployment.);
+ *   AND
+ * - If we're provided a `commitSha` we'll schedule that deploy to run later.
+ *   Unless we're allowed to deploy now in which case we'll start a deploy for
+ *   `commitSha`.
+ */
 export async function scheduleDeploy(
     context: Context<
         DynamoContextModules & {
@@ -366,33 +385,17 @@ export async function scheduleDeploy(
 
                     return newDeployItem;
                 } else {
-                    const hasCreatedScheduleForNextDeployableTime =
-                        deployItem.scheduledDeployment?.hasCreatedScheduleForNextDeployableTime ??
-                        false;
-                    const willCreateScheduleForNextDeployableTime =
-                        !hasCreatedScheduleForNextDeployableTime && !isCurrentTimeDeployable;
-
-                    const newDeployItem: DeployAttributesItem = {
-                        ...deployItem,
-                        // If the scheduled deployment already exists, this overrides it with a newer
-                        // commit. We made sure the commit is newer by checking GitHub's
-                        // `/compare` API.
-                        scheduledDeployment: {
-                            commitSha: newCommitSha,
-                            hasCreatedScheduleForNextDeployableTime:
-                                hasCreatedScheduleForNextDeployableTime ||
-                                willCreateScheduleForNextDeployableTime,
-                        },
-                    };
-                    await DeployTable.directlyUpdateItem(context, newDeployItem);
+                    let shouldCreateSchedule = false;
+                    let nextDeployableTime =
+                        deployItem.scheduledDeployment?.nextDeployableTime ?? null;
 
                     // If we can't dispatch the deploy workflow because it's a weekend or
                     // non-business hours, then schedule an SQS message for the next time we're
                     // able to deploy.
-                    if (willCreateScheduleForNextDeployableTime) {
+                    if (!isCurrentTimeDeployable) {
                         const currentTimePlusOneHour = currentTime.add({hours: 1});
 
-                        let nextDeployableTime = new ZonedDateTime(
+                        let newNextDeployableZonedTime = new ZonedDateTime(
                             currentTimePlusOneHour.year,
                             currentTimePlusOneHour.month,
                             currentTimePlusOneHour.day,
@@ -409,9 +412,9 @@ export async function scheduleDeploy(
                         // find a deployable time. If it's a Friday then this will iterate ~48 times as
                         // we add 48 hours to find the next time.
                         let iterationCount = 0;
-                        while (!isTimeDeployable(nextDeployableTime)) {
+                        while (!isTimeDeployable(newNextDeployableZonedTime)) {
                             iterationCount++;
-                            nextDeployableTime = nextDeployableTime.add({hours: 1});
+                            newNextDeployableZonedTime = newNextDeployableZonedTime.add({hours: 1});
 
                             // Defend against `isTimeDeployable()` unconditionally returning false to
                             // prevent our server from looping forever.
@@ -422,12 +425,36 @@ export async function scheduleDeploy(
                             }
                         }
 
-                        // At our next deployable time, run this `ScheduleDeploy` maintenance job
-                        // again. This will flush the deploy we put in
-                        // `deployItem.scheduledDeployment`.
+                        const newNextDeployableTime = newNextDeployableZonedTime.toDate();
+
+                        // Create a schedule (after our DynamoDB update so we only create one schedule
+                        // in case we need to retry) to run `scheduleDeploy()` again at the next
+                        // deployable time.
+                        if (
+                            nextDeployableTime === null ||
+                            nextDeployableTime.getTime() < newNextDeployableTime.getTime()
+                        ) {
+                            nextDeployableTime = newNextDeployableTime;
+                            shouldCreateSchedule = true;
+                        }
+                    }
+
+                    const newDeployItem: DeployAttributesItem = {
+                        ...deployItem,
+                        // If the scheduled deployment already exists, this overrides it with a newer
+                        // commit. We made sure the commit is newer by checking GitHub's
+                        // `/compare` API.
+                        scheduledDeployment: {
+                            commitSha: newCommitSha,
+                            nextDeployableTime,
+                        },
+                    };
+                    await DeployTable.directlyUpdateItem(context, newDeployItem);
+
+                    if (shouldCreateSchedule) {
                         await context.scheduler.dangerouslyCreateOnceMaintenanceJobSchedule(
                             "ScheduleDeployAtDeployableTime",
-                            nextDeployableTime.toDate(),
+                            assertExists(nextDeployableTime),
                             {type: "ScheduleDeploy", commitSha: null},
                         );
                     }

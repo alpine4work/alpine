@@ -1210,11 +1210,14 @@ export const dynamoGeneratedSchemaDescription: {
                                                         },
                                                         "optional": false
                                                     },
-                                                    "hasCreatedScheduleForNextDeployableTime": {
+                                                    "nextDeployableTime": {
                                                         "valueSchema": {
-                                                            "type": "Boolean"
+                                                            "type": "Nullable",
+                                                            "schema": {
+                                                                "type": "Date"
+                                                            }
                                                         },
-                                                        "optional": false
+                                                        "optional": true
                                                     }
                                                 }
                                             }
