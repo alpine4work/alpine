@@ -178,7 +178,7 @@ jobs:
               name: Schedule Deploy
               run: |
                   aws sqs send-message \
-                    "--queue-url=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")"
+                    "--queue-url=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
                     "--message-body=$(node -e "process.stdout.write(JSON.stringify({type: 'Maintenance', sendTime: new Date().toISOString(), delaySeconds: 0, job: {type: 'ScheduleDeploy', commitSha: process.env.GITHUB_SHA}, tracerContext: null}))")"
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
