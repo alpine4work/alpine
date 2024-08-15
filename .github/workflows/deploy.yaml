@@ -1,5 +1,15 @@
 name: Deploy
-on: workflow_dispatch
+on:
+    workflow_dispatch:
+        inputs:
+            # Unfortunately we can only dispatch a workflow with a git branch or tag
+            # ([commit sha's don't work][1]). So we dispatch with the `main` branch and
+            # pass the specific commit as an input.
+            #
+            # [1]: https://github.com/orgs/community/discussions/75513
+            commitSha:
+                required: true
+                type: string
 
 concurrency: deploy
 
@@ -12,6 +22,8 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
+              with:
+                  ref: ${{ inputs.commitSha }}
 
             # We cache Bazel external repositories with [GitHub's cache action][1]. We
             # cache individual build rule results with [Bazel remote caching][2].
@@ -63,7 +75,7 @@ jobs:
                   BAZEL_BINDIR: .
               run: |
                   bazel-bin/server/deploy/script/script.sh \
-                      --commitSha=$GITHUB_SHA \
+                      --commitSha=${{ inputs.commitSha }} \
                       --workflowRunId=${{ github.run_id }} \
                       --workflowRunNumber=${{ github.run_number }} \
                       --workflowRunAttempt=${{ github.run_attempt }} \

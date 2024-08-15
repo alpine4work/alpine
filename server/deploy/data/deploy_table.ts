@@ -311,7 +311,13 @@ export async function scheduleDeploy(
                             owner: githubOwner,
                             repo: githubRepo,
                             workflow_id: deployGithubWorkflowId,
-                            ref: deployItem.scheduledDeployment.commitSha,
+                            // Unfortunately we can only dispatch a workflow with a git branch or tag
+                            // ([commit sha's don't work][1]). So we dispatch with the `main` branch and
+                            // pass the specific commit as an input.
+                            //
+                            // [1]: https://github.com/orgs/community/discussions/75513
+                            ref: "main",
+                            inputs: {commitSha: deployItem.scheduledDeployment.commitSha},
                         },
                     );
 
@@ -396,7 +402,13 @@ export async function scheduleDeploy(
                             owner: githubOwner,
                             repo: githubRepo,
                             workflow_id: deployGithubWorkflowId,
-                            ref: newCommitSha,
+                            // Unfortunately we can only dispatch a workflow with a git branch or tag
+                            // ([commit sha's don't work][1]). So we dispatch with the `main` branch and
+                            // pass the specific commit as an input.
+                            //
+                            // [1]: https://github.com/orgs/community/discussions/75513
+                            ref: "main",
+                            inputs: {commitSha: newCommitSha},
                         },
                     );
 
