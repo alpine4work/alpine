@@ -440,7 +440,6 @@ export async function scheduleDeploy(
 
                     return newDeployItem;
                 } else {
-                    let shouldCreateSchedule = false;
                     let nextDeployableTime =
                         deployItem.scheduledDeployment?.nextDeployableTime ?? null;
 
@@ -482,15 +481,19 @@ export async function scheduleDeploy(
 
                         const newNextDeployableTime = newNextDeployableZonedTime.toDate();
 
-                        // Create a schedule (after our DynamoDB update so we only create one schedule
-                        // in case we need to retry) to run `scheduleDeploy()` again at the next
-                        // deployable time.
                         if (
                             nextDeployableTime === null ||
                             nextDeployableTime.getTime() < newNextDeployableTime.getTime()
                         ) {
                             nextDeployableTime = newNextDeployableTime;
-                            shouldCreateSchedule = true;
+
+                            // Ok if multiple schedules are created since the `ScheduleDeploy` job is
+                            // designed to be idempotent anyway.
+                            await context.scheduler.dangerouslyCreateOnceMaintenanceJobSchedule(
+                                "ScheduleDeployAtDeployableTime",
+                                assertExists(nextDeployableTime),
+                                {type: "ScheduleDeploy", commitSha: null},
+                            );
                         }
                     }
 
@@ -505,14 +508,6 @@ export async function scheduleDeploy(
                         },
                     };
                     await DeployTable.directlyUpdateItem(context, newDeployItem);
-
-                    if (shouldCreateSchedule) {
-                        await context.scheduler.dangerouslyCreateOnceMaintenanceJobSchedule(
-                            "ScheduleDeployAtDeployableTime",
-                            assertExists(nextDeployableTime),
-                            {type: "ScheduleDeploy", commitSha: null},
-                        );
-                    }
 
                     return newDeployItem;
                 }
