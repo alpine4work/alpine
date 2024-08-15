@@ -246,7 +246,7 @@ export async function scheduleDeploy(
         },
     });
 
-    let shouldRunAgain = false;
+    let shouldRunAgain = true;
     let previousDeployItem: DeployAttributesItem | null = null;
 
     while (shouldRunAgain) {
