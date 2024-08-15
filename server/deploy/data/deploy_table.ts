@@ -241,16 +241,19 @@ export async function scheduleDeploy(
 
     span.addData({
         deploy: {
+            newCommit: newCommitSha ?? undefined,
             zonedTime: currentTime.toString(),
             isTimeDeployable: isCurrentTimeDeployable,
         },
     });
 
     let shouldRunAgain = true;
+    let shouldResolveDispatchedDeployment = false;
     let previousDeployItem: DeployAttributesItem | null = null;
 
     while (shouldRunAgain) {
         shouldRunAgain = false;
+        shouldResolveDispatchedDeployment = false;
 
         previousDeployItem = await context.dynamo.retryTransaction(
             async (context): Promise<DeployAttributesItem> => {
@@ -321,8 +324,23 @@ export async function scheduleDeploy(
                         },
                     );
 
+                    // Wait to find our dispatched deployment in GitHub and if we find it then
+                    // update `DeployTable` with the `workflowRunId`.
+                    shouldResolveDispatchedDeployment = true;
+
                     return newDeployItem;
                 }
+
+                // After the `shouldRunAgain = true` branch so we don't end up setting this
+                // span data twice.
+                span.addData({
+                    deploy: {
+                        activeCommit: deployItem.activeCommitSha,
+                        ongoingDeploymentCommit: resolvedOngoingDeployment?.commitSha ?? undefined,
+                        dispatchedDeploymentCommit:
+                            resolvedDispatchedDeployment?.commitSha ?? undefined,
+                    },
+                });
 
                 // If there's no new commit we only cared about running the scheduled
                 // deployment. Which we've already done above. We can return happy now.
@@ -412,6 +430,10 @@ export async function scheduleDeploy(
                         },
                     );
 
+                    // Wait to find our dispatched deployment in GitHub and if we find it then
+                    // update `DeployTable` with the `workflowRunId`.
+                    shouldResolveDispatchedDeployment = true;
+
                     return newDeployItem;
                 } else {
                     let shouldCreateSchedule = false;
@@ -498,6 +520,7 @@ export async function scheduleDeploy(
         // corresponding with the dispatch to be created and stash it in
         // `dispatchedDeployment.workflowRunId`.
         if (
+            shouldResolveDispatchedDeployment &&
             previousDeployItem.dispatchedDeployment !== null &&
             previousDeployItem.dispatchedDeployment.workflowRunId === null
         ) {
@@ -594,8 +617,9 @@ async function resolveDeployItemDispatchedDeploymentResult(
 
             const workflowRun = workflowRunsResult.data.workflow_runs[0];
 
-            if (!workflowRun)
+            if (!workflowRun) {
                 throw retry(new NotFoundError("Couldn't find workflow run for dispatch"));
+            }
 
             // If the workflow has concluded, consider `dispatchedDeployment` to be unset
             // so we can dispatch a new deploy.

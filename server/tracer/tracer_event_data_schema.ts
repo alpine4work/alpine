@@ -356,7 +356,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         },
     },
     deploy: {
-        oldCommit: Schema.string,
+        activeCommit: Schema.string,
+        ongoingDeploymentCommit: Schema.string,
+        dispatchedDeploymentCommit: Schema.string,
+        newCommit: Schema.string,
         zonedTime: Schema.string,
         isTimeDeployable: Schema.boolean,
     },

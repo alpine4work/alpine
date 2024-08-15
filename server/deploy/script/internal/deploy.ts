@@ -213,7 +213,7 @@ async function actuallyDeploy(
 
     rootSpan.addData({
         deploy: {
-            oldCommit: deployItem.activeCommitSha,
+            activeCommit: deployItem.activeCommitSha,
         },
         github: {
             compareUrl: githubCompareUrl,

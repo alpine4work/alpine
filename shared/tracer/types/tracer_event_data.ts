@@ -1042,11 +1042,17 @@ export type TracerEventData = {
      * agnostic data we want to record.
      */
     readonly deploy?: {
-        /**
-         * When our deploy script is running this represents the currently deployed
-         * commit.
-         */
-        readonly oldCommit?: string;
+        /** Represents the active commit. */
+        readonly activeCommit?: string;
+
+        /** Represents the commit for an ongoing deployment. */
+        readonly ongoingDeploymentCommit?: string;
+
+        /** Represents the commit for a dispatched deployment. */
+        readonly dispatchedDeploymentCommit?: string;
+
+        /** Represents the new commit we're trying to deploy. */
+        readonly newCommit?: string;
 
         /**
          * The timestamp with time zone we use for determining `isTimeDeployable`.
