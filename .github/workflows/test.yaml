@@ -189,9 +189,14 @@ jobs:
             # If tests pass and we're on the main branch then schedule a deploy by sending
             # a message to our job queue. This will make sure our commit is eventually
             # deployed.
+            #
+            # We delay the message 10 seconds so when `JobQueueService` runs the job, when
+            # it looks for a passing GitHub test workflow run it's more likely this
+            # workflow has completed.
             - if: github.ref == 'refs/heads/main'
               name: Schedule deploy
               run: |
                   aws sqs send-message \
                     "--queue-url=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
-                    "--message-body=$(node -e "process.stdout.write(JSON.stringify({type: 'Maintenance', sendTime: new Date().toISOString(), delaySeconds: 0, job: {type: 'ScheduleDeploy', commitSha: process.env.GITHUB_SHA}, tracerContext: null}))")"
+                    "--message-body=$(node -e "process.stdout.write(JSON.stringify({type: 'Maintenance', sendTime: new Date().toISOString(), delaySeconds: 0, job: {type: 'ScheduleDeploy', commitSha: process.env.GITHUB_SHA}, tracerContext: null}))")" \
+                    --delay-seconds=10
