@@ -1,4 +1,4 @@
-import {attemptStartDeploy} from "~/server/deploy/data/deploy_table.js";
+import {scheduleDeploy} from "~/server/deploy/data/deploy_table.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {MaintenanceJobQueueSystemActionContext} from "~/server/jobs/queue/job_queue_system_action_context.js";
 import {retryUnprocessedTaskActionTransactions} from "~/server/tasks/data/task_table.js";
@@ -11,8 +11,8 @@ export async function processMaintenanceJob(
     span: TracerSpan,
 ) {
     switch (job.type) {
-        case "AttemptStartDeploy": {
-            await attemptStartDeploy(context);
+        case "ScheduleDeploy": {
+            await scheduleDeploy(context, span, job);
             break;
         }
         case "RetryUnprocessedTaskActionTransactions": {

@@ -3215,19 +3215,31 @@ Resources:
                                     - DomainEndpoint
                               - " --jobQueueUrl="
                               - Ref: SqsJobQueue62388F96
+                              - " --jobQueueArn="
+                              - Fn::GetAtt:
+                                    - SqsJobQueue62388F96
+                                    - Arn
+                              - " --schedulerJobQueueRoleArn="
+                              - Fn::GetAtt:
+                                    - JobQueueServiceTaskDefinitionTaskRole2F9357F1
+                                    - Arn
                               - " --edgeServiceUrl=https://cyberworlds.dev --ecsCluster="
                               - Ref: EcsClusterFB9B21B5
                               - "
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
                                 altimeServiceTaskDefinition81563AFA
                                 --honeycombApiKey=$HONEYCOMB_API_KEY --cohereApiKey=$COHERE_API_KEY
+                                --githubAppId=$GITHUB_APP_ID
+                                --githubAppClientId=$GITHUB_APP_CLIENT_ID
+                                --githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
                                 --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
                                 --jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY
                                 --apnsCertificate=\\$APNS_CERTIFICATE
-                                --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY"
+                                --apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY
+                                --githubAppPrivateKey=\\$GITHUB_APP_PRIVATE_KEY"
                   Environment:
                       - Name: NODE_ENV
                         Value: production
@@ -3317,6 +3329,34 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:apnsCertificatePrivateKey::"
+                      - Name: GITHUB_APP_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:githubAppId::"
+                      - Name: GITHUB_APP_PRIVATE_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:githubAppPrivateKey::"
+                      - Name: GITHUB_APP_CLIENT_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:githubAppClientId::"
+                      - Name: GITHUB_APP_CLIENT_SECRET
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:githubAppClientSecret::"
                   StopTimeout: 300
                   User: www-data
             ExecutionRoleArn:
@@ -3817,13 +3857,6 @@ Outputs:
             Ref: VpcIsolatedSubnet2RouteTable1D30AF7D
         Export:
             Name: CyberworldsStack:VpcIsolatedSubnet2RouteTableId
-    OpensearchHostExport:
-        Value:
-            Fn::GetAtt:
-                - OpensearchDomainCED7C974
-                - DomainEndpoint
-        Export:
-            Name: CyberworldsStack:OpensearchHost
     JobQueueUrlExport:
         Value:
             Ref: SqsJobQueue62388F96
@@ -3836,6 +3869,27 @@ Outputs:
                 - Arn
         Export:
             Name: CyberworldsStack:DeployTableArn
+    OpensearchArnExport:
+        Value:
+            Fn::GetAtt:
+                - OpensearchDomainCED7C974
+                - Arn
+        Export:
+            Name: CyberworldsStack:OpensearchArn
+    OpensearchHostExport:
+        Value:
+            Fn::GetAtt:
+                - OpensearchDomainCED7C974
+                - DomainEndpoint
+        Export:
+            Name: CyberworldsStack:OpensearchHost
+    JobQueueArnExport:
+        Value:
+            Fn::GetAtt:
+                - SqsJobQueue62388F96
+                - Arn
+        Export:
+            Name: CyberworldsStack:JobQueueArn
 Parameters:
     SsmParameterValueawsserviceecsoptimizedamiamazonlinux2recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
         Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>

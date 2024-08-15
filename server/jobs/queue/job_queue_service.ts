@@ -1,3 +1,4 @@
+import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
 import {
     DynamoActorContextModule,
@@ -11,6 +12,14 @@ import {
 } from "~/server/apns/apns_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {
+    GithubContextModule,
+    UnimplementedGithubContextModule,
+} from "~/server/deploy/data/github_context_module.js";
+import {
+    SchedulerContextModule,
+    UnimplementedSchedulerContextModule,
+} from "~/server/deploy/data/scheduler_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
@@ -55,6 +64,12 @@ runService({
         taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
         apnsCertificate: {type: "string"},
         apnsCertificatePrivateKey: {type: "string"},
+        jobQueueArn: {type: "string"},
+        schedulerJobQueueRoleArn: {type: "string"},
+        githubAppId: {type: "string"},
+        githubAppPrivateKey: {type: "string"},
+        githubAppClientId: {type: "string"},
+        githubAppClientSecret: {type: "string"},
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
@@ -70,21 +85,25 @@ runService({
             }
         }
 
-        const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey] = await runAllPromises([
-            createServiceTokenAgent({
-                serviceName: "JobQueueService",
-                options,
-            }),
-            getServiceTokenAgentKeyFromOption(
-                assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
-            ),
-            getServiceTokenAgentKeyFromOption(
-                assertExists(
-                    options.apnsCertificatePrivateKey,
-                    "Missing `apnsCertificatePrivateKey` option",
+        const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey, githubAppPrivateKey] =
+            await runAllPromises([
+                createServiceTokenAgent({
+                    serviceName: "JobQueueService",
+                    options,
+                }),
+                getServiceTokenAgentKeyFromOption(
+                    assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
                 ),
-            ),
-        ]);
+                getServiceTokenAgentKeyFromOption(
+                    assertExists(
+                        options.apnsCertificatePrivateKey,
+                        "Missing `apnsCertificatePrivateKey` option",
+                    ),
+                ),
+                options.githubAppPrivateKey
+                    ? getServiceTokenAgentKeyFromOption(options.githubAppPrivateKey)
+                    : null,
+            ]);
 
         const awsSigner = new AwsRequestSigner();
 
@@ -155,6 +174,49 @@ runService({
 
             apnsContextModule = new ApnsContextModule(apnsConnectionPool);
         }
+
+        const githubContextModule =
+            process.env.NODE_ENV !== "production"
+                ? new UnimplementedGithubContextModule()
+                : (() => {
+                      const auth = createGithubAppAuth({
+                          appId: parseInt(
+                              assertExists(options.githubAppId, "Missing `githubAppId` option"),
+                              10,
+                          ),
+                          privateKey: assertExists(
+                              githubAppPrivateKey,
+                              "Missing `githubAppPrivateKey` option",
+                          ),
+                          clientId: assertExists(
+                              options.githubAppClientId,
+                              "Missing `githubAppClientId` option",
+                          ),
+                          clientSecret: assertExists(
+                              options.githubAppClientSecret,
+                              "Missing `githubAppClientSecret` option",
+                          ),
+                      });
+
+                      return new GithubContextModule(auth.hook.bind(auth));
+                  })();
+
+        // TODO(calebmer): Scheduler context module implementation in development when
+        // we need it in development.
+        const schedulerContextModule =
+            process.env.NODE_ENV !== "production"
+                ? new UnimplementedSchedulerContextModule()
+                : new SchedulerContextModule({
+                      region: "us-east-1",
+                      jobQueueArn: assertExists(
+                          options.jobQueueArn,
+                          "Missing `jobQueueArn` option",
+                      ),
+                      jobQueueRoleArn: assertExists(
+                          options.schedulerJobQueueRoleArn,
+                          "Missing `schedulerJobQueueRoleArn` option",
+                      ),
+                  });
 
         const consumer = JobQueueConsumer.start(processContext, {
             region: "us-east-1",
@@ -280,6 +342,8 @@ runService({
                         router: taskRealtimeServiceRouter,
                         dangerouslyEscalateToSystemContext,
                     }),
+                    github: githubContextModule,
+                    scheduler: schedulerContextModule,
                 });
 
                 return processMaintenanceJob(actionContext, job, jobStartTime, span);

@@ -1,6 +1,9 @@
-import {SQSClient, SendMessageBatchCommand} from "@aws-sdk/client-sqs";
+import {SQSClient, SendMessageBatchCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
 import {JobDescription, JobDescriptionSchema} from "~/server/jobs/core/job_description.js";
-import {MaintenanceJobDescriptionSchema} from "~/server/jobs/core/maintenance_job_description.js";
+import {
+    MaintenanceJobDescription,
+    MaintenanceJobDescriptionSchema,
+} from "~/server/jobs/core/maintenance_job_description.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -62,7 +65,7 @@ type JobSenderMessageBatch = {
     }>;
 };
 
-export abstract class JobSenderBase {
+export interface JobSenderBase {
     /**
      * Sends a job to our job queue for processing. Will be batched with other jobs
      * sent from the same process in a short window of time.
@@ -75,7 +78,7 @@ export abstract class JobSenderBase {
      * in our queue. If you want to guarantee message delivery call
      * `sendImmediately()` and await.
      */
-    public abstract send(
+    send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -92,7 +95,7 @@ export abstract class JobSenderBase {
      * queue. This means you may have to wait up to 200ms if this is the first job
      * in a batch! Avoid this function if you need fast performance.
      */
-    public abstract sendAndWait(
+    sendAndWait(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -112,9 +115,20 @@ export abstract class JobSenderBase {
      * even be a good idea given it can take a while for the job service to process
      * your job.
      */
-    public abstract sendImmediately(
+    sendImmediately(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void>;
+
+    /**
+     * Send a maintenance job to our job queue. It's dangerous to schedule
+     * maintenance jobs since maintenance jobs have access to all data across our
+     * system! Users should not be able to arbitrarily schedule maintenance jobs.
+     */
+    dangerouslySendMaintenance(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: MaintenanceJobDescription,
         options?: {delaySeconds?: number},
     ): Promise<void>;
 }
@@ -123,14 +137,13 @@ export abstract class JobSenderBase {
  * Sends background jobs to our job queue for processing. Will batch jobs sent
  * within a short window of time.
  */
-export class JobSender extends JobSenderBase {
+export class JobSender implements JobSenderBase {
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
 
     private _messageBatch: JobSenderMessageBatch | null = null;
 
     constructor({region, queueUrl}: {region: string; queueUrl: string}) {
-        super();
         this._queueUrl = queueUrl;
         this._sqsClient = new SQSClient({
             region,
@@ -138,7 +151,7 @@ export class JobSender extends JobSenderBase {
         });
     }
 
-    public override send(
+    public send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -152,7 +165,7 @@ export class JobSender extends JobSenderBase {
         );
     }
 
-    public override sendAndWait(
+    public sendAndWait(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -200,7 +213,7 @@ export class JobSender extends JobSenderBase {
         return promiseResolver.promise;
     }
 
-    public override async sendImmediately(
+    public async sendImmediately(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         {delaySeconds = 0}: {delaySeconds?: number} = {},
@@ -307,5 +320,49 @@ export class JobSender extends JobSenderBase {
                 message.promiseResolver.reject(error);
             }
         }
+    }
+
+    /**
+     * Send a maintenance job to our job queue. It's dangerous to schedule
+     * maintenance jobs since maintenance jobs have access to all data across our
+     * system! Users should not be able to arbitrarily schedule maintenance jobs.
+     */
+    public dangerouslySendMaintenance(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: MaintenanceJobDescription,
+        {delaySeconds = 0}: {delaySeconds?: number} = {},
+    ): Promise<void> {
+        return context.tracer.withSpan(
+            `Sent maintenance job ${job.type}`,
+            async (context, span) => {
+                const currentTime = new Date();
+
+                span.addData({
+                    jobs: {
+                        type: `Maintenance:${job.type}`,
+                        batchSize: 1,
+                        delaySeconds,
+                    },
+                });
+
+                const output = await this._sqsClient.send(
+                    new SendMessageCommand({
+                        QueueUrl: this._queueUrl,
+                        MessageBody: JSON.stringify(
+                            JobQueueMessageBodySchema.serialize({
+                                type: "Maintenance",
+                                sendTime: currentTime,
+                                delaySeconds,
+                                job,
+                                tracerContext: span.getPropagationContext(),
+                            }),
+                        ),
+                        DelaySeconds: delaySeconds,
+                    }),
+                );
+
+                span.addData({aws: {sqs: {messageId: output.MessageId}}});
+            },
+        );
     }
 }

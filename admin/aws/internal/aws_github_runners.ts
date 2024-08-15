@@ -8,11 +8,13 @@ import {
     RunnerVersion,
 } from "@cloudsnorkel/cdk-github-runners";
 import {Duration, Fn, RemovalPolicy, Size, Stack} from "aws-cdk-lib";
-import {ITable} from "aws-cdk-lib/aws-dynamodb";
 import {IVpc, InstanceClass, InstanceSize, InstanceType, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
+import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
+import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export class AwsGithubRunners extends Construct {
@@ -21,15 +23,15 @@ export class AwsGithubRunners extends Construct {
         {
             vpc,
             cloudflareAccountId,
-            opensearchHost,
-            jobQueueUrl,
-            deployTable,
+            dynamo,
+            opensearch,
+            sqs,
         }: {
             vpc: IVpc;
             cloudflareAccountId: string;
-            opensearchHost: string;
-            jobQueueUrl: string;
-            deployTable: ITable;
+            dynamo: AwsDynamo;
+            opensearch: AwsOpensearch;
+            sqs: AwsSqs;
         },
     ) {
         super(parentScope, "GithubRunners");
@@ -247,6 +249,11 @@ export class AwsGithubRunners extends Construct {
             spot: true,
 
             imageBuilder,
+
+            // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
+            // environment variable. We add this option to
+            // `@cloudsnorkel/cdk-github-runners` through a patch.
+            userDataExtra: Fn.join("", ['{"jobQueueUrl":"', sqs.getJobQueueUrl(), '"}']),
         });
 
         const testRunnerProviderRole: unknown = (testRunnerProvider as any).role;
@@ -260,6 +267,10 @@ export class AwsGithubRunners extends Construct {
 
         // Allow reading/writing to Bazel remote cache bucket.
         bucket.grantReadWrite(testRunnerProvider);
+
+        // Our test workflow needs to send the `ScheduleDeploy` message to our
+        // job queue.
+        sqs.grantSendJobQueueMessages(testRunnerProvider);
 
         const deployRunnerProvider = new Ec2RunnerProvider(this, "DeployRunnerProvider", {
             vpc,
@@ -284,9 +295,9 @@ export class AwsGithubRunners extends Construct {
             // `@cloudsnorkel/cdk-github-runners` through a patch.
             userDataExtra: Fn.join("", [
                 `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"opensearchHost":"`,
-                opensearchHost,
+                opensearch.opensearchHost,
                 '","jobQueueUrl":"',
-                jobQueueUrl,
+                sqs.getJobQueueUrl(),
                 '","edgeServiceUrl":"https://cyberworlds.dev"}',
             ]),
         });
@@ -304,7 +315,7 @@ export class AwsGithubRunners extends Construct {
         bucket.grantReadWrite(deployRunnerProvider);
 
         // Allow reading/writing to the deploy DynamoDB table.
-        deployTable.grantReadWriteData(deployRunnerProvider);
+        dynamo.grantReadWriteDataForTable(deployRunnerProvider, "Deploy");
 
         deployRunnerProvider.grantPrincipal.addToPrincipalPolicy(
             new PolicyStatement({

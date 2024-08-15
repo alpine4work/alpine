@@ -17,6 +17,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@aws-sdk/client-s3",
+        "//:node_modules/@octokit/auth-action",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
         "//:node_modules/@types/serve-static",

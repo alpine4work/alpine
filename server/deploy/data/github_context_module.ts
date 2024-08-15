@@ -1,23 +1,65 @@
-import {createActionAuth} from "@octokit/auth-action";
 import {request} from "@octokit/request";
-import type {Endpoints, RequestParameters, RequestRequestOptions} from "@octokit/types";
+import type {
+    EndpointOptions,
+    Endpoints,
+    OctokitResponse,
+    RequestInterface,
+    RequestParameters,
+    RequestRequestOptions,
+} from "@octokit/types";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {convertSnakeCaseToCamelCase} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+
+export type GithubContextModuleAuth = (
+    request: RequestInterface,
+    options: EndpointOptions,
+) => Promise<OctokitResponse<any>>;
 
 /**
  * Context module for accessing the GitHub API. Authorizes and traces any
  * requests to the GitHub API.
  */
-export class GithubContextModule extends ContextModuleBase<{tracer: TracerContextModule}> {
-    private readonly _auth: ReturnType<typeof createActionAuth>;
+export abstract class GithubContextModuleBase extends ContextModuleBase<{
+    tracer: TracerContextModule;
+}> {
+    /**
+     * Make a request against the GitHub API using the same interface as
+     * [`@octokit/request`][1]. This method is:
+     *
+     * - Type checked using [`@octokit/types`][2]
+     * - Properly authenticated based on how the context module is constructed
+     * - Traced so all requests show up in our logs
+     *
+     * [1]: https://github.com/octokit/request.js
+     * [2]: https://github.com/octokit/types.ts
+     */
+    public abstract request<R extends keyof Endpoints>(
+        githubRouteAndMethod: R,
+        options?: Endpoints[R]["parameters"] & RequestParameters,
+    ): Promise<Endpoints[R]["response"]>;
 
-    constructor() {
+    /**
+     * Same as `request()` but we don't create a span. Avoid using this! We ideally
+     * want to trace all network requests from our services.
+     */
+    public abstract quietlyRequestWithoutTracing<R extends keyof Endpoints>(
+        githubRouteAndMethod: R,
+        options?: Endpoints[R]["parameters"] & RequestParameters,
+    ): Promise<Endpoints[R]["response"]>;
+}
+
+export class GithubContextModule extends GithubContextModuleBase {
+    private readonly _auth: GithubContextModuleAuth;
+
+    constructor(auth: GithubContextModuleAuth) {
         super();
-        this._auth = createActionAuth();
+        this._auth = auth;
     }
 
     /**
@@ -31,7 +73,7 @@ export class GithubContextModule extends ContextModuleBase<{tracer: TracerContex
      * [1]: https://github.com/octokit/request.js
      * [2]: https://github.com/octokit/types.ts
      */
-    public request<R extends keyof Endpoints>(
+    public override request<R extends keyof Endpoints>(
         githubRouteAndMethod: R,
         options?: Endpoints[R]["parameters"] & RequestParameters,
     ): Promise<Endpoints[R]["response"]> {
@@ -43,7 +85,7 @@ export class GithubContextModule extends ContextModuleBase<{tracer: TracerContex
         return this._context.tracer.withSpan(`GitHub ${method} ${route}`, (context, span) => {
             const requestOptions: RequestRequestOptions = {
                 // Authorize the request to the GitHub API.
-                hook: this._auth.hook,
+                hook: this._auth,
 
                 // Add the same tracer data as `fetchWithTracer()` to requests made against the
                 // GitHub API. Requests to GitHub are made with `@octokit/request` for proper
@@ -128,7 +170,7 @@ export class GithubContextModule extends ContextModuleBase<{tracer: TracerContex
      * Same as `request()` but we don't create a span. Avoid using this! We ideally
      * want to trace all network requests from our services.
      */
-    public quietlyRequestWithoutTracing<R extends keyof Endpoints>(
+    public override quietlyRequestWithoutTracing<R extends keyof Endpoints>(
         githubRouteAndMethod: R,
         options?: Endpoints[R]["parameters"] & RequestParameters,
     ): Promise<Endpoints[R]["response"]> {
@@ -137,7 +179,7 @@ export class GithubContextModule extends ContextModuleBase<{tracer: TracerContex
 
         const requestOptions: RequestRequestOptions = {
             // Authorize the request to the GitHub API.
-            hook: this._auth.hook,
+            hook: this._auth,
 
             // Add the same tracer data as `fetchWithTracer()` to requests made against the
             // GitHub API. Requests to GitHub are made with `@octokit/request` for proper
@@ -167,4 +209,18 @@ function formatGithubRoute(route: string): string {
         /\{[a-zA-Z0-9_]+\}/g,
         string => `:${convertSnakeCaseToCamelCase(string.slice(1, -1))}`,
     );
+}
+
+export class UnimplementedGithubContextModule extends GithubContextModuleBase {
+    public override request(): Promise<never> {
+        throw new UnimplementedError(
+            quote`GitHub context module is unimplemented in ${process.env.NODE_ENV}`,
+        );
+    }
+
+    public override quietlyRequestWithoutTracing(): Promise<never> {
+        throw new UnimplementedError(
+            quote`GitHub context module is unimplemented in ${process.env.NODE_ENV}`,
+        );
+    }
 }

@@ -1,5 +1,7 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
+import {SchedulerContextModuleBase} from "~/server/deploy/data/scheduler_context_module.js";
 import {SearchEntityIndexSystemActionContextModules} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -20,6 +22,8 @@ export type MaintenanceJobQueueSystemActionContextModules = Omit<
     "actor"
 > & {
     tasks: TaskContextModuleBase;
+    github: GithubContextModuleBase;
+    scheduler: SchedulerContextModuleBase;
 };
 
 // Should be able to use a job queue context for search entity indexing.

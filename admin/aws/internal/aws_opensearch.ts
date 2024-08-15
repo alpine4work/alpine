@@ -1,9 +1,9 @@
-import {CustomResource, Duration} from "aws-cdk-lib";
+import {CfnOutput, CustomResource, Duration, Fn, Stack} from "aws-cdk-lib";
 import {IConnectable, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
-import {Domain, EngineVersion} from "aws-cdk-lib/aws-opensearchservice";
+import {Domain, EngineVersion, IDomain} from "aws-cdk-lib/aws-opensearchservice";
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
@@ -34,13 +34,17 @@ const opensearchDeployScriptLambdaIndexHash = crypto
     .update(opensearchDeployScriptLambdaIndexContents)
     .digest("hex");
 
-export class AwsOpensearch extends Construct {
-    private readonly _domain: Domain;
+export class AwsOpensearch {
+    protected readonly _domain: IDomain;
 
-    constructor(parentConstruct: Construct, vpc: AwsVpc) {
-        super(parentConstruct, "Opensearch");
+    protected constructor(domain: IDomain) {
+        this._domain = domain;
+    }
 
-        this._domain = new Domain(this, "Domain", {
+    public static new(parentConstruct: Construct, vpc: AwsVpc) {
+        const construct = new Construct(parentConstruct, "Opensearch");
+
+        const domain = new Domain(construct, "Domain", {
             vpc,
             // Only allow traffic to/from OpenSearch within our subnet.
             vpcSubnets: [{subnetType: SubnetType.PRIVATE_ISOLATED}],
@@ -69,7 +73,7 @@ export class AwsOpensearch extends Construct {
 
         // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
         // `NodejsLambda` since we bundle the code ourselves.
-        const deployScript = new LambdaFunction(this, "DeployScript", {
+        const deployScript = new LambdaFunction(construct, "DeployScript", {
             code: Code.fromAsset(opensearchDeployScriptLambdaDirectoryPath),
             handler: "index.handler",
             vpc,
@@ -80,27 +84,27 @@ export class AwsOpensearch extends Construct {
             // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
             runtime: Runtime.NODEJS_18_X,
             environment: {
-                OPENSEARCH_HOST: this._domain.domainEndpoint,
+                OPENSEARCH_HOST: domain.domainEndpoint,
             },
             // Don't retain deploy script logs forever.
             logRetention: RetentionDays.ONE_MONTH,
         });
 
-        this._domain.connections.allowFrom(deployScript, Port.tcp(443));
+        domain.connections.allowFrom(deployScript, Port.tcp(443));
 
         deployScript.addToRolePolicy(
             new PolicyStatement({
                 effect: Effect.ALLOW,
                 actions: ["es:*"],
-                resources: [`${this._domain.domainArn}/*`],
+                resources: [`${domain.domainArn}/*`],
             }),
         );
 
-        const deployScriptProvider = new Provider(this, "DeployScriptProvider", {
+        const deployScriptProvider = new Provider(construct, "DeployScriptProvider", {
             onEventHandler: deployScript,
         });
 
-        const deployScriptResource = new CustomResource(this, "DeployScriptResource", {
+        const deployScriptResource = new CustomResource(construct, "DeployScriptResource", {
             serviceToken: deployScriptProvider.serviceToken,
             properties: {
                 // Re-run our deploy script whenever the script file itself changes. This means
@@ -114,7 +118,9 @@ export class AwsOpensearch extends Construct {
         });
 
         // Run our deploy script whenever the OpenSearch domain is created/updated.
-        deployScriptResource.node.addDependency(this._domain);
+        deployScriptResource.node.addDependency(domain);
+
+        return AwsOpensearchWithConnections._new(domain);
     }
 
     public get opensearchHost() {
@@ -132,6 +138,41 @@ export class AwsOpensearch extends Construct {
         // careful when adding indexes to this domain.
         this._domain.grantPathReadWrite("_bulk", grantee);
         this._domain.grantPathReadWrite("_mget", grantee);
+    }
+
+    public export() {
+        new CfnOutput(this._domain.stack, "OpensearchArnExport", {
+            value: this._domain.domainArn,
+            exportName: `${this._domain.stack.stackName}:OpensearchArn`,
+        });
+
+        new CfnOutput(this._domain.stack, "OpensearchHostExport", {
+            value: this._domain.domainEndpoint,
+            exportName: `${this._domain.stack.stackName}:OpensearchHost`,
+        });
+
+        return (importStack: Stack) =>
+            new AwsOpensearch(
+                Domain.fromDomainAttributes(importStack, "OpensearchImport", {
+                    domainArn: Fn.importValue(`${this._domain.stack.stackName}:OpensearchArn`),
+                    domainEndpoint: Fn.importValue(
+                        `${this._domain.stack.stackName}:OpensearchHost`,
+                    ),
+                }),
+            );
+    }
+}
+
+export class AwsOpensearchWithConnections extends AwsOpensearch {
+    protected override readonly _domain: Domain;
+
+    private constructor(domain: Domain) {
+        super(domain);
+        this._domain = domain;
+    }
+
+    public static _new(domain: Domain) {
+        return new AwsOpensearchWithConnections(domain);
     }
 
     public allowConnectionsFrom(other: IConnectable) {

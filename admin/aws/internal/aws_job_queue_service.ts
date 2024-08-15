@@ -16,7 +16,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsOpensearchWithConnections} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -35,7 +35,7 @@ export class AwsJobQueueService extends Construct {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
-            opensearch: AwsOpensearch;
+            opensearch: AwsOpensearchWithConnections;
             sqs: AwsSqs;
             taskRealtimeService: AwsTaskRealtimeService;
         },
@@ -153,6 +153,16 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "apnsCertificatePrivateKey",
                 ),
+                GITHUB_APP_ID: EcsSecret.fromSecretsManager(secrets, "githubAppId"),
+                GITHUB_APP_PRIVATE_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "githubAppPrivateKey",
+                ),
+                GITHUB_APP_CLIENT_ID: EcsSecret.fromSecretsManager(secrets, "githubAppClientId"),
+                GITHUB_APP_CLIENT_SECRET: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "githubAppClientSecret",
+                ),
             },
             environment: {
                 NODE_ENV: "production",
@@ -165,11 +175,16 @@ export class AwsJobQueueService extends Construct {
                 `/var/www/server/jobs/queue/queue ${[
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    `--jobQueueArn=${sqs.getJobQueueArn()}`,
+                    `--schedulerJobQueueRoleArn=${taskDefinition.taskRole.roleArn}`,
                     "--edgeServiceUrl=https://cyberworlds.dev",
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     "--cohereApiKey=$COHERE_API_KEY",
+                    "--githubAppId=$GITHUB_APP_ID",
+                    "--githubAppClientId=$GITHUB_APP_CLIENT_ID",
+                    "--githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET",
                     // Intentionally escape `$` here! Our key args accept either a file path
                     // or the name of an environment variable. RSA keys are too long to be included
                     // in a command line string and are hard to quote so we lookup the environment
@@ -181,6 +196,7 @@ export class AwsJobQueueService extends Construct {
                     "--servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",
                     "--apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY",
+                    "--githubAppPrivateKey=\\$GITHUB_APP_PRIVATE_KEY",
                 ].join(" ")}`,
             ],
             healthCheck: {

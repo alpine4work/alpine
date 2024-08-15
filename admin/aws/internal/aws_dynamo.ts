@@ -1,5 +1,5 @@
 import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
-import {AttributeType, BillingMode, ProjectionType, Table} from "aws-cdk-lib/aws-dynamodb";
+import {AttributeType, BillingMode, ITable, ProjectionType, Table} from "aws-cdk-lib/aws-dynamodb";
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {getAllDynamoTableSchemas} from "~/admin/dynamo/get_all_dynamo_table_schemas.js";
 import {DynamoClientAction} from "~/server/dynamo/core/dynamo_client_action.js";
@@ -8,19 +8,16 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
 export class AwsDynamo {
-    private readonly stack: Stack;
-    private readonly _tables: ReadonlyArray<{readonly tableName: string; readonly table: Table}>;
+    private readonly _stack: Stack;
+    private readonly _tableByName: ReadonlyMap<string, ITable>;
 
-    constructor(
-        stack: Stack,
-        tables: ReadonlyArray<{readonly tableName: string; readonly table: Table}>,
-    ) {
-        this.stack = stack;
-        this._tables = tables;
+    constructor(stack: Stack, tableByName: ReadonlyMap<string, ITable>) {
+        this._stack = stack;
+        this._tableByName = tableByName;
     }
 
     public static async new(parentScope: Stack) {
-        const tables: Array<{readonly tableName: string; readonly table: Table}> = [];
+        const tableByName = new Map<string, ITable>();
 
         for (const tableSchema of await getAllDynamoTableSchemas()) {
             const tableName = tableSchema.getName();
@@ -59,7 +56,7 @@ export class AwsDynamo {
                 billingMode: BillingMode.PAY_PER_REQUEST,
             });
 
-            tables.push({tableName, table});
+            tableByName.set(tableName, table);
 
             for (const [i, indexDescription] of tableDescription.indexes.entries()) {
                 const indexNumber = i + 1;
@@ -85,14 +82,33 @@ export class AwsDynamo {
             }
         }
 
-        return new AwsDynamo(parentScope, tables);
+        return new AwsDynamo(parentScope, tableByName);
     }
 
     /**
      * Grant read/write access to all of our DynamoDB tables.
      */
-    public grantReadWriteData(
+    public grantReadWriteData(grantee: IGrantable, options?: {allowExpensiveScan?: boolean}) {
+        for (const table of this._tableByName.values()) {
+            this._grantReadWriteData(grantee, table, options);
+        }
+    }
+
+    /**
+     * Grant read/write access to a single DynamoDB table.
+     */
+    public grantReadWriteDataForTable(
         grantee: IGrantable,
+        tableName: string,
+        options?: {allowExpensiveScan?: boolean},
+    ) {
+        const table = assertExists(this._tableByName.get(tableName));
+        this._grantReadWriteData(grantee, table, options);
+    }
+
+    private _grantReadWriteData(
+        grantee: IGrantable,
+        table: ITable,
         {allowExpensiveScan = false}: {allowExpensiveScan?: boolean} = {},
     ) {
         const allowedDynamoClientActions = filterMapArray(
@@ -124,36 +140,42 @@ export class AwsDynamo {
             ([action, isAllowed]) => (isAllowed ? action : null),
         );
 
-        for (const {table} of this._tables) {
-            grantee.grantPrincipal.addToPrincipalPolicy(
-                new PolicyStatement({
-                    resources: [table.tableArn, `${table.tableArn}/index/*`],
-                    actions: [
-                        ...allowedDynamoClientActions,
-                        // Write transaction entries that aren't top-level DynamoDB actions.
-                        "UpdateItem",
-                        "ConditionCheckItem",
-                    ].map(action => `dynamodb:${action}`),
-                }),
-            );
-        }
+        grantee.grantPrincipal.addToPrincipalPolicy(
+            new PolicyStatement({
+                resources: [table.tableArn, `${table.tableArn}/index/*`],
+                actions: [
+                    ...allowedDynamoClientActions,
+                    // Write transaction entries that aren't top-level DynamoDB actions.
+                    "UpdateItem",
+                    "ConditionCheckItem",
+                ].map(action => `dynamodb:${action}`),
+            }),
+        );
     }
 
-    public export(tableName: string) {
-        const {table} = assertExists(
-            this._tables.find(({tableName: otherTableName}) => otherTableName === tableName),
-        );
+    public export(tableNames: ReadonlyArray<string>) {
+        for (const tableName of tableNames) {
+            const table = assertExists(this._tableByName.get(tableName));
 
-        new CfnOutput(this.stack, `${tableName}TableArnExport`, {
-            value: table.tableArn,
-            exportName: `${this.stack.stackName}:${tableName}TableArn`,
-        });
+            new CfnOutput(this._stack, `${tableName}TableArnExport`, {
+                value: table.tableArn,
+                exportName: `${this._stack.stackName}:${tableName}TableArn`,
+            });
+        }
 
-        return (importStack: Stack) =>
-            Table.fromTableArn(
-                importStack,
-                `${tableName}TableImport`,
-                Fn.importValue(`${this.stack.stackName}:${tableName}TableArn`),
+        return (importStack: Stack) => {
+            const tableByName = new Map<string, ITable>(
+                tableNames.map(tableName => [
+                    tableName,
+                    Table.fromTableArn(
+                        importStack,
+                        `${tableName}TableImport`,
+                        Fn.importValue(`${this._stack.stackName}:${tableName}TableArn`),
+                    ),
+                ]),
             );
+
+            return new AwsDynamo(importStack, tableByName);
+        };
     }
 }

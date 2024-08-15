@@ -8,7 +8,6 @@ ts_project(
         "//:node_modules/@types/color",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
-        "//:node_modules/aws-cdk",
         "//:node_modules/aws4fetch",
         "//:node_modules/chalk",
         "//:node_modules/color",

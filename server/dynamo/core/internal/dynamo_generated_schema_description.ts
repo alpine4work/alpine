@@ -1172,6 +1172,55 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "dispatchedDeployment": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "workflowRunId": {
+                                                        "valueSchema": {
+                                                            "type": "Nullable",
+                                                            "schema": {
+                                                                "type": "Integer"
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "commitSha": {
+                                                        "valueSchema": {
+                                                            "type": "String"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "scheduledDeployment": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "commitSha": {
+                                                        "valueSchema": {
+                                                            "type": "String"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "hasCreatedScheduleForNextDeployableTime": {
+                                                        "valueSchema": {
+                                                            "type": "Boolean"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

@@ -2155,7 +2155,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             onAfterTransactionExecutedSuccessfully,
         }: {
             condition?: DynamoCondition<Item>;
-            onAfterTransactionExecutedSuccessfully?: () => void;
+            onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>;
         } = {},
     ): DynamoTransactionEntry {
         const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
@@ -2197,7 +2197,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public transactionCreateOrReplaceItem<Item extends Types["Item"]>(
         item: Item,
-        options?: {onAfterTransactionExecutedSuccessfully?: () => void},
+        options?: {onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>},
     ): DynamoTransactionEntry {
         return this._transactionPutItem(item, options);
     }
@@ -2264,7 +2264,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition,
             isConditionCheckErrorRetriable,
         }: {
-            onAfterTransactionExecutedSuccessfully?: () => void;
+            onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>;
         } & (
             | {
                   condition: DynamoCondition<Item>;

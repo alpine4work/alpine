@@ -1,5 +1,5 @@
 import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
-import {IVpc, Vpc} from "aws-cdk-lib/aws-ec2";
+import {Vpc} from "aws-cdk-lib/aws-ec2";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
@@ -68,7 +68,7 @@ export class AwsVpc extends Vpc {
             });
         });
 
-        return (importStack: Stack): IVpc => {
+        return (importStack: Stack): AwsVpc => {
             const vpcIdImport = Fn.importValue(`${this.stack.stackName}:VpcId`);
 
             const publicSubnetIdImports = createArrayWithLength(this.publicSubnets.length, index =>
@@ -109,7 +109,7 @@ export class AwsVpc extends Vpc {
                     ),
             );
 
-            return Vpc.fromVpcAttributes(importStack, "VpcImport", {
+            const vpc = Vpc.fromVpcAttributes(importStack, "VpcImport", {
                 vpcId: vpcIdImport,
                 availabilityZones: this.availabilityZones,
                 publicSubnetIds: publicSubnetIdImports,
@@ -119,6 +119,10 @@ export class AwsVpc extends Vpc {
                 isolatedSubnetIds: isolatedSubnetIdImports,
                 isolatedSubnetRouteTableIds: isolatedSubnetRouteTableIdImports,
             });
+
+            assert(Object.getPrototypeOf(vpc) === Vpc.prototype);
+            Object.setPrototypeOf(vpc, AwsVpc.prototype);
+            return vpc as AwsVpc;
         };
     }
 }

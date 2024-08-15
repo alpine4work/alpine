@@ -6,11 +6,13 @@ import {
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
+import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -23,10 +25,16 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * to execute jobs. By default `createTestContext()` ignores all jobs. You must
  * provide a `processJob` implementation ot `createTestContext()`.
  */
-export class TestLocalJobSender extends JobSenderBase {
+export class TestLocalJobSender implements JobSenderBase {
     private readonly _processJob: (
         context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
         job: JobDescription,
+        jobStartTime: Date,
+        span: TracerSpan,
+    ) => Promise<void>;
+    private readonly _processMaintenanceJob: (
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: MaintenanceJobDescription,
         jobStartTime: Date,
         span: TracerSpan,
     ) => Promise<void>;
@@ -35,6 +43,7 @@ export class TestLocalJobSender extends JobSenderBase {
 
     constructor({
         processJob,
+        processMaintenanceJob = asyncNoop,
         createSystemContext,
     }: {
         processJob: (
@@ -43,16 +52,22 @@ export class TestLocalJobSender extends JobSenderBase {
             jobStartTime: Date,
             span: TracerSpan,
         ) => Promise<void>;
+        processMaintenanceJob?: (
+            context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+            job: MaintenanceJobDescription,
+            jobStartTime: Date,
+            span: TracerSpan,
+        ) => Promise<void>;
         createSystemContext: (spaceId: SpaceId) => ServerSystemActionContext;
     }) {
         assert(process.env.NODE_ENV === "test");
 
-        super();
         this._processJob = processJob;
+        this._processMaintenanceJob = processMaintenanceJob;
         this._createSystemContext = createSystemContext;
     }
 
-    public override send(
+    public send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -60,7 +75,7 @@ export class TestLocalJobSender extends JobSenderBase {
         this._send(context, job, options);
     }
 
-    public override async sendAndWait(
+    public async sendAndWait(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -68,12 +83,20 @@ export class TestLocalJobSender extends JobSenderBase {
         this._send(context, job, options);
     }
 
-    public override async sendImmediately(
+    public async sendImmediately(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
     ): Promise<void> {
         this._send(context, job, options);
+    }
+
+    public async dangerouslySendMaintenance(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: MaintenanceJobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void> {
+        this._sendMaintenance(context, job, options);
     }
 
     private _send(
@@ -105,6 +128,43 @@ export class TestLocalJobSender extends JobSenderBase {
                             await this._processJob(context, job, jobStartTime, span);
                         },
                     );
+                }),
+            );
+        };
+
+        if (delaySeconds === 0) {
+            run();
+        } else {
+            const timeout = createTimeout(run, delaySeconds * 1000);
+
+            afterTestEnds(() => {
+                if (!hasRun) {
+                    timeout.clear();
+                    run();
+                }
+            });
+        }
+    }
+
+    private _sendMaintenance(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: MaintenanceJobDescription,
+        {delaySeconds = 0}: {delaySeconds?: number} = {},
+    ) {
+        const tracer = context.tracer.getTracer();
+        const processContextModule = context.process.fork();
+
+        const jobStartTime = new Date(Date.now() + delaySeconds * 1000);
+
+        let hasRun = false;
+
+        const run = () => {
+            assert(!hasRun);
+            hasRun = true;
+
+            processContextModule.waitUntil(
+                tracer.withSpan(`Process maintenance job ${job.type} (locally)`, async span => {
+                    await this._processMaintenanceJob(context, job, jobStartTime, span);
                 }),
             );
         };

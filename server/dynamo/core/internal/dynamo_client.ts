@@ -17,7 +17,9 @@ import {
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -28,6 +30,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -377,10 +380,29 @@ export class DynamoClient {
         {
             let hasError = false;
             let error: unknown = null;
+            const promises: Array<Promise<void>> = [];
 
             for (const entry of entries) {
                 try {
-                    entry._onAfterTransactionExecutedSuccessfully(DynamoClient);
+                    const maybePromise =
+                        entry._onAfterTransactionExecutedSuccessfully(DynamoClient);
+
+                    if (isPromiseLike(maybePromise)) {
+                        promises.push(maybePromise);
+                    }
+                } catch (entryError) {
+                    if (!hasError) {
+                        hasError = true;
+                        error = entryError;
+                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                        error = entryError;
+                    }
+                }
+            }
+
+            if (promises.length > 0) {
+                try {
+                    await runAllPromises(promises);
                 } catch (entryError) {
                     if (!hasError) {
                         hasError = true;
@@ -418,7 +440,7 @@ export class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
-        onAfterTransactionExecutedSuccessfully?: (() => void) | null;
+        onAfterTransactionExecutedSuccessfully?: (() => MaybePromise<void>) | null;
         debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {

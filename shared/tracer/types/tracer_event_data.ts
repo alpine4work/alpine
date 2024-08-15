@@ -778,6 +778,47 @@ export type TracerEventData = {
             /** Reason from the activity event which marks a resource as finished deploying. */
             readonly finishStatusReason?: string;
         };
+
+        /**
+         * Information regarding AWS EventBridge.
+         */
+        readonly eventbridge?: {
+            /**
+             * Information regarding the AWS EventBridge Scheduler.
+             */
+            readonly scheduler?: {
+                /** The schedule name we're operating on. */
+                readonly name?: string;
+
+                /** The group the schedule we're operating on is a part of. */
+                readonly groupName?: string;
+
+                /** A human-readable description of the target EventBridge will update. */
+                readonly target?: string;
+
+                /** The schedule ARN for finding and updating it in AWS. */
+                readonly arn?: string;
+
+                /** The expression we assign to the schedule we're operating on. */
+                readonly expression?: string;
+
+                /** The time zone to use when interpreting the schedule expression. */
+                readonly expressionTimeZone?: string;
+
+                /**
+                 * If a flexible time window is enabled, the maximum amount of time in
+                 * minutes after the schedule is fired EventBridge can send an event to the
+                 * target.
+                 */
+                readonly maxFlexibleTimeWindowMinutes?: number;
+
+                /** When does the schedule start running? */
+                readonly startDate?: DateString;
+
+                /** When does the schedule stop running? */
+                readonly endDate?: DateString;
+            };
+        };
     };
 
     readonly email?: {
@@ -1006,6 +1047,17 @@ export type TracerEventData = {
          * commit.
          */
         readonly oldCommit?: string;
+
+        /**
+         * The timestamp with time zone we use for determining `isTimeDeployable`.
+         */
+        readonly zonedTime?: string;
+
+        /**
+         * Is `zonedTime` a time when we can run a deploy? True if its work hours on
+         * a weekday.
+         */
+        readonly isTimeDeployable?: boolean;
     };
 };
 

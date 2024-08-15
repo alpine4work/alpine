@@ -19,7 +19,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsOpensearchWithConnections} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -38,7 +38,7 @@ export class AwsAppService extends Construct {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
-            opensearch: AwsOpensearch;
+            opensearch: AwsOpensearchWithConnections;
             sqs: AwsSqs;
             taskRealtimeService: AwsTaskRealtimeService;
         },

@@ -5,7 +5,7 @@ import {
     githubRepo,
     prepareDeploy,
 } from "~/server/deploy/data/deploy_table.js";
-import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
+import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
 import {CloudflareR2ContextModule} from "~/server/deploy/script/internal/cloudflare_r2_context_module.js";
 import {
     cleanupAppStaticFilesAfterDeploy,
@@ -14,6 +14,7 @@ import {
 import {deployAws} from "~/server/deploy/script/internal/deploy_aws.js";
 import {deployCloudflare} from "~/server/deploy/script/internal/deploy_cloudflare.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -41,7 +42,8 @@ const honeycombTeam = "cyberworlds";
 export async function deploy(
     context: Context<
         DynamoContextModules & {
-            github: GithubContextModule;
+            jobs: JobsContextModule;
+            github: GithubContextModuleBase;
             cloudflareR2: CloudflareR2ContextModule;
         }
     >,
@@ -170,7 +172,8 @@ export async function deploy(
 async function actuallyDeploy(
     context: Context<
         DynamoContextModules & {
-            github: GithubContextModule;
+            jobs: JobsContextModule;
+            github: GithubContextModuleBase;
             cloudflareR2: CloudflareR2ContextModule;
         }
     >,
@@ -201,7 +204,7 @@ async function actuallyDeploy(
 
     const deployStartTime = new Date();
 
-    const githubCompareUrl = `https://github.com/${githubOwner}/${githubRepo}/compare/${deployItem.commitSha}...${commitSha}`;
+    const githubCompareUrl = `https://github.com/${githubOwner}/${githubRepo}/compare/${deployItem.activeCommitSha}...${commitSha}`;
     const honeycombTraceUrl = `https://ui.honeycomb.io/${honeycombTeam}/environments/production/trace?trace_id=${
         rootSpan.traceId
     }&trace_start_ts=${Math.round(
@@ -210,7 +213,7 @@ async function actuallyDeploy(
 
     rootSpan.addData({
         deploy: {
-            oldCommit: deployItem.commitSha,
+            oldCommit: deployItem.activeCommitSha,
         },
         github: {
             compareUrl: githubCompareUrl,
@@ -226,6 +229,8 @@ async function actuallyDeploy(
     // eslint-disable-next-line no-console
     console.log(`::notice title=Trace::${honeycombTraceUrl}`);
 
+    let hasAwsDeployFinished = false;
+
     const result = await captureResultPromise(async () => {
         const {manifest, paths} = await context.tracer.withSpan(
             "Upload app static files",
@@ -233,6 +238,16 @@ async function actuallyDeploy(
         );
 
         await context.tracer.withSpan("Deploy AWS", (context, span) => deployAws(span));
+
+        // Our deploy table updates `deployItem.commitSha` once the AWS deploy is done.
+        // Since after the AWS deploy if the deploy fails we won't rollback our changes
+        // to AWS.
+        //
+        // We should consider deploying to Cloudflare (and uploading static files)
+        // within CloudFormation to get proper rollback handling when a Cloudflare
+        // deploy fails. Right now if the Cloudflare deploy fails the AWS deploy stays
+        // in production but Cloudflare continues to run old code.
+        hasAwsDeployFinished = true;
 
         await context.tracer.withSpan("Deploy Cloudflare", () =>
             deployCloudflare({
@@ -262,8 +277,8 @@ async function actuallyDeploy(
     await cleanupDeploy(context, {
         commitSha,
         workflowRunId,
-        result,
         initialItem: deployItem,
+        hasAwsDeployFinished,
     });
 
     unwrapResult(result);

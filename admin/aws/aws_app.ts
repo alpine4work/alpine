@@ -1,6 +1,5 @@
-import {App, CfnOutput, Fn, Stack} from "aws-cdk-lib";
-import {ITable} from "aws-cdk-lib/aws-dynamodb";
-import {IVpc, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {App, CfnOutput, Stack} from "aws-cdk-lib";
+import {SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
@@ -20,9 +19,7 @@ export async function createAwsApp() {
     const app = new App({autoSynth: false});
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    const {importOpensearchHost, importJobQueueUrl, importDeployTable} = await addAwsResources(
-        stack,
-    );
+    const {importDynamo, importOpensearch, importSqs} = await addAwsResources(stack);
 
     // Resources related to continuous integration and continuous deployment live in
     // this stack. The term "lifecycle" is from the industry term
@@ -32,25 +29,25 @@ export async function createAwsApp() {
     });
     addAwsLifecycleResources(lifecycleStack, {
         cloudflareAccountId,
-        importOpensearchHost,
-        importJobQueueUrl,
-        importDeployTable,
+        importDynamo,
+        importOpensearch,
+        importSqs,
     });
 
     return app;
 }
 
 async function addAwsResources(stack: Stack): Promise<{
-    importVpc: (stack: Stack) => IVpc;
-    importOpensearchHost: (stack: Stack) => string;
-    importJobQueueUrl: (stack: Stack) => string;
-    importDeployTable: (stack: Stack) => ITable;
+    importVpc: (stack: Stack) => AwsVpc;
+    importDynamo: (stack: Stack) => AwsDynamo;
+    importOpensearch: (stack: Stack) => AwsOpensearch;
+    importSqs: (stack: Stack) => AwsSqs;
 }> {
     const vpc = new AwsVpc(stack);
 
     const ecsCluster = new AwsEcsCluster(stack, vpc);
-    const opensearch = new AwsOpensearch(stack, vpc);
-    const sqs = new AwsSqs(stack);
+    const opensearch = AwsOpensearch.new(stack, vpc);
+    const sqs = AwsSqs.new(stack);
 
     new AwsCronJobs(stack, sqs);
 
@@ -89,11 +86,7 @@ async function addAwsResources(stack: Stack): Promise<{
         sqs,
     });
 
-    new CfnOutput(stack, "OpensearchHostExport", {
-        value: opensearch.opensearchHost,
-        exportName: `${stack.stackName}:OpensearchHost`,
-    });
-
+    // TODO(calebmer, #deploy): Remove this after lifecycle stack stops using it.
     new CfnOutput(stack, "JobQueueUrlExport", {
         value: sqs.getJobQueueUrl(),
         exportName: `${stack.stackName}:JobQueueUrl`,
@@ -114,9 +107,9 @@ async function addAwsResources(stack: Stack): Promise<{
     // - Ensure the output is never implicitly deleted
     return {
         importVpc: vpc.export(),
-        importOpensearchHost: () => Fn.importValue(`${stack.stackName}:OpensearchHost`),
-        importJobQueueUrl: () => Fn.importValue(`${stack.stackName}:JobQueueUrl`),
-        importDeployTable: dynamo.export("Deploy"),
+        importDynamo: dynamo.export(["Deploy"]),
+        importOpensearch: opensearch.export(),
+        importSqs: sqs.export(),
     };
 }
 
@@ -124,19 +117,19 @@ function addAwsLifecycleResources(
     stack: Stack,
     {
         cloudflareAccountId,
-        importOpensearchHost,
-        importJobQueueUrl,
-        importDeployTable,
+        importDynamo,
+        importOpensearch,
+        importSqs,
     }: {
         cloudflareAccountId: string;
-        importOpensearchHost: (stack: Stack) => string;
-        importJobQueueUrl: (stack: Stack) => string;
-        importDeployTable: (stack: Stack) => ITable;
+        importDynamo: (stack: Stack) => AwsDynamo;
+        importOpensearch: (stack: Stack) => AwsOpensearch;
+        importSqs: (stack: Stack) => AwsSqs;
     },
 ) {
-    const opensearchHost = importOpensearchHost(stack);
-    const jobQueueUrl = importJobQueueUrl(stack);
-    const deployTable = importDeployTable(stack);
+    const dynamo = importDynamo(stack);
+    const opensearch = importOpensearch(stack);
+    const sqs = importSqs(stack);
 
     // Create our own VPC for lifecycle resources. Right now, we put most resources
     // in public subnets anyway so this doesn't add too much security. What this
@@ -159,8 +152,8 @@ function addAwsLifecycleResources(
     new AwsGithubRunners(stack, {
         vpc,
         cloudflareAccountId,
-        opensearchHost,
-        jobQueueUrl,
-        deployTable,
+        dynamo,
+        opensearch,
+        sqs,
     });
 }

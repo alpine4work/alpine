@@ -1,26 +1,37 @@
+import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
 import {SqsQueue, SqsQueueProps} from "aws-cdk-lib/aws-events-targets";
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
-import {Queue} from "aws-cdk-lib/aws-sqs";
+import {IQueue, Queue} from "aws-cdk-lib/aws-sqs";
 import {Construct} from "constructs";
 
-export class AwsSqs extends Construct {
-    private readonly _jobQueue: Queue;
+export class AwsSqs {
+    private readonly _jobQueue: IQueue;
 
-    constructor(parentConstruct: Construct) {
-        super(parentConstruct, "Sqs");
+    private constructor(jobQueue: IQueue) {
+        this._jobQueue = jobQueue;
+    }
 
-        const jobDeadLetterQueue = new Queue(this, "JobDeadLetterQueue");
+    public static new(parentConstruct: Construct) {
+        const construct = new Construct(parentConstruct, "Sqs");
 
-        this._jobQueue = new Queue(this, "JobQueue", {
+        const jobDeadLetterQueue = new Queue(construct, "JobDeadLetterQueue");
+
+        const jobQueue = new Queue(construct, "JobQueue", {
             deadLetterQueue: {
                 queue: jobDeadLetterQueue,
                 maxReceiveCount: 5,
             },
         });
+
+        return new AwsSqs(jobQueue);
     }
 
     public getJobQueueUrl() {
         return this._jobQueue.queueUrl;
+    }
+
+    public getJobQueueArn() {
+        return this._jobQueue.queueArn;
     }
 
     public createJobQueueEventTarget(props?: SqsQueueProps) {
@@ -48,5 +59,21 @@ export class AwsSqs extends Construct {
                 resources: [this._jobQueue.queueArn],
             }),
         );
+    }
+
+    public export() {
+        new CfnOutput(this._jobQueue.stack, "JobQueueArnExport", {
+            value: this._jobQueue.queueArn,
+            exportName: `${this._jobQueue.stack.stackName}:JobQueueArn`,
+        });
+
+        return (importStack: Stack) =>
+            new AwsSqs(
+                Queue.fromQueueArn(
+                    importStack,
+                    "JobQueueImport",
+                    Fn.importValue(`${this._jobQueue.stack.stackName}:JobQueueArn`),
+                ),
+            );
     }
 }

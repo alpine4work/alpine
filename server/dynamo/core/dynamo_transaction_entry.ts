@@ -3,6 +3,7 @@
 import type * as types from "@aws-sdk/client-dynamodb";
 import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
 import {DynamoClientDebugItemType} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 /**
  * An entry within a DynamoDB write transaction. Entries within a transaction
@@ -13,13 +14,15 @@ import {DynamoClientDebugItemType} from "~/server/dynamo/core/internal/dynamo_cl
 export class DynamoTransactionEntry {
     private readonly _transactItem: types.TransactWriteItem;
     public readonly isConditionCheckErrorRetriable: boolean;
-    private readonly _onAfterTransactionExecutedSuccessfullyCallback: (() => void) | null;
+    private readonly _onAfterTransactionExecutedSuccessfullyCallback:
+        | (() => MaybePromise<void>)
+        | null;
     public readonly debugItemType: DynamoClientDebugItemType;
 
     private constructor(
         transactItem: types.TransactWriteItem,
         isConditionCheckErrorRetriable: boolean,
-        onAfterTransactionExecutedSuccessfully: (() => void) | null,
+        onAfterTransactionExecutedSuccessfully: (() => MaybePromise<void>) | null,
         debugItemType: DynamoClientDebugItemType,
     ) {
         this._transactItem = transactItem;
@@ -45,7 +48,7 @@ export class DynamoTransactionEntry {
         }: {
             transactItem: types.TransactWriteItem;
             isConditionCheckErrorRetriable: boolean;
-            onAfterTransactionExecutedSuccessfully: (() => void) | null;
+            onAfterTransactionExecutedSuccessfully: (() => MaybePromise<void>) | null;
             debugItemType: DynamoClientDebugItemType;
         },
     ) {
@@ -74,8 +77,10 @@ export class DynamoTransactionEntry {
      * in a `DynamoClient` to make sure you at least have access to a
      * `DynamoClient` which is in an internal directory.
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public _onAfterTransactionExecutedSuccessfully(client: typeof DynamoClient): void {
-        this._onAfterTransactionExecutedSuccessfullyCallback?.();
+    public _onAfterTransactionExecutedSuccessfully(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        client: typeof DynamoClient,
+    ): MaybePromise<void> {
+        return this._onAfterTransactionExecutedSuccessfullyCallback?.();
     }
 }

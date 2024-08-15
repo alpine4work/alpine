@@ -1346,6 +1346,10 @@ Resources:
                                         - GithubRunnersBazelRemoteBucket2843E0D0
                                         - Arn
                                   - /*
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsStack:JobQueueArn
                 Version: 2012-10-17
             PolicyName: GithubRunnersTestRunnerProviderRoleDefaultPolicyC5F9D7D8
             Roles:
@@ -1509,18 +1513,19 @@ Resources:
                           - dynamodb:BatchWriteItem
                           - dynamodb:ConditionCheckItem
                           - dynamodb:DeleteItem
-                          - dynamodb:DescribeTable
                           - dynamodb:GetItem
-                          - dynamodb:GetRecords
-                          - dynamodb:GetShardIterator
                           - dynamodb:PutItem
                           - dynamodb:Query
-                          - dynamodb:Scan
+                          - dynamodb:TransactGetItems
+                          - dynamodb:TransactWriteItems
                           - dynamodb:UpdateItem
                       Effect: Allow
                       Resource:
                           - Fn::ImportValue: CyberworldsStack:DeployTableArn
-                          - Ref: AWS::NoValue
+                          - Fn::Join:
+                                - ""
+                                - - Fn::ImportValue: CyberworldsStack:DeployTableArn
+                                  - /index/*
                     - Action: sts:AssumeRole
                       Effect: Allow
                       Resource:
@@ -2110,8 +2115,27 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
-                        te\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2137,8 +2161,27 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
-                        te\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2164,8 +2207,27 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
-                        te\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2191,8 +2253,27 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
-                        te\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2218,8 +2299,27 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
-                        te\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2244,8 +2344,27 @@ Resources:
                       - Ref: GithubRunnersTestRunnerProviderLogs0D5ED8AB
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-test', $.runner.registrationUrl,
-                        States.Base64Encode('')))\",\"InstanceInitiatedShutdownBehavior\":\"termina\
-                        te\",\"IamInstanceProfile\":{\"Arn\":\""
+                        States.Base64Encode('{\\\"jobQueueUrl\\\":\\\"https://sqs."
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersTestRunnerProviderInstanceProfile301DE8F2
                             - Arn
@@ -2321,8 +2440,26 @@ Resources:
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
                         7456c59242b\\\",\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
-                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"jobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
                       - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -2352,8 +2489,26 @@ Resources:
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
                         7456c59242b\\\",\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
-                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"jobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
                       - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -2383,8 +2538,26 @@ Resources:
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
                         7456c59242b\\\",\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
-                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"jobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
                       - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -2414,8 +2587,26 @@ Resources:
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
                         7456c59242b\\\",\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
-                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"jobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
                       - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -2445,8 +2636,26 @@ Resources:
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
                         7456c59242b\\\",\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
-                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"jobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
                       - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -2475,8 +2684,26 @@ Resources:
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
                         7456c59242b\\\",\\\"opensearchHost\\\":\\\""
                       - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"
-                      - Fn::ImportValue: CyberworldsStack:JobQueueUrl
+                      - \",\"jobQueueUrl\":\"https://sqs.
+                      - Fn::Select:
+                            - 3
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - .
+                      - Ref: AWS::URLSuffix
+                      - /
+                      - Fn::Select:
+                            - 4
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
+                      - /
+                      - Fn::Select:
+                            - 5
+                            - Fn::Split:
+                                  - ":"
+                                  - Fn::ImportValue: CyberworldsStack:JobQueueArn
                       - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
@@ -3167,7 +3394,7 @@ Resources:
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            Analytics: v2:deflate64:H4sIAAAAAAAA/21TyXLbMAz9lt5pNnVy6dFR24xnnIlqpbl6KAqSGXNRCNIej8b/XlCLlaQ9YSHeA/AELfm3u+/85os44UJWh4VWJe+KIOSBUWrXVWcrjKtK/ixKDfcCgYFc8u6llSyr7UuesTyWWskilhZCys3e1sUAPXDOz7kVopNKBOXstTg5axvAU+WDCHAS57HNGK0CzbY3YAMrQEavwvnBu9j2DT4kNiJauX8G02oxEH/MXBje8u4+ysMw7OgNJne00nlOj/EQJBUuTAnDu60bdpvs2mIQVkLuXa0oNfMMHsGMaKCMSlfgeUcPPxQGr8qYdMicrVUT/VWUzJnW2bRtIk/QLUjVjr1qLwgbZYge/oH21VcnJ5BWdtBB1SDPUsM0k3YN8m7jmquUk08iBWhr0i3RUlEuEFm2d0oCK6KUABXLhRdag2Z0NwEe6fuMjd7Hn5h2QeCB+DJCrk5YgD8myo0wZSXW9ugOxP9GeVs9AiJtQAQgPQQ0wlJI4hV9PH558miRHs67X2Ob9Hb1fx5Jx8JFL2mmtlW2Sc//yU6IP16nitHk4I1CTExTwXAIeLsjUWgwvkqG4Rvt9TtC7DXoncuFbQH7JiyLGJyZQzqeye/xJFozzvYUQxvDJwSd1lHR8QzNrauAv+LX4/KGp//4FZVa+GiDMsC3g/0LEBu3pOQDAAA=
+            Analytics: v2:deflate64:H4sIAAAAAAAA/21TwW7bMAz9lt0VrUt72TH1tiJAinpx12sgy7SjRpZcUUoQGPn3UZYdt91OenwiH8lnecm/3X3nN1/ECReyOiy0KnlfeCEPjKhdX52NaG1V8mdRargXCAzfkPe/A4QUDohltRnAhYFc8v6lk5F6yTOWh1IrWYTSgI/cjLY2eBh0Z37mVohWKuGVNdfkCNbGg6PMB+HhJM5jmzFaeRp934LxrAAZnPLnB2dDNzT4QGxEMHL/DG2nRRL+yFwY3vL+PshDGnZE6cgtrXSe6TFOQXTlwpRoeb+1abfpXBv0wkjIna0VUbNOQlTWigbKoHQFjvd08UOhd6oM0YfMmlo1wV1NyWzbWRO3jeKxdAtSdWOv2gmqDdIHB/+UDtlXkFORVib5oGqQZ6lhmknbhr74xjZXKydMJnnoavItylJSLhBZtrdKAiuClAAVy4UTWoNm9Kw8PNL3GRu9jz8p7bzAA+llVLk6YQHuGCU3oi0rsTZHeyD9N+JN9QiItAEJgHTgsRWGQjKvGOLxyxOiRYZy3v8a28S7K/55JB8LG5ykmbpOmSZe/4edKv44HTPGIwfXKsSoNCWkh4C3OzKFBuOreFzYFnDQY1lAb9s5pHcy4SGV/GnGMZ6C74L/VEGv6KjonaQ+xlbAX/HrcXnD4x/9ikotXDBetcC36fwLclWCEO4DAAA=
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/CDKMetadata/Default
 Outputs:

@@ -7,6 +7,7 @@ ts_project(
     name = "queue_lib",
     test_deps = ["//server/dynamo/test_helpers"],
     deps = [
+        "//:node_modules/@octokit/auth-app",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/fs-extra",
         "//server/apns",

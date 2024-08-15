@@ -277,6 +277,19 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             finishStatus: IdentifierStringSchema,
             finishStatusReason: Schema.string,
         },
+        eventbridge: {
+            scheduler: {
+                name: Schema.string,
+                groupName: Schema.string,
+                target: Schema.string,
+                arn: Schema.string,
+                expression: Schema.string,
+                expressionTimeZone: Schema.string,
+                maxFlexibleTimeWindowMinutes: Schema.integer,
+                startDate: DateStringSchema,
+                endDate: DateStringSchema,
+            },
+        },
     },
     email: {
         template: IdentifierStringSchema,
@@ -344,6 +357,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     deploy: {
         oldCommit: Schema.string,
+        zonedTime: Schema.string,
+        isTimeDeployable: Schema.boolean,
     },
 };
 

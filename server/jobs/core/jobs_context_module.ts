@@ -1,5 +1,6 @@
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
+import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -85,6 +86,18 @@ export class JobsContextModule
      */
     public sendImmediately(job: JobDescription, options?: {delaySeconds?: number}): Promise<void> {
         return this._sender.sendImmediately(this._context, job, options);
+    }
+
+    /**
+     * Send a maintenance job to our job queue. It's dangerous to schedule
+     * maintenance jobs since maintenance jobs have access to all data across our
+     * system! Users should not be able to arbitrarily schedule maintenance jobs.
+     */
+    public dangerouslySendMaintenance(
+        job: MaintenanceJobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void> {
+        return this._sender.dangerouslySendMaintenance(this._context, job, options);
     }
 
     public fork() {

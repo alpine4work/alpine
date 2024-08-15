@@ -1,3 +1,4 @@
+import {createActionAuth} from "@octokit/auth-action";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
 import {CloudflareR2Client} from "~/server/deploy/script/internal/cloudflare_r2_client.js";
 import {CloudflareR2ContextModule} from "~/server/deploy/script/internal/cloudflare_r2_context_module.js";
@@ -78,7 +79,11 @@ runService({
             awsSigner,
             options,
         }).clone({
-            github: new GithubContextModule(),
+            github: new GithubContextModule(
+                // Authenticate with the GitHub API through GitHub action environment
+                // variables.
+                createActionAuth().hook,
+            ),
             cloudflareR2: new CloudflareR2ContextModule(
                 new CloudflareR2Client({
                     accountId: cloudflareAccountId,
