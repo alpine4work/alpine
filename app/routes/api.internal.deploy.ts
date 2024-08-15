@@ -22,7 +22,7 @@ export async function loader({request, context, span}: LoaderArgs) {
                       }
                     : deploy.dispatchedDeployment
                     ? {
-                          commitSha: deploy.dispatchedDeployment,
+                          commitSha: deploy.dispatchedDeployment.commitSha,
                           workflowRunId: deploy.dispatchedDeployment.workflowRunId,
                       }
                     : null,
