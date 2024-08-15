@@ -315,17 +315,7 @@ export async function scheduleDeploy(
                 // deployment. Which we've already done above. We can return happy now.
                 if (newCommitSha === null) return deployItem;
 
-                const [commitTestResult, compareResult] = await runAllPromises([
-                    context.github.request(
-                        "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
-                        {
-                            owner: githubOwner,
-                            repo: githubRepo,
-                            workflow_id: testGithubWorkflowId,
-                            status: "success",
-                            head_sha: newCommitSha,
-                        },
-                    ),
+                const [compareResult] = await runAllPromises([
                     // Check if the new commit is already handled. We check:
                     //
                     // 1. If the commit is in the scheduled deployment. (The scheduled deployment
@@ -344,19 +334,39 @@ export async function scheduleDeploy(
                         }`,
                         per_page: 1,
                     }),
+
+                    // We should always have a passing test for commits that reach this point.
+                    // Since we only queue a `ScheduleDeploy` action after a passing test workflow.
+                    //
+                    // Because we queue this message within `.github/workflows/test.yaml` workflow
+                    // (before it's actually finished) it might take a second or two for GitHub to
+                    // update the workflow to a `passed` status. So retry until we find a successful
+                    // test run.
+                    retryWithExponentialBackoff(async retry => {
+                        const commitTestResult = await context.github.request(
+                            "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+                            {
+                                owner: githubOwner,
+                                repo: githubRepo,
+                                workflow_id: testGithubWorkflowId,
+                                status: "success",
+                                head_sha: newCommitSha,
+                            },
+                        );
+
+                        if (!(commitTestResult.data.total_count > 0)) {
+                            retry(
+                                new FailedPreconditionError(
+                                    quote`Passing test workflow not found for commit ${newCommitSha}`,
+                                ),
+                            );
+                        }
+                    }),
                 ]);
 
                 // If the commit is already handled we're good! We don't need to schedule or
                 // dispatch a new deploy.
                 if (compareResult.data.status !== "behind") return deployItem;
-
-                // We should always have a passing test for commits that reach this point.
-                // Since we only queue a `ScheduleDeploy` action after a passing test workflow.
-                if (!(commitTestResult.data.total_count > 0)) {
-                    throw new FailedPreconditionError(
-                        quote`Passing test workflow not found for commit ${newCommitSha}`,
-                    );
-                }
 
                 if (canDispatchDeploy) {
                     // We can't dispatch a deploy over a scheduled deployment. If
