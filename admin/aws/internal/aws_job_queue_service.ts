@@ -227,6 +227,10 @@ export class AwsJobQueueService extends Construct {
             }),
         );
 
+        // TODO(calebmer, #deploy): We need to grant access to
+        // `scheduler:CreateSchedule`. But I don't know what the resource ARN is yet.
+        // So let's wait to see an error then add it in here.
+
         const service = new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
             taskDefinition,
