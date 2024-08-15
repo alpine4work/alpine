@@ -3232,6 +3232,7 @@ Resources:
                                 --githubAppId=$GITHUB_APP_ID
                                 --githubAppClientId=$GITHUB_APP_CLIENT_ID
                                 --githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET
+                                --githubAppInstallationId=$GITHUB_APP_INSTALLATION_ID
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
                                 --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
@@ -3357,6 +3358,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:githubAppClientSecret::"
+                      - Name: GITHUB_APP_INSTALLATION_ID
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:JobQueueServiceSecrets:githubAppInstallationId::"
                   StopTimeout: 300
                   User: www-data
             ExecutionRoleArn:

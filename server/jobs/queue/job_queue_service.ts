@@ -70,6 +70,7 @@ runService({
         githubAppPrivateKey: {type: "string"},
         githubAppClientId: {type: "string"},
         githubAppClientSecret: {type: "string"},
+        githubAppInstallationId: {type: "string"},
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
@@ -180,10 +181,7 @@ runService({
                 ? new UnimplementedGithubContextModule()
                 : (() => {
                       const auth = createGithubAppAuth({
-                          appId: parseInt(
-                              assertExists(options.githubAppId, "Missing `githubAppId` option"),
-                              10,
-                          ),
+                          appId: assertExists(options.githubAppId, "Missing `githubAppId` option"),
                           privateKey: assertExists(
                               githubAppPrivateKey,
                               "Missing `githubAppPrivateKey` option",
@@ -195,6 +193,10 @@ runService({
                           clientSecret: assertExists(
                               options.githubAppClientSecret,
                               "Missing `githubAppClientSecret` option",
+                          ),
+                          installationId: assertExists(
+                              options.githubAppInstallationId,
+                              "Missing `githubAppInstallationId` option",
                           ),
                       });
 

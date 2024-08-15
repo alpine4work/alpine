@@ -163,6 +163,10 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "githubAppClientSecret",
                 ),
+                GITHUB_APP_INSTALLATION_ID: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "githubAppInstallationId",
+                ),
             },
             environment: {
                 NODE_ENV: "production",
@@ -185,6 +189,7 @@ export class AwsJobQueueService extends Construct {
                     "--githubAppId=$GITHUB_APP_ID",
                     "--githubAppClientId=$GITHUB_APP_CLIENT_ID",
                     "--githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET",
+                    "--githubAppInstallationId=$GITHUB_APP_INSTALLATION_ID",
                     // Intentionally escape `$` here! Our key args accept either a file path
                     // or the name of an environment variable. RSA keys are too long to be included
                     // in a command line string and are hard to quote so we lookup the environment
