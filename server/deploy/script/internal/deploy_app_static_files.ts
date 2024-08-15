@@ -35,13 +35,13 @@ const AppStaticBucketManifestSchema = Schema.object({
 /**
  * Uploads all static files from `//app:app_static` to Cloudflare R2. We serve
  * static files from `EdgeService` by reading from R2 in production. We keep
- * old static files around for 30 days after a deploy that removes them so
+ * old static files around for 14 days after a deploy that removes them so
  * clients running old code can continue to reference the old static files.
  *
  * This function uploads all files from `//app:app_static`. However, all the
  * files are marked as expiring. That way if a deploy rolls back the assets
  * will be available to any users who load the new client before a rollback
- * starts for 30 days. You must run `cleanupAppStaticFilesAfterDeploy()` after
+ * starts for 14 days. You must run `cleanupAppStaticFilesAfterDeploy()` after
  * a successful deploy to make sure new assets don't expire.
  */
 export async function uploadAppStaticFilesBeforeDeploy(
@@ -94,7 +94,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
                         uploadTime: currentTime,
                         // Files we upload before a deploy should expire. If the deploy succeeds we
                         // switch this to false. If the deploy fails then the static files will be kept
-                        // for our static file retention period (currently 30 days) after which they'll
+                        // for our static file retention period (currently 14 days) after which they'll
                         // be deleted.
                         //
                         // We need new static files during a deploy since some users may see newly
@@ -200,10 +200,10 @@ export async function cleanupAppStaticFilesAfterDeploy(
 ) {
     // If a file has `shouldExpire: true` and was uploaded before `expirationTime`
     // then we'll delete the file. Files that aren't actively used by the current
-    // deploy are kept for 30 days before we delete them. This way `AppService`
-    // clients using an old asset manifest have 30 days to reload before they start
+    // deploy are kept for 14 days before we delete them. This way `AppService`
+    // clients using an old asset manifest have 14 days to reload before they start
     // getting errors when you try to navigate.
-    const expirationTime = subDays(new Date(), 30);
+    const expirationTime = subDays(new Date(), 14);
     const expiredPaths = new Set<string>();
 
     const newManifest: AppStaticBucketManifest = {
