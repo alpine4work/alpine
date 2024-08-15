@@ -3,6 +3,7 @@ import path from "path";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
@@ -96,6 +97,7 @@ export async function runProcess(
                     reject(
                         new UnknownError(
                             `${nameMessage} process exited with code ${exitCode}${outputMessage}`,
+                            {cause: {exitCode}},
                         ),
                     );
                 } else {
@@ -120,6 +122,24 @@ export async function runProcess(
     });
 
     return stdout;
+}
+
+/**
+ * Is this an error thrown by `runProcess()` when the process exits with a
+ * non-zero exit code? If you expect a non-zero exit code from `runProcess()`
+ * you can use this to handle that error.
+ *
+ * When `runProcess()` exits with a non-zero exit code the error has a plain
+ * cause object with the `exitCode` property.
+ */
+export function isProcessExitErrorWithCode(error: unknown, exitCode: number): boolean {
+    if (isObject(error) && error.exitCode === exitCode) return true;
+
+    // Recurse into error cause if it exists.
+    if (error instanceof Error && error.cause)
+        return isProcessExitErrorWithCode(error.cause, exitCode);
+
+    return false;
 }
 
 /**

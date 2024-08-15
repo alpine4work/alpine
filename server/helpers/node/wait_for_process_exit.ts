@@ -13,7 +13,9 @@ export function waitForProcessExit(subprocess: ChildProcess): Promise<void> {
         // has a non-zero exit code.
         if (exitCode !== 0 && !subprocess.killed) {
             const name = path.basename(subprocess.spawnfile);
-            throw new UnknownError(quote`Process exited with code ${exitCode} (${name})`);
+            throw new UnknownError(quote`Process exited with code ${exitCode} (${name})`, {
+                cause: {exitCode},
+            });
         }
     });
 }

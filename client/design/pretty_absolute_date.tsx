@@ -3,6 +3,7 @@ import {OverlayPlacement} from "~/client/design/overlay.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {createPrettyAbsoluteDateFormatterWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 
 /**
  * Render a date in a human readable form.
@@ -54,39 +55,12 @@ export function usePrettyAbsoluteDateFormatter({
     const currentTime = useCurrentTimeRoundedToHour();
 
     return useMemo(() => {
-        const baseOptions: Intl.DateTimeFormatOptions = {
+        return createPrettyAbsoluteDateFormatterWithoutFullTimeTooltip(
+            locale,
             timeZone,
-            calendar: "iso8601",
-            day: "numeric",
-            weekday: shouldIncludeWeekday ? "short" : undefined,
-            hour: !shouldExcludeTime ? "numeric" : undefined,
-            minute: !shouldExcludeTime ? "2-digit" : undefined,
-            second: shouldIncludeSeconds ? "2-digit" : undefined,
-            hour12: true,
-        };
-
-        const formatterWithoutYear = new Intl.DateTimeFormat(locale, {
-            ...baseOptions,
-            month: "short",
-        });
-
-        const formatterWithYear = new Intl.DateTimeFormat(locale, {
-            ...baseOptions,
-            year: "numeric",
-            // If we include a short weekday, always use short months as well.
-            month: !shouldIncludeWeekday ? "long" : "short",
-        });
-
-        return (date: Date) => {
-            const isCurrentYear = currentTime.getFullYear() === date.getFullYear();
-
-            const formatter = isCurrentYear ? formatterWithoutYear : formatterWithYear;
-
-            return formatter
-                .format(date)
-                .replace(/, (\d+:\d+)/, " at $1")
-                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-        };
+            currentTime,
+            {shouldExcludeTime, shouldIncludeSeconds, shouldIncludeWeekday},
+        );
     }, [
         currentTime,
         locale,

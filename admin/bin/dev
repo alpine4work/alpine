@@ -120,33 +120,7 @@ case "$1" in
         ;;
 
     deployed)
-        commit="${2:-$(git rev-parse HEAD)}"
-
-        # Exit codes:
-        #
-        # - 0 = Commit is deployed
-        # - 1 = Commit isn't deployed
-        # - 2 = Commit is currently deploying, so the commit may be observable for some
-        #   users but not others
-
-        # TODO(calebmer): Could we get the data for implementing this in one network
-        # request?
-        if ! git merge-base --is-ancestor "$commit" main; then
-            echo "Commit isn't in main branch"
-            exit 1
-        elif git merge-base --is-ancestor "$commit" "$(curl -fSsL https://cyberworlds.dev/api/internal/deploy/commit)"; then
-            echo "Commit is deployed"
-            exit 0
-        elif git merge-base --is-ancestor "$commit" "$(curl -fSsL https://cyberworlds.dev/api/internal/deploy/commit?status=ongoing)"; then
-            echo "Commit is part of an ongoing deploy"
-            exit 2
-        elif git merge-base --is-ancestor "$commit" "$(curl -fSsL https://cyberworlds.dev/api/internal/deploy/commit?status=scheduled)"; then
-            echo "Commit is scheduled to be deployed later"
-            exit 1
-        else
-            echo "Commit isn't deployed"
-            exit 1
-        fi
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:deployed -- ${@:2}
         ;;
 
     *)

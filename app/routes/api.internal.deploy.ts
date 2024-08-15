@@ -3,6 +3,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 
 export async function loader({request, context, span}: LoaderArgs) {
     try {
@@ -28,7 +29,9 @@ export async function loader({request, context, span}: LoaderArgs) {
                 scheduledDeployment: deploy.scheduledDeployment
                     ? {
                           commitSha: deploy.scheduledDeployment.commitSha,
-                          nextDeployableTime: deploy.scheduledDeployment.nextDeployableTime,
+                          nextDeployableTime: deploy.scheduledDeployment.nextDeployableTime
+                              ? serializeDateString(deploy.scheduledDeployment.nextDeployableTime)
+                              : null,
                       }
                     : null,
             }),

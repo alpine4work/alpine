@@ -248,6 +248,7 @@ grant {
             errorPromiseResolver.reject(
                 new UnknownError(
                     `"opensearch" process exited with code ${exitCode}${stderrMessage}`,
+                    {cause: {exitCode}},
                 ),
             );
         } else {

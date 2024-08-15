@@ -30,6 +30,7 @@ ts_project(
         "//admin/opensearch/local",
         "//admin/sqs/local",
         "//server/helpers/node",
+        "//shared/design",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
@@ -60,5 +61,12 @@ js_binary(
         "//admin/playwright:playwright_show_trace",
     ],
     entry_point = "dev_testlogs_main.js",
+    env = {"NODE_ENV": "development"},
+)
+
+js_binary(
+    name = "deployed",
+    data = [":dev_lib"],
+    entry_point = "dev_deployed_main.js",
     env = {"NODE_ENV": "development"},
 )
