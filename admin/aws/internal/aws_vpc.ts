@@ -1,5 +1,6 @@
 import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
 import {Vpc} from "aws-cdk-lib/aws-ec2";
+import {Construct} from "constructs";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
@@ -12,7 +13,7 @@ import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 // Extending `Vpc` is also nice since it lets us pass this object in anywhere a
 // `Vpc` is needed.
 export class AwsVpc extends Vpc {
-    constructor(parentConstruct: Stack) {
+    constructor(parentConstruct: Construct) {
         super(parentConstruct, "Vpc", {
             // NAT gateways are expensive, don't run any. Right now our EC2 instances use
             // the public subnet. See why in comments on the VPC subnet selection.

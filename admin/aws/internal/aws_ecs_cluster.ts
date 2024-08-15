@@ -8,13 +8,13 @@ export class AwsEcsCluster extends Construct {
     public readonly cluster: Cluster;
     public readonly shortLivedLogDriver: LogDriver;
 
-    constructor(parentConstruct: Stack, vpc: Vpc) {
+    constructor(parentConstruct: Construct, vpc: Vpc) {
         super(parentConstruct, "EcsCluster");
 
         this.cluster = new Cluster(this, "Cluster", {vpc});
 
         this.shortLivedLogDriver = LogDrivers.awsLogs({
-            streamPrefix: parentConstruct.stackName,
+            streamPrefix: Stack.of(this).stackName,
             logRetention: RetentionDays.TWO_WEEKS,
         });
     }

@@ -1,4 +1,4 @@
-import {Duration} from "aws-cdk-lib";
+import {Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
@@ -42,6 +42,8 @@ export class AwsJobQueueService extends Construct {
         },
     ) {
         super(parentConstruct, "JobQueueService");
+
+        const stack = Stack.of(this);
 
         const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
             vpc,
@@ -233,9 +235,15 @@ export class AwsJobQueueService extends Construct {
             }),
         );
 
-        // TODO(calebmer, #deploy): We need to grant access to
-        // `scheduler:CreateSchedule`. But I don't know what the resource ARN is yet.
-        // So let's wait to see an error then add it in here.
+        // Allow scheduling deploys with AWS EventBridge Scheduler.
+        taskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                actions: ["scheduler:CreateSchedule"],
+                resources: [
+                    `arn:aws:scheduler:${stack.region}:${stack.account}:schedule/default/ScheduleDeployAtDeployableTime`,
+                ],
+            }),
+        );
 
         const service = new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
