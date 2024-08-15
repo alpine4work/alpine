@@ -266,15 +266,22 @@ export async function scheduleDeploy(
                     ));
                 previousDeployItem = null;
 
-                const resolvedDispatchedDeployment = await resolveDeployItemDispatchedDeployment(
-                    context,
-                    deployItem.dispatchedDeployment,
-                );
+                // We need to resolve `ongoingDeployment` and `dispatchedDeployment` in error
+                // edge cases where GitHub has concluded its workflow run but we didn't get a
+                // chance to update DynamoDB.
+                const [resolvedOngoingDeployment, resolvedDispatchedDeployment] =
+                    await runAllPromises([
+                        resolveDeployItemOngoingDeployment(context, deployItem.ongoingDeployment),
+                        resolveDeployItemDispatchedDeployment(
+                            context,
+                            deployItem.dispatchedDeployment,
+                        ),
+                    ]);
 
                 // Are we allowed to dispatch the deploy workflow? True if there is no ongoing
                 // deployment and it's a weekday during business hours.
                 const canDispatchDeploy: boolean =
-                    deployItem.ongoingDeployment === null &&
+                    resolvedOngoingDeployment === null &&
                     resolvedDispatchedDeployment === null &&
                     isCurrentTimeDeployable;
 
@@ -585,6 +592,28 @@ async function resolveDeployItemDispatchedDeploymentResult(
             return {workflowRunId: workflowRun.id, commitSha: dispatchedDeployment.commitSha};
         });
     });
+}
+
+async function resolveDeployItemOngoingDeployment(
+    context: Context<DynamoContextModules & {github: GithubContextModuleBase}>,
+    ongoingDeployment: DeployAttributesItem["ongoingDeployment"],
+): Promise<DeployAttributesItem["ongoingDeployment"]> {
+    if (ongoingDeployment === null) return null;
+
+    const workflowRunResult = await context.github.request(
+        "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
+        {
+            owner: githubOwner,
+            repo: githubRepo,
+            run_id: ongoingDeployment.workflowRunId,
+        },
+    );
+
+    // If the workflow has concluded, consider `ongoingDeployment` to be unset
+    // so we can dispatch a new deploy.
+    if (workflowRunResult.data.conclusion !== null) return null;
+
+    return ongoingDeployment;
 }
 
 /**
