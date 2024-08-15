@@ -823,12 +823,12 @@ class TaskActionTransactionIndexState {
                 retryPartialVersionConflictError: retry,
             });
 
-            // The search indexing jobs read from the task OpenSearch index. So sending
-            // the job after the index write will give us correct write-after-read
-            // semantics.
-            await runAllPromises(
-                jobs.map(({job, delaySeconds}) => state._context.jobs.send(job, {delaySeconds})),
-            );
+            for (const {job, delaySeconds} of jobs) {
+                // The search indexing jobs read from the task OpenSearch index. So sending
+                // the job after the index write will give us correct write-after-read
+                // semantics.
+                state._context.jobs.send(job, {delaySeconds});
+            }
 
             // After we've indexed our data, read all our referenced accounts again but
             // with a strong read consistency. If any referenced account name changed while
@@ -1754,7 +1754,7 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
                 {retryVersionConflictError: retry},
             );
 
-            await context.jobs.send(
+            context.jobs.send(
                 {
                     type: "IndexSearchEntity",
                     spaceId,

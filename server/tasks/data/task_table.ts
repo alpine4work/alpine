@@ -4430,7 +4430,7 @@ export function updateTaskCommentContent(
             }),
         ]);
 
-        await context.jobs.send({
+        context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: item.spaceId,
             update: {
@@ -4515,7 +4515,7 @@ export function deleteTaskComment(
             }),
         ]);
 
-        await context.jobs.send({
+        context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: item.spaceId,
             update: {
@@ -4625,33 +4625,32 @@ export async function createTaskComment(
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
         const contentSnippet = getNotificationMessageContentSnippet(content);
 
-        await runAllPromises([
-            context.jobs.send({
-                type: "NotificationEvent",
-                event: {
-                    type: "CreateTaskComment",
-                    id: generateId(),
-                    spaceId: spaceId,
-                    taskId,
-                    commentIndex,
-                    createdTime,
-                    authorId,
-                    mentionedAccountIds,
-                    isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
-                    contentSnippet,
-                },
-            }),
-            context.jobs.send({
-                type: "IndexSearchEntity",
+        context.jobs.send({
+            type: "NotificationEvent",
+            event: {
+                type: "CreateTaskComment",
+                id: generateId(),
                 spaceId: spaceId,
-                update: {
-                    type: "TaskComment",
-                    taskId,
-                    commentIndex,
-                    updatedTraits: {type: "None"},
-                },
-            }),
-        ]);
+                taskId,
+                commentIndex,
+                createdTime,
+                authorId,
+                mentionedAccountIds,
+                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                contentSnippet,
+            },
+        });
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: spaceId,
+            update: {
+                type: "TaskComment",
+                taskId,
+                commentIndex,
+                updatedTraits: {type: "None"},
+            },
+        });
 
         context.process.waitUntil(
             markSearchAffinityInteraction(context, {

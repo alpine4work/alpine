@@ -2,7 +2,7 @@ import {seedTestAccounts} from "~/server/accounts/accounts_table.js";
 import {seedTestAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/forum_table.js";
-import {JobsContextModule} from "~/server/spaces/jobs_context_module.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {seedTestSpaces} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";

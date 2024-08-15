@@ -1,9 +1,6 @@
-import {SQSClient, SendMessageBatchCommand, SendMessageCommand} from "@aws-sdk/client-sqs";
+import {SQSClient, SendMessageBatchCommand} from "@aws-sdk/client-sqs";
 import {JobDescription, JobDescriptionSchema} from "~/server/jobs/core/job_description.js";
-import {
-    MaintenanceJobDescription,
-    MaintenanceJobDescriptionSchema,
-} from "~/server/jobs/core/maintenance_job_description.js";
+import {MaintenanceJobDescriptionSchema} from "~/server/jobs/core/maintenance_job_description.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -65,32 +62,57 @@ type JobSenderMessageBatch = {
     }>;
 };
 
-export interface JobSenderBase {
+export abstract class JobSenderBase {
     /**
-     * Same as `JobContextModule.send()` but doesn't authorize that we're allowed to
-     * send the job.
+     * Sends a job to our job queue for processing. Will be batched with other jobs
+     * sent from the same process in a short window of time.
+     *
+     * The first job in a batch will need to wait 200ms before it can be sent as we
+     * accumulate other jobs.
+     *
+     * Doesn't guarantee the job was delivered. If the process unexpectedly ends
+     * you may return a successful result to the user without the job being saved
+     * in our queue. If you want to guarantee message delivery call
+     * `sendImmediately()` and await.
      */
-    dangerouslySendWithoutAuthorization(
+    public abstract send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
     ): void;
 
     /**
-     * Same as `JobContextModule.sendAndWait()` but doesn't authorize that we're
-     * allowed to send the job.
+     * Sends a job to our job queue for processing. Will be batched with other jobs
+     * sent from the same process in a short window of time.
+     *
+     * The first job in a batch will need to wait 200ms before it can be sent as we
+     * accumulate other jobs.
+     *
+     * Returns a promise that resolves only once the job has been sent to the
+     * queue. This means you may have to wait up to 200ms if this is the first job
+     * in a batch! Avoid this function if you need fast performance.
      */
-    dangerouslySendAndWaitWithoutAuthorization(
+    public abstract sendAndWait(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
     ): Promise<void>;
 
     /**
-     * Same as `JobContextModule.sendImmediately()` but doesn't authorize that we're
-     * allowed to send the job.
+     * Sends a job to our job queue for processing. Will not wait to batch with
+     * other jobs and will be send to our queue immediately. If there's a pending
+     * batch we'll send the batch along with this new job.
+     *
+     * Use this if you need to guarantee to the user that the job was delivered to
+     * the queue. Once delivered to the queue the job will execute (if it errs we
+     * retry) but the duration it will take to execute is not guaranteed.
+     *
+     * You can also use this to skip the maximum 200ms wait time for new jobs in
+     * the queue. However, if your work needs to happen immediately a queue may not
+     * even be a good idea given it can take a while for the job service to process
+     * your job.
      */
-    dangerouslySendImmediatelyWithoutAuthorization(
+    public abstract sendImmediately(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -101,13 +123,14 @@ export interface JobSenderBase {
  * Sends background jobs to our job queue for processing. Will batch jobs sent
  * within a short window of time.
  */
-export class JobSender implements JobSenderBase {
+export class JobSender extends JobSenderBase {
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
 
     private _messageBatch: JobSenderMessageBatch | null = null;
 
     constructor({region, queueUrl}: {region: string; queueUrl: string}) {
+        super();
         this._queueUrl = queueUrl;
         this._sqsClient = new SQSClient({
             region,
@@ -115,7 +138,7 @@ export class JobSender implements JobSenderBase {
         });
     }
 
-    public dangerouslySendWithoutAuthorization(
+    public override send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -129,7 +152,7 @@ export class JobSender implements JobSenderBase {
         );
     }
 
-    public dangerouslySendAndWaitWithoutAuthorization(
+    public override sendAndWait(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -177,7 +200,7 @@ export class JobSender implements JobSenderBase {
         return promiseResolver.promise;
     }
 
-    public async dangerouslySendImmediatelyWithoutAuthorization(
+    public override async sendImmediately(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         {delaySeconds = 0}: {delaySeconds?: number} = {},
@@ -284,44 +307,5 @@ export class JobSender implements JobSenderBase {
                 message.promiseResolver.reject(error);
             }
         }
-    }
-
-    public dangerouslySendMaintenanceJob(
-        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
-        job: MaintenanceJobDescription,
-    ) {
-        return context.tracer.withSpan(
-            `Sent maintenance job ${job.type}`,
-            async (context, span) => {
-                const currentTime = new Date();
-                const delaySeconds = 0;
-
-                span.addData({
-                    jobs: {
-                        type: `Maintenance:${job.type}`,
-                        batchSize: 1,
-                        delaySeconds,
-                    },
-                });
-
-                const output = await this._sqsClient.send(
-                    new SendMessageCommand({
-                        QueueUrl: this._queueUrl,
-                        MessageBody: JSON.stringify(
-                            JobQueueMessageBodySchema.serialize({
-                                type: "Maintenance",
-                                sendTime: currentTime,
-                                delaySeconds,
-                                job,
-                                tracerContext: span.getPropagationContext(),
-                            }),
-                        ),
-                        DelaySeconds: delaySeconds,
-                    }),
-                );
-
-                span.addData({aws: {sqs: {messageId: output.MessageId}}});
-            },
-        );
     }
 }

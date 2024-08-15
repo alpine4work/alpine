@@ -14,7 +14,7 @@ import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {JobsContextModuleWithoutAuthorization} from "~/server/jobs/core/jobs_context_module_without_authorization.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -1136,7 +1136,7 @@ export const updateOurAccountNameBeforeExecuteTestCheckpoint = new TestCheckpoin
 export async function internalUpdateOurAccountNameWithoutUpdatingTasks<
     Modules extends DynamoContextModules & {
         actor: DynamoSessionActorContextModule;
-        jobs: JobsContextModuleWithoutAuthorization;
+        jobs: JobsContextModule;
     },
 >(
     context: Context<Modules>,
@@ -1208,12 +1208,8 @@ export async function internalUpdateOurAccountNameWithoutUpdatingTasks<
 
         // Reindex the account in all space search indexes where it appears. This may
         // recursively update any search entities where the account is mentioned.
-        //
-        // We have to call `dangerouslySendWithoutAuthorization()` because we can't
-        // have a cyclic dependency between `//server/spaces` (which has
-        // `authorizeSpaceAccess()`) and `//server/accounts`.
         for (const spaceId of spaceIds) {
-            context.jobs.dangerouslySendWithoutAuthorization({
+            context.jobs.send({
                 type: "IndexSearchEntity",
                 spaceId,
                 update: {
