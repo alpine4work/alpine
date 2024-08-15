@@ -3857,11 +3857,6 @@ Outputs:
             Ref: VpcIsolatedSubnet2RouteTable1D30AF7D
         Export:
             Name: CyberworldsStack:VpcIsolatedSubnet2RouteTableId
-    JobQueueUrlExport:
-        Value:
-            Ref: SqsJobQueue62388F96
-        Export:
-            Name: CyberworldsStack:JobQueueUrl
     DeployTableArnExport:
         Value:
             Fn::GetAtt:

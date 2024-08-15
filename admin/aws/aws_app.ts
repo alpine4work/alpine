@@ -86,12 +86,6 @@ async function addAwsResources(stack: Stack): Promise<{
         sqs,
     });
 
-    // TODO(calebmer, #deploy): Remove this after lifecycle stack stops using it.
-    new CfnOutput(stack, "JobQueueUrlExport", {
-        value: sqs.getJobQueueUrl(),
-        exportName: `${stack.stackName}:JobQueueUrl`,
-    });
-
     // Manually export resources through CloudFormation instead of using the CDK's
     // auto export capabilities. We were finding ourselves running into issues when
     // trying to change how exported resources are used in dependent stacks.
