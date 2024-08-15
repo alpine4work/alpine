@@ -171,17 +171,15 @@ jobs:
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=playwright,-dev-check,-macos --nokeep_going --notest_keep_going
 
-            # TODO(calebmer, #deploy): Enable this after successful deploy
-            #
-            # # If tests pass and we're on the main branch then schedule a deploy by sending
-            # # a message to our job queue. This will make sure our commit is eventually
-            # # deployed.
-            # - if: github.ref == 'refs/heads/main'
-            #   name: Schedule Deploy
-            #   run: |
-            #       aws send-message \
-            #         "--queue-url=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")"
-            #         "--message-body=$(node -e "process.stdout.write(JSON.stringify({type: 'Maintenance', sendTime: new Date().toISOString(), delaySeconds: 0, job: {type: 'ScheduleDeploy', commitSha: process.env.GITHUB_SHA}, tracerContext: null}))")"
+            # If tests pass and we're on the main branch then schedule a deploy by sending
+            # a message to our job queue. This will make sure our commit is eventually
+            # deployed.
+            - if: github.ref == 'refs/heads/main'
+              name: Schedule Deploy
+              run: |
+                  aws send-message \
+                    "--queue-url=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")"
+                    "--message-body=$(node -e "process.stdout.write(JSON.stringify({type: 'Maintenance', sendTime: new Date().toISOString(), delaySeconds: 0, job: {type: 'ScheduleDeploy', commitSha: process.env.GITHUB_SHA}, tracerContext: null}))")"
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for
