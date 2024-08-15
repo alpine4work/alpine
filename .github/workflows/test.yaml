@@ -175,7 +175,7 @@ jobs:
             # a message to our job queue. This will make sure our commit is eventually
             # deployed.
             - if: github.ref == 'refs/heads/main'
-              name: Schedule Deploy
+              name: Schedule deploy
               run: |
                   aws sqs send-message \
                     "--queue-url=$(node -e "process.stdout.write(JSON.parse(process.env.USER_DATA_EXTRA).jobQueueUrl)")" \
