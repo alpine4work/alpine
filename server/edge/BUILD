@@ -1,7 +1,7 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@npm//:wrangler/package_json.bzl", wrangler_bin = "bin")
-load("//admin/bazel:opt_compilation_mode.bzl", "assert_opt_compilation_mode")
+load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
@@ -51,10 +51,8 @@ js_binary(
     visibility = ["//app/integration_tests:__pkg__"],
 )
 
-# Assert we're building with an opt compilation mode without actually making a
-# transition which can lead to expensive builds that build things twice.
-assert_opt_compilation_mode(
-    name = "edge_service_bundle_file_opt",
+production_transition(
+    name = "edge_service_bundle_file_production",
     src = ":edge_service_bundle_file",
 )
 
@@ -63,7 +61,7 @@ wrangler_bin.wrangler_binary(
     chdir = package_name(),
     data = [
         "wrangler.toml",
-        ":edge_service_bundle_file_opt",
+        ":edge_service_bundle_file_production",
     ],
     visibility = ["//server/deploy/script:__pkg__"],
 )

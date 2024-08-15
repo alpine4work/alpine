@@ -14,6 +14,7 @@ import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -61,167 +62,171 @@ export class AwsGithubRunners extends Construct {
         //
         // NOTE(calebmer, 2024-08-05): This instance type gives us best performance for
         // the cost based on some simple testing.
-        const instanceClass = InstanceClass.M7G;
-        const testInstanceType = InstanceType.of(instanceClass, InstanceSize.XLARGE2);
+        const testInstanceClass = InstanceClass.M7G;
+        const testInstanceType = InstanceType.of(testInstanceClass, InstanceSize.XLARGE2);
 
-        // Use smaller instances for our deploy workflow. Most of the time our deploy
-        // workflow will be sitting idle waiting for CloudFormation.
-        const deployInstanceType = InstanceType.of(instanceClass, InstanceSize.LARGE);
+        // 2 vCPU, 8 GiB memory, Intel Xeon Platinum (x86_64) processor
+        //
+        // We use the same instance class for our deploy GitHub runners as we do our
+        // production services so when building we're building for the right
+        // architecture.
+        const deployInstanceClass = awsServiceInstanceClass;
+        const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.LARGE);
 
-        const imageBuilder = Ec2RunnerProvider.imageBuilder(this, "RunnerImageBuilder", {
+        const createImageBuilderComponents = (extraAptDependencies: Array<string> = []) => [
+            RunnerImageComponent.requiredPackages(),
+            RunnerImageComponent.runnerUser(),
+            RunnerImageComponent.git(),
+            RunnerImageComponent.githubCli(),
+            RunnerImageComponent.awsCli(),
+            RunnerImageComponent.docker(),
+            RunnerImageComponent.githubRunner(RunnerVersion.latest()),
+
+            // Installs:
+            //
+            // - `zstd` for better GitHub `actions/cache` compression/decompression
+            //   performance.
+            // - `build-essential` which includes `gcc` and `make` among other common
+            //   build tools.
+            // - `nodejs` since we need to run `aws_github_runners_bazel_remote_cache.cjs`
+            //   before anything from Bazel.
+            RunnerImageComponent.custom({
+                name: "AptGetInstall",
+                commands: [
+                    `apt-get install -y ${Array.from(
+                        new Set([
+                            // Better GitHub `actions/cache` compression/decompression performance.
+                            "zstd",
+                            // Includes `gcc` and `make` among other common build tools. Necessary for
+                            // building some npm packages.
+                            "build-essential",
+                            // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
+                            // enable remote caching before anything is built by Bazel.
+                            "nodejs",
+
+                            ...extraAptDependencies,
+                        ]),
+                    ).join(" ")}`,
+                ],
+            }),
+        ];
+
+        const testImageBuilder = Ec2RunnerProvider.imageBuilder(this, "TestRunnerImageBuilder", {
             vpc,
             subnetSelection: {subnetType: SubnetType.PUBLIC},
 
             awsImageBuilderOptions: {
                 // We can use a different size when building our image.
-                instanceType: InstanceType.of(instanceClass, InstanceSize.MEDIUM),
+                instanceType: InstanceType.of(testInstanceClass, InstanceSize.MEDIUM),
             },
             os: Os.LINUX_UBUNTU,
             architecture: Architecture.ARM64,
 
-            components: [
-                RunnerImageComponent.requiredPackages(),
-                RunnerImageComponent.runnerUser(),
-                RunnerImageComponent.git(),
-                RunnerImageComponent.githubCli(),
-                RunnerImageComponent.awsCli(),
-                RunnerImageComponent.docker(),
-                RunnerImageComponent.githubRunner(RunnerVersion.latest()),
-
-                // Installs:
+            components: createImageBuilderComponents([
+                // Dependencies required by Playwright for running Chromium:
+                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L252-L275
                 //
-                // - `zstd` for better GitHub `actions/cache` compression/decompression
-                //   performance.
-                // - `build-essential` which includes `gcc` and `make` among other common
-                //   build tools.
-                // - `nodejs` since we need to run `aws_github_runners_bazel_remote_cache.cjs`
-                //   before anything from Bazel.
-                RunnerImageComponent.custom({
-                    name: "AptGetInstall",
-                    commands: [
-                        `apt-get install -y ${Array.from(
-                            new Set([
-                                // Better GitHub `actions/cache` compression/decompression performance.
-                                "zstd",
-                                // Includes `gcc` and `make` among other common build tools. Necessary for
-                                // building some npm packages.
-                                "build-essential",
-                                // Make sure we install the dependencies we need for crossbuilding x86_64 on
-                                // our arm64 machine or vice versa.
-                                "crossbuild-essential-amd64",
-                                "crossbuild-essential-arm64",
-                                // We need run a small `aws_github_runners_bazel_remote_cache.cjs` server to
-                                // enable remote caching before anything is built by Bazel.
-                                "nodejs",
+                // We could also run `playwright install-deps` but putting them on the machine
+                // image is more efficient.
+                "libasound2",
+                "libatk-bridge2.0-0",
+                "libatk1.0-0",
+                "libatspi2.0-0",
+                "libcairo2",
+                "libcups2",
+                "libdbus-1-3",
+                "libdrm2",
+                "libgbm1",
+                "libglib2.0-0",
+                "libnspr4",
+                "libnss3",
+                "libpango-1.0-0",
+                "libwayland-client0",
+                "libx11-6",
+                "libxcb1",
+                "libxcomposite1",
+                "libxdamage1",
+                "libxext6",
+                "libxfixes3",
+                "libxkbcommon0",
+                "libxrandr2",
 
-                                // Dependencies required by Playwright for running Chromium:
-                                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L252-L275
-                                //
-                                // We could also run `playwright install-deps` but putting them on the machine
-                                // image is more efficient.
-                                "libasound2",
-                                "libatk-bridge2.0-0",
-                                "libatk1.0-0",
-                                "libatspi2.0-0",
-                                "libcairo2",
-                                "libcups2",
-                                "libdbus-1-3",
-                                "libdrm2",
-                                "libgbm1",
-                                "libglib2.0-0",
-                                "libnspr4",
-                                "libnss3",
-                                "libpango-1.0-0",
-                                "libwayland-client0",
-                                "libx11-6",
-                                "libxcb1",
-                                "libxcomposite1",
-                                "libxdamage1",
-                                "libxext6",
-                                "libxfixes3",
-                                "libxkbcommon0",
-                                "libxrandr2",
+                // Dependencies required by Playwright for running WebKit:
+                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L305-L362
+                //
+                // We could also run `playwright install-deps` but putting them on the machine
+                // image is more efficient.
+                "libsoup-3.0-0",
+                "libenchant-2-2",
+                "gstreamer1.0-libav",
+                "gstreamer1.0-plugins-bad",
+                "gstreamer1.0-plugins-base",
+                "gstreamer1.0-plugins-good",
+                "libicu70",
+                "libatk-bridge2.0-0",
+                "libatk1.0-0",
+                "libcairo2",
+                "libdbus-1-3",
+                "libdrm2",
+                "libegl1",
+                "libepoxy0",
+                "libevdev2",
+                "libffi7",
+                "libfontconfig1",
+                "libfreetype6",
+                "libgbm1",
+                "libgdk-pixbuf-2.0-0",
+                "libgles2",
+                "libglib2.0-0",
+                "libglx0",
+                "libgstreamer-gl1.0-0",
+                "libgstreamer-plugins-base1.0-0",
+                "libgstreamer1.0-0",
+                "libgtk-3-0",
+                "libgudev-1.0-0",
+                "libharfbuzz-icu0",
+                "libharfbuzz0b",
+                "libhyphen0",
+                "libjpeg-turbo8",
+                "liblcms2-2",
+                "libmanette-0.2-0",
+                "libnotify4",
+                "libopengl0",
+                "libopenjp2-7",
+                "libopus0",
+                "libpango-1.0-0",
+                "libpng16-16",
+                "libproxy1v5",
+                "libsecret-1-0",
+                "libwayland-client0",
+                "libwayland-egl1",
+                "libwayland-server0",
+                "libwebpdemux2",
+                "libwoff1",
+                "libx11-6",
+                "libxcomposite1",
+                "libxdamage1",
+                "libxkbcommon0",
+                "libxml2",
+                "libxslt1.1",
+                "libx264-163",
+                "libatomic1",
+                "libevent-2.1-7",
+                // Playwright errs if this isn't installed when running WebKit, but it's not
+                // present in the list we linked above.
+                "libxt6",
 
-                                // Dependencies required by Playwright for running WebKit:
-                                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L305-L362
-                                //
-                                // We could also run `playwright install-deps` but putting them on the machine
-                                // image is more efficient.
-                                "libsoup-3.0-0",
-                                "libenchant-2-2",
-                                "gstreamer1.0-libav",
-                                "gstreamer1.0-plugins-bad",
-                                "gstreamer1.0-plugins-base",
-                                "gstreamer1.0-plugins-good",
-                                "libicu70",
-                                "libatk-bridge2.0-0",
-                                "libatk1.0-0",
-                                "libcairo2",
-                                "libdbus-1-3",
-                                "libdrm2",
-                                "libegl1",
-                                "libepoxy0",
-                                "libevdev2",
-                                "libffi7",
-                                "libfontconfig1",
-                                "libfreetype6",
-                                "libgbm1",
-                                "libgdk-pixbuf-2.0-0",
-                                "libgles2",
-                                "libglib2.0-0",
-                                "libglx0",
-                                "libgstreamer-gl1.0-0",
-                                "libgstreamer-plugins-base1.0-0",
-                                "libgstreamer1.0-0",
-                                "libgtk-3-0",
-                                "libgudev-1.0-0",
-                                "libharfbuzz-icu0",
-                                "libharfbuzz0b",
-                                "libhyphen0",
-                                "libjpeg-turbo8",
-                                "liblcms2-2",
-                                "libmanette-0.2-0",
-                                "libnotify4",
-                                "libopengl0",
-                                "libopenjp2-7",
-                                "libopus0",
-                                "libpango-1.0-0",
-                                "libpng16-16",
-                                "libproxy1v5",
-                                "libsecret-1-0",
-                                "libwayland-client0",
-                                "libwayland-egl1",
-                                "libwayland-server0",
-                                "libwebpdemux2",
-                                "libwoff1",
-                                "libx11-6",
-                                "libxcomposite1",
-                                "libxdamage1",
-                                "libxkbcommon0",
-                                "libxml2",
-                                "libxslt1.1",
-                                "libx264-163",
-                                "libatomic1",
-                                "libevent-2.1-7",
-                                // Playwright errs if this isn't installed when running WebKit, but it's not
-                                // present in the list we linked above.
-                                "libxt6",
-
-                                // Dependencies for fixing the following error when `DEBUG=pw:browser*` is set.
-                                // https://github.com/microsoft/playwright/issues/27855#issuecomment-1789282663
-                                //
-                                // ```
-                                // pw:browser [pid=1594][err] (MiniBrowser:1600): GLib-GIO-CRITICAL **: 18:21:12.441: g_application_quit: assertion 'G_IS_APPLICATION (application)' failed
-                                // ```
-                                "libfaad2",
-                                "libkate1",
-                                "libfdk-aac2",
-                                "libwpewebkit-1.0-3",
-                            ]),
-                        ).join(" ")}`,
-                    ],
-                }),
-            ],
+                // Dependencies for fixing the following error when `DEBUG=pw:browser*` is set.
+                // https://github.com/microsoft/playwright/issues/27855#issuecomment-1789282663
+                //
+                // ```
+                // pw:browser [pid=1594][err] (MiniBrowser:1600): GLib-GIO-CRITICAL **: 18:21:12.441: g_application_quit: assertion 'G_IS_APPLICATION (application)' failed
+                // ```
+                "libfaad2",
+                "libkate1",
+                "libfdk-aac2",
+                "libwpewebkit-1.0-3",
+            ]),
         });
 
         const testRunnerProvider = new Ec2RunnerProvider(this, "TestRunnerProvider", {
@@ -244,7 +249,7 @@ export class AwsGithubRunners extends Construct {
             // [1]: https://calculator.aws
             spot: true,
 
-            imageBuilder,
+            imageBuilder: testImageBuilder,
 
             // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
             // environment variable. We add this option to
@@ -268,6 +273,24 @@ export class AwsGithubRunners extends Construct {
         // job queue.
         sqs.grantSendJobQueueMessages(testRunnerProvider);
 
+        const deployImageBuilder = Ec2RunnerProvider.imageBuilder(
+            this,
+            "DeployRunnerImageBuilder",
+            {
+                vpc,
+                subnetSelection: {subnetType: SubnetType.PUBLIC},
+
+                awsImageBuilderOptions: {
+                    // We can use a different size when building our image.
+                    instanceType: InstanceType.of(deployInstanceClass, InstanceSize.SMALL),
+                },
+                os: Os.LINUX_UBUNTU,
+                architecture: Architecture.X86_64,
+
+                components: createImageBuilderComponents(),
+            },
+        );
+
         const deployRunnerProvider = new Ec2RunnerProvider(this, "DeployRunnerProvider", {
             vpc,
             // Run our GitHub runners in a public subnet so they can communicate with
@@ -286,7 +309,7 @@ export class AwsGithubRunners extends Construct {
             // running.)
             spot: false,
 
-            imageBuilder,
+            imageBuilder: deployImageBuilder,
 
             // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
             // environment variable. We add this option to

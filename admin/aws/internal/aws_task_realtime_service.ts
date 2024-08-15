@@ -1,6 +1,6 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
-import {InstanceType, Peer, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {InstanceSize, InstanceType, Peer, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
     AsgCapacityProvider,
     ContainerImage,
@@ -18,6 +18,7 @@ import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearchWithConnections} from "~/admin/aws/internal/aws_opensearch.js";
+import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -78,7 +79,7 @@ export class AwsTaskRealtimeService extends Construct {
         // (`instanceCpuCount`). If you change the instance type you should also change
         // `instanceCpuCount` to the correct number of vCPUs according to:
         // https://aws.amazon.com/ec2/instance-types/
-        const instanceType = new InstanceType("t3.micro");
+        const instanceType = InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO);
         const instanceCpuCount = 2;
 
         this.autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {

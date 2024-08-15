@@ -1,6 +1,6 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
-import {InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
     AsgCapacityProvider,
     ContainerImage,
@@ -17,6 +17,7 @@ import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearchWithConnections} from "~/admin/aws/internal/aws_opensearch.js";
+import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -46,7 +47,7 @@ export class AwsJobQueueService extends Construct {
             vpc,
             // First 750 hours per month of this instance type are free. That effectively
             // translates to 1 free capacity of this instance type across our AWS account.
-            instanceType: new InstanceType("t3.micro"),
+            instanceType: InstanceType.of(awsServiceInstanceClass, InstanceSize.MICRO),
             machineImage: EcsOptimizedImage.amazonLinux2(),
 
             minCapacity: 1,
