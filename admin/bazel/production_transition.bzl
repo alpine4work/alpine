@@ -1,17 +1,20 @@
 """
 A rule which forces the provided source to be built for the `linux-x86_64`
-platform and `opt` compilation mode. Useful for writing scripts that deploy our
-code to production.
+platform and `opt` compilation mode. Which is the configuration we use in
+production.
+
+We use this even when building browser assets that don't care about the
+platform so that we don't end up building the same assets twice.
 """
 
-def _linux_x86_64_platform_and_opt_compilation_mode_transition_impl(_settings, attr):
+def _production_transition_impl(_settings, attr):
     return {
         "//command_line_option:platforms": str(attr._linux_x86_64),
         "//command_line_option:compilation_mode": "opt",
     }
 
-_linux_x86_64_platform_and_opt_compilation_mode_transition = transition(
-    implementation = _linux_x86_64_platform_and_opt_compilation_mode_transition_impl,
+_production_transition = transition(
+    implementation = _production_transition_impl,
     inputs = [],
     outputs = [
         "//command_line_option:platforms",
@@ -19,7 +22,7 @@ _linux_x86_64_platform_and_opt_compilation_mode_transition = transition(
     ],
 )
 
-def _linux_x86_64_platform_and_opt_compilation_mode_impl(ctx):
+def _production_transition_rule_impl(ctx):
     if len(ctx.attr.src) != 1:
         fail("expect one source target")
 
@@ -28,10 +31,10 @@ def _linux_x86_64_platform_and_opt_compilation_mode_impl(ctx):
         runfiles = ctx.attr.src[0][DefaultInfo].default_runfiles,
     )]
 
-linux_x86_64_platform_and_opt_compilation_mode = rule(
-    _linux_x86_64_platform_and_opt_compilation_mode_impl,
+production_transition = rule(
+    _production_transition_rule_impl,
     attrs = {
-        "src": attr.label(cfg = _linux_x86_64_platform_and_opt_compilation_mode_transition),
+        "src": attr.label(cfg = _production_transition),
         "_linux_x86_64": attr.label(default = "//admin/bazel:linux_x86_64"),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",

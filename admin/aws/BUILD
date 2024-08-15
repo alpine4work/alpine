@@ -3,7 +3,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_bin
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 load("@npm//:aws-cdk/package_json.bzl", cdk_bin = "bin")
 load("//admin/aws:aws_lambda.bzl", "aws_lambda")
-load("//admin/bazel:linux_x86_64_platform_and_opt_compilation_mode.bzl", "linux_x86_64_platform_and_opt_compilation_mode")
+load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 # A manually built OCI layer that creates a directory `/var/www-data` and
@@ -39,11 +39,11 @@ filegroup(
         ":aws",
         "//:cdk_files",
         "//admin/opensearch/deploy",
-        "//app:app_image_tarball_linux_x86_64_opt",
-        "//server/jobs/queue:queue_image_tarball_linux_x86_64_opt",
-        "//server/migration:migration_image_tarball_linux_x86_64_opt",
-        "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
-        "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
+        "//app:app_image_tarball_production",
+        "//server/jobs/queue:queue_image_tarball_production",
+        "//server/migration:migration_image_tarball_production",
+        "//server/tasks/realtime:realtime_image_tarball_production",
+        "//server/tasks/realtime/gateway:gateway_image_tarball_production",
     ],
     visibility = ["//server/deploy/script:__pkg__"],
 )
@@ -66,7 +66,7 @@ cdk_bin.cdk_binary(
     name = "cdk_lite",
     data = [
         ":aws",
-        ":empty_image_tarball_linux_x86_64_opt",
+        ":empty_image_tarball_production",
         ":empty_lambda",
         "//:cdk_files",
     ],
@@ -106,8 +106,8 @@ oci_tarball(
     repo_tags = ["cyberworlds-empty-service:latest"],
 )
 
-linux_x86_64_platform_and_opt_compilation_mode(
-    name = "empty_image_tarball_linux_x86_64_opt",
+production_transition(
+    name = "empty_image_tarball_production",
     src = ":empty_image_tarball",
 )
 

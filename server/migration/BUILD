@@ -1,6 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
-load("//admin/bazel:linux_x86_64_platform_and_opt_compilation_mode.bzl", "linux_x86_64_platform_and_opt_compilation_mode")
+load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
@@ -52,8 +52,8 @@ oci_tarball(
     repo_tags = ["cyberworlds-migration-service:latest"],
 )
 
-linux_x86_64_platform_and_opt_compilation_mode(
-    name = "migration_image_tarball_linux_x86_64_opt",
+production_transition(
+    name = "migration_image_tarball_production",
     src = ":migration_image_tarball",
     visibility = ["//admin/aws:__pkg__"],
 )
