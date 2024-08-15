@@ -1,14 +1,7 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {Certificate, CertificateValidation} from "aws-cdk-lib/aws-certificatemanager";
-import {
-    InstanceClass,
-    InstanceSize,
-    InstanceType,
-    Port,
-    SubnetType,
-    Vpc,
-} from "aws-cdk-lib/aws-ec2";
+import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
     AsgCapacityProvider,
     ContainerImage,
