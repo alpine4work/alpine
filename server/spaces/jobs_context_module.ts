@@ -1,27 +1,25 @@
-import {JobDescription} from "~/server/jobs/core/job_description.js";
+import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
-import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {JobsContextModuleWithoutAuthorization} from "~/server/jobs/core/jobs_context_module_without_authorization.js";
+import {
+    AuthorizeSpaceAccessContextModules,
+    authorizeSpaceAccess,
+} from "~/server/spaces/spaces_table.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export class JobsContextModule
-    extends ContextModuleBase<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-    }>
+    extends JobsContextModuleWithoutAuthorization<AuthorizeSpaceAccessContextModules>
     implements ForkableContextModuleBase
 {
-    private readonly _sender!: JobSenderBase;
+    protected override readonly _sender: JobSenderBase;
 
     private constructor(sender: JobSenderBase | null) {
-        super();
+        super(sender);
+        this._sender = sender!;
 
-        if (sender !== null) {
-            this._sender = sender;
-        } else {
+        if (sender === null) {
             // May only construct an uninitialized context module in tests.
             assert(process.env.NODE_ENV === "test");
 
@@ -34,7 +32,7 @@ export class JobsContextModule
         }
     }
 
-    public static new(sender: JobSenderBase) {
+    public static override new(sender: JobSenderBase) {
         return new JobsContextModule(sender);
     }
 
@@ -50,8 +48,10 @@ export class JobsContextModule
      * in our queue. If you want to guarantee message delivery call
      * `sendImmediately()` and await.
      */
-    public send(job: JobDescription, options?: {delaySeconds?: number}): void {
-        this._sender.send(this._context, job, options);
+    public async send(job: JobDescription, options?: {delaySeconds?: number}): Promise<void> {
+        await authorizeSpaceAccess(this._context, getJobDescriptionSpaceId(job));
+
+        this._sender.dangerouslySendWithoutAuthorization(this._context, job, options);
     }
 
     /**
@@ -65,8 +65,13 @@ export class JobsContextModule
      * queue. This means you may have to wait up to 200ms if this is the first job
      * in a batch! Avoid this function if you need fast performance.
      */
-    public sendAndWait(job: JobDescription, options?: {delaySeconds?: number}): Promise<void> {
-        return this._sender.sendAndWait(this._context, job, options);
+    public async sendAndWait(
+        job: JobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void> {
+        await authorizeSpaceAccess(this._context, getJobDescriptionSpaceId(job));
+
+        return this._sender.dangerouslySendAndWaitWithoutAuthorization(this._context, job, options);
     }
 
     /**
@@ -83,11 +88,20 @@ export class JobsContextModule
      * even be a good idea given it can take a while for the job service to process
      * your job.
      */
-    public sendImmediately(job: JobDescription, options?: {delaySeconds?: number}): Promise<void> {
-        return this._sender.sendImmediately(this._context, job, options);
+    public async sendImmediately(
+        job: JobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void> {
+        await authorizeSpaceAccess(this._context, getJobDescriptionSpaceId(job));
+
+        return this._sender.dangerouslySendImmediatelyWithoutAuthorization(
+            this._context,
+            job,
+            options,
+        );
     }
 
-    public fork() {
+    public override fork() {
         return new JobsContextModule(this._sender);
     }
 

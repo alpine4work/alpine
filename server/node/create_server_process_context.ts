@@ -8,7 +8,7 @@ import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {JobsContextModuleWithoutAuthorization} from "~/server/jobs/core/jobs_context_module_without_authorization.js";
 import {registerShutdownWaitUntilPromise} from "~/server/node/shutdown_manager.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
@@ -96,7 +96,7 @@ export function createServerProcessContext({
                 awsSigner,
             ),
         ),
-        jobs: JobsContextModule.new(
+        jobs: JobsContextModuleWithoutAuthorization.new(
             new JobSender({
                 region: "us-east-1",
                 queueUrl: assertExists(options.jobQueueUrl, "Missing `jobQueueUrl` option"),

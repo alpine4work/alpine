@@ -20,9 +20,10 @@ import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {JobsContextModule} from "~/server/spaces/jobs_context_module.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError, UnimplementedError} from "~/shared/error/error.js";
@@ -90,6 +91,19 @@ export async function createAdhocServerProcessContext({
                               ),
                               10,
                           )}/local/JobQueue`,
+                authorizeSpaceAccess: (context, spaceId) => {
+                    if (
+                        "cache" in context &&
+                        context.cache instanceof CacheContextModule &&
+                        "dynamo" in context &&
+                        context.dynamo instanceof DynamoContextModule &&
+                        "actor" in context &&
+                        context.dynamo instanceof ActorContextModule
+                    ) {
+                    }
+
+                    return authorizeSpaceAccess(context, spaceId);
+                },
             }),
         ),
         edge: new EdgeServiceContextModule({

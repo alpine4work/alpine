@@ -5,7 +5,7 @@ import {
     expensiveScanEveryChannelAndPostForMigration,
     expensiveScanEveryPostCommentForMigration,
 } from "~/server/forum/data/forum_table.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {JobsContextModule} from "~/server/spaces/jobs_context_module.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_table.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
@@ -162,7 +162,7 @@ const taskAndTaskCollectionSearchEntityMigrationModule = createDynamoScanMigrati
     async (context, item) => {
         switch (item.type) {
             case "Task": {
-                context.jobs.send({
+                context.jobs.dangerouslySendWithoutAuthorization({
                     type: "IndexSearchEntity",
                     spaceId: item.spaceId,
                     update: {
@@ -174,7 +174,7 @@ const taskAndTaskCollectionSearchEntityMigrationModule = createDynamoScanMigrati
                 break;
             }
             case "TaskCollection": {
-                context.jobs.send({
+                context.jobs.dangerouslySendWithoutAuthorization({
                     type: "IndexSearchEntity",
                     spaceId: item.spaceId,
                     update: {
@@ -196,7 +196,7 @@ const allMigrationModules: Array<MigrationModule> = [
         "space accounts",
         expensiveScanEverySpaceAccountForMigration,
         (context, {spaceId, accountId}) => {
-            context.jobs.send({
+            context.jobs.dangerouslySendWithoutAuthorization({
                 type: "IndexSearchEntity",
                 spaceId,
                 update: {
@@ -213,7 +213,7 @@ const allMigrationModules: Array<MigrationModule> = [
         async (context, item) => {
             switch (item.type) {
                 case "Document": {
-                    context.jobs.send({
+                    context.jobs.dangerouslySendWithoutAuthorization({
                         type: "IndexSearchEntity",
                         spaceId: item.spaceId,
                         update: {
@@ -225,7 +225,7 @@ const allMigrationModules: Array<MigrationModule> = [
                     break;
                 }
                 case "DocumentComment": {
-                    context.jobs.send({
+                    context.jobs.dangerouslySendWithoutAuthorization({
                         type: "IndexSearchEntity",
                         spaceId: await item.getSpaceId(),
                         update: {
@@ -249,7 +249,7 @@ const allMigrationModules: Array<MigrationModule> = [
         async (context, item) => {
             switch (item.type) {
                 case "Channel": {
-                    context.jobs.send({
+                    context.jobs.dangerouslySendWithoutAuthorization({
                         type: "IndexSearchEntity",
                         spaceId: item.spaceId,
                         update: {
@@ -261,7 +261,7 @@ const allMigrationModules: Array<MigrationModule> = [
                     break;
                 }
                 case "Post": {
-                    context.jobs.send({
+                    context.jobs.dangerouslySendWithoutAuthorization({
                         type: "IndexSearchEntity",
                         spaceId: item.spaceId,
                         update: {
@@ -281,7 +281,7 @@ const allMigrationModules: Array<MigrationModule> = [
         "post comments",
         expensiveScanEveryPostCommentForMigration,
         async (context, item) => {
-            context.jobs.send({
+            context.jobs.dangerouslySendWithoutAuthorization({
                 type: "IndexSearchEntity",
                 spaceId: await item.getSpaceId(),
                 update: {
@@ -299,7 +299,7 @@ const allMigrationModules: Array<MigrationModule> = [
         async (context, item) => {
             switch (item.type) {
                 case "Chat": {
-                    context.jobs.send({
+                    context.jobs.dangerouslySendWithoutAuthorization({
                         type: "IndexSearchEntity",
                         spaceId: item.spaceId,
                         update: {
@@ -311,7 +311,7 @@ const allMigrationModules: Array<MigrationModule> = [
                     break;
                 }
                 case "ChatMessage": {
-                    context.jobs.send({
+                    context.jobs.dangerouslySendWithoutAuthorization({
                         type: "IndexSearchEntity",
                         spaceId: await item.getSpaceId(),
                         update: {

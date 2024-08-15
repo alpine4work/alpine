@@ -776,7 +776,15 @@ export async function createDocument(
         }),
     ]);
 
-    context.jobs.send(
+    context.process.waitUntil(
+        markSearchAffinityInteraction(context, {
+            spaceId,
+            affinityId: `Document:${id}`,
+            interaction: {type: "HighIntentUpdate"},
+        }),
+    );
+
+    await context.jobs.send(
         {
             type: "IndexSearchEntity",
             spaceId,
@@ -789,14 +797,6 @@ export async function createDocument(
         {
             delaySeconds: documentIndexSearchEntityJobDelaySeconds,
         },
-    );
-
-    context.process.waitUntil(
-        markSearchAffinityInteraction(context, {
-            spaceId,
-            affinityId: `Document:${id}`,
-            interaction: {type: "HighIntentUpdate"},
-        }),
     );
 
     return {
@@ -2558,7 +2558,7 @@ export async function updateDocumentContent(
                             // Make sure a concurrent writer hasn't updated the document version before us.
                             version: internalDocument.version,
                         },
-                        onAfterTransactionExecutedSuccessfully: () => {
+                        onAfterTransactionExecutedSuccessfully: async () => {
                             // NOTE(calebmer): We don't currently:
                             //
                             // 1. Send a notification if an account is mentioned in a document
@@ -2576,7 +2576,7 @@ export async function updateDocumentContent(
                             // basically as styling options with no other effect. Hence no notification or
                             // affinity boost.
                             if (shouldSendIndexSearchEntityJob) {
-                                context.jobs.send(
+                                await context.jobs.send(
                                     {
                                         type: "IndexSearchEntity",
                                         spaceId: internalDocument.spaceId,
@@ -2668,44 +2668,13 @@ export async function updateDocumentContent(
                         },
                     },
                     {
-                        onAfterTransactionExecutedSuccessfully: () => {
+                        onAfterTransactionExecutedSuccessfully: async () => {
                             const mentionedAccountIds = getMentionedAccountIdsInContent(
                                 createCommentThread.initialCommentContent,
                             );
                             const contentSnippet = getNotificationMessageContentSnippet(
                                 createCommentThread.initialCommentContent,
                             );
-
-                            context.jobs.send({
-                                type: "NotificationEvent",
-                                event: {
-                                    type: "CreateDocumentComment",
-                                    id: generateId(),
-                                    spaceId: internalDocument.spaceId,
-                                    documentId: id,
-                                    commentThreadId: createCommentThread.commentThreadId,
-                                    commentIndex: 0,
-                                    createdTime: createCommentThread.createdTime ?? currentTime,
-                                    authorId: context.actor.getAccountId(),
-                                    mentionedAccountIds,
-                                    isContentSnippetComplete:
-                                        contentSnippet.nodeSize ===
-                                        createCommentThread.initialCommentContent.nodeSize,
-                                    contentSnippet,
-                                },
-                            });
-
-                            context.jobs.send({
-                                type: "IndexSearchEntity",
-                                spaceId: internalDocument.spaceId,
-                                update: {
-                                    type: "DocumentComment",
-                                    documentId: id,
-                                    commentThreadId: createCommentThread.commentThreadId,
-                                    commentIndex: 0,
-                                    updatedTraits: {type: "Any"},
-                                },
-                            });
 
                             // Increase affinity points for all mentioned accounts with a high intent
                             // update since the user clearly wants the attention of the mentioned accounts.
@@ -2732,6 +2701,38 @@ export async function updateDocumentContent(
                                     }
                                 });
                             }
+
+                            await runAllPromises([
+                                context.jobs.send({
+                                    type: "NotificationEvent",
+                                    event: {
+                                        type: "CreateDocumentComment",
+                                        id: generateId(),
+                                        spaceId: internalDocument.spaceId,
+                                        documentId: id,
+                                        commentThreadId: createCommentThread.commentThreadId,
+                                        commentIndex: 0,
+                                        createdTime: createCommentThread.createdTime ?? currentTime,
+                                        authorId: context.actor.getAccountId(),
+                                        mentionedAccountIds,
+                                        isContentSnippetComplete:
+                                            contentSnippet.nodeSize ===
+                                            createCommentThread.initialCommentContent.nodeSize,
+                                        contentSnippet,
+                                    },
+                                }),
+                                context.jobs.send({
+                                    type: "IndexSearchEntity",
+                                    spaceId: internalDocument.spaceId,
+                                    update: {
+                                        type: "DocumentComment",
+                                        documentId: id,
+                                        commentThreadId: createCommentThread.commentThreadId,
+                                        commentIndex: 0,
+                                        updatedTraits: {type: "Any"},
+                                    },
+                                }),
+                            ]);
                         },
                     },
                 ),
@@ -3867,35 +3868,6 @@ export async function createDocumentComment(
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
         const contentSnippet = getNotificationMessageContentSnippet(content);
 
-        context.jobs.send({
-            type: "NotificationEvent",
-            event: {
-                type: "CreateDocumentComment",
-                id: generateId(),
-                spaceId: documentItem.spaceId,
-                documentId,
-                commentThreadId,
-                commentIndex,
-                createdTime,
-                authorId,
-                mentionedAccountIds,
-                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
-                contentSnippet,
-            },
-        });
-
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId: documentItem.spaceId,
-            update: {
-                type: "DocumentComment",
-                documentId,
-                commentThreadId,
-                commentIndex,
-                updatedTraits: {type: "Any"},
-            },
-        });
-
         context.process.waitUntil(
             markSearchAffinityInteraction(context, {
                 spaceId: documentItem.spaceId,
@@ -3923,6 +3895,36 @@ export async function createDocumentComment(
                 }
             });
         }
+
+        await runAllPromises([
+            context.jobs.send({
+                type: "NotificationEvent",
+                event: {
+                    type: "CreateDocumentComment",
+                    id: generateId(),
+                    spaceId: documentItem.spaceId,
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    createdTime,
+                    authorId,
+                    mentionedAccountIds,
+                    isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                    contentSnippet,
+                },
+            }),
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId: documentItem.spaceId,
+                update: {
+                    type: "DocumentComment",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    updatedTraits: {type: "Any"},
+                },
+            }),
+        ]);
 
         return {
             index: commentIndex,
@@ -4180,7 +4182,7 @@ export function updateDocumentCommentContent(
             }),
         ]);
 
-        context.jobs.send({
+        await context.jobs.send({
             type: "IndexSearchEntity",
             spaceId,
             update: {
@@ -4288,7 +4290,7 @@ export function deleteDocumentComment(
             }),
         ]);
 
-        context.jobs.send({
+        await context.jobs.send({
             type: "IndexSearchEntity",
             spaceId,
             update: {

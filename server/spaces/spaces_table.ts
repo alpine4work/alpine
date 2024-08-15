@@ -22,7 +22,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {JobsContextModule} from "~/server/spaces/jobs_context_module.js";
 import {
     AccountModelWithoutSpace,
     AccountModelWithoutSpaceData,
@@ -284,7 +284,7 @@ export async function seedTestSpaces(
 
             // If we add the admin account to our default space we should also index the
             // admin account in our default space.
-            context.jobs.send({
+            context.jobs.dangerouslySendWithoutAuthorization({
                 type: "IndexSearchEntity",
                 spaceId: defaultSpaceId,
                 update: {
@@ -475,7 +475,7 @@ async function dangerouslyAddSpaceAccountWithoutAuthorization(
 
     // When an account is added to a space, index the account in the space so it
     // can be searched.
-    context.jobs.send({
+    context.jobs.dangerouslySendWithoutAuthorization({
         type: "IndexSearchEntity",
         spaceId,
         update: {
@@ -563,7 +563,7 @@ async function dangerouslyRemoveSpaceAccountWithoutAuthorization(
 
     // When an account is removed from a space, index the account in the space so it
     // can be searched.
-    context.jobs.send({
+    context.jobs.dangerouslySendWithoutAuthorization({
         type: "IndexSearchEntity",
         spaceId,
         update: {
@@ -1026,6 +1026,16 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     return false;
 }
 
+export type AuthorizeSpaceAccessContext = Context<AuthorizeSpaceAccessContextModules>;
+
+export type AuthorizeSpaceAccessContextModules = {
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    cache: CacheContextModule;
+    dynamo: DynamoContextModule;
+    actor: ActorContextModule;
+};
+
 /**
  * Is the `accountId` a member of the provided `spaceId`?
  *
@@ -1040,13 +1050,7 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
  * to access a space they just got access to which we want to avoid.
  */
 export async function isAccountMemberOfSpace(
-    context: Context<{
-        process: ProcessContextModule;
-        actor: ActorContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
     accountId: AccountId | ContentMentionAccountId,
 ): Promise<boolean> {
@@ -1063,13 +1067,7 @@ export async function isAccountMemberOfSpace(
  * `isAccountMemberOfSpace()` for details about consistency guarantees.
  */
 export async function authorizeSpaceAccess(
-    context: Context<{
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        cache: CacheContextModule;
-        dynamo: DynamoContextModule;
-        actor: ActorContextModule;
-    }>,
+    context: AuthorizeSpaceAccessContext,
     spaceId: SpaceId,
 ): Promise<void> {
     switch (context.actor.type) {

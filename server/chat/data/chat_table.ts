@@ -833,48 +833,48 @@ export function sendChatMessage(
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
         const contentSnippet = getNotificationMessageContentSnippet(content);
 
-        context.jobs.send({
-            type: "NotificationEvent",
-            event: {
-                type: "CreateChatMessage",
-                id: generateId(),
-                spaceId: chatItem.spaceId,
-                chatId,
-                messageIndex,
-                createdTime,
-                authorId,
-                mentionedAccountIds,
-                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
-                contentSnippet,
-            },
-        });
-
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId: chatItem.spaceId,
-            update: {
-                type: "ChatMessage",
-                chatId,
-                messageIndex,
-                // Nothing depends on this entity when it's created. Don't bother trying to
-                // reindex dependencies.
-                updatedTraits: {type: "None"},
-            },
-        });
-
-        // We don't index a chat for search until the first message is sent to
-        // the chat.
-        if (messageIndex === 0) {
+        await runAllPromises([
+            context.jobs.send({
+                type: "NotificationEvent",
+                event: {
+                    type: "CreateChatMessage",
+                    id: generateId(),
+                    spaceId: chatItem.spaceId,
+                    chatId,
+                    messageIndex,
+                    createdTime,
+                    authorId,
+                    mentionedAccountIds,
+                    isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                    contentSnippet,
+                },
+            }),
             context.jobs.send({
                 type: "IndexSearchEntity",
                 spaceId: chatItem.spaceId,
                 update: {
-                    type: "Chat",
+                    type: "ChatMessage",
                     chatId,
-                    updatedTraits: {type: "Any"},
+                    messageIndex,
+                    // Nothing depends on this entity when it's created. Don't bother trying to
+                    // reindex dependencies.
+                    updatedTraits: {type: "None"},
                 },
-            });
-        }
+            }),
+            // We don't index a chat for search until the first message is sent to
+            // the chat.
+            messageIndex === 0
+                ? context.jobs.send({
+                      type: "IndexSearchEntity",
+                      spaceId: chatItem.spaceId,
+                      update: {
+                          type: "Chat",
+                          chatId,
+                          updatedTraits: {type: "Any"},
+                      },
+                  })
+                : null,
+        ]);
 
         // Add affinity points to chat. Unless this is a 1:1 chat. For 1:1 chats we
         // want to add affinity points to the account we're messaging. That way we
@@ -1627,7 +1627,7 @@ export function updateChatMessageContent(
             }),
         ]);
 
-        context.jobs.send({
+        await context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: chatItem.spaceId,
             update: {
@@ -1713,7 +1713,7 @@ export function deleteChatMessage(
             }),
         ]);
 
-        context.jobs.send({
+        await context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: chatItem.spaceId,
             update: {

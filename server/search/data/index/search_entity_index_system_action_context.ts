@@ -1,5 +1,5 @@
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {JobsContextModule} from "~/server/spaces/jobs_context_module.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {Context} from "~/shared/context/context.js";
 

@@ -88,8 +88,8 @@ test(
         const pause2aPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job2Id);
         const pause3aPromise = processTestJobDescriptionTestCheckpoint.pauseForTest(job3Id);
 
-        context.jobs.send({type: "Test", spaceId, checkpointId: job1Id, shouldThrow: true});
-        context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
+        await context.jobs.send({type: "Test", spaceId, checkpointId: job1Id, shouldThrow: true});
+        await context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
 
         // Also flushes any batched jobs instead of waiting 200ms.
         await context.jobs.sendImmediately({
@@ -191,20 +191,20 @@ test("starts processing new jobs immediately after receiving first batch", async
     const pause14Promise = processTestJobDescriptionTestCheckpoint.pauseForTest(job14Id);
     const pause15Promise = processTestJobDescriptionTestCheckpoint.pauseForTest(job15Id);
 
-    context.jobs.send({type: "Test", spaceId, checkpointId: job1Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job3Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job4Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job5Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job6Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job7Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job8Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job9Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job10Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job11Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job12Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job13Id});
-    context.jobs.send({type: "Test", spaceId, checkpointId: job14Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job1Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job3Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job4Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job5Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job6Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job7Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job8Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job9Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job10Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job11Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job12Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job13Id});
+    await context.jobs.send({type: "Test", spaceId, checkpointId: job14Id});
 
     // Also flushes any batched jobs instead of waiting 200ms.
     await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: job15Id});
@@ -261,7 +261,7 @@ test("will max out at 10 receive message calls at a time then scale back down to
             PromiseImmediate.resolve(processTestJobDescriptionTestCheckpoint.pauseForTest(jobId)),
         );
         if (i < 201) {
-            context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
+            await context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
         } else {
             await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
         }

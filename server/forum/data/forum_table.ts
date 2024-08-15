@@ -19,7 +19,7 @@ import {
     DynamoGeneralRealtimeTableItemType,
     DynamoGeneralRealtimeTableSchema,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {JobsContextModule} from "~/server/spaces/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {
@@ -701,7 +701,7 @@ export async function seedTestChannels(
     );
 
     if (wasCreated) {
-        context.jobs.send({
+        context.jobs.dangerouslySendWithoutAuthorization({
             type: "IndexSearchEntity",
             spaceId: defaultSpaceId,
             update: {
@@ -756,7 +756,7 @@ export async function createAlphaSpaceAsAdmin(
                 },
                 {
                     onAfterTransactionExecutedSuccessfully: () => {
-                        context.jobs.send({
+                        context.jobs.dangerouslySendWithoutAuthorization({
                             type: "IndexSearchEntity",
                             spaceId,
                             update: {
@@ -830,7 +830,15 @@ export async function createChannel(
         }),
     );
 
-    context.jobs.send({
+    context.process.waitUntil(
+        markSearchAffinityInteraction(context, {
+            spaceId,
+            affinityId: `Channel:${channelItem.channelId}`,
+            interaction: {type: "HighIntentUpdate"},
+        }),
+    );
+
+    await context.jobs.send({
         type: "IndexSearchEntity",
         spaceId,
         update: {
@@ -841,14 +849,6 @@ export async function createChannel(
             updatedTraits: {type: "None"},
         },
     });
-
-    context.process.waitUntil(
-        markSearchAffinityInteraction(context, {
-            spaceId,
-            affinityId: `Channel:${channelItem.channelId}`,
-            interaction: {type: "HighIntentUpdate"},
-        }),
-    );
 
     return {
         id: channelItem.channelId,
@@ -1149,7 +1149,7 @@ export async function updateChannelName(
 
     assert(spaceId);
 
-    context.jobs.send({
+    await context.jobs.send({
         type: "IndexSearchEntity",
         spaceId,
         update: {
@@ -1212,7 +1212,7 @@ export async function updateChannelDescription(
 
     assert(spaceId);
 
-    context.jobs.send({
+    await context.jobs.send({
         type: "IndexSearchEntity",
         spaceId,
         update: {
@@ -1284,7 +1284,7 @@ export async function updateChannelNameAndDescription(
 
     assert(spaceId);
 
-    context.jobs.send({
+    await context.jobs.send({
         type: "IndexSearchEntity",
         spaceId,
         update: {
@@ -1402,34 +1402,6 @@ export async function createPost(
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
     const contentSnippet = getNotificationPostContentSnippet(content);
 
-    context.jobs.send({
-        type: "NotificationEvent",
-        event: {
-            type: "CreatePost",
-            id: generateId(),
-            spaceId: channel.spaceId,
-            channelId: postItem.channelId,
-            postId: postItem.postId,
-            createdTime: postItem.createdTime,
-            authorId: postItem.authorId,
-            mentionedAccountIds,
-            isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
-            contentSnippet,
-        },
-    });
-
-    context.jobs.send({
-        type: "IndexSearchEntity",
-        spaceId: channel.spaceId,
-        update: {
-            type: "Post",
-            postId: postItem.postId,
-            // Nothing depends on this entity when it's created. Don't bother trying to
-            // reindex dependencies.
-            updatedTraits: {type: "None"},
-        },
-    });
-
     // Posting in a channel accrues affinity points to the channel the post was
     // made in. Choosing a channel to post in probably means the channel is
     // relevant to you.
@@ -1463,6 +1435,35 @@ export async function createPost(
             }
         });
     }
+
+    await runAllPromises([
+        context.jobs.send({
+            type: "NotificationEvent",
+            event: {
+                type: "CreatePost",
+                id: generateId(),
+                spaceId: channel.spaceId,
+                channelId: postItem.channelId,
+                postId: postItem.postId,
+                createdTime: postItem.createdTime,
+                authorId: postItem.authorId,
+                mentionedAccountIds,
+                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                contentSnippet,
+            },
+        }),
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: channel.spaceId,
+            update: {
+                type: "Post",
+                postId: postItem.postId,
+                // Nothing depends on this entity when it's created. Don't bother trying to
+                // reindex dependencies.
+                updatedTraits: {type: "None"},
+            },
+        }),
+    ]);
 
     return {
         id: postItem.postId,
@@ -1728,7 +1729,7 @@ export async function updatePostContent(
     assert(spaceId);
     assert(contentUpdatedTime);
 
-    context.jobs.send({
+    await context.jobs.send({
         type: "IndexSearchEntity",
         spaceId,
         update: {
@@ -1945,35 +1946,6 @@ export async function createPostComment(
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
         const contentSnippet = getNotificationMessageContentSnippet(content);
 
-        context.jobs.send({
-            type: "NotificationEvent",
-            event: {
-                type: "CreatePostComment",
-                id: generateId(),
-                spaceId: postItem.spaceId,
-                postId,
-                commentIndex,
-                createdTime,
-                authorId,
-                mentionedAccountIds,
-                isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
-                contentSnippet,
-            },
-        });
-
-        context.jobs.send({
-            type: "IndexSearchEntity",
-            spaceId: postItem.spaceId,
-            update: {
-                type: "PostComment",
-                postId,
-                commentIndex,
-                // Nothing depends on this entity when it's created. Don't bother trying to
-                // reindex dependencies.
-                updatedTraits: {type: "None"},
-            },
-        });
-
         // Creating a comment on a post accrues affinity points to the channel the post
         // was made in. If you're interacting with a post this probably means the topic
         // of the post (the channel) is relevant to you as well.
@@ -2010,6 +1982,36 @@ export async function createPostComment(
                 }
             });
         }
+
+        await runAllPromises([
+            context.jobs.send({
+                type: "NotificationEvent",
+                event: {
+                    type: "CreatePostComment",
+                    id: generateId(),
+                    spaceId: postItem.spaceId,
+                    postId,
+                    commentIndex,
+                    createdTime,
+                    authorId,
+                    mentionedAccountIds,
+                    isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
+                    contentSnippet,
+                },
+            }),
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId: postItem.spaceId,
+                update: {
+                    type: "PostComment",
+                    postId,
+                    commentIndex,
+                    // Nothing depends on this entity when it's created. Don't bother trying to
+                    // reindex dependencies.
+                    updatedTraits: {type: "None"},
+                },
+            }),
+        ]);
 
         return {
             spaceId: postItem.spaceId,
@@ -2212,7 +2214,7 @@ export function updatePostCommentContent(
             }),
         ]);
 
-        context.jobs.send({
+        await context.jobs.send({
             type: "IndexSearchEntity",
             spaceId,
             update: {
@@ -2315,7 +2317,7 @@ export function deletePostComment(
             }),
         ]);
 
-        context.jobs.send({
+        await context.jobs.send({
             type: "IndexSearchEntity",
             spaceId,
             update: {
