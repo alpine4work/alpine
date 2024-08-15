@@ -100,7 +100,14 @@ async function main() {
     const {region} = instanceIdentity;
     if (!region) throw new Error("EC2 instance region not found");
 
+    // TODO(calebmer, 2024-08-15): Wish I called this bucket
+    // `cyberworlds-bazel-remote-cache`. Since `bazel-remote` could refer to remote
+    // execution or remote caching. I think I named this when I was planning to use
+    // the [`bazel-remote`][1] project.
+    //
+    // [1]: https://github.com/buchgr/bazel-remote
     const bucket = "cyberworlds-bazel-remote";
+
     const host = `${bucket}.s3.${region}.amazonaws.com`;
 
     const server = http.createServer((req1, res1) => {
@@ -164,7 +171,7 @@ async function main() {
 
             req2.on("error", error => {
                 // eslint-disable-next-line no-console
-                console.error(error);
+                console.error("Unexpected error:", error);
 
                 res1.writeHead(500, {"content-type": "text/plain"});
                 res1.end("500 Internal Server Error");
