@@ -29,6 +29,7 @@ export function useOutOfBoundsClickSelection({
 } {
     const isPointerDownAndOverRef = useRef(false);
     const lastDoubleClickTimeRef = useRef<number | null>(null);
+    const removeScrollEventListenersRef = useRef<(() => void) | null>(null);
 
     return {
         onPointerDown: event => {
@@ -38,6 +39,8 @@ export function useOutOfBoundsClickSelection({
             if (!accept(event)) return;
 
             isPointerDownAndOverRef.current = true;
+            removeScrollEventListenersRef.current?.();
+            removeScrollEventListenersRef.current = null;
 
             // Focus on `pointerdown` if this is the mouse. Focus on `pointerup` if this is
             // touch. Because a touch press gesture might actually be a scroll. If the user
@@ -60,10 +63,66 @@ export function useOutOfBoundsClickSelection({
                     lastDoubleClickTimeRef.current = Date.now();
                 }
             }
+            // If this is a non-mouse pointer then we'll focus on `pointerup`. If a scroll
+            // happens between `pointerdown` and `pointerup` we want to cancel the press
+            // and not focus. Otherwise the keyboard may open while the user is scrolling
+            // which is weird.
+            //
+            // Watch all parent elements of our content editor for scroll events. When a
+            // scroll event occurs we set `isPointerDownAndOverRef.current = false`.
+            //
+            // This replicates the behavior in `@react-aria/interactions` where a press is
+            // cancelled when a parent element scrolls. This behavior is important for
+            // mobile since the user must press somewhere on the screen to scroll. Normally
+            // `pointercancel` should be dispatched when the user scrolls while pressing on
+            // some element but when the CSS `touch-action: manipulation` is set the press
+            // is not cancelled.
+            else {
+                const handleScroll = () => {
+                    isPointerDownAndOverRef.current = false;
+                    removeScrollEventListenersRef.current?.();
+                    removeScrollEventListenersRef.current = null;
+                };
+
+                const scrollEventTargets: Array<EventTarget> = [window];
+
+                {
+                    let parentElement = event.currentTarget.parentElement;
+                    while (parentElement) {
+                        const {overflowX, overflowY} = getComputedStyle(parentElement);
+
+                        if (
+                            overflowX === "auto" ||
+                            overflowX === "scroll" ||
+                            overflowY === "auto" ||
+                            overflowY === "scroll"
+                        ) {
+                            scrollEventTargets.push(parentElement);
+                        }
+
+                        parentElement =
+                            parentElement.parentElement !== document.body
+                                ? parentElement.parentElement
+                                : null;
+                    }
+                }
+
+                for (const scrollEventTarget of scrollEventTargets) {
+                    scrollEventTarget.addEventListener("scroll", handleScroll, true);
+                }
+
+                removeScrollEventListenersRef.current = () => {
+                    for (const scrollEventTarget of scrollEventTargets) {
+                        scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+                    }
+                };
+            }
         },
         onPointerUp: event => {
             const wasPointerDownAndOver = isPointerDownAndOverRef.current;
             isPointerDownAndOverRef.current = false;
+            removeScrollEventListenersRef.current?.();
+            removeScrollEventListenersRef.current = null;
 
             if (!wasPointerDownAndOver) return;
             if (isDisabled) return;
@@ -92,12 +151,18 @@ export function useOutOfBoundsClickSelection({
         },
         onPointerLeave: () => {
             isPointerDownAndOverRef.current = false;
+            removeScrollEventListenersRef.current?.();
+            removeScrollEventListenersRef.current = null;
         },
         onPointerCancel: () => {
             isPointerDownAndOverRef.current = false;
+            removeScrollEventListenersRef.current?.();
+            removeScrollEventListenersRef.current = null;
         },
         onDragStart: () => {
             isPointerDownAndOverRef.current = false;
+            removeScrollEventListenersRef.current?.();
+            removeScrollEventListenersRef.current = null;
         },
         onDoubleClick: event => {
             if (isDisabled) return;
