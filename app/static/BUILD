@@ -1,4 +1,5 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
@@ -13,28 +14,65 @@ filegroup(
     visibility = ["//app:__subpackages__"],
 )
 
+GLOB_INCLUDE = ["**"]
+
+# Everything in `static` is available at the root of our domain except files
+# and folders that start with an underscore (`_`). This convention comes from
+# the old static site generator [Jekyll][1].
+#
+# e.g. `favicon.ico` is available at https://cyberworlds.dev/favicon.ico
+#
+# Also important to exclude dot files like `.DS_Store` on MacOS.
+#
+# [1]: https://jekyllrb.com/docs/structure
+GLOB_EXCLUDE = [
+    "**/_*",
+    "**/_*/**",
+    "**/.*",
+    "**/.*/**",
+    "BUILD",
+]
+
 copy_to_bin(
     name = "files",
     srcs = glob(
-        ["**"],
-        exclude = [
-            # Everything in `static` is available at the root of our domain except files
-            # and folders that start with an underscore (`_`). This convention comes from
-            # the old static site generator [Jekyll][1].
-            #
-            # e.g. `favicon.ico` is available at https://cyberworlds.dev/favicon.ico
-            #
-            # Also important to exclude dot files like `.DS_Store` on MacOS.
-            #
-            # [1]: https://jekyllrb.com/docs/structure
-            "**/_*",
-            "**/_*/**",
-            "**/.*",
-            "**/.*/**",
-            "BUILD",
-        ],
-    ),
+               GLOB_INCLUDE,
+               exclude = GLOB_EXCLUDE,
+           ) +
+           # Allow static files in the `.well-known` folder which is expected by Apple.
+           # https://developer.apple.com/documentation/bundleresources/applinks
+           glob(
+               [".well-known/{}".format(path) for path in GLOB_INCLUDE],
+               exclude = [".well-known/{}".format(path) for path in GLOB_EXCLUDE],
+           ),
     visibility = ["//app:__subpackages__"],
+)
+
+js_binary(
+    name = "generate_manifest_paths",
+    data = [
+        "_manifest/app_static_manifest_paths.js",
+        "//:package_light_json_file",
+    ],
+    entry_point = "_manifest/generate_app_static_manifest_paths_main.mjs",
+)
+
+js_run_binary(
+    name = "manifest_paths",
+    srcs = [":static"],
+    outs = ["_manifest/app_static_manifest_paths_output.ts"],
+    args = [
+        "$(rootpath _manifest/app_static_manifest_paths_output.ts)",
+        "$(rootpaths :static)",
+    ],
+    tool = ":generate_manifest_paths",
+)
+
+write_source_files(
+    name = "write_manifest_paths",
+    files = {
+        "_manifest/app_static_manifest_paths.ts": "_manifest/app_static_manifest_paths_output.ts",
+    },
 )
 
 genrule(
@@ -126,6 +164,20 @@ ts_project(
         "//:node_modules/wawoff2",
         "//server/helpers/node",
         "//shared/helpers",
+    ],
+)
+
+# Just the manifest source files. This library can be imported by
+# `//server/edge` without any other weighty build dependencies in this library.
+js_library(
+    name = "static_manifest",
+    srcs = [
+        "_manifest/app_static_manifest_paths.d.ts",
+        "_manifest/app_static_manifest_paths.js",
+    ],
+    visibility = [
+        "//app:__subpackages__",
+        "//server/edge:__pkg__",
     ],
 )
 

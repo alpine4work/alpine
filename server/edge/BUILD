@@ -7,6 +7,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "edge_lib",
     deps = [
+        "//app/static:static_manifest",
         "//server/chat/realtime",
         "//server/cloudflare",
         "//server/documents/collaboration",

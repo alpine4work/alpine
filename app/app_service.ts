@@ -6,6 +6,7 @@ import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {seedDynamo} from "~/app/seed_dynamo.js";
+import {appStaticManifestPaths} from "~/app/static/_manifest/app_static_manifest_paths.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
@@ -64,8 +65,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
-const staticBuildDirectory = joinPath(runfilesPath, "cyberworlds/app/static/build");
-const staticFontsDirectory = joinPath(runfilesPath, "cyberworlds/app/static/fonts");
+const staticPath = joinPath(runfilesPath, "cyberworlds/app/static");
+const staticBuildPath = joinPath(staticPath, "build");
+const staticFontsPath = joinPath(staticPath, "fonts");
 
 // Serve static assets from our `static` directory. These assets will be cached
 // by Cloudflare which sits in front of our Node.js HTTP server.
@@ -81,36 +83,36 @@ const staticFontsDirectory = joinPath(runfilesPath, "cyberworlds/app/static/font
 // forever. Arguably, because of this, static assets shouldn't be served from
 // our app service. Maybe instead we upload static assets to Cloudflare storage
 // and our edge service serves them?
-const serveStaticMiddleware = createServeStaticMiddleware(
-    joinPath(runfilesPath, "cyberworlds/app/static"),
-    {
-        setHeaders: (res, path) => {
-            // Remix fingerprints its assets so we can cache them forever. Other assets
-            // (like `favicon.ico`) are cached for a day then can be updated.
-            //
-            // We manually version our font assets so fonts can be cached forever too. If
-            // we need to update a font the file name will change.
-            if (path.startsWith(staticBuildDirectory) || path.startsWith(staticFontsDirectory)) {
-                // - `public`: Means we can store the asset in a shared cache since they don't
-                //   depend on authorization.
-                // - `max-age=31536000`: The asset lives for one year.
-                // - `immutable`: Indicates the response will never update.
-                res.setHeader("cache-control", "public, max-age=31536000, immutable");
-            } else {
-                // - `public`: Means we can store the asset in a shared cache since they don't
-                //   depend on authorization.
-                // - `max-age=86400`: The asset lives for one day.
-                // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
-                //   allowed to continue using it for a year as long as the cache revalidates
-                //   the asset in the background.
-                res.setHeader(
-                    "cache-control",
-                    "public, max-age=86400, stale-while-revalidate=31536000",
-                );
-            }
-        },
-    },
-);
+const serveStaticMiddleware =
+    process.env.NODE_ENV !== "production"
+        ? createServeStaticMiddleware(joinPath(runfilesPath, "cyberworlds/app/static"), {
+              setHeaders: (res, path) => {
+                  // Remix fingerprints its assets so we can cache them forever. Other assets
+                  // (like `favicon.ico`) are cached for a day then can be updated.
+                  //
+                  // We manually version our font assets so fonts can be cached forever too. If
+                  // we need to update a font the file name will change.
+                  if (path.startsWith(staticBuildPath) || path.startsWith(staticFontsPath)) {
+                      // - `public`: Means we can store the asset in a shared cache since they don't
+                      //   depend on authorization.
+                      // - `max-age=31536000`: The asset lives for one year.
+                      // - `immutable`: Indicates the response will never update.
+                      res.setHeader("cache-control", "public, max-age=31536000, immutable");
+                  } else {
+                      // - `public`: Means we can store the asset in a shared cache since they don't
+                      //   depend on authorization.
+                      // - `max-age=86400`: The asset lives for one day.
+                      // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
+                      //   allowed to continue using it for a year as long as the cache revalidates
+                      //   the asset in the background.
+                      res.setHeader(
+                          "cache-control",
+                          "public, max-age=86400, stale-while-revalidate=31536000",
+                      );
+                  }
+              },
+          })
+        : null;
 
 runService({
     serviceName: "AppService",
@@ -410,9 +412,20 @@ runService({
         // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Load Balancer -> us
         // in application code in production.
         const server = createServer((req, res) => {
-            serveStaticMiddleware(req, res, () => {
+            // In development, static assets are served by `serve-static` middleware in
+            // `AppService`. In production we serve static assets from Cloudflare R2.
+            if (
+                process.env.NODE_ENV !== "production" &&
+                (req.url!.startsWith("/build/") ||
+                    appStaticManifestPaths.has(req.url!.replace(/\?.*$/, "")))
+            ) {
+                serveStaticMiddleware!(req, res, () => {
+                    res.writeHead(404, {"content-type": "text/plain"});
+                    res.end("404 Not Found");
+                });
+            } else {
                 requestListener(req, res);
-            });
+            }
         });
 
         server.on("error", error => {

@@ -1,3 +1,4 @@
+import {appStaticManifestPaths} from "~/app/static/_manifest/app_static_manifest_paths.js";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
 import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
@@ -21,6 +22,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 
 type EdgeServiceEnv = {
+    AppStaticBucket: R2Bucket;
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     ChannelRealtimeDurableObjectNamespace: DurableObjectNamespace;
@@ -42,7 +44,11 @@ let sharedResources: {
     taskRealtimeServiceRouterPromise: Promise<TaskRealtimeServiceEdgeRouter>;
 } | null = null;
 
-function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: ExecutionContext) {
+async function handleFetch(
+    request: Request,
+    env: EdgeServiceEnv,
+    executionContext: ExecutionContext,
+) {
     const startTime = Date.now();
 
     const url = new URL(request.url);
@@ -76,9 +82,48 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
 
     // Fast path for static asset requests. We don't want to trace these requests
     // or perform any other request/response manipulation.
-    if (url.pathname.startsWith("/build/")) {
-        // eslint-disable-next-line no-global-fetch
-        return fetch(request);
+    if (appStaticManifestPaths.has(url.pathname) || url.pathname.startsWith("/build/")) {
+        // In development, static assets are served by `serve-static` middleware in
+        // `AppService`. In production we serve static assets from Cloudflare R2.
+        if (process.env.NODE_ENV !== "production") {
+            // eslint-disable-next-line no-global-fetch
+            return fetch(request);
+        }
+
+        const object = await env.AppStaticBucket.get(`files${url.pathname}`);
+        if (object === null) {
+            return new Response("404 Not Found", {
+                status: 404,
+                headers: {"content-type": "text/plain"},
+            });
+        }
+
+        // TODO(calebmer, #deploy): ETag support?
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+
+        // Remix fingerprints its assets so we can cache them forever. Other assets
+        // (like `favicon.ico`) are cached for a day then can be updated.
+        //
+        // We manually version our font assets so fonts can be cached forever too. If
+        // we need to update a font the file name will change.
+        if (url.pathname.startsWith("/build/") || url.pathname.startsWith("/fonts/")) {
+            // - `public`: Means we can store the asset in a shared cache since they don't
+            //   depend on authorization.
+            // - `max-age=31536000`: The asset lives for one year.
+            // - `immutable`: Indicates the response will never update.
+            headers.set("cache-control", "public, max-age=31536000, immutable");
+        } else {
+            // - `public`: Means we can store the asset in a shared cache since they don't
+            //   depend on authorization.
+            // - `max-age=86400`: The asset lives for one day.
+            // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
+            //   allowed to continue using it for a year as long as the cache revalidates
+            //   the asset in the background.
+            headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
+        }
+
+        return new Response(object.body, {headers});
     }
 
     // Create a new tracer for every request because we need a Honeycomb client and

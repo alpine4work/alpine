@@ -26,6 +26,7 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/react-router",
         "//:node_modules/serve-static",
+        "//app/static:static_manifest",
         "//client/blob_factory",
         "//client/chat",
         "//client/context",
@@ -151,9 +152,22 @@ js_binary(
     visibility = ["//app/integration_tests:__pkg__"],
 )
 
+# The container image we build for `AppService` is for production so doesn't
+# include `:app_static` files which we only serve from `AppService` in
+# development. In production `:app_static` files are served from Cloudflare R2.
+js_binary(
+    name = "app_without_static",
+    data = [
+        ":app_build",
+        ":app_lib",
+        "//:remix_config_files",
+    ],
+    entry_point = ":app_build",
+)
+
 js_image_layer(
     name = "app_image_layer",
-    binary = ":app",
+    binary = ":app_without_static",
     root = "/var/www",
 )
 
