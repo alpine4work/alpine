@@ -117,7 +117,9 @@ export async function deploy(
             if (
                 workflowRunJobStep.conclusion === null ||
                 !workflowRunJobStep.started_at ||
-                !workflowRunJobStep.completed_at
+                !workflowRunJobStep.completed_at ||
+                // Ignore skipped steps entirely. They'll have a duration of 0s.
+                workflowRunJobStep.conclusion === "skipped"
             ) {
                 continue;
             }
