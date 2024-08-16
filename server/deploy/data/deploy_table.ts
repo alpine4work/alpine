@@ -306,7 +306,7 @@ export async function scheduleDeploy(
 
             const searchCreatedTimeRange = [subMinutes(searchTime, 2), addMinutes(searchTime, 1)]
                 .map(time => time.toISOString())
-                .join("...");
+                .join("..");
 
             const searchWorkflowRunsResult = await context.github.request(
                 "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
