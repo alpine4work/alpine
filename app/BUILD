@@ -155,8 +155,12 @@ js_binary(
 # The container image we build for `AppService` is for production so doesn't
 # include `:app_static` files which we only serve from `AppService` in
 # development. In production `:app_static` files are served from Cloudflare R2.
+#
+# Doesn't use `production_transition()` because we apply
+# `production_transition()` at the end of this build rule chain at
+# `:app_image_tarball_production`.
 js_binary(
-    name = "app_without_static",
+    name = "app_production",
     data = [
         ":app_build",
         ":app_lib",
@@ -167,7 +171,7 @@ js_binary(
 
 js_image_layer(
     name = "app_image_layer",
-    binary = ":app_without_static",
+    binary = ":app_production",
     root = "/var/www",
 )
 

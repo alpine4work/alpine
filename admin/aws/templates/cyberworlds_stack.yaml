@@ -2439,7 +2439,7 @@ Resources:
                       - -c
                       - Fn::Join:
                             - ""
-                            - - /var/www/app/app --port=4000
+                            - - /var/www/app/app_production --port=4000
                                 --edgeServiceUrl=https://cyberworlds.dev --opensearchHost=
                               - Fn::GetAtt:
                                     - OpensearchDomainCED7C974

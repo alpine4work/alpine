@@ -202,7 +202,7 @@ export class AwsAppService extends Construct {
                 // proper value.
                 "sh",
                 "-c",
-                `/var/www/app/app ${[
+                `/var/www/app/app_production ${[
                     `--port=${port}`,
                     "--edgeServiceUrl=https://cyberworlds.dev",
                     `--opensearchHost=${opensearch.opensearchHost}`,
