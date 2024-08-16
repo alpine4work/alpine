@@ -328,9 +328,13 @@ export function ContentView({
             const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
 
             let html: HtmlElementGenerator;
-            if (depthToLastParagraphChild !== null) {
+            if (
+                depthToLastParagraphChild !== null &&
+                // Always render "See less" on its own line. Don't put it inline with the last
+                // paragraph.
+                !shouldShowSeeLessContentButton
+            ) {
                 const shouldAddEllipsis =
-                    !shouldShowSeeLessContentButton &&
                     lastTextblockChild &&
                     lastTextblockChild.childCount > 0 &&
                     !isTextEndedWithPunctuation(lastTextblockChild.lastChild!.text!);
