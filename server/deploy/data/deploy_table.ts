@@ -1,4 +1,5 @@
 import {ZonedDateTime, isWeekday, parseAbsolute} from "@internationalized/date";
+import {addMinutes, subMinutes} from "date-fns";
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
 import {SchedulerContextModuleBase} from "~/server/deploy/data/scheduler_context_module.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -121,6 +122,39 @@ const DeployTable = DynamoTableSchema.new({
                              * The git commit SHA we dispatched the GitHub deploy workflow for.
                              */
                             commitSha: Schema.string,
+
+                            /**
+                             * When `workflowRunId` is null the way we have to discover the correct
+                             * `workflowRunId` is ridiculous. Frustratingly [GitHub doesn't return the
+                             * `workflowRunId` from the `/dispatches` API call][1]. And we can't look for
+                             * workflow runs with a matching `head_sha === dispatchedDeployment.commitSha`
+                             * because we start all workflow runs off the `main` branch since annoyingly
+                             * [GitHub ALSO doesn't support dispatching a workflow with an arbitrary commit
+                             * sha][2].
+                             *
+                             * The most reliable approach we've found for finding the `workflowRunId` after
+                             * the `/dispatches` API call is implemented by
+                             * [`trigger-workflow-and-wait`][3]. The technique it uses is to record all
+                             * `workflowRunId`s in the last 2 minutes then after dispatching compare the
+                             * new `workflowRunId`s. Any `workflowRunId`s in the new set that weren't in
+                             * the old set are considered to be a result of the dispatch.
+                             *
+                             * I'm (@calebmer) pretty annoyed by GitHub's two limitations here. This
+                             * approach will work most of the time but of course there are theoretical race
+                             * conditions where we end up with a `workflowRunId` not associated with our
+                             * dispatch.
+                             *
+                             * [1]: https://github.com/orgs/community/discussions/9752
+                             * [2]: https://github.com/orgs/community/discussions/75513
+                             * [3]: https://github.com/convictional/trigger-workflow-and-wait/tree/master
+                             */
+                            search: Schema.object({
+                                createdTimeRange: Schema.string,
+                                oldWorkflowRunIds: Schema.array(Schema.integer),
+                            }).default({
+                                createdTimeRange: "",
+                                oldWorkflowRunIds: [],
+                            }),
                         })
                             .nullable()
                             .default(null),
@@ -302,12 +336,38 @@ export async function scheduleDeploy(
                 if (canDispatchDeploy && deployItem.scheduledDeployment !== null) {
                     shouldRunAgain = true;
 
+                    const searchTime = new Date();
+
+                    const searchCreatedTimeRange = [
+                        subMinutes(searchTime, 2),
+                        addMinutes(searchTime, 1),
+                    ]
+                        .map(time => time.toISOString())
+                        .join("...");
+
+                    const searchWorkflowRunsResult = await context.github.request(
+                        "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+                        {
+                            owner: githubOwner,
+                            repo: githubRepo,
+                            workflow_id: deployGithubWorkflowId,
+                            created: searchCreatedTimeRange,
+                            per_page: 100,
+                        },
+                    );
+
                     const newDeployItem: DeployAttributesItem = {
                         ...deployItem,
                         scheduledDeployment: null,
                         dispatchedDeployment: {
                             workflowRunId: null,
                             commitSha: deployItem.scheduledDeployment.commitSha,
+                            search: {
+                                createdTimeRange: searchCreatedTimeRange,
+                                oldWorkflowRunIds: searchWorkflowRunsResult.data.workflow_runs.map(
+                                    workflowRun => workflowRun.id,
+                                ),
+                            },
                         },
                     };
                     await DeployTable.directlyUpdateItem(context, newDeployItem);
@@ -409,11 +469,37 @@ export async function scheduleDeploy(
                     // should be handled above.
                     assert(deployItem.scheduledDeployment === null);
 
+                    const searchTime = new Date();
+
+                    const searchCreatedTimeRange = [
+                        subMinutes(searchTime, 2),
+                        addMinutes(searchTime, 1),
+                    ]
+                        .map(time => time.toISOString())
+                        .join("...");
+
+                    const searchWorkflowRunsResult = await context.github.request(
+                        "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+                        {
+                            owner: githubOwner,
+                            repo: githubRepo,
+                            workflow_id: deployGithubWorkflowId,
+                            created: searchCreatedTimeRange,
+                            per_page: 100,
+                        },
+                    );
+
                     const newDeployItem: DeployAttributesItem = {
                         ...deployItem,
                         dispatchedDeployment: {
                             workflowRunId: null,
                             commitSha: newCommitSha,
+                            search: {
+                                createdTimeRange: searchCreatedTimeRange,
+                                oldWorkflowRunIds: searchWorkflowRunsResult.data.workflow_runs.map(
+                                    workflowRun => workflowRun.id,
+                                ),
+                            },
                         },
                     };
                     await DeployTable.directlyUpdateItem(context, newDeployItem);
@@ -603,18 +689,26 @@ async function resolveDeployItemDispatchedDeploymentResult(
         // workflow run is started asynchronously. Keep retrying until we find a
         // matching deploy run.
         return retryWithExponentialBackoff(async retry => {
-            const workflowRunsResult = await context.github.request(
+            const searchWorkflowRunsResult = await context.github.request(
                 "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
                 {
                     owner: githubOwner,
                     repo: githubRepo,
                     workflow_id: deployGithubWorkflowId,
-                    head_sha: dispatchedDeployment.commitSha,
-                    per_page: 1,
+                    created: dispatchedDeployment.search.createdTimeRange,
+                    per_page: 100,
                 },
             );
 
-            const workflowRun = workflowRunsResult.data.workflow_runs[0];
+            const searchOldWorkflowRunIds = new Set(dispatchedDeployment.search.oldWorkflowRunIds);
+
+            const workflowRun = searchWorkflowRunsResult.data.workflow_runs
+                .filter(workflowRun => !searchOldWorkflowRunIds.has(workflowRun.id))
+                .sort(
+                    (workflowRun1, workflowRun2) =>
+                        new Date(workflowRun1.created_at).getTime() -
+                        new Date(workflowRun2.created_at).getTime(),
+                )[0];
 
             if (!workflowRun) {
                 throw retry(new NotFoundError("Couldn't find workflow run for dispatch"));
@@ -624,7 +718,11 @@ async function resolveDeployItemDispatchedDeploymentResult(
             // so we can dispatch a new deploy.
             if (workflowRun.conclusion !== null) return null;
 
-            return {workflowRunId: workflowRun.id, commitSha: dispatchedDeployment.commitSha};
+            return {
+                workflowRunId: workflowRun.id,
+                commitSha: dispatchedDeployment.commitSha,
+                search: dispatchedDeployment.search,
+            };
         });
     });
 }
@@ -776,7 +874,7 @@ export async function prepareDeploy(
             // Now that we've successfully dispatched, clear our `dispatchedDeployment`
             // state.
             dispatchedDeployment:
-                item.dispatchedDeployment?.workflowRunId === workflowRunId
+                item.dispatchedDeployment?.commitSha === commitSha
                     ? null
                     : item.dispatchedDeployment,
         }),
