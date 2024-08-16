@@ -1,21 +1,23 @@
 import fs from "fs/promises";
 // eslint-disable-next-line sort-imports-by-source
-import {appStaticPaths as oldAppStaticPaths} from "./app_static_manifest_paths.js";
+import {appStaticManifestPaths as oldAppStaticManifestPaths} from "./app_static_manifest_paths.js";
 
 async function main() {
-    const [outputPath, ...newAppStaticPaths] = process.argv.slice(2);
+    const [outputPath, ...newAppStaticManifestPaths] = process.argv.slice(2);
 
-    const newAppStaticPathPrefix = "app/static/";
+    const newAppStaticManifestPathPrefix = "app/static/";
 
-    const appStaticPaths = Array.from(
+    const appStaticManifestPaths = Array.from(
         new Set([
-            ...oldAppStaticPaths,
-            ...newAppStaticPaths.map(path => {
-                if (!path.startsWith(newAppStaticPathPrefix)) {
-                    throw new Error(`Expected "${path}" to be in "${newAppStaticPathPrefix}"`);
+            ...oldAppStaticManifestPaths,
+            ...newAppStaticManifestPaths.map(path => {
+                if (!path.startsWith(newAppStaticManifestPathPrefix)) {
+                    throw new Error(
+                        `Expected "${path}" to be in "${newAppStaticManifestPathPrefix}"`,
+                    );
                 }
 
-                return path.slice(newAppStaticPathPrefix.length - 1);
+                return path.slice(newAppStaticManifestPathPrefix.length - 1);
             }),
         ]),
     ).sort();
@@ -38,7 +40,7 @@ async function main() {
  * reclaim a route that was previously served by a static file.
  */
 export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
-${appStaticPaths.map(path => `    "${path}",\n`).join("")}]);
+${appStaticManifestPaths.map(path => `    "${path}",\n`).join("")}]);
 `;
 
     await fs.writeFile(outputPath, outputContents);
