@@ -2334,6 +2334,10 @@ Resources:
                                         - GithubRunnersBazelRemoteBucket2843E0D0
                                         - Arn
                                   - /*
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::ImportValue: CyberworldsStack:JobQueueArn
                     - Action:
                           - dynamodb:BatchGetItem
                           - dynamodb:BatchWriteItem

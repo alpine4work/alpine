@@ -335,6 +335,10 @@ export class AwsGithubRunners extends Construct {
         // Allow reading/writing to Bazel remote cache bucket.
         bucket.grantReadWrite(deployRunnerProvider);
 
+        // Our deploy workflow needs to send the `ScheduleDeploy` message to our
+        // job queue.
+        sqs.grantSendJobQueueMessages(deployRunnerProvider);
+
         // Allow reading/writing to the deploy DynamoDB table.
         dynamo.grantReadWriteDataForTable(deployRunnerProvider, "Deploy");
 
