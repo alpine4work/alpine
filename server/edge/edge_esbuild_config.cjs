@@ -8,7 +8,7 @@
 // `styles_esbuild_config.cjs`.
 const compilationModeMatch = process.env.BAZEL_BINDIR.match(
     /(?:^|\/)bazel-out\/[a-z0-9]+(?:_[a-z0-9_]+)?-(fastbuild|dbg|opt)/,
-)[1];
+);
 
 if (!compilationModeMatch) {
     throw new Error(
