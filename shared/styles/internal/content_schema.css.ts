@@ -705,10 +705,11 @@ export const codeBlockLineClassName = style({
                 "0.25rem",
             ),
             textAlign: "right",
-            color: colorSchemeVars["grey-40"],
+            color: colorSchemeVars["grey-30"],
             // No gradient for the line number. We have a hard border to create the
             // illusion of the line number column sliding over the code.
             backgroundColor: backgroundColorVar,
+            ...fontStyles["code-light"],
         },
         "&::after": {
             content: '""',
