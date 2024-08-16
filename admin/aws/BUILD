@@ -38,7 +38,7 @@ filegroup(
     data = [
         ":aws",
         "//:cdk_files",
-        "//admin/opensearch/deploy",
+        "//admin/opensearch/deploy:deploy_production",
         "//app:app_image_tarball_production",
         "//server/jobs/queue:queue_image_tarball_production",
         "//server/migration:migration_image_tarball_production",
