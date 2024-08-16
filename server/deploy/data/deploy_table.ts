@@ -14,6 +14,7 @@ import {
 } from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -329,7 +330,7 @@ export async function scheduleDeploy(
                     },
                 },
             };
-            await DeployTable.directlyUpdateItem(context, deployItem);
+            deployItem = await DeployTable.directlyUpdateItem(context, deployItem);
 
             await context.github.request(
                 "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
@@ -349,11 +350,15 @@ export async function scheduleDeploy(
 
             // Wait for the workflow run corresponding with the dispatch to be created and
             // stash it in `dispatchedDeployment.workflowRunId`.
-            const resolvedDispatchedDeployment = unwrapResult(
-                await resolveDeployItemDispatchedDeploymentResult(
-                    context,
-                    deployItem.dispatchedDeployment,
-                ),
+            const resolvedDispatchedDeployment = await context.tracer.withSpan(
+                "Resolve dispatched deploy workflow",
+                async context =>
+                    unwrapResult(
+                        await resolveDeployItemDispatchedDeploymentResult(
+                            context,
+                            deployItem.dispatchedDeployment,
+                        ),
+                    ),
             );
 
             // `DeployTable.updateItem()` will call `context.dynamo.retryTransaction()`
@@ -580,9 +585,7 @@ export async function scheduleDeploy(
                     nextDeployableTime,
                 },
             };
-            await DeployTable.directlyUpdateItem(context, newDeployItem);
-
-            return newDeployItem;
+            return DeployTable.directlyUpdateItem(context, newDeployItem);
         });
     };
 
@@ -632,12 +635,16 @@ async function resolveDeployItemDispatchedDeploymentResult(
         return {ok: true, value: dispatchedDeployment};
     }
 
-    return captureResultPromise(() => {
+    return captureResultPromise(async () => {
+        let attemptCount = 0;
+
         // After we execute
         // `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches` the
         // workflow run is started asynchronously. Keep retrying until we find a
         // matching deploy run.
-        return retryWithExponentialBackoff(async retry => {
+        while (true) {
+            attemptCount++;
+
             const searchWorkflowRunsResult = await context.github.request(
                 "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
                 {
@@ -660,7 +667,12 @@ async function resolveDeployItemDispatchedDeploymentResult(
                 )[0];
 
             if (!workflowRun) {
-                throw retry(new NotFoundError("Couldn't find workflow run for dispatch"));
+                if (attemptCount >= 20) {
+                    throw new NotFoundError("Couldn't find workflow run for dispatch");
+                } else {
+                    await wait(500);
+                    continue;
+                }
             }
 
             // If the workflow has concluded, consider `dispatchedDeployment` to be unset
@@ -672,7 +684,7 @@ async function resolveDeployItemDispatchedDeploymentResult(
                 commitSha: dispatchedDeployment.commitSha,
                 search: dispatchedDeployment.search,
             };
-        });
+        }
     });
 }
 

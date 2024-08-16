@@ -1741,28 +1741,28 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public async directlyUpdateItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
-    ): Promise<void> {
-        await this._putItem(
-            context,
-            {
-                ...item,
-                // Increment the lock version in this new item.
+    ): Promise<Item> {
+        const newItem: Item = {
+            ...item,
+            // Increment the lock version in this new item.
+            updateLockVersion:
+                typeof item.updateLockVersion === "number" ? item.updateLockVersion + 1 : 1,
+        };
+
+        await this._putItem(context, newItem, {
+            condition: {
+                // Verify that the lock version was not changed by a concurrent writer.
                 updateLockVersion:
-                    typeof item.updateLockVersion === "number" ? item.updateLockVersion + 1 : 1,
+                    typeof item.updateLockVersion === "number"
+                        ? DynamoConditionExpression.eq(item.updateLockVersion)
+                        : DynamoConditionExpression.exists().not(),
             },
-            {
-                condition: {
-                    // Verify that the lock version was not changed by a concurrent writer.
-                    updateLockVersion:
-                        typeof item.updateLockVersion === "number"
-                            ? DynamoConditionExpression.eq(item.updateLockVersion)
-                            : DynamoConditionExpression.exists().not(),
-                },
-                // This operation implements an optimistic locking scheme. Retrying the
-                // operation should read the latest item version and eventually succeed.
-                isConditionCheckErrorRetriable: true,
-            },
-        );
+            // This operation implements an optimistic locking scheme. Retrying the
+            // operation should read the latest item version and eventually succeed.
+            isConditionCheckErrorRetriable: true,
+        });
+
+        return newItem;
     }
 
     /**
