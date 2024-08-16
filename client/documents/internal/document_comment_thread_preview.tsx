@@ -145,7 +145,9 @@ export function DocumentCommentThreadPreview({
                 // Use pointer cursor because otherwise the preview has a weak clickable
                 // affordance. It's not clear that the preview is clickable unlike a button.
                 cursor="pointer"
-                boxShadow="elevation-5-with-grey-10-border"
+                // Outset border so content at the edges (e.g. with a background color) doesn't
+                // render over our border.
+                boxShadow="elevation-5-with-grey-10-outset-border"
                 borderRadius="1.5"
                 overflow="hidden"
                 {...(buttonProps as any)}
