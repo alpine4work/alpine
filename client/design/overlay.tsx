@@ -553,19 +553,10 @@ function Overlay(
                                 const offsetParentRect =
                                     state.elements.popper.offsetParent?.getBoundingClientRect();
 
-                                const scrollParent =
-                                    state.scrollParents.popper[0] instanceof HTMLElement
-                                        ? state.scrollParents.popper[0]
-                                        : null;
-
                                 state.modifiersData.updateBlockingCoverRead = {
                                     popperRelativeCoord: {
-                                        x:
-                                            (offsetParentRect?.x ?? 0) -
-                                            (scrollParent?.scrollLeft ?? 0),
-                                        y:
-                                            (offsetParentRect?.y ?? 0) -
-                                            (scrollParent?.scrollTop ?? 0),
+                                        x: offsetParentRect?.x ?? 0,
+                                        y: offsetParentRect?.y ?? 0,
                                     },
                                 };
                             },
