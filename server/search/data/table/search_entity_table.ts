@@ -630,7 +630,7 @@ async function internalGetSearchAffinitiesBase<
                 lastUpdatedTime: number;
                 expirationTime: Date;
             },
-        ) => Promise<void>;
+        ) => Promise<unknown>;
     },
 ): Promise<
     Array<{
