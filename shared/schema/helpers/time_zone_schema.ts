@@ -1,4 +1,4 @@
-import {TimeZone, isTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {TimeZone, isTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 export const TimeZoneSchema = Schema.string.transform<TimeZone>({

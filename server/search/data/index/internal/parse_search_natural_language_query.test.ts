@@ -6,7 +6,7 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assertTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

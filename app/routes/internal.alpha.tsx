@@ -16,6 +16,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model.js";
 import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     approveAlphaAccessRequest,
@@ -44,18 +45,20 @@ export async function loader({context}: LoaderArgs) {
 
 export default function AlphaManagementPage() {
     const context = useAppContext();
-    const {locale} = useClientInfo();
+    const {locale, timeZone} = useClientInfo();
     const {configuration, requests: loadedRequests} = useLoaderDataWithSchema(LoaderSchema);
 
     const dateTimeFormatter = useMemo(() => {
-        return new Intl.DateTimeFormat(locale, {
+        return getIntlDateTimeFormat({
+            locale,
+            timeZone,
             year: "numeric",
             month: "short",
             day: "numeric",
             hour: "numeric",
             minute: "numeric",
         });
-    }, [locale]);
+    }, [locale, timeZone]);
 
     const [decidedEmailAddresses, setDecidedEmailAddresses] = useState<ReadonlySet<string>>(
         new Set(),

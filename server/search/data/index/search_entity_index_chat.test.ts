@@ -8,7 +8,7 @@ import {
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();

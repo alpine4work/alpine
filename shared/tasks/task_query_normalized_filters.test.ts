@@ -1,5 +1,5 @@
 import {today} from "@internationalized/date";
-import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     defaultTaskQueryNormalizedFilters,

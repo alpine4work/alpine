@@ -5,7 +5,8 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {getCurrentTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfo, defaultClientInfo, isAppleDeviceUserAgent} from "~/shared/remix/client_info.js";
@@ -15,7 +16,7 @@ const clientInfo = new Lazy(
         screenWidth: window.screen.width,
         screenHeight: window.screen.height,
         timeZone: getCurrentTimeZone(),
-        locale: "en-US",
+        locale: defaultLocale,
         isAppleDevice:
             typeof navigator !== "undefined"
                 ? // On the client, use `navigator.platform` to test if this is an Apple device

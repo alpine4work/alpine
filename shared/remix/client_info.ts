@@ -1,6 +1,7 @@
 import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -42,7 +43,7 @@ export const defaultClientInfo = {
 
     // We use English as the default locale when we haven't gotten the client's
     // actual locale since we are a US company.
-    locale: "en-US" as const,
+    locale: defaultLocale,
 
     // Default to assuming we're running on an Apple MacOS desktop device. We make
     // this assumption since our company's recommended developer machines are Apple
@@ -94,7 +95,7 @@ export const ClientInfoSchema = Schema.object({
      * locale here, though, to help us easily track where in the product the locale
      * needs to be dynamic.
      */
-    locale: Schema.value("en-US").default(defaultClientInfo.locale),
+    locale: Schema.value(defaultLocale).default(defaultClientInfo.locale),
 
     /**
      * Is this an Apple operating system device? Could be MacOS, iOS, or iPadOS.

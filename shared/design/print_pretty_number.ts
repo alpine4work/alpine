@@ -1,3 +1,5 @@
+import {Locale} from "~/shared/helpers/intl/locale.js";
+
 /**
  * Format a number as a human readable string. In English adds thousands
  * commas. For example `3000` becomes "3,000".
@@ -9,7 +11,7 @@
  * we add an "s" and don't try any other pluralization rules.
  */
 export function printPrettyNumber(
-    locale: string,
+    locale: Locale,
     number: number,
     label?: string,
     {pluralLabel}: {pluralLabel?: string} = {},

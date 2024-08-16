@@ -81,6 +81,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -1900,7 +1901,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         options: {
             info: Info;
             accountId: AccountId;
-            locale: string;
+            locale: Locale;
             entryItem: InboxEntryItem;
         },
     ) => Promise<{
@@ -1972,7 +1973,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                                     accountId,
                                     // TODO(calebmer): All notifications are currently in US English. When we
                                     // localize the product this should change.
-                                    locale: "en-US",
+                                    locale: defaultLocale,
                                     entryItem: result.newInboxEntryItem,
                                 }),
                         });

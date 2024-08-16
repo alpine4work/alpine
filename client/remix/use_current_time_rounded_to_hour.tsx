@@ -5,7 +5,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 /**
  * Round the provided date to the start of the current hour.

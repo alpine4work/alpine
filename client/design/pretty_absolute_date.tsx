@@ -3,7 +3,8 @@ import {OverlayPlacement} from "~/client/design/overlay.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {createPrettyAbsoluteDateFormatterWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 
 /**
  * Render a date in a human readable form.
@@ -24,13 +25,26 @@ export function PrettyAbsoluteDate({
     shouldIncludeWeekday?: boolean;
     tooltipPlacement?: OverlayPlacement;
 }) {
-    const formatDate = usePrettyAbsoluteDateFormatter({
-        shouldExcludeTime,
-        shouldIncludeSeconds,
-        shouldIncludeWeekday,
-    });
+    const {timeZone, locale} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
 
-    const formattedDate = useMemo(() => formatDate(date), [date, formatDate]);
+    const formattedDate = useMemo(
+        () =>
+            formatPrettyAbsoluteDateWithoutFullTimeTooltip(locale, timeZone, currentTime, date, {
+                shouldExcludeTime,
+                shouldIncludeSeconds,
+                shouldIncludeWeekday,
+            }),
+        [
+            currentTime,
+            date,
+            locale,
+            shouldExcludeTime,
+            shouldIncludeSeconds,
+            shouldIncludeWeekday,
+            timeZone,
+        ],
+    );
 
     return (
         <Tooltip
@@ -42,35 +56,6 @@ export function PrettyAbsoluteDate({
     );
 }
 
-export function usePrettyAbsoluteDateFormatter({
-    shouldExcludeTime,
-    shouldIncludeSeconds,
-    shouldIncludeWeekday,
-}: {
-    shouldExcludeTime?: boolean;
-    shouldIncludeSeconds?: boolean;
-    shouldIncludeWeekday?: boolean;
-} = {}) {
-    const {timeZone, locale} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
-
-    return useMemo(() => {
-        return createPrettyAbsoluteDateFormatterWithoutFullTimeTooltip(
-            locale,
-            timeZone,
-            currentTime,
-            {shouldExcludeTime, shouldIncludeSeconds, shouldIncludeWeekday},
-        );
-    }, [
-        currentTime,
-        locale,
-        shouldExcludeTime,
-        shouldIncludeSeconds,
-        shouldIncludeWeekday,
-        timeZone,
-    ]);
-}
-
 /**
  * The tooltip content of a `<PrettyAbsoluteDate>`.
  */
@@ -78,16 +63,15 @@ export function PrettyAbsoluteDateTooltipContent({date}: {date: Date}) {
     const {timeZone, locale} = useClientInfo();
 
     const formattedDate = useMemo(() => {
-        const formatter = new Intl.DateTimeFormat(locale, {
+        const formatter = getIntlDateTimeFormat({
+            locale,
             timeZone,
-            calendar: "iso8601",
             weekday: "long",
             year: "numeric",
             month: "long",
             day: "numeric",
             hour: "numeric",
             minute: "2-digit",
-            hour12: true,
         });
 
         return formatter

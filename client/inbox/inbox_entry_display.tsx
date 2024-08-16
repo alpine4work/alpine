@@ -12,6 +12,7 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Locale} from "~/shared/helpers/intl/locale.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -243,7 +244,7 @@ export function getInboxEntryDisplay({
     currentAccount,
 }: {
     entry: InboxEntryModel;
-    locale: string;
+    locale: Locale;
     currentAccount: AccountModel;
 }): InboxEntryDisplay {
     switch (entry.type) {
@@ -270,7 +271,7 @@ function getInboxChatEntryDisplay({
     currentAccount,
 }: {
     entry: InboxChatEntryModel;
-    locale: string;
+    locale: Locale;
     currentAccount: AccountModel;
 }): InboxEntryDisplay {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
@@ -420,7 +421,7 @@ function getInboxChannelPostsEntryDisplay({
     locale,
 }: {
     entry: InboxChannelPostsEntryModel;
-    locale: string;
+    locale: Locale;
 }): InboxEntryDisplay {
     const firstAccount: AccountModel = entry.otherPostAuthor ?? entry.latestPost.author;
 
@@ -524,7 +525,7 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
     locale,
 }: {
     entry: InboxDocumentNewCommentThreadsEntryModel;
-    locale: string;
+    locale: Locale;
 }): InboxEntryDisplay {
     const firstAccount: AccountModel = entry.otherCommentThreadAuthor ?? entry.firstComment.author;
 

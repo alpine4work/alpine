@@ -30,6 +30,7 @@ import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
@@ -789,12 +790,11 @@ export function InboxEntryView({
                                 &nbsp;∙&nbsp;
                                 {useMemo(() => {
                                     if (differenceInHours(currentTime, entryDisplay.time) < 24) {
-                                        const formatter = new Intl.DateTimeFormat(locale, {
+                                        const formatter = getIntlDateTimeFormat({
+                                            locale,
                                             timeZone,
-                                            calendar: "iso8601",
                                             hour: "numeric",
                                             minute: "2-digit",
-                                            hour12: true,
                                         });
 
                                         return formatter
@@ -803,9 +803,9 @@ export function InboxEntryView({
                                                 string.trim().toLowerCase(),
                                             );
                                     } else {
-                                        const formatter = new Intl.DateTimeFormat(locale, {
+                                        const formatter = getIntlDateTimeFormat({
+                                            locale,
                                             timeZone,
-                                            calendar: "iso8601",
                                             month: "short",
                                             day: "numeric",
                                         });

@@ -5,7 +5,8 @@ import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/fo
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {DateString, deserializeDateString} from "~/shared/helpers/date/date_string.js";
-import {getCurrentTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const githubOwner = "cyberworlds";
@@ -139,11 +140,11 @@ async function main(): Promise<{exitCode: number}> {
                 console.log(
                     chalk.dim(
                         `Hint: Commit will be deployed ${printPrettyNumber(
-                            "en-US",
+                            defaultLocale,
                             hours,
                             "hour",
                         )} from now on ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
-                            "en-US",
+                            defaultLocale,
                             getCurrentTimeZone(),
                             currentTime,
                             nextDeployableTime,

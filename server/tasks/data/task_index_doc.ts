@@ -26,7 +26,7 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {isTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";

@@ -1,5 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
-import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
+import {Locale} from "~/shared/helpers/intl/locale.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 export function formatTaskDate({
     timeZone,
@@ -9,7 +11,7 @@ export function formatTaskDate({
     shouldFormatAroundToday,
 }: {
     timeZone: TimeZone;
-    locale: string;
+    locale: Locale;
     currentDate: CalendarDate;
     date: CalendarDate;
     shouldFormatAroundToday: boolean;
@@ -40,9 +42,9 @@ export function formatTaskDate({
     } else {
         const isCurrentYear = currentDate.year === date.year;
 
-        const formatter = new Intl.DateTimeFormat(locale, {
+        const formatter = getIntlDateTimeFormat({
+            locale,
             timeZone,
-            calendar: "iso8601",
             year: !isCurrentYear ? "numeric" : undefined,
             month: "short",
             day: "numeric",

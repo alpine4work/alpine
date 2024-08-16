@@ -7,7 +7,7 @@ import {
     startOfWeek,
 } from "date-fns";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 
 const nameByNumber = new Map([
     [1, "one"],

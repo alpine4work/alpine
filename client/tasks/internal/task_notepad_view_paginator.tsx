@@ -5,12 +5,14 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_date.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
@@ -39,20 +41,8 @@ export function TaskNotepadViewPaginator({
 
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
-
-    const formatDateWithoutTime = usePrettyAbsoluteDateFormatter({
-        shouldIncludeWeekday: true,
-        shouldExcludeTime: true,
-    });
-
-    const formatDateWithTimeWithoutSeconds = usePrettyAbsoluteDateFormatter({
-        shouldIncludeWeekday: true,
-    });
-
-    const formatDateWithTimeWithSeconds = usePrettyAbsoluteDateFormatter({
-        shouldIncludeWeekday: true,
-        shouldIncludeSeconds: true,
-    });
+    const {timeZone, locale} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
 
     const createNotepadPage = useEvent(async () => {
         const synchronizedSystemClock = await getSynchronizedSystemClock();
@@ -125,7 +115,19 @@ export function TaskNotepadViewPaginator({
                                     iterateWithAdjacents(
                                         mapIterable(allNotepadPageIds.get(), notepadPageId => {
                                             const date = new Date(notepadPageId);
-                                            const dateString = formatDateWithoutTime(date);
+
+                                            const dateString =
+                                                formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                                                    locale,
+                                                    timeZone,
+                                                    currentTime,
+                                                    date,
+                                                    {
+                                                        shouldIncludeWeekday: true,
+                                                        shouldExcludeTime: true,
+                                                    },
+                                                );
+
                                             return {id: notepadPageId, date, dateString};
                                         }),
                                     ),
@@ -139,9 +141,14 @@ export function TaskNotepadViewPaginator({
                                         ) {
                                             return {
                                                 ...notepadPage,
-                                                dateString: formatDateWithTimeWithoutSeconds(
-                                                    notepadPage.date,
-                                                ),
+                                                dateString:
+                                                    formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                                                        locale,
+                                                        timeZone,
+                                                        currentTime,
+                                                        notepadPage.date,
+                                                        {shouldIncludeWeekday: true},
+                                                    ),
                                             };
                                         }
                                         return notepadPage;
@@ -157,7 +164,16 @@ export function TaskNotepadViewPaginator({
                                 ) {
                                     return {
                                         ...notepadPage,
-                                        dateString: formatDateWithTimeWithSeconds(notepadPage.date),
+                                        dateString: formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                                            locale,
+                                            timeZone,
+                                            currentTime,
+                                            notepadPage.date,
+                                            {
+                                                shouldIncludeWeekday: true,
+                                                shouldIncludeSeconds: true,
+                                            },
+                                        ),
                                     };
                                 }
                                 return notepadPage;
@@ -191,12 +207,12 @@ export function TaskNotepadViewPaginator({
                 }, [
                     allNotepadPageIds,
                     createNotepadPage,
-                    formatDateWithTimeWithSeconds,
-                    formatDateWithTimeWithoutSeconds,
-                    formatDateWithoutTime,
+                    currentTime,
                     isMobile,
+                    locale,
                     notepadPageId,
                     onNotepadPageIdSelect,
+                    timeZone,
                 ])}
             >
                 <Button
