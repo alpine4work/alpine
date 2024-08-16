@@ -312,7 +312,8 @@ export function ContentEditorPointerToolbar({
     const [_showState, setShowState] = useState<
         | {
               isShowing: true;
-              pos: number;
+              selectionFrom: number;
+              selectionTo: number;
               animation: "FadingIn" | "FadingOut" | null;
               extraOverlay: "LinkInput" | "HighlightSelector" | null;
           }
@@ -323,12 +324,18 @@ export function ContentEditorPointerToolbar({
 
     // Update our show state whenever the selection changes while the toolbar
     // is open.
-    if (shouldShow && showState.isShowing && showState.pos !== state.selection.from) {
+    if (
+        shouldShow &&
+        showState.isShowing &&
+        (showState.selectionFrom !== state.selection.from ||
+            showState.selectionTo !== state.selection.to)
+    ) {
         if (shouldShow) {
             showState = showState.isShowing
                 ? {
                       ...showState,
-                      pos: state.selection.from,
+                      selectionFrom: state.selection.from,
+                      selectionTo: state.selection.to,
                       animation:
                           showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
                       // Close the link input when the selection changes.
@@ -339,7 +346,7 @@ export function ContentEditorPointerToolbar({
     }
 
     // Close the toolbar if the position moves out of bounds.
-    if (showState.isShowing && showState.pos >= state.doc.nodeSize) {
+    if (showState.isShowing && showState.selectionFrom >= state.doc.nodeSize) {
         showState = {isShowing: false};
     }
 
@@ -375,7 +382,8 @@ export function ContentEditorPointerToolbar({
             const timeoutId = setTimeout(() => {
                 setShowState({
                     isShowing: true,
-                    pos: state.selection.from,
+                    selectionFrom: state.selection.from,
+                    selectionTo: state.selection.to,
                     animation: "FadingIn",
                     extraOverlay: null,
                 });
@@ -385,7 +393,13 @@ export function ContentEditorPointerToolbar({
                 clearTimeout(timeoutId);
             };
         }
-    }, [hasSelectionChangedSinceMount, shouldShow, showState.isShowing, state.selection.from]);
+    }, [
+        hasSelectionChangedSinceMount,
+        shouldShow,
+        showState.isShowing,
+        state.selection.from,
+        state.selection.to,
+    ]);
 
     useEffect(() => {
         if (showState.isShowing && showState.animation === "FadingIn") {
@@ -421,7 +435,8 @@ export function ContentEditorPointerToolbar({
         <ContentEditorPointerToolbarOverlay
             state={state}
             viewRef={viewRef}
-            pos={showState.pos}
+            selectionFrom={Math.min(state.doc.nodeSize, showState.selectionFrom)}
+            selectionTo={Math.min(state.doc.nodeSize, showState.selectionTo)}
             animation={showState.animation}
             isLinkInputOpen={showState.extraOverlay === "LinkInput"}
             onLinkInputOpen={() =>
@@ -456,7 +471,8 @@ export function ContentEditorPointerToolbar({
 function ContentEditorPointerToolbarOverlay({
     state,
     viewRef,
-    pos,
+    selectionFrom,
+    selectionTo,
     animation,
     isLinkInputOpen,
     onLinkInputOpen,
@@ -467,7 +483,8 @@ function ContentEditorPointerToolbarOverlay({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
-    pos: number;
+    selectionFrom: number;
+    selectionTo: number;
     animation: "FadingIn" | "FadingOut" | null;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
@@ -489,7 +506,7 @@ function ContentEditorPointerToolbarOverlay({
             ref={overlayRef}
             isVisible={true}
             placement="top-start"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
+            // NOTE(calebmer): Ideally we wouldn't allow flipping because we position
             // the toolbar at the start of the selection, flipping down will cover the
             // selection! However there are some scenarios where the toolbar would go
             // offscreen so it's better to flip and potentially cover content then to
@@ -529,6 +546,8 @@ function ContentEditorPointerToolbarOverlay({
                         <ContentEditorPointerToolbarButtons
                             state={state}
                             viewRef={viewRef}
+                            selectionFrom={selectionFrom}
+                            selectionTo={selectionTo}
                             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                             isFadingOut={animation === "FadingOut"}
                             isLinkInputOpen={isLinkInputOpen}
@@ -545,7 +564,7 @@ function ContentEditorPointerToolbarOverlay({
             <ContentEditorCursorTracker
                 state={state}
                 viewRef={viewRef}
-                pos={pos}
+                pos={selectionFrom}
                 onUpdatePosition={() => {
                     overlayRef.current?.forceUpdateOverlayPosition();
 
@@ -563,6 +582,8 @@ function ContentEditorPointerToolbarOverlay({
 function ContentEditorPointerToolbarButtons({
     state,
     viewRef,
+    selectionFrom,
+    selectionTo,
     sharedTooltipLifecycleRef,
     isFadingOut,
     isLinkInputOpen,
@@ -574,6 +595,8 @@ function ContentEditorPointerToolbarButtons({
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
+    selectionFrom: number;
+    selectionTo: number;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
     isFadingOut: boolean;
     isLinkInputOpen: boolean;
@@ -585,17 +608,33 @@ function ContentEditorPointerToolbarButtons({
 }) {
     const {isAppleDevice} = useClientInfo();
 
+    // IMPORTANT: Use `toolbarSelection` instead of `state.selection`. If the
+    // selection changes the toolbar may fade out. But we want to continue showing
+    // buttons for the old selection. The old selection will be maintained in
+    // `toolbarSelection`.
+    //
+    // Commands still end up using `state.selection`. But this is fine since
+    // commands shouldn't be run while the toolbar is fading out.
+    const toolbarSelection = useMemo(() => {
+        return {
+            from: selectionFrom,
+            to: selectionTo,
+            $from: state.doc.resolve(selectionFrom),
+            $to: state.doc.resolve(selectionTo),
+        };
+    }, [selectionFrom, selectionTo, state.doc]);
+
     const isSelectionInCodeBlock = useMemo(() => {
-        const {$from, $to} = state.selection;
         return (
-            $from.parent.type.name === "codeBlockLine" || $to.parent.type.name === "codeBlockLine"
+            toolbarSelection.$from.parent.type.name === "codeBlockLine" ||
+            toolbarSelection.$to.parent.type.name === "codeBlockLine"
         );
-    }, [state.selection]);
+    }, [toolbarSelection]);
 
     const shouldDisableTooltips = isLinkInputOpen || isHighlightSelectorOpen;
 
     const {isBold, isItalic, isStrike, activeLinkMark, activeHighlightMark} = useMemo(() => {
-        const marks = getMarksSpanningAcrossEntireRange(state.doc, state.selection);
+        const marks = getMarksSpanningAcrossEntireRange(state.doc, toolbarSelection);
 
         const activeLinkMark = marks.find(mark => mark.type.name === "link") ?? null;
         const activeHighlightMark = marks.find(mark => mark.type.name === "highlight") ?? null;
@@ -607,56 +646,60 @@ function ContentEditorPointerToolbarButtons({
             activeLinkMark,
             activeHighlightMark,
         };
-    }, [state.doc, state.schema, state.selection]);
+    }, [state.doc, state.schema, toolbarSelection]);
 
     const isCheckListActive = useMemo(
         () =>
             !!state.schema.nodes.checkListItem &&
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.checkListItem),
-        [state.doc, state.schema.nodes.checkListItem, state.selection],
+            areAllNodesListItemType(state.doc, toolbarSelection, state.schema.nodes.checkListItem),
+        [state.doc, state.schema.nodes.checkListItem, toolbarSelection],
     );
 
     const isHeadingLevel1Active = useMemo(
         () =>
             !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+            areAllNodesBlockType(state.doc, toolbarSelection, state.schema.nodes.heading, {
                 level: 1,
             }),
-        [state.doc, state.schema.nodes.heading, state.selection],
+        [state.doc, state.schema.nodes.heading, toolbarSelection],
     );
 
     const isHeadingLevel2Active = useMemo(
         () =>
             !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+            areAllNodesBlockType(state.doc, toolbarSelection, state.schema.nodes.heading, {
                 level: 2,
             }),
-        [state.doc, state.schema.nodes.heading, state.selection],
+        [state.doc, state.schema.nodes.heading, toolbarSelection],
     );
 
     const isHeadingLevel3Active = useMemo(
         () =>
             !!state.schema.nodes.heading &&
-            areAllNodesBlockType(state.doc, state.selection, state.schema.nodes.heading, {
+            areAllNodesBlockType(state.doc, toolbarSelection, state.schema.nodes.heading, {
                 level: 3,
             }),
-        [state.doc, state.schema.nodes.heading, state.selection],
+        [state.doc, state.schema.nodes.heading, toolbarSelection],
     );
 
     const isUnorderedListItemActive = useMemo(
         () =>
             areAllNodesListItemType(
                 state.doc,
-                state.selection,
+                toolbarSelection,
                 state.schema.nodes.unorderedListItem,
             ),
-        [state.doc, state.schema.nodes.unorderedListItem, state.selection],
+        [state.doc, state.schema.nodes.unorderedListItem, toolbarSelection],
     );
 
     const isOrderedListItemActive = useMemo(
         () =>
-            areAllNodesListItemType(state.doc, state.selection, state.schema.nodes.orderedListItem),
-        [state.doc, state.schema.nodes.orderedListItem, state.selection],
+            areAllNodesListItemType(
+                state.doc,
+                toolbarSelection,
+                state.schema.nodes.orderedListItem,
+            ),
+        [state.doc, state.schema.nodes.orderedListItem, toolbarSelection],
     );
 
     return (
