@@ -234,21 +234,17 @@ function isTimeDeployable(time: ZonedDateTime): boolean {
     // Is this a weekday according to what the US considers weekdays vs weekends?
     if (!isWeekday(time, "en-US")) return false;
 
-    return true;
+    // Is the time within 9am-3:30pm? A standard workday is 9am-5pm.
+    //
+    // We deploy continuously during work hours. Starting at 9am. We stop deploying
+    // at 3:30pm so the last deploy of the day ends around 4:00pm (assuming deploys
+    // take ~30min). That way if the deploy causes an issue, we'll be able to
+    // identify it ~4:00pm while there are still people working before 5:00pm.
+    const isTimeBusinessHours =
+        (9 <= time.hour && time.hour <= 14) || (time.hour === 15 && time.minute <= 30);
+    if (!isTimeBusinessHours) return false;
 
-    // TODO(calebmer, #deploy): Add this back.
-    //
-    // // Is the time within 9am-3:30pm? A standard workday is 9am-5pm.
-    // //
-    // // We deploy continuously during work hours. Starting at 9am. We stop deploying
-    // // at 3:30pm so the last deploy of the day ends around 4:00pm (assuming deploys
-    // // take ~30min). That way if the deploy causes an issue, we'll be able to
-    // // identify it ~4:00pm while there are still people working before 5:00pm.
-    // const isTimeBusinessHours =
-    //     (9 <= time.hour && time.hour <= 14) || (time.hour === 15 && time.minute <= 30);
-    // if (!isTimeBusinessHours) return false;
-    //
-    // return true;
+    return true;
 }
 
 /**
