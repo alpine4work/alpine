@@ -100,38 +100,41 @@ export function ContentEditorLinkInput({
                     top: "2",
                 })}
             />
-            <input
-                ref={inputRef}
-                type="text"
-                className={sprinkles({
-                    height: "full",
-                    paddingLeft: "8",
-                    paddingRight: "1",
-                    fontSize: "75",
-                    color: "grey-100",
-                    backgroundColor: "transparent",
-                })}
-                style={{
-                    // Give more space in the input for larger URLs. So you can see more of the URL
-                    // without having to scroll. 64 spacing doesn't show much of long URLs.
-                    //
-                    // Maybe the width should grow with the URL length for a bit? Until a
-                    // max width?
-                    width: url.length > 40 ? "20rem" : "12rem",
-                }}
-                aria-label="URL"
-                placeholder="https://example.com"
-                disabled={isDisabled}
-                value={url}
-                onChange={event => setUrl(event.currentTarget.value)}
-                onKeyDown={event => {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        save();
-                    }
-                }}
-            />
+            <FocusRing offset="border">
+                <input
+                    ref={inputRef}
+                    type="text"
+                    className={sprinkles({
+                        height: "full",
+                        paddingLeft: "8",
+                        paddingRight: "1",
+                        fontSize: "75",
+                        color: "grey-100",
+                        backgroundColor: "transparent",
+                        borderLeftRadius: "1.5",
+                    })}
+                    style={{
+                        // Give more space in the input for larger URLs. So you can see more of the URL
+                        // without having to scroll. 64 spacing doesn't show much of long URLs.
+                        //
+                        // Maybe the width should grow with the URL length for a bit? Until a
+                        // max width?
+                        width: url.length > 40 ? "20rem" : "12rem",
+                    }}
+                    aria-label="URL"
+                    placeholder="https://example.com"
+                    disabled={isDisabled}
+                    value={url}
+                    onChange={event => setUrl(event.currentTarget.value)}
+                    onKeyDown={event => {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            save();
+                        }
+                    }}
+                />
+            </FocusRing>
             <ContentEditorLinkInputClearButton isDisabled={isDisabled} onPress={() => clear()} />
             <ContentEditorLinkInputSaveButton isDisabled={isDisabled} onPress={() => save()} />
         </Box>

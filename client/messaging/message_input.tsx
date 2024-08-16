@@ -1,4 +1,4 @@
-import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
+import {Modality} from "@react-aria/interactions";
 import {
     Memo,
     MutableRefObject,
@@ -223,9 +223,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
         const wasInputFocused = assertExists(inputRef.current).isFocused();
 
         flushSync(() => {
-            if (maintainedInteractionModalityRef.current !== null)
-                setInteractionModality(maintainedInteractionModalityRef.current);
-
             onUpdateMessages(messages => messages.addOptimisticMessage(optimisticMessage));
             resetNewMessageState();
             onClearReplyingToMessage();
@@ -352,19 +349,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = true;
                     onFocus?.();
                 }}
-                onFocusCapture={() => {
-                    // Maintain interaction modality between remounts of the message input
-                    // component. When we send a message we update `newMessageKey` which remounts
-                    // this component. If when the input was first focused we had an
-                    // `interactionModality` of `pointer` but when we remount we have an
-                    // `interactionModality` of `keyboard` (most likely because the user hit `@` to
-                    // mention then hit arrow up/down) we want to use our initial
-                    // `interactionModality` of `pointer` so we don't render a focus ring around
-                    // the message input.
-                    if (maintainedInteractionModalityRef.current === null) {
-                        maintainedInteractionModalityRef.current = getInteractionModality();
-                    }
-                }}
                 onBlur={event => {
                     if (restoreStateRef?.current) restoreStateRef.current.isFocused = false;
 
@@ -398,10 +382,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                 message.author.id === currentAccount.id &&
                                 message.payload.type === "Content"
                             ) {
-                                const maintainedInteractionModality = assertExists(
-                                    inputRef.current,
-                                ).getMaintainedInteractionModality();
-
                                 messageEditing.dispatch({
                                     type: "StartEditing",
                                     messageRoomKey: message.getRoomKey(),
@@ -409,13 +389,6 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                                     messagePayload: message.payload,
                                     isMobile,
                                     returnFocusAfterEditing: () => {
-                                        // Reset the interaction modality when returning focus to our editor. So if the
-                                        // user pressed enter to save that doesn't give us a keyboard modality if the
-                                        // user wasn't using keyboard navigation before.
-                                        if (maintainedInteractionModality !== null) {
-                                            setInteractionModality(maintainedInteractionModality);
-                                        }
-
                                         inputRef.current?.focus();
                                     },
                                 });

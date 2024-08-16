@@ -1,4 +1,4 @@
-import {setInteractionModality, useHover} from "@react-aria/interactions";
+import {useHover} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
@@ -251,11 +251,6 @@ function ContentEditorKeyboardHighlightFloater({
 
     useEffect(() => {
         assert(selectorRef.current);
-
-        // Change the interaction modality to keyboard so we see focus rings.
-        // Otherwise the user won't know what color they are selecting.
-        setInteractionModality("keyboard");
-
         selectorRef.current.focus({preventScroll: true});
     }, []);
 

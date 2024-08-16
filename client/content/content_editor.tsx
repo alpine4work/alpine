@@ -1,4 +1,3 @@
-import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node, Slice} from "prosemirror-model";
@@ -69,7 +68,6 @@ import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
@@ -210,22 +208,6 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * selection. If the selection is empty nothing happens.
      */
     openMobileKeyboardToolbarCommentInputIfPossible(): void;
-
-    /**
-     * While focused, the content editor captures the current interaction modality
-     * and will maintain that interaction modality as focus moves around inside the
-     * content editor.
-     *
-     * For example, hitting cmd-k to open a link input will maintain the
-     * interaction modality from when the editor was focused instead of switching
-     * to a keyboard interaction modality.
-     *
-     * If you have would like to temporarily move focus (e.g. when `<MessageInput>`
-     * moves focus to a `<MessageViewEditor>` when you press the up arrow key)
-     * yourself while maintaining the content editor's interaction modality then
-     * you may call this function to get the maintained interaction modality.
-     */
-    getMaintainedInteractionModality(): Modality | null;
 
     /**
      * Get the internal ProseMirror editor view object. Prefer the public methods
@@ -517,9 +499,6 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                     "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
                 );
             },
-            getMaintainedInteractionModality: () => {
-                return null;
-            },
             _getInternalView: () => {
                 throw new UnimplementedError(
                     "Getting internal ProseMirror view on initial render is not implemented",
@@ -701,9 +680,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ) {
                     setIsMobileCommentInputOpen(true);
                 }
-            },
-            getMaintainedInteractionModality: () => {
-                return maintainedInteractionModalityRef.current;
             },
             _getInternalView: () => {
                 return assertExists(viewRef.current);
@@ -1848,8 +1824,6 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const unwrappedState = unwrap(state);
 
-    const maintainedInteractionModalityRef = useRef<Modality | null>(null);
-
     const [mobileLinkModalState, setMobileLinkModalState] =
         useState<ContentEditorMobileLinkModalState | null>(null);
     if (!(isMobile && !withoutMobileKeyboardToolbar) && mobileLinkModalState) {
@@ -1968,35 +1942,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 customContainerClassName,
             )}
             onFocus={onFocus}
-            onFocusCapture={event => {
-                // When the user hits cmd-k to open a link input in `<MessageView>`, types a
-                // link, then hits enter, we should not render a `<FocusRing>` if the
-                // `<ContentEditor>` didn't previously have a `<FocusRing>`. To do this we reset
-                // the interaction modality when focusing the `<ContentEditor>` to the
-                // interaction modality when it initially received focus as long as focus
-                // doesn't leave the `<ContentEditor>`.
-                //
-                // We intentionally don't check `event.target === viewRef.current.dom` because
-                // we also want to reset interaction modality when focusing children. Like the
-                // comment input in documents.
-                if (maintainedInteractionModalityRef.current !== null) {
-                    setInteractionModality(maintainedInteractionModalityRef.current);
-                } else {
-                    maintainedInteractionModalityRef.current = getInteractionModality();
-                }
-
-                onFocusCapture?.(event);
-            }}
-            onBlur={event => {
-                if (
-                    !(event.relatedTarget instanceof Element) ||
-                    !isElementOwnedBy(event.currentTarget, event.relatedTarget)
-                ) {
-                    maintainedInteractionModalityRef.current = null;
-                }
-
-                onBlur?.(event);
-            }}
+            onFocusCapture={onFocusCapture}
+            onBlur={onBlur}
         >
             <ContentEditorFloater
                 isMobile={isMobile}

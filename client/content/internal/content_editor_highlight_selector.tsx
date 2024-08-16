@@ -1,3 +1,4 @@
+import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {
@@ -6,6 +7,7 @@ import {
     RefObject,
     forwardRef,
     useCallback,
+    useEffect,
     useImperativeHandle,
     useRef,
     useState,
@@ -52,6 +54,11 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         ref,
         () => ({
             focus: options => {
+                // Change the interaction modality to keyboard so we see focus rings.
+                // Otherwise the user won't know what color they are selecting.
+                originalInteractionModalityRef.current ??= getInteractionModality();
+                setInteractionModality("keyboard");
+
                 const buttonElement = buttonRefs.current[lastFocusedIndex];
                 assert(buttonElement);
                 buttonElement.focus(options);
@@ -89,6 +96,32 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
         onClose();
     };
 
+    const [isFocusWithin, setIsFocusWithin] = useState(false);
+
+    const originalInteractionModalityRef = useRef<Modality | null>(null);
+
+    // When we lose our selection (usually because we unmounted) return the
+    // interaction modality to whatever it was before we started keyboard
+    // navigating.
+    //
+    // When this component loses its selection (or unmounts) restore
+    // interaction modality to whatever it was before we set it to `keyboard`.
+    // While editing, the user may hit Cmd+Shift+H then arrow keys to highlight
+    // some text. Only keep them in `keyboard` interaction modality if that's the
+    // state they were previously in. Since keyboard navigation within this
+    // component is a pretty common pattern even for a user that predominantly uses
+    // `pointer` navigation. Showing focus rings for new elements the user focuses
+    // (e.g. the link input when the user hits Cmd+K) will likely confuse them
+    // since they didn't intend to enter keyboard navigation mode.
+    useEffect(() => {
+        return () => {
+            if (isFocusWithin && originalInteractionModalityRef.current !== null) {
+                setInteractionModality(originalInteractionModalityRef.current);
+                originalInteractionModalityRef.current = null;
+            }
+        };
+    }, [isFocusWithin]);
+
     return (
         <Box
             display="flex"
@@ -101,11 +134,17 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
             role="toolbar"
             aria-label="Highlight color selector"
             aria-orientation="horizontal"
+            onFocus={event => setIsFocusWithin(event.currentTarget.contains(event.target))}
+            onBlur={event => setIsFocusWithin(event.currentTarget.contains(event.relatedTarget))}
             onKeyDown={event => {
                 switch (event.key) {
                     case "ArrowLeft": {
                         event.preventDefault();
                         event.stopPropagation();
+
+                        originalInteractionModalityRef.current ??= getInteractionModality();
+                        setInteractionModality("keyboard");
+
                         const buttonElement =
                             buttonRefs.current[
                                 lastFocusedIndex !== 0
@@ -119,6 +158,10 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                     case "ArrowRight": {
                         event.preventDefault();
                         event.stopPropagation();
+
+                        originalInteractionModalityRef.current ??= getInteractionModality();
+                        setInteractionModality("keyboard");
+
                         const buttonElement =
                             buttonRefs.current[
                                 lastFocusedIndex !== buttonRefs.current.length - 1
@@ -132,6 +175,10 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                     case "Home": {
                         event.preventDefault();
                         event.stopPropagation();
+
+                        originalInteractionModalityRef.current ??= getInteractionModality();
+                        setInteractionModality("keyboard");
+
                         const buttonElement = buttonRefs.current[0];
                         assert(buttonElement);
                         buttonElement.focus();
@@ -140,6 +187,10 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                     case "End": {
                         event.preventDefault();
                         event.stopPropagation();
+
+                        originalInteractionModalityRef.current ??= getInteractionModality();
+                        setInteractionModality("keyboard");
+
                         const buttonElement = buttonRefs.current[buttonRefs.current.length - 1];
                         assert(buttonElement);
                         buttonElement.focus();

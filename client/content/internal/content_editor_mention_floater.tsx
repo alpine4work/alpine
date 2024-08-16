@@ -1,4 +1,6 @@
 import {
+    Modality,
+    getInteractionModality,
     isFocusVisible as getIsFocusVisible,
     setInteractionModality,
 } from "@react-aria/interactions";
@@ -31,7 +33,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -81,8 +83,10 @@ export function ContentEditorMentionFloater({
     const menuRef = useRef<HTMLDivElement>(null);
     const mergedMenuRef = useMergedRefs(menuRef, useScrollbar());
 
-    const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
-    const onCloseWithAnimation = useEvent(_onCloseWithAnimation);
+    const {onCloseWithoutAnimation, onCloseWithAnimation} = useEvents({
+        onCloseWithoutAnimation: _onCloseWithoutAnimation,
+        onCloseWithAnimation: _onCloseWithAnimation,
+    });
 
     useLayoutEffect(() => {
         if (!isFocused) onCloseWithAnimation();
@@ -149,6 +153,32 @@ export function ContentEditorMentionFloater({
         (_selectionState.index !== null && _selectionState.index >= searchedAccountDatas.length)
             ? {searchQuery, index: null, isFocusVisible: false}
             : _selectionState;
+
+    const hasSelection: boolean = selectionState.index !== null;
+
+    const originalInteractionModalityRef = useRef<Modality | null>(null);
+
+    // When we lose our selection (usually because we unmounted) return the
+    // interaction modality to whatever it was before we started keyboard
+    // navigating.
+    //
+    // When this component loses its selection (or unmounts) restore
+    // interaction modality to whatever it was before we set it to `keyboard`.
+    // While editing, the user may hit @ to mention then arrow keys to select an
+    // account. Only keep them in `keyboard` interaction modality if that's the
+    // state they were previously in. Since keyboard navigation within this
+    // component is a pretty common pattern even for a user that predominantly uses
+    // `pointer` navigation. Showing focus rings for new elements the user focuses
+    // (e.g. the link input when the user hits Cmd+K) will likely confuse them
+    // since they didn't intend to enter keyboard navigation mode.
+    useEffect(() => {
+        return () => {
+            if (hasSelection && originalInteractionModalityRef.current !== null) {
+                setInteractionModality(originalInteractionModalityRef.current);
+                originalInteractionModalityRef.current = null;
+            }
+        };
+    }, [hasSelection]);
 
     const saveMention = (accountData: AccountModelData) => {
         const view = assertExists(viewRef.current);
@@ -227,6 +257,7 @@ export function ContentEditorMentionFloater({
                 event.stopPropagation();
 
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
@@ -250,6 +281,7 @@ export function ContentEditorMentionFloater({
                 event.stopPropagation();
 
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
@@ -273,6 +305,7 @@ export function ContentEditorMentionFloater({
                 event.stopPropagation();
 
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
@@ -293,6 +326,7 @@ export function ContentEditorMentionFloater({
                 event.stopPropagation();
 
                 if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                    originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
