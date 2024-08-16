@@ -32,3 +32,16 @@ common --@aspect_rules_ts//ts:skipLibCheck=always
 # using the system Python installation. Since sometimes we may run on machines
 # that don't have Python installed (e.g. CI machines).
 build --@rules_python//python/config_settings:bootstrap_impl=script
+
+# When using `--config=production` make sure `--platforms` and
+# `--compilation_mode` are set to the same values as what we have in
+# `production_transition()`. This reduces the complexity of our build graph as
+# Bazel doesn't need to build multiple copies of our artifacts with different
+# flags.
+#
+# This may hide issues with rules that build production assets that should
+# have a `production_transition()` to ensure the assets are e.g. minified.
+# Since everything is built in production mode we won't notice that these
+# rules don't have a `production_transition()`.
+build:production --platforms=//admin/bazel:linux_x86_64
+build:production --compilation_mode=opt

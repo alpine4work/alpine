@@ -46,12 +46,44 @@ jobs:
                   path: |
                       ~/.cache/bazelisk
                       ~/.cache/bazel
-                  # IMPORTANT: If you change the cache key here, you also need to change it in
-                  # `test.yaml` since the cache should be shared between the two actions.
+                  # IMPORTANT: Should have the same `hashFiles()` as `test.yaml`. The workflows
+                  # run on different architectures so we can't share the cache but the cache
+                  # invalidation logic should still be the same.
                   key: |
-                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements.txt', 'admin/patches/bazel/*.patch') }}
+                      bazel-deploy-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements.txt', 'admin/patches/bazel/*.patch') }}
                   restore-keys: |
-                      bazel-${{ runner.os }}-${{ runner.arch }}-
+                      bazel-deploy-${{ runner.os }}-${{ runner.arch }}-
+
+            # If we don't have an exact cache entry match then we need to fetch
+            # repositories we'll need for our build. We also build `//:node_modules` which
+            # will make sure all `package.json` dependencies are extracted, their lifecycle
+            # methods have run, and they're in the right place in `bazel-bin`.
+            #
+            # From the [`actions/cache` documentation][1]:
+            #
+            # > Note: `cache-hit` will be set to `true` only when cache hit occurs for the
+            # > exact `key` match. For a partial key match via `restore-keys` or a cache
+            # > miss, it will be set to `false`.
+            #
+            # [1]: https://github.com/actions/cache/blob/main/restore/README.md
+            - if: steps.cache.outputs.cache-hit != 'true'
+              name: Fetch Bazel repositories
+              shell: bash
+              run: |
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //server/deploy/script/... --config=github-runner --config=production --remote_cache=
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --config=production --remote_cache=
+
+            # Save our repository cache after we finish fetching but before we run the
+            # deploy! The ordering here is important since we don't want to include deploy
+            # build artifacts in the cache. Only fetched external repositories.
+            - if: steps.cache.outputs.cache-hit != 'true'
+              name: Save Bazel repositories cache
+              uses: actions/cache/save@v3
+              with:
+                  path: |
+                      ~/.cache/bazelisk
+                      ~/.cache/bazel
+                  key: ${{ steps.cache.outputs.cache-primary-key }}
 
             # This starts the [Bazel remote cache][1] proxy server. For more information
             # see `test.yaml`.
@@ -64,17 +96,10 @@ jobs:
 
             # We build `//server/deploy/script` in a separate step so our tracing code can
             # log a separate span for the time it takes to build containers.
-            #
-            # Make sure `--platforms` and `--compilation_mode` are set to the same values
-            # as what we have in `production_transition()`. This reduces the complexity of
-            # our build graph as Bazel doesn't need to build multiple copies of our
-            # artifacts with different flags. This may hide issues with rules that build
-            # production assets that should really have a `production_transition()` given
-            # everything is built in production mode.
             - name: Build artifacts
               shell: bash
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --platforms=//admin/bazel:linux_x86_64 --compilation_mode=opt
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //server/deploy/script --config=github-runner --config=production --nofetch
 
             - name: Deploy
               shell: bash

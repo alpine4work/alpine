@@ -30,12 +30,13 @@ jobs:
                   path: |
                       ~/.cache/bazelisk
                       ~/.cache/bazel
-                  # IMPORTANT: If you change the cache key here, you also need to change it in
-                  # `deploy.yaml` since the cache should be shared between the two actions.
+                  # IMPORTANT: Should have the same `hashFiles()` as `test.yaml`. The workflows
+                  # run on different architectures so we can't share the cache but the cache
+                  # invalidation logic should still be the same.
                   key: |
-                      bazel-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements.txt', 'admin/patches/bazel/*.patch') }}
+                      bazel-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements.txt', 'admin/patches/bazel/*.patch') }}
                   restore-keys: |
-                      bazel-${{ runner.os }}-${{ runner.arch }}-
+                      bazel-test-${{ runner.os }}-${{ runner.arch }}-
 
             # If we don't have an exact cache entry match then we need to fetch
             # repositories we'll need for our build. We also build `//:node_modules` which
@@ -150,14 +151,14 @@ jobs:
             # system failure.
             - name: Test (tier 1)
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright,-macos
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=dev-check,-playwright,-macos --nofetch
 
             # After our tier 1 tests pass run all other tests except integration tests
             # written for Playwright. Playwright integration tests are expensive so we only
             # run them once all other tests have passed.
             - name: Test (tier 2)
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-dev-check,-playwright,-macos
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=-dev-check,-playwright,-macos --nofetch
 
             # Run integration tests with Plawright after all other tests have passed. These
             # tests are expensive to run and are flaky. We run them last since if any other
@@ -169,7 +170,7 @@ jobs:
             # developers.
             - name: Test (tier 3)
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=playwright,-dev-check,-macos --nokeep_going --notest_keep_going
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --config=github-runner --test_tag_filters=playwright,-dev-check,-macos --nofetch --nokeep_going --notest_keep_going
 
             # Prepare the `bazel-testlogs` folder for uploading. This script removes the logs
             # and outputs for all tests that passed leaving only the logs and outputs for

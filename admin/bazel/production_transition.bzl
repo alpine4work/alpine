@@ -9,9 +9,8 @@ platform so that we don't end up building the same assets twice.
 
 def _production_transition_impl(_settings, attr):
     # IMPORTANT: When updating transition options, also update
-    # `.github/workflows/deploy.yaml` so when we build
-    # `//server/deploy/script` we use the same options to avoid build transitions
-    # and speed up our build.
+    # `.bazelrc` so when we build with `--config=production` we use the same
+    # options to avoid build transitions and speed up our build.
     return {
         "//command_line_option:platforms": str(attr._linux_x86_64),
         "//command_line_option:compilation_mode": "opt",
