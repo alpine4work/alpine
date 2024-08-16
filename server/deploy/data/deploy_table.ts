@@ -672,7 +672,7 @@ export async function prepareDeploy(
         {
             owner: githubOwner,
             repo: githubRepo,
-            basehead: `${commitSha}...main`,
+            basehead: `main...${commitSha}`,
             per_page: 1,
         },
     );
