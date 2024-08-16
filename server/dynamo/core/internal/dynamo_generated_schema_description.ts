@@ -1192,6 +1192,29 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "type": "String"
                                                         },
                                                         "optional": false
+                                                    },
+                                                    "search": {
+                                                        "valueSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "createdTimeRange": {
+                                                                    "valueSchema": {
+                                                                        "type": "String"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "oldWorkflowRunIds": {
+                                                                    "valueSchema": {
+                                                                        "type": "Array",
+                                                                        "itemSchema": {
+                                                                            "type": "Integer"
+                                                                        }
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        },
+                                                        "optional": true
                                                     }
                                                 }
                                             }
