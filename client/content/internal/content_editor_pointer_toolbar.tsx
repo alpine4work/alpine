@@ -1,4 +1,4 @@
-import {useHover, useInteractionModality, usePress} from "@react-aria/interactions";
+import {Modality, useHover, useInteractionModality, usePress} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
     ChatCircleText,
@@ -71,6 +71,69 @@ export function ContentEditorPointerToolbar({
 }) {
     const interactionModality = useInteractionModality();
 
+    // We keep track of our own `localInteractionModality` separate from
+    // `react-aria`'s `interactionModality`. A user is still considered to have a
+    // `pointer` `interactionModality` while they're typing in a text input
+    // (because of a patch we make to `@react-aria/interactions`). It's only when
+    // they explicitly press `Tab` that we switch to keyboard
+    // `interactionModality`.
+    //
+    // However, for the purposes of hiding/showing the pointer toolbar we want any
+    // typing within the content editor to hide the pointer toolbar. So we have our
+    // own "local" interaction modality state.
+    const [isLocalInteractionModalityKeyboard, setIsLocalInteractionModalityKeyboard] =
+        useState(false);
+
+    useEffect(() => {
+        const view = assertExists(viewRef.current);
+        const viewElement = view.dom;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (
+                // Ignore keyboard shortcut key presses (like Ctrl+P which prints in browsers).
+                // Unless its an arrow key press (like Shift+Alt+ArrowLeft which navigates one
+                // word left on MacOS) which navigates the editor and should be considered the
+                // user entering keyboard input mode.
+                ((!event.metaKey && !event.ctrlKey && !event.altKey) ||
+                    event.key === "ArrowLeft" ||
+                    event.key === "ArrowRight" ||
+                    event.key === "ArrowUp" ||
+                    event.key === "ArrowDown") &&
+                event.key !== "Control" &&
+                event.key !== "Meta" &&
+                event.key !== "Alt" &&
+                // Ignore the shift key pressed alone. Pressing Shift+A for a capital "A"
+                // should put us in keyboard input mode.
+                event.key !== "Shift"
+            ) {
+                setIsLocalInteractionModalityKeyboard(true);
+            }
+        };
+
+        const handlePointerDown = () => {
+            setIsLocalInteractionModalityKeyboard(false);
+        };
+
+        // Quality of life: If the user selects some text with their keyboard then
+        // moves their mouse then we want to show the toolbar.
+        const handlePointerMove = () => {
+            setIsLocalInteractionModalityKeyboard(false);
+        };
+
+        viewElement.addEventListener("keydown", handleKeyDown, true);
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("pointermove", handlePointerMove, true);
+        return () => {
+            viewElement.removeEventListener("keydown", handleKeyDown, true);
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("pointermove", handlePointerMove, true);
+        };
+    }, [viewRef]);
+
+    const localInteractionModality: Modality = isLocalInteractionModalityKeyboard
+        ? "keyboard"
+        : interactionModality;
+
     // If the pointer has moved while pressing down and the user has some text
     // selected, the user is probably trying to drag to change their selection. If
     // they are dragging then we don't want to show the toolbar since it won't have
@@ -137,63 +200,13 @@ export function ContentEditorPointerToolbar({
         ],
     );
 
-    const [
-        hasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow,
-        setHasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow,
-    ] = useState(false);
-
-    // Quality of life: If the user selects some text with their keyboard then
-    // moves their mouse then we want to show the toolbar. `react-aria` updates the
-    // interaction modality on the `pointermove` event but does not trigger an
-    // update for the `useInteractionModality()` hook! So if we observe a
-    // `pointermove` event then we want to consider the modality changed.
-    //
-    // See:
-    // - https://github.com/adobe/react-spectrum/blob/ec55e9512835f6d918bb14899a1f55f019f558b8/packages/%40react-aria/interactions/src/useFocusVisible.ts#L142
-    // - https://github.com/adobe/react-spectrum/blob/ec55e9512835f6d918bb14899a1f55f019f558b8/packages/%40react-aria/interactions/src/useFocusVisible.ts#L74-L77
-    useEffect(() => {
-        if (interactionModality === "pointer" || !shouldShowIgnoringInteractionModality) {
-            setHasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow(false);
-            return;
-        }
-
-        // We don't need the listener anymore once this is true.
-        if (hasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow) return;
-
-        const handler = () => {
-            setHasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow(true);
-        };
-
-        document.addEventListener("pointermove", handler, true);
-        return () => {
-            document.removeEventListener("pointermove", handler, true);
-        };
-    }, [
-        hasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow,
-        interactionModality,
-        setHasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow,
-        shouldShowIgnoringInteractionModality,
-    ]);
-
     const shouldShow =
         shouldShowIgnoringInteractionModality &&
         // The toolbar overlay is intended for pointer use only. You can use keyboard
         // shortcuts to accomplish everything in the toolbar.
-        (interactionModality === "pointer" ||
-            hasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow);
-
-    // If `shouldShow` is true then we don't update `hasPointerMovedWhileDown`
-    // and `isWaitingForTripleClickAfterDoubleClick`.
-    if (shouldShow && (hasPointerMovedWhileDown || isWaitingForTripleClickAfterDoubleClick)) {
-        setHasPointerMovedWhileDown(false);
-        setIsWaitingForTripleClickAfterDoubleClick(false);
-    }
+        localInteractionModality === "pointer";
 
     useEffect(() => {
-        if (shouldShow) return;
-
-        setHasPointerMovedWhileDown(false);
-
         let isPointerDown = false;
 
         let lastMouseDownTime1: number | null = null;
@@ -201,6 +214,7 @@ export function ContentEditorPointerToolbar({
 
         const handlePointerDown = (event: PointerEvent) => {
             isPointerDown = true;
+            setHasPointerMovedWhileDown(false);
 
             if (event.pointerType === "mouse") {
                 const mouseDownTime = Date.now();
@@ -253,7 +267,7 @@ export function ContentEditorPointerToolbar({
             document.removeEventListener("pointerup", handlePointerUp, true);
             document.removeEventListener("pointercancel", handlePointerCancel, true);
         };
-    }, [shouldShow]);
+    }, []);
 
     const initialSelection = useConstant(() => state.selection);
 
