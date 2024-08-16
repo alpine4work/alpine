@@ -391,7 +391,8 @@ function Overlay(
                         : paddingPx +
                           Math.max(
                               0,
-                              getElementSafeAreaInsetTopPx(targetElement) - portalRect.top,
+                              getElementSafeAreaInsetTopPx(targetElement) -
+                                  Math.max(0, portalRect.top),
                           ) +
                           (overflowTop !== undefined
                               ? convertRemLengthToPx(
@@ -406,12 +407,12 @@ function Overlay(
                               ? Math.max(
                                     0,
                                     getCurrentCoveredHeight() -
-                                        (viewportHeight - portalRect.bottom),
+                                        Math.max(0, viewportHeight - portalRect.bottom),
                                 )
                               : Math.max(
                                     0,
                                     getElementWindowSafeAreaInsetBottomPx(targetElement) -
-                                        (viewportHeight - portalRect.bottom),
+                                        Math.max(0, viewportHeight - portalRect.bottom),
                                 ) +
                                 convertRemLengthToPx(
                                     isSpacing(overflowBottom)
