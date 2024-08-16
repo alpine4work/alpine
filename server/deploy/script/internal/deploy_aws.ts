@@ -26,8 +26,6 @@ export async function deployAws(span: TracerSpan) {
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const originalWithDefaultPrinter = StackActivityMonitor.withDefaultPrinter;
 
-    let hasCalledOverriddenWithDefaultPrinter = false;
-
     // The `StackActivityMonitor` class is what's responsible for printing updates
     // to stdout during a deploy. We hook into this class so we can log updates to
     // our tracing provider.
@@ -37,8 +35,6 @@ export async function deployAws(span: TracerSpan) {
         this: typeof StackActivityMonitor,
         ...args
     ) {
-        hasCalledOverriddenWithDefaultPrinter = true;
-
         const monitor = originalWithDefaultPrinter.call(this, ...args);
 
         let printer: IActivityPrinter =
@@ -81,15 +77,6 @@ export async function deployAws(span: TracerSpan) {
         ]);
     } finally {
         StackActivityMonitor.withDefaultPrinter = originalWithDefaultPrinter;
-    }
-
-    if (!hasCalledOverriddenWithDefaultPrinter) {
-        span.logException(
-            "Couldn't provide custom tracing",
-            new InternalError(
-                'Overridden "StackActivityMonitor.withDefaultPrinter" method was not called',
-            ),
-        );
     }
 }
 
