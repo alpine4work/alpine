@@ -742,9 +742,9 @@ export const codeBlockLineContentClassName = style({
     paddingLeft: codeBlockLineOverscrollSlopX,
     flexGrow: "1",
     // `min-width` and `min-height` for when the code block line is empty. We still
-    // need space to render the cursor (can't be 0 width) and we can't collapse the
-    // line (can't be 0 height).
-    minWidth: "1ch",
+    // need space to render the cursor (must be more than our `paddingLeft`) and we
+    // can't collapse the line (can't be 0 height).
+    minWidth: `calc(${codeBlockLineOverscrollSlopX} + 1ch)`,
     minHeight: "1lh",
 });
 
