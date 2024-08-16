@@ -53,8 +53,7 @@ async function main(): Promise<{exitCode: number}> {
         if (!isProcessExitErrorWithCode(error, 1)) {
             throw error;
         } else {
-            // eslint-disable-next-line no-console
-            console.log("Commit isn't in main branch.");
+            process.stdout.write("Commit isn't in main branch.\n");
 
             return {exitCode: 1};
         }
@@ -68,8 +67,7 @@ async function main(): Promise<{exitCode: number}> {
             deploy.activeCommitSha,
         ]);
 
-        // eslint-disable-next-line no-console
-        console.log("Commit is deployed.");
+        process.stdout.write("Commit is deployed.\n");
 
         return {exitCode: 0};
     } catch (error) {
@@ -89,19 +87,17 @@ async function main(): Promise<{exitCode: number}> {
                 deploy.ongoingDeployment.commitSha,
             ]);
 
-            // eslint-disable-next-line no-console
-            console.log("Commit is part of an ongoing deploy.");
+            process.stdout.write("Commit is part of an ongoing deploy.\n");
 
             if (deploy.ongoingDeployment.workflowRunId !== null) {
-                // eslint-disable-next-line no-console
-                console.log("");
-                // eslint-disable-next-line no-console
-                console.log(chalk.dim(`Hint: Follow the deploy workflow run at:`));
-                // eslint-disable-next-line no-console
-                console.log(
-                    chalk.dim.underline(
-                        `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${deploy.ongoingDeployment.workflowRunId}`,
-                    ),
+                process.stderr.write(
+                    "\n" +
+                        chalk.dim(`Hint: Follow the deploy workflow run at:`) +
+                        "\n" +
+                        chalk.dim.underline(
+                            `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${deploy.ongoingDeployment.workflowRunId}`,
+                        ) +
+                        "\n",
                 );
             }
 
@@ -124,8 +120,9 @@ async function main(): Promise<{exitCode: number}> {
                 deploy.scheduledDeployment.commitSha,
             ]);
 
-            // eslint-disable-next-line no-console
-            console.log("Commit is scheduled to be deployed later.");
+            process.stdout.write(
+                "Commit isn't deployed, but it's scheduled to be deployed later.\n",
+            );
 
             if (deploy.scheduledDeployment.nextDeployableTime !== null) {
                 const nextDeployableTime = deserializeDateString(
@@ -134,43 +131,39 @@ async function main(): Promise<{exitCode: number}> {
 
                 const hours = differenceInHours(nextDeployableTime, currentTime);
 
-                // eslint-disable-next-line no-console
-                console.log("");
-                // eslint-disable-next-line no-console
-                console.log(
-                    chalk.dim(
-                        `Hint: Commit will be deployed ${printPrettyNumber(
-                            defaultLocale,
-                            hours,
-                            "hour",
-                        )} from now on ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
-                            defaultLocale,
-                            getCurrentTimeZone(),
-                            currentTime,
-                            nextDeployableTime,
-                            {shouldIncludeWeekday: true},
-                        )}.`,
-                    ),
+                process.stderr.write(
+                    "\n" +
+                        chalk.dim(
+                            `Hint: Commit will be deployed ${printPrettyNumber(
+                                defaultLocale,
+                                hours,
+                                "hour",
+                            )} from now on ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                                defaultLocale,
+                                getCurrentTimeZone(),
+                                currentTime,
+                                nextDeployableTime,
+                                {shouldIncludeWeekday: true},
+                            )}.`,
+                        ) +
+                        "\n",
                 );
             } else if (
                 deploy.ongoingDeployment !== null &&
                 deploy.ongoingDeployment.workflowRunId !== null
             ) {
-                // eslint-disable-next-line no-console
-                console.log("");
-                // eslint-disable-next-line no-console
-                console.log(
-                    chalk.dim(
-                        `Hint: Before we can start deploying this commit, the previous deploy must`,
-                    ),
-                );
-                // eslint-disable-next-line no-console
-                console.log(chalk.dim(`finish. Follow the previous deploy workflow run at:`));
-                // eslint-disable-next-line no-console
-                console.log(
-                    chalk.dim.underline(
-                        `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${deploy.ongoingDeployment.workflowRunId}`,
-                    ),
+                process.stderr.write(
+                    "\n" +
+                        chalk.dim(
+                            `Hint: Before we can start deploying this commit, the previous deploy must`,
+                        ) +
+                        "\n" +
+                        chalk.dim(`finish. Follow the previous deploy workflow run at:`) +
+                        "\n" +
+                        chalk.dim.underline(
+                            `https://github.com/${githubOwner}/${githubRepo}/actions/runs/${deploy.ongoingDeployment.workflowRunId}`,
+                        ) +
+                        "\n",
                 );
             }
 
@@ -184,8 +177,7 @@ async function main(): Promise<{exitCode: number}> {
         }
     }
 
-    // eslint-disable-next-line no-console
-    console.log("Commit isn't deployed.");
+    process.stdout.write("Commit isn't deployed.\n");
     return {exitCode: 1};
 }
 
