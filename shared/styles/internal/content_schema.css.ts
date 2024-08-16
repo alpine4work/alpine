@@ -600,6 +600,7 @@ export const codeBlockWrapperClassName = style({
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
+    overscrollBehaviorX: "contain",
     marginTop: codeBlockMarginVar,
     marginBottom: codeBlockMarginVar,
     counterReset: "code-block-line-number",

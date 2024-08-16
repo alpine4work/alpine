@@ -55,16 +55,16 @@ const properties = defineProperties({
             scroll: {overflow: "scroll", overscrollBehavior: "contain"},
         },
         overflowX: {
-            auto: {overflowX: "auto", overscrollBehavior: "contain"},
+            auto: {overflowX: "auto", overscrollBehaviorX: "contain"},
             hidden: "hidden",
             visible: "visible",
-            scroll: {overflowX: "scroll", overscrollBehavior: "contain"},
+            scroll: {overflowX: "scroll", overscrollBehaviorX: "contain"},
         },
         overflowY: {
-            auto: {overflowY: "auto", overscrollBehavior: "contain"},
+            auto: {overflowY: "auto", overscrollBehaviorY: "contain"},
             hidden: "hidden",
             visible: "visible",
-            scroll: {overflowY: "scroll", overscrollBehavior: "contain"},
+            scroll: {overflowY: "scroll", overscrollBehaviorY: "contain"},
         },
         position: {
             static: "static",
