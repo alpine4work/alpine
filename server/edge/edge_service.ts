@@ -90,6 +90,20 @@ async function handleFetch(
             return fetch(request);
         }
 
+        const cache: Cache =
+            // @ts-expect-error: `@cloudflare/workers-types` doesn't seem to be providing
+            // the correct types for us.
+            caches.default;
+
+        // We follow R2's "[Use the Cache API][1]" example for caching R2 objects in
+        // Cloudflare's global cache.
+        //
+        // [1]: https://developers.cloudflare.com/r2/examples/cache-api/
+        const cachedResponse = await cache.match(request);
+        if (cachedResponse !== undefined) {
+            return cachedResponse;
+        }
+
         const object = await env.AppStaticBucket.get(`files${url.pathname}`);
         if (object === null) {
             return new Response("404 Not Found", {
@@ -98,9 +112,9 @@ async function handleFetch(
             });
         }
 
-        // TODO(calebmer, #deploy): ETag support?
         const headers = new Headers();
         object.writeHttpMetadata(headers);
+        headers.set("etag", object.httpEtag);
 
         // Remix fingerprints its assets so we can cache them forever. Other assets
         // (like `favicon.ico`) are cached for a day then can be updated.
@@ -123,7 +137,12 @@ async function handleFetch(
             headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
         }
 
-        return new Response(object.body, {headers});
+        const response = new Response(object.body, {headers});
+
+        // Put the R2 object in Cloudflare's cache to speed up future requests.
+        executionContext.waitUntil(cache.put(request, response.clone()));
+
+        return response;
     }
 
     // Create a new tracer for every request because we need a Honeycomb client and
