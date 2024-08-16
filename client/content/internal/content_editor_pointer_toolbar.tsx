@@ -1,4 +1,4 @@
-import {Modality, useHover, useInteractionModality, usePress} from "@react-aria/interactions";
+import {Modality, getInteractionModality, useHover, usePress} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
     ChatCircleText,
@@ -69,8 +69,6 @@ export function ContentEditorPointerToolbar({
     isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
 }) {
-    const interactionModality = useInteractionModality();
-
     // We keep track of our own `localInteractionModality` separate from
     // `react-aria`'s `interactionModality`. A user is still considered to have a
     // `pointer` `interactionModality` while they're typing in a text input
@@ -81,12 +79,18 @@ export function ContentEditorPointerToolbar({
     // However, for the purposes of hiding/showing the pointer toolbar we want any
     // typing within the content editor to hide the pointer toolbar. So we have our
     // own "local" interaction modality state.
-    const [isLocalInteractionModalityKeyboard, setIsLocalInteractionModalityKeyboard] =
-        useState(false);
+    const [localInteractionModality, setLocalInteractionModality] =
+        useState<Modality>(getInteractionModality);
 
     useEffect(() => {
         const view = assertExists(viewRef.current);
         const viewElement = view.dom;
+
+        const handleFocus = () => {
+            // Whenever our editor is focused, update our local interaction modality to
+            // match whatever the global interaction modality is.
+            setLocalInteractionModality(getInteractionModality());
+        };
 
         const handleKeyDown = (event: KeyboardEvent) => {
             if (
@@ -106,33 +110,31 @@ export function ContentEditorPointerToolbar({
                 // should put us in keyboard input mode.
                 event.key !== "Shift"
             ) {
-                setIsLocalInteractionModalityKeyboard(true);
+                setLocalInteractionModality("keyboard");
             }
         };
 
         const handlePointerDown = () => {
-            setIsLocalInteractionModalityKeyboard(false);
+            setLocalInteractionModality("pointer");
         };
 
         // Quality of life: If the user selects some text with their keyboard then
         // moves their mouse then we want to show the toolbar.
         const handlePointerMove = () => {
-            setIsLocalInteractionModalityKeyboard(false);
+            setLocalInteractionModality("pointer");
         };
 
+        viewElement.addEventListener("focus", handleFocus);
         viewElement.addEventListener("keydown", handleKeyDown, true);
         document.addEventListener("pointerdown", handlePointerDown, true);
         document.addEventListener("pointermove", handlePointerMove, true);
         return () => {
+            viewElement.removeEventListener("focus", handleFocus);
             viewElement.removeEventListener("keydown", handleKeyDown, true);
             document.removeEventListener("pointerdown", handlePointerDown, true);
             document.removeEventListener("pointermove", handlePointerMove, true);
         };
     }, [viewRef]);
-
-    const localInteractionModality: Modality = isLocalInteractionModalityKeyboard
-        ? "keyboard"
-        : interactionModality;
 
     // If the pointer has moved while pressing down and the user has some text
     // selected, the user is probably trying to drag to change their selection. If

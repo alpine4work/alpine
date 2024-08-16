@@ -50,7 +50,7 @@ const testCases: Array<{
         setup: async ({page, space, session}) => {
             const channel = await createChannel(session.action(), {
                 spaceId: space.id,
-                name: "Test channel",
+                name: "Test Channel",
             });
 
             const post = await createPost(session.action(), {
@@ -70,7 +70,7 @@ const testCases: Array<{
         setup: async ({page, isMobile, space, session}) => {
             const channel = await createChannel(session.action(), {
                 spaceId: space.id,
-                name: "Test channel",
+                name: "Test Channel",
             });
 
             await page.goto(`/s/${space.id}/posts/new/${generateId()}?channel=${channel.id}`);
@@ -88,7 +88,7 @@ const testCases: Array<{
         setup: async ({page, isMobile, space, session}) => {
             const channel = await createChannel(session.action(), {
                 spaceId: space.id,
-                name: "Test channel",
+                name: "Test Channel",
             });
 
             const post = await createPost(session.action(), {
