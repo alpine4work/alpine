@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {render, screen} from "@testing-library/react";
+import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
@@ -133,9 +133,8 @@ test("shows the toolbar when there's a pointer interaction modality", () => {
     });
     expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
 
-    act(() => {
-        setInteractionModality("pointer");
-    });
+    fireEvent.pointerMove(getTextbox());
+
     act(() => {
         import.meta.jest.runOnlyPendingTimers();
     });
