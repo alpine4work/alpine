@@ -966,7 +966,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             handlePaste,
 
-            handleKeyDown(_view, event) {
+            handleKeyDown: (_view, event) => {
                 const {isAppleDevice} = getClientInfoWithoutListening();
 
                 // Implement keyboard shortcuts when the mention floater is open:
@@ -1016,6 +1016,21 @@ function ContentEditor<Content extends ContentWithReferences>(
                 if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
                     propsRef.current.onArrowUp(event);
                     if (event.defaultPrevented) return true;
+                }
+
+                return false;
+            },
+
+            handleDrop: (_view, event, slice) => {
+                // Handle the user dropping files from their operating system. Not dragging
+                // some slice of ProseMirror content around.
+                if (
+                    slice.size === 0 &&
+                    event.dataTransfer?.items &&
+                    event.dataTransfer?.files.length > 0
+                ) {
+                    // TODO(calebmer, #files): Implement
+                    return true;
                 }
 
                 return false;
