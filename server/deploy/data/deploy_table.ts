@@ -568,7 +568,7 @@ export async function scheduleDeploy(
                     // Ok if multiple schedules are created since the `ScheduleDeploy` job is
                     // designed to be idempotent anyway.
                     await context.scheduler.dangerouslyCreateOnceMaintenanceJobSchedule(
-                        "ScheduleDeployAtDeployableTime",
+                        "ScheduleDeployMaintenanceJob",
                         assertExists(nextDeployableTime),
                         {type: "ScheduleDeploy", commitSha: null},
                     );

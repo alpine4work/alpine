@@ -2987,6 +2987,20 @@ Resources:
         Properties:
             PolicyDocument:
                 Statement:
+                    - Action: scheduler:CreateSchedule
+                      Effect: Allow
+                      Resource:
+                          Fn::Join:
+                              - ""
+                              - - "arn:aws:scheduler:us-east-1:"
+                                - Ref: AWS::AccountId
+                                - :schedule/default/ScheduleDeployMaintenanceJob
+                    - Action: iam:PassRole
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - JobQueueServiceSchedulerRoleEB4C6CF6
+                              - Arn
                     - Action:
                           - dynamodb:BatchGetItem
                           - dynamodb:BatchWriteItem
@@ -3194,20 +3208,6 @@ Resources:
                           - ecs:ListTasks
                       Effect: Allow
                       Resource: "*"
-                    - Action: scheduler:CreateSchedule
-                      Effect: Allow
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - "arn:aws:scheduler:us-east-1:"
-                                - Ref: AWS::AccountId
-                                - :schedule/default/ScheduleDeployAtDeployableTime
-                    - Action: iam:PassRole
-                      Effect: Allow
-                      Resource:
-                          Fn::GetAtt:
-                              - JobQueueServiceTaskDefinitionTaskRole2F9357F1
-                              - Arn
                 Version: 2012-10-17
             PolicyName: JobQueueServiceTaskDefinitionTaskRoleDefaultPolicy9F7601AC
             Roles:
@@ -3235,7 +3235,7 @@ Resources:
                                     - Arn
                               - " --schedulerJobQueueRoleArn="
                               - Fn::GetAtt:
-                                    - JobQueueServiceTaskDefinitionTaskRole2F9357F1
+                                    - JobQueueServiceSchedulerRoleEB4C6CF6
                                     - Arn
                               - " --edgeServiceUrl=https://cyberworlds.dev --ecsCluster="
                               - Ref: EcsClusterFB9B21B5
@@ -3459,6 +3459,35 @@ Resources:
                 - Ref: JobQueueServiceTaskDefinitionExecutionRole39E472B7
         Metadata:
             aws:cdk:path: CyberworldsStack/JobQueueService/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+    JobQueueServiceSchedulerRoleEB4C6CF6:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Action: sts:AssumeRole
+                      Effect: Allow
+                      Principal:
+                          Service: scheduler.amazonaws.com
+                Version: 2012-10-17
+        Metadata:
+            aws:cdk:path: CyberworldsStack/JobQueueService/SchedulerRole/Resource
+    JobQueueServiceSchedulerRoleDefaultPolicy9E70F0F1:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: sqs:SendMessage
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - SqsJobQueue62388F96
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: JobQueueServiceSchedulerRoleDefaultPolicy9E70F0F1
+            Roles:
+                - Ref: JobQueueServiceSchedulerRoleEB4C6CF6
+        Metadata:
+            aws:cdk:path: CyberworldsStack/JobQueueService/SchedulerRole/DefaultPolicy/Resource
     JobQueueService93EBB568:
         Type: AWS::ECS::Service
         Properties:

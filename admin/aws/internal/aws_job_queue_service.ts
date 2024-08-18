@@ -10,7 +10,7 @@ import {
     Secret as EcsSecret,
     NetworkMode,
 } from "aws-cdk-lib/aws-ecs";
-import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -105,6 +105,33 @@ export class AwsJobQueueService extends Construct {
             networkMode: NetworkMode.HOST,
         });
 
+        const schedulerRole = new Role(this, "SchedulerRole", {
+            assumedBy: new ServicePrincipal("scheduler.amazonaws.com"),
+        });
+
+        // Allow scheduling deploys with AWS EventBridge Scheduler. We need to allow
+        // `iam:PassRole` in addition to `scheduler:CreateSchedule`. Since the
+        // scheduler will need to use the role on execution.
+        {
+            sqs.grantSendJobQueueMessages(schedulerRole);
+
+            taskDefinition.addToTaskRolePolicy(
+                new PolicyStatement({
+                    actions: ["scheduler:CreateSchedule"],
+                    resources: [
+                        `arn:aws:scheduler:${stack.region}:${stack.account}:schedule/default/ScheduleDeployMaintenanceJob`,
+                    ],
+                }),
+            );
+
+            taskDefinition.addToTaskRolePolicy(
+                new PolicyStatement({
+                    actions: ["iam:PassRole"],
+                    resources: [schedulerRole.roleArn],
+                }),
+            );
+        }
+
         taskDefinition.addContainer("Container", {
             image: ContainerImage.fromTarball(
                 joinPath(
@@ -183,7 +210,7 @@ export class AwsJobQueueService extends Construct {
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--jobQueueArn=${sqs.getJobQueueArn()}`,
-                    `--schedulerJobQueueRoleArn=${taskDefinition.taskRole.roleArn}`,
+                    `--schedulerJobQueueRoleArn=${schedulerRole.roleArn}`,
                     "--edgeServiceUrl=https://cyberworlds.dev",
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
@@ -234,26 +261,6 @@ export class AwsJobQueueService extends Construct {
                 resources: ["*"],
             }),
         );
-
-        // Allow scheduling deploys with AWS EventBridge Scheduler. We need to allow
-        // `iam:PassRole` in addition to `scheduler:CreateSchedule`. Since the
-        // scheduler will need to use the role on execution.
-        {
-            taskDefinition.addToTaskRolePolicy(
-                new PolicyStatement({
-                    actions: ["scheduler:CreateSchedule"],
-                    resources: [
-                        `arn:aws:scheduler:${stack.region}:${stack.account}:schedule/default/ScheduleDeployAtDeployableTime`,
-                    ],
-                }),
-            );
-            taskDefinition.addToTaskRolePolicy(
-                new PolicyStatement({
-                    actions: ["iam:PassRole"],
-                    resources: [taskDefinition.taskRole.roleArn],
-                }),
-            );
-        }
 
         const service = new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,
