@@ -1,4 +1,4 @@
-load("//admin/aws:aws_lambda.bzl", "aws_lambda")
+load("//admin/aws/lambda:aws_lambda.bzl", "aws_lambda")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 

@@ -42,7 +42,7 @@ def aws_lambda(
         srcs = srcs,
         entry_point = entry_point,
         output = "{}.cjs".format(name),
-        config = "//admin/aws:aws_lambda_esbuild_config_file",
+        config = "//admin/aws/lambda:aws_lambda_esbuild_config_file",
         # Can't set `external` in the ESBuild config file.
         # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L54
         external = [
