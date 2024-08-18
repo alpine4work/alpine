@@ -1,5 +1,4 @@
 import {CdkCustomResourceEvent, CdkCustomResourceResponse} from "aws-lambda";
-import {webcrypto} from "crypto";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {deploySearchEntityIndexes} from "~/server/search/data/index/search_entity_index.js";
@@ -8,10 +7,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-
-// In Node.js v18 (AWS Lambda's latest Node.js version) `crypto` is not available as
-// a global. Set it as a global here.
-(globalThis as any).crypto = webcrypto;
 
 /**
  * Our OpenSearch deploy script is called by the AWS CDK as a [CloudFormation

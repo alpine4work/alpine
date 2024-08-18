@@ -24,6 +24,14 @@ module.exports = {
     platform: "node",
     target: "node18",
     format: "cjs",
+    // In Node.js v18 (AWS Lambda's latest Node.js version) `crypto` is not
+    // available as a global. Set it as a global at the top of generated JavaScript
+    // files. Some of our modules like `shared/id/id.ts` depend on a `crypto`
+    // global.
+    //
+    // Fine to use `banner` since we only generate one JavaScript file given
+    // `splitting` is off.
+    banner: {js: 'globalThis.crypto = require("crypto").webcrypto;\n'},
     define: {
         "process.env.NODE_ENV": JSON.stringify(
             compilationMode === "opt" ? "production" : "development",
