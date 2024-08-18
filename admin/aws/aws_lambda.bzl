@@ -15,21 +15,18 @@ def aws_lambda(
     esbuild(
         name = "{}_bundle".format(name),
         srcs = srcs,
-        define = {
-            "process.env.NODE_ENV": "\"production\"",
-            # `import.meta` doesn't work with a `cjs` output format. But we use
-            # `import.meta.jest` a lot to tell if we're in a unit test. Replace it with
-            # `undefined` to avoid esbuild warnings.
-            "import.meta.jest": "undefined",
-        },
         entry_point = entry_point,
-        # AWS SDK modules are available in Node.js 18 Lambda runtime.
-        external = ["@aws-sdk/*"],
-        format = "cjs",
         output = "{}.cjs".format(name),
-        platform = "node",
+        config = "//admin/aws:aws_lambda_esbuild_config_file",
+        # Can't set `external` in the ESBuild config file.
+        # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L54
+        external = [
+            # AWS SDK modules are available in Node.js 18 Lambda runtime.
+            "@aws-sdk/*",
+        ],
+        # Can't set `splitting` in the ESBuild config file.
+        # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L60
         splitting = False,
-        target = "node18",
     )
 
     _aws_lambda(

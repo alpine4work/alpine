@@ -72,15 +72,17 @@ esbuild(
     bazel_sandbox_plugin = False,
     config = "internal/styles_esbuild_config.cjs",
     entry_point = "internal/styles.js",
-    # Leave font face `url()`s alone.
+    # Can't set `external` in the ESBuild config file.
+    # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L54
     external = [
+        # Leave font face `url()`s alone.
         "*.woff2",
         "*.ttf",
     ],
-    format = "esm",
     output = "styles.js",
     output_css = "styles.css",
-    platform = "neutral",
+    # Can't set `splitting` in the ESBuild config file.
+    # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L60
     splitting = False,
     deps = [
         "//:node_modules/@types/color",

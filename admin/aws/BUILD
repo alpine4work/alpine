@@ -1,3 +1,4 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
@@ -6,9 +7,9 @@ load("//admin/aws:aws_lambda.bzl", "aws_lambda")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
-# A manually built OCI layer that creates a directory `/var/www-data` and
-# grants write access for that directory to the `www-data` user.
 exports_files([
+    # A manually built OCI layer that creates a directory `/var/www-data` and
+    # grants write access for that directory to the `www-data` user.
     "helpers/www_data_owned_directory_oci_layer.tar",
 ])
 
@@ -31,6 +32,12 @@ ts_project(
         "//server/tasks/router",
         "//shared/helpers",
     ],
+)
+
+copy_to_bin(
+    name = "aws_lambda_esbuild_config_file",
+    srcs = ["internal/aws_lambda_esbuild_config.cjs"],
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

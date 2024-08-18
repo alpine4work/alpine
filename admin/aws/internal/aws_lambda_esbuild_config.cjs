@@ -1,15 +1,11 @@
 "use strict";
 
-const {vanillaExtractPlugin} = require("@vanilla-extract/esbuild-plugin");
-const postcss = require("postcss");
-const autoprefixer = require("autoprefixer");
-
 // Extract the compilation mode from the `BAZEL_BINDIR` environment variable.
 // This is a little hacky.
 // https://bazel.build/docs/user-manual#compilation-mode
 //
 // IMPORTANT: If you update the code here, you should also update the code in
-// `edge_esbuild_config.cjs` and `aws_lambda_esbuild_config.cjs`.
+// `styles_esbuild_config.cjs` and `edge_esbuild_config.cjs`.
 const compilationModeMatch = process.env.BAZEL_BINDIR.match(
     /(?:^|\/)bazel-out\/[a-z0-9]+(?:_[a-z0-9_]+)?-(fastbuild|dbg|opt)/,
 );
@@ -24,21 +20,17 @@ if (!compilationModeMatch) {
 
 const compilationMode = compilationModeMatch[1];
 
-async function processCss(css) {
-    const result = await postcss([autoprefixer]).process(css, {
-        from: undefined, // Suppress source map warning
-    });
-
-    return result.css;
-}
-
 module.exports = {
-    platform: "neutral",
-    format: "esm",
-    plugins: [
-        vanillaExtractPlugin({
-            identifiers: compilationMode === "opt" ? "short" : "debug",
-            processCss,
-        }),
-    ],
+    platform: "node",
+    target: "node18",
+    format: "cjs",
+    define: {
+        "process.env.NODE_ENV": JSON.stringify(
+            compilationMode === "opt" ? "production" : "development",
+        ),
+        // `import.meta` doesn't work with a `cjs` output format. But we use
+        // `import.meta.jest` a lot to tell if we're in a unit test. Replace it with
+        // `undefined` to avoid esbuild warnings.
+        "import.meta.jest": "undefined",
+    },
 };

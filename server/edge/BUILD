@@ -31,7 +31,6 @@ esbuild(
     config = "edge_esbuild_config.cjs",
     entry_point = "edge_service.js",
     output = "edge_service_bundle.js",
-    platform = "node",
 )
 
 js_binary(
