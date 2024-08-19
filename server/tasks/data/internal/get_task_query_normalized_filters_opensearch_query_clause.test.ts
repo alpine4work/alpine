@@ -129,7 +129,6 @@ async function testQueryWithNormalizedFilters(
 
     // We have to manually refresh OpenSearch in unit tests.
     {
-        // eslint-disable-next-line no-global-fetch
         const response = await fetch(
             `http://localhost:${context.getOpensearchLocalPort()}/tasks/_refresh`,
             {method: "POST"},
@@ -144,7 +143,6 @@ async function testQueryWithNormalizedFilters(
 
     const [allTasks, queryTasks1] = await runAllPromiseThunks(
         async (): Promise<Array<TaskIndexDoc>> => {
-            // eslint-disable-next-line no-global-fetch
             const allHitsResponse = await fetch(
                 `http://localhost:${context.getOpensearchLocalPort()}/tasks/_search?track_total_hits=false`,
                 {
@@ -168,7 +166,6 @@ async function testQueryWithNormalizedFilters(
             );
         },
         async (): Promise<Array<TaskIndexDoc>> => {
-            // eslint-disable-next-line no-global-fetch
             const queryHitsResponse = await fetch(
                 `http://localhost:${context.getOpensearchLocalPort()}/tasks/_search?track_total_hits=false`,
                 {
