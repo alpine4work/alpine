@@ -463,9 +463,6 @@ dependencies:
   '@types/set-cookie-parser':
     specifier: ^2.4.2
     version: 2.4.2
-  '@types/tar-fs':
-    specifier: ^2.0.4
-    version: 2.0.4
   '@types/testing-library__jest-dom':
     specifier: ^5.14.5
     version: 5.14.5
@@ -835,9 +832,6 @@ dependencies:
   strip-ansi:
     specifier: ^6.0.1
     version: 6.0.1
-  tar-fs:
-    specifier: ^3.0.6
-    version: 3.0.6
   toml:
     specifier: ^3.0.0
     version: 3.0.0
@@ -7051,19 +7045,6 @@ packages:
 
   /@types/stack-utils@2.0.1:
     resolution: {integrity: sha512-Hl219/BT5fLAaz6NDkSuhzasy49dwQS/DSdu4MdggFB8zcXv7vflBI3xp7FEmkmdDkBUI2bPUNeMttp2knYdxw==}
-    dev: false
-
-  /@types/tar-fs@2.0.4:
-    resolution: {integrity: sha512-ipPec0CjTmVDWE+QKr9cTmIIoTl7dFG/yARCM5MqK8i6CNLIG1P8x4kwDsOQY1ChZOZjH0wO9nvfgBvWl4R3kA==}
-    dependencies:
-      '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
-      '@types/tar-stream': 3.1.3
-    dev: false
-
-  /@types/tar-stream@3.1.3:
-    resolution: {integrity: sha512-Zbnx4wpkWBMBSu5CytMbrT5ZpMiF55qgM+EpHzR4yIDu7mv52cej8hTkOc6K+LzpkOAbxwn/m7j3iO+/l42YkQ==}
-    dependencies:
-      '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
     dev: false
 
   /@types/testing-library__jest-dom@5.14.5:

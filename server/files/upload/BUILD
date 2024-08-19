@@ -7,6 +7,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/aws-lambda",
         "//:node_modules/sharp",
+        "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",
     ],
