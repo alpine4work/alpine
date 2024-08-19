@@ -34,6 +34,7 @@ type EdgeServiceEnv = {
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
     JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
+    FILE_UPLOAD_SERVICE_HOSTNAME?: string;
     HONEYCOMB_API_KEY?: string;
 };
 
@@ -164,7 +165,8 @@ async function handleFetch(
         | {type: "ChatRealtimeService"; chatId: string; pathname: string}
         | {type: "MyAccountService"; accountId: string; pathname: string}
         | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
-        | {type: "TaskRealtimeService"; spaceId: SpaceId} = "AppService";
+        | {type: "TaskRealtimeService"; spaceId: SpaceId}
+        | {type: "UploadFile"} = "AppService";
 
     if (!url.pathname.startsWith("/api/")) {
         // Route to `AppService`...
@@ -253,6 +255,13 @@ async function handleFetch(
                 route = {type: "TaskRealtimeService", spaceId};
             }
         }
+    } else if (
+        // TODO(calebmer, #files): Deploy `FileUploadService` to production.
+        process.env.NODE_ENV === "development" &&
+        url.pathname === "/api/files/upload"
+    ) {
+        routeString = "/api/files/upload";
+        route = {type: "UploadFile"};
     }
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
@@ -441,6 +450,35 @@ async function handleFetch(
                         `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
                         {headers},
                     );
+                }
+                case "UploadFile": {
+                    // Can't forward a request to upgrade to a WebSocket connection to
+                    // `FileUploadService`. All WebSocket connection routes are enumerated above.
+                    if (request.headers.has("upgrade")) {
+                        return new Response(
+                            "400 Bad Request: Can't upgrade to WebSocket connection",
+                            {
+                                status: 400,
+                                headers: {"content-type": "text/plain"},
+                            },
+                        );
+                    }
+
+                    const fileUploadServiceHostname = env.FILE_UPLOAD_SERVICE_HOSTNAME;
+                    if (!fileUploadServiceHostname)
+                        throw new InternalError(
+                            "Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable",
+                        );
+
+                    const headers = new Headers(request.headers);
+                    addTracerPropagationContextHeader(headers, span);
+
+                    // eslint-disable-next-line no-global-fetch
+                    return fetch(`http://${fileUploadServiceHostname}/upload`, {
+                        method: request.method,
+                        headers,
+                        body: request.body,
+                    });
                 }
                 default:
                     throw exhaustive(route);

@@ -82,6 +82,9 @@ const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_P
 
 const jobQueueDevInspectorPort = parsePort(env.JOB_QUEUE_DEV_INSPECTOR_PORT);
 
+const fileUploadDevPort = parsePort(env.FILE_UPLOAD_DEV_PORT);
+const fileUploadInspectorDevPort = parsePort(env.FILE_UPLOAD_DEV_INSPECTOR_PORT);
+
 const remixDevServerPort = parsePort(env.REMIX_DEV_SERVER_PORT);
 
 const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
@@ -160,7 +163,8 @@ export type ArtifactServer =
       };
 
 async function createArtifacts() {
-    const [privatePort1, privatePort2, privatePort3] = await runAllPromises([
+    const [privatePort1, privatePort2, privatePort3, privatePort4] = await runAllPromises([
+        getPort(),
         getPort(),
         getPort(),
         getPort(),
@@ -223,6 +227,7 @@ async function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
+                `--fileUploadServiceHostname=localhost:${fileUploadDevPort}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
@@ -273,6 +278,20 @@ async function createArtifacts() {
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+        },
+        {
+            bazelTarget: "//server/files/upload",
+            executablePath: "server/files/upload/upload.sh",
+            stdioPrefix: "fup",
+            ports: {
+                publicPort: fileUploadDevPort,
+                privatePort: privatePort4,
+            },
+            args: [
+                `--inspectorPort=${fileUploadInspectorDevPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

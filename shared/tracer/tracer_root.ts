@@ -61,6 +61,7 @@ export type TracerServiceName =
     | "EdgeService"
     | "TaskRealtimeService"
     | "JobQueueService"
+    | "FileUploadService"
     | DurableObjectServiceName;
 
 /**

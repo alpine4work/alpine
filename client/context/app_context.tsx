@@ -17,10 +17,21 @@ export type AppContext = Context<{
 
 const AppReactContext = createContext<AppContext | null>(null);
 
-export function useAppContext() {
+/**
+ * Get `AppContext` from our React context.
+ */
+export function useAppContext(): AppContext {
     const context = useContext(AppReactContext);
     assert(context, "Expected the React tree to be rendered inside `<AppContextProvider>`");
     return context;
+}
+
+/**
+ * Get `AppContext` from our React context. Returns null if `AppContext`
+ * doesn't exist. `AppContext` should only not exist in Jest unit tests.
+ */
+export function useAppContextIfExists(): AppContext | null {
+    return useContext(AppReactContext);
 }
 
 export const AppContextProvider = AppReactContext.Provider;

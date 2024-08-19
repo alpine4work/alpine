@@ -33,6 +33,7 @@ async function main() {
             taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
             jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
+            fileUploadServiceHostname,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
         },
@@ -45,6 +46,7 @@ async function main() {
             taskRealtimeServicePublicKey: {type: "string"},
             jobQueueServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
+            fileUploadServiceHostname: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
         },
@@ -64,6 +66,7 @@ async function main() {
     if (!jobQueueServicePublicKeyPath) throw new Error("Missing `jobQueueServicePublicKey` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
+    if (!fileUploadServiceHostname) throw new Error("Missing `fileUploadServiceHostname` arg");
 
     const [
         appServicePublicKey,
@@ -101,6 +104,7 @@ async function main() {
             TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,
             JOB_QUEUE_SERVICE_PUBLIC_KEY: jobQueueServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
+            FILE_UPLOAD_SERVICE_HOSTNAME: fileUploadServiceHostname,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },
         globals: {

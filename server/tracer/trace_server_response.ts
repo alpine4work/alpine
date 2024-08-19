@@ -33,6 +33,10 @@ export function createTraceServerResponseHandleSpanName(
  *
  * May re-create the `Request` object so when responding to a request use the
  * `Request` object passed into the action.
+ *
+ * `FileUploadService` reimplements the same tracer span data we add here
+ * because it doesn't use `createStandardizedServer()`. So if you make a change
+ * here, you may also need to update `FileUploadService`.
  */
 export async function traceServerResponse(
     tracer: TracerRoot,
@@ -56,58 +60,26 @@ export async function traceServerResponse(
 
     const handleSpanName = createTraceServerResponseHandleSpanName(tracer, request, route);
 
-    const {span, finishSpan} = startSpanFromTracerPropagationContextHeader(
+    const {span, finishSpan} = startTracerSpanFromPropagationContextHeader(
         tracer,
         `Handle: ${handleSpanName}`,
-        request,
+        request.headers,
     );
 
+    span.addPropagatedDataForChildrenOnly({
+        context: {
+            handler: handleSpanName,
+        },
+    });
+
     try {
-        const requestContentLengthHeader = request.headers.get("content-length");
-        const requestContentLengthHeaderNumber = requestContentLengthHeader
-            ? parseInt(requestContentLengthHeader, 10)
-            : null;
-
-        const spanSearch: {[key: string]: string} = {};
-        const validSpanSearchParamNames =
-            tracerEventHttpSearchParamNameByServiceName[tracer.serviceName];
-        for (const [searchParamName, searchParamValue] of requestUrl.searchParams) {
-            if (validSpanSearchParamNames?.has(searchParamName as any)) {
-                spanSearch[searchParamName] = searchParamValue;
-            }
-        }
-
-        span.addData({
-            http: {
-                route,
-                method: request.method,
-                scheme: requestUrl.protocol.slice(0, -1),
-                target: `${requestUrl.pathname}${requestUrl.search}`,
-                search: spanSearch,
-                // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
-                // our request to get the IP address.
-                // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
-                clientIp:
-                    request.headers.get("x-real-ip") ??
-                    request.headers.get("cf-connecting-ip") ??
-                    undefined,
-                userAgent: request.headers.get("user-agent") ?? undefined,
-                request: {
-                    contentLength: requestContentLengthHeaderNumber ?? undefined,
-                    header: Object.fromEntries(
-                        filterIterable(request.headers, ([headerName]) =>
-                            tracerEventHttpHeaderNames.has(headerName),
-                        ),
-                    ),
-                    obfuscatedCookieHeader: obfuscateCookieHeader(request.headers),
-                },
-            },
-        });
-
-        span.addPropagatedDataForChildrenOnly({
-            context: {
-                handler: handleSpanName,
-            },
+        addRequestTracerSpanData({
+            tracer,
+            span,
+            route,
+            method: request.method,
+            url: requestUrl,
+            headers: request.headers,
         });
 
         // Measure the uncompressed request body size by creating an intermediate
@@ -246,12 +218,12 @@ export async function traceServerResponse(
  * Starts a span as a child of the span added in the HTTP propagation header of
  * the request.
  */
-function startSpanFromTracerPropagationContextHeader(
+export function startTracerSpanFromPropagationContextHeader(
     tracer: TracerRoot,
     name: string,
-    request: Request,
+    headers: Headers,
 ): {span: TracerSpan; finishSpan: () => void} {
-    const propagationContextHeaderValue = request.headers.get(tracerPropagationContextHeaderName);
+    const propagationContextHeaderValue = headers.get(tracerPropagationContextHeaderName);
 
     // If there is no propagation header, start a new root span.
     if (propagationContextHeaderValue === null) return tracer.startSpan(name);
@@ -290,4 +262,63 @@ function startSpanFromTracerPropagationContextHeader(
         tracer.getRoot().logUncaughtException("Invalid trace propagation context", error);
         return tracer.startSpan(name);
     }
+}
+
+/**
+ * Add all data associated with an HTTP request to a span from the request's
+ * decomposed parts except `http.request.uncompressedContentLength` since we
+ * don't have the request's body in this function.
+ */
+export function addRequestTracerSpanData({
+    tracer,
+    span,
+    route,
+    method,
+    url,
+    headers,
+}: {
+    tracer: TracerRoot;
+    span: TracerSpan;
+    route: string;
+    method: string;
+    url: URL;
+    headers: Headers;
+}) {
+    const requestContentLengthHeader = headers.get("content-length");
+    const requestContentLengthHeaderNumber = requestContentLengthHeader
+        ? parseInt(requestContentLengthHeader, 10)
+        : null;
+
+    const spanSearch: {[key: string]: string} = {};
+    const validSpanSearchParamNames =
+        tracerEventHttpSearchParamNameByServiceName[tracer.serviceName];
+    for (const [searchParamName, searchParamValue] of url.searchParams) {
+        if (validSpanSearchParamNames?.has(searchParamName as any)) {
+            spanSearch[searchParamName] = searchParamValue;
+        }
+    }
+
+    span.addData({
+        http: {
+            route,
+            method,
+            scheme: url.protocol.slice(0, -1),
+            target: `${url.pathname}${url.search}`,
+            search: spanSearch,
+            // We depend on Cloudflare to set `x-real-ip` or `cf-connecting-ip` header on
+            // our request to get the IP address.
+            // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers
+            clientIp: headers.get("x-real-ip") ?? headers.get("cf-connecting-ip") ?? undefined,
+            userAgent: headers.get("user-agent") ?? undefined,
+            request: {
+                contentLength: requestContentLengthHeaderNumber ?? undefined,
+                header: Object.fromEntries(
+                    filterIterable(headers, ([headerName]) =>
+                        tracerEventHttpHeaderNames.has(headerName),
+                    ),
+                ),
+                obfuscatedCookieHeader: obfuscateCookieHeader(headers),
+            },
+        },
+    });
 }

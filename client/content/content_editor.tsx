@@ -53,6 +53,7 @@ import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/con
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
+import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -90,7 +91,9 @@ import {
 } from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -102,6 +105,7 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/shared/styles/styles.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 const {
     docClassName,
@@ -559,6 +563,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         phantomSelections,
     } = props;
 
+    const context = useAppContextIfExists();
     const navigate = useNavigate();
     const reporter = useReporter();
     const isMobile = useIsMobile();
@@ -1025,11 +1030,51 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // Handle the user dropping files from their operating system. Not dragging
                 // some slice of ProseMirror content around.
                 if (
+                    context !== null &&
                     slice.size === 0 &&
-                    event.dataTransfer?.items &&
-                    event.dataTransfer?.files.length > 0
+                    event.dataTransfer &&
+                    event.dataTransfer.files.length > 0
                 ) {
-                    // TODO(calebmer, #files): Implement
+                    // TODO(calebmer, #files): Proper implementation. This is a quick and dirty
+                    // implementation for testing.
+                    if (process.env.NODE_ENV === "development") {
+                        runPromiseWithoutAwaiting(
+                            runAllPromises(
+                                Array.from(event.dataTransfer.items, async item => {
+                                    if (item.kind !== "file") return;
+
+                                    const file = assertExists(item.getAsFile());
+
+                                    await fetchWithTracer(
+                                        context.tracer.getTracer(),
+                                        "/api/files/upload",
+                                        {
+                                            serviceName: "FileUploadService",
+                                            method: "POST",
+                                            route: "/api/files/upload",
+                                            headers: {
+                                                // TODO(calebmer, #files): Validate content type. If
+                                                // content type is unsupported we shouldn't prevent
+                                                // default.
+                                                "content-type": item.type,
+                                            },
+                                            body: file,
+                                        },
+                                        async response => {
+                                            // TODO(calebmer, #files): Parse incoming events.
+                                            // eslint-disable-next-line no-console
+                                            console.log(await response.text());
+
+                                            if (!response.ok) {
+                                                throw new InternalError("Upload failed");
+                                            }
+                                        },
+                                    );
+                                }),
+                            ),
+                        );
+                    }
+
                     return true;
                 }
 

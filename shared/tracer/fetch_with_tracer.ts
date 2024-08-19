@@ -278,10 +278,18 @@ export function obfuscateCookieHeader(headers: Headers): string | undefined {
 
 export function obfuscateSetCookieHeaders(headers: Headers): string | undefined {
     const setCookieHeaders = getSetCookieHeaders(headers);
-
     if (setCookieHeaders.length === 0) return undefined;
+    return obfuscateSetCookieHeaderString(setCookieHeaders);
+}
 
-    const parsedSetCookieHeaders = parseSetCookieHeader(setCookieHeaders);
+export function obfuscateSetCookieHeaderString(
+    headerString: string | ReadonlyArray<string> | number | undefined,
+): string | undefined {
+    if (headerString === undefined) return undefined;
+    if (typeof headerString === "number") return undefined;
+
+    const parsedSetCookieHeaders = parseSetCookieHeader(headerString);
+    if (parsedSetCookieHeaders.length === 0) return undefined;
 
     return parsedSetCookieHeaders
         .map(setCookie => {
