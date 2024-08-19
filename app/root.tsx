@@ -48,7 +48,7 @@ import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {NotFoundError, UnknownError} from "~/shared/error/error.js";
+import {FailedPreconditionError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -253,10 +253,15 @@ export default function Root() {
         if (!routeError) return undefined;
 
         if (isRouteErrorResponse(routeError)) {
-            if (routeError.status === 404)
+            if (routeError.status === 404) {
                 return new NotFoundError("Route not found", {
                     displayMessage: notFoundErrorDisplayMessage,
                 });
+            }
+
+            if (routeError.status === 405) {
+                return new FailedPreconditionError("Method not allowed");
+            }
 
             return new UnknownError(
                 quote`Response thrown with status ${routeError.status} ${routeError.statusText}`,
