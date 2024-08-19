@@ -5,6 +5,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "upload_lib",
+    test_data = [
+        "test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+    ],
     test_deps = [
         "//:node_modules/get-port",
         "//server/dynamo/test_helpers",

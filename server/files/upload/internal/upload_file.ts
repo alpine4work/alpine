@@ -1,10 +1,12 @@
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import createSharp from "sharp";
+import {FilePreviewPlaceholder} from "~/server/files/upload/internal/file_preview_placeholder.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
+    ErrorBase,
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
@@ -13,8 +15,10 @@ import {
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -29,6 +33,10 @@ export const UploadFileEventSchema = Schema.union({
         type: Schema.value("PreviewSize"),
         width: Schema.integer,
         height: Schema.integer,
+    }),
+    PreviewPlaceholder: Schema.object({
+        type: Schema.value("PreviewPlaceholder"),
+        placeholder: FilePreviewPlaceholder.schema,
     }),
     Error: Schema.object({
         type: Schema.value("Error"),
@@ -51,17 +59,29 @@ export async function uploadFile(
     const {span: previewSizeSpan, finishSpan: finishPreviewSizeSpan} =
         span.startSpan("Get file preview size");
 
-    const sendEvent = (event: UploadFileEvent) => {
-        if (!res.headersSent) {
-            res.writeHead(200, {"content-type": "application/x-ndjson"});
-        }
+    let hasFinishedPreviewPlaceholderSpan = false;
+    const {span: previewPlaceholderSpan, finishSpan: finishPreviewPlaceholderSpan} = span.startSpan(
+        "Get file preview placeholder",
+    );
 
+    const sendEvent = (event: UploadFileEvent) => {
         if (event.type === "PreviewSize") {
             hasFinishedPreviewSizeSpan = true;
             finishPreviewSizeSpan();
         }
 
-        res.write(JSON.stringify(UploadFileEventSchema.serialize(event)) + "\n");
+        if (event.type === "PreviewPlaceholder") {
+            hasFinishedPreviewPlaceholderSpan = true;
+            finishPreviewPlaceholderSpan();
+        }
+
+        if (!res.headersSent) {
+            res.writeHead(200, {"content-type": "application/x-ndjson"});
+        }
+
+        if (!res.writableEnded) {
+            res.write(JSON.stringify(UploadFileEventSchema.serialize(event)) + "\n");
+        }
     };
 
     try {
@@ -72,6 +92,19 @@ export async function uploadFile(
 
             hasFinishedPreviewSizeSpan = true;
             finishPreviewSizeSpan();
+        }
+
+        if (!hasFinishedPreviewPlaceholderSpan) {
+            previewPlaceholderSpan.addException(
+                new InternalError("Didn't get file preview placeholder"),
+            );
+
+            hasFinishedPreviewPlaceholderSpan = true;
+            finishPreviewPlaceholderSpan();
+        }
+
+        if (!res.writableEnded) {
+            res.end();
         }
     } catch (error) {
         span.addException(error);
@@ -87,6 +120,17 @@ export async function uploadFile(
             finishPreviewSizeSpan();
         }
 
+        // Use non-system error code since we probably were't able to get the file
+        // preview size because of the error that was thrown.
+        if (!hasFinishedPreviewPlaceholderSpan) {
+            previewPlaceholderSpan.addException(
+                new FailedPreconditionError("Didn't get file preview placeholder"),
+            );
+
+            hasFinishedPreviewPlaceholderSpan = true;
+            finishPreviewPlaceholderSpan();
+        }
+
         // If we haven't sent headers yet, make sure we write the head with an error
         // status code. If we've already sent an event we're unfortunately stuck with
         // a 200 status code. Clients will still read the error event and interpret the
@@ -96,8 +140,10 @@ export async function uploadFile(
             res.writeHead(status, {"content-type": "application/x-ndjson"});
         }
 
-        sendEvent({type: "Error", error});
-        res.end();
+        if (!res.writableEnded) {
+            sendEvent({type: "Error", error});
+            res.end();
+        }
     }
 }
 
@@ -173,26 +219,12 @@ function createUploadImageFile(contentType: "image/png" | "image/jpeg") {
         req: IncomingMessage,
         sendEvent: (event: UploadFileEvent) => void,
     ) => {
-        const sharp = createSharp({pages: 1});
-
-        req.pipe(sharp);
-
         const metadataPromise = (async () => {
-            const metadata = await sharp.metadata().catch(error => {
-                // Kinda hacky, but treat any error from `sharp` that refers to an "input" or
-                // an "image" as a user error not a system error.
-                //
-                // e.g. This error:
-                // https://github.com/lovell/sharp/blob/fc32e0bd3f9111b80cf078df7b0cfc355695674e/src/common.cc#L413
-                if (/(input|image)/i.test(error.message)) {
-                    throw new InvalidArgumentError(error.message);
-                }
+            const sharp = createSharp({pages: 1});
 
-                // Unclassified `sharp` error. We've observed that errors from `sharp` often
-                // don't use the JavaScript error subclass! So make sure to create an error
-                // object.
-                throw new UnknownError(error.message);
-            });
+            req.pipe(sharp);
+
+            const metadata = await sharp.metadata().catch(rethrowClassifiedSharpError);
 
             let expectedFormat: keyof createSharp.FormatEnum;
 
@@ -224,8 +256,51 @@ function createUploadImageFile(contentType: "image/png" | "image/jpeg") {
             });
         })();
 
+        // Generate a placeholder image which we'll render before the browser has
+        // downloaded the full image. The code below is derived from the
+        // [`plaiceholder`][1] project. We don't use `plaiceholder` directly since it's
+        // fundamentally pretty simple and the implementation is inefficient. (It
+        // unconditionally generates a color and `base64` placeholder.)
+        //
+        // [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
+        const placeholderPromise = (async () => {
+            const sharp = createSharp({pages: 1});
+
+            req.pipe(sharp);
+
+            const placeholderSize = 8;
+
+            const {
+                data,
+                info: {channels, width},
+            } = await sharp
+                .resize(placeholderSize, placeholderSize, {fit: "inside"})
+                .toFormat("png")
+                .modulate({brightness: 1, saturation: 1.2})
+                .raw()
+                .toBuffer({resolveWithObject: true})
+                .catch(rethrowClassifiedSharpError);
+
+            assert(channels === 3 || channels === 4);
+
+            const placeholder = FilePreviewPlaceholder.fromSerialized([
+                channels === 4,
+                width,
+                data,
+            ]);
+
+            sendEvent({
+                type: "PreviewPlaceholder",
+                placeholder,
+            });
+        })();
+
         await runAllPromises([
             metadataPromise.catch(error => {
+                // TODO(calebmer, #files): Cancel image upload?
+                throw error;
+            }),
+            placeholderPromise.catch(error => {
                 // TODO(calebmer, #files): Cancel image upload?
                 throw error;
             }),
@@ -233,4 +308,27 @@ function createUploadImageFile(contentType: "image/png" | "image/jpeg") {
 
         sendEvent({type: "Ok"});
     };
+}
+
+function rethrowClassifiedSharpError(error: unknown): never {
+    throw classifySharpError(error);
+}
+
+function classifySharpError(error: unknown): ErrorBase {
+    if (!isObject(error) || typeof error.message !== "string")
+        return new UnknownError(String(error));
+
+    // Kinda hacky, but treat any error from `sharp` that refers to an "input" or
+    // an "image" as a user error not a system error.
+    //
+    // e.g. This error:
+    // https://github.com/lovell/sharp/blob/fc32e0bd3f9111b80cf078df7b0cfc355695674e/src/common.cc#L413
+    if (/(input|image)/i.test(error.message)) {
+        return new InvalidArgumentError(error.message);
+    }
+
+    // Unclassified `sharp` error. We've observed that errors from `sharp` often
+    // don't use the JavaScript error subclass! So make sure to create an error
+    // object.
+    return new UnknownError(error.message);
 }
