@@ -168,10 +168,11 @@ async function actuallyUploadFile(
     const originalContentType = contentType;
     contentType = contentType.split(";", 2)[0]!.toLowerCase();
 
-    if (!isFileContentType(contentType))
+    if (!isFileContentType(contentType)) {
         throw new InvalidArgumentError(
             quote`Unsupported "Content-Type" header ${originalContentType}`,
         );
+    }
 
     const contentLengthString = headers.get("content-length");
     if (contentLengthString === null) {
@@ -183,6 +184,10 @@ async function actuallyUploadFile(
         throw new InvalidArgumentError('"Content-Length" header must be an integer');
     }
 
+    // If the client sends more bytes than what they declared in `Content-Length`
+    // then Node.js will truncate the data to `Content-Length` bytes. This behavior
+    // from Node.js is important to make sure attackers can't upload files bigger
+    // than 1 GB. We have a test that exercises this behavior from Node.js.
     if (contentLength > maxFileByteSize) {
         throw new InvalidArgumentError(
             `"Content-Length" of ${prettyBytes(
