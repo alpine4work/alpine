@@ -8,31 +8,34 @@ import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
 import fs from "fs-extra";
-import {join as joinPath} from "path";
+import {extname, join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
-const opensearchDeployScriptLambdaDirectoryPath = joinPath(
-    runfilesPath,
+const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
-        ? "cyberworlds/admin/aws/empty_lambda"
-        : "cyberworlds/admin/opensearch/deploy/deploy",
+        ? "cyberworlds/admin/aws/empty_lambda.tar"
+        : "cyberworlds/admin/opensearch/deploy/deploy.tar";
+
+const opensearchDeployScriptLambdaPath = joinPath(
+    runfilesPath,
+    opensearchDeployScriptLambdaRelativePath,
 );
 
-const opensearchDeployScriptLambdaIndexPath = joinPath(
-    opensearchDeployScriptLambdaDirectoryPath,
-    "index.cjs",
-);
-
-const opensearchDeployScriptLambdaIndexContents = await fs.readFile(
-    opensearchDeployScriptLambdaIndexPath,
+const opensearchDeployScriptLambdaContents = await fs.readFile(
+    opensearchDeployScriptLambdaPath,
     "utf-8",
 );
 
-const opensearchDeployScriptLambdaIndexHash = crypto
+const opensearchDeployScriptLambdaHash = crypto
     .createHash("sha256")
-    .update(opensearchDeployScriptLambdaIndexContents)
+    .update(opensearchDeployScriptLambdaContents)
     .digest("hex");
+
+const opensearchDeployScriptLambdaHandler = `${opensearchDeployScriptLambdaRelativePath.slice(
+    0,
+    -extname(opensearchDeployScriptLambdaRelativePath).length,
+)}.handler`;
 
 export class AwsOpensearch {
     protected readonly _domain: IDomain;
@@ -74,8 +77,8 @@ export class AwsOpensearch {
         // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
         // `NodejsLambda` since we bundle the code ourselves.
         const deployScript = new LambdaFunction(construct, "DeployScript", {
-            code: Code.fromAsset(opensearchDeployScriptLambdaDirectoryPath),
-            handler: "index.handler",
+            code: Code.fromAsset(opensearchDeployScriptLambdaPath),
+            handler: opensearchDeployScriptLambdaHandler,
             vpc,
             vpcSubnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
             timeout: Duration.seconds(60),
@@ -113,7 +116,7 @@ export class AwsOpensearch {
                 //
                 // We could instead build some other hash of index settings and mappings and
                 // only re-run when that changes as an optimization.
-                deployScriptLambdaIndexHash: opensearchDeployScriptLambdaIndexHash,
+                deployScriptLambdaIndexHash: opensearchDeployScriptLambdaHash,
             },
         });
 

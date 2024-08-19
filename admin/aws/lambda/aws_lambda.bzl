@@ -5,6 +5,7 @@ Bundles JavaScript code into a single file and creates a runfiles directory
 with any runtime data the script needs.
 """
 
+load("@aspect_bazel_lib//lib:paths.bzl", "to_rlocation_path")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@aspect_rules_js//npm:providers.bzl", "NpmPackageStoreInfo")
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
@@ -96,13 +97,9 @@ def _aws_lambda_impl(ctx):
     if not bundle or not bundle_map or len(bundle_files) != 2:
         fail("expected bundle target to only have a `.cjs` file and a `.cjs.map` file")
 
-    executable = ctx.actions.declare_file("{}/index.cjs".format(ctx.label.name))
-    executable_map = ctx.actions.declare_file("{}/index.cjs.map".format(ctx.label.name))
+    output = ctx.actions.declare_file("{}.tar".format(ctx.label.name))
 
-    ctx.actions.symlink(output = executable, target_file = bundle)
-    ctx.actions.symlink(output = executable_map, target_file = bundle_map)
-
-    files = [executable, executable_map]
+    files = [bundle, bundle_map]
     transitive_files = []
 
     # Get all runfiles from `srcs`.
@@ -154,21 +151,52 @@ def _aws_lambda_impl(ctx):
         if NpmPackageStoreInfo in target:
             transitive_files.append(target[NpmPackageStoreInfo].transitive_files)
 
-    return [DefaultInfo(
-        files = depset([executable, executable_map]),
-        executable = executable,
-        default_runfiles = ctx.runfiles(
-            files = files,
-            transitive_files = depset(transitive = transitive_files),
-        ),
-    )]
+    inputs = depset(files, transitive = transitive_files)
+    entries = {}
+
+    for input in inputs.to_list():
+        entries[to_rlocation_path(ctx, input)] = {
+            "dest": input.path,
+            "root": input.root.path,
+            "is_external": input.owner.workspace_name != "",
+            "is_source": input.is_source,
+            "is_directory": input.is_directory,
+        }
+
+    entries_json = ctx.actions.declare_file("{}_entries.json".format(ctx.label.name))
+    ctx.actions.write(entries_json, content = json.encode(entries))
+
+    args = ctx.actions.args()
+    args.add(entries_json)
+    args.add(output)
+    args.add("none")
+    args.add("0:0")
+
+    # We use the same script as `js_image_layer()` for building our archive since
+    # it knows how to properly symlink `node_modules`.
+    #
+    # This code is derived from:
+    # https://github.com/aspect-build/rules_js/blob/d0ff155c73e3c7fee5d72485e00775bca1fde10a/js/private/js_image_layer.bzl#L212-L239
+    ctx.actions.run(
+        inputs = depset([entries_json], transitive = [inputs]),
+        outputs = [output],
+        executable = ctx.executable._builder,
+        arguments = [args],
+        env = {"BAZEL_BINDIR": "."},
+    )
+
+    return [DefaultInfo(files = depset([output]))]
 
 _aws_lambda = rule(
     _aws_lambda_impl,
-    executable = True,
     attrs = {
         "srcs": attr.label_list(),
         "data": attr.label_list(),
         "bundle": attr.label(),
+        "_builder": attr.label(
+            default = "@aspect_rules_js//js/private:js_image_layer_builder",
+            cfg = "exec",
+            executable = True,
+        ),
     },
 )
