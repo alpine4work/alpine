@@ -1,10 +1,13 @@
+import fs from "fs";
 import getPort from "get-port";
 import {Server} from "http";
+import net from "net";
+import {join as joinPath} from "path";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createFileUploadServer} from "~/server/files/upload/file_upload_server.js";
 import {UploadFileEventSchema} from "~/server/files/upload/internal/upload_file.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {createIterableWithLength} from "~/shared/helpers/iterable/create_iterable_with_length.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 let port: number;
@@ -114,7 +117,158 @@ test("can't upload data with a Content-Length header that's too big", async () =
     ]);
 });
 
-test.only("can't upload invalid image data", async () => {
+test("if more data is written than what's in Content-Length server truncates the content and only processes the truncated content", async () => {
+    // We use Node.js's raw `net.connect()` utilities in this test to send an HTTP
+    // request because we want to intentionally write more bytes than what's
+    // declared by `Content-Length`. Node.js's `http.createServer()` should
+    // truncate for us. But we want to make sure this happens with a test so we
+    // don't accidentally let attackers upload larger files then what we allow.
+
+    {
+        const socket = net.connect({
+            host: "localhost",
+            port,
+        });
+
+        let socketText = "";
+
+        socket.on("data", chunk => {
+            socketText += chunk.toString("utf8");
+        });
+
+        const socketClosePromise = new Promise<void>((resolve, reject) => {
+            socket.on("close", resolve);
+            socket.on("error", reject);
+        });
+
+        await new Promise<void>((resolve, reject) => {
+            socket.on("connect", resolve);
+            socket.on("error", reject);
+        });
+
+        await new Promise<void>((resolve, reject) => {
+            socket.write(
+                `\
+POST /upload HTTP/1.1\r\n\
+Host: localhost:${port}\r\n\
+Connection: close\r\n\
+Content-Type: image/jpeg\r\n\
+Content-Length: 33102\r\n\
+\r\n\
+`,
+                error => {
+                    if (error) reject(error);
+                    else resolve();
+                },
+            );
+        });
+
+        fs.createReadStream(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+            ),
+        ).pipe(socket, {end: false});
+
+        await socketClosePromise;
+
+        expect(
+            socketText
+                .replace(/^Date: .*?\r\n/m, "")
+                .replace(/,"stack":".*?"/m, "")
+                .replace(/,"original":{.*?}/m, ""),
+        ).toEqual(`\
+HTTP/1.1 200 OK\r\n\
+content-type: application/x-ndjson\r\n\
+Connection: close\r\n\
+Transfer-Encoding: chunked\r\n\
+\r\n\
+30\r\n\
+{"type":"PreviewSize","width":500,"height":375}\n\
+\r\n\
+f9\r\n\
+{"type":"PreviewPlaceholder","placeholder":[false,8,"xNDUx9HWyNTYytXZy9bay9bYy9bXytTXz9fa0tnc1dze1t3f2N7g2N7g1tze1Nrd4OPi4uPj5ebp6Orr6err6erq6err5+npsq+no56Yraehvbu5zczK0c/KtrKspqKbvr++qq2qtLayxsfGzc7LysnFu7izqqmim62wm62xnLG1n7S3o7S5p7a6rbu+sr3A"]}\n\
+\r\n\
+e\r\n\
+{"type":"Ok"}\n\
+\r\n\
+0\r\n\
+\r\n\
+`);
+    }
+
+    {
+        const socket = net.connect({
+            host: "localhost",
+            port,
+        });
+
+        let socketText = "";
+
+        socket.on("data", chunk => {
+            socketText += chunk.toString("utf8");
+        });
+
+        const socketClosePromise = new Promise<void>((resolve, reject) => {
+            socket.on("close", resolve);
+            socket.on("error", reject);
+        });
+
+        await new Promise<void>((resolve, reject) => {
+            socket.on("connect", resolve);
+            socket.on("error", reject);
+        });
+
+        await new Promise<void>((resolve, reject) => {
+            socket.write(
+                `\
+POST /upload HTTP/1.1\r\n\
+Host: localhost:${port}\r\n\
+Connection: close\r\n\
+Content-Type: image/jpeg\r\n\
+Content-Length: 33002\r\n\
+\r\n\
+`,
+                error => {
+                    if (error) reject(error);
+                    else resolve();
+                },
+            );
+        });
+
+        fs.createReadStream(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+            ),
+        ).pipe(socket, {end: false});
+
+        await socketClosePromise;
+
+        expect(
+            socketText
+                .replace(/^Date: .*?\r\n/m, "")
+                .replace(/,"stack":".*?"/m, "")
+                .replace(/,"original":{.*?}/m, ""),
+        ).toEqual(`\
+HTTP/1.1 200 OK\r\n\
+content-type: application/x-ndjson\r\n\
+Connection: close\r\n\
+Transfer-Encoding: chunked\r\n\
+\r\n\
+30\r\n\
+{"type":"PreviewSize","width":500,"height":375}\n\
+\r\n\
+a63\r\n\
+{"type":"Error","error":{"code":3,"message":"VipsJpeg: Premature end of input file","name":"InvalidArgumentError"}}\n\
+\r\n\
+0\r\n\
+\r\n\
+`);
+    }
+});
+
+test("can't upload invalid image data", async () => {
     const response = await fetch(`http://localhost:${port}/upload`, {
         method: "POST",
         headers: {"content-type": "image/png"},
