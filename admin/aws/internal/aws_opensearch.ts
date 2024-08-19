@@ -8,14 +8,14 @@ import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
 import fs from "fs-extra";
-import {extname, join as joinPath} from "path";
+import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
-        ? "cyberworlds/admin/aws/empty_lambda.tar"
-        : "cyberworlds/admin/opensearch/deploy/deploy.tar";
+        ? "cyberworlds/admin/aws/empty_lambda"
+        : "cyberworlds/admin/opensearch/deploy/deploy";
 
 const opensearchDeployScriptLambdaPath = joinPath(
     runfilesPath,
@@ -23,7 +23,7 @@ const opensearchDeployScriptLambdaPath = joinPath(
 );
 
 const opensearchDeployScriptLambdaContents = await fs.readFile(
-    opensearchDeployScriptLambdaPath,
+    joinPath(opensearchDeployScriptLambdaPath, `${opensearchDeployScriptLambdaRelativePath}.cjs`),
     "utf-8",
 );
 
@@ -32,10 +32,7 @@ const opensearchDeployScriptLambdaHash = crypto
     .update(opensearchDeployScriptLambdaContents)
     .digest("hex");
 
-const opensearchDeployScriptLambdaHandler = `${opensearchDeployScriptLambdaRelativePath.slice(
-    0,
-    -extname(opensearchDeployScriptLambdaRelativePath).length,
-)}.handler`;
+const opensearchDeployScriptLambdaHandler = `${opensearchDeployScriptLambdaRelativePath}.handler`;
 
 export class AwsOpensearch {
     protected readonly _domain: IDomain;

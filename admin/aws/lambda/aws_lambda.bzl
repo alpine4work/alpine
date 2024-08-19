@@ -97,8 +97,6 @@ def _aws_lambda_impl(ctx):
     if not bundle or not bundle_map or len(bundle_files) != 2:
         fail("expected bundle target to only have a `.cjs` file and a `.cjs.map` file")
 
-    output = ctx.actions.declare_file("{}.tar".format(ctx.label.name))
-
     files = [bundle, bundle_map]
     transitive_files = []
 
@@ -166,23 +164,42 @@ def _aws_lambda_impl(ctx):
     entries_json = ctx.actions.declare_file("{}_entries.json".format(ctx.label.name))
     ctx.actions.write(entries_json, content = json.encode(entries))
 
+    output_tar = ctx.actions.declare_file("{}.tar".format(ctx.label.name))
+
     args = ctx.actions.args()
     args.add(entries_json)
-    args.add(output)
+    args.add(output_tar)
     args.add("none")
     args.add("0:0")
 
-    # We use the same script as `js_image_layer()` for building our archive since
-    # it knows how to properly symlink `node_modules`.
+    # To build an AWS Lambda we create an intermediate `.tar` file then immediately
+    # untar it. We do this since we need to create an AWS Lambda directory that
+    # captures the slice of the Bazel output tree we care about and nothing else.
+    # Using the layer build script from `js_image_layer()` is perfect for this
+    # since it knows how to properly build an isolated file system for JavaScript
+    # code in a Docker container. Complete with the right `node_modules` symlinks.
+    #
+    # We tried using `copy_file_action()` and `copy_directory_bin_action()` instead
+    # of creating an intermediate `.tar` file but found this approach didn't
+    # support `node_modules` symlinks.
     #
     # This code is derived from:
     # https://github.com/aspect-build/rules_js/blob/d0ff155c73e3c7fee5d72485e00775bca1fde10a/js/private/js_image_layer.bzl#L212-L239
     ctx.actions.run(
         inputs = depset([entries_json], transitive = [inputs]),
-        outputs = [output],
+        outputs = [output_tar],
         executable = ctx.executable._builder,
         arguments = [args],
         env = {"BAZEL_BINDIR": "."},
+    )
+
+    output = ctx.actions.declare_directory(ctx.label.name)
+
+    ctx.actions.run(
+        inputs = [output_tar],
+        outputs = [output],
+        executable = "tar",
+        arguments = ["-C", output.path, "-xf", output_tar.path],
     )
 
     return [DefaultInfo(files = depset([output]))]
