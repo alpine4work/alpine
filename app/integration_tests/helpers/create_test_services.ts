@@ -167,9 +167,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
             edgeServicePort,
             taskRealtimeServicePort,
             appServicePort,
+            fileUploadServicePort,
             newAppServiceTokenAgentPrivateSide,
         ] = await runAllPromises([
             edgeServicePortPromise,
+            getPort(),
             getPort(),
             getPort(),
             ensureServiceKeys(keysDirectoryPath).then(async () =>
@@ -247,6 +249,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
+                // TODO(calebmer, #files): Run the file upload service in tests.
+                `--fileUploadServiceHostname=localhost:${fileUploadServicePort}`,
             ],
             {
                 env: process.env,
