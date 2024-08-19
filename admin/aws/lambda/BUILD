@@ -5,6 +5,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "lambda",
     deps = [
+        "//:node_modules/@types/aws-lambda",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/fs-extra",
         "//shared/error",
