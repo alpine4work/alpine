@@ -754,6 +754,9 @@ dependencies:
   prettier:
     specifier: ^2.8.7
     version: 2.8.7
+  pretty-bytes:
+    specifier: ^6.1.1
+    version: 6.1.1
   pretty-ms:
     specifier: ^7.0.1
     version: 7.0.1
@@ -14469,6 +14472,11 @@ packages:
     resolution: {integrity: sha512-yPngTo3aXUUmyuTjeTUT75txrf+aMh9FiD7q9ZE/i6r0bPb22g4FsE6Y338PQX1bmfy08i9QQCB7/rcUAVntfw==}
     engines: {node: '>=10.13.0'}
     hasBin: true
+    dev: false
+
+  /pretty-bytes@6.1.1:
+    resolution: {integrity: sha512-mQUvGU6aUFQ+rNvTIAcZuWGRT9a6f6Yrg9bHs4ImKF+HZCEK+plBvnAZYSIQztknZF2qnzNtr6F8s0+IuptdlQ==}
+    engines: {node: ^14.13.1 || >=16.0.0}
     dev: false
 
   /pretty-format@27.5.1:

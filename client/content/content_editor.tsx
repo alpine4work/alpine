@@ -1057,6 +1057,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                 // content type is unsupported we shouldn't prevent
                                                 // default.
                                                 "content-type": item.type,
+                                                "content-length": String(file.size),
                                             },
                                             body: file,
                                         },

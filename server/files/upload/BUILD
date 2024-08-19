@@ -5,8 +5,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "upload_lib",
+    test_deps = [
+        "//:node_modules/get-port",
+        "//server/dynamo/test_helpers",
+    ],
     deps = [
         "//:node_modules/@types/node",
+        "//:node_modules/pretty-bytes",
         "//:node_modules/sharp",
         "//server/helpers",
         "//server/node",

@@ -421,6 +421,10 @@ module.exports = {
             excludedFiles: ["**/integration_tests/**", "**/test_helpers/shared/**"],
             extends: [],
             rules: {
+                // It's fine to use `fetch()` in unit tests. We don't care about tracing in
+                // unit tests.
+                "no-global-fetch": "off",
+
                 // You should not export anything from test files.
                 "jest/no-export": "error",
             },
