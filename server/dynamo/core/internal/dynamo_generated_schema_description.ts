@@ -15,7 +15,6 @@ export const dynamoGeneratedSchemaDescription: {
     "tableByName": {
         "Accounts": {
             "name": "Accounts",
-            "ensureLocalHash": "9416ac93",
             "partitionByType": {
                 "Account": {
                     "id": 0,
@@ -257,7 +256,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "AlphaAccess": {
             "name": "AlphaAccess",
-            "ensureLocalHash": "d271c07f",
             "partitionByType": {
                 "AlphaConfiguration": {
                     "id": 0,
@@ -402,7 +400,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "Chat": {
             "name": "Chat",
-            "ensureLocalHash": "9416ac93",
             "partitionByType": {
                 "Chat": {
                     "id": 0,
@@ -1134,7 +1131,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "Deploy": {
             "name": "Deploy",
-            "ensureLocalHash": "d271c07f",
             "partitionByType": {
                 "Deploy": {
                     "id": 0,
@@ -1267,7 +1263,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "Documents": {
             "name": "Documents",
-            "ensureLocalHash": "d271c07f",
             "partitionByType": {
                 "Document": {
                     "id": 0,
@@ -2930,7 +2925,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "Forum": {
             "name": "Forum",
-            "ensureLocalHash": "9416ac93",
             "partitionByType": {
                 "Channel": {
                     "id": 0,
@@ -3652,7 +3646,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "ForumRealtime": {
             "name": "ForumRealtime",
-            "ensureLocalHash": "9416ac93",
             "partitionByType": {
                 "Channel": {
                     "id": 0,
@@ -3932,7 +3925,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "Inbox": {
             "name": "Inbox",
-            "ensureLocalHash": "9416ac93",
             "partitionByType": {
                 "Account": {
                     "id": 2,
@@ -4743,7 +4735,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "SearchEntities": {
             "name": "SearchEntities",
-            "ensureLocalHash": "0fc7a1b4",
             "partitionByType": {
                 "Account": {
                     "id": 0,
@@ -5009,7 +5000,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "Spaces": {
             "name": "Spaces",
-            "ensureLocalHash": "d271c07f",
             "partitionByType": {
                 "Space": {
                     "id": 0,
@@ -5167,7 +5157,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "TaskActions": {
             "name": "TaskActions",
-            "ensureLocalHash": "9416ac93",
             "partitionByType": {
                 "TaskActions": {
                     "id": 0,
@@ -6129,7 +6118,6 @@ export const dynamoGeneratedSchemaDescription: {
         },
         "Tasks": {
             "name": "Tasks",
-            "ensureLocalHash": "d271c07f",
             "partitionByType": {
                 "Account": {
                     "id": 0,
