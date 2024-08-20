@@ -140,13 +140,19 @@ production_transition(
     visibility = ["//server/deploy/script:__pkg__"],
 )
 
+filegroup(
+    name = "app_data",
+    srcs = [
+        ":app_build",
+        "//:remix_config_files",
+    ],
+)
+
 js_binary(
     name = "app",
     data = [
-        ":app_build",
-        ":app_lib",
+        ":app_data",
         ":app_static",
-        "//:remix_config_files",
     ],
     entry_point = ":app_build",
     visibility = ["//app/integration_tests:__pkg__"],
@@ -161,11 +167,7 @@ js_binary(
 # `:app_image_tarball_production`.
 js_binary(
     name = "app_production",
-    data = [
-        ":app_build",
-        ":app_lib",
-        "//:remix_config_files",
-    ],
+    data = [":app_data"],
     entry_point = ":app_build",
 )
 

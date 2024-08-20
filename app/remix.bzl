@@ -3,6 +3,7 @@ A rule that compiles our project using Remix.
 """
 
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
+load("//admin/esbuild:esbuild_runfiles_aspect.bzl", "EsbuildRunfilesInfo", "esbuild_runfiles_aspect")
 
 def _remix_app_impl(ctx):
     args = ctx.actions.args()
@@ -57,7 +58,7 @@ def _remix_app_impl(ctx):
             runfiles = ctx.runfiles(
                 ([server_map_build_output] if server_map_build_output else []),
             ).merge(
-                ctx.attr._app_lib[DefaultInfo].default_runfiles,
+                ctx.attr._app_lib[EsbuildRunfilesInfo].runfiles_without_sources,
             ),
         ),
         OutputGroupInfo(
@@ -71,6 +72,6 @@ remix_app = rule(
         "_remix_config_files": attr.label(default = "//:remix_config_files"),
         "_remix_resolved_config": attr.label(default = "//app:remix_resolved_config"),
         "_remix_compiler": attr.label(executable = True, cfg = "exec", default = "//app:remix_compiler"),
-        "_app_lib": attr.label(default = "//app:app_lib", providers = [JsInfo]),
+        "_app_lib": attr.label(default = "//app:app_lib", providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
     },
 )
