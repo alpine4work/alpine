@@ -41,6 +41,28 @@ index f1d0c51ae5fcf1343b9e6d6b08fa3e6159fc7374..5cab38238fa1bde4e72e9025ff5703cd
        entry = {
          module: resolveUrl(key),
          imports: resolveImports(output.imports)
+diff --git a/dist/compiler/plugins/cssImports.js b/dist/compiler/plugins/cssImports.js
+index 6e2815b13c8f1f9f9f5cf26742246e0acb778f18..6b033fde9c16893bab5a7f2ff6c576e7c996e477 100644
+--- a/dist/compiler/plugins/cssImports.js
++++ b/dist/compiler/plugins/cssImports.js
+@@ -52,7 +52,7 @@ function normalizePathSlashes(p) {
+  * This plugin loads css files with the "css" loader (bundles and moves assets to assets directory)
+  * and exports the url of the css file as its default export.
+  */
+-function cssFilePlugin(ctx) {
++function cssFilePlugin(ctx, publicPathOverride) {
+   return {
+     name: "css-file",
+     async setup(build) {
+@@ -107,7 +107,7 @@ function cssFilePlugin(ctx) {
+             mainFields,
+             nodePaths,
+             platform,
+-            publicPath,
++            publicPath: publicPathOverride || publicPath,
+             sourceRoot,
+             target,
+             treeShaking,
 diff --git a/dist/compiler/plugins/emptyModules.js b/dist/compiler/plugins/emptyModules.js
 index bc282d8cd8b2330fdc3c8ba04529b7abd84a56ad..98b2434cc4014ce3cc6f35d5160b99de75327c3d 100644
 --- a/dist/compiler/plugins/emptyModules.js
@@ -59,10 +81,47 @@ index bc282d8cd8b2330fdc3c8ba04529b7abd84a56ad..98b2434cc4014ce3cc6f35d5160b99de
              path: args.path,
              namespace: "empty-module"
 diff --git a/dist/compiler/server/compiler.js b/dist/compiler/server/compiler.js
-index 8de93275fdc6b210a76bca1a59d98cacb15dd27d..4b143ebf7996421a162358078d6bce08ea05446f 100644
+index 8de93275fdc6b210a76bca1a59d98cacb15dd27d..e48e8be6636f4bfd2ebdf5755a6e650557339dbf 100644
 --- a/dist/compiler/server/compiler.js
 +++ b/dist/compiler/server/compiler.js
-@@ -93,7 +93,8 @@ const createEsbuildConfig = (ctx, refs) => {
+@@ -12,6 +12,7 @@
+ 
+ Object.defineProperty(exports, '__esModule', { value: true });
+ 
++var path = require('node:path');
+ var esbuild = require('esbuild');
+ var loaders = require('../utils/loaders.js');
+ var cssModuleImports = require('../plugins/cssModuleImports.js');
+@@ -66,7 +67,7 @@ const createEsbuildConfig = (ctx, refs) => {
+     outputCss: false
+   }), vanillaExtract.vanillaExtractPlugin(ctx, {
+     outputCss: false
+-  }), cssSideEffectImports.cssSideEffectImportsPlugin(ctx), cssImports.cssFilePlugin(ctx), absoluteCssUrlsPlugin.absoluteCssUrlsPlugin(), external.externalPlugin(/^https?:\/\//, {
++  }), cssSideEffectImports.cssSideEffectImportsPlugin(ctx), cssImports.cssFilePlugin(ctx, ctx.config.publicPath), absoluteCssUrlsPlugin.absoluteCssUrlsPlugin(), external.externalPlugin(/^https?:\/\//, {
+     sideEffects: false
+   }), mdx.mdxPlugin(ctx), emptyModules.emptyModulesPlugin(ctx, /\.client(\.[jt]sx?)?$/), routes.serverRouteModulesPlugin(ctx), entry.serverEntryModulePlugin(ctx), manifest.serverAssetsManifestPlugin(refs), bareImports.serverBareModulesPlugin(ctx), external.externalPlugin(/^node:.*/, {
+     sideEffects: false
+@@ -78,7 +79,18 @@ const createEsbuildConfig = (ctx, refs) => {
+     absWorkingDir: ctx.config.rootDirectory,
+     stdin,
+     entryPoints,
+-    outfile: ctx.config.serverBuildPath,
++    // NOTE(calebmer): Enable code splitting for server builds. Otherwise we can't
++    // use `import()` to optimize server startup time to avoid importing expensive
++    // modules. esbuild unconditionally imports external modules (even if they're
++    // behind `import()`) when bundle splitting is off.
++    //
++    // When turning on splitting we also need to switch `outfile` for `outdir`. We
++    // also need to remove `publicPath` or else we'll get absolute import paths. We
++    // still need to pass `publicPath` to `cssImports.cssFilePlugin()` to get the
++    // right URL though.
++    splitting: true,
++    outdir: path.dirname(ctx.config.serverBuildPath),
++    chunkNames: "chunks/[name]-[hash]",
+     conditions: ctx.config.serverConditions,
+     platform: ctx.config.serverPlatform,
+     format: ctx.config.serverModuleFormat,
+@@ -93,7 +105,8 @@ const createEsbuildConfig = (ctx, refs) => {
      minifySyntax: true,
      minify: ctx.options.mode === "production" && ctx.config.serverMinify,
      mainFields: ctx.config.serverMainFields,
@@ -72,6 +131,14 @@ index 8de93275fdc6b210a76bca1a59d98cacb15dd27d..4b143ebf7996421a162358078d6bce08
      loader: loaders.loaders,
      bundle: true,
      logLevel: "silent",
+@@ -106,7 +119,6 @@ const createEsbuildConfig = (ctx, refs) => {
+     // The server build needs to know how to generate asset URLs for imports
+     // of CSS and other files.
+     assetNames: "_assets/[name]-[hash]",
+-    publicPath: ctx.config.publicPath,
+     define: {
+       "process.env.NODE_ENV": JSON.stringify(ctx.options.mode),
+       "process.env.REMIX_DEV_ORIGIN": JSON.stringify(ctx.options.REMIX_DEV_ORIGIN ?? "")
 diff --git a/dist/compiler/server/write.js b/dist/compiler/server/write.js
 index af5a2de82d11d76b6505de9f205e5f78eff7f9b3..c4633e7db48f70802a13fc8373ff57acecc67a56 100644
 --- a/dist/compiler/server/write.js
