@@ -158,7 +158,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
                     .lookup(contentType);
 
                 if (charset) {
-                    contentType += `; charset=${charset}`;
+                    contentType += `;charset=${charset.toLowerCase()}`;
                 }
             }
 
