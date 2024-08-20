@@ -1,3 +1,4 @@
+import {join as joinPath} from "path";
 import {EdgeServiceContextModule} from "~/server/context/edge_service_context_module.js";
 import {
     ServerProcessContext,
@@ -19,6 +20,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 export const serverProcessContextParseOptions = {
+    ensureLocalCachePath: {type: "string"},
     dynamoLocalPort: {type: "string"},
     opensearchLocalPort: {type: "string"},
     opensearchHost: {type: "string"},
@@ -44,6 +46,7 @@ export function createServerProcessContext({
     tokenAgent: TokenAgent | "Unimplemented";
     awsSigner: AwsRequestSigner;
     options: {
+        ensureLocalCachePath?: string;
         dynamoLocalPort?: string;
         opensearchLocalPort?: string;
         opensearchHost?: string;
@@ -54,47 +57,72 @@ export function createServerProcessContext({
     return Context.new<ServerProcessContextModules>({
         process: createServerProcessContextModule(tracer),
         tracer: new TracerContextModule(tracer),
-        dynamo: DynamoContextModule.new(
-            process.env.NODE_ENV === "production"
-                ? "https://dynamodb.us-east-1.amazonaws.com"
-                : `http://localhost:${parseInt(
-                      assertExists(
-                          options.dynamoLocalPort,
-                          "DynamoDB local port must be provided when running DynamoDB locally",
-                      ),
-                      10,
-                  )}`,
-            awsSigner,
-        ),
+        dynamo: DynamoContextModule.new({
+            url:
+                process.env.NODE_ENV === "production"
+                    ? "https://dynamodb.us-east-1.amazonaws.com"
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              options.dynamoLocalPort,
+                              "`dynamoLocalPort` option is required in development",
+                          ),
+                          10,
+                      )}`,
+            signer: awsSigner,
+            ensureLocalCachePath:
+                process.env.NODE_ENV !== "production"
+                    ? joinPath(
+                          assertExists(
+                              options.ensureLocalCachePath,
+                              "`ensureLocalCachePath` option is required in development",
+                          ),
+                          "dynamo",
+                      )
+                    : null,
+        }),
         email:
             process.env.NODE_ENV === "production"
                 ? new SesEmailContextModule("https://email.us-east-1.amazonaws.com", awsSigner)
                 : new NoopEmailContextModule(),
         opensearch: OpensearchContextModule.new(
-            new OpensearchClient(
-                process.env.NODE_ENV === "production"
-                    ? `https://${assertExists(
-                          options.opensearchHost,
-                          "`opensearchHost` option is required in production",
-                      )}`
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              options.opensearchLocalPort,
-                              "OpenSearch local port must be provided when running OpenSearch locally",
-                          ),
-                          10,
-                      )}`,
-                awsSigner,
-            ),
+            new OpensearchClient({
+                url:
+                    process.env.NODE_ENV === "production"
+                        ? `https://${assertExists(
+                              options.opensearchHost,
+                              "`opensearchHost` option is required in production",
+                          )}`
+                        : `http://localhost:${parseInt(
+                              assertExists(
+                                  options.opensearchLocalPort,
+                                  "`opensearchLocalPort` option is required in development",
+                              ),
+                              10,
+                          )}`,
+                signer: awsSigner,
+                ensureLocalCachePath:
+                    process.env.NODE_ENV !== "production"
+                        ? joinPath(
+                              assertExists(
+                                  options.ensureLocalCachePath,
+                                  "`ensureLocalCachePath` option is required in development",
+                              ),
+                              "opensearch",
+                          )
+                        : null,
+            }),
         ),
         jobs: JobsContextModule.new(
             new JobSender({
                 region: "us-east-1",
-                queueUrl: assertExists(options.jobQueueUrl, "Missing `jobQueueUrl` option"),
+                queueUrl: assertExists(options.jobQueueUrl, "`jobQueueUrl` option is required"),
             }),
         ),
         edge: new EdgeServiceContextModule({
-            edgeServiceUrl: assertExists(options.edgeServiceUrl, "Missing `edgeServiceUrl` option"),
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
             tokenAgent,
         }),
     });

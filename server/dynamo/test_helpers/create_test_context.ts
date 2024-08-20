@@ -395,6 +395,8 @@ export function createTestContext({
             ]);
         tempPath = newTempPath;
 
+        const ensureLocalCachePath = joinPath(tempPath, "ensure");
+
         [dynamoLocal, opensearchLocal, sqsLocal] = await runAllPromises([
             startDynamoLocal({
                 withInMemoryData: true,
@@ -424,13 +426,21 @@ export function createTestContext({
             secretAccessKey: assertExists(process.env.AWS_SECRET_ACCESS_KEY),
         });
 
-        dynamoContextModule.initialize(`http://localhost:${dynamoLocalPort}`, awsSigner);
+        dynamoContextModule.initialize({
+            url: `http://localhost:${dynamoLocalPort}`,
+            signer: awsSigner,
+            ensureLocalCachePath: joinPath(ensureLocalCachePath, "dynamo"),
+        });
 
         if (!opensearchLocal) {
             opensearchContextModule.initialize(new TestDisabledOpensearchClient());
         } else {
             opensearchContextModule.initialize(
-                new OpensearchClient(`http://localhost:${opensearchLocal.port}`, awsSigner),
+                new OpensearchClient({
+                    url: `http://localhost:${opensearchLocal.port}`,
+                    signer: awsSigner,
+                    ensureLocalCachePath: joinPath(ensureLocalCachePath, "opensearch"),
+                }),
             );
         }
 

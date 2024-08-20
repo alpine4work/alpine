@@ -1,4 +1,6 @@
+import {join as joinPath} from "path";
 import {createAdhocDynamoContext} from "~/admin/adhoc/create_adhoc_dynamo_context.js";
+import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
@@ -61,19 +63,24 @@ export async function createAdhocServerProcessContext({
         }),
         email: new NoopEmailContextModule(),
         opensearch: OpensearchContextModule.new(
-            new OpensearchClient(
-                awsProfile !== "local"
-                    ? // Hardcode our production OpenSearch domain URL. This URL is not a secret.
-                      "https://vpc-opensearchdomai-gw0hdmljxxtp-seltlzvgr54vwz2hynm5c4djiy.us-east-1.es.amazonaws.com"
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              env.OPENSEARCH_LOCAL_PORT,
-                              "OpenSearch local port must be provided when running OpenSearch locally",
-                          ),
-                          10,
-                      )}`,
-                baseContext.getAwsSigner(),
-            ),
+            new OpensearchClient({
+                url:
+                    awsProfile !== "local"
+                        ? // Hardcode our production OpenSearch domain URL. This URL is not a secret.
+                          "https://vpc-opensearchdomai-gw0hdmljxxtp-seltlzvgr54vwz2hynm5c4djiy.us-east-1.es.amazonaws.com"
+                        : `http://localhost:${parseInt(
+                              assertExists(
+                                  env.OPENSEARCH_LOCAL_PORT,
+                                  "OpenSearch local port must be provided when running OpenSearch locally",
+                              ),
+                              10,
+                          )}`,
+                signer: baseContext.getAwsSigner(),
+                ensureLocalCachePath:
+                    awsProfile === "local"
+                        ? joinPath(devEnvPaths.cache, "ensure/opensearch")
+                        : null,
+            }),
         ),
         jobs: JobsContextModule.new(
             new JobSender({

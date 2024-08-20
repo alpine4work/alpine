@@ -68,8 +68,12 @@ export class DynamoContextModule<Modules extends {} = {}>
         this._expectsStrongReadConsistency = expectsStrongReadConsistency;
     }
 
-    public static new(url: string, signer: AwsRequestSigner) {
-        return new DynamoContextModule(new DynamoClient(url, signer), {
+    public static new(options: {
+        url: string;
+        signer: AwsRequestSigner;
+        ensureLocalCachePath: string | null;
+    }) {
+        return new DynamoContextModule(new DynamoClient(options), {
             retryTransaction: null,
             expectsStrongReadConsistency: false,
         });
@@ -82,7 +86,11 @@ export class DynamoContextModule<Modules extends {} = {}>
      * May only run in a test environment.
      */
     public static test(): DynamoContextModule & {
-        initialize: (url: string, signer: AwsRequestSigner) => void;
+        initialize: (options: {
+            url: string;
+            signer: AwsRequestSigner;
+            ensureLocalCachePath: string | null;
+        }) => void;
     } {
         assert(process.env.NODE_ENV === "test");
 
@@ -92,7 +100,11 @@ export class DynamoContextModule<Modules extends {} = {}>
         });
 
         return Object.assign(contextModule, {
-            initialize: (url: string, signer: AwsRequestSigner) => {
+            initialize: (options: {
+                url: string;
+                signer: AwsRequestSigner;
+                ensureLocalCachePath: string | null;
+            }) => {
                 let hasInitialized = false;
                 try {
                     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -104,7 +116,7 @@ export class DynamoContextModule<Modules extends {} = {}>
                 assert(!hasInitialized, "Can not initialize DynamoDB client twice");
 
                 Object.defineProperty(contextModule, "_client", {
-                    value: new DynamoClient(url, signer),
+                    value: new DynamoClient(options),
                     writable: false,
                 });
             },

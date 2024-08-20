@@ -64,13 +64,30 @@ export class DynamoClient {
      */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
-    constructor(url: string, signer: AwsRequestSigner) {
+    /**
+     * Path to a cache where we keep track of the last version of each table we ensured
+     * exists. We've found operations like `DescribeTable` can take a full second in
+     * local DynamoDB so avoiding a `DescribeTable` can really speed things up in
+     * development.
+     */
+    public readonly ensureLocalCachePath: string | null;
+
+    constructor({
+        url,
+        signer,
+        ensureLocalCachePath,
+    }: {
+        url: string;
+        signer: AwsRequestSigner;
+        ensureLocalCachePath: string | null;
+    }) {
         this._client = new DynamoClientInternal(url, signer);
         this._getItemBatcherByConsistency = {
             Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
             Strong: new DynamoClientGetItemBatcher(this._client, "Strong"),
         };
         this._writeItemBatcher = new DynamoClientWriteItemBatcher(this._client);
+        this.ensureLocalCachePath = ensureLocalCachePath;
     }
 
     /**

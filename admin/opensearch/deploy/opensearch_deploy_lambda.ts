@@ -55,7 +55,7 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
     });
 
     const signer = new AwsRequestSigner();
-    const client = new OpensearchClient(opensearchUrl, signer);
+    const client = new OpensearchClient({url: opensearchUrl, signer, ensureLocalCachePath: null});
 
     await runAllPromises([
         deployTaskIndexes(tracer, client),

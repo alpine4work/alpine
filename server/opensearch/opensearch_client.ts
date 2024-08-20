@@ -1,4 +1,8 @@
+import fs from "fs/promises";
 import createJsonBigInt from "json-bigint";
+import jsonStableStringify from "json-stable-stringify";
+import murmurhash from "murmurhash";
+import {dirname, join as joinPath} from "path";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {OpensearchHighlightClause} from "~/server/opensearch/opensearch_highlight_clause.js";
@@ -671,10 +675,20 @@ type OpensearchSearchHit = {
 export class OpensearchClient implements OpensearchClientInterface {
     private readonly _url: URL;
     private readonly _signer: AwsRequestSigner;
+    private readonly _ensureLocalCachePath: string | null;
 
-    constructor(url: string, signer: AwsRequestSigner) {
+    constructor({
+        url,
+        signer,
+        ensureLocalCachePath,
+    }: {
+        url: string;
+        signer: AwsRequestSigner;
+        ensureLocalCachePath: string | null;
+    }) {
         this._url = new URL(url);
         this._signer = signer;
+        this._ensureLocalCachePath = ensureLocalCachePath;
     }
 
     private readonly _ensureLocalIndexPromiseByIndex = new Map<
@@ -701,9 +715,42 @@ export class OpensearchClient implements OpensearchClientInterface {
     ) {
         assert(process.env.NODE_ENV !== "production");
 
-        await getOrSetDefaultMapValue(this._ensureLocalIndexPromiseByIndex, index, () =>
-            this._deployIndex(tracer, index),
-        );
+        await getOrSetDefaultMapValue(this._ensureLocalIndexPromiseByIndex, index, async () => {
+            const ensureLocalCachePath = joinPath(
+                assertExists(
+                    this._ensureLocalCachePath,
+                    "Must have `ensureLocalCachePath` when running OpenSearch locally",
+                ),
+                `${index.name}.txt`,
+            );
+
+            const ensureLocalCacheHash = murmurhash
+                .v3(jsonStableStringify(index.config))
+                .toString(16)
+                .padStart(8, "0");
+
+            // We've previously ensured this index! Don't do so again until
+            // `ensureLocalCacheHash` updates.
+            try {
+                if (
+                    (await fs.readFile(ensureLocalCachePath, "utf8")).trim() ===
+                    ensureLocalCacheHash
+                ) {
+                    return;
+                }
+            } catch (error) {
+                if (isObject(error) && error.code === "ENOENT") {
+                    // If the file doesn't exist, that's ok ensure the table...
+                } else {
+                    throw error;
+                }
+            }
+
+            await this._deployIndex(tracer, index);
+
+            await fs.mkdir(dirname(ensureLocalCachePath), {recursive: true});
+            await fs.writeFile(ensureLocalCachePath, ensureLocalCacheHash);
+        });
     }
 
     /**

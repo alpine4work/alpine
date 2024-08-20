@@ -9,7 +9,10 @@ ts_project(
     deps = [
         "//:node_modules/@opensearch-project/opensearch",
         "//:node_modules/@types/json-bigint",
+        "//:node_modules/@types/json-stable-stringify",
         "//:node_modules/json-bigint",
+        "//:node_modules/json-stable-stringify",
+        "//:node_modules/murmurhash",
         "//:node_modules/stemmer",
         "//:node_modules/unicode-default-word-boundary",
         "//server/helpers/node",

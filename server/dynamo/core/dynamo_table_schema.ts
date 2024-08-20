@@ -1,4 +1,7 @@
 import {AttributeValue} from "@aws-sdk/client-dynamodb";
+import fs from "fs/promises";
+import murmurhash from "murmurhash";
+import {dirname, join as joinPath} from "path";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {
     DynamoKeyAttribute,
@@ -53,6 +56,7 @@ import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
@@ -587,15 +591,43 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     /**
      * Ensures that our table exists in DynamoDB local.
      */
-    private _ensureLocalTable(context: DynamoContext): Promise<void> {
+    private async _ensureLocalTable(context: DynamoContext): Promise<void> {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        const {description} = this._initializationState;
+
+        const client = getDynamoClient(context);
+
+        const ensureLocalCachePath = joinPath(
+            assertExists(
+                client.ensureLocalCachePath,
+                "Must have `ensureLocalCachePath` when running DynamoDB locally",
+            ),
+            `${this._name}.txt`,
+        );
+
+        const ensureLocalCacheHash = murmurhash
+            .v3(JSON.stringify([description.name, description.indexes.length]))
+            .toString(16)
+            .padStart(8, "0");
+
+        // We've previously ensured this table! Don't do so again until
+        // `ensureLocalCacheHash` updates. We've found `DescribeTable` can take a
+        // second or more when running DynamoDB locally! So avoiding `DescribeTable`
+        // speeds up our development environment.
+        try {
+            if ((await fs.readFile(ensureLocalCachePath, "utf8")).trim() === ensureLocalCacheHash) {
+                return;
+            }
+        } catch (error) {
+            if (isObject(error) && error.code === "ENOENT") {
+                // If the file doesn't exist, that's ok ensure the table...
+            } else {
+                throw error;
+            }
+        }
+
         return context.tracer.withSpan("Ensure local DynamoDB table", async context => {
             await retryWithExponentialBackoff(async retry => {
-                assert(
-                    this._initializationState.isInitialized,
-                    "Schema has not finished initializing",
-                );
-
-                const client = getDynamoClient(context);
                 const internalClient = client.getInternalClient();
                 const tableName = this.getName();
 
@@ -643,26 +675,24 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         AttributeName: "sortKey",
                         AttributeType: "S" as const,
                     },
-                    ...this._initializationState.description.indexes.flatMap(
-                        (indexDescription, i) => {
-                            const indexNumber = i + 1;
+                    ...description.indexes.flatMap((indexDescription, i) => {
+                        const indexNumber = i + 1;
 
-                            return [
-                                ...(indexDescription.partitionKeyBehavior.type === "Reused"
-                                    ? []
-                                    : [
-                                          {
-                                              AttributeName: `index${indexNumber}PartitionKey`,
-                                              AttributeType: "S" as const,
-                                          },
-                                      ]),
-                                {
-                                    AttributeName: `index${indexNumber}SortKey`,
-                                    AttributeType: "S" as const,
-                                },
-                            ];
-                        },
-                    ),
+                        return [
+                            ...(indexDescription.partitionKeyBehavior.type === "Reused"
+                                ? []
+                                : [
+                                      {
+                                          AttributeName: `index${indexNumber}PartitionKey`,
+                                          AttributeType: "S" as const,
+                                      },
+                                  ]),
+                            {
+                                AttributeName: `index${indexNumber}SortKey`,
+                                AttributeType: "S" as const,
+                            },
+                        ];
+                    }),
                 ];
 
                 if (!doesTableExist) {
@@ -682,36 +712,34 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                             ],
                             BillingMode: "PAY_PER_REQUEST",
                             GlobalSecondaryIndexes:
-                                this._initializationState.description.indexes.length > 0
-                                    ? this._initializationState.description.indexes.map(
-                                          (indexDescription, i) => {
-                                              const indexNumber = i + 1;
+                                description.indexes.length > 0
+                                    ? description.indexes.map((indexDescription, i) => {
+                                          const indexNumber = i + 1;
 
-                                              return {
-                                                  IndexName: `Index${indexNumber}`,
-                                                  KeySchema: [
-                                                      {
-                                                          AttributeName:
-                                                              indexDescription.partitionKeyBehavior
-                                                                  .type === "Reused"
-                                                                  ? "partitionKey"
-                                                                  : `index${indexNumber}PartitionKey`,
-                                                          KeyType: "HASH",
-                                                      },
-                                                      {
-                                                          AttributeName: `index${indexNumber}SortKey`,
-                                                          KeyType: "RANGE",
-                                                      },
-                                                  ],
-                                                  Projection: {
-                                                      ProjectionType: {
-                                                          KeysOnly: "KEYS_ONLY" as const,
-                                                          All: "ALL" as const,
-                                                      }[indexDescription.projection],
+                                          return {
+                                              IndexName: `Index${indexNumber}`,
+                                              KeySchema: [
+                                                  {
+                                                      AttributeName:
+                                                          indexDescription.partitionKeyBehavior
+                                                              .type === "Reused"
+                                                              ? "partitionKey"
+                                                              : `index${indexNumber}PartitionKey`,
+                                                      KeyType: "HASH",
                                                   },
-                                              };
-                                          },
-                                      )
+                                                  {
+                                                      AttributeName: `index${indexNumber}SortKey`,
+                                                      KeyType: "RANGE",
+                                                  },
+                                              ],
+                                              Projection: {
+                                                  ProjectionType: {
+                                                      KeysOnly: "KEYS_ONLY" as const,
+                                                      All: "ALL" as const,
+                                                  }[indexDescription.projection],
+                                              },
+                                          };
+                                      })
                                     : undefined,
                         });
                     } catch (error) {
@@ -725,7 +753,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 } else {
                     try {
                         const createIndexUpdates = filterMapArray(
-                            this._initializationState.description.indexes,
+                            description.indexes,
                             (indexDescription, i) => {
                                 const indexNumber = i + 1;
 
@@ -791,6 +819,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     }
                 }
             });
+
+            await fs.mkdir(dirname(ensureLocalCachePath), {recursive: true});
+            await fs.writeFile(ensureLocalCachePath, ensureLocalCacheHash);
         });
     }
 

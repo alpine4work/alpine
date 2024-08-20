@@ -1,5 +1,6 @@
 import {spawn} from "child_process";
 import {join as joinPath} from "path";
+import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -27,12 +28,15 @@ const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
 const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
 
+const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
+
 const migrationExecutablePath = joinPath(runfilesPath, "cyberworlds/server/migration/migration.sh");
 
 const subprocess = spawn(
     migrationExecutablePath,
     [
         `--migration=${migrationName}`,
+        `--ensureLocalCachePath=${ensureLocalCachePath}`,
         `--dynamoLocalPort=${dynamoLocalPort}`,
         `--opensearchLocalPort=${opensearchLocalPort}`,
         `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,

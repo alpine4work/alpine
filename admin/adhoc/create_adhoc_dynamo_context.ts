@@ -1,5 +1,7 @@
+import {join as joinPath} from "path";
 import {createAdhocAwsRequestSigner} from "~/admin/adhoc/create_adhoc_aws_request_signer.js";
 import {createAdhocTracer} from "~/admin/adhoc/create_adhoc_tracer.js";
+import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -24,18 +26,21 @@ export async function createAdhocDynamoContext({
 
     const context = Context.new({
         tracer: new TracerContextModule(tracer),
-        dynamo: DynamoContextModule.new(
-            awsProfile !== "local"
-                ? "https://dynamodb.us-east-1.amazonaws.com"
-                : `http://localhost:${parseInt(
-                      assertExists(
-                          env.DYNAMO_LOCAL_PORT,
-                          "DynamoDB local port must be provided when running DynamoDB locally",
-                      ),
-                      10,
-                  )}`,
-            awsSigner,
-        ),
+        dynamo: DynamoContextModule.new({
+            url:
+                awsProfile !== "local"
+                    ? "https://dynamodb.us-east-1.amazonaws.com"
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              env.DYNAMO_LOCAL_PORT,
+                              "DynamoDB local port must be provided when running DynamoDB locally",
+                          ),
+                          10,
+                      )}`,
+            signer: awsSigner,
+            ensureLocalCachePath:
+                awsProfile === "local" ? joinPath(devEnvPaths.cache, "ensure/dynamo") : null,
+        }),
     });
 
     return Object.assign(context, {getAwsSigner: () => awsSigner});

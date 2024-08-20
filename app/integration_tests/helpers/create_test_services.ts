@@ -135,6 +135,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
 
     test.beforeAll(async () => {
         const keysDirectoryPath = joinPath(context.getTempPath(), "keys");
+        const ensureLocalCachePath = joinPath(context.getTempPath(), "ensure");
 
         const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
         const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
@@ -206,6 +207,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
@@ -272,6 +274,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
@@ -297,6 +300,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,

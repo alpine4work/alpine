@@ -87,6 +87,8 @@ const fileUploadInspectorDevPort = parsePort(env.FILE_UPLOAD_DEV_INSPECTOR_PORT)
 
 const remixDevServerPort = parsePort(env.REMIX_DEV_SERVER_PORT);
 
+const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
+
 const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
 const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
@@ -188,6 +190,7 @@ async function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--remixDevServerPort=${remixDevServerPort}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 "--shouldSeedDynamo",
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
@@ -250,6 +253,7 @@ async function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
@@ -269,6 +273,7 @@ async function createArtifacts() {
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
