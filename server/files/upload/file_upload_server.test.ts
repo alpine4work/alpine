@@ -175,24 +175,24 @@ Content-Length: 33102\r\n\
         expect(
             socketText
                 .replace(/^Date: .*?\r\n/m, "")
-                .replace(/,"stack":".*?"/m, "")
-                .replace(/,"original":{.*?}/m, ""),
+                .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
+                .replace(/,"placeholder":\[false,8,".*?"\]/m, ',"placeholder":[false,8,"..."]'),
         ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
 Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
-30\r\n\
+chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375}\n\
 \r\n\
-f9\r\n\
-{"type":"PreviewPlaceholder","placeholder":[false,8,"xNDUx9HWyNTYytXZy9bay9bYy9bXytTXz9fa0tnc1dze1t3f2N7g2N7g1tze1Nrd4OPi4uPj5ebp6Orr6err6erq6err5+npsq+no56Yraehvbu5zczK0c/KtrKspqKbvr++qq2qtLayxsfGzc7LysnFu7izqqmim62wm62xnLG1n7S3o7S5p7a6rbu+sr3A"]}\n\
+chunk\r\n\
+{"type":"PreviewPlaceholder","placeholder":[false,8,"..."]}\n\
 \r\n\
-e\r\n\
+chunk\r\n\
 {"type":"Ok"}\n\
 \r\n\
-0\r\n\
+chunk\r\n\
 \r\n\
 `);
     }
@@ -248,6 +248,7 @@ Content-Length: 33002\r\n\
         expect(
             socketText
                 .replace(/^Date: .*?\r\n/m, "")
+                .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
                 .replace(/,"stack":".*?"/m, "")
                 .replace(/,"original":{.*?}/m, ""),
         ).toEqual(`\
@@ -256,13 +257,13 @@ content-type: application/x-ndjson\r\n\
 Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
-30\r\n\
+chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375}\n\
 \r\n\
-a63\r\n\
+chunk\r\n\
 {"type":"Error","error":{"code":3,"message":"VipsJpeg: Premature end of input file","name":"InvalidArgumentError"}}\n\
 \r\n\
-0\r\n\
+chunk\r\n\
 \r\n\
 `);
     }
