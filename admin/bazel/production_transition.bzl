@@ -37,7 +37,7 @@ def _production_transition_rule_impl(ctx):
 production_transition = rule(
     _production_transition_rule_impl,
     attrs = {
-        "src": attr.label(cfg = _production_transition),
+        "target": attr.label(cfg = _production_transition),
         "_linux_x86_64": attr.label(default = "//admin/bazel:linux_x86_64"),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",

@@ -60,6 +60,6 @@ oci_tarball(
 
 production_transition(
     name = "queue_image_tarball_production",
-    src = ":queue_image_tarball",
+    target = ":queue_image_tarball",
     visibility = ["//admin/aws:__pkg__"],
 )

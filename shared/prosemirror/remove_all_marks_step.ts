@@ -1,4 +1,4 @@
-import {Mark, Node, Schema} from "prosemirror-model";
+import {Mark, Node} from "prosemirror-model";
 import {AddMarkStep, Mappable, Step, StepResult} from "prosemirror-transform";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 
@@ -10,6 +10,14 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
  * another user is typing and changes the range of a comment in a way that
  * won't quite be mapped correctly against the range of the comment at the
  * version you dismissed at.
+ *
+ * Note that we don't have `fromJSON()` method implementations or a
+ * corresponding `Step.jsonID()` step call. That's because whenever we're
+ * parsing steps from JSON it's with a `Schema` created by
+ * `createSchemaForProsemirrorSchema()` which knows about this step type.
+ * Registering our class with `Step.jsonID()` causes issues with hot reloading.
+ * Since this module may be evaluated multiple times but we can only register
+ * in `prosemirror-transform` once.
  */
 export class RemoveAllMarksStep extends Step {
     public readonly mark: Mark;
@@ -87,17 +95,19 @@ export class RemoveAllMarksStep extends Step {
             mark: this.mark.toJSON(),
         };
     }
-
-    public static override fromJSON(schema: Schema, json: any) {
-        return new RemoveAllMarksStep(schema.markFromJSON(json.mark));
-    }
 }
-
-Step.jsonID("removeAllMarks", RemoveAllMarksStep);
 
 /**
  * A step to act as the inverse of `RemoveAllMarksStep`. Adds multiple
  * instances of a mark throughout the document.
+ *
+ * Note that we don't have `fromJSON()` method implementations or a
+ * corresponding `Step.jsonID()` step call. That's because whenever we're
+ * parsing steps from JSON it's with a `Schema` created by
+ * `createSchemaForProsemirrorSchema()` which knows about this step type.
+ * Registering our class with `Step.jsonID()` causes issues with hot reloading.
+ * Since this module may be evaluated multiple times but we can only register
+ * in `prosemirror-transform` once.
  */
 export class AddMarksAfterRemoveAllStep extends Step {
     public readonly mark: Mark;
@@ -148,20 +158,4 @@ export class AddMarksAfterRemoveAllStep extends Step {
             ranges: this.ranges,
         };
     }
-
-    public static override fromJSON(schema: Schema, json: any) {
-        if (!Array.isArray(json.ranges))
-            throw new RangeError("Invalid input for AddMarksAfterRemoveAllStep.fromJSON");
-
-        const ranges = json.ranges.map((range: any) => {
-            if (typeof range.from !== "number" || typeof range.to !== "number")
-                throw new RangeError("Invalid input for AddMarksAfterRemoveAllStep.fromJSON");
-
-            return {from: range.from, to: range.to};
-        });
-
-        return new AddMarksAfterRemoveAllStep(schema.markFromJSON(json.mark), ranges);
-    }
 }
-
-Step.jsonID("addMarksAfterRemoveAll", AddMarksAfterRemoveAllStep);

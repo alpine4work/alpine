@@ -5,7 +5,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
-import {isRemixLiveReloading} from "~/client/remix/is_remix_live_reloading.js";
+import {isDevServerRestarting} from "~/client/remix/is_dev_server_restarting.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {WebSocketClient, WebSocketClientProcedures} from "~/client/web_socket/web_socket_client.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -127,7 +127,7 @@ export function useWebSocketErrorDialog(
 
         // Don't show lost connection error messages while Remix is live reloading.
         // It's expected to lose our connection while live reloading!
-        if (isRemixLiveReloading()) return;
+        if (isDevServerRestarting()) return;
 
         // Only show one "Lost connection" dialog at a time. We may have multiple
         // WebSocket connections that disconnect at the same time (e.g. during a deploy

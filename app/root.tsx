@@ -62,10 +62,12 @@ import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema} from "~/shared/schema/schema.js";
-import sharedStylesHref from "~/shared/styles/styles.css";
+import stylesHref from "~/shared/styles/styles.css?url";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+
+// NOCOMMIT: __remixRouter.createRoutesForHMR is not a function error when root changes?
 
 export function meta() {
     return [{title: "Cyberworlds"}];
@@ -83,7 +85,7 @@ export function links(): Array<LinkDescriptor> {
             as: "font",
             crossOrigin: "anonymous",
         },
-        {rel: "stylesheet", href: sharedStylesHref},
+        {rel: "stylesheet", href: stylesHref},
         // Recommend the SVG favicon so it can render in light and dark mode.
         {rel: "icon", href: "/favicon.svg"},
     ];
@@ -97,7 +99,8 @@ const LoaderSchema = Schema.object({
     initialAppRenderId: Schema.id(),
     browserId: Schema.id<BrowserId>(),
     clientInfo: ClientInfoSchema,
-    devServerPort: Schema.integer.optional(),
+    bazelDevServerPort: Schema.integer.optional(),
+    isIntegrationTest: Schema.boolean,
 });
 
 let contentCodeBlockLanguagesPromise: "Unloaded" | Promise<void> | null = "Unloaded";
@@ -129,7 +132,8 @@ export async function loader({context}: LoaderArgs) {
         initialAppRenderId: generateId(),
         browserId: context.loader.getBrowserId(),
         clientInfo: context.loader.getClientInfo(),
-        devServerPort: context.loader.devServerPort ?? undefined,
+        bazelDevServerPort: context.loader.bazelDevServerPort ?? undefined,
+        isIntegrationTest: !!process.env.PLAYWRIGHT_TEST_PATH,
     });
 }
 
@@ -547,11 +551,23 @@ export default function Root() {
                 <Meta />
                 <Links />
                 <ColorSchemeManager />
+                {loaderData?.isIntegrationTest && (
+                    // If we're running an integration test then add noop `react-refresh`
+                    // globals so we don't get any reference errors. Our SWC development config
+                    // applies the `react-refresh` transform.
+                    <script
+                        dangerouslySetInnerHTML={{
+                            __html: `globalThis.$RefreshReg$ = () => {}; globalThis.$RefreshSig$ = () => value => value;`,
+                        }}
+                    />
+                )}
             </head>
             <body>
                 {wrappedChildren}
                 <ScrollRestoration />
-                {loaderData?.devServerPort && <AppLiveReload port={loaderData.devServerPort} />}
+                {loaderData?.bazelDevServerPort && (
+                    <AppLiveReload port={loaderData.bazelDevServerPort} isMobile={isMobile} />
+                )}
                 <script
                     // Let our native app know we're ready once the server render has finished.
                     // This script intentionally runs before React hydration since we can

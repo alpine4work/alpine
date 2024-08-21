@@ -54,6 +54,6 @@ oci_tarball(
 
 production_transition(
     name = "migration_image_tarball_production",
-    src = ":migration_image_tarball",
+    target = ":migration_image_tarball",
     visibility = ["//admin/aws:__pkg__"],
 )

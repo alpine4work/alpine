@@ -1,10 +1,8 @@
-import {injectUseIsSSRImplementation} from "@react-aria/ssr";
-import {ReactElement, ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {AppInitialRenderContext} from "@react-aria/ssr";
+import {ReactElement, ReactNode, useContext, useEffect, useState} from "react";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
-
-const AppInitialRenderContext = createContext<Id | false | null>(null);
 
 /**
  * Is this the initial render of our application?
@@ -50,18 +48,14 @@ export function useInitialAppRenderId(): Id | null {
 
     if (initialAppRenderId === null) {
         // In Jest tests, act like we are not in the initial render unless an
-        // `<AppInitialRenderContextProvider>` is explicitly used.
+        // `useAppInitialRenderContextProvider()` is explicitly used.
         if (import.meta.jest) return null;
 
-        throw new InternalError("Must be rendered in an `<AppInitialRenderContextProvider>`");
+        throw new InternalError("Must be rendered in an `useAppInitialRenderContextProvider()`");
     }
 
-    return initialAppRenderId !== false ? initialAppRenderId : null;
+    return initialAppRenderId !== false ? (initialAppRenderId as Id) : null;
 }
-
-// Use our `useIsInitialAppRender()` hook as the implementation of `react-aria`'s
-// `useIsSSR()` hook so we don't need to render `react-aria`'s SSR context.
-injectUseIsSSRImplementation(useIsInitialAppRender);
 
 export function useAppInitialRenderContextProvider(
     initialAppRenderIdProp: Id | undefined,

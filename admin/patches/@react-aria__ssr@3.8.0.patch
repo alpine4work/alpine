@@ -1,5 +1,5 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index a6e7e525bb20d202316f8feda95969bc1df5599a..76c49b574d1dcb08d9a5df9a98fc64afec905c67 100644
+index a6e7e525bb20d202316f8feda95969bc1df5599a..b4dec30ea4d474666dcb95dd657d77e3d75bd208 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
 @@ -130,7 +130,13 @@ function $b5e257d569688ac6$var$useModernSSRSafeId(defaultId) {
@@ -17,46 +17,48 @@ index a6e7e525bb20d202316f8feda95969bc1df5599a..76c49b574d1dcb08d9a5df9a98fc64af
  function $b5e257d569688ac6$var$getSnapshot() {
      return false;
  }
-@@ -143,14 +149,25 @@ function $b5e257d569688ac6$var$subscribe(onStoreChange) {
+@@ -142,15 +148,26 @@ function $b5e257d569688ac6$var$subscribe(onStoreChange) {
+     // noop
      return ()=>{};
  }
++// NOTE(calebmer): We want `useIsSSR()` to have the same implementation as
++// `useIsInitialAppRender()`. So declare our context in `@react-aria/ssr`
++// and copy the implementation of `useIsInitialAppRender()` into `useIsSSR()`.
++// We setup the context provider in our code.
++const AppInitialRenderContext = /*#__PURE__*/ (0, $73SJx$react).createContext(null);
  function $b5e257d569688ac6$export$535bd6ca7f90a273() {
 -    // In React 18, we can use useSyncExternalStore to detect if we're server rendering or hydrating.
 -    if (typeof (0, $73SJx$react)["useSyncExternalStore"] === "function") return (0, $73SJx$react)["useSyncExternalStore"]($b5e257d569688ac6$var$subscribe, $b5e257d569688ac6$var$getSnapshot, $b5e257d569688ac6$var$getServerSnapshot);
 -    // eslint-disable-next-line react-hooks/rules-of-hooks
 -    return (0, $73SJx$useContext)($b5e257d569688ac6$var$IsSSRContext);
-+    if (useIsSSRImplementation === null)
-+        throw new Error('Implementation of useIsSSR() has not been injected');
-+  
-+    // NOTE(calebmer): Allow our code to inject an implementation for this hook.
-+    // This is the same as our `useIsInitialAppRender()` hook so we want to use
-+    // that instead of needing to use the same context as `@react-aria/ssr`.
-+    return useIsSSRImplementation();
- }
+-}
++    const initialAppRenderId = (0, $73SJx$useContext)(AppInitialRenderContext);
++
++    if (initialAppRenderId === null) {
++        // In Jest tests, act like we are not in the initial render unless an
++        // `useAppInitialRenderContextProvider()` is explicitly used.
++        if (import.meta.jest) return false;
  
-+let useIsSSRImplementation = null;
++        throw new Error("Must be rendered in an `useAppInitialRenderContextProvider()`");
++    }
 +
-+function injectUseIsSSRImplementation(implementation) {
-+    if (useIsSSRImplementation !== null)
-+        throw new Error('Implementation of useIsSSR() has already been injected');
-+
-+    useIsSSRImplementation = implementation;
++    return initialAppRenderId !== false;
 +}
  
  
  
 -export {$b5e257d569688ac6$export$9f8ac96af4b1b2ae as SSRProvider, $b5e257d569688ac6$export$619500959fc48b26 as useSSRSafeId, $b5e257d569688ac6$export$535bd6ca7f90a273 as useIsSSR};
-+export {$b5e257d569688ac6$export$9f8ac96af4b1b2ae as SSRProvider, $b5e257d569688ac6$export$619500959fc48b26 as useSSRSafeId, $b5e257d569688ac6$export$535bd6ca7f90a273 as useIsSSR, injectUseIsSSRImplementation};
++export {$b5e257d569688ac6$export$9f8ac96af4b1b2ae as SSRProvider, $b5e257d569688ac6$export$619500959fc48b26 as useSSRSafeId, $b5e257d569688ac6$export$535bd6ca7f90a273 as useIsSSR, AppInitialRenderContext};
  //# sourceMappingURL=module.js.map
 diff --git a/dist/main.js b/dist/main.js
-index 655e666962e75ba4c1840e679e23bcbfa9503b31..229a659da11c7c91817c6a0f27822594a8765a80 100644
+index 655e666962e75ba4c1840e679e23bcbfa9503b31..b6ad8ff01f031ad0f44a0b3cf8c29dbd91a8c1e7 100644
 --- a/dist/main.js
 +++ b/dist/main.js
 @@ -10,6 +10,7 @@ function $parcel$interopDefault(a) {
  $parcel$export(module.exports, "SSRProvider", () => $97d95f6660b1bb14$export$9f8ac96af4b1b2ae);
  $parcel$export(module.exports, "useSSRSafeId", () => $97d95f6660b1bb14$export$619500959fc48b26);
  $parcel$export(module.exports, "useIsSSR", () => $97d95f6660b1bb14$export$535bd6ca7f90a273);
-+$parcel$export(module.exports, "injectUseIsSSRImplementation", () => injectUseIsSSRImplementation);
++$parcel$export(module.exports, "AppInitialRenderContext", () => AppInitialRenderContext);
  /*
   * Copyright 2020 Adobe. All rights reserved.
   * This file is licensed to you under the Apache License, Version 2.0 (the "License");
@@ -75,35 +77,32 @@ index 655e666962e75ba4c1840e679e23bcbfa9503b31..229a659da11c7c91817c6a0f27822594
  function $97d95f6660b1bb14$var$getSnapshot() {
      return false;
  }
-@@ -153,10 +160,22 @@ function $97d95f6660b1bb14$var$subscribe(onStoreChange) {
+@@ -152,11 +159,19 @@ function $97d95f6660b1bb14$var$subscribe(onStoreChange) {
+     // noop
      return ()=>{};
  }
++// NOTE(calebmer): We want `useIsSSR()` to have the same implementation as
++// `useIsInitialAppRender()`. So declare our context in `@react-aria/ssr`
++// and copy the implementation of `useIsInitialAppRender()` into `useIsSSR()`.
++// We setup the context provider in our code.
++const AppInitialRenderContext = /*#__PURE__*/ (0, ($parcel$interopDefault($32tCg$react))).createContext(null);
  function $97d95f6660b1bb14$export$535bd6ca7f90a273() {
 -    // In React 18, we can use useSyncExternalStore to detect if we're server rendering or hydrating.
 -    if (typeof (0, ($parcel$interopDefault($32tCg$react)))["useSyncExternalStore"] === "function") return (0, ($parcel$interopDefault($32tCg$react)))["useSyncExternalStore"]($97d95f6660b1bb14$var$subscribe, $97d95f6660b1bb14$var$getSnapshot, $97d95f6660b1bb14$var$getServerSnapshot);
 -    // eslint-disable-next-line react-hooks/rules-of-hooks
 -    return (0, $32tCg$react.useContext)($97d95f6660b1bb14$var$IsSSRContext);
-+    if (useIsSSRImplementation === null)
-+        throw new Error('Implementation of useIsSSR() has not been injected');
-+  
-+    // NOTE(calebmer): Allow our code to inject an implementation for this hook.
-+    // This is the same as our `useIsInitialAppRender()` hook so we want to use
-+    // that instead of needing to use the same context as `@react-aria/ssr`.
-+    return useIsSSRImplementation();
-+}
++    const initialAppRenderId = (0, $32tCg$react.useContext)(AppInitialRenderContext);
 +
-+let useIsSSRImplementation = null;
++    if (initialAppRenderId === null) {
++        throw new Error("Must be rendered in an `useAppInitialRenderContextProvider()`");
++    }
 +
-+function injectUseIsSSRImplementation(implementation) {
-+    if (useIsSSRImplementation !== null)
-+        throw new Error('Implementation of useIsSSR() has already been injected');
-+
-+    useIsSSRImplementation = implementation;
++    return initialAppRenderId !== false;
  }
  
  
 diff --git a/dist/module.js b/dist/module.js
-index a6e7e525bb20d202316f8feda95969bc1df5599a..5629bd46f0e390ccc558229ce4ac3ec8e41ccb13 100644
+index a6e7e525bb20d202316f8feda95969bc1df5599a..f7c4fe92e883d6e51733f75af4bcbf829787b840 100644
 --- a/dist/module.js
 +++ b/dist/module.js
 @@ -130,7 +130,13 @@ function $b5e257d569688ac6$var$useModernSSRSafeId(defaultId) {
@@ -121,55 +120,62 @@ index a6e7e525bb20d202316f8feda95969bc1df5599a..5629bd46f0e390ccc558229ce4ac3ec8
  function $b5e257d569688ac6$var$getSnapshot() {
      return false;
  }
-@@ -143,14 +149,26 @@ function $b5e257d569688ac6$var$subscribe(onStoreChange) {
+@@ -142,15 +148,27 @@ function $b5e257d569688ac6$var$subscribe(onStoreChange) {
+     // noop
      return ()=>{};
  }
++// NOTE(calebmer): We want `useIsSSR()` to have the same implementation as
++// `useIsInitialAppRender()`. So declare our context in `@react-aria/ssr`
++// and copy the implementation of `useIsInitialAppRender()` into `useIsSSR()`.
++// We setup the context provider in our code.
++const AppInitialRenderContext = /*#__PURE__*/ (0, $73SJx$react).createContext(null);
  function $b5e257d569688ac6$export$535bd6ca7f90a273() {
 -    // In React 18, we can use useSyncExternalStore to detect if we're server rendering or hydrating.
 -    if (typeof (0, $73SJx$react)["useSyncExternalStore"] === "function") return (0, $73SJx$react)["useSyncExternalStore"]($b5e257d569688ac6$var$subscribe, $b5e257d569688ac6$var$getSnapshot, $b5e257d569688ac6$var$getServerSnapshot);
 -    // eslint-disable-next-line react-hooks/rules-of-hooks
 -    return (0, $73SJx$useContext)($b5e257d569688ac6$var$IsSSRContext);
-+    if (useIsSSRImplementation === null)
-+        throw new Error('Implementation of useIsSSR() has not been injected');
-+  
-+    // NOTE(calebmer): Allow our code to inject an implementation for this hook.
-+    // This is the same as our `useIsInitialAppRender()` hook so we want to use
-+    // that instead of needing to use the same context as `@react-aria/ssr`.
-+    return useIsSSRImplementation();
-+}
++    const initialAppRenderId = (0, $73SJx$useContext)(AppInitialRenderContext);
 +
-+let useIsSSRImplementation = null;
++    if (initialAppRenderId === null) {
++        // In Jest tests, act like we are not in the initial render unless an
++        // `useAppInitialRenderContextProvider()` is explicitly used.
++        if (import.meta.jest) return false;
 +
-+function injectUseIsSSRImplementation(implementation) {
-+    if (useIsSSRImplementation !== null)
-+        throw new Error('Implementation of useIsSSR() has already been injected');
++        throw new Error("Must be rendered in an `useAppInitialRenderContextProvider()`");
++    }
 +
-+    useIsSSRImplementation = implementation;
++    return initialAppRenderId !== false;
  }
  
  
  
  
 -export {$b5e257d569688ac6$export$9f8ac96af4b1b2ae as SSRProvider, $b5e257d569688ac6$export$619500959fc48b26 as useSSRSafeId, $b5e257d569688ac6$export$535bd6ca7f90a273 as useIsSSR};
-+export {$b5e257d569688ac6$export$9f8ac96af4b1b2ae as SSRProvider, $b5e257d569688ac6$export$619500959fc48b26 as useSSRSafeId, $b5e257d569688ac6$export$535bd6ca7f90a273 as useIsSSR, injectUseIsSSRImplementation};
++export {$b5e257d569688ac6$export$9f8ac96af4b1b2ae as SSRProvider, $b5e257d569688ac6$export$619500959fc48b26 as useSSRSafeId, $b5e257d569688ac6$export$535bd6ca7f90a273 as useIsSSR, AppInitialRenderContext};
  //# sourceMappingURL=module.js.map
 diff --git a/dist/types.d.ts b/dist/types.d.ts
-index adbad36402df8376a017ff3d70216d8768ed7096..e4b318b00ebabe632a91fa1bf6f28b80e9ecdf1d 100644
+index adbad36402df8376a017ff3d70216d8768ed7096..24a22d000327239355d94e7d9d43f2cd0b71f41f 100644
 --- a/dist/types.d.ts
 +++ b/dist/types.d.ts
+@@ -1,4 +1,4 @@
+-import { ReactNode } from "react";
++import { ReactNode, Context } from "react";
+ export interface SSRProviderProps {
+     /** Your application here. */
+     children: ReactNode;
 @@ -18,4 +18,10 @@ export const useSSRSafeId: typeof useModernSSRSafeId;
   */
  export function useIsSSR(): boolean;
  
-+// NOTE(calebmer): Allow our code to inject an implementation for
-+// `useIsSSR()`. This is the same as our `useIsInitialAppRender()` hook so we
-+// want to use that instead of needing to use the same context as
-+// `@react-aria/ssr`.
-+export function injectUseIsSSRImplementation(implementation: () => boolean): void;
++// NOTE(calebmer): We want `useIsSSR()` to have the same implementation as
++// `useIsInitialAppRender()`. So declare our context in `@react-aria/ssr`
++// and copy the implementation of `useIsInitialAppRender()` into `useIsSSR()`.
++// We setup the context provider in our code.
++export const AppInitialRenderContext: Context<string | false | null>;
 +
  //# sourceMappingURL=types.d.ts.map
 diff --git a/src/SSRProvider.tsx b/src/SSRProvider.tsx
-index 7be1abf3c6fc11e10d69fb52318029a771d75b86..db7144e54633b6f18c3dbea281f598dde8c8b887 100644
+index 7be1abf3c6fc11e10d69fb52318029a771d75b86..52cffed9bdee7902755151f99928aac15427348a 100644
 --- a/src/SSRProvider.tsx
 +++ b/src/SSRProvider.tsx
 @@ -166,7 +166,13 @@ function useModernSSRSafeId(defaultId?: string): string {
@@ -187,35 +193,41 @@ index 7be1abf3c6fc11e10d69fb52318029a771d75b86..db7144e54633b6f18c3dbea281f598dd
  
  function getSnapshot() {
    return false;
-@@ -188,11 +194,20 @@ function subscribe(onStoreChange: () => void): () => void {
+@@ -182,17 +188,27 @@ function subscribe(onStoreChange: () => void): () => void {
+   return () => {};
+ }
+ 
++// NOTE(calebmer): We want `useIsSSR()` to have the same implementation as
++// `useIsInitialAppRender()`. So declare our context in `@react-aria/ssr`
++// and copy the implementation of `useIsInitialAppRender()` into `useIsSSR()`.
++// We setup the context provider in our code.
++export const AppInitialRenderContext = React.createContext<string | false | null>(null);
++
+ /**
+  * Returns whether the component is currently being server side rendered or
+  * hydrated on the client. Can be used to delay browser-specific rendering
   * until after hydration.
   */
  export function useIsSSR(): boolean {
 -  // In React 18, we can use useSyncExternalStore to detect if we're server rendering or hydrating.
 -  if (typeof React['useSyncExternalStore'] === 'function') {
 -    return React['useSyncExternalStore'](subscribe, getSnapshot, getServerSnapshot);
--  }
-+  if (useIsSSRImplementation === null)
-+    throw new Error('Implementation of useIsSSR() has not been injected');
-+  
-+  // NOTE(calebmer): Allow our code to inject an implementation for this hook.
-+  // This is the same as our `useIsInitialAppRender()` hook so we want to use
-+  // that instead of needing to use the same context as `@react-aria/ssr`.
-+  return useIsSSRImplementation();  
-+}
++  const initialAppRenderId = useContext(AppInitialRenderContext);
 +
-+let useIsSSRImplementation: (() => boolean) | null = null;
++  if (initialAppRenderId === null) {
++      // In Jest tests, act like we are not in the initial render unless an
++      // `useAppInitialRenderContextProvider()` is explicitly used.
++      if (import.meta.jest) return false;
 +
-+export function injectUseIsSSRImplementation(implementation: () => boolean) {
-+  if (useIsSSRImplementation !== null)
-+    throw new Error('Implementation of useIsSSR() has already been injected');
++      throw new Error("Must be rendered in an `useAppInitialRenderContextProvider()`");
+   }
  
 -  // eslint-disable-next-line react-hooks/rules-of-hooks
 -  return useContext(IsSSRContext);
-+  useIsSSRImplementation = implementation;
++  return initialAppRenderId !== false;
  }
 diff --git a/src/index.ts b/src/index.ts
-index ee5c98be7279063a09ef8b4e27ff970faa2fb116..cd4a81105a8306ea90c53abd63f73df088ab0bfb 100644
+index ee5c98be7279063a09ef8b4e27ff970faa2fb116..5d1d7893e2a13d85782fc26997a3df4da54f0047 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -9,5 +9,5 @@
@@ -223,5 +235,5 @@ index ee5c98be7279063a09ef8b4e27ff970faa2fb116..cd4a81105a8306ea90c53abd63f73df0
   * governing permissions and limitations under the License.
   */
 -export {SSRProvider, useSSRSafeId, useIsSSR} from './SSRProvider';
-+export {SSRProvider, useSSRSafeId, useIsSSR, injectUseIsSSRImplementation} from './SSRProvider';
++export {SSRProvider, useSSRSafeId, useIsSSR, AppInitialRenderContext} from './SSRProvider';
  export type {SSRProviderProps} from './SSRProvider';

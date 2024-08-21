@@ -1,4 +1,4 @@
-import {appStaticManifestPaths} from "~/app/static/_manifest/app_static_manifest_paths.js";
+import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
 import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
@@ -83,7 +83,14 @@ async function handleFetch(
 
     // Fast path for static asset requests. We don't want to trace these requests
     // or perform any other request/response manipulation.
-    if (appStaticManifestPaths.has(url.pathname) || url.pathname.startsWith("/build/")) {
+    if (
+        appStaticManifestPaths.has(url.pathname) ||
+        url.pathname.startsWith("/assets/") ||
+        // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we
+        // used Vite for compilation. Can remove once clients that expect static assets
+        // under `/build` no longer exist.
+        url.pathname.startsWith("/build/")
+    ) {
         // In development, static assets are served by `serve-static` middleware in
         // `AppService`. In production we serve static assets from Cloudflare R2.
         if (process.env.NODE_ENV !== "production") {
@@ -122,7 +129,14 @@ async function handleFetch(
         //
         // We manually version our font assets so fonts can be cached forever too. If
         // we need to update a font the file name will change.
-        if (url.pathname.startsWith("/build/") || url.pathname.startsWith("/fonts/")) {
+        if (
+            url.pathname.startsWith("/fonts/") ||
+            url.pathname.startsWith("/assets/") ||
+            // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we
+            // used Vite for compilation. Can remove once clients that expect static assets
+            // under `/build` no longer exist.
+            url.pathname.startsWith("/build/")
+        ) {
             // - `public`: Means we can store the asset in a shared cache since they don't
             //   depend on authorization.
             // - `max-age=31536000`: The asset lives for one year.

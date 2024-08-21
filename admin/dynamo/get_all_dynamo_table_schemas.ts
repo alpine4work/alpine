@@ -23,17 +23,14 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
 
     const {
         DynamoTableSchema,
-        finishInitializingAllDynamoTableSchemas,
+        finishInitializingDynamoTableSchemas,
         getAllConstructedDynamoTableSchemaIndexNames,
         getAllConstructedDynamoTableSchemas,
-        setWillManuallyFinishInitializingAllDynamoTableSchemas,
     }: typeof import("~/server/dynamo/core/dynamo_table_schema.js") =
         // Even though we have a dependency on `//server/dynamo/core`, import it from
         // `runfilesPath` so all references are the same as when we import all the
         // modules below.
         await import(joinPath(runfilesRepoPath, "server/dynamo/core/dynamo_table_schema.js"));
-
-    setWillManuallyFinishInitializingAllDynamoTableSchemas();
 
     try {
         await runAllPromises(
@@ -55,7 +52,7 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
             }),
         );
     } finally {
-        finishInitializingAllDynamoTableSchemas();
+        finishInitializingDynamoTableSchemas();
     }
 
     return {getAllConstructedDynamoTableSchemaIndexNames, getAllConstructedDynamoTableSchemas};

@@ -4,14 +4,16 @@ import {createTwoFilesPatch} from "diff";
 import * as prettier from "prettier";
 import {Node} from "prosemirror-model";
 import {EditorState, Plugin} from "prosemirror-state";
-import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {
     ContentCodeBlockIncrementalParser,
     setMockedHighlightTreeForTest,
 } from "~/client/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
-import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentContentProsemirrorSchema as schema,
+    DocumentContentStepSchema as stepSchema,
+} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -537,7 +539,7 @@ test("can highlight syntax after updating a single line", () => {
         {stepType: "replace", from: 1829, to: 1829, slice: {content: [{type: "text", text: "s"}]}},
         {stepType: "replace", from: 1830, to: 1830, slice: {content: [{type: "text", text: "t"}]}},
         {stepType: "replace", from: 1831, to: 1831, slice: {content: [{type: "text", text: "1"}]}},
-    ].map(step => Step.fromJSON(schema, step));
+    ].map(step => stepSchema.deserialize(step));
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
@@ -616,7 +618,7 @@ test("can highlight syntax after adding a new line", () => {
             },
             structure: true,
         },
-    ].map(step => Step.fromJSON(schema, step));
+    ].map(step => stepSchema.deserialize(step));
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
@@ -644,7 +646,7 @@ test("can highlight syntax after deleting line", () => {
             to: 1060,
             slice: {content: [{type: "codeBlockLine"}], openEnd: 1},
         },
-    ].map(step => Step.fromJSON(schema, step));
+    ].map(step => stepSchema.deserialize(step));
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
@@ -668,7 +670,7 @@ test("can highlight syntax after updating multiple lines", () => {
     const steps = [
         {stepType: "replace", from: 2014, to: 2014, slice: {content: [{type: "text", text: "{"}]}},
         {stepType: "replace", from: 2202, to: 2202, slice: {content: [{type: "text", text: "}"}]}},
-    ].map(step => Step.fromJSON(schema, step));
+    ].map(step => stepSchema.deserialize(step));
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
@@ -731,7 +733,7 @@ test("can highlight syntax after inserting a code block", () => {
         {stepType: "replace", from: 1292, to: 1292, slice: {content: [{type: "text", text: "w"}]}},
         {stepType: "replace", from: 1295, to: 1295, slice: {content: [{type: "text", text: ";"}]}},
         {stepType: "attr", pos: 1275, attr: "language", value: "typescript"},
-    ].map(step => Step.fromJSON(schema, step));
+    ].map(step => stepSchema.deserialize(step));
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
@@ -755,7 +757,7 @@ test("can highlight syntax after deleting a code block", () => {
     const steps = [
         {stepType: "replace", from: 344, to: 1204},
         {stepType: "replace", from: 342, to: 346},
-    ].map(step => Step.fromJSON(schema, step));
+    ].map(step => stepSchema.deserialize(step));
 
     const view1 = createView();
     expect(mockedHighlightTree).toHaveBeenCalledTimes(75);
@@ -825,15 +827,15 @@ test("can delete multiple lines between two code blocks adjacent to each other (
     expect(getMockedJavascriptParseCalls()).toEqual([false, false]);
 
     const steps1 = [{stepType: "replace", from: 93, to: 107}].map(step =>
-        Step.fromJSON(schema, step),
+        stepSchema.deserialize(step),
     );
 
     const steps2 = [{stepType: "replace", from: 91, to: 95}].map(step =>
-        Step.fromJSON(schema, step),
+        stepSchema.deserialize(step),
     );
 
     const steps3 = [{stepType: "replace", from: 89, to: 91}].map(step =>
-        Step.fromJSON(schema, step),
+        stepSchema.deserialize(step),
     );
 
     const transaction1 = view2.state.tr;

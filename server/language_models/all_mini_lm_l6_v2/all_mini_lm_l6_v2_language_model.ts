@@ -95,7 +95,7 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
         // We do the funky `string + cast(string)` syntax so the import path can't
         // be statically analyzed by esbuild.
         const {FeatureExtractionPipeline}: typeof import("@xenova/transformers") = await import(
-            "@xenova/" + cast("transformers")
+            /* @vite-ignore */ "@xenova/" + cast("transformers")
         );
 
         const extractor = new FeatureExtractionPipeline({

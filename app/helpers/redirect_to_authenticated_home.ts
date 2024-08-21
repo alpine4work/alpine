@@ -1,12 +1,12 @@
 import {redirect} from "@remix-run/router";
 import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {LoaderContext} from "~/server/remix/loader_context.js";
 
 /**
  * Redirect to the homepage for an account if they are successfully
  * authenticated.
  */
-export async function redirectToAuthenticatedHome(context: DynamoContext) {
+export async function redirectToAuthenticatedHome(context: LoaderContext) {
     const configuration = await getAlphaConfiguration(context);
     return redirect(
         configuration.authenticatedHomeUrl ??

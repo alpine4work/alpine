@@ -108,7 +108,7 @@ oci_tarball(
 
 production_transition(
     name = "empty_image_tarball_production",
-    src = ":empty_image_tarball",
+    target = ":empty_image_tarball",
 )
 
 js_run_binary(
@@ -121,6 +121,7 @@ js_run_binary(
         "synth",
         "--output=admin/aws/output_lite",
     ],
+    progress_message = "Synthesizing AWS templates",
     tool = ":cdk_lite",
 )
 

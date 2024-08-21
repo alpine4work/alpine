@@ -43,17 +43,6 @@ test("every peek route has a corresponding space route and exports the same thin
 
     peekRoutes.sort();
 
-    // Allow importing many files asynchronously.
-    {
-        const {
-            setWillManuallyFinishInitializingAllDynamoTableSchemas,
-        }: typeof import("~/server/dynamo/core/dynamo_table_schema.js") = await import(
-            joinPath(workspacePath, "server/dynamo/core/dynamo_table_schema.js")
-        );
-
-        setWillManuallyFinishInitializingAllDynamoTableSchemas();
-    }
-
     const actual = Object.fromEntries(
         await runAllPromises(
             peekRoutes.map(async peekRoute => {

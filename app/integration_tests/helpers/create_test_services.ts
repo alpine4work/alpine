@@ -197,7 +197,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
         );
 
         appServiceSubprocess = spawn(
-            joinPath(runfilesPath, "cyberworlds/app/app.sh"),
+            joinPath(runfilesPath, "cyberworlds/app/app_test.sh"),
             [
                 `--port=${appServicePort}`,
                 `--edgeServiceUrl=http://localhost:${edgeServicePort}`,

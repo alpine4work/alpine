@@ -5,6 +5,7 @@ ts_project(
     test_deps = ["//server/dynamo/test_helpers"],
     visibility = [
         "//admin/cron:__pkg__",
+        "//app:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [

@@ -181,3 +181,23 @@ def _gather_files_from_js_providers(
             if NpmPackageStoreInfo in target and hasattr(target[NpmPackageStoreInfo], "transitive_files")
         ])
     return depset([], transitive = files_depsets)
+
+def _esbuild_runfiles_without_sources_impl(ctx):
+    return [DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources.files)]
+
+esbuild_runfiles_without_sources = rule(
+    _esbuild_runfiles_without_sources_impl,
+    attrs = {
+        "target": attr.label(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
+    },
+)
+
+def _esbuild_runfiles_without_sources_and_npm_linked_packages_impl(ctx):
+    return [DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_linked_packages.files)]
+
+esbuild_runfiles_without_sources_and_npm_linked_packages = rule(
+    _esbuild_runfiles_without_sources_and_npm_linked_packages_impl,
+    attrs = {
+        "target": attr.label(providers = [JsInfo], aspects = [esbuild_runfiles_aspect]),
+    },
+)

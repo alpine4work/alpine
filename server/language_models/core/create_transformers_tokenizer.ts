@@ -16,7 +16,7 @@ export async function createTransformersTokenizer(basePath: string) {
     // We do the funky `string + cast(string)` syntax so the import path can't
     // be statically analyzed by esbuild.
     const {BertTokenizer}: typeof import("@xenova/transformers") = await import(
-        "@xenova/" + cast("transformers")
+        /* @vite-ignore */ "@xenova/" + cast("transformers")
     );
 
     const [configContents, jsonContents] = await runAllPromises([

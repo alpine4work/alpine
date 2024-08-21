@@ -455,28 +455,17 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         assert(!allConstructedDynamoTableSchemas.has(this._name), "Table names must be unique");
         allConstructedDynamoTableSchemas.set(this._name, this);
 
-        // We need to initialize DynamoDB table schemas at the end of module
-        // initialization because functions like `addIndex()` will extend the table
-        // schema. So we schedule a microtask to finish initialization immediately
-        // after module evaluation.
+        // DynamoDB table schemas finish initializing a microtask after they're
+        // constructed because functions like `addIndex()` will extend the table
+        // schema.
         //
-        // You may call `finishInitializingAllDynamoTableSchemas()` to synchronously
-        // initialize schemas.
-        //
-        // After initializing table schemas you may not construct any new
-        // table schemas.
-
-        assert(
-            dynamoTableSchemaInitializationCallbacks !== null,
-            "DynamoDB schemas have already initialized",
-        );
+        // You may call `finishInitializingDynamoTableSchemas()` to synchronously
+        // finish initializing schemas.
 
         if (dynamoTableSchemaInitializationCallbacks.length === 0) {
             scheduleMicrotask(() => {
-                if (willManuallyFinishInitializingAllDynamoTableSchemas) return;
-                if (dynamoTableSchemaInitializationCallbacks === null) return;
                 const callbacks = dynamoTableSchemaInitializationCallbacks;
-                dynamoTableSchemaInitializationCallbacks = null;
+                dynamoTableSchemaInitializationCallbacks = [];
                 for (const callback of callbacks) callback();
             });
         }
@@ -4434,28 +4423,19 @@ export function getAllConstructedDynamoTableSchemaIndexNames(): Array<{
     );
 }
 
-let willManuallyFinishInitializingAllDynamoTableSchemas = false;
-let dynamoTableSchemaInitializationCallbacks: Array<() => void> | null = [];
-
-export function setWillManuallyFinishInitializingAllDynamoTableSchemas() {
-    assert(
-        dynamoTableSchemaInitializationCallbacks !== null,
-        "DynamoDB schemas already initialized",
-    );
-    willManuallyFinishInitializingAllDynamoTableSchemas = true;
-}
+let dynamoTableSchemaInitializationCallbacks: Array<() => void> = [];
 
 /**
  * Finish initializing all our `DynamoTableSchema`s immediately instead of
  * waiting for a microtask callback.
  */
-export function finishInitializingAllDynamoTableSchemas() {
+export function finishInitializingDynamoTableSchemas() {
     assert(
         dynamoTableSchemaInitializationCallbacks !== null,
         "DynamoDB schemas already initialized",
     );
     const callbacks = dynamoTableSchemaInitializationCallbacks;
-    dynamoTableSchemaInitializationCallbacks = null;
+    dynamoTableSchemaInitializationCallbacks = [];
     for (const callback of callbacks) callback();
 }
 

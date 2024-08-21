@@ -69,6 +69,19 @@ index afff00e25a00e9196742b072c37f66db211d341d..e585e3e4db5c5b7c6e5cfef4299e8611
        }
      } else {
        serialized[key] = val;
+diff --git a/dist/esm/browser.js b/dist/esm/browser.js
+index 76196947af506a323934dbcacb8685d8a883f247..65a07fc4d5513e023146769062f1c73c58a67507 100644
+--- a/dist/esm/browser.js
++++ b/dist/esm/browser.js
+@@ -67,7 +67,7 @@ if (import.meta && import.meta.hot) {
+       if (!assetsManifest.routes[id]) {
+         return null;
+       }
+-      let imported = await import(assetsManifest.routes[id].module + `?t=${(_assetsManifest$hmr = assetsManifest.hmr) === null || _assetsManifest$hmr === void 0 ? void 0 : _assetsManifest$hmr.timestamp}`);
++      let imported = await import(/* @vite-ignore */ assetsManifest.routes[id].module + `?t=${(_assetsManifest$hmr = assetsManifest.hmr) === null || _assetsManifest$hmr === void 0 ? void 0 : _assetsManifest$hmr.timestamp}`);
+       return [id, {
+         ...imported,
+         // react-refresh takes care of updating these in-place,
 diff --git a/dist/esm/data.js b/dist/esm/data.js
 index 3561432fb72d91e5403247390d3a851619cf53ce..8aff740c1034cca846dca5c3c07f2f3f49bb25e5 100644
 --- a/dist/esm/data.js
@@ -155,10 +168,15 @@ index 9f487c5a068f238eca60982460f8270e497445cb..d5c4ad85462064dab0234849cc4864de
 +export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes, shouldHydrateRouteLoader } from './routes.js';
 +export { deserializeErrors } from './errors.js';
 diff --git a/dist/esm/routeModules.js b/dist/esm/routeModules.js
-index 88a2d4710006342c42bb1c2d8ecedc9effaf7708..679445d81d6c3831ccf14f9e866eebc889e79469 100644
+index 88a2d4710006342c42bb1c2d8ecedc9effaf7708..01ab968f2ae2899733194fc09b368ae44ceb5d7d 100644
 --- a/dist/esm/routeModules.js
 +++ b/dist/esm/routeModules.js
-@@ -65,24 +65,33 @@ async function loadRouteModule(route, routeModulesCache) {
+@@ -61,28 +61,37 @@ async function loadRouteModule(route, routeModulesCache) {
+     return routeModulesCache[route.id];
+   }
+   try {
+-    let routeModule = await import( /* webpackIgnore: true */route.module);
++    let routeModule = await import( /* webpackIgnore: true */ /* @vite-ignore */route.module);
      routeModulesCache[route.id] = routeModule;
      return routeModule;
    } catch (error) {
@@ -209,7 +227,7 @@ index 88a2d4710006342c42bb1c2d8ecedc9effaf7708..679445d81d6c3831ccf14f9e866eebc8
 +    throw error;
    }
  }
-
+ 
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
 index 44a0b4e39b459308cf1bd105fab69332e72cc856..f0e4e68e37b57127195e1a2a2fb13f9837b08b63 100644
 --- a/dist/esm/routes.js
@@ -264,10 +282,15 @@ index 72aaefa0ac982a913826e2b1d664076d20187dc0..e5615daf80396a407b3ddc36260bd41a
 +exports.shouldHydrateRouteLoader = routes.shouldHydrateRouteLoader;
 +exports.deserializeErrors = errors.deserializeErrors;
 diff --git a/dist/routeModules.js b/dist/routeModules.js
-index 096b724e7754194ae98227486c5186f0098fc64d..45410914198ce3e4f15dc2c9cce2a00c2a7e7040 100644
+index 096b724e7754194ae98227486c5186f0098fc64d..86274104797db76b7a6e2807cc7bed03b6999ba5 100644
 --- a/dist/routeModules.js
 +++ b/dist/routeModules.js
-@@ -87,24 +87,33 @@ async function loadRouteModule(route, routeModulesCache) {
+@@ -83,28 +83,37 @@ async function loadRouteModule(route, routeModulesCache) {
+     return routeModulesCache[route.id];
+   }
+   try {
+-    let routeModule = await (function (t) { return Promise.resolve().then(function () { return /*#__PURE__*/_interopNamespace(require(t)); }); })( /* webpackIgnore: true */route.module);
++    let routeModule = await (function (t) { return Promise.resolve().then(function () { return /*#__PURE__*/_interopNamespace(require(t)); }); })( /* webpackIgnore: true */ /* @vite-ignore */route.module);
      routeModulesCache[route.id] = routeModule;
      return routeModule;
    } catch (error) {
@@ -318,7 +341,7 @@ index 096b724e7754194ae98227486c5186f0098fc64d..45410914198ce3e4f15dc2c9cce2a00c
 +    throw error;
    }
  }
-
+ 
 diff --git a/dist/routes.d.ts b/dist/routes.d.ts
 index 47c3aff1afa72c19924fe3fe9c64713aab080eab..26731fecd2580c7e1b974e7f7ea7d22d5e2baff2 100644
 --- a/dist/routes.d.ts

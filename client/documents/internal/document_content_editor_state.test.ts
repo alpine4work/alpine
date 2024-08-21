@@ -1,6 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {Selection, TextSelection, Transaction} from "prosemirror-state";
-import {ReplaceStep, Step} from "prosemirror-transform";
+import {ReplaceStep} from "prosemirror-transform";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {
     DocumentContentEditorAction,
@@ -14,9 +14,9 @@ import {
     emptyDocumentContentReferences,
 } from "~/shared/documents/document_content_references.js";
 import {
-    DocumentContentProsemirrorSchema,
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
+    DocumentContentStepSchema as stepSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
@@ -915,7 +915,7 @@ test("collaborative update scenario", () => {
             steps: [
                 {
                     clientId: client1Id,
-                    step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                    step: stepSchema.deserialize({
                         stepType: "replace",
                         from: 14,
                         to: 14,
@@ -924,7 +924,7 @@ test("collaborative update scenario", () => {
                 },
                 {
                     clientId: client1Id,
-                    step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                    step: stepSchema.deserialize({
                         stepType: "replace",
                         from: 15,
                         to: 15,
@@ -933,7 +933,7 @@ test("collaborative update scenario", () => {
                 },
                 {
                     clientId: client1Id,
-                    step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                    step: stepSchema.deserialize({
                         stepType: "replace",
                         from: 16,
                         to: 16,
@@ -946,7 +946,7 @@ test("collaborative update scenario", () => {
     ];
 
     const doc = assertDocumentContent(
-        DocumentContentProsemirrorSchema.nodeFromJSON({
+        schema.nodeFromJSON({
             type: "doc",
             content: [
                 {type: "title"},
@@ -1039,8 +1039,8 @@ test("collaborative update scenario", () => {
         },
     ].map(({step, inverted}) => ({
         origin: createTransaction(),
-        step: Step.fromJSON(DocumentContentProsemirrorSchema, step),
-        inverted: Step.fromJSON(DocumentContentProsemirrorSchema, inverted),
+        step: stepSchema.deserialize(step),
+        inverted: stepSchema.deserialize(inverted),
     }));
 
     {
@@ -1069,7 +1069,7 @@ test("collaborative update scenario", () => {
                 steps: [
                     {
                         clientId: client2Id,
-                        step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                        step: stepSchema.deserialize({
                             stepType: "replace",
                             from: 17,
                             to: 17,
@@ -1078,7 +1078,7 @@ test("collaborative update scenario", () => {
                     },
                     {
                         clientId: client2Id,
-                        step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                        step: stepSchema.deserialize({
                             stepType: "replace",
                             from: 18,
                             to: 18,
@@ -1095,19 +1095,19 @@ test("collaborative update scenario", () => {
             clientId: client1Id,
             origins: [createTransaction(), createTransaction(), createTransaction()],
             steps: [
-                Step.fromJSON(DocumentContentProsemirrorSchema, {
+                stepSchema.deserialize({
                     stepType: "replace",
                     from: 11,
                     to: 11,
                     slice: {content: [{type: "text", text: "6"}]},
                 }),
-                Step.fromJSON(DocumentContentProsemirrorSchema, {
+                stepSchema.deserialize({
                     stepType: "replace",
                     from: 12,
                     to: 12,
                     slice: {content: [{type: "text", text: "1"}]},
                 }),
-                Step.fromJSON(DocumentContentProsemirrorSchema, {
+                stepSchema.deserialize({
                     stepType: "replace",
                     from: 13,
                     to: 13,

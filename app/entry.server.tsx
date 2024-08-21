@@ -9,7 +9,7 @@ import {isErrorCode} from "~/shared/error/error_code.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import sharedStylesHref from "~/shared/styles/styles.css";
+import stylesHref from "~/shared/styles/styles.css?url";
 
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.
@@ -90,7 +90,7 @@ export default async function handleRequest(
         // https://developers.cloudflare.com/workers/examples/103-early-hints
         responseHeaders.set(
             "link",
-            `<${sharedStylesHref}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
+            `<${stylesHref}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
         );
 
         const response = new Response("<!DOCTYPE html>" + markup, {

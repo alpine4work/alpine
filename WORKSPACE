@@ -218,7 +218,7 @@ load("@aspect_rules_esbuild//esbuild:repositories.bzl", "esbuild_register_toolch
 
 esbuild_register_toolchains(
     name = "esbuild",
-    esbuild_version = "0.17.10",
+    esbuild_version = "0.19.11",
 )
 
 # =========================================================================== #

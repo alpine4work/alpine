@@ -81,6 +81,9 @@ esbuild(
     ],
     output = "styles.js",
     output_css = "styles.css",
+    # Don't generate a source file since targets that depend on this file won't
+    # have access to the `:styles_internal` source files.
+    sourcemap = None,
     # Can't set `splitting` in the ESBuild config file.
     # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L60
     splitting = False,

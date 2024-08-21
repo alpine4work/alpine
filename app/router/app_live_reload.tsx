@@ -3,8 +3,8 @@ import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {setRemixIsLiveReloading} from "~/client/remix/is_remix_live_reloading.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {setDevServerIsRestarting} from "~/client/remix/is_dev_server_restarting.js";
+import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {navigationBarStyles} from "~/shared/styles/styles.js";
@@ -13,6 +13,12 @@ import {navigationBarStyles} from "~/shared/styles/styles.js";
  * This is a fork of the [`<LiveReload>` component in `@remix-run/react`][1].
  *
  * We forked this component so we could render custom UI on live reload.
+ *
+ * After switching to Vite for our developer environment, `<LiveReload>` is no
+ * longer required by Remix. However, we've re-branded the old "Remix dev
+ * server" to the "Bazel dev server" which reports build status to the
+ * developer. So we still use this component for Bazel build UI and Bazel full
+ * page reloads.
  *
  * [1]: https://github.com/remix-run/remix/blob/d8f403490baef9b2814f7c2b984294bf08fc09df/packages/remix-react/components.tsx#L1777-L1886
  */
@@ -23,7 +29,7 @@ if (process.env.NODE_ENV !== "development") {
         return null;
     };
 } else {
-    AppLiveReload = function AppLiveReload({port}: {port: number}) {
+    AppLiveReload = function AppLiveReload({port, isMobile}: {port: number; isMobile: boolean}) {
         const messageRef = useRef<HTMLDivElement>(null);
 
         const [messageState, setMessageState] = useState<{
@@ -33,28 +39,37 @@ if (process.env.NODE_ENV !== "development") {
         } | null>(null);
 
         useEffect(() => {
-            (window as any).__onRemixLiveReloadEvent = (
+            (window as any).__onBazelLiveReloadEvent = (
                 event: {type: "LOG"; message: string} | {type: "RELOAD"},
             ) => {
                 if (event.type === "LOG") {
-                    const message = event.message.replace(/^\[remix\] /, "");
+                    const message = event.message.replace(/^\[bazel\] /, "");
 
                     setMessageState(previousMessageState => ({
                         message,
                         // If we see a message that starts with "Building" then we expect a "Built" (or
-                        // failed to build) message next. So extend the expiration time so the developer
-                        // is waiting for the "Built" message.
+                        // "Failed to build") message next. So extend the expiration time so the
+                        // developer is waiting for the "Built" message.
+                        //
+                        // If the message is "Built" (and not "Failed to build") expire the banner
+                        // quickly since it might be from a hot reload. When there's a full reload we
+                        // get `event.type === "RELOAD"` which removes the expiration time.
                         expirationTime:
-                            Date.now() + (message.startsWith("Building ") ? 20_000 : 1_500),
+                            Date.now() +
+                            (message.startsWith("Building ")
+                                ? 20_000
+                                : message.startsWith("Built ")
+                                ? 250
+                                : 1_500),
                         animation: !previousMessageState ? "In" : null,
                     }));
                 }
 
                 // If we are reloading then keep the message around until the reload finishes.
                 if (event.type === "RELOAD") {
-                    // Disable certain error messages (like WebSocket lost connection) while Remix
-                    // is live reloading...
-                    setRemixIsLiveReloading();
+                    // Disable certain error messages (like WebSocket lost connection) while
+                    // we're reloading...
+                    setDevServerIsRestarting();
 
                     setMessageState(previousMessageState => {
                         if (previousMessageState === null) return null;
@@ -64,7 +79,7 @@ if (process.env.NODE_ENV !== "development") {
             };
 
             return () => {
-                delete (window as any).__onRemixLiveReloadMessageEvent;
+                delete (window as any).__onBazelLiveReloadMessageEvent;
             };
         }, []);
 
@@ -160,9 +175,17 @@ if (process.env.NODE_ENV !== "development") {
                                 // We don't want to import `navigation_bar.tsx` to avoid including that
                                 // file in this bundle. Instead use `navigationBarStyles` since the CSS is
                                 // available in every bundle.
-                                height={{
-                                    desktop: navigationBarStyles.desktopNavigationBarHeight,
-                                    mobile: navigationBarStyles.mobileNavigationBarHeight,
+                                style={{
+                                    height: subtractRemLengths(
+                                        spacing[
+                                            navigationBarStyles[
+                                                isMobile
+                                                    ? "mobileNavigationBarHeight"
+                                                    : "desktopNavigationBarHeight"
+                                            ]
+                                        ],
+                                        spacing["4"],
+                                    ),
                                 }}
                             >
                                 <Box fontStyle="truncate-code">{messageState.message}</Box>
@@ -174,7 +197,7 @@ if (process.env.NODE_ENV !== "development") {
                     suppressHydrationWarning
                     dangerouslySetInnerHTML={{
                         __html: `\
-function remixLiveReloadConnect(config) {
+function bazelLiveReloadConnect(config) {
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const host = location.hostname;
     const socketPath = protocol + "//" + host + ":${port}/socket";
@@ -184,22 +207,14 @@ function remixLiveReloadConnect(config) {
         let event = JSON.parse(message.data);
 
         if (event.type === "LOG") {
-            console.log(event.message);
-            window.__onRemixLiveReloadEvent?.(event);
+            console.debug(event.message);
+            window.__onBazelLiveReloadEvent?.(event);
         }
 
         if (event.type === "RELOAD") {
-            console.log("[remix] Reloading window...");
+            console.debug("[bazel] Reloading window...");
             window.location.reload();
-            window.__onRemixLiveReloadEvent?.(event);
-        }
-
-        if (event.type === "HMR") {
-            // NOTE(calebmer): HMR support removed. We don't use this version of Remix's
-            // HMR support. Remix is upgrading to Vite. We should try using [Remix's Vite
-            // support for HMR][1] when it's ready.
-            //
-            // [1]: https://remix.run/blog/remix-heart-vite
+            window.__onBazelLiveReloadEvent?.(event);
         }
     };
 
@@ -211,9 +226,9 @@ function remixLiveReloadConnect(config) {
 
     ws.onclose = (event) => {
         if (event.code === 1006) {
-            console.error(\`Remix dev server WebSocket closed unexpectedly with code \${event.code}\${event.reason ? \`and reason "\${event.reason}"\` : ""}\${!event.wasClean ? " (did not close cleanly)" : ""}. Reconnecting...\`);
+            console.error(\`Bazel dev server WebSocket closed unexpectedly with code \${event.code}\${event.reason ? \`and reason "\${event.reason}"\` : ""}\${!event.wasClean ? " (did not close cleanly)" : ""}. Reconnecting...\`);
             setTimeout(() => {
-                remixLiveReloadConnect({
+                bazelLiveReloadConnect({
                     onOpen: () => window.location.reload(),
                 });
             }, 1000);
@@ -221,7 +236,7 @@ function remixLiveReloadConnect(config) {
     };
 }
 
-remixLiveReloadConnect();
+bazelLiveReloadConnect();
 `,
                     }}
                 />

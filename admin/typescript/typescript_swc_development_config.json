@@ -16,7 +16,8 @@
         "transform": {
             "react": {
                 "runtime": "automatic",
-                "development": true
+                "development": true,
+                "refresh": true
             }
         }
     },

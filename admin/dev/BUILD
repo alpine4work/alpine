@@ -1,5 +1,6 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
+load("//app:app_entry_point_srcs.bzl", "APP_ENTRY_POINT_SRCS")
 
 ts_project(
     name = "dev_lib",
@@ -9,11 +10,13 @@ ts_project(
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
     ],
     deps = [
+        ":app_entry_point_paths_lib",
         "//:node_modules/@inquirer/prompts",
         "//:node_modules/@types/express",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
         "//:node_modules/@types/ws",
+        "//:node_modules/ansi-styles",
         "//:node_modules/chalk",
         "//:node_modules/chokidar",
         "//:node_modules/express",
@@ -35,6 +38,22 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
     ],
+)
+
+genrule(
+    name = "app_entry_point_paths",
+    outs = ["app_entry_point_paths.js"],
+    cmd = "echo \"export const appEntryPointPaths = new Set([\n{}]);\" > \"$@\"".format(
+        "".join([
+            "    \\\"{}\\\",\n".format(label)
+            for label in APP_ENTRY_POINT_SRCS
+        ]),
+    ),
+)
+
+js_library(
+    name = "app_entry_point_paths_lib",
+    srcs = [":app_entry_point_paths"],
 )
 
 js_binary(

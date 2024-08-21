@@ -42,6 +42,7 @@ ts_project(
     visibility = [
         "//admin/dynamo:__pkg__",
         "//admin/opensearch/deploy:__pkg__",
+        "//app:__pkg__",
         "//server/accounts/update_name:__pkg__",
         "//server/jobs/queue:__pkg__",
         "//server/migration:__pkg__",

@@ -1,22 +1,22 @@
 diff --git a/dist/vanilla-extract-integration.cjs.dev.js b/dist/vanilla-extract-integration.cjs.dev.js
-index 02fde7da688663a9a88dfe73bdd9f891c434e160..15e886ec7f735594d16fe82e1ea377bf17d6afca 100644
+index fcedd61c17e6ea740b3f270a1bbae1c343b542e9..cdacf248a9eaf9aa4791c570ebc1985118cc9826 100644
 --- a/dist/vanilla-extract-integration.cjs.dev.js
 +++ b/dist/vanilla-extract-integration.cjs.dev.js
-@@ -310,7 +310,6 @@ const vanillaExtractFilescopePlugin = () => ({
+@@ -456,7 +456,6 @@ const vanillaExtractTransformPlugin = ({
+ }) => ({
    name: 'vanilla-extract-filescope',
- 
    setup(build) {
 -    const packageInfo = getPackageInfo(build.initialOptions.absWorkingDir);
      build.onLoad({
        filter: cssFileFilter
      }, async ({
-@@ -319,9 +318,15 @@ const vanillaExtractFilescopePlugin = () => ({
+@@ -465,9 +464,15 @@ const vanillaExtractTransformPlugin = ({
        const originalSource = await fs.promises.readFile(path$1, 'utf-8');
-       const source = addFileScope({
+       const source = await transform({
          source: originalSource,
 -        filePath: path$1,
 -        rootPath: build.initialOptions.absWorkingDir,
--        packageName: packageInfo.name
+-        packageName: packageInfo.name,
 +        // NOTE(calebmer): Replace platform specific
 +        // `bazel-out/${platform}-${compilationMode}/bin` path with platform
 +        // neutral `bazel-bin`. That way hashes are consistent across platforms
@@ -26,28 +26,28 @@ index 02fde7da688663a9a88dfe73bdd9f891c434e160..15e886ec7f735594d16fe82e1ea377bf
 +        // NOTE(calebmer): Hardcode package name since it is annoying to make
 +        // `package.json` available to Bazel hermetic builds.
 +        packageName: "cyberworlds",
+         identOption: identOption ?? (build.initialOptions.minify ? 'short' : 'debug')
        });
        return {
-         contents: source,
 diff --git a/dist/vanilla-extract-integration.cjs.prod.js b/dist/vanilla-extract-integration.cjs.prod.js
-index 34629118701b35046d2d0ddad450a315061daef4..7508474a5604fa03c70ced3186bd58cfb30652eb 100644
+index 61d28b2293909013fe9a8d3e0b89ddc180aced98..b4f43bad41e17ba55099eb3ab933ae854684d057 100644
 --- a/dist/vanilla-extract-integration.cjs.prod.js
 +++ b/dist/vanilla-extract-integration.cjs.prod.js
-@@ -310,7 +310,6 @@ const vanillaExtractFilescopePlugin = () => ({
+@@ -456,7 +456,6 @@ const vanillaExtractTransformPlugin = ({
+ }) => ({
    name: 'vanilla-extract-filescope',
- 
    setup(build) {
 -    const packageInfo = getPackageInfo(build.initialOptions.absWorkingDir);
      build.onLoad({
        filter: cssFileFilter
      }, async ({
-@@ -319,9 +318,15 @@ const vanillaExtractFilescopePlugin = () => ({
+@@ -465,9 +464,15 @@ const vanillaExtractTransformPlugin = ({
        const originalSource = await fs.promises.readFile(path$1, 'utf-8');
-       const source = addFileScope({
+       const source = await transform({
          source: originalSource,
 -        filePath: path$1,
 -        rootPath: build.initialOptions.absWorkingDir,
--        packageName: packageInfo.name
+-        packageName: packageInfo.name,
 +        // NOTE(calebmer): Replace platform specific
 +        // `bazel-out/${platform}-${compilationMode}/bin` path with platform
 +        // neutral `bazel-bin`. That way hashes are consistent across platforms
@@ -57,6 +57,6 @@ index 34629118701b35046d2d0ddad450a315061daef4..7508474a5604fa03c70ced3186bd58cf
 +        // NOTE(calebmer): Hardcode package name since it is annoying to make
 +        // `package.json` available to Bazel hermetic builds.
 +        packageName: "cyberworlds",
+         identOption: identOption ?? (build.initialOptions.minify ? 'short' : 'debug')
        });
        return {
-         contents: source,

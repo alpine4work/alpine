@@ -53,7 +53,7 @@ js_binary(
 
 production_transition(
     name = "edge_service_bundle_file_production",
-    src = ":edge_service_bundle_file",
+    target = ":edge_service_bundle_file",
 )
 
 wrangler_bin.wrangler_binary(

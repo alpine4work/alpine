@@ -394,7 +394,7 @@ index cd2f4c3ccdd624cd47d44b802319a1c967719897..e04eb32a18d3e9adcbb274af635a3c6f
      };
    });
 diff --git a/dist/esm/server.js b/dist/esm/server.js
-index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8caca42a066 100644
+index 9c9460d22233eb9345e08c821239866ac88b86cb..6022ee49d56b498cf18cd1ec0e06b24bde60f2f7 100644
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
 @@ -25,7 +25,7 @@ import { resourceRouteJsonWarning } from './deprecations.js';
@@ -429,14 +429,25 @@ index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8ca
      let params = matches && matches.length > 0 ? matches[0].params : {};
      let handleError = error => {
        if (mode === ServerMode.Development) {
-@@ -145,7 +148,28 @@ const createRequestHandler = (build, mode) => {
+@@ -145,7 +148,39 @@ const createRequestHandler = (build, mode) => {
        });
      }
      return response;
 +  }
 +
 +  requestHandler.matchServerRoutes = url => {
-+    _build = typeof build === "function" ? (() => { throw new Error("`build` as a function is unsupported") })() : build;
++    if (typeof build !== "function") {
++      _build = build;
++      return actuallyMatchServerRoutes(url);
++    } else {
++      return build().then(buildResult => {
++        _build = buildResult;
++        return actuallyMatchServerRoutes(url);
++      });
++    }
+   };
++
++  function actuallyMatchServerRoutes(url) {
 +    mode ??= _build.mode;
 +    if (typeof build === "function") {
 +      let derived = derive(_build, mode);
@@ -452,7 +463,7 @@ index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8ca
 +      errorHandler = derived.errorHandler;
 +    }
 +    return matchServerRoutes(routes, url.pathname, _build.basename);
-   };
++  }
 +
 +  return requestHandler
  };
@@ -546,7 +557,7 @@ index eb216c8bbc76b42ccf439e2e6820bfb601c30af9..79145cfecfe316168349fd78ae969a9c
      };
    });
 diff --git a/dist/server.d.ts b/dist/server.d.ts
-index f553eef46e608b6fa0aeb899dc49e81990098328..7cc6f9ebd7eed6bf2f96cc89796c67de13dc02f0 100644
+index f553eef46e608b6fa0aeb899dc49e81990098328..7ab850771aaca62718b2e4b33522c3787b345abd 100644
 --- a/dist/server.d.ts
 +++ b/dist/server.d.ts
 @@ -1,5 +1,12 @@
@@ -559,12 +570,12 @@ index f553eef46e608b6fa0aeb899dc49e81990098328..7cc6f9ebd7eed6bf2f96cc89796c67de
 +// request handler. We need matches outside this function to initialize our
 +// tracer.
 +export type RequestHandler = ((request: Request, loadContext?: AppLoadContext, preMatch?: {url: URL; matches: RouteMatch<ServerRoute>[] | null}) => Promise<Response>) & {
-+  matchServerRoutes(url: URL): RouteMatch<ServerRoute>[] | null;
++  matchServerRoutes(url: URL): RouteMatch<ServerRoute>[] | null | Promise<RouteMatch<ServerRoute>[] | null>;
 +};
  export type CreateRequestHandlerFunction = (build: ServerBuild | (() => ServerBuild | Promise<ServerBuild>), mode?: string) => RequestHandler;
  export declare const createRequestHandler: CreateRequestHandlerFunction;
 diff --git a/dist/server.js b/dist/server.js
-index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..84b18175f84b2e9c54e6fc0575e1d79619a6a555 100644
+index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..e0ff0668e3e41e2d4e6b82a151105bf9a600c1e6 100644
 --- a/dist/server.js
 +++ b/dist/server.js
 @@ -29,7 +29,7 @@ var deprecations = require('./deprecations.js');
@@ -599,31 +610,41 @@ index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..84b18175f84b2e9c54e6fc0575e1d796
      let params = matches && matches.length > 0 ? matches[0].params : {};
      let handleError = error => {
        if (mode$1 === mode.ServerMode.Development) {
-@@ -149,7 +152,28 @@ const createRequestHandler = (build, mode$1) => {
+@@ -149,7 +152,39 @@ const createRequestHandler = (build, mode$1) => {
        });
      }
      return response;
--  };
 +  }
 +
 +  requestHandler.matchServerRoutes = url => {
-+    _build = typeof build === "function" ? (() => { throw new Error("`build` as a function is unsupported") })() : build;
-+    mode$1 ??= _build.mode;
++    if (typeof build !== "function") {
++      _build = build;
++      return actuallyMatchServerRoutes(url);
++    } else {
++      return build().then(buildResult => {
++        _build = buildResult;
++        return actuallyMatchServerRoutes(url);
++      });
++    }
+   };
++
++  function actuallyMatchServerRoutes(url) {
++    mode ??= _build.mode;
 +    if (typeof build === "function") {
-+      let derived = derive(_build, mode$1);
++      let derived = derive(_build, mode);
 +      routes = derived.routes;
 +      serverMode = derived.serverMode;
 +      staticHandler = derived.staticHandler;
 +      errorHandler = derived.errorHandler;
 +    } else if (!routes || !serverMode || !staticHandler || !errorHandler) {
-+      let derived = derive(_build, mode$1);
++      let derived = derive(_build, mode);
 +      routes = derived.routes;
 +      serverMode = derived.serverMode;
 +      staticHandler = derived.staticHandler;
 +      errorHandler = derived.errorHandler;
 +    }
 +    return routeMatching.matchServerRoutes(routes, url.pathname, _build.basename);
-+  };    
++  }
 +
 +  return requestHandler;
  };

@@ -7,6 +7,9 @@ import {runProcess} from "~/server/helpers/node/run_process.js";
  * Our file watcher uses this to know which targets we need to rebuild when a
  * file changes. If a `BUILD` file changes then we need to re-query
  * dependencies.
+ *
+ * One of the packages we return may be the empty string. This refers to the
+ * root package.
  */
 export function queryBazelTargetDependencyPackagePaths(target: string): Promise<Array<string>> {
     return bazelExecutableMutex.withLock(async () => {
@@ -19,6 +22,12 @@ export function queryBazelTargetDependencyPackagePaths(target: string): Promise<
             },
         );
 
-        return queryResult.trim().split("\n");
+        return (
+            queryResult
+                // Replace a single trailing newline. We may have an empty string which refers
+                // to the root package.
+                .replace(/\n$/, "")
+                .split("\n")
+        );
     });
 }

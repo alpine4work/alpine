@@ -109,7 +109,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
         );
     };
 
-    const rootPath = joinPath(runfilesPath, "cyberworlds/app/static");
+    const rootPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
     await traverse("", rootPath);
 
     const newFilesByPath = new Map(oldFilesByPath);

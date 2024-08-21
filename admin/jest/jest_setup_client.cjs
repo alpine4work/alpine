@@ -18,6 +18,11 @@ const {TextEncoder, TextDecoder} = require("util");
 // client code which runs in a browser has access to the web Crypto API.
 globalThis.crypto = crypto.webcrypto;
 
+// Globals expected by the `react-refresh` transform applied by SWC.
+// `react-refresh` functions noop in tests.
+globalThis.$RefreshReg$ = () => {};
+globalThis.$RefreshSig$ = () => value => value;
+
 // NOTE(calebmer): It would appear that when upgrading to Node.js v20 there is
 // now a read-only global `performance` property. Reassign the property but
 // make it writable so `jest.useFakeTimers()` can override it.

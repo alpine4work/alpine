@@ -76,6 +76,6 @@ oci_tarball(
 
 production_transition(
     name = "realtime_image_tarball_production",
-    src = ":realtime_image_tarball",
+    target = ":realtime_image_tarball",
     visibility = ["//admin/aws:__pkg__"],
 )

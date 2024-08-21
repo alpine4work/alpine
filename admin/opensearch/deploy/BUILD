@@ -23,6 +23,6 @@ aws_lambda(
 
 production_transition(
     name = "deploy_production",
-    src = ":deploy",
+    target = ":deploy",
     visibility = ["//admin/aws:__pkg__"],
 )

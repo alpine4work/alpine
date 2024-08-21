@@ -19,8 +19,8 @@ export async function createTransformersModel(basePath: string) {
         //
         // We do the funky `string + cast(string)` syntax so the import path can't
         // be statically analyzed by esbuild.
-        import("@xenova/" + cast("transformers")),
-        import("@xenova/" + cast("transformers/src/backends/onnx.js")),
+        import(/* @vite-ignore */ "@xenova/" + cast("transformers")),
+        import(/* @vite-ignore */ "@xenova/" + cast("transformers/src/backends/onnx.js")),
     ]);
 
     const [configContents, onnxModelQuantizedContents] = await runAllPromises([

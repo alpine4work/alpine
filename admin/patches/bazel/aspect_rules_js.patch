@@ -1,45 +1,65 @@
 diff --git a/js/private/js_run_binary.bzl b/js/private/js_run_binary.bzl
-index 7eff984c..bd374ce1 100644
+index 7eff984c..15febc93 100644
 --- a/js/private/js_run_binary.bzl
 +++ b/js/private/js_run_binary.bzl
-@@ -374,7 +374,36 @@ See https://github.com/aspect-build/rules_js/tree/main/docs#using-binaries-publi
+@@ -374,7 +374,9 @@ See https://github.com/aspect-build/rules_js/tree/main/docs#using-binaries-publi
      _run_binary(
          name = name,
          tool = tool,
 -        env = dicts.add(fixed_env, env),
-+        # NOTE(calebmer): So some npm packages like `utf-8-validate` and `bufferutil`
-+        # have native C code that's compiled in a lifecycle hook (e.g. `postinstall`)
-+        # by `node-gyp rebuild`. `aspect_rules_js` is smart enough to set
-+        # `npm_config_arch=x64` (used by `node-gyp-build`) which makes sure to pass the
-+        # right arguments to the C compiler for cross compilation. But it's not smart
-+        # enough to configure the right cross-compiler `CC` and `CXX` tools. So we get
-+        # an error as we try to use options for the x86_64 C compiler with the host's
-+        # arm64 C compiler.
-+        #
-+        # We install x86_64 cross compilers on our arm64 Linux GitHub runner with
-+        # `apt-get install crossbuild-essential-amd64`. This gives us a cross compiler
-+        # at `/usr/bin/x86_64-linux-gnu-gcc`. Next, we need to set the `CC` and `CXX`
-+        # environment variables so `node-gyp` in a lifecycle hook can use the right C
-+        # compiler. We do that here.
-+        #
-+        # It's hacky for sure that we push this logic into `js_run_binary()` and check
-+        # `mnemonic == "NpmLifecycleHook"`. But we can't put this logic in the
-+        # `js_run_binary()` call in `npm_import.bzl` (where ideally this would go)
-+        # since `select()` doesn't work with the `dicts.add()` bit in here.
-+        env = dicts.add(fixed_env, env) if not mnemonic == "NpmLifecycleHook" else select({
-+            "@aspect_rules_js//platforms/os:linux_host_and_cpu_arm64": dicts.add(dicts.add(fixed_env, env), {
-+                "CC": "/usr/bin/aarch64-linux-gnu-gcc",
-+                "CXX": "/usr/bin/aarch64-linux-gnu-g++",
-+            }),
-+            "@aspect_rules_js//platforms/os:linux_host_and_cpu_x86_64": dicts.add(dicts.add(fixed_env, env), {
-+                "CC": "/usr/bin/x86_64-linux-gnu-gcc",
-+                "CXX": "/usr/bin/x86_64-linux-gnu-g++",
-+            }),
-+            "//conditions:default": dicts.add(fixed_env, env),
-+        }),
++        # NOTE(calebmer): Use dictionary union syntax which supports merging
++        # dictionaries that contain `select({})`.
++        env = fixed_env | env,
          srcs = srcs + extra_srcs,
          outs = outs + extra_outs,
          out_dirs = out_dirs,
+diff --git a/npm/private/npm_import.bzl b/npm/private/npm_import.bzl
+index d71b5ef4..e87b0018 100644
+--- a/npm/private/npm_import.bzl
++++ b/npm/private/npm_import.bzl
+@@ -122,6 +122,23 @@ def npm_imported_package_store(name):
+     )
+ """
+ 
++# NOTE(calebmer): (This comment refers to the
++# `{lifecycle_hooks_env} | select({})` change we patch in below).
++#
++# Some npm packages like `utf-8-validate` and `bufferutil` have native C code
++# that's compiled in a lifecycle hook (e.g. `postinstall`) by
++# `node-gyp rebuild`. `aspect_rules_js` is smart enough to set
++# `npm_config_arch=x64` (used by `node-gyp-build`) which makes sure to pass the
++# right arguments to the C compiler for cross compilation. But it's not smart
++# enough to configure the right cross-compiler `CC` and `CXX` tools. So we get
++# an error as we try to use options for the x86_64 C compiler with the host's
++# arm64 C compiler.
++#
++# We install x86_64 cross compilers on our arm64 Linux GitHub runner with
++# `apt-get install crossbuild-essential-amd64`. This gives us a cross compiler
++# at `/usr/bin/x86_64-linux-gnu-gcc`. Next, we need to set the `CC` and `CXX`
++# environment variables so `node-gyp` in a lifecycle hook can use the right C
++# compiler. We do that here.
+ _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
+     lc_deps = {lc_deps}
+ 
+@@ -189,7 +206,17 @@ _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
+         execution_requirements = {lifecycle_hooks_execution_requirements},
+         mnemonic = "NpmLifecycleHook",
+         progress_message = "Running lifecycle hooks on npm package {package}@{version}",
+-        env = {lifecycle_hooks_env},{maybe_use_default_shell_env}
++        env = {lifecycle_hooks_env} | select({{
++            "@aspect_rules_js//platforms/os:linux_host_and_cpu_arm64": {{
++                "CC": "/usr/bin/aarch64-linux-gnu-gcc",
++                "CXX": "/usr/bin/aarch64-linux-gnu-g++",
++            }},
++            "@aspect_rules_js//platforms/os:linux_host_and_cpu_x86_64": {{
++                "CC": "/usr/bin/x86_64-linux-gnu-gcc",
++                "CXX": "/usr/bin/x86_64-linux-gnu-g++",
++            }},
++            "//conditions:default": {{}},
++        }}),{maybe_use_default_shell_env}
+     )
+ 
+     # post-lifecycle npm_package
 diff --git a/platforms/os/BUILD.bazel b/platforms/os/BUILD.bazel
 index 9cc3129b..874795a2 100644
 --- a/platforms/os/BUILD.bazel

@@ -3,7 +3,7 @@ load("//admin/playwright:playwright.bzl", "ts_playwright_tests")
 ts_playwright_tests(
     name = "integration_tests",
     data = [
-        "//app",
+        "//app:app_test",
         "//server/apns:apns_development_certificates",
         "//server/edge",
         "//server/jobs/queue",

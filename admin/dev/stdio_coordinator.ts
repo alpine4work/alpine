@@ -1,3 +1,4 @@
+import fs from "fs";
 import ansiStyles from "ansi-styles";
 import chalk from "chalk";
 import {ChildProcess, ChildProcessByStdio, SpawnOptionsWithoutStdio, spawn} from "child_process";
@@ -9,8 +10,10 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
+// NOCOMMIT
+const debugStream = fs.createWriteStream("/Users/calebmer/Projects/cyberworlds/.local/dev.debug");
+
 type AnsiCode = {
-    readonly codeBytes: Buffer;
     readonly code: string;
     readonly endCode: string;
 };
@@ -116,7 +119,6 @@ function transformChunk(chunk: Buffer): ReadonlyArray<ChunkLine> {
                 const codeString = code.toString("utf8");
 
                 chunkLines[chunkLines.length - 1]!.activeCodes.push({
-                    codeBytes: code,
                     code: codeString,
                     endCode: getAnsiEndCode(codeString),
                 });
@@ -498,6 +500,7 @@ function writeWithStdioPrefix(
 
     const firstChunkLine = chunkLines[0]!;
     let activeCodes = activeCodesByWritePrefix.get(previousWritePrefix) ?? emptyArray;
+    const startActiveCodes = activeCodes;
 
     // 1. If we're changing the prefix:
     if (prefix !== previousWritePrefix) {
@@ -629,4 +632,17 @@ function writeWithStdioPrefix(
     // Save current styles
     previousWritePrefix = prefix;
     activeCodesByWritePrefix.set(prefix, activeCodes);
+
+    debugStream.write(
+        JSON.stringify({
+            stream: stream === process.stdout ? "stdout" : "stderr",
+            prefix,
+            chunkLines: chunkLines.map(chunkLine => ({
+                chunks: chunkLine.chunks.map(chunk => chunk.toString("utf8")),
+                activeCodes: chunkLine.activeCodes,
+            })),
+            startActiveCodes,
+            endActiveCodes: activeCodes,
+        }) + "\n",
+    );
 }
