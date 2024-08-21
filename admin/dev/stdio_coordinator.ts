@@ -1,17 +1,12 @@
-import fs from "fs";
 import ansiStyles from "ansi-styles";
 import chalk from "chalk";
 import {ChildProcess, ChildProcessByStdio, SpawnOptionsWithoutStdio, spawn} from "child_process";
-import {Readable} from "stream";
-import {WriteStream} from "tty";
+import {Readable, Writable} from "stream";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-
-// NOCOMMIT
-const debugStream = fs.createWriteStream("/Users/calebmer/Projects/cyberworlds/.local/dev.debug");
 
 type AnsiCode = {
     readonly code: string;
@@ -114,7 +109,7 @@ function transformChunk(chunk: Buffer): ReadonlyArray<ChunkLine> {
         // Derived from `tokenize()` function of `slice-ansi`:
         // https://github.com/chalk/slice-ansi/blob/400a6ca5c23db8e71bf62d9ebf6082796ce5a7c6/index.js#L65-L104
         if (byte === ansiEscapeByte) {
-            const code = parseAnsiCode(chunk, offset + index);
+            const code = parseAnsiCode(chunk, index);
             if (code !== null) {
                 const codeString = code.toString("utf8");
 
@@ -135,6 +130,11 @@ function transformChunk(chunk: Buffer): ReadonlyArray<ChunkLine> {
     lastChunkLine.activeCodes = reduceAnsiCodes(lastChunkLine.activeCodes);
 
     return chunkLines;
+}
+
+export function transformChunkForTest(chunk: Buffer): ReadonlyArray<ChunkLine> {
+    assert(import.meta.jest);
+    return transformChunk(chunk);
 }
 
 /**
@@ -492,7 +492,7 @@ function mergeAnsiCodes(
  * with a prefix then it needs to be ended with a newline.
  */
 function writeWithStdioPrefix(
-    stream: WriteStream,
+    stream: Writable,
     chunkLines: ReadonlyArray<ChunkLine>,
     prefix: string | null,
 ) {
@@ -500,7 +500,6 @@ function writeWithStdioPrefix(
 
     const firstChunkLine = chunkLines[0]!;
     let activeCodes = activeCodesByWritePrefix.get(previousWritePrefix) ?? emptyArray;
-    const startActiveCodes = activeCodes;
 
     // 1. If we're changing the prefix:
     if (prefix !== previousWritePrefix) {
@@ -632,17 +631,13 @@ function writeWithStdioPrefix(
     // Save current styles
     previousWritePrefix = prefix;
     activeCodesByWritePrefix.set(prefix, activeCodes);
+}
 
-    debugStream.write(
-        JSON.stringify({
-            stream: stream === process.stdout ? "stdout" : "stderr",
-            prefix,
-            chunkLines: chunkLines.map(chunkLine => ({
-                chunks: chunkLine.chunks.map(chunk => chunk.toString("utf8")),
-                activeCodes: chunkLine.activeCodes,
-            })),
-            startActiveCodes,
-            endActiveCodes: activeCodes,
-        }) + "\n",
-    );
+export function writeWithStdioPrefixForTest(
+    stream: Writable,
+    chunkLines: ReadonlyArray<ChunkLine>,
+    prefix: string | null,
+) {
+    assert(import.meta.jest);
+    writeWithStdioPrefix(stream, chunkLines, prefix);
 }
