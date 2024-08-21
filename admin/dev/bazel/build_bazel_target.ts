@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import {bazelExecutableMutex, bazelExecutablePath} from "~/admin/dev/bazel/bazel_executable.js";
-import {spawnWithBlockingStdio, writeWithStdioPrefix} from "~/admin/dev/stdio_coordinator.js";
+import {spawnWithBlockingStdio} from "~/admin/dev/stdio_coordinator.js";
 import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -135,13 +135,9 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
         {
             cwd: getWorkspacePath(),
             env: process.env,
-            onStdioBlocked: () => {
+            onStdioBlocked: writeStdout => {
                 // Explain what the following process output is.
-                writeWithStdioPrefix(
-                    process.stdout,
-                    `\n\n${chalk.dim("$")} bazel build ${chalk.bold(targets.join(" "))}\n`,
-                    null,
-                );
+                writeStdout(`\n\n${chalk.dim("$")} bazel build ${chalk.bold(targets.join(" "))}\n`);
             },
         },
     );
