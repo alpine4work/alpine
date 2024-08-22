@@ -68,8 +68,6 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-// NOCOMMIT: xxxxxxxxxxxxxxxxxxxxxx
-
 const staticPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
 const staticAssetsPath = joinPath(staticPath, "assets");
 const staticFontsPath = joinPath(staticPath, "fonts");

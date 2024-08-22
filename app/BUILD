@@ -7,7 +7,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 load("//admin/esbuild:esbuild_runfiles_aspect.bzl", "esbuild_runfiles_without_sources")
 load("//app:app_wrapper_srcs.bzl", "APP_WRAPPER_SRCS")
 
-# NOCOMMIT: Document why we have a separate `:app_wrapper_lib`.
+# `app_wrapper` is a slim binary that runs `AppService` in development. We run
+# the Vite dev server inside `app_wrapper` and that's what serves our Remix
+# code. Vite watches for changes to files in Bazel's output directory and hot
+# reloads the browser.
 ts_project(
     name = "app_wrapper_lib",
     srcs = APP_WRAPPER_SRCS,
@@ -124,7 +127,10 @@ ts_project(
     ],
 )
 
-# NOCOMMIT: Document what's happening
+# Files the Vite dev server watches. Our dev process manager will keep this
+# target up-to-date in Bazel's output directory then the Vite dev server
+# watches Bazel's output directory and hot reloads the browser if it detects
+# a relevant file change.
 filegroup(
     name = "app",
     # It's important that we use `data` instead of `srcs`! `data` puts our files in
@@ -139,7 +145,6 @@ filegroup(
     ],
 )
 
-# NOCOMMIT: Document difference between this, `app_test` and `app_production`.
 # NOCOMMIT: Try to reduce down app wrapper. Maybe even getting rid of the weird
 # `instanceof` context checks.
 js_binary(
@@ -218,7 +223,7 @@ output_files(
 # However, the concept is the same. Bundlers bundle source files so we need
 # `:app_lib`'s runfiles excluding source files.
 esbuild_runfiles_without_sources(
-    name = "app_data",
+    name = "app_runfiles",
     target = ":app_lib",
 )
 
@@ -234,32 +239,36 @@ production_transition(
     visibility = ["//server/deploy/script:__pkg__"],
 )
 
+# `AppService` binary we run in integration tests. We want to use our Vite
+# build (vs the Vite dev server) in integration tests to build confidence our
+# product will work in production.
 js_binary(
     name = "app_test",
     data = [
         ":app_build",
-        ":app_data",
+        ":app_runfiles",
     ],
     entry_point = "build/server/app_service.js",
-    no_copy_to_bin = [":app_data"],
+    no_copy_to_bin = [":app_runfiles"],
     visibility = ["//app/integration_tests:__pkg__"],
 )
 
-# The container image we build for `AppService` is for production so doesn't
-# include client files which we only serve from `AppService` in
-# development/test. In production client files are served from Cloudflare R2.
-#
 # Doesn't use `production_transition()` because we apply
 # `production_transition()` at the end of this build rule chain at
 # `:app_image_tarball_production`.
 js_binary(
     name = "app_production",
     data = [
+        # `:app_build_server` excludes client assets.
+        #
+        # The production container we build for `AppService` doesn't include client
+        # assets which we only serve from `AppService` in development/test. In
+        # production client assets are served from Cloudflare R2.
         ":app_build_server",
-        ":app_data",
+        ":app_runfiles",
     ],
     entry_point = "build/server/app_service.js",
-    no_copy_to_bin = [":app_data"],
+    no_copy_to_bin = [":app_runfiles"],
 )
 
 js_image_layer(
