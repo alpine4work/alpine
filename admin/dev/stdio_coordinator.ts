@@ -85,7 +85,6 @@ function transformChunk(chunk: Buffer): ReadonlyArray<ChunkLine> {
         if (byte === newlineByte) {
             const lastChunkLine = chunkLines[chunkLines.length - 1]!;
             lastChunkLine.chunks.push(chunk.subarray(offset, index + 1));
-            lastChunkLine.activeCodes = reduceAnsiCodes(lastChunkLine.activeCodes);
             chunkLines.push({chunks: [], activeCodes: []});
 
             offset = index + 1;
@@ -126,8 +125,9 @@ function transformChunk(chunk: Buffer): ReadonlyArray<ChunkLine> {
         index++;
     }
 
-    const lastChunkLine = chunkLines[chunkLines.length - 1]!;
-    lastChunkLine.activeCodes = reduceAnsiCodes(lastChunkLine.activeCodes);
+    if (offset !== chunk.length) {
+        chunkLines[chunkLines.length - 1]!.chunks.push(chunk.subarray(offset));
+    }
 
     return chunkLines;
 }
@@ -255,28 +255,6 @@ function getAnsiEndCode(code: string): string {
     }
 
     return ansiStyles.reset.open;
-}
-
-// Derived from `reduceAnsiCodes()` function of `slice-ansi`.
-// https://github.com/chalk/slice-ansi/blob/400a6ca5c23db8e71bf62d9ebf6082796ce5a7c6/index.js#L106-L124
-function reduceAnsiCodes(codes: Array<AnsiCode>): Array<AnsiCode> {
-    let newCodes: Array<AnsiCode> = [];
-
-    for (const code of codes) {
-        if (code.code === ansiStyles.reset.open) {
-            // Reset code, disable all codes
-            newCodes = [];
-        } else if (ansiEndCodesSet.has(code.code)) {
-            // This is an end code, disable all matching start codes
-            newCodes = newCodes.filter(newCode => newCode.endCode !== code.code);
-        } else {
-            // This is a start code. Disable all styles this "overrides", then enable it
-            newCodes = newCodes.filter(newCode => newCode.endCode !== code.endCode);
-            newCodes.push(code);
-        }
-    }
-
-    return newCodes;
 }
 
 /**
@@ -477,12 +455,41 @@ let previousWritePrefix: string | null = null;
 let wasPreviousWriteEndedWithNewline: boolean = true;
 const activeCodesByWritePrefix = new Map<string | null, ReadonlyArray<AnsiCode>>();
 
+export function resetWriteWithStdioPrefixForTest() {
+    assert(import.meta.jest);
+    previousWritePrefix = null;
+    wasPreviousWriteEndedWithNewline = true;
+    activeCodesByWritePrefix.clear();
+}
+
+// Derived from `reduceAnsiCodes()` function of `slice-ansi`.
+// https://github.com/chalk/slice-ansi/blob/400a6ca5c23db8e71bf62d9ebf6082796ce5a7c6/index.js#L106-L124
+function reduceAnsiCodes(codes: ReadonlyArray<AnsiCode>): ReadonlyArray<AnsiCode> {
+    let newCodes: Array<AnsiCode> = [];
+
+    for (const code of codes) {
+        if (code.code === ansiStyles.reset.open) {
+            // Reset code, disable all codes
+            newCodes = [];
+        } else if (ansiEndCodesSet.has(code.code)) {
+            // This is an end code, disable all matching start codes
+            newCodes = newCodes.filter(newCode => newCode.endCode !== code.code);
+        } else {
+            // This is a start code. Disable all styles this "overrides", then enable it
+            newCodes = newCodes.filter(newCode => newCode.endCode !== code.endCode);
+            newCodes.push(code);
+        }
+    }
+
+    return newCodes;
+}
+
 function mergeAnsiCodes(
     codes1: ReadonlyArray<AnsiCode>,
     codes2: ReadonlyArray<AnsiCode>,
 ): ReadonlyArray<AnsiCode> {
-    if (codes1.length === 0) return codes2;
-    if (codes2.length === 0) return codes1;
+    if (codes1.length === 0) return reduceAnsiCodes(codes2);
+    if (codes2.length === 0) return reduceAnsiCodes(codes1);
 
     return reduceAnsiCodes(codes1.concat(codes2));
 }
