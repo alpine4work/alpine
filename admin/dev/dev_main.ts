@@ -884,8 +884,6 @@ let scheduledProcessFileUpdatePaths: Set<string> | null = null;
  * dependencies, so that if a file is added we don't need to re-query Bazel.
  */
 function processFileUpdate(path: string) {
-    writeToCoordinatedStdout(`processFileUpdate ${path}\n`);
-
     if (fileUpdateQueue) {
         fileUpdateQueue.paths.push(path);
         return;
