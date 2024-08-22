@@ -66,7 +66,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-// NOCOMMIT: xxxxxxxxx
+// NOCOMMIT: xxxxxxxxxxxxxx
 
 const staticPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
 const staticAssetsPath = joinPath(staticPath, "assets");
@@ -107,40 +107,12 @@ export async function run({
         throw new InternalError("Can only use `viteDevServerPort` option in development");
     }
 
-    const viteDevServer = options.viteDev
-        ? // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-          // @ts-ignore: `vite` is not included as a dependency in the `ts_project()` because we
-          // don't want to include it in the production container. It's only used in development.
-          await import("vite").then(vite => {
-              // Run Vite in Bazel's build directory. Our dev process manager is responsible
-              // for keeping the `//app` target up-to-date which will build all app files
-              // necessary here.
-              const rootPath = joinPath(
-                  assertExists(process.env.JS_BINARY__EXECROOT),
-                  assertExists(process.env.JS_BINARY__BINDIR),
-              );
-
-              return vite.createServer({
-                  root: rootPath,
-                  cacheDir: options.viteCachePath,
-                  configFile: joinPath(rootPath, "vite.config.mjs"),
-                  server: {middlewareMode: true},
-              });
-          })
-        : null;
-
-    if (viteDevServer !== null) {
-        shutdownManager.registerListenerForIngressTraffic("Closing Vite dev server", async () => {
-            await viteDevServer.close();
-        });
-    }
-
     // Serve static assets in integration tests.
     //
     // - When running with `dev` static assets are served by Vite
     // - When running in production static assets are served by `EdgeService`
     const serveStaticMiddleware =
-        process.env.NODE_ENV !== "production" && viteDevServer === null
+        process.env.NODE_ENV !== "production" && !options.viteDev
             ? createServeStaticMiddleware(staticPath, {
                   setHeaders: (res, path) => {
                       // Remix fingerprints its assets so we can cache them forever. Other assets
@@ -274,9 +246,9 @@ export async function run({
     // code and our custom `app_service_worker.ts` server so the above features
     // will work.
     const handleRequest = createRequestHandler(
-        viteDevServer !== null
+        options.viteDev
             ? () =>
-                  viteDevServer.ssrLoadModule("virtual:remix/server-build") as Promise<ServerBuild>
+                  viteDevServer!.ssrLoadModule("virtual:remix/server-build") as Promise<ServerBuild>
             : await import("virtual:remix/server-build"),
         process.env.NODE_ENV,
     );
@@ -506,9 +478,9 @@ export async function run({
     };
 
     const server = createServer(
-        viteDevServer !== null
+        options.viteDev
             ? (req, res) => {
-                  viteDevServer.middlewares(req, res, () => {
+                  viteDevServer!.middlewares(req, res, () => {
                       actualRequestListener(req, res);
                   });
               }
@@ -520,6 +492,44 @@ export async function run({
     });
 
     registerGracefulServerShutdown(shutdownManager, server);
+
+    const viteDevServer = options.viteDev
+        ? // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+          // @ts-ignore: `vite` is not included as a dependency in the `ts_project()` because we
+          // don't want to include it in the production container. It's only used in development.
+          await import("vite").then(vite => {
+              // Run Vite in Bazel's build directory. Our dev process manager is responsible
+              // for keeping the `//app` target up-to-date which will build all app files
+              // necessary here.
+              const rootPath = joinPath(
+                  assertExists(process.env.JS_BINARY__EXECROOT),
+                  assertExists(process.env.JS_BINARY__BINDIR),
+              );
+
+              return vite.createServer({
+                  root: rootPath,
+                  cacheDir: options.viteCachePath,
+                  configFile: joinPath(rootPath, "vite.config.mjs"),
+                  server: {
+                      middlewareMode: true,
+                      // Serve the Vite HMR WebSocket server off the same private port as
+                      // `AppService`. We need to set `clientPort` so Vite doesn't try to access
+                      // `EdgeService`'s public port which'll block WebSocket connections.
+                      //
+                      // This also gives us nice graceful shutdown behavior. `AppService` shouldn't
+                      // shutdown until the browser reloads and closes its HMR WebSocket connection.
+                      hmr: {server, clientPort: port},
+                  },
+              });
+          })
+        : null;
+
+    // Make sure Vite stops watching files after shutdown initiates.
+    if (viteDevServer !== null) {
+        shutdownManager.registerListenerForIngressTraffic("Closing Vite file watcher", async () => {
+            await viteDevServer.watcher.close();
+        });
+    }
 
     // TODO(calebmer): The way the Node.js `cluster` module works is when multiple
     // workers listen to the same `port` it randomly picks the worker to send a
