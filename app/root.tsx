@@ -67,8 +67,6 @@ import {sprinkles} from "~/shared/styles/styles.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
-// NOCOMMIT: __remixRouter.createRoutesForHMR is not a function error when root changes?
-
 export function meta() {
     return [{title: "Cyberworlds"}];
 }

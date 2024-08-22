@@ -15,15 +15,145 @@ import {
 import {ReactElement, useState} from "react";
 import {DataRouteObject, UNSAFE_mapRouteProperties as mapRouteProperties} from "react-router";
 import {RouteObject, matchRoutes} from "react-router-dom";
-import {createAppClientRoutes} from "~/app/router/app_client_routes.js";
+import {
+    createAppClientRoutes,
+    createAppClientRoutesWithHmrRevalidationOptOut,
+} from "~/app/router/app_client_routes.js";
 import {AppRouterProvider} from "~/app/router/app_router_provider.js";
 import {createNativeMobileRouterWithoutInitialization} from "~/app/router/native_mobile_router.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 
 let router: Router | undefined;
 let routes: Array<DataRouteObject> | undefined;
 let routerInitialized = false;
+let hmrAbortController: AbortController | undefined;
+let hmrRouterReadyResolve: ((router: Router) => void) | undefined;
+// There's a race condition with HMR where the remix:manifest is signaled before
+// the router is assigned in the RemixBrowser component. This promise gates the
+// HMR handler until the router is ready
+const hmrRouterReadyPromise = new Promise<Router>(resolve => {
+    // body of a promise is executed immediately, so this can be resolved outside
+    // of the promise body
+    hmrRouterReadyResolve = resolve;
+}).catch(() => {
+    // This is a noop catch handler to avoid unhandled promise rejection warnings
+    // in the console. The promise is never rejected.
+    return undefined;
+});
+
+// Forked from (along with the rest of this component):
+// https://github.com/remix-run/remix/blob/a94303c7f812fdb9118d8dad065837c4a825efb8/packages/remix-react/browser.tsx#L78-L187
+if (import.meta && import.meta.hot) {
+    import.meta.hot.accept("remix:manifest", module => {
+        runPromiseWithoutAwaiting(async () => {
+            const {
+                assetsManifest,
+                needsRevalidation,
+            }: {
+                assetsManifest: typeof window.__remixManifest;
+                needsRevalidation: Set<string>;
+            } = module as any;
+
+            const router = await hmrRouterReadyPromise;
+            // This should never happen, but just in case...
+            if (!router) {
+                // eslint-disable-next-line no-console
+                console.error("Failed to accept HMR update because the router was not ready.");
+                return;
+            }
+
+            const routeIds = [
+                ...new Set(
+                    router.state.matches
+                        .map(m => m.route.id)
+                        .concat(Object.keys(window.__remixRouteModules)),
+                ),
+            ];
+
+            if (hmrAbortController) {
+                hmrAbortController.abort();
+            }
+            hmrAbortController = new AbortController();
+            const signal = hmrAbortController.signal;
+
+            // Load new route modules that we've seen.
+            const newRouteModules = Object.assign(
+                {},
+                window.__remixRouteModules,
+                Object.fromEntries(
+                    (
+                        await Promise.all(
+                            routeIds.map(async id => {
+                                if (!assetsManifest.routes[id]) {
+                                    return null;
+                                }
+                                const imported = await import(
+                                    assetsManifest.routes[id]!.module +
+                                        `?t=${assetsManifest.hmr?.timestamp}`
+                                );
+                                return [
+                                    id,
+                                    {
+                                        ...imported,
+                                        // react-refresh takes care of updating these in-place,
+                                        // if we don't preserve existing values we'll loose state.
+                                        default: imported.default
+                                            ? window.__remixRouteModules[id]?.default ??
+                                              imported.default
+                                            : imported.default,
+                                        ErrorBoundary: imported.ErrorBoundary
+                                            ? window.__remixRouteModules[id]?.ErrorBoundary ??
+                                              imported.ErrorBoundary
+                                            : imported.ErrorBoundary,
+                                        HydrateFallback: imported.HydrateFallback
+                                            ? window.__remixRouteModules[id]?.HydrateFallback ??
+                                              imported.HydrateFallback
+                                            : imported.HydrateFallback,
+                                    },
+                                ];
+                            }),
+                        )
+                    ).filter(isNonNullable),
+                ),
+            );
+
+            Object.assign(window.__remixRouteModules, newRouteModules);
+            // Create new routes
+            const routes = createAppClientRoutesWithHmrRevalidationOptOut(
+                needsRevalidation,
+                assetsManifest.routes,
+                window.__remixRouteModules,
+                window.__remixContext.state,
+                window.__remixContext.future,
+                window.__remixContext.isSpaMode,
+            );
+
+            // This is temporary API and will be more granular before release
+            router._internalSetRoutes(routes);
+
+            // Wait for router to be idle before updating the manifest and route modules
+            // and triggering a react-refresh
+            const unsubscribe = router.subscribe(state => {
+                if (state.revalidation === "idle") {
+                    unsubscribe();
+                    // Abort if a new update comes in while we're waiting for the
+                    // router to be idle.
+                    if (signal.aborted) return;
+                    // Ensure RouterProvider setState has flushed before re-rendering
+                    setTimeout(() => {
+                        Object.assign(window.__remixManifest, assetsManifest);
+                        window.$RefreshRuntime$.performReactRefresh();
+                    }, 1);
+                }
+            });
+            window.__remixRevalidation = (window.__remixRevalidation || 0) + 1;
+            router.revalidate();
+        });
+    });
+}
 
 /**
  * This is a fork of the [`<RemixBrowser>` component in `@remix-run/react`][1].
@@ -65,7 +195,13 @@ export function AppRemixBrowser({
             throw new UnimplementedError("`unstable_singleFetch` not supported");
         }
 
-        routes = createAppClientRoutes();
+        routes = createAppClientRoutes(
+            window.__remixManifest.routes,
+            window.__remixRouteModules,
+            window.__remixContext.state,
+            window.__remixContext.future,
+            window.__remixContext.isSpaMode,
+        );
 
         if (window.__remixContext.isSpaMode) {
             throw new UnimplementedError("`isSpaMode` not supported");
@@ -139,7 +275,13 @@ export function AppRemixBrowser({
             router.initialize();
         }
 
+        (router as any).createRoutesForHMR = createAppClientRoutesWithHmrRevalidationOptOut;
         window.__remixRouter = router;
+
+        // Notify that the router is ready for HMR
+        if (hmrRouterReadyResolve) {
+            hmrRouterReadyResolve(router);
+        }
     }
 
     // Critical CSS can become stale after code changes, e.g. styles might be

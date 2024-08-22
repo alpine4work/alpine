@@ -16,6 +16,8 @@ import {assertId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
 
+type CreateClientRoutesArgs = Parameters<typeof createClientRoutes>;
+
 /**
  * Create the `react-router` [route tree][1] for our app. This is based on
  * Remix's logic for creating the route tree but then we add some modifications
@@ -23,15 +25,55 @@ import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
  *
  * [1]: https://reactrouter.com/en/main/route/route
  */
-export function createAppClientRoutes() {
+export function createAppClientRoutes(
+    manifest: CreateClientRoutesArgs[0],
+    routeModulesCache: CreateClientRoutesArgs[1],
+    initialState: CreateClientRoutesArgs[2],
+    future: CreateClientRoutesArgs[3],
+    isSpaMode: CreateClientRoutesArgs[4],
+    parentId?: CreateClientRoutesArgs[5],
+    routesByParentId?: CreateClientRoutesArgs[6],
+    needsRevalidation?: CreateClientRoutesArgs[7],
+) {
     const routes = createClientRoutes(
-        window.__remixManifest.routes,
-        window.__remixRouteModules,
-        window.__remixContext.state,
-        window.__remixContext.future,
-        window.__remixContext.isSpaMode,
+        manifest,
+        routeModulesCache,
+        initialState,
+        future,
+        isSpaMode,
+        parentId,
+        routesByParentId,
+        needsRevalidation,
     );
 
+    updateAppClientRoutes(routes);
+    return routes;
+}
+
+export function createAppClientRoutesWithHmrRevalidationOptOut(
+    needsRevalidation: Set<string>,
+    manifest: CreateClientRoutesArgs[0],
+    routeModulesCache: CreateClientRoutesArgs[1],
+    initialState: CreateClientRoutesArgs[2],
+    future: CreateClientRoutesArgs[3],
+    isSpaMode: CreateClientRoutesArgs[4],
+) {
+    const routes = createClientRoutes(
+        manifest,
+        routeModulesCache,
+        initialState,
+        future,
+        isSpaMode,
+        undefined,
+        undefined,
+        needsRevalidation,
+    );
+
+    updateAppClientRoutes(routes);
+    return routes;
+}
+
+function updateAppClientRoutes(routes: Array<DataRouteObject>) {
     const routeById = new Map<string, DataRouteObject>();
     const inflightResponsePromiseByRequestKey = new Map<string, Promise<unknown>>();
 

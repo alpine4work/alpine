@@ -18,8 +18,6 @@ import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js
 import {generateId} from "~/shared/id/id.js";
 import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: An hot reload here causes issues
-
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];
 }
