@@ -35,3 +35,7 @@ yarn-error.log*
 
 # Swift
 /.build
+
+# Files like `_tmp_70049_bb0abef9571d51b24d4cd3a2c63d0880` appear to be
+# generated when running `pnpm patch-commit`.
+_tmp*

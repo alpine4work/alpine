@@ -1,8 +1,8 @@
 diff --git a/dist/node/chunks/dep-stQc5rCc.js b/dist/node/chunks/dep-stQc5rCc.js
-index 47f3abd8895308e1e7a194f9c192be879d2c2fcf..fdd95d57a9db92e16d7807e7a2954973427f4fee 100644
+index 47f3abd8895308e1e7a194f9c192be879d2c2fcf..317e842feedd869f8cfbbc6cdc90e70878531f31 100644
 --- a/dist/node/chunks/dep-stQc5rCc.js
 +++ b/dist/node/chunks/dep-stQc5rCc.js
-@@ -64482,19 +64482,53 @@ async function _createServer(inlineConfig = {}, options) {
+@@ -64482,19 +64482,54 @@ async function _createServer(inlineConfig = {}, options) {
          await handleFileAddUnlink(file, server, isUnlink);
          await onHMRUpdate(file, true);
      };
@@ -53,6 +53,7 @@ index 47f3abd8895308e1e7a194f9c192be879d2c2fcf..fdd95d57a9db92e16d7807e7a2954973
 +        // update event.
 +        const timeoutId = setTimeout(() => {
 +            pendingUnlinkTimeoutIdByFile.delete(file);
++            if (watcher.closed) return;
 +            onFileAddUnlink(file, true);
 +        }, 500);
 +        pendingUnlinkTimeoutIdByFile.set(file, timeoutId);

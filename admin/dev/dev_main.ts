@@ -415,8 +415,11 @@ const lastDependencyBazelPackagePathsByTarget = new Map<string, ReadonlySet<stri
 
 const watcher = chokidar.watch(getWorkspacePath(), {
     ignoreInitial: true,
-    // `.build` is the Swift build directory for Swift's VSCode integration.
-    ignored: /(^|\/)(node_modules|bazel-[^/]+|\.git|\.DS_Store|\.build)(\/|$)/,
+    followSymlinks: false,
+    // - `.build` is the Swift build directory for Swift's VSCode integration.
+    // - Files like `_tmp_70049_bb0abef9571d51b24d4cd3a2c63d0880` appear to be
+    //   generated when running `pnpm patch-commit`.
+    ignored: /(^|\/)(node_modules|bazel-[^/]+|\.git|\.DS_Store|\.local|\.build|_tmp[^/]*)(\/|$)/,
 });
 
 watcher.on("add", processFileUpdate);
@@ -909,6 +912,17 @@ function actuallyProcessFileUpdates(paths: Set<string>) {
     const artifacts = new Set(
         flatMapIterable(paths, path => {
             const pathBazelPackage = getBazelPackageByAbsoluteFilePath(path);
+
+            // Ignore updates to all files in our root package (e.g. `.gitignore`) except
+            // changes to `WORKSPACE` and `pnpm-lock.yaml` which signals a change in our
+            // dependencies.
+            if (pathBazelPackage.absolutePath === getWorkspacePath()) {
+                assert(path.startsWith(`${pathBazelPackage.absolutePath}/`));
+                const relativePath = path.slice(pathBazelPackage.absolutePath.length + 1);
+                if (relativePath !== "WORKSPACE" && relativePath !== "pnpm-lock.yaml") {
+                    return [];
+                }
+            }
 
             return filterMapIterable(
                 pathBazelPackage.dependentArtifactByBazelTarget,

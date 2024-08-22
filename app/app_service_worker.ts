@@ -524,16 +524,26 @@ export async function run({
         : null;
 
     // 1. Make sure Vite stops watching files after shutdown initiates.
-    // 2. Connect to our Bazel dev WebSocket server.
+    // 2. Connect to our Bazel dev WebSocket server and forward message to our Vite
+    //    dev server.
     if (viteDevServer !== null) {
-        shutdownManager.registerListenerForIngressTraffic("Closing Vite file watcher", async () => {
+        let isShuttingDown = false;
+        let hasSentShutDownFullReload = false;
+
+        shutdownManager.registerListenerForIngressTraffic("Closing Vite dev server", async () => {
+            isShuttingDown = true;
+
+            // Make sure we initiate a full reload while shutting down so `AppClient` picks
+            // up new code.
+            if (!hasSentShutDownFullReload) {
+                hasSentShutDownFullReload = true;
+                viteDevServer.hot.send({type: "full-reload"});
+            }
+
             await viteDevServer.watcher.close();
         });
 
-        let isShuttingDown = false;
-
         shutdownManager.registerListener("Closing Bazel dev server connection", async () => {
-            isShuttingDown = true;
             bazelDevSocket.close();
         });
 
@@ -589,9 +599,10 @@ export async function run({
                     break;
                 }
                 case "Reload": {
-                    viteDevServer.hot.send({
-                        type: "full-reload",
-                    });
+                    if (!hasSentShutDownFullReload) {
+                        hasSentShutDownFullReload = true;
+                        viteDevServer.hot.send({type: "full-reload"});
+                    }
                     break;
                 }
                 default:

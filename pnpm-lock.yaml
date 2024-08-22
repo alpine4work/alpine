@@ -140,7 +140,7 @@ patchedDependencies:
     hash: hmvzbjjpbi754jiqq4twbvadde
     path: admin/patches/tough-cookie@4.1.3.patch
   vite@5.1.3:
-    hash: fn2x4wpggg3kofmyn76bnnmsum
+    hash: wiw6jyvcakj6o44k3nao6gsz6q
     path: admin/patches/vite@5.1.3.patch
   wrangler@3.1.2:
     hash: wvv6e4atuqi3hqcxstrbgwwagy
@@ -863,7 +863,7 @@ dependencies:
     version: 5.0.10
   vite:
     specifier: 5.1.3
-    version: 5.1.3(patch_hash=fn2x4wpggg3kofmyn76bnnmsum)(@types/node@20.3.2)
+    version: 5.1.3(patch_hash=wiw6jyvcakj6o44k3nao6gsz6q)(@types/node@20.3.2)
   wawoff2:
     specifier: ^2.0.1
     version: 2.0.1
@@ -5794,7 +5794,7 @@ packages:
       tar-fs: 2.1.1
       tsconfig-paths: 4.1.0
       typescript: 5.1.3
-      vite: 5.1.3(patch_hash=fn2x4wpggg3kofmyn76bnnmsum)(@types/node@20.3.2)
+      vite: 5.1.3(patch_hash=wiw6jyvcakj6o44k3nao6gsz6q)(@types/node@20.3.2)
       wrangler: 3.1.2(patch_hash=wvv6e4atuqi3hqcxstrbgwwagy)(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       ws: 7.5.9(bufferutil@4.0.7)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
@@ -7497,7 +7497,7 @@ packages:
       lodash: 4.17.21
       mlly: 1.7.0
       outdent: 0.8.0(patch_hash=ybnbpvk42g5zpvi2kytcsdr4wu)
-      vite: 5.1.3(patch_hash=fn2x4wpggg3kofmyn76bnnmsum)(@types/node@20.3.2)
+      vite: 5.1.3(patch_hash=wiw6jyvcakj6o44k3nao6gsz6q)(@types/node@20.3.2)
       vite-node: 1.6.0(@types/node@20.3.2)
     transitivePeerDependencies:
       - '@types/node'
@@ -16715,7 +16715,7 @@ packages:
       debug: 4.3.4
       pathe: 1.1.2
       picocolors: 1.0.1
-      vite: 5.1.3(patch_hash=fn2x4wpggg3kofmyn76bnnmsum)(@types/node@20.3.2)
+      vite: 5.1.3(patch_hash=wiw6jyvcakj6o44k3nao6gsz6q)(@types/node@20.3.2)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -16727,7 +16727,7 @@ packages:
       - terser
     dev: false
 
-  /vite@5.1.3(patch_hash=fn2x4wpggg3kofmyn76bnnmsum)(@types/node@20.3.2):
+  /vite@5.1.3(patch_hash=wiw6jyvcakj6o44k3nao6gsz6q)(@types/node@20.3.2):
     resolution: {integrity: sha512-UfmUD36DKkqhi/F75RrxvPpry+9+tTkrXfMNZD+SboZqBCMsxKtO52XeGzzuh7ioz+Eo/SYDBbdb0Z7vgcDJew==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
