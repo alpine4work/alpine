@@ -5,6 +5,7 @@ import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_proc
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -23,9 +24,13 @@ export const bazelBuildCompilationMode = "fastbuild";
 
 let isBuildScheduled = false;
 
-let nextBuildByTarget = new DefaultMap<string, PromiseResolver<{buildId: Id; hasFailed: boolean}>>(
-    createPromiseResolver,
-);
+let nextBuildByTarget = new DefaultMap<
+    string,
+    {
+        promiseResolver: PromiseResolver<{buildId: Id; hasFailed: boolean}>;
+        onBuildStartCallbacks: Array<(event: {buildId: Id}) => void>;
+    }
+>(() => ({promiseResolver: createPromiseResolver(), onBuildStartCallbacks: []}));
 
 const lastBuildByTarget = new Map<
     string,
@@ -42,7 +47,10 @@ const lastBuildByTarget = new Map<
  * targets and build them together. If we are already running a Bazel build then we'll
  * batch targets together and build them immediately after.
  */
-export function buildBazelTarget(target: string): Promise<{buildId: Id; hasFailed: boolean}> {
+export function buildBazelTarget(
+    target: string,
+    {onBuildStart}: {onBuildStart?: (event: {buildId: Id}) => void} = {},
+): Promise<{buildId: Id; hasFailed: boolean}> {
     // If it has been less than 1000ms since the user last built a target, we assume
     // our previous work is still valid.
     const lastBuild = lastBuildByTarget.get(target);
@@ -50,9 +58,10 @@ export function buildBazelTarget(target: string): Promise<{buildId: Id; hasFaile
         return lastBuild.promise;
     }
 
-    const {promise} = nextBuildByTarget.getOrSetDefault(target);
+    const {promiseResolver, onBuildStartCallbacks} = nextBuildByTarget.getOrSetDefault(target);
+    if (onBuildStart) onBuildStartCallbacks.push(onBuildStart);
     scheduleBuildBazelTargets();
-    return promise;
+    return promiseResolver.promise;
 }
 
 function scheduleBuildBazelTargets() {
@@ -70,24 +79,33 @@ function scheduleBuildBazelTargets() {
                 const buildByTarget = nextBuildByTarget;
                 nextBuildByTarget = nextBuildByTarget.newWithGetDefault();
 
+                const buildId = generateId();
+                const event = {buildId};
+
                 // For every target we are building, remember at what time we started building.
                 // This is the latest time we know for certain that the target is up-to-date.
                 const buildStartTime = Date.now();
-                for (const [target, {promise}] of buildByTarget) {
+                for (const [target, {promiseResolver, onBuildStartCallbacks}] of buildByTarget) {
                     lastBuildByTarget.set(target, {
                         startTime: buildStartTime,
-                        promise,
+                        promise: promiseResolver.promise,
                     });
-                }
 
-                const buildId = generateId();
+                    for (const onBuildStartCallback of onBuildStartCallbacks) {
+                        try {
+                            onBuildStartCallback(event);
+                        } catch (error) {
+                            scheduleUncaughtError(error);
+                        }
+                    }
+                }
 
                 actuallyBuildBazelTargets([...buildByTarget.keys()])
                     // Resolve the targets we built this run.
                     .then(
                         ({messageByTarget}) =>
-                            buildByTarget.forEach(({resolve}, target) =>
-                                resolve({
+                            buildByTarget.forEach(({promiseResolver}, target) =>
+                                promiseResolver.resolve({
                                     buildId,
                                     // We inspect Bazel's target message output to tell us whether a target
                                     // succeeded to build or failed. See Bazel's source code for the possible
@@ -99,7 +117,10 @@ function scheduleBuildBazelTargets() {
                                     ),
                                 }),
                             ),
-                        error => buildByTarget.forEach(({reject}) => reject(error)),
+                        error =>
+                            buildByTarget.forEach(({promiseResolver}) =>
+                                promiseResolver.reject(error),
+                            ),
                     )
                     .finally(() => {
                         // If `buildBazelTarget()` was called while we were executing, then execute

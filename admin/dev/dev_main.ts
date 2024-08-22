@@ -2,7 +2,6 @@ import chalk from "chalk";
 import {ChildProcess} from "child_process";
 import chokidar from "chokidar";
 import fs from "fs-extra";
-import getPort from "get-port";
 import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
 import {inspect} from "util";
@@ -66,6 +65,15 @@ const parsePort = (portString: string | undefined) => {
     return port;
 };
 
+const parsePorts = (portsString: string | undefined) => {
+    assert(portsString);
+    return portsString.split(",").map(portString => {
+        const port = parseInt(portString, 10);
+        assert(!isNaN(port));
+        return port;
+    });
+};
+
 // Assign AWS env variables to `process.env` so
 // `@aws-sdk/credential-provider-node` picks them up.
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
@@ -75,17 +83,21 @@ const honeycombApiKey = env.HONEYCOMB_API_KEY;
 
 const appDevPort = parsePort(env.APP_DEV_PORT);
 const appDevInspectorPort = parsePort(env.APP_DEV_INSPECTOR_PORT);
+const appDevPrivatePorts = parsePorts(env.APP_DEV_PRIVATE_PORTS);
 
 const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
 const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
+const edgeDevPrivatePorts = parsePorts(env.EDGE_DEV_PRIVATE_PORTS);
 
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
+const taskRealtimeDevPrivatePorts = parsePorts(env.TASK_REALTIME_DEV_PRIVATE_PORTS);
 
 const jobQueueDevInspectorPort = parsePort(env.JOB_QUEUE_DEV_INSPECTOR_PORT);
 
 const fileUploadDevPort = parsePort(env.FILE_UPLOAD_DEV_PORT);
 const fileUploadInspectorDevPort = parsePort(env.FILE_UPLOAD_DEV_INSPECTOR_PORT);
+const fileUploadDevPrivatePorts = parsePorts(env.FILE_UPLOAD_DEV_PRIVATE_PORTS);
 
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
@@ -225,7 +237,8 @@ export type Artifact = {
                  */
                 readonly ports: {
                     readonly publicPort: number;
-                    privatePort: number;
+                    readonly privatePorts: ReadonlyArray<number>;
+                    privatePortIndex: number;
                     readonly privatePortArg?: string;
                     readonly waitForHttpServerPath?: string;
                 };
@@ -247,13 +260,6 @@ export type ArtifactServer =
       };
 
 async function createArtifacts() {
-    const [privatePort1, privatePort2, privatePort3, privatePort4] = await runAllPromises([
-        getPort(),
-        getPort(),
-        getPort(),
-        getPort(),
-    ]);
-
     const artifacts: ReadonlyArray<Artifact> = [
         // App assets are built with a file artifact then `//app:app_wrapper` runs a
         // lightweight `AppService` which serves Remix routes through a Vite dev
@@ -269,7 +275,8 @@ async function createArtifacts() {
             env: {BAZEL_BINDIR: "."},
             ports: {
                 publicPort: appDevPort,
-                privatePort: privatePort1,
+                privatePorts: appDevPrivatePorts,
+                privatePortIndex: 0,
             },
             args: [
                 "--viteDev",
@@ -305,7 +312,8 @@ async function createArtifacts() {
             stdioPrefix: "edg",
             ports: {
                 publicPort: edgeDevPort,
-                privatePort: privatePort2,
+                privatePorts: edgeDevPrivatePorts,
+                privatePortIndex: 0,
                 // Check the `/api/time` path while waiting for the HTTP server to start. We
                 // pick this path since it's handled immediately in `EdgeService` and not
                 // forwarded to `AppService`. Forwarding requests to `AppService` will stall
@@ -333,7 +341,8 @@ async function createArtifacts() {
             stdioPrefix: "tsk",
             ports: {
                 publicPort: taskRealtimeDevPort,
-                privatePort: privatePort3,
+                privatePorts: taskRealtimeDevPrivatePorts,
+                privatePortIndex: 0,
                 // In production we have an HTTP server for each CPU on the machine. In
                 // development we only have one HTTP server.
                 privatePortArg: "portBase",
@@ -384,7 +393,8 @@ async function createArtifacts() {
             stdioPrefix: "fup",
             ports: {
                 publicPort: fileUploadDevPort,
-                privatePort: privatePort4,
+                privatePorts: fileUploadDevPrivatePorts,
+                privatePortIndex: 0,
             },
             args: [
                 `--inspectorPort=${fileUploadInspectorDevPort}`,
@@ -536,22 +546,25 @@ async function rebuildArtifact(artifact: Artifact) {
     }
 
     await artifact.server.withLock(async artifactServerRef => {
-        const privatePortPromise = artifact.ports ? getPort() : null;
+        let preventStartArtifactServer = false;
 
-        const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget);
+        const stopArtifactServer = ({buildId}: {buildId: Id}) => {
+            if (!artifactServerRef.current) return;
 
-        if (artifactServerRef.current) {
             const artifactServer = artifactServerRef.current;
 
             // If the current artifact server corresponds to the current `buildId` then we
             // don't need to restart it.
-            if (artifactServer.buildId === buildId) return;
+            if (artifactServer.buildId === buildId) {
+                preventStartArtifactServer = true;
+                return;
+            }
 
             if (artifactServer.subprocess) {
+                // Have `dev_proxy_server.ts` start sending traffic to the next private port.
                 if (artifact.ports) {
-                    // Start sending traffic to a new port before we kill the old port.
-                    const privatePort = await privatePortPromise;
-                    artifact.ports.privatePort = assertExists(privatePort);
+                    artifact.ports.privatePortIndex =
+                        (artifact.ports.privatePortIndex + 1) % artifact.ports.privatePorts.length;
                 }
 
                 // If our server process doesn't exit in a reasonable period of time, send
@@ -576,7 +589,24 @@ async function rebuildArtifact(artifact: Artifact) {
             }
 
             artifactServerRef.current = null;
-        }
+        };
+
+        const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget, {
+            // Stop the artifact server at the start of our Bazel build. That way services
+            // like `app_wrapper.sh` which watch for file changes (via Vite) won't see file
+            // changes from this build.
+            //
+            // Our HTTP servers implement graceful shutdown routines. So they'll stay alive
+            // until all HTTP connections finish.
+            onBuildStart: stopArtifactServer,
+        });
+
+        // In case `onBuildStart` didn't run, make sure our artifact server is stopped.
+        stopArtifactServer({buildId});
+
+        // If we didn't stop our old artifact server, we shouldn't start an new
+        // artifact server.
+        if (preventStartArtifactServer) return;
 
         // If the artifact server failed to build we kill the old artifact server and
         // wait for a successful build.
@@ -607,7 +637,11 @@ async function rebuildArtifact(artifact: Artifact) {
             executablePath,
             [
                 ...(artifact.ports
-                    ? [`--${artifact.ports.privatePortArg ?? "port"}=${artifact.ports.privatePort}`]
+                    ? [
+                          `--${artifact.ports.privatePortArg ?? "port"}=${
+                              artifact.ports.privatePorts[artifact.ports.privatePortIndex]
+                          }`,
+                      ]
                     : []),
                 ...(artifact.args ?? []),
             ],
@@ -629,7 +663,7 @@ async function rebuildArtifact(artifact: Artifact) {
         const httpServerStartPromise = artifact.ports
             ? PromiseImmediate.resolve(
                   waitForHttpServer(
-                      artifact.ports.privatePort,
+                      artifact.ports.privatePorts[artifact.ports.privatePortIndex]!,
                       artifact.ports.waitForHttpServerPath,
                   ).catch(() => {
                       // Don't log an error. If a server never starts, the user will see a 504
@@ -850,6 +884,8 @@ let scheduledProcessFileUpdatePaths: Set<string> | null = null;
  * dependencies, so that if a file is added we don't need to re-query Bazel.
  */
 function processFileUpdate(path: string) {
+    writeToCoordinatedStdout(`processFileUpdate ${path}\n`);
+
     if (fileUpdateQueue) {
         fileUpdateQueue.paths.push(path);
         return;

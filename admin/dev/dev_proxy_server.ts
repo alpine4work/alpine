@@ -28,7 +28,7 @@ export async function createDevProxyServer(
 ) {
     const mainPromise = PromiseImmediate.resolve(_mainPromise);
 
-    let lastPrivatePort = artifact.ports.privatePort;
+    let lastPrivatePort = artifact.ports.privatePorts[artifact.ports.privatePortIndex]!;
 
     let keepAliveAgent = new http.Agent({keepAlive: true});
     const dontKeepAliveAgent = new http.Agent({keepAlive: false});
@@ -85,20 +85,22 @@ export async function createDevProxyServer(
 
             requestAttemptCount++;
 
+            const privatePort = artifact.ports.privatePorts[artifact.ports.privatePortIndex]!;
+
             // If the private port changes, then reset the keep-alive agent.
             //
             // TODO(calebmer): Destroy the last keep-alive agent when there are no more
             // ongoing requests? Can't immediately destroy it since there may be a request
             // we're finishing.
-            if (lastPrivatePort !== artifact.ports.privatePort) {
-                lastPrivatePort = artifact.ports.privatePort;
+            if (lastPrivatePort !== privatePort) {
+                lastPrivatePort = privatePort;
                 keepAliveAgent = new http.Agent({keepAlive: true});
             }
 
             const req = http.request({
                 agent: keepAliveAgent,
                 hostname: "localhost",
-                port: artifact.ports.privatePort,
+                port: privatePort,
                 path: proxyReq.url,
                 method: proxyReq.method,
                 headers: proxyReq.headers,
@@ -222,6 +224,8 @@ export async function createDevProxyServer(
 
             requestAttemptCount++;
 
+            const privatePort = artifact.ports.privatePorts[artifact.ports.privatePortIndex]!;
+
             const req = http.request({
                 // NOTE(calebmer): Don't keep WebSocket sockets alive. I don't know all the
                 // details of TCP keep-alive and the WebSocket protocol but it's causing issues
@@ -229,7 +233,7 @@ export async function createDevProxyServer(
                 // we try to reuse it.
                 agent: dontKeepAliveAgent,
                 hostname: "localhost",
-                port: artifact.ports.privatePort,
+                port: privatePort,
                 path: proxyReq.url,
                 method: proxyReq.method,
                 headers: proxyReq.headers,

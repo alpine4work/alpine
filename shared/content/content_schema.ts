@@ -27,8 +27,6 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Update here hits RPC error
-
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
     interface NodeType {
