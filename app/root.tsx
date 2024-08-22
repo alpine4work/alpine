@@ -83,6 +83,7 @@ export function links(): Array<LinkDescriptor> {
             rel: "preload",
             href: "/fonts/inter.v1.woff2",
             as: "font",
+            type: "font/woff2",
             crossOrigin: "anonymous",
         },
         {rel: "stylesheet", href: stylesHref},
