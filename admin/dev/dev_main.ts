@@ -7,7 +7,7 @@ import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
 import {inspect} from "util";
 import {scheduleDevCronJobs} from "~/admin/cron/schedule_dev_cron_jobs.js";
-import {appEntryPointPaths} from "~/admin/dev/app_entry_point_paths.js";
+import {appWrapperPaths} from "~/admin/dev/app_wrapper_paths.js";
 import {
     bazelBuildCompilationMode,
     bazelBuildTargetCpu,
@@ -36,19 +36,17 @@ import {
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.js";
-import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Id} from "~/shared/id/id.js";
@@ -133,31 +131,106 @@ const apnsCertificatePrivateKeyPath = joinPath(
     "cyberworlds/server/apns/certificates/apns_development_certificate_private_key.pem",
 );
 
+/**
+ * An artifact which our dev process manager keeps up-to-date. There are two
+ * kinds of artifacts:
+ *
+ * - File artifacts: These are files that we keep up-to-date but don't execute.
+ *   Usually these are resources which'll be loaded on the client.
+ *
+ * - Executable artifacts: A server which we'll run after building the
+ *   artifact. If the artifact rebuilds we'll restart the server.
+ */
 export type Artifact = {
+    /**
+     * The Bazel target associated with this artifact. We'll rebuild this
+     * target whenever any of its dependencies change.
+     */
     readonly bazelTarget: string;
-    readonly executablePath: string;
-    readonly stdioPrefix: string;
-    readonly env?: {readonly [key: string]: string};
-    readonly args?: ReadonlyArray<string>;
-    readonly server: MutexValue<ArtifactServer | null>;
-    readonly onServerRestart?: () => Promise<void>;
-    readonly hotReload?: {
-        readonly serverRestartBazelTarget: string;
-        readonly ourPackageServerRestartPaths: ReadonlySet<string>;
-        serverRestartDependencyPackagePaths?: MutexValue<ReadonlySet<string>>;
-    };
 } & (
     | {
+          readonly executablePath?: undefined;
+          readonly stdioPrefix?: undefined;
+          readonly env?: undefined;
+          readonly args?: undefined;
+          readonly server?: undefined;
+          readonly serverRestartPaths?: undefined;
+          readonly onServerRestart?: undefined;
           readonly ports?: undefined;
       }
-    | {
-          readonly ports: {
-              readonly publicPort: number;
-              privatePort: number;
-              readonly privatePortArg?: string;
-              readonly waitForHttpServerPath?: string;
-          };
-      }
+    | ({
+          /**
+           * Path to the executable built by the artifact's `bazelTarget`. If this path
+           * exists, we have an executable artifact. If it doesn't exist we have a files
+           * artifact.
+           *
+           * If we rebuild `bazelTarget` we will kill and restart this executable.
+           */
+          readonly executablePath: string;
+
+          /**
+           * Messages written to `stdout` and `stderr` by our executable will be printed
+           * on the dev process manager's `stdout`/`stderr` under the provided prefix.
+           *
+           * For consistency, please keep the prefix three characters long.
+           */
+          readonly stdioPrefix: string;
+
+          /**
+           * Environment variables to pass to the executable.
+           */
+          readonly env?: {readonly [key: string]: string};
+
+          /**
+           * Arguments to spawn the executable with.
+           */
+          readonly args?: ReadonlyArray<string>;
+
+          /**
+           * Once the build finishes and we spawn the executable, we'll put the
+           * `ChildProcess` object in this property. Maintains any state for the running
+           * server we might need.
+           *
+           * When we restart the server we find the old `ChildProcess` in here and
+           * kill it.
+           */
+          readonly server: MutexValue<ArtifactServer | null>;
+
+          /**
+           * By default, any file update in our `bazelTarget`'s package will cause us to
+           * rebuild the artifact. However, if you provide this option then we'll only
+           * rebuild this artifact if the file that updates in our `bazelTarget`'s
+           * package is one of the listed files changes.
+           *
+           * Any file updated in a dependency will still rebuild the artifact. This only
+           * affects file updates in our `bazelTarget`'s package.
+           */
+          readonly serverRestartPaths?: ReadonlySet<string>;
+
+          /**
+           * Callback that's called after the server restarts.
+           */
+          readonly onServerRestart?: () => Promise<void>;
+      } & (
+          | {
+                readonly ports?: undefined;
+            }
+          | {
+                /**
+                 * If your executable exposes an HTTP server you use this property to define
+                 * its ports. `publicPort` is a stable port we run a proxy on that delays
+                 * requests until the executable (running on `privatePort`) is ready to go.
+                 *
+                 * `JobQueueService` is an example of an executable artifact without an HTTP server.
+                 */
+                readonly ports: {
+                    readonly publicPort: number;
+                    privatePort: number;
+                    readonly privatePortArg?: string;
+                    readonly waitForHttpServerPath?: string;
+                };
+            }
+      ))
 );
 
 export type ArtifactServer =
@@ -182,9 +255,16 @@ async function createArtifacts() {
     ]);
 
     const artifacts: ReadonlyArray<Artifact> = [
+        // App assets are built with a file artifact then `//app:app_wrapper` runs a
+        // lightweight `AppService` which serves Remix routes through a Vite dev
+        // server.
         {
             bazelTarget: "//app",
-            executablePath: "app/app.sh",
+        },
+        {
+            bazelTarget: "//app:app_wrapper",
+            executablePath: "app/app_wrapper.sh",
+            serverRestartPaths: appWrapperPaths,
             stdioPrefix: "app",
             env: {BAZEL_BINDIR: "."},
             ports: {
@@ -217,11 +297,6 @@ async function createArtifacts() {
             onServerRestart: async () => {
                 const bazelDevServer = await bazelDevServerPromise;
                 bazelDevServer.reload();
-            },
-            // NOCOMMIT: Document!
-            hotReload: {
-                serverRestartBazelTarget: "//app:app_entry_point_lib",
-                ourPackageServerRestartPaths: appEntryPointPaths,
             },
         },
         {
@@ -388,7 +463,7 @@ const artifactsPromise = createArtifacts().then(artifacts =>
     runAllPromises(
         artifacts.map(async artifact => {
             await runAllPromises([
-                rebuildArtifact(artifact, null),
+                rebuildArtifact(artifact),
                 updateArtifactDependencyBazelPackagePaths(artifact),
                 artifact.ports
                     ? createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise})
@@ -454,36 +529,16 @@ function logError(reason: string, error: unknown) {
 /**
  * Build the artifact and restart the server associated with the artifact.
  */
-async function rebuildArtifact(
-    artifact: Artifact,
-    changedPathsWithBazelPackages: Iterable<{path: string; bazelPackage: BazelPackage}> | null,
-) {
+async function rebuildArtifact(artifact: Artifact) {
+    if (!artifact.server) {
+        await buildBazelTarget(artifact.bazelTarget);
+        return;
+    }
+
     await artifact.server.withLock(async artifactServerRef => {
         const privatePortPromise = artifact.ports ? getPort() : null;
 
         const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget);
-
-        // Should this build hot reload? If we hot reload then we won't restart the
-        // artifact server. Instead the artifact server must see the update itself and
-        // perform a reload.
-        let isHotReload = false;
-        if (artifact.hotReload && changedPathsWithBazelPackages !== null && !hasBuildFailed) {
-            const {hotReload} = artifact;
-            const ourBazelPackage = getBazelPackageByBazelTarget(artifact.bazelTarget);
-
-            isHotReload = iterableEvery(changedPathsWithBazelPackages, ({path, bazelPackage}) => {
-                if (bazelPackage === ourBazelPackage) {
-                    assert(path.startsWith(`${bazelPackage.absolutePath}/`));
-                    return !hotReload.ourPackageServerRestartPaths.has(
-                        path.slice(bazelPackage.absolutePath.length + 1),
-                    );
-                }
-
-                return !hotReload.serverRestartDependencyPackagePaths
-                    ?.getWithoutLock()
-                    .has(bazelPackage.path);
-            });
-        }
 
         if (artifactServerRef.current) {
             const artifactServer = artifactServerRef.current;
@@ -491,10 +546,6 @@ async function rebuildArtifact(
             // If the current artifact server corresponds to the current `buildId` then we
             // don't need to restart it.
             if (artifactServer.buildId === buildId) return;
-
-            // If this is a hot reload then we don't kill our server. Instead the artifact
-            // server must reload itself.
-            if (isHotReload) return;
 
             if (artifactServer.subprocess) {
                 if (artifact.ports) {
@@ -546,12 +597,11 @@ async function rebuildArtifact(
             "All artifact stdio prefixes should be 3 characters long",
         );
 
-        let executablePath = `${getWorkspacePath()}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin/${
+        const executablePath = `${assertExists(
+            process.env.JS_BINARY__EXECROOT,
+        )}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin/${
             artifact.executablePath
         }`;
-
-        // Resolve to the path in Bazel's execroot instead of the `bazel-out` symlink.
-        executablePath = await fs.realpath(executablePath);
 
         const subprocess = spawnWithCoordinatedStdio(
             executablePath,
@@ -619,6 +669,7 @@ type BazelPackage = {
     readonly path: string;
     readonly absolutePath: string;
     readonly dependentArtifactByBazelTarget: Map<string, Artifact>;
+    readonly serverRestartHotReloadBazelTargets: Set<string>;
 };
 
 /**
@@ -678,7 +729,12 @@ function getBazelPackageByRelativeDirectoryPathWithoutTraversing(
             fs.pathExistsSync(joinPath(absolutePath, "BUILD"));
 
         if (!isBazelPackage) return null;
-        return {path, absolutePath, dependentArtifactByBazelTarget: new Map()};
+        return {
+            path,
+            absolutePath,
+            dependentArtifactByBazelTarget: new Map(),
+            serverRestartHotReloadBazelTargets: new Set(),
+        };
     });
 }
 
@@ -704,67 +760,55 @@ function getBazelPackageByBazelTarget(bazelTarget: string): BazelPackage {
  */
 function updateArtifactDependencyBazelPackagePaths(artifact: Artifact) {
     return pauseFileUpdates(async () => {
-        await runAllPromiseThunks(
-            async () => {
-                const dependencyPackagePaths = new Set(
-                    await queryBazelTargetDependencyPackagePaths(artifact.bazelTarget),
-                );
+        const {dependencyPackagePathsToAdd, dependencyPackagePathsToRemove} =
+            await diffBazelTargetDependencyPackagePaths(artifact.bazelTarget);
 
-                const lastDependencyPackagePaths =
-                    lastDependencyBazelPackagePathsByTarget.get(artifact.bazelTarget) ?? new Set();
+        for (const dependencyPackagePath of dependencyPackagePathsToAdd) {
+            let bazelPackage = bazelPackageByPath.get(dependencyPackagePath);
 
-                lastDependencyBazelPackagePathsByTarget.set(
-                    artifact.bazelTarget,
-                    dependencyPackagePaths,
-                );
+            if (!bazelPackage) {
+                bazelPackage = {
+                    path: dependencyPackagePath,
+                    absolutePath: joinPath(getWorkspacePath(), dependencyPackagePath),
+                    dependentArtifactByBazelTarget: new Map(),
+                    serverRestartHotReloadBazelTargets: new Set(),
+                };
+                bazelPackageByPath.set(dependencyPackagePath, bazelPackage);
+            }
 
-                const dependencyPackagePathsToAdd = dependencyPackagePaths;
-                const dependencyPackagePathsToRemove = new Set<string>();
+            bazelPackage.dependentArtifactByBazelTarget.set(artifact.bazelTarget, artifact);
+        }
 
-                for (const lastDependencyPackagePath of lastDependencyPackagePaths) {
-                    if (!dependencyPackagePathsToAdd.delete(lastDependencyPackagePath)) {
-                        dependencyPackagePathsToRemove.add(lastDependencyPackagePath);
-                    }
-                }
-
-                for (const dependencyPackagePath of dependencyPackagePathsToAdd) {
-                    let bazelPackage = bazelPackageByPath.get(dependencyPackagePath);
-
-                    if (!bazelPackage) {
-                        bazelPackage = {
-                            path: dependencyPackagePath,
-                            absolutePath: joinPath(getWorkspacePath(), dependencyPackagePath),
-                            dependentArtifactByBazelTarget: new Map(),
-                        };
-                        bazelPackageByPath.set(dependencyPackagePath, bazelPackage);
-                    }
-
-                    bazelPackage.dependentArtifactByBazelTarget.set(artifact.bazelTarget, artifact);
-                }
-
-                for (const dependencyPackagePath of dependencyPackagePathsToRemove) {
-                    const bazelPackage = bazelPackageByPath.get(dependencyPackagePath);
-                    bazelPackage?.dependentArtifactByBazelTarget.delete(artifact.bazelTarget);
-                }
-            },
-            async () => {
-                if (!artifact.hotReload) return;
-                const {hotReload} = artifact;
-
-                hotReload.serverRestartDependencyPackagePaths ??= new MutexValue(emptySet);
-
-                // Prevent issues with concurrent updates by serializing updates with a
-                // `MutexValue`.
-                await hotReload.serverRestartDependencyPackagePaths.withLock(async valueRef => {
-                    valueRef.current = new Set(
-                        await queryBazelTargetDependencyPackagePaths(
-                            hotReload.serverRestartBazelTarget,
-                        ),
-                    );
-                });
-            },
-        );
+        for (const dependencyPackagePath of dependencyPackagePathsToRemove) {
+            const bazelPackage = bazelPackageByPath.get(dependencyPackagePath);
+            bazelPackage?.dependentArtifactByBazelTarget.delete(artifact.bazelTarget);
+        }
     });
+}
+
+async function diffBazelTargetDependencyPackagePaths(bazelTarget: string) {
+    const dependencyPackagePaths = new Set(
+        await queryBazelTargetDependencyPackagePaths(bazelTarget),
+    );
+
+    const lastDependencyPackagePaths =
+        lastDependencyBazelPackagePathsByTarget.get(bazelTarget) ?? new Set();
+
+    lastDependencyBazelPackagePathsByTarget.set(bazelTarget, dependencyPackagePaths);
+
+    const dependencyPackagePathsToAdd = dependencyPackagePaths;
+    const dependencyPackagePathsToRemove = new Set<string>();
+
+    for (const lastDependencyPackagePath of lastDependencyPackagePaths) {
+        if (!dependencyPackagePathsToAdd.delete(lastDependencyPackagePath)) {
+            dependencyPackagePathsToRemove.add(lastDependencyPackagePath);
+        }
+    }
+
+    return {
+        dependencyPackagePathsToAdd,
+        dependencyPackagePathsToRemove,
+    };
 }
 
 /**
@@ -828,22 +872,40 @@ function processFileUpdate(path: string) {
 }
 
 function actuallyProcessFileUpdates(paths: Set<string>) {
-    const pathsWithBazelPackages = mapIterable(paths, path => ({
-        path,
-        bazelPackage: getBazelPackageByAbsoluteFilePath(path),
-    }));
-
     const artifacts = new Set(
-        flatMapIterable(pathsWithBazelPackages, ({bazelPackage}) =>
-            bazelPackage.dependentArtifactByBazelTarget.values(),
-        ),
+        flatMapIterable(paths, path => {
+            const pathBazelPackage = getBazelPackageByAbsoluteFilePath(path);
+
+            return filterMapIterable(
+                pathBazelPackage.dependentArtifactByBazelTarget,
+                ([bazelTarget, artifact]) => {
+                    // If our artifact has configured `serverRestartPaths` then if a file is updated
+                    // in the artifact's package only a change to a path in `serverRestartPaths`
+                    // will cause a rebuild.
+                    if (artifact.serverRestartPaths) {
+                        const artifactBazelPackage = getBazelPackageByBazelTarget(bazelTarget);
+
+                        if (pathBazelPackage === artifactBazelPackage) {
+                            assert(path.startsWith(`${pathBazelPackage.absolutePath}/`));
+                            const relativePath = path.slice(
+                                pathBazelPackage.absolutePath.length + 1,
+                            );
+
+                            if (!artifact.serverRestartPaths.has(relativePath)) {
+                                return null;
+                            }
+                        }
+                    }
+
+                    return artifact;
+                },
+            );
+        }),
     );
 
     // Rebuild all targets that depend on this package...
     runPromiseWithoutAwaiting(async () => {
-        await runAllPromises(
-            Array.from(artifacts, artifact => rebuildArtifact(artifact, pathsWithBazelPackages)),
-        );
+        await runAllPromises(Array.from(artifacts, artifact => rebuildArtifact(artifact)));
     });
 
     for (const path of paths) {

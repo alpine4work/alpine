@@ -1,8 +1,6 @@
 import {vitePlugin as remix} from "@remix-run/dev";
 import {defineConfig} from "vite";
 
-// NOCOMMIT: xxxx
-
 export default defineConfig(({mode}) => {
     // Make sure `NODE_ENV` matches `mode`. By default they're different:
     // https://vitejs.dev/guide/env-and-mode.html#node-env-and-modes
@@ -16,6 +14,11 @@ export default defineConfig(({mode}) => {
 
     return {
         publicDir: "./app/static/files",
+        resolve: {
+            // Only allow Vite to resolve JavaScript files. TypeScript code is transpiled
+            // with SWC by Bazel. Vite should not be processing TypeScript code.
+            extensions: [".mjs", ".js", ".json"],
+        },
         build: {
             outDir: "./app/build",
         },

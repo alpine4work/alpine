@@ -5,12 +5,12 @@ load("@npm//:@remix-run/dev/package_json.bzl", remix_bin = "bin")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//admin/esbuild:esbuild_runfiles_aspect.bzl", "esbuild_runfiles_without_sources")
-load("//app:app_entry_point_srcs.bzl", "APP_ENTRY_POINT_SRCS")
+load("//app:app_wrapper_srcs.bzl", "APP_WRAPPER_SRCS")
 
-# NOCOMMIT: Document why we have a separate `:app_entry_point_lib`.
+# NOCOMMIT: Document why we have a separate `:app_wrapper_lib`.
 ts_project(
-    name = "app_entry_point_lib",
-    srcs = APP_ENTRY_POINT_SRCS,
+    name = "app_wrapper_lib",
+    srcs = APP_WRAPPER_SRCS,
     test_srcs = [],
     deps = [
         "//:node_modules/@remix-run/node",
@@ -47,14 +47,14 @@ ts_project(
             "**/*.ts",
             "**/*.tsx",
         ],
-        exclude = APP_ENTRY_POINT_SRCS + [
+        exclude = APP_WRAPPER_SRCS + [
             "**/*.test.ts",
             "**/*.test.tsx",
         ],
     ),
     visibility = ["//app/integration_tests:__pkg__"],
     deps = [
-        ":app_entry_point_lib",
+        ":app_wrapper_lib",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
@@ -121,14 +121,27 @@ ts_project(
     ],
 )
 
-# NOCOMMIT: Document difference between this, `app_test` and `app_production`.
-js_binary(
+# NOCOMMIT: Document what's happening
+filegroup(
     name = "app",
+    # It's important that we use `data` instead of `srcs`! `data` puts our files in
+    # `DefaultInfo.default_runfiles` whereas `srcs` puts our files in
+    # `DefaultInfo.files`. Bazel will build both `data` and `srcs` on a
+    # `bazel build` invocation but it won't print `srcs`. We don't want to print
+    # `srcs` because it could be quite the long list.
     data = [
         ":app_lib",
-        "//:node_modules/vite",
         "//:remix_config_files",
         "//app/static",
+    ],
+)
+
+# NOCOMMIT: Document difference between this, `app_test` and `app_production`.
+js_binary(
+    name = "app_wrapper",
+    data = [
+        ":app_wrapper_lib",
+        "//:node_modules/vite",
     ],
     entry_point = "app_service.js",
 )

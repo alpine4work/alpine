@@ -66,7 +66,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-// NOCOMMIT: xxxxxx
+// NOCOMMIT: xxxxxxxxx
 
 const staticPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
 const staticAssetsPath = joinPath(staticPath, "assets");
@@ -111,20 +111,22 @@ export async function run({
         ? // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
           // @ts-ignore: `vite` is not included as a dependency in the `ts_project()` because we
           // don't want to include it in the production container. It's only used in development.
-          await import("vite").then(vite =>
-              vite.createServer({
-                  configFile: joinPath(runfilesPath, "cyberworlds/vite.config.mjs"),
+          await import("vite").then(vite => {
+              // Run Vite in Bazel's build directory. Our dev process manager is responsible
+              // for keeping the `//app` target up-to-date which will build all app files
+              // necessary here.
+              const rootPath = joinPath(
+                  assertExists(process.env.JS_BINARY__EXECROOT),
+                  assertExists(process.env.JS_BINARY__BINDIR),
+              );
+
+              return vite.createServer({
+                  root: rootPath,
                   cacheDir: options.viteCachePath,
-                  server: {
-                      middlewareMode: true,
-                      fs: {
-                          // Allow serving files from Bazel's execroot. Since symlinks might escape our
-                          // runfiles directory into other execroot files.
-                          allow: [assertExists(process.env.JS_BINARY__EXECROOT)],
-                      },
-                  },
-              }),
-          )
+                  configFile: joinPath(rootPath, "vite.config.mjs"),
+                  server: {middlewareMode: true},
+              });
+          })
         : null;
 
     if (viteDevServer !== null) {
