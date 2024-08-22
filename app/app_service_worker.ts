@@ -4,6 +4,7 @@ import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
 import {IncomingMessage, ServerResponse, createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
+import {WebSocket} from "ws";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {Session} from "~/server/accounts/accounts_table.js";
@@ -62,11 +63,12 @@ import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shar
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-// NOCOMMIT: xxxxxxxxxxxxxx
+// NOCOMMIT: xxxxxxxxxxxxxxxxxxxx
 
 const staticPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
 const staticAssetsPath = joinPath(staticPath, "assets");
@@ -373,9 +375,6 @@ export async function run({
                 const loaderContextModule = new LoaderContextModule(request, {
                     tokenAgent,
                     sessionCookie,
-                    bazelDevServerPort: options.bazelDevServerPort
-                        ? parseInt(options.bazelDevServerPort, 10)
-                        : null,
                 });
 
                 const response = await processContext.with<
@@ -494,10 +493,7 @@ export async function run({
     registerGracefulServerShutdown(shutdownManager, server);
 
     const viteDevServer = options.viteDev
-        ? // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-          // @ts-ignore: `vite` is not included as a dependency in the `ts_project()` because we
-          // don't want to include it in the production container. It's only used in development.
-          await import("vite").then(vite => {
+        ? await import("vite").then(vite => {
               // Run Vite in Bazel's build directory. Our dev process manager is responsible
               // for keeping the `//app` target up-to-date which will build all app files
               // necessary here.
@@ -508,7 +504,10 @@ export async function run({
 
               return vite.createServer({
                   root: rootPath,
-                  cacheDir: options.viteCachePath,
+                  cacheDir: assertExists(
+                      options.viteCachePath,
+                      "`viteCachePath` option is required when `viteDev` option is provided",
+                  ),
                   configFile: joinPath(rootPath, "vite.config.mjs"),
                   server: {
                       middlewareMode: true,
@@ -524,10 +523,79 @@ export async function run({
           })
         : null;
 
-    // Make sure Vite stops watching files after shutdown initiates.
+    // 1. Make sure Vite stops watching files after shutdown initiates.
+    // 2. Connect to our Bazel dev WebSocket server.
     if (viteDevServer !== null) {
-        shutdownManager.registerListenerForIngressTraffic("Closing Vite file watcher", async () => {
+        let isShuttingDown = false;
+
+        shutdownManager.registerListenerForIngressTraffic("Closing Vite dev server", async () => {
+            isShuttingDown = true;
+            bazelDevSocket.close();
             await viteDevServer.watcher.close();
+        });
+
+        const bazelDevServerPort = parseInt(
+            assertExists(
+                options.bazelDevServerPort,
+                "`bazelDevServerPort` option is required when `viteDev` option is provided",
+            ),
+            10,
+        );
+
+        const bazelDevSocket = new WebSocket(`ws://localhost:${bazelDevServerPort}`);
+
+        await new Promise((resolve, reject) => {
+            bazelDevSocket.once("error", reject);
+            bazelDevSocket.once("open", resolve);
+        });
+
+        bazelDevSocket.on("error", error => {
+            tracer.logUncaughtException(
+                "Uncaught exception from Bazel dev server WebSocket",
+                error,
+            );
+        });
+
+        bazelDevSocket.on("close", (code, reason) => {
+            if (isShuttingDown) return;
+
+            tracer.logUncaughtException(
+                "Uncaught exception from Bazel dev server WebSocket",
+                new InternalError(
+                    `WebSocket closed unexpectedly with code ${code}${
+                        reason.length > 0 ? quote`and reason ${reason.toString("utf8")}` : ""
+                    }`,
+                ),
+            );
+        });
+
+        bazelDevSocket.on("message", rawMessage => {
+            if (isShuttingDown) return;
+
+            const message: {type: "Log"; message: string} | {type: "Reload"} = JSON.parse(
+                rawMessage.toString("utf8"),
+            );
+
+            console.log(message);
+
+            switch (message.type) {
+                case "Log": {
+                    viteDevServer.hot.send({
+                        type: "custom",
+                        event: "cyberworlds:bazel:log",
+                        data: {message: message.message},
+                    });
+                    break;
+                }
+                case "Reload": {
+                    viteDevServer.hot.send({
+                        type: "full-reload",
+                    });
+                    break;
+                }
+                default:
+                    throw exhaustive(message);
+            }
         });
     }
 

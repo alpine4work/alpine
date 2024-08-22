@@ -1,0 +1,178 @@
+import {animate} from "motion";
+import {useEffect, useRef, useState} from "react";
+import {Box} from "~/client/design/box.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {navigationBarStyles} from "~/shared/styles/styles.js";
+
+let BazelBuildIndicator;
+
+if (process.env.NODE_ENV !== "development") {
+    BazelBuildIndicator = function BazelBuildIndicator() {
+        return null;
+    };
+} else {
+    BazelBuildIndicator = function BazelBuildIndicator({isMobile}: {isMobile: boolean}) {
+        const messageRef = useRef<HTMLDivElement>(null);
+
+        const [messageState, setMessageState] = useState<{
+            message: string;
+            expirationTime: number | null;
+            animation: "In" | "Out" | null;
+        } | null>(null);
+
+        useEffect(() => {
+            const handleBeforeFullReload = () => {
+                setMessageState(previousMessageState => {
+                    if (previousMessageState === null) return null;
+                    return {...previousMessageState, expirationTime: null};
+                });
+            };
+
+            const handleLog = ({message}: {message: string}) => {
+                // eslint-disable-next-line no-console
+                console.debug(`[bazel] ${message}`);
+
+                setMessageState(previousMessageState => ({
+                    message,
+                    // If we see a message that starts with "Building" then we expect a "Built" (or
+                    // "Failed to build") message next. So extend the expiration time so the
+                    // developer is waiting for the "Built" message.
+                    //
+                    // If the message is "Built" (and not "Failed to build") expire the banner
+                    // quickly since it might be from a hot reload. When there's a full reload we
+                    // get `event.type === "RELOAD"` which removes the expiration time.
+                    expirationTime:
+                        Date.now() +
+                        (message.startsWith("Building ")
+                            ? 20_000
+                            : message.startsWith("Built ")
+                            ? 250
+                            : 1_500),
+                    animation: !previousMessageState ? "In" : null,
+                }));
+            };
+
+            import.meta.hot?.on("vite:beforeFullReload", handleBeforeFullReload);
+            import.meta.hot?.on("cyberworlds:bazel:log", handleLog);
+            return () => {
+                import.meta.hot?.off("vite:beforeFullReload", handleBeforeFullReload);
+                import.meta.hot?.off("cyberworlds:bazel:log", handleLog);
+            };
+        }, []);
+
+        useEffect(() => {
+            if (!messageState) return;
+            if (messageState.animation !== null) return;
+            if (messageState.expirationTime === null) return;
+
+            const timeout = createTimeout(() => {
+                setMessageState({...messageState, animation: "Out"});
+            }, messageState.expirationTime - Date.now());
+
+            return () => timeout.clear();
+        }, [messageState]);
+
+        const lastMessageStateRef = useRef(messageState);
+        useLayoutEffectWithoutServerSideWarning(() => {
+            if (lastMessageStateRef.current === messageState) return;
+            lastMessageStateRef.current = messageState;
+
+            if (!messageState) return;
+            const messageElement = assertExists(messageRef.current);
+
+            if (messageState.animation === "In") {
+                const animation = animate(
+                    messageElement,
+                    {opacity: [0, 1], y: [`-${spacing["10"]}`, 0]},
+                    {
+                        duration: 0.2,
+                        easing: "ease-out",
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
+                );
+
+                void animation.finished.finally(() => {
+                    setMessageState(previousMessageState => {
+                        if (previousMessageState !== messageState) return previousMessageState;
+                        return {...previousMessageState, animation: null};
+                    });
+                });
+            }
+
+            if (messageState.animation === "Out") {
+                const animation = animate(
+                    messageElement,
+                    {opacity: [1, 0], y: [0, `-${spacing["10"]}`]},
+                    {
+                        duration: 0.2,
+                        easing: "ease-in",
+                        // Make sure we use hardware acceleration for this animation in WebKit. By
+                        // default `motion` turns it off.
+                        // https://motion.dev/guides/performance#webkits-exceptions
+                        allowWebkitAcceleration: true,
+                    },
+                );
+
+                void animation.finished.finally(() => {
+                    setMessageState(previousMessageState => {
+                        if (previousMessageState !== messageState) return previousMessageState;
+                        return null;
+                    });
+                });
+            }
+        }, [messageState]);
+
+        if (!messageState) return null;
+
+        return (
+            <Box
+                ref={messageRef}
+                position="fixed"
+                top="0"
+                left="0"
+                right="0"
+                zIndex="80"
+                overflow="hidden"
+                backgroundColor={{light: "green-10", dark: "green-20"}}
+                color="green-90"
+                fontSize="50"
+                boxShadow="elevation-30"
+                paddingTop="safe-area-inset"
+            >
+                <Box
+                    overflow="hidden"
+                    paddingX="5"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    // We don't want to import `navigation_bar.tsx` to avoid including that
+                    // file in this bundle. Instead use `navigationBarStyles` since the CSS is
+                    // available in every bundle.
+                    style={{
+                        height: subtractRemLengths(
+                            spacing[
+                                navigationBarStyles[
+                                    isMobile
+                                        ? "mobileNavigationBarHeight"
+                                        : "desktopNavigationBarHeight"
+                                ]
+                            ],
+                            spacing["4"],
+                        ),
+                    }}
+                >
+                    <Box fontStyle="truncate-code">{messageState.message}</Box>
+                </Box>
+            </Box>
+        );
+    };
+}
+
+const BazelBuildIndicatorConst = BazelBuildIndicator;
+export {BazelBuildIndicatorConst as BazelBuildIndicator};

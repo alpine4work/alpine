@@ -80,11 +80,6 @@ export class LoaderContextModule extends ContextModuleBase {
      */
     public readonly sessionCookie: SessionCookie;
 
-    /**
-     * Port of the Bazel dev server that our dev process manager uses.
-     */
-    public readonly bazelDevServerPort: number | null;
-
     // Context modules can't directly mutate `this` so we need an
     // intermediate object.
     private readonly _state: {
@@ -106,18 +101,15 @@ export class LoaderContextModule extends ContextModuleBase {
         {
             tokenAgent,
             sessionCookie,
-            bazelDevServerPort,
         }: {
             tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
             sessionCookie: SessionCookie;
-            bazelDevServerPort: number | null;
         },
     ) {
         super();
         this._request = request;
         this.tokenAgent = tokenAgent;
         this.sessionCookie = sessionCookie;
-        this.bazelDevServerPort = bazelDevServerPort;
     }
 
     private _parseCookieHeader() {

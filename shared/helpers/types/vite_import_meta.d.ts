@@ -11,4 +11,5 @@ interface ImportMeta {
         readonly PROD?: boolean;
         readonly SSR?: boolean;
     };
+    readonly hot?: import("vite/types/hot.d.ts").ViteHotContext;
 }

@@ -16,7 +16,7 @@ import {
     useRouteError,
 } from "react-router";
 import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display_message.js";
-import {AppLiveReload} from "~/app/router/app_live_reload.js";
+import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {contentCodeBlockLanguages} from "~/client/content/code/content_code_block_language.js";
@@ -100,7 +100,6 @@ const LoaderSchema = Schema.object({
     initialAppRenderId: Schema.id(),
     browserId: Schema.id<BrowserId>(),
     clientInfo: ClientInfoSchema,
-    bazelDevServerPort: Schema.integer.optional(),
     isIntegrationTest: Schema.boolean,
 });
 
@@ -133,7 +132,6 @@ export async function loader({context}: LoaderArgs) {
         initialAppRenderId: generateId(),
         browserId: context.loader.getBrowserId(),
         clientInfo: context.loader.getClientInfo(),
-        bazelDevServerPort: context.loader.bazelDevServerPort ?? undefined,
         isIntegrationTest: !!process.env.PLAYWRIGHT_TEST_PATH,
     });
 }
@@ -566,9 +564,7 @@ export default function Root() {
             <body>
                 {wrappedChildren}
                 <ScrollRestoration />
-                {loaderData?.bazelDevServerPort && (
-                    <AppLiveReload port={loaderData.bazelDevServerPort} isMobile={isMobile} />
-                )}
+                <BazelBuildIndicator isMobile={isMobile} />
                 <script
                     // Let our native app know we're ready once the server render has finished.
                     // This script intentionally runs before React hydration since we can

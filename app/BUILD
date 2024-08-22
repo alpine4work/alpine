@@ -16,7 +16,10 @@ ts_project(
         "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
         "//:node_modules/@types/serve-static",
+        "//:node_modules/@types/ws",
         "//:node_modules/serve-static",
+        "//:node_modules/vite",
+        "//:node_modules/ws",
         "//app/static:static_manifest",
         "//server/accounts",
         "//server/alpha",
@@ -139,10 +142,7 @@ filegroup(
 # NOCOMMIT: Document difference between this, `app_test` and `app_production`.
 js_binary(
     name = "app_wrapper",
-    data = [
-        ":app_wrapper_lib",
-        "//:node_modules/vite",
-    ],
+    data = [":app_wrapper_lib"],
     entry_point = "app_service.js",
 )
 

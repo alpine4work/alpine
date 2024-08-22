@@ -18,6 +18,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {mobilePlatformSelector} from "~/shared/styles/internal/platform.css.js";
 
+// NOCOMMIT: When updated we get a 500 error?
+
 const formatPercentage = (percentage: number) =>
     `${Math.round(percentage * 100 * 10 ** 5) / 10 ** 5}%`;
 
