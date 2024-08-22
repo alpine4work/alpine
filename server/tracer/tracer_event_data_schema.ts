@@ -1,7 +1,7 @@
 import {
     tracerEventDataDynamoConsumedCapacityKeys,
     tracerEventDataDynamoPartitionTypesByTableName,
-} from "~/server/tracer/internal/tracer_event_data_dynamo.js";
+} from "~/server/tracer/tracer_event_data_dynamo.js";
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
@@ -191,7 +191,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         consistentRead: Schema.boolean,
         consumedCapacity: {
             ...Object.fromEntries(
-                tracerEventDataDynamoConsumedCapacityKeys.map(key => [
+                Array.from(tracerEventDataDynamoConsumedCapacityKeys, key => [
                     key,
                     {
                         readCapacityUnits: Schema.float,

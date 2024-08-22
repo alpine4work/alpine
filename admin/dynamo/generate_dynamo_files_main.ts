@@ -6,6 +6,8 @@ import {
 } from "~/admin/dynamo/get_all_dynamo_table_schemas.js";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {serializeSchemaDescriptionToJsonSafeValue} from "~/shared/schema/schema_description_json.js";
 
@@ -77,15 +79,17 @@ export const dynamoGeneratedSchemaDescription: {
  * either which our dev server would see and rebuild \`//server/tracer\`
  * dependents on \`//server/dynamo\` changes.
  */
-export const tracerEventDataDynamoConsumedCapacityKeys = [
-${[
-    ...tableSchemas.map(tableSchema => tableSchema.getName()),
-    ...(
-        await getAllDynamoTableSchemaIndexNames()
-    ).map(({tableName, indexName}) => `${tableName}_${indexName}`),
-]
-    .map(key => `    ${JSON.stringify(key)},\n`)
-    .join("")}];
+export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
+${Array.from(
+    concatIterables(
+        mapIterable(tableSchemas, tableSchema => tableSchema.getName()),
+        mapIterable(
+            await getAllDynamoTableSchemaIndexNames(),
+            ({tableName, indexName}) => `${tableName}_${indexName}`,
+        ),
+    ),
+    key => `    ${JSON.stringify(key)},\n`,
+).join("")}]);
 
 /**
  * All the partition types for each table. We use these to build the tracer
@@ -103,16 +107,15 @@ ${[
  */
 // prettier-ignore
 export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, ReadonlyArray<string>>([
-${tableSchemas
-    .map(
-        tableSchema =>
-            `    [${JSON.stringify(tableSchema.getName())}, [${Object.keys(
-                tableSchema.getDescription().partitionByType,
-            )
-                .map(partitionType => JSON.stringify(partitionType))
-                .join(", ")}]],\n`,
-    )
-    .join("")}]);
+${Array.from(
+    tableSchemas,
+    tableSchema =>
+        `    [${JSON.stringify(tableSchema.getName())}, [${Object.keys(
+            tableSchema.getDescription().partitionByType,
+        )
+            .map(partitionType => JSON.stringify(partitionType))
+            .join(", ")}]],\n`,
+).join("")}]);
 `,
             );
         },

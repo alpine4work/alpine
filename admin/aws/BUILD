@@ -147,6 +147,7 @@ js_run_binary(
         "output_lite/CyberworldsStack.template.json",
     ],
     chdir = "admin/aws",
+    progress_message = "Formatting AWS templates",
     tool = ":aws_template_format",
 )
 

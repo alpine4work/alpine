@@ -4,7 +4,10 @@ import {dynamoCoreVisibilityBazelPackagePaths} from "~/admin/dynamo/dynamo_core_
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 // Import all the JavaScript files in our `server` directory. Only the sources
@@ -23,16 +26,20 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
 
     const {
         DynamoTableSchema,
-        finishInitializingDynamoTableSchemas,
-        getAllConstructedDynamoTableSchemaIndexNames,
-        getAllConstructedDynamoTableSchemas,
+        getConstructedDynamoTableSchemaCount,
+        recordConstructedDynamoTableSchemas,
     }: typeof import("~/server/dynamo/core/dynamo_table_schema.js") =
         // Even though we have a dependency on `//server/dynamo/core`, import it from
         // `runfilesPath` so all references are the same as when we import all the
         // modules below.
         await import(joinPath(runfilesRepoPath, "server/dynamo/core/dynamo_table_schema.js"));
 
-    try {
+    assert(
+        getConstructedDynamoTableSchemaCount() === 0,
+        'Some "DynamoTableSchema"s have already been constructed so won\'t be captured in our recording',
+    );
+
+    const {schemas, indexNamesByTableName} = await recordConstructedDynamoTableSchemas(async () => {
         await runAllPromises(
             paths.map(async path => {
                 const module = await import(path);
@@ -51,11 +58,9 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
                 }
             }),
         );
-    } finally {
-        finishInitializingDynamoTableSchemas();
-    }
+    });
 
-    return {getAllConstructedDynamoTableSchemaIndexNames, getAllConstructedDynamoTableSchemas};
+    return {schemas, indexNamesByTableName};
 });
 
 /**
@@ -64,8 +69,8 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
  * schemas.
  */
 export async function getAllDynamoTableSchemas() {
-    const {getAllConstructedDynamoTableSchemas} = await importAllDynamoTableSchemasPromise.get();
-    return getAllConstructedDynamoTableSchemas();
+    const {schemas} = await importAllDynamoTableSchemasPromise.get();
+    return schemas.values();
 }
 
 /**
@@ -76,7 +81,8 @@ export async function getAllDynamoTableSchemas() {
  * index in the database.
  */
 export async function getAllDynamoTableSchemaIndexNames() {
-    const {getAllConstructedDynamoTableSchemaIndexNames} =
-        await importAllDynamoTableSchemasPromise.get();
-    return getAllConstructedDynamoTableSchemaIndexNames();
+    const {indexNamesByTableName} = await importAllDynamoTableSchemasPromise.get();
+    return flatMapIterable(indexNamesByTableName, ([tableName, indexNames]) =>
+        mapIterable(indexNames, indexName => ({tableName, indexName})),
+    );
 }

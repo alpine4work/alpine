@@ -1,7 +1,6 @@
 import {Context} from "~/shared/context/context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {ObjectSchemaConfigBase, ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
@@ -36,15 +35,6 @@ export function defineRpc<
     assert(isIdentifier(name), "RPC name should be a valid identifier");
     assert(name[0] === name[0]?.toLowerCase(), "RPC name should start with a lower case letter");
 
-    assert(
-        // In development on the browser we have hot module reloading. This means we
-        // will call `defineRpc()` multiple times for the same RPC.
-        (typeof window !== "undefined" && process.env.NODE_ENV === "development") ||
-            !definedRpcNames.has(name),
-        quote`A definition for an RPC named ${name} already exists`,
-    );
-    definedRpcNames.add(name);
-
     const inputSchema = Schema.object(inputConfig);
     const outputSchema = Schema.object(outputConfig);
 
@@ -66,13 +56,4 @@ export function defineRpc<
     });
 
     return definition;
-}
-
-const definedRpcNames = new Set<string>();
-
-/**
- * Get the names of all RPCs that have been defined.
- */
-export function getAllDefinedRpcNames(): IterableIterator<string> {
-    return definedRpcNames.values();
 }

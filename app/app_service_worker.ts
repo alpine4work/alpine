@@ -68,7 +68,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-// NOCOMMIT: xxxxxxxxxxxxxxxxxxxx
+// NOCOMMIT: xxxxxxxxxxxxxxxxxxxxxx
 
 const staticPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
 const staticAssetsPath = joinPath(staticPath, "assets");
@@ -526,12 +526,15 @@ export async function run({
     // 1. Make sure Vite stops watching files after shutdown initiates.
     // 2. Connect to our Bazel dev WebSocket server.
     if (viteDevServer !== null) {
+        shutdownManager.registerListenerForIngressTraffic("Closing Vite file watcher", async () => {
+            await viteDevServer.watcher.close();
+        });
+
         let isShuttingDown = false;
 
-        shutdownManager.registerListenerForIngressTraffic("Closing Vite dev server", async () => {
+        shutdownManager.registerListener("Closing Bazel dev server connection", async () => {
             isShuttingDown = true;
             bazelDevSocket.close();
-            await viteDevServer.watcher.close();
         });
 
         const bazelDevServerPort = parseInt(
@@ -575,8 +578,6 @@ export async function run({
             const message: {type: "Log"; message: string} | {type: "Reload"} = JSON.parse(
                 rawMessage.toString("utf8"),
             );
-
-            console.log(message);
 
             switch (message.type) {
                 case "Log": {

@@ -1,12 +1,9 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
-import {
-    isConstructedDynamoTableSchemaIndexName,
-    isConstructedDynamoTableSchemaName,
-} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {tracerEventDataDynamoConsumedCapacityKeys} from "~/server/tracer/tracer_event_data_dynamo.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -966,7 +963,7 @@ function getConsumedCapacityTracerEventData(
             // name then don't return any consumed capacity info.
             if (
                 !consumedCapacity.TableName ||
-                !isConstructedDynamoTableSchemaName(consumedCapacity.TableName)
+                !tracerEventDataDynamoConsumedCapacityKeys.has(consumedCapacity.TableName)
             ) {
                 return;
             }
@@ -978,18 +975,15 @@ function getConsumedCapacityTracerEventData(
                     for (const [indexName, indexConsumedCapacity] of Object.entries(
                         consumedCapacity.GlobalSecondaryIndexes,
                     )) {
+                        const tableAndIndexName = `${consumedCapacity.TableName}_${indexName}`;
+
                         // If this is an unrecognized index name then bail out. Don't add its
                         // consumed capacities.
-                        if (
-                            !isConstructedDynamoTableSchemaIndexName(
-                                consumedCapacity.TableName,
-                                indexName,
-                            )
-                        ) {
+                        if (!tracerEventDataDynamoConsumedCapacityKeys.has(tableAndIndexName)) {
                             continue;
                         }
 
-                        add(indexConsumedCapacity, `${consumedCapacity.TableName}_${indexName}`);
+                        add(indexConsumedCapacity, tableAndIndexName);
                     }
                 }
                 return;

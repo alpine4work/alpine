@@ -25,6 +25,7 @@ ts_project(
         "//server/emails",
         "//server/helpers/node",
         "//server/schema",
+        "//server/tracer",
         "//shared/context",
         "//shared/dynamo",
         "//shared/error",

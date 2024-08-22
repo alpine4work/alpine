@@ -1,7 +1,7 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
-import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
+import {allRpcImplementations} from "~/server/rpc/all_rpc_implementations.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -29,7 +29,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase<
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output> {
-        const implementation = getRpcImplementationIfExists(definition.name);
+        const implementation = allRpcImplementations.get(definition.name);
 
         if (!implementation)
             throw new InternalError("Could not find an implementation for defined RPC");

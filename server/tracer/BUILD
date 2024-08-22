@@ -23,7 +23,7 @@ ts_project(
 write_source_files(
     name = "write_tracer_event_data_dynamo",
     files = {
-        "internal/tracer_event_data_dynamo.ts": "//admin/dynamo:tracer_event_data_dynamo.ts",
+        "tracer_event_data_dynamo.ts": "//admin/dynamo:tracer_event_data_dynamo.ts",
     },
     visibility = ["//admin/dynamo:__pkg__"],
 )

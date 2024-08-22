@@ -2,6 +2,7 @@
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
@@ -346,7 +347,7 @@ export class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html
      */
     public async executeTransaction(
-        tracer: TracerBase,
+        context: DynamoContext,
         entries: ReadonlyArray<DynamoTransactionEntry>,
         {
             clientRequestToken,
@@ -356,9 +357,51 @@ export class DynamoClient {
             retryConditionCheckError?: ((error?: unknown) => never) | null;
         },
     ): Promise<void> {
+        // Run all before transaction callbacks even if one of them has an error.
+        //
+        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+        // just the first one. Probably by using an `AggregateError`.
+        {
+            let hasError = false;
+            let error: unknown = null;
+            const promises: Array<Promise<void>> = [];
+
+            for (const entry of entries) {
+                try {
+                    const maybePromise = entry._onBeforeExecuteTransaction(DynamoClient, context);
+
+                    if (isPromiseLike(maybePromise)) {
+                        promises.push(maybePromise);
+                    }
+                } catch (entryError) {
+                    if (!hasError) {
+                        hasError = true;
+                        error = entryError;
+                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                        error = entryError;
+                    }
+                }
+            }
+
+            if (promises.length > 0) {
+                try {
+                    await runAllPromises(promises);
+                } catch (entryError) {
+                    if (!hasError) {
+                        hasError = true;
+                        error = entryError;
+                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                        error = entryError;
+                    }
+                }
+            }
+
+            if (hasError) throw error;
+        }
+
         try {
             await this._client.TransactWriteItems(
-                tracer,
+                context.tracer.getTracer(),
                 {
                     TransactItems: entries.map(entry =>
                         entry._getTransactItemForClient(DynamoClient),
@@ -401,8 +444,10 @@ export class DynamoClient {
 
             for (const entry of entries) {
                 try {
-                    const maybePromise =
-                        entry._onAfterTransactionExecutedSuccessfully(DynamoClient);
+                    const maybePromise = entry._onAfterTransactionExecutedSuccessfully(
+                        DynamoClient,
+                        context,
+                    );
 
                     if (isPromiseLike(maybePromise)) {
                         promises.push(maybePromise);
@@ -448,6 +493,7 @@ export class DynamoClient {
         expressionAttributeValues,
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
+        onBeforeExecuteTransaction = null,
         onAfterTransactionExecutedSuccessfully = null,
         debugItemType,
     }: {
@@ -457,7 +503,10 @@ export class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
-        onAfterTransactionExecutedSuccessfully?: (() => MaybePromise<void>) | null;
+        onBeforeExecuteTransaction?: ((context: DynamoContext) => MaybePromise<void>) | null;
+        onAfterTransactionExecutedSuccessfully?:
+            | ((context: DynamoContext) => MaybePromise<void>)
+            | null;
         debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
@@ -486,6 +535,7 @@ export class DynamoClient {
                 },
             },
             isConditionCheckErrorRetriable,
+            onBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully,
             debugItemType,
         });
@@ -505,6 +555,7 @@ export class DynamoClient {
         expressionAttributeValues,
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
+        onBeforeExecuteTransaction = null,
         onAfterTransactionExecutedSuccessfully = null,
         debugItemType,
     }: {
@@ -514,7 +565,8 @@ export class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
-        onAfterTransactionExecutedSuccessfully?: (() => void) | null;
+        onBeforeExecuteTransaction?: ((context: DynamoContext) => MaybePromise<void>) | null;
+        onAfterTransactionExecutedSuccessfully?: ((context: DynamoContext) => void) | null;
         debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
@@ -543,6 +595,7 @@ export class DynamoClient {
                 },
             },
             isConditionCheckErrorRetriable,
+            onBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully,
             debugItemType,
         });
@@ -562,6 +615,7 @@ export class DynamoClient {
         expressionAttributeValues,
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
+        onBeforeExecuteTransaction = null,
         onAfterTransactionExecutedSuccessfully = null,
         debugItemType,
     }: {
@@ -571,7 +625,8 @@ export class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
-        onAfterTransactionExecutedSuccessfully?: (() => void) | null;
+        onBeforeExecuteTransaction?: ((context: DynamoContext) => MaybePromise<void>) | null;
+        onAfterTransactionExecutedSuccessfully?: ((context: DynamoContext) => void) | null;
         debugItemType: DynamoClientDebugItemType;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
@@ -600,6 +655,7 @@ export class DynamoClient {
                 },
             },
             isConditionCheckErrorRetriable,
+            onBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully,
             debugItemType,
         });

@@ -1,5 +1,5 @@
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
+import {allRpcImplementations} from "~/server/rpc/all_rpc_implementations.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -23,7 +23,7 @@ export async function action({request, context: loaderContext, span, params}: Lo
         if (params.rpcName !== call.name)
             throw new InvalidArgumentError("Expected name in input to match name in URL");
 
-        const rpcImplementation = getRpcImplementationIfExists(call.name);
+        const rpcImplementation = allRpcImplementations.get(call.name);
         if (!rpcImplementation) throw new NotFoundError("Could not find an implementation for RPC");
 
         const output = await rpcImplementation.execute(context, call.input);

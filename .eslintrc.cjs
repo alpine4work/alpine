@@ -457,10 +457,13 @@ module.exports = {
             },
         },
         {
-            files: ["app/**/*"],
+            files: ["app/**/*", "server/rpc/*_rpc_implementations.ts"],
             rules: {
                 // Remix uses default exports in the `./app` directory to figure out
                 // what to render.
+                //
+                // Our RPC implementations system also exports an RPC implementation
+                // object from the default export.
                 "import/no-default-export": "off",
             },
         },

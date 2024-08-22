@@ -51,7 +51,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -60,7 +59,6 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
@@ -452,8 +450,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ]),
         );
 
-        assert(!allConstructedDynamoTableSchemas.has(this._name), "Table names must be unique");
-        allConstructedDynamoTableSchemas.set(this._name, this);
+        constructedDynamoTableSchemaCount++;
+        if (recording) {
+            assert(!recording.schemas.has(this._name), "Table names in recording must be unique");
+            recording.schemas.set(this._name, this);
+        }
 
         // DynamoDB table schemas finish initializing a microtask after they're
         // constructed because functions like `addIndex()` will extend the table
@@ -576,6 +577,21 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         return client;
     }
+
+    /**
+     * Called before executing a transaction. In development we need to make sure:
+     *
+     * 1. There are no write compatibility errors
+     * 2. The table exists
+     *
+     * Before we can execute a transaction.
+     */
+    private _handleBeforeExecuteTransaction: ((context: DynamoContext) => Promise<void>) | null =
+        process.env.NODE_ENV !== "production"
+            ? async (context: DynamoContext) => {
+                  await this._getClient(context, true);
+              }
+            : null;
 
     /**
      * Ensures that our table exists in DynamoDB local.
@@ -2107,27 +2123,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     ): Promise<void> {
         const client = getDynamoClient(context);
 
-        // Make sure we run `_getClient()` for all tables in the transaction. This will
-        // make sure we create the table in development and will make sure we check
-        // write backwards compatibility.
-        await runAllPromises(
-            entries.map(entry => {
-                const transactItem = entry._getTransactItemForClient(DynamoClient);
-                const tableName =
-                    transactItem.ConditionCheck?.TableName ??
-                    transactItem.Put?.TableName ??
-                    transactItem.Delete?.TableName ??
-                    transactItem.Update?.TableName;
-                assert(tableName, "Could not find transact item table name");
-
-                const tableSchema = allConstructedDynamoTableSchemas.get(tableName);
-                assert(tableSchema, "Could not find table schema for transact item table");
-
-                return tableSchema._getClient(context, true);
-            }),
-        );
-
-        await client.executeTransaction(context.tracer.getTracer(), entries, {
+        return client.executeTransaction(context, entries, {
             clientRequestToken,
             retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });
@@ -2322,6 +2318,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             return DynamoClient.transactionPutItem({
                 tableName: this._name,
                 item: serializedItem,
+                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
                 onAfterTransactionExecutedSuccessfully,
                 debugItemType: {
                     tableName: this._name,
@@ -2346,6 +2343,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
                 isConditionCheckErrorRetriable,
+                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
                 onAfterTransactionExecutedSuccessfully,
                 debugItemType: {
                     tableName: this._name,
@@ -2491,6 +2489,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             return DynamoClient.transactionDeleteItem({
                 tableName: this._name,
                 key: {partitionKey, sortKey},
+                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
                 debugItemType: {
                     tableName: this._name,
                     partitionType: key.partitionType,
@@ -2514,6 +2513,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
                 isConditionCheckErrorRetriable,
+                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
                 debugItemType: {
                     tableName: this._name,
                     partitionType: key.partitionType,
@@ -2565,6 +2565,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
             isConditionCheckErrorRetriable,
+            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
             debugItemType: {
                 tableName: this._name,
                 partitionType: key.partitionType,
@@ -2632,6 +2633,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
             expressionAttributeNames: new Map(conditionCompilationContext.iterateAttributeNames()),
             isConditionCheckErrorRetriable,
+            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
             debugItemType: {
                 tableName: this._name,
                 partitionType: key.partitionType,
@@ -2724,6 +2726,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: true,
+            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully: null,
             debugItemType: {
                 tableName: this._name,
@@ -2797,6 +2800,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: true,
+            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully: null,
             debugItemType: {
                 tableName: this._name,
@@ -2838,6 +2842,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: false,
+            onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
             onAfterTransactionExecutedSuccessfully: null,
             debugItemType: {
                 tableName: this._name,
@@ -3781,11 +3786,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ).push(indexConfig);
         }
 
-        getOrSetDefaultMapValue(
-            allConstructedDynamoTableSchemaIndexNames,
-            this._name,
-            () => new Set(),
-        ).add(`Index${indexConfig.indexNumber}`);
+        if (recording) {
+            getOrSetDefaultMapValue(
+                recording.indexNamesByTableName,
+                this._name,
+                () => new Set(),
+            ).add(`Index${indexConfig.indexNumber}`);
+        }
 
         return indexConfig;
     }
@@ -4360,67 +4367,52 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 }
 
-const allConstructedDynamoTableSchemas = new Map<
-    string,
-    DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
->();
-
-const allConstructedDynamoTableSchemaIndexNames = new Map<string, Set<string>>();
+let constructedDynamoTableSchemaCount = 0;
 
 /**
- * Is the provided name the name of a `DynamoTableSchema` that has been
- * constructed?
+ * How many DynamoDB table schemas have been created? Can be used with
+ * `recordConstructedDynamoTableSchemas()` to make sure you've recorded all
+ * constructed DynamoDB table schemas.
+ *
+ * We can't add every DynamoDB table schemas ever constructed to an array since
+ * the array would grow indefinitely in our Vite dev server which re-evaluates
+ * modules whenever they update.
  */
-export function isConstructedDynamoTableSchemaName(name: string): boolean {
-    return allConstructedDynamoTableSchemas.has(name);
+export function getConstructedDynamoTableSchemaCount() {
+    return constructedDynamoTableSchemaCount;
 }
 
-/**
- * Is the provided name the name of a `DynamoTableSchema`'s index that has been
- * constructed?
- */
-export function isConstructedDynamoTableSchemaIndexName(
-    tableName: string,
-    indexName: string,
-): boolean {
-    return allConstructedDynamoTableSchemaIndexNames.get(tableName)?.has(indexName) ?? false;
-}
+let recording: {
+    schemas: Map<
+        string,
+        DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
+    >;
+    indexNamesByTableName: Map<string, Set<string>>;
+} | null = null;
 
 /**
- * Get all `DynamoTableSchema`s that have been constructed so far.
- *
- * They will be sorted by name so the order is deterministic.
+ * Record all DynamoDB table schemas and indexes constructed during the provided
+ * action. Doesn't record any DynamoDB table schemas constructed before or
+ * after this.
  */
-export function getAllConstructedDynamoTableSchemas(): Array<
-    DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
-> {
-    return Array.from(allConstructedDynamoTableSchemas)
-        .sort(([name1], [name2]) => defaultCompareStrings(name1, name2))
-        .map(([, schema]) => schema);
-}
+export async function recordConstructedDynamoTableSchemas(action: () => Promise<void>) {
+    assert(recording === null);
 
-/**
- * Get all indexes for `DynamoTableSchema`s that have been constructed so far.
- *
- * They will be sorted by name so the order is deterministic.
- *
- * This returns the names of indexes as they exist in the database, not as they
- * exist in code. Remember that multiple indexes may overload the same physical
- * index in the database.
- */
-export function getAllConstructedDynamoTableSchemaIndexNames(): Array<{
-    tableName: string;
-    indexName: string;
-}> {
-    return Array.from(
-        flatMapIterable(allConstructedDynamoTableSchemaIndexNames, ([tableName, indexNames]) =>
-            mapIterable(indexNames, indexName => ({tableName, indexName})),
-        ),
-    ).sort(
-        (names1, names2) =>
-            defaultCompareStrings(names1.tableName, names2.tableName) ||
-            defaultCompareStrings(names1.indexName, names2.indexName),
-    );
+    const schemas = new Map<
+        string,
+        DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
+    >();
+    const indexNamesByTableName = new Map<string, Set<string>>();
+
+    recording = {schemas, indexNamesByTableName};
+    try {
+        await action();
+        finishInitializingDynamoTableSchemas();
+    } finally {
+        recording = null;
+    }
+
+    return {schemas, indexNamesByTableName};
 }
 
 let dynamoTableSchemaInitializationCallbacks: Array<() => void> = [];

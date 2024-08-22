@@ -140,6 +140,8 @@ filegroup(
 )
 
 # NOCOMMIT: Document difference between this, `app_test` and `app_production`.
+# NOCOMMIT: Try to reduce down app wrapper. Maybe even getting rid of the weird
+# `instanceof` context checks.
 js_binary(
     name = "app_wrapper",
     data = [":app_wrapper_lib"],

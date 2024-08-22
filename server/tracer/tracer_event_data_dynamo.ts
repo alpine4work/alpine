@@ -13,29 +13,17 @@
  * either which our dev server would see and rebuild `//server/tracer`
  * dependents on `//server/dynamo` changes.
  */
-export const tracerEventDataDynamoConsumedCapacityKeys = [
-    "Accounts",
-    "AlphaAccess",
-    "Chat",
-    "Deploy",
-    "Documents",
-    "Forum",
-    "ForumRealtime",
-    "Inbox",
-    "SearchEntities",
-    "Spaces",
-    "TaskActions",
-    "Tasks",
+export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
     "Accounts_Index1",
-    "Chat_Index1",
-    "Forum_Index1",
-    "ForumRealtime_Index1",
-    "Inbox_Index1",
     "SearchEntities_Index1",
     "SearchEntities_Index2",
     "SearchEntities_Index3",
+    "Chat_Index1",
+    "ForumRealtime_Index1",
+    "Forum_Index1",
     "TaskActions_Index1",
-];
+    "Inbox_Index1",
+]);
 
 /**
  * All the partition types for each table. We use these to build the tracer
@@ -53,16 +41,4 @@ export const tracerEventDataDynamoConsumedCapacityKeys = [
  */
 // prettier-ignore
 export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, ReadonlyArray<string>>([
-    ["Accounts", ["Account", "AccountEmailAddress", "Session", "AppleDeviceToken"]],
-    ["AlphaAccess", ["AlphaConfiguration", "AlphaAccessRequests"]],
-    ["Chat", ["Chat"]],
-    ["Deploy", ["Deploy"]],
-    ["Documents", ["Document", "DocumentCommentThread"]],
-    ["Forum", ["Channel", "Post"]],
-    ["ForumRealtime", ["Channel", "Post", "Realtime"]],
-    ["Inbox", ["Account", "Inbox", "Realtime"]],
-    ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections"]],
-    ["Spaces", ["Space", "Account"]],
-    ["TaskActions", ["TaskActions"]],
-    ["Tasks", ["Account", "TaskCollection", "Task", "TaskGridViewExpansionState"]],
 ]);

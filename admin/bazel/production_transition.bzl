@@ -26,12 +26,12 @@ _production_transition = transition(
 )
 
 def _production_transition_rule_impl(ctx):
-    if len(ctx.attr.src) != 1:
+    if len(ctx.attr.target) != 1:
         fail("expect one source target")
 
     return [DefaultInfo(
-        files = ctx.attr.src[0][DefaultInfo].files,
-        runfiles = ctx.attr.src[0][DefaultInfo].default_runfiles,
+        files = ctx.attr.target[0][DefaultInfo].files,
+        runfiles = ctx.attr.target[0][DefaultInfo].default_runfiles,
     )]
 
 production_transition = rule(
