@@ -129,7 +129,7 @@ export async function createDevProxyServer(
                     logError("Exception in response from proxied server", error);
                 });
 
-                proxyRes.writeHead(res.statusCode!, res.headers);
+                proxyRes.writeHead(res.statusCode!, res.statusMessage, res.headers);
                 res.pipe(proxyRes, {end: true});
             });
 
@@ -273,7 +273,9 @@ export async function createDevProxyServer(
                 }
 
                 proxySocket.write(
-                    `HTTP/1.1 ${res.statusCode!} ${http.STATUS_CODES[res.statusCode!]!}\r\n` +
+                    `HTTP/1.1 ${res.statusCode!} ${
+                        res.statusMessage ?? http.STATUS_CODES[res.statusCode!]!
+                    }\r\n` +
                         `${headers.join("\r\n")}\r\n` +
                         "\r\n",
                 );
@@ -291,7 +293,9 @@ export async function createDevProxyServer(
                 }
 
                 proxySocket.write(
-                    `HTTP/1.1 ${res.statusCode!} ${http.STATUS_CODES[res.statusCode!]!}\r\n` +
+                    `HTTP/1.1 ${res.statusCode!} ${
+                        res.statusMessage ?? http.STATUS_CODES[res.statusCode!]!
+                    }\r\n` +
                         `${headers.join("\r\n")}\r\n` +
                         "\r\n",
                 );

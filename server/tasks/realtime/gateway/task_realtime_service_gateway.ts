@@ -71,7 +71,7 @@ const server = createServer((req1, res1) => {
     });
 
     req2.on("response", res2 => {
-        res1.writeHead(res2.statusCode!, res2.headers);
+        res1.writeHead(res2.statusCode!, res2.statusMessage, res2.headers);
         res2.pipe(res1, {end: true});
     });
 
@@ -115,7 +115,7 @@ server.on("upgrade", (req1, socket1, head1) => {
     req2.on("response", res2 => {
         const res1 = new ServerResponse(req1);
         res1.assignSocket(socket1);
-        res1.writeHead(res2.statusCode!, res2.headers);
+        res1.writeHead(res2.statusCode!, res2.statusMessage, res2.headers);
         res2.pipe(res1, {end: true});
     });
 
@@ -126,7 +126,9 @@ server.on("upgrade", (req1, socket1, head1) => {
         }
 
         socket1.write(
-            `HTTP/1.1 ${res2.statusCode!} ${STATUS_CODES[res2.statusCode!]!}\r\n` +
+            `HTTP/1.1 ${res2.statusCode!} ${
+                res2.statusMessage ?? STATUS_CODES[res2.statusCode!]!
+            }\r\n` +
                 `${headers.join("\r\n")}\r\n` +
                 "\r\n",
         );
