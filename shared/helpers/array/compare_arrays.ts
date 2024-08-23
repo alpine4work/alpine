@@ -4,8 +4,8 @@
  * longer array comes second.
  */
 export function compareArrays<Value>(
-    array1: ReadonlyArray<Value>,
-    array2: ReadonlyArray<Value>,
+    array1: ArrayLike<Value>,
+    array2: ArrayLike<Value>,
     compare: (value1: Value, value2: Value) => number,
 ): number {
     for (let i = 0; i < Math.min(array1.length, array2.length); i++) {
