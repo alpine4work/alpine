@@ -17,17 +17,3 @@ ts_project(
         "//shared/tracer",
     ],
 )
-
-# This test waits forever. It's used by `acquireBazelLock()` to lock the Bazel
-# for server for as long as we need.
-sh_test(
-    name = "bazel_lock_test",
-    timeout = "eternal",
-    srcs = ["bazel_lock_test.sh"],
-    tags = [
-        "manual",
-        "no-cache",
-        "no-remote",
-        "no-sandbox",
-    ],
-)
