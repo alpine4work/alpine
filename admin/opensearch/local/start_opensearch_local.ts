@@ -1,6 +1,6 @@
 import {spawn} from "child_process";
 import fs from "fs-extra";
-import _fs from "fs/promises";
+import patchedFs from "fs/promises";
 import getPort from "get-port";
 import murmurhash from "murmurhash";
 import {join as joinPath, resolve as resolvePath} from "path";
@@ -18,7 +18,7 @@ import {quote} from "~/shared/helpers/string/quote.js";
 
 // Use the Node.js implementation of `fs` that doesn't include the `rules_js`
 // `fs` patch.
-const unpatchedFs: typeof _fs = (_fs as any)._unpatched ?? _fs;
+const unpatchedFs: typeof patchedFs = (patchedFs as any)._unpatched ?? patchedFs;
 
 const javaBasePathPromise = new Lazy(async () => {
     const javaPathPath = joinPath(

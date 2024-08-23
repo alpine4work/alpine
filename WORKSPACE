@@ -205,6 +205,8 @@ swc_register_toolchains(
 
 http_archive(
     name = "aspect_rules_esbuild",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/aspect_rules_esbuild.patch"],
     sha256 = "82e6fa940760412eedfa0c4e3918c68424cf0432840de4bcc476d0b9869ff7b5",
     strip_prefix = "rules_esbuild-0.20.1",
     url = "https://github.com/aspect-build/rules_esbuild/releases/download/v0.20.1/rules_esbuild-v0.20.1.tar.gz",
@@ -218,7 +220,7 @@ load("@aspect_rules_esbuild//esbuild:repositories.bzl", "esbuild_register_toolch
 
 esbuild_register_toolchains(
     name = "esbuild",
-    esbuild_version = "0.19.11",
+    esbuild_version = "0.21.5",
 )
 
 # =========================================================================== #

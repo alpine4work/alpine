@@ -11,7 +11,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createServerProcessContextModule} from "~/server/node/create_server_process_context_module.js";
-import {ShutdownManager, ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
+import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";

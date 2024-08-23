@@ -26,6 +26,7 @@ import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
 import {startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
+import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {
@@ -43,7 +44,6 @@ import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -630,9 +630,7 @@ async function rebuildArtifact(artifact: Artifact) {
             "All artifact stdio prefixes should be 3 characters long",
         );
 
-        const executablePath = `${assertExists(
-            process.env.JS_BINARY__EXECROOT,
-        )}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin/${
+        const executablePath = `${getBazelOutputPath()}/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin/${
             artifact.executablePath
         }`;
 

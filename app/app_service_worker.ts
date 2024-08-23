@@ -1,8 +1,9 @@
 import {IncomingMessage, ServerResponse, createServer} from "http";
-import {join as joinPath} from "path";
+import {join as joinPath, resolve as resolvePath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {WebSocket} from "ws";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
+import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {serverProcessContextParseOptions} from "~/server/node/create_server_process_context.js";
 import {serviceTokenAgentParseOptions} from "~/server/node/create_service_token_agent.js";
@@ -10,10 +11,13 @@ import {registerGracefulServerShutdown} from "~/server/node/register_graceful_se
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager, ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -50,8 +54,8 @@ export async function run({
     tracer: TracerRoot;
     shutdownManager: ShutdownManager;
 }) {
-    const port = options.port ? parseInt(options.port, 10) : null;
-    if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` option");
+    const port = parseInt(assertExists(options.port, "`port` option is required"), 10);
+    assert(Number.isInteger(port), "`port` option must be an integer");
 
     if (options.viteDev && process.env.NODE_ENV !== "development") {
         throw new InternalError("Can only use `viteDevServerPort` option in development");
@@ -184,41 +188,101 @@ export async function run({
 
     registerGracefulServerShutdown(shutdownManager, server);
 
-    const viteDevServer = isViteDevEnabled
-        ? await import("vite").then(vite => {
-              // Run Vite in Bazel's build directory. Our dev process manager is responsible
-              // for keeping the `//app` target up-to-date which will build all app files
-              // necessary here.
-              const rootPath = joinPath(
-                  assertExists(process.env.JS_BINARY__EXECROOT),
-                  assertExists(process.env.JS_BINARY__BINDIR),
-              );
+    async function createViteDevServer(vite: typeof import("vite")) {
+        // Run Vite in Bazel's build directory. Our dev process manager is responsible
+        // for keeping the `//app` target up-to-date which will build all app files
+        // necessary here.
+        const rootPath = resolvePath(
+            getBazelOutputPath(),
+            "..",
+            assertExists(process.env.JS_BINARY__BINDIR),
+        );
 
-              return vite.createServer({
-                  root: rootPath,
-                  cacheDir: assertExists(
-                      options.viteCachePath,
-                      "`viteCachePath` option is required when `viteDev` option is provided",
-                  ),
-                  configFile: joinPath(rootPath, "vite.config.mjs"),
-                  server: {
-                      middlewareMode: true,
-                      // Serve the Vite HMR WebSocket server off the same private port as
-                      // `AppService`. We need to set `clientPort` so Vite doesn't try to access
-                      // `EdgeService`'s public port which'll block WebSocket connections.
-                      //
-                      // This also gives us nice graceful shutdown behavior. `AppService` shouldn't
-                      // shutdown until the browser reloads and closes its HMR WebSocket connection.
-                      hmr: {server, clientPort: port},
-                  },
-              });
-          })
-        : null;
+        let bazelLockState: {
+            count: number;
+            promiseResolver: PromiseResolver<void>;
+            releaseTimeout: Timeout | null;
+        } | null = null;
 
-    // 1. Make sure Vite stops watching files after shutdown initiates.
-    // 2. Connect to our Bazel dev WebSocket server and forward message to our Vite
-    //    dev server.
-    if (viteDevServer !== null) {
+        const viteDevServer = await vite.createServer({
+            root: rootPath,
+            cacheDir: assertExists(
+                options.viteCachePath,
+                "`viteCachePath` option is required when `viteDev` option is provided",
+            ),
+            configFile: joinPath(rootPath, "vite.config.mjs"),
+            server: {
+                middlewareMode: true,
+                // Serve the Vite HMR WebSocket server off the same private port as
+                // `AppService`. We need to set `clientPort` so Vite doesn't try to access
+                // `EdgeService`'s public port which'll block WebSocket connections.
+                //
+                // This also gives us nice graceful shutdown behavior. `AppService` shouldn't
+                // shutdown until the browser reloads and closes its HMR WebSocket connection.
+                hmr: {server, clientPort: port},
+                // While building Bazel will frequently remove a file then add it back.
+                // `atomic` makes sure `chokidar` treats this as one `change` update instead of
+                // an `unlink` update then an `add` update.
+                watch: {atomic: true},
+            },
+
+            // `acquireBazelLock()` may be called many times by Vite. It's called for every
+            // HTTP request and every file system update. We translate this into one shared
+            // lock which expires 1s after the last lock is released by Vite. That way
+            // we'll have the lock for an entire page load (which will make many HTTP
+            // requests).
+            acquireBazelLock: async () => {
+                if (isShuttingDown) return noop;
+
+                if (bazelLockState === null) {
+                    bazelDevSocket.send(JSON.stringify({type: "AcquireLock"}));
+
+                    bazelLockState = {
+                        count: 0,
+                        promiseResolver: createPromiseResolver(),
+                        releaseTimeout: null,
+                    };
+                }
+
+                bazelLockState.count += 1;
+
+                if (bazelLockState.releaseTimeout !== null) {
+                    bazelLockState.releaseTimeout.clear();
+                    bazelLockState.releaseTimeout = null;
+                }
+
+                try {
+                    await bazelLockState.promiseResolver.promise;
+                } catch (error) {
+                    bazelLockState.count -= 1;
+
+                    if (bazelLockState.count === 0) {
+                        bazelLockState = null;
+                    }
+
+                    throw error;
+                }
+
+                let hasReleased = false;
+
+                return () => {
+                    assert(!hasReleased);
+                    hasReleased = true;
+
+                    assert(bazelLockState);
+
+                    bazelLockState.count -= 1;
+
+                    if (bazelLockState.count === 0) {
+                        bazelLockState.releaseTimeout = createTimeout(() => {
+                            bazelDevSocket.send(JSON.stringify({type: "ReleaseLock"}));
+                            bazelLockState = null;
+                        }, 1000);
+                    }
+                };
+            },
+        });
+
         let isShuttingDown = false;
         let hasSentShutDownFullReload = false;
 
@@ -232,6 +296,7 @@ export async function run({
                 viteDevServer.hot.send({type: "full-reload"});
             }
 
+            // Make sure Vite stops watching files after shutdown initiates.
             await viteDevServer.watcher.close();
         });
 
@@ -247,6 +312,8 @@ export async function run({
             10,
         );
 
+        // Connect to our Bazel dev WebSocket server and forward message to our Vite
+        // dev server.
         const bazelDevSocket = new WebSocket(`ws://localhost:${bazelDevServerPort}`);
 
         await new Promise((resolve, reject) => {
@@ -277,9 +344,10 @@ export async function run({
         bazelDevSocket.on("message", rawMessage => {
             if (isShuttingDown) return;
 
-            const message: {type: "Log"; message: string} | {type: "Reload"} = JSON.parse(
-                rawMessage.toString("utf8"),
-            );
+            const message:
+                | {type: "Log"; message: string}
+                | {type: "Reload"}
+                | {type: "LockAcquired"} = JSON.parse(rawMessage.toString("utf8"));
 
             switch (message.type) {
                 case "Log": {
@@ -297,11 +365,19 @@ export async function run({
                     }
                     break;
                 }
+                case "LockAcquired": {
+                    bazelLockState?.promiseResolver.resolve();
+                    break;
+                }
                 default:
                     throw exhaustive(message);
             }
         });
+
+        return viteDevServer;
     }
+
+    const viteDevServer = isViteDevEnabled ? await import("vite").then(createViteDevServer) : null;
 
     // TODO(calebmer): The way the Node.js `cluster` module works is when multiple
     // workers listen to the same `port` it randomly picks the worker to send a

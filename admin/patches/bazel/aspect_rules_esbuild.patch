@@ -1,0 +1,19 @@
+diff --git a/esbuild/private/versions.bzl b/esbuild/private/versions.bzl
+index 7d2250f..281884e 100644
+--- a/esbuild/private/versions.bzl
++++ b/esbuild/private/versions.bzl
+@@ -5,6 +5,14 @@ RULES_ESBUILD_VERSION = "$Format:%(describe:tags=true)$"  # Replaced during publ
+ # This assignment is automatically updated by /scripts/mirror_release.sh.
+ # Versions should be descending order so TOOL_VERSIONS.keys()[0] is the latest version.
+ TOOL_VERSIONS = {
++    "0.21.5": {
++        "npm": "sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw==",
++        "darwin-x64": "sha512-se/JjF8NlmKVG4kNIuyWMV/22ZaerB+qaSi5MdrXtd6R08kvs2qCN4C09miupktDitvh8jRFflwGFBQcxZRjbw==",
++        "darwin-arm64": "sha512-DwqXqZyuk5AiWWf3UfLiRDJ5EDd49zg6O9wclZ7kUMv2WRFr4HKjXp/5t8JZ11QbQfUS6/cRCKGwYhtNAY88kQ==",
++        "linux-x64": "sha512-1rYdTpyv03iycF1+BhzrzQJCdOuAOtaqHTWJZCWvijKD2N5Xu0TtVC8/+1faWqcP9iBCWOmjmhoH94dH82BxPQ==",
++        "linux-arm64": "sha512-ibKvmyYzKsBeX8d8I7MH/TMfWDXBF3db4qM6sy+7re0YXya+K1cem3on9XgdT2EQGMu4hQyZhan7TeQ8XkGp4Q==",
++        "win32-x64": "sha512-tQd/1efJuzPC6rCFwEvLtci/xNFcTZknmXs98FYDfGE4wP9ClFV98nyKrzJKVPMhdDnjzLhdUyMX4PsQAPjwIw=="
++    },
+     "0.21.1": {
+         "npm": "sha512-GPqx+FX7mdqulCeQ4TsGZQ3djBJkx5k7zBGtqt9ycVlWNg8llJ4RO9n2vciu8BN2zAEs6lPbPl0asZsAh7oWzg==",
+         "darwin-x64": "sha512-D3h3wBQmeS/vp93O4B+SWsXB8HvRDwMyhTNhBd8yMbh5wN/2pPWRW5o/hM3EKgk9bdKd9594lMGoTCTiglQGRQ==",
