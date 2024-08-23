@@ -3,7 +3,7 @@ import inspector from "inspector";
 import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
-import {ShutdownManager, registerShutdownWaitUntilPromise} from "~/server/node/shutdown_manager.js";
+import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
 import {ErrorBase, InternalError, UnknownError} from "~/shared/error/error.js";
@@ -94,7 +94,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             jsHost: "Node",
             honeycombApiKey,
             waitUntil: promise => {
-                registerShutdownWaitUntilPromise(
+                shutdownManager.registerWaitUntilPromise(
                     promise.catch(error => {
                         // eslint-disable-next-line no-console
                         console.error("Exception from server tracer:");

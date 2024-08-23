@@ -9,6 +9,7 @@ import {
     serverProcessContextParseOptions,
 } from "~/server/node/create_server_process_context.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
+import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -30,6 +31,7 @@ export const options = {
 
 export async function run({
     tracer,
+    shutdownManager,
     honeycombClient,
     options: {
         commitSha,
@@ -44,6 +46,7 @@ export async function run({
     },
 }: {
     tracer: TracerRoot;
+    shutdownManager: ShutdownManager;
     honeycombClient: HoneycombTracerClient | null;
     options: Options;
 }) {
@@ -75,6 +78,7 @@ export async function run({
 
     const processContext = createServerProcessContext({
         tracer,
+        shutdownManager,
         // TODO(calebmer, 2024-08-05): The deploy service doesn't currently communicate
         // with any other services but might in the future. I need to decide whether or
         // not the server process context should contain context modules to communicate

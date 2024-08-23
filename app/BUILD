@@ -16,32 +16,16 @@ ts_project(
     srcs = APP_WRAPPER_SRCS,
     test_srcs = [],
     deps = [
-        "//:node_modules/@remix-run/node",
-        "//:node_modules/@remix-run/server-runtime",
         "//:node_modules/@types/serve-static",
         "//:node_modules/@types/ws",
         "//:node_modules/serve-static",
         "//:node_modules/vite",
         "//:node_modules/ws",
         "//app/static:static_manifest",
-        "//server/accounts",
-        "//server/alpha",
-        "//server/apns",
-        "//server/context",
-        "//server/forum/data",
         "//server/helpers/node",
-        "//server/jobs/core",
-        "//server/language_models/all_mini_lm_l6_v2",
-        "//server/language_models/cohere_embed_english_v3",
         "//server/node",
-        "//server/remix",
-        "//server/spaces",
-        "//server/tasks/data",
-        "//server/tokens",
-        "//shared/context",
         "//shared/error",
         "//shared/helpers",
-        "//shared/id",
         "//shared/tracer",
     ],
 )
@@ -104,6 +88,7 @@ ts_project(
         "//server/documents/data",
         "//server/emails",
         "//server/forum/data",
+        "//server/node",
         "//server/notifications/data",
         "//server/remix",
         "//server/rpc",
@@ -145,8 +130,9 @@ filegroup(
     ],
 )
 
-# NOCOMMIT: Try to reduce down app wrapper. Maybe even getting rid of the weird
-# `instanceof` context checks.
+# NOCOMMIT: Can I remove support for async functions from `@remix-run/server-runtime` patch?
+#
+# NOCOMMIT: Can I remove some symlink stuffs from `@remix-run/dev` patch?
 js_binary(
     name = "app_wrapper",
     data = [":app_wrapper_lib"],

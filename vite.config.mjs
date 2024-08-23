@@ -38,7 +38,9 @@ export default defineConfig(({mode}) => {
                 // Remix code so we don't import the same module multiple times in production.
                 additionalServerInputPath: "./app/app_service.js",
 
-                ignoredRouteFiles: ["**/.*"],
+                // Ignore any TypeScript route files that might be in the build directory. We
+                // `.js` files transpiled by SWC.
+                ignoredRouteFiles: ["**/*.ts", "**/*.tsx"],
                 serverModuleFormat: "esm",
             }),
         ],

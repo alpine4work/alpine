@@ -27,7 +27,7 @@ export async function run({
     if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
 
     const processContext = Context.new({
-        process: createServerProcessContextModule(tracer),
+        process: createServerProcessContextModule({tracer, shutdownManager}),
         tracer: new TracerContextModule(tracer),
     });
 

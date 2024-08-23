@@ -6,6 +6,4 @@ entry point can't be hot reloaded in development mode.
 APP_WRAPPER_SRCS = [
     "app_service.ts",
     "app_service_worker.ts",
-    "seed_dynamo.ts",
-    "helpers/virtual_remix_server_build.d.ts",
 ]

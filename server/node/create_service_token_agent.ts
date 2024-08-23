@@ -15,6 +15,14 @@ export const serviceTokenAgentParseOptions = {
     servicePrivateKey: {type: "string"},
 } as const;
 
+export type ServiceTokenAgentOptions = {
+    readonly appServicePublicKey?: string;
+    readonly edgeServiceFamilyPublicKey?: string;
+    readonly taskRealtimeServicePublicKey?: string;
+    readonly jobQueueServicePublicKey?: string;
+    readonly servicePrivateKey?: string;
+};
+
 /**
  * Creates a `TokenAgent` from parsed options (from `parseArgs()`) passed to a
  * service. The schema for these options is `serviceTokenAgentParseOptions`.
@@ -33,13 +41,7 @@ export async function createServiceTokenAgent<
             servicePrivateKey: string;
         }): Promise<PrivateSide>;
     };
-    options: {
-        appServicePublicKey?: string;
-        edgeServiceFamilyPublicKey?: string;
-        taskRealtimeServicePublicKey?: string;
-        jobQueueServicePublicKey?: string;
-        servicePrivateKey?: string;
-    };
+    options: ServiceTokenAgentOptions;
 }): Promise<TokenAgent<PrivateSide>> {
     if (!options.appServicePublicKey)
         throw new InternalError("Missing `appServicePublicKey` option");

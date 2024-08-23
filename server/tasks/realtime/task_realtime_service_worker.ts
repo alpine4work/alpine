@@ -124,6 +124,7 @@ export async function run({
 
     const processContext = createServerProcessContext({
         tracer,
+        shutdownManager,
         tokenAgent,
         awsSigner,
         options,

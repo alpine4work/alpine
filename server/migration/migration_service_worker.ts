@@ -6,6 +6,7 @@ import {
     serverProcessContextParseOptions,
 } from "~/server/node/create_server_process_context.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
+import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -56,6 +57,7 @@ export const options = {
 
 export async function run({
     tracer,
+    shutdownManager,
     options: {
         migration: migrationString,
         segmentIndex: segmentIndexString,
@@ -64,6 +66,7 @@ export async function run({
     },
 }: {
     tracer: TracerRoot;
+    shutdownManager: ShutdownManager;
     options: Options;
 }) {
     if (!migrationString) throw new InvalidArgumentError("Expected `migration` option");
@@ -85,6 +88,7 @@ export async function run({
 
     const processContext = createServerProcessContext({
         tracer,
+        shutdownManager,
         // TODO(calebmer, 2024-04-15): `MigrationService` currently doesn't have a
         // `TokenAgent`. It should get a `TokenAgent`! Being able to make requests
         // to other services can be important for migrations.

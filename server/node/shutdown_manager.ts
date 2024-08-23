@@ -5,33 +5,21 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
-const shutdownWaitUntilPromises = new Set<Promise<unknown>>();
+export interface ShutdownManagerBase {
+    registerListenerForIngressTraffic(
+        name: string,
+        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+    ): () => void;
 
-/**
- * Register a promise which our process can't shutdown before it finishes
- * resolving. These promises are the final thing our shutdown manager resolves
- * before completing a shutdown. That way shutdown listeners can register more
- * wait until promises.
- *
- * This API was inspired by Cloudflare Worker's
- * [`executionContext.waitUntil()`][1] method.
- *
- * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
- */
-export function registerShutdownWaitUntilPromise(promise: Promise<unknown>) {
-    const waitUntilPromise = promise.then(
-        () => {
-            shutdownWaitUntilPromises.delete(waitUntilPromise);
-        },
-        () => {
-            shutdownWaitUntilPromises.delete(waitUntilPromise);
-        },
-    );
+    registerListener(
+        name: string,
+        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+    ): () => void;
 
-    shutdownWaitUntilPromises.add(waitUntilPromise);
+    registerWaitUntilPromise(promise: Promise<unknown>): void;
 }
 
-export class ShutdownManager {
+export class ShutdownManager implements ShutdownManagerBase {
     private readonly _tracer: TracerRoot;
     private readonly _isClusterPrimary: boolean;
     private _isShuttingDown = false;
@@ -41,6 +29,7 @@ export class ShutdownManager {
     private _listeners = new Set<
         (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>
     >();
+    private readonly _waitUntilPromises = new Set<Promise<unknown>>();
 
     private constructor({
         tracer,
@@ -126,7 +115,7 @@ export class ShutdownManager {
         if (
             this._ingressTrafficListeners.size === 0 &&
             this._listeners.size === 0 &&
-            shutdownWaitUntilPromises.size === 0
+            this._waitUntilPromises.size === 0
         ) {
             // It's helpful to see service lifecycle events in production logs. All logging
             // in response to user actions should go to Honeycomb.
@@ -171,9 +160,9 @@ export class ShutdownManager {
                     // Wait for all promises to resolve. If there's an error, don't throw it until
                     // all promises have resolved.
                     const wait = async () => {
-                        while (shutdownWaitUntilPromises.size > 0) {
+                        while (this._waitUntilPromises.size > 0) {
                             try {
-                                await runAllPromises(shutdownWaitUntilPromises);
+                                await runAllPromises(this._waitUntilPromises);
                             } catch (newError) {
                                 if (!hasError) {
                                     hasError = true;
@@ -262,7 +251,7 @@ export class ShutdownManager {
     public registerListenerForIngressTraffic(
         name: string,
         listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
-    ) {
+    ): () => void {
         assert(!this._isShuttingDown);
 
         const actualListener: typeof listener = (signal, parentSpan) => {
@@ -298,5 +287,29 @@ export class ShutdownManager {
         return () => {
             this._listeners.delete(actualListener);
         };
+    }
+
+    /**
+     * Register a promise which our process can't shutdown before it finishes
+     * resolving. These promises are the final thing our shutdown manager resolves
+     * before completing a shutdown. That way shutdown listeners can register more
+     * wait until promises.
+     *
+     * This API was inspired by Cloudflare Worker's
+     * [`executionContext.waitUntil()`][1] method.
+     *
+     * [1]: https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#waituntil
+     */
+    public registerWaitUntilPromise(promise: Promise<unknown>) {
+        const waitUntilPromise = promise.then(
+            () => {
+                this._waitUntilPromises.delete(waitUntilPromise);
+            },
+            () => {
+                this._waitUntilPromises.delete(waitUntilPromise);
+            },
+        );
+
+        this._waitUntilPromises.add(waitUntilPromise);
     }
 }

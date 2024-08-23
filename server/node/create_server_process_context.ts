@@ -11,6 +11,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createServerProcessContextModule} from "~/server/node/create_server_process_context_module.js";
+import {ShutdownManager, ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
@@ -28,6 +29,15 @@ export const serverProcessContextParseOptions = {
     edgeServiceUrl: {type: "string"},
 } as const;
 
+export type ServerProcessContextOptions = {
+    readonly ensureLocalCachePath?: string;
+    readonly dynamoLocalPort?: string;
+    readonly opensearchLocalPort?: string;
+    readonly opensearchHost?: string;
+    readonly jobQueueUrl?: string;
+    readonly edgeServiceUrl?: string;
+};
+
 /**
  * Create a `ServerProcessContext`. You should run this at the root of your
  * service. Probably in a `runService()` call.
@@ -38,24 +48,19 @@ export const serverProcessContextParseOptions = {
  */
 export function createServerProcessContext({
     tracer,
+    shutdownManager,
     tokenAgent,
     awsSigner,
     options,
 }: {
     tracer: TracerRoot;
+    shutdownManager: ShutdownManagerBase;
     tokenAgent: TokenAgent | "Unimplemented";
     awsSigner: AwsRequestSigner;
-    options: {
-        ensureLocalCachePath?: string;
-        dynamoLocalPort?: string;
-        opensearchLocalPort?: string;
-        opensearchHost?: string;
-        jobQueueUrl?: string;
-        edgeServiceUrl?: string;
-    };
+    options: ServerProcessContextOptions;
 }): ServerProcessContext {
     return Context.new<ServerProcessContextModules>({
-        process: createServerProcessContextModule(tracer),
+        process: createServerProcessContextModule({tracer, shutdownManager}),
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new({
             url:

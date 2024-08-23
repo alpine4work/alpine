@@ -178,12 +178,7 @@ export const Context: ContextStatic = {
             }
         } else {
             const processContextModule = modules.process;
-            assert(
-                isInstanceOfWithClassNameFallbackForViteDev(
-                    processContextModule,
-                    ProcessContextModule,
-                ),
-            );
+            assert(processContextModule instanceof ProcessContextModule);
 
             let taskPromises: Array<Promise<unknown>> = [];
 
@@ -242,12 +237,7 @@ export const Context: ContextStatic = {
             }
         } else {
             const processContextModule = modules.process;
-            assert(
-                isInstanceOfWithClassNameFallbackForViteDev(
-                    processContextModule,
-                    ProcessContextModule,
-                ),
-            );
+            assert(processContextModule instanceof ProcessContextModule);
 
             let taskPromises: Array<Promise<unknown>> = [];
 
@@ -384,10 +374,7 @@ const ContextImplementation = class Context {
             // the old context module can safely call methods on the new context as well.
             if (oldModule) {
                 assert(
-                    isInstanceOfWithClassNameFallbackForViteDev(
-                        newModule,
-                        oldModule.constructor as any,
-                    ),
+                    (newModule instanceof oldModule.constructor) as any,
                     "If replacing a context module, the new context module should be a subclass of the old context module",
                 );
             }
@@ -414,12 +401,7 @@ const ContextImplementation = class Context {
             }
         } else {
             const processContextModule = newModules.process ?? this._modules.process;
-            assert(
-                isInstanceOfWithClassNameFallbackForViteDev(
-                    processContextModule,
-                    ProcessContextModule,
-                ),
-            );
+            assert(processContextModule instanceof ProcessContextModule);
 
             let taskPromises: Array<Promise<unknown>> = [];
 
@@ -478,12 +460,7 @@ const ContextImplementation = class Context {
             }
         } else {
             const processContextModule = newModules.process ?? this._modules.process;
-            assert(
-                isInstanceOfWithClassNameFallbackForViteDev(
-                    processContextModule,
-                    ProcessContextModule,
-                ),
-            );
+            assert(processContextModule instanceof ProcessContextModule);
 
             let taskPromises: Array<Promise<unknown>> = [];
 
@@ -526,48 +503,3 @@ const ContextImplementation = class Context {
         }
     }
 };
-
-/**
- * Same as `object instanceof Class` but with an exception when we're running
- * with a Vite dev server.
- *
- * When `AppService` runs with Vite dev server we have two Node.js runtimes.
- * The entry point `AppService` Node.js runtime passes a context object to the
- * Remix Node.js runtime. Because Remix is in a different Node.js runtime it
- * (and hot reloads whenever a file changes) Remix is constantly ending up with
- * different class references than what `AppService` has.
- *
- * So as hack, if we detect we're in this case
- */
-function isInstanceOfWithClassNameFallbackForViteDev<
-    Class extends abstract new (...args: any) => any,
->(object: object | null | undefined, class_: Class): object is InstanceType<Class> {
-    if (object instanceof class_) return true;
-
-    // Detect if we're server-side rendering with the Vite dev server.
-    if (import.meta.env?.MODE === "development" && import.meta.env?.SSR) return false;
-
-    if (object === null || object === undefined) return false;
-
-    let objectPrototype = Object.getPrototypeOf(object);
-    let classPrototype = class_.prototype ?? null;
-
-    while (
-        objectPrototype !== null &&
-        classPrototype !== null &&
-        objectPrototype.constructor.name !== classPrototype.constructor.name
-    ) {
-        objectPrototype = Object.getPrototypeOf(objectPrototype);
-    }
-
-    while (objectPrototype !== null && classPrototype !== null) {
-        if (objectPrototype.constructor.name !== classPrototype.constructor.name) {
-            return false;
-        }
-
-        objectPrototype = Object.getPrototypeOf(objectPrototype);
-        classPrototype = Object.getPrototypeOf(classPrototype);
-    }
-
-    return objectPrototype === null && classPrototype === null;
-}

@@ -1,72 +1,22 @@
-import {createRequestHandler} from "@remix-run/node";
-import {ServerBuild, ServerRoute} from "@remix-run/server-runtime";
-import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
 import {IncomingMessage, ServerResponse, createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {WebSocket} from "ws";
-import {seedDynamo} from "~/app/seed_dynamo.js";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
-import {Session} from "~/server/accounts/accounts_table.js";
-import {
-    DynamoActorContextModule,
-    DynamoSessionActorContextModule,
-    DynamoSystemActorContextModule,
-    DynamoUnknownActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ApnsConnectionPool} from "~/server/apns/apns_connection_pool.js";
-import {
-    ApnsContextModule,
-    ApnsContextModuleBase,
-    TestApnsContextModule,
-} from "~/server/apns/apns_context_module.js";
-import {
-    ServerSystemActionContext,
-    ServerSystemActionContextModules,
-} from "~/server/context/server_action_context.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
-import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
-import {
-    createServerProcessContext,
-    serverProcessContextParseOptions,
-} from "~/server/node/create_server_process_context.js";
-import {
-    createServiceTokenAgent,
-    getServiceTokenAgentKeyFromOption,
-    serviceTokenAgentParseOptions,
-} from "~/server/node/create_service_token_agent.js";
-import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
+import {serverProcessContextParseOptions} from "~/server/node/create_server_process_context.js";
+import {serviceTokenAgentParseOptions} from "~/server/node/create_service_token_agent.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
-import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
-import {
-    getSpaceAccountsCacheForTest,
-    isAccountMemberOfSpaceWithoutAuthorization,
-} from "~/server/spaces/spaces_table.js";
-import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
-import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
-import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
-import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
-import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {ShutdownManager, ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
+import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 const staticPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
 const staticAssetsPath = joinPath(staticPath, "assets");
@@ -79,8 +29,8 @@ export const options = {
     viteDev: {type: "boolean"},
     viteCachePath: {type: "string"},
     bazelDevServerPort: {type: "string"},
-    taskRealtimeServiceLocalPort: {type: "string"},
     shouldSeedDynamo: {type: "boolean"},
+    taskRealtimeServiceLocalPort: {type: "string"},
     ecsCluster: {type: "string"},
     taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
     allMiniLmL6V2LanguageModel: {type: "string"},
@@ -107,12 +57,18 @@ export async function run({
         throw new InternalError("Can only use `viteDevServerPort` option in development");
     }
 
+    // Instead of checking `options.viteDev` check `isViteDevEnabled`. Our compiler
+    // should run a constant propagation optimization for production code that sets
+    // `process.env.NODE_ENV === "development"` to false and eliminates code that
+    // depends on this variable.
+    const isViteDevEnabled = process.env.NODE_ENV === "development" && options.viteDev;
+
     // Serve static assets in integration tests.
     //
     // - When running with `dev` static assets are served by Vite
     // - When running in production static assets are served by `EdgeService`
     const serveStaticMiddleware =
-        process.env.NODE_ENV !== "production" && !options.viteDev
+        process.env.NODE_ENV !== "production" && !isViteDevEnabled
             ? createServeStaticMiddleware(staticPath, {
                   setHeaders: (res, path) => {
                       // Remix fingerprints its assets so we can cache them forever. Other assets
@@ -142,313 +98,19 @@ export async function run({
               })
             : null;
 
-    const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey] = await runAllPromises([
-        createServiceTokenAgent({
-            serviceName: "AppService",
-            privateSide: AppServiceTokenAgentPrivateSide,
-            options,
-        }),
-        getServiceTokenAgentKeyFromOption(
-            assertExists(options.apnsCertificate, "Missing `apnsCertificate` option"),
-        ),
-        getServiceTokenAgentKeyFromOption(
-            assertExists(
-                options.apnsCertificatePrivateKey,
-                "Missing `apnsCertificatePrivateKey` option",
-            ),
-        ),
-    ]);
-
-    const awsSigner = new AwsRequestSigner();
-
-    const languageModel =
-        process.env.NODE_ENV === "production"
-            ? new CohereEmbedEnglishV3LanguageModel({
-                  apiKey: assertExists(
-                      options.cohereApiKey,
-                      "`cohereApiKey` option is required in production",
-                  ),
-              })
-            : await AllMiniLmL6V2LanguageModel.new(
-                  assertExists(
-                      options.allMiniLmL6V2LanguageModel,
-                      "`allMiniLmL6V2LanguageModel` option is required in development",
-                  ),
-              );
-
-    const processContext = createServerProcessContext({
+    const appServerConstants: import("~/app/app_server.js").AppServerConstants = {
         tracer,
-        tokenAgent,
-        awsSigner,
+        shutdownManager: isViteDevEnabled
+            ? new HotShutdownManager(tracer, shutdownManager)
+            : shutdownManager,
         options,
-    });
+    };
 
-    // Create the router object here so we cache `TaskRealtimeService` routes
-    // across the entire process.
-    const taskRealtimeServiceRouter =
-        process.env.NODE_ENV === "production"
-            ? new TaskRealtimeServiceEcsRouter({
-                  region: "us-east-1",
-                  ecsCluster: assertExists(
-                      options.ecsCluster,
-                      "`ecsCluster` option is required in production",
-                  ),
-                  ecsTaskDefinitionFamily: assertExists(
-                      options.taskRealtimeServiceEcsTaskDefinitionFamily,
-                      "`taskRealtimeServiceEcsTaskDefinitionFamily` option is required in production",
-                  ),
-              })
-            : new TaskRealtimeServiceLocalRouter({
-                  port: parseInt(
-                      assertExists(
-                          options.taskRealtimeServiceLocalPort,
-                          "Task realtime service local port must be provided when running locally",
-                      ),
-                      10,
-                  ),
-              });
+    let appServerModule: typeof import("~/app/app_server.js") | null = !isViteDevEnabled
+        ? await import("~/app/app_server.js")
+        : null;
 
-    // In tests, don't send push notifications. Otherwise in development and
-    // production set up a connection pool to APNs so we can send notifications.
-    let apnsContextModule: ApnsContextModuleBase;
-    if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) {
-        apnsContextModule = new TestApnsContextModule();
-    } else {
-        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
-            certificate: apnsCertificate,
-            certificatePrivateKey: apnsCertificatePrivateKey,
-        });
-
-        shutdownManager.registerListener(
-            "Destroying APNs connection pool",
-            async (signal, span) => {
-                await apnsConnectionPool.destroy(span);
-            },
-        );
-
-        apnsContextModule = new ApnsContextModule(apnsConnectionPool);
-    }
-
-    let hasSeededDynamo = false;
-
-    // In development, Vite handles Remix requests.
-    //
-    // Note that in development Vite creates a completely separate Node.js runtime
-    // environment on the server! This will break a number of JavaScript features
-    // you may expect to work:
-    //
-    // 1. Module scoped caches won't be shared across `app_service_worker.ts` and
-    //    Vite.
-    // 2. The context object created in `app_service_worker.ts` and passed to Vite
-    //    won't work with `instanceof` checks.
-    //
-    // In production (and integration tests) we have one Node.js runtime for Remix
-    // code and our custom `app_service_worker.ts` server so the above features
-    // will work.
-    const handleRequest = createRequestHandler(
-        options.viteDev
-            ? () =>
-                  viteDevServer!.ssrLoadModule("virtual:remix/server-build") as Promise<ServerBuild>
-            : await import("virtual:remix/server-build"),
-        process.env.NODE_ENV,
-    );
-
-    const requestListener = createStandardizedRequestListener<
-        "HealthCheck" | "ClearSpaceAccountsCacheForTest" | Array<RouteMatch<ServerRoute>> | null
-    >(
-        tracer,
-        url => {
-            if (url.pathname === "/api/internal/healthcheck") return [url.pathname, "HealthCheck"];
-
-            // Add route when running integration tests...
-            if (process.env.PLAYWRIGHT_TEST_PATH) {
-                if (url.pathname === "/api/internal/test/clearSpaceAccountsCache")
-                    return [url.pathname, "ClearSpaceAccountsCacheForTest"];
-            }
-
-            // NOTE(calebmer): This is a hot code path. I worry adding `await` might slow
-            // things down since we need to consult the microtask queue. Given this always
-            // returns synchronously in production I'm going to avoid the `await`.
-            const matches = handleRequest.matchServerRoutes(url);
-
-            if (matches === null || !("then" in matches)) {
-                let route = "";
-
-                if (matches === null) {
-                    route = "/*";
-                } else {
-                    for (const match of matches) {
-                        if (match.route.id === "root") continue;
-                        if (match.route.path === undefined) continue;
-                        route = `${route}/${match.route.path}`;
-                    }
-                }
-
-                return [route, matches];
-            } else {
-                return matches.then(matches => {
-                    let route = "";
-
-                    if (matches === null) {
-                        route = "/*";
-                    } else {
-                        for (const match of matches) {
-                            if (match.route.id === "root") continue;
-                            if (match.route.path === undefined) continue;
-                            route = `${route}/${match.route.path}`;
-                        }
-                    }
-
-                    return [route, matches];
-                });
-            }
-        },
-        (request, url, matches, span) => {
-            if (matches === "HealthCheck") {
-                return Promise.resolve(
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
-                );
-            }
-
-            if (matches === "ClearSpaceAccountsCacheForTest") {
-                const spaceAccountsCache = getSpaceAccountsCacheForTest();
-                spaceAccountsCache.clearForTest();
-
-                return Promise.resolve(
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
-                );
-            }
-
-            return withSessionCookie(tokenAgent, request, async sessionCookie => {
-                // Sometimes we want to upgrade a session actor to a system actor. This gives
-                // the action escalated the system permission level which is dangerous! The
-                // system permission level has broad access to a space. We should tightly
-                // control what code is allowed to call this function, only allowed context
-                // modules get access and those context modules are expected to treat this as a
-                // private variable.
-                //
-                // It's important we use new caches + batchers here. We don't want to load some
-                // data at a higher permission level then let the session context see it. So we
-                // derive our new context from the process context to help avoid reusing any
-                // request-level caches.
-                const dangerouslyEscalateToSystemContext = <Value>(
-                    context: Context<{
-                        tracer: TracerContextModule;
-                        actor: DynamoActorContextModule;
-                        cache: CacheContextModule;
-                    }>,
-                    spaceId: SpaceId,
-                    action: (context: ServerSystemActionContext) => Promise<Value>,
-                ): Promise<Value> => {
-                    return processContext.with<
-                        Omit<
-                            ServerSystemActionContextModules,
-                            Exclude<keyof ServerProcessContextModules, "tracer">
-                        >,
-                        Value
-                    >(
-                        {
-                            tracer: new TracerContextModule(context.tracer.getTracer()),
-                            // Optimization: Share some caches that opt-in to sharing with the session
-                            // context. This is dangerous since we don't want to let system data leak into
-                            // session actions and vice-versa. We trust the cache author to make the right
-                            // determination about their cache.
-                            cache: context.cache.dangerouslyForkWithSharedCaches(),
-                            dynamoBatchContext: new DynamoBatchContextModule(),
-                            actor: DynamoSystemActorContextModule.dangerouslyNew(
-                                context.actor.serviceName,
-                                spaceId,
-                            ),
-                        },
-                        action,
-                    );
-                };
-
-                const loaderContextModule = new LoaderContextModule(request, {
-                    tokenAgent,
-                    sessionCookie,
-                });
-
-                const response = await processContext.with<
-                    Omit<
-                        LoaderContextModules,
-                        Exclude<keyof ServerProcessContextModules, "tracer">
-                    >,
-                    globalThis.Response
-                >(
-                    {
-                        tracer: new TracerContextModule(span),
-                        rpc: new LocalRpcContextModule(),
-                        loader: loaderContextModule,
-                        cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
-                        actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
-                        tasks: new TaskContextModule({
-                            router: taskRealtimeServiceRouter,
-                            tokenAgent,
-                            dangerouslyEscalateToSystemContext,
-                        }),
-                        languageModel: new LanguageModelContextModule(languageModel),
-                        apns: apnsContextModule,
-                    },
-                    context => {
-                        // The first time our server process runs in development, seed DynamoDB with
-                        // some initial data. The seed function should be idempotent.
-                        if (
-                            process.env.NODE_ENV !== "production" &&
-                            options.shouldSeedDynamo &&
-                            !hasSeededDynamo
-                        ) {
-                            hasSeededDynamo = true;
-                            context.process.waitUntil(async () => {
-                                try {
-                                    await seedDynamo(context);
-                                } catch (error) {
-                                    // If there is an error, log it but don't crash the process.
-                                    // eslint-disable-next-line no-console
-                                    console.error("Failed to seed DynamoDB data:", error);
-                                }
-                            });
-                        }
-
-                        return handleRequest(
-                            request,
-                            context,
-                            // We already parsed route matches. Pass them to Remix...
-                            {url, matches},
-                        );
-                    },
-                );
-
-                loaderContextModule.addResponseHeaders(response.headers);
-
-                // Include the route in an HTTP header so our edge service can use the route in
-                // its HTTP span name.
-                {
-                    let route = "";
-                    if (matches === null) {
-                        route = "/*";
-                    } else {
-                        for (const match of matches) {
-                            if (match.route.id === "root") continue;
-                            if (match.route.path === undefined) continue;
-                            route = `${route}/${match.route.path}`;
-                        }
-                    }
-
-                    response.headers.set("cyberworlds-route", route);
-                }
-
-                return response;
-            });
-        },
-    );
+    let requestListener = (await appServerModule?.getAppServer(appServerConstants)) ?? null;
 
     // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Load Balancer -> us
     // in application code in production.
@@ -470,12 +132,44 @@ export async function run({
                 });
             }
         } else {
-            requestListener(req, res);
+            if (!isViteDevEnabled) {
+                requestListener!(req, res);
+            } else {
+                void (async () => {
+                    try {
+                        const oldAppServerModule = appServerModule;
+
+                        appServerModule = (await viteDevServer!.ssrLoadModule(
+                            "/app/app_server.js",
+                        )) as typeof import("~/app/app_server.js");
+
+                        // If the `app_server.ts` module changed then run shutdown listeners from the
+                        // old app server module.
+                        if (oldAppServerModule !== null && oldAppServerModule !== appServerModule) {
+                            assert(
+                                appServerConstants.shutdownManager instanceof HotShutdownManager,
+                            );
+                            appServerConstants.shutdownManager.clear();
+                        }
+
+                        requestListener = await appServerModule.getAppServer(appServerConstants);
+                        requestListener(req, res);
+                    } catch (error) {
+                        res.writeHead(500, {"content-type": "text/plain"});
+
+                        if (process.env.NODE_ENV === "production" || !(error instanceof Error)) {
+                            res.end("500 Internal Server Error");
+                        } else {
+                            res.end(`500 Internal Server Error\n\n${error.stack ?? error.message}`);
+                        }
+                    }
+                })();
+            }
         }
     };
 
     const server = createServer(
-        options.viteDev
+        isViteDevEnabled
             ? (req, res) => {
                   viteDevServer!.middlewares(req, res, () => {
                       actualRequestListener(req, res);
@@ -490,7 +184,7 @@ export async function run({
 
     registerGracefulServerShutdown(shutdownManager, server);
 
-    const viteDevServer = options.viteDev
+    const viteDevServer = isViteDevEnabled
         ? await import("vite").then(vite => {
               // Run Vite in Bazel's build directory. Our dev process manager is responsible
               // for keeping the `//app` target up-to-date which will build all app files
@@ -646,123 +340,128 @@ export async function run({
     });
 }
 
-function createActorContextModule(
-    request: Request,
-    url: URL,
-    tokenAgent: TokenAgent,
-    sessionCookie: SessionCookie,
-) {
-    // Clients can authenticate with our app service in one of two ways:
-    //
-    // 1. Session cookie authentication. This is what web browsers use. We put a
-    //    token in an HTTP only cookie and that token identifies the user. Only
-    //    tokens issued by `AppService` are accepted in the session cookie. You can
-    //    only authenticate as an account session with this method.
-    //
-    // 2. Authorization header authentication. This is what HTTP clients use. They
-    //    put a token in an "Authorization" HTTP header. This is how the edge
-    //    service family executes RPCs against our app service. You can
-    //    authenticate as a session or system actor through an authorization header.
-    //
-    // We authenticate lazily. If a route doesn't need authentication this function
-    // never gets called. You can also parallelize other network requests with
-    // authentication deeper in a route. Once we authenticate it is cached for
-    // the route.
-    return new DynamoUnknownActorContextModule(async context => {
-        const sessionCookiePayload = await sessionCookie.getIfExists();
-        const authorizationHeader = request.headers.get("authorization");
+class HotShutdownManager implements ShutdownManagerBase {
+    private readonly _tracer: TracerRoot;
+    private readonly _shutdownManager: ShutdownManager;
+    private _ingressTrafficListeners = new Map<
+        (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        () => void
+    >();
+    private _listeners = new Map<
+        (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        () => void
+    >();
 
-        // Optimization: When loading our session from the database, also attempt to
-        // load whether the account associated with the session is a member of the
-        // space we're in. We try to determine the `SpaceId` we're in through various
-        // hint heuristics. It's not required that we know the `SpaceId` here, if we
-        // don't know the `SpaceId` we'll authorize the account later.
-        const getSessionIfExists = async (
-            sessionId: SessionId,
-            accountId: AccountId,
-        ): Promise<Session | null> => {
-            const spaceIdStringHint =
-                request.headers.get("cyberworlds-space-id-hint") ??
-                url.pathname.match(/^\/s\/([a-zA-Z0-9]+)(?:\/|$)/)?.[1];
+    constructor(tracer: TracerRoot, shutdownManager: ShutdownManager) {
+        this._tracer = tracer;
+        this._shutdownManager = shutdownManager;
+    }
 
-            const spaceIdHint =
-                spaceIdStringHint && isId<SpaceId>(spaceIdStringHint)
-                    ? spaceIdStringHint
-                    : undefined;
+    public clear() {
+        const signal = "SIGINT";
 
-            if (!spaceIdHint) {
-                return Session.getIfExists(context, sessionId, accountId);
+        const handleSpanName = `Shutdown ${this._tracer.serviceName} (hot clear)`;
+        const spanName = `Handle: ${handleSpanName}`;
+
+        const {span, finishSpan} = this._tracer.startSpan(spanName);
+
+        span.addPropagatedDataForChildrenOnly({
+            context: {
+                handler: handleSpanName,
+            },
+        });
+
+        let hasAddedExceptionToSpan = false;
+
+        if (this._ingressTrafficListeners.size === 0 && this._listeners.size === 0) {
+            finishSpan();
+        } else {
+            const ingressTrafficListeners = new Set(this._ingressTrafficListeners.keys());
+            const listeners = new Set(this._listeners.keys());
+
+            // Unregister our shutdown listeners from the main shutdown listener now that
+            // we're running them here.
+            for (const unregister of this._ingressTrafficListeners.values()) {
+                unregister();
+            }
+            for (const unregister of this._listeners.values()) {
+                unregister();
             }
 
-            const [session] = await runAllPromises([
-                Session.getIfExists(context, sessionId, accountId),
-                // This function caches its result for the duration of the request. Which is
-                // why we can call it here and ignore the output.
-                isAccountMemberOfSpaceWithoutAuthorization(context, spaceIdHint, accountId),
+            this._ingressTrafficListeners.clear();
+            this._listeners.clear();
+
+            const ingressTrafficShutdownPromise = runAllPromises(
+                Array.from(ingressTrafficListeners, listener => listener(signal, span)),
+            );
+
+            const shutdownPromise = ingressTrafficShutdownPromise
+                // If an ingress traffic shutdown listener failed, we still want to run our
+                // other shutdown listeners.
+                .catch(error => {
+                    if (!hasAddedExceptionToSpan) {
+                        hasAddedExceptionToSpan = true;
+                        span.addException(error);
+                    }
+                })
+                .then(() =>
+                    runAllPromises(Array.from(listeners, listener => listener(signal, span))),
+                );
+
+            const fullShutdownPromise = runAllPromises([
+                ingressTrafficShutdownPromise,
+                shutdownPromise
+                    // If a shutdown listener failed, we still want to wait for our `waitUntil()`
+                    // promises.
+                    .catch(error => {
+                        if (!hasAddedExceptionToSpan) {
+                            hasAddedExceptionToSpan = true;
+                            span.addException(error);
+                        }
+                    }),
             ]);
 
-            return session;
+            fullShutdownPromise.then(
+                () => {
+                    finishSpan();
+                },
+                error => {
+                    finishSpan();
+
+                    // eslint-disable-next-line no-console
+                    console.error("Shutdown finished with exception:");
+                    // eslint-disable-next-line no-console
+                    console.error(error);
+                },
+            );
+        }
+    }
+
+    public registerListenerForIngressTraffic(
+        name: string,
+        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+    ): () => void {
+        const unregister = this._shutdownManager.registerListenerForIngressTraffic(name, listener);
+        this._ingressTrafficListeners.set(listener, unregister);
+        return () => {
+            this._ingressTrafficListeners.delete(listener);
+            unregister();
         };
+    }
 
-        if (sessionCookiePayload && authorizationHeader) {
-            throw new InvalidArgumentError(
-                'Can\'t provide both an "Authorization" header and a session cookie',
-            );
-        }
+    public registerListener(
+        name: string,
+        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+    ): () => void {
+        const unregister = this._shutdownManager.registerListener(name, listener);
+        this._listeners.set(listener, unregister);
+        return () => {
+            this._listeners.delete(listener);
+            unregister();
+        };
+    }
 
-        // 1. Session cookie authentication
-        if (sessionCookiePayload) {
-            const session = await getSessionIfExists(
-                sessionCookiePayload.sessionId,
-                sessionCookiePayload.accountId,
-            );
-            if (!session) {
-                // Remove our session cookie if the session was deleted from the database.
-                sessionCookie.dangerouslySet(null);
-                return null;
-            }
-
-            // If we receive a session cookie, we treat the request as if it came from a
-            // user's web browser and use the `AppClient` service name.
-            return DynamoSessionActorContextModule.dangerouslyNew("AppClient", session);
-        }
-
-        // 2. Authorization header authentication
-        if (authorizationHeader) {
-            const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
-
-            if (!authorizationHeaderMatch) {
-                throw new InvalidArgumentError(
-                    'Expected "Authorization" header to have "Bearer" authentication scheme',
-                );
-            }
-
-            const authorizationHeaderToken = authorizationHeaderMatch[1] ?? "";
-            const {serviceName, payload: authorizationHeaderPayload} =
-                await tokenAgent.publicSide.verifyToken(authorizationHeaderToken);
-
-            switch (authorizationHeaderPayload.type) {
-                case "Session": {
-                    const session = await getSessionIfExists(
-                        authorizationHeaderPayload.sessionId,
-                        authorizationHeaderPayload.accountId,
-                    );
-                    if (!session) {
-                        throw new PermissionDeniedError("Session not found");
-                    }
-                    return DynamoSessionActorContextModule.dangerouslyNew(serviceName, session);
-                }
-                case "System": {
-                    return DynamoSystemActorContextModule.dangerouslyNew(
-                        serviceName,
-                        authorizationHeaderPayload.spaceId,
-                    );
-                }
-                default:
-                    throw exhaustive(authorizationHeaderPayload);
-            }
-        }
-
-        return null;
-    });
+    public registerWaitUntilPromise(promise: Promise<unknown>) {
+        this._shutdownManager.registerWaitUntilPromise(promise);
+    }
 }
