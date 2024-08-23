@@ -12,13 +12,10 @@ import {registerGracefulServerShutdown} from "~/server/node/register_graceful_se
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager, ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {noop} from "~/shared/helpers/control/noop.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -203,12 +200,6 @@ export async function run({
             assertExists(process.env.JS_BINARY__BINDIR),
         );
 
-        let bazelLockState: {
-            count: number;
-            promiseResolver: PromiseResolver<void>;
-            releaseTimeout: Timeout | null;
-        } | null = null;
-
         const viteDevServer = await vite.createServer({
             root: rootPath,
             cacheDir: assertExists(
@@ -229,62 +220,6 @@ export async function run({
                 // `atomic` makes sure `chokidar` treats this as one `change` update instead of
                 // an `unlink` update then an `add` update.
                 watch: {atomic: true},
-            },
-
-            // `acquireBazelLock()` may be called many times by Vite. It's called for every
-            // HTTP request and every file system update. We translate this into one shared
-            // lock which expires 1s after the last lock is released by Vite. That way
-            // we'll have the lock for an entire page load (which will make many HTTP
-            // requests).
-            acquireBazelLock: async () => {
-                if (isShuttingDown) return noop;
-
-                if (bazelLockState === null) {
-                    bazelDevSocket.send(JSON.stringify({type: "AcquireLock"}));
-
-                    bazelLockState = {
-                        count: 0,
-                        promiseResolver: createPromiseResolver(),
-                        releaseTimeout: null,
-                    };
-                }
-
-                bazelLockState.count += 1;
-
-                if (bazelLockState.releaseTimeout !== null) {
-                    bazelLockState.releaseTimeout.clear();
-                    bazelLockState.releaseTimeout = null;
-                }
-
-                try {
-                    await bazelLockState.promiseResolver.promise;
-                } catch (error) {
-                    bazelLockState.count -= 1;
-
-                    if (bazelLockState.count === 0) {
-                        bazelLockState = null;
-                    }
-
-                    throw error;
-                }
-
-                let hasReleased = false;
-
-                return () => {
-                    assert(!hasReleased);
-                    hasReleased = true;
-
-                    assert(bazelLockState);
-
-                    bazelLockState.count -= 1;
-
-                    if (bazelLockState.count === 0) {
-                        bazelLockState.releaseTimeout = createTimeout(() => {
-                            bazelDevSocket.send(JSON.stringify({type: "ReleaseLock"}));
-                            bazelLockState = null;
-                        }, 1000);
-                    }
-                };
             },
         });
 
@@ -349,10 +284,9 @@ export async function run({
         bazelDevSocket.on("message", rawMessage => {
             if (isShuttingDown) return;
 
-            const message:
-                | {type: "Log"; message: string}
-                | {type: "Reload"}
-                | {type: "LockAcquired"} = JSON.parse(rawMessage.toString("utf8"));
+            const message: {type: "Log"; message: string} | {type: "Reload"} = JSON.parse(
+                rawMessage.toString("utf8"),
+            );
 
             switch (message.type) {
                 case "Log": {
@@ -368,10 +302,6 @@ export async function run({
                         hasSentShutDownFullReload = true;
                         viteDevServer.hot.send({type: "full-reload"});
                     }
-                    break;
-                }
-                case "LockAcquired": {
-                    bazelLockState?.promiseResolver.resolve();
                     break;
                 }
                 default:
