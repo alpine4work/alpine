@@ -229,42 +229,21 @@ async function createAppServer({
                     return [url.pathname, "ClearSpaceAccountsCacheForTest"];
             }
 
-            // NOTE(calebmer): This is a hot code path. I worry adding `await` might slow
-            // things down since we need to consult the microtask queue. Given this always
-            // returns synchronously in production I'm going to avoid the `await`.
             const matches = handleRequest.matchServerRoutes(url);
 
-            if (matches === null || !("then" in matches)) {
-                let route = "";
+            let route = "";
 
-                if (matches === null) {
-                    route = "/*";
-                } else {
-                    for (const match of matches) {
-                        if (match.route.id === "root") continue;
-                        if (match.route.path === undefined) continue;
-                        route = `${route}/${match.route.path}`;
-                    }
-                }
-
-                return [route, matches];
+            if (matches === null) {
+                route = "/*";
             } else {
-                return matches.then(matches => {
-                    let route = "";
-
-                    if (matches === null) {
-                        route = "/*";
-                    } else {
-                        for (const match of matches) {
-                            if (match.route.id === "root") continue;
-                            if (match.route.path === undefined) continue;
-                            route = `${route}/${match.route.path}`;
-                        }
-                    }
-
-                    return [route, matches];
-                });
+                for (const match of matches) {
+                    if (match.route.id === "root") continue;
+                    if (match.route.path === undefined) continue;
+                    route = `${route}/${match.route.path}`;
+                }
             }
+
+            return [route, matches];
         },
         (request, url, matches, span) => {
             if (matches === "HealthCheck") {

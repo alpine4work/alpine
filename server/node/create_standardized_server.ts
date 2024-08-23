@@ -12,7 +12,6 @@ import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -22,7 +21,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 export function createStandardizedRequestListener<Route>(
     tracer: TracerRoot,
-    parseRoute: (url: URL) => MaybePromise<[string, Route]>,
+    parseRoute: (url: URL) => [string, Route],
     handleRequest: (
         request: Request,
         url: URL,
@@ -36,7 +35,7 @@ export function createStandardizedRequestListener<Route>(
 
 function wrapWithTraceServerResponse<Route>(
     tracer: TracerRoot,
-    parseRoute: (url: URL) => MaybePromise<[string, Route]>,
+    parseRoute: (url: URL) => [string, Route],
     handleRequest: (
         request: Request,
         url: URL,
@@ -47,21 +46,11 @@ function wrapWithTraceServerResponse<Route>(
     return request => {
         const url = new URL(request.url);
 
-        const parseResult = parseRoute(url);
+        const [route, routeObject] = parseRoute(url);
 
-        if (!("then" in parseResult)) {
-            const [route, routeObject] = parseResult;
-
-            return traceServerResponse(tracer, request, url, route, (span, request) =>
-                handleRequest(request, url, routeObject, span),
-            );
-        } else {
-            return parseResult.then(([route, routeObject]) =>
-                traceServerResponse(tracer, request, url, route, (span, request) =>
-                    handleRequest(request, url, routeObject, span),
-                ),
-            );
-        }
+        return traceServerResponse(tracer, request, url, route, (span, request) =>
+            handleRequest(request, url, routeObject, span),
+        );
     };
 }
 
