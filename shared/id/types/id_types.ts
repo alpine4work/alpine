@@ -1,4 +1,5 @@
-import type {Id} from "~/shared/id/id.js";
+import type {ChronologicalId} from "~/shared/id/chronological_id.js";
+import type {RandomId} from "~/shared/id/id.js";
 
 /**
  * Creates a new ID type with the provided name. TypeScript will error if you
@@ -12,36 +13,38 @@ import type {Id} from "~/shared/id/id.js";
  * manifest of all our ID types to the client or we'd need to generate code
  * like `Schema.spaceId` and `generateSpaceId()` for every ID type.
  */
-type NominalIdType<Type extends string> = Id & {readonly [type]: Type};
+type NominalRandomIdType<Type extends string> = RandomId & {readonly [type]: Type};
+type NominalChronologicalIdType<Type extends string> = ChronologicalId & {readonly [type]: Type};
 declare const type: unique symbol;
 
-export type AccountId = NominalIdType<"Account">;
-export type SessionId = NominalIdType<"Session">;
-export type BrowserId = NominalIdType<"Browser">;
-export type TraceId = NominalIdType<"Trace">;
-export type TraceSpanId = NominalIdType<"TraceSpan">;
-export type RealmId = NominalIdType<"Realm">;
-export type SpaceId = NominalIdType<"Space">;
-export type DocumentId = NominalIdType<"Document">;
-export type DocumentCommentThreadId = NominalIdType<"DocumentCommentThread">;
-export type ChannelId = NominalIdType<"Channel">;
-export type PostId = NominalIdType<"Post">;
-export type WebSocketConnectionId = NominalIdType<"WebSocketConnection">;
-export type WebSocketProcedureRequestId = NominalIdType<"WebSocketProcedureRequest">;
-export type ContentEditorClientId = NominalIdType<"ContentEditorClient">;
-export type PeekId = NominalIdType<"Peek">;
-export type ChatId = NominalIdType<"Chat">;
-export type NotificationEventId = NominalIdType<"NotificationEvent">;
-export type TaskId = NominalIdType<"Task">;
-export type TaskCollectionId = NominalIdType<"TaskCollection">;
-export type TaskActionTransactionId = NominalIdType<"TaskActionTransaction">;
-export type TaskRealtimeQuerySubscriptionId = NominalIdType<"TaskRealtimeQuerySubscription">;
-export type TaskRealtimeTaskSubscriptionId = NominalIdType<"TaskRealtimeTaskSubscription">;
+export type AccountId = NominalRandomIdType<"Account">;
+export type SessionId = NominalRandomIdType<"Session">;
+export type BrowserId = NominalRandomIdType<"Browser">;
+export type TraceId = NominalRandomIdType<"Trace">;
+export type TraceSpanId = NominalRandomIdType<"TraceSpan">;
+export type RealmId = NominalRandomIdType<"Realm">;
+export type SpaceId = NominalRandomIdType<"Space">;
+export type DocumentId = NominalRandomIdType<"Document">;
+export type DocumentCommentThreadId = NominalRandomIdType<"DocumentCommentThread">;
+export type ChannelId = NominalRandomIdType<"Channel">;
+export type PostId = NominalRandomIdType<"Post">;
+export type WebSocketConnectionId = NominalRandomIdType<"WebSocketConnection">;
+export type WebSocketProcedureRequestId = NominalRandomIdType<"WebSocketProcedureRequest">;
+export type ContentEditorClientId = NominalRandomIdType<"ContentEditorClient">;
+export type PeekId = NominalRandomIdType<"Peek">;
+export type ChatId = NominalRandomIdType<"Chat">;
+export type NotificationEventId = NominalRandomIdType<"NotificationEvent">;
+export type TaskId = NominalRandomIdType<"Task">;
+export type TaskCollectionId = NominalRandomIdType<"TaskCollection">;
+export type TaskActionTransactionId = NominalRandomIdType<"TaskActionTransaction">;
+export type TaskRealtimeQuerySubscriptionId = NominalRandomIdType<"TaskRealtimeQuerySubscription">;
+export type TaskRealtimeTaskSubscriptionId = NominalRandomIdType<"TaskRealtimeTaskSubscription">;
 export type TaskRealtimeCollectionSubscriptionId =
-    NominalIdType<"TaskRealtimeCollectionSubscription">;
-export type TaskRealtimeClientId = NominalIdType<"TaskRealtimeClient">;
-export type TaskActionTransactionLeaseId = NominalIdType<"TaskActionTransactionLease">;
-export type ApnsConnectionId = NominalIdType<"ApnsConnectionId">;
+    NominalRandomIdType<"TaskRealtimeCollectionSubscription">;
+export type TaskRealtimeClientId = NominalRandomIdType<"TaskRealtimeClient">;
+export type TaskActionTransactionLeaseId = NominalRandomIdType<"TaskActionTransactionLease">;
+export type ApnsConnectionId = NominalRandomIdType<"ApnsConnectionId">;
+export type FileId = NominalChronologicalIdType<"File">;
 
 /**
  * A specialization of `AccountId`. We use this as the type of a
@@ -60,4 +63,4 @@ export type ApnsConnectionId = NominalIdType<"ApnsConnectionId">;
  * `ContentMentionAccountId` an error but allow the type with
  * `getAccountIfExists()`.
  */
-export type ContentMentionAccountId = NominalIdType<"ContentMentionAccount"> | AccountId;
+export type ContentMentionAccountId = NominalRandomIdType<"ContentMentionAccount"> | AccountId;

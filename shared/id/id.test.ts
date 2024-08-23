@@ -1,3 +1,6 @@
+import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {
     decodeId,
     encodeId,
@@ -28,4 +31,16 @@ test("generates correct IDs", () => {
 
         expect([...decodeId(encodeId(decodeId(id)))]).toEqual([...decodeId(id)]);
     }
+});
+
+test("ID string order is the same as ID byte order", () => {
+    const ids = createArrayWithLength(1_000, generateId);
+
+    const sortedIds1 = Array.from(ids).sort((id1, id2) => defaultCompareStrings(id1, id2));
+
+    const sortedIds2 = Array.from(ids, id => decodeId(id))
+        .sort((id1, id2) => compareArrays(id1, id2, (byte1, byte2) => byte1 - byte2))
+        .map(id => encodeId(id));
+
+    expect(sortedIds1).toEqual(sortedIds2);
 });
