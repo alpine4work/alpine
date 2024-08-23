@@ -130,8 +130,6 @@ filegroup(
     ],
 )
 
-# NOCOMMIT: Can I remove some symlink stuffs from `@remix-run/dev` patch?
-#
 # NOCOMMIT: Can I pause/play Vite depending on whether Bazel is running?
 js_binary(
     name = "app_wrapper",

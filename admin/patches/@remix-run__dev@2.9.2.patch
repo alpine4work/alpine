@@ -1,19 +1,8 @@
 diff --git a/dist/config/flat-routes.js b/dist/config/flat-routes.js
-index 70c183de6d9a19bd97e694a7c2e0f3ad67c0a0de..8dcbbc049418b85766b1865084cdfb5819781777 100644
+index 70c183de6d9a19bd97e694a7c2e0f3ad67c0a0de..8bee451e7d26c013d2b4ae5854bd698c65fd1eb3 100644
 --- a/dist/config/flat-routes.js
 +++ b/dist/config/flat-routes.js
-@@ -84,12 +84,23 @@ function flatRoutes(appDirectory, ignoredFilePatterns = [], prefix = "routes") {
-   });
-   let routes$1 = [];
-   for (let entry of entries) {
-+    let entryName = entry.name;
-     let filepath = routes.normalizeSlashes(path__default["default"].join(routesDir, entry.name));
-     let route = null;
-+    // NOTE(calebmer): If the entry is a symbolic link then get the stats of the
-+    // underlying link.
-+    if (entry.isSymbolicLink()) {
-+      entry = fs__default["default"].statSync(filepath);
-+    }
+@@ -89,7 +89,12 @@ function flatRoutes(appDirectory, ignoredFilePatterns = [], prefix = "routes") {
      // If it's a directory, don't recurse into it, instead just look for a route module
      if (entry.isDirectory()) {
        route = findRouteModuleForFolder(appDirectory, filepath, ignoredFileRegex);
@@ -22,13 +11,13 @@ index 70c183de6d9a19bd97e694a7c2e0f3ad67c0a0de..8dcbbc049418b85766b1865084cdfb58
 +      entry.isFile() &&
 +      // NOTE(calebmer): Ignore source maps which will be in the `routes` directory due to
 +      // our Bazel build.
-+      !entryName.endsWith(".map")
++      !entry.name.endsWith(".map")
 +    ) {
        route = findRouteModuleForFile(appDirectory, filepath, ignoredFileRegex);
      }
      if (route) routes$1.push(route);
 diff --git a/dist/vite/plugin.js b/dist/vite/plugin.js
-index bf608523a542d69398ed7afa51562c63a36ce8ed..7e02c8a8a86a15ddf0ea0e3c3e997a75ed2996a4 100644
+index bf608523a542d69398ed7afa51562c63a36ce8ed..dfeea3adaef336991412dbc17a5813f795aa2116 100644
 --- a/dist/vite/plugin.js
 +++ b/dist/vite/plugin.js
 @@ -370,7 +370,8 @@ const remixVitePlugin = (remixUserConfig = {}) => {
@@ -117,60 +106,3 @@ index bf608523a542d69398ed7afa51562c63a36ce8ed..7e02c8a8a86a15ddf0ea0e3c3e997a75
        };
      }
    }, {
-@@ -1149,6 +1149,20 @@ if (import.meta.hot && !inWebWorker) {
- }`;
- function getRoute(pluginConfig, file) {
-   let vite = importViteEsmSync.importViteEsmSync();
-+  // NOTE(calebmer): Vite may follow symlinks out of the runfiles directory we're
-+  // building in. So `pluginConfig.appDirectory` will be in the runfiles
-+  // directory but `file` won't be. Detect this case and update `file` to a path
-+  // in the runfiles directory so we can properly check if `file` is a route
-+  // or not.
-+  if (!file.startsWith(`${pluginConfig.appDirectory}/`)) {
-+    let fileParts = file.split(/\/bazel-out\/[^/]+\/bin\//, 2);
-+    if (fileParts.length === 2) {
-+      let match = pluginConfig.appDirectory.match(/^.*\/bazel-out\/[^/]+\/bin\/.+\.runfiles\/[^/]+\//, 2);
-+      if (match) {
-+        file = match[0] + fileParts[1];
-+      }
-+    }
-+  }
-   let routePath = vite.normalizePath(path__namespace.relative(pluginConfig.appDirectory, file));
-   let route = Object.values(pluginConfig.routes).find(r => vite.normalizePath(r.file) === routePath);
-   return route;
-diff --git a/dist/vite/styles.js b/dist/vite/styles.js
-index fae54295b133f2639ab676dbe675cecf1eefdb5e..1ed1b6c0d2f30d4d3b953b520f018515cd068b71 100644
---- a/dist/vite/styles.js
-+++ b/dist/vite/styles.js
-@@ -12,6 +12,7 @@
- 
- Object.defineProperty(exports, '__esModule', { value: true });
- 
-+var fs = require('node:fs/promises');
- var path = require('node:path');
- var router = require('@remix-run/router');
- var resolveFileUrl = require('./resolve-file-url.js');
-@@ -58,6 +59,23 @@ const getStylesForFiles = async ({
-       let normalizedPath = path__namespace.resolve(rootDirectory, file).replace(/\\/g, "/");
-       let node = await viteDevServer.moduleGraph.getModuleById(normalizedPath);
- 
-+      // NOTE(calebmer): If a module doesn't exist for `normalizedPath` that might be
-+      // because `normalizedPath` is a symlink to another path. Resolve
-+      // `normalizedPath` and try finding the module again.
-+      if (!node) {
-+        try {
-+          let stats = await fs.lstat(normalizedPath);
-+          if (stats.isSymbolicLink()) {
-+            normalizedPath = await fs.readlink(normalizedPath);
-+            node = await viteDevServer.moduleGraph.getModuleById(normalizedPath);
-+          }
-+        } catch (error) {
-+          if (error.code !== "ENOENT") {
-+            throw error;
-+          }
-+        }
-+      }
-+
-       // If the module is only present in the client module graph, the module
-       // won't have been found on the first request to the server. If so, we
-       // request the module so it's in the module graph, then try again.
