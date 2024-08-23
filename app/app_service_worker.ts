@@ -2,6 +2,7 @@ import {IncomingMessage, ServerResponse, createServer} from "http";
 import {join as joinPath, resolve as resolvePath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {WebSocket} from "ws";
+import {AppServerConstants, AppServerModule} from "~/app/app_server_types.js";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -102,7 +103,7 @@ export async function run({
               })
             : null;
 
-    const appServerConstants: import("~/app/app_server.js").AppServerConstants = {
+    const appServerConstants: AppServerConstants = {
         tracer,
         shutdownManager: isViteDevEnabled
             ? new HotShutdownManager(tracer, shutdownManager)
@@ -110,8 +111,12 @@ export async function run({
         options,
     };
 
-    let appServerModule: typeof import("~/app/app_server.js") | null = !isViteDevEnabled
-        ? await import("~/app/app_server.js")
+    let appServerModule: AppServerModule | null = !isViteDevEnabled
+        ? // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
+          // @ts-ignore: When type checking `//app:app_wrapper` the types for
+          // `"~/app/app_server.js"` aren't available. The types are available for
+          // `//admin/typescript/workspace:workspace_test` however.
+          await import("~/app/app_server.js")
         : null;
 
     let requestListener = (await appServerModule?.getAppServer(appServerConstants)) ?? null;
@@ -145,7 +150,7 @@ export async function run({
 
                         appServerModule = (await viteDevServer!.ssrLoadModule(
                             "/app/app_server.js",
-                        )) as typeof import("~/app/app_server.js");
+                        )) as AppServerModule;
 
                         // If the `app_server.ts` module changed then run shutdown listeners from the
                         // old app server module.

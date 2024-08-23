@@ -1,8 +1,8 @@
 import {createRequestHandler} from "@remix-run/node";
 import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
-import {IncomingMessage, ServerResponse} from "http";
 import * as build from "virtual:remix/server-build";
+import {AppServer, AppServerConstants} from "~/app/app_server_types.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
@@ -27,12 +27,8 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {createServerProcessContext} from "~/server/node/create_server_process_context.js";
 import {
-    ServerProcessContextOptions,
-    createServerProcessContext,
-} from "~/server/node/create_server_process_context.js";
-import {
-    ServiceTokenAgentOptions,
     createServiceTokenAgent,
     getServiceTokenAgentKeyFromOption,
 } from "~/server/node/create_service_token_agent.js";
@@ -60,25 +56,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-
-export type AppServerConstants = {
-    readonly tracer: TracerRoot;
-    readonly shutdownManager: ShutdownManagerBase;
-    readonly options: ServiceTokenAgentOptions &
-        ServerProcessContextOptions & {
-            readonly shouldSeedDynamo?: boolean;
-            readonly taskRealtimeServiceLocalPort?: string;
-            readonly ecsCluster?: string;
-            readonly taskRealtimeServiceEcsTaskDefinitionFamily?: string;
-            readonly allMiniLmL6V2LanguageModel?: string;
-            readonly cohereApiKey?: string;
-            readonly apnsCertificate?: string;
-            readonly apnsCertificatePrivateKey?: string;
-        };
-};
-
-export type AppServer = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void;
 
 let appServerConstants: AppServerConstants | null = null;
 let appServer: Promise<AppServer> | null = null;

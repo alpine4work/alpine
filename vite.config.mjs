@@ -22,6 +22,10 @@ export default defineConfig(({mode}) => {
         build: {
             outDir: "./app/build",
         },
+        optimizeDeps: {
+            // Don't crawl looking for `.html` files. There are no `.html` files.
+            entries: [],
+        },
         plugins: [
             remix({
                 future: {
