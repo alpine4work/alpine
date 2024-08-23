@@ -55,6 +55,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//native/mobile/ios/Resources/Assets.xcassets",
     "//server/deploy/script",
     "//server/edge",
+    "//server/files/upload",
     "//server/forum/realtime:post_realtime_connection_test",
     "//server/notifications/data:notifications_table_forum_test",
     "//server/tasks/realtime:task_realtime_connection_test",
