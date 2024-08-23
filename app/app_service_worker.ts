@@ -219,7 +219,7 @@ export async function run({
                 // While building Bazel will frequently remove a file then add it back.
                 // `atomic` makes sure `chokidar` treats this as one `change` update instead of
                 // an `unlink` update then an `add` update.
-                watch: {atomic: true},
+                watch: {atomic: 500},
             },
         });
 
