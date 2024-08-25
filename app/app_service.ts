@@ -56,8 +56,9 @@ import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_priva
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -80,9 +81,7 @@ let appService: {
  */
 export function getAppService(constants: AppServiceConstants): Promise<AppService> {
     if (appService !== null) {
-        if (appService.constants !== constants) {
-            throw new InternalError("Expected `AppService` constants object to never change");
-        }
+        assert(appService.constants === constants);
     } else {
         appService = {
             constants,
