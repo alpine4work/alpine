@@ -8,5 +8,5 @@ import {runService} from "~/server/node/run_service.js";
 
 runService({
     serviceName: "AppService",
-    import: () => import("~/app/app_service_worker.js"),
+    import: () => import("~/app/app_service.js"),
 });

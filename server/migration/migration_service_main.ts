@@ -6,5 +6,5 @@ runService({
     // performance even more. Each AWS instance could be running 3-5 Node.js
     // threads and each thread itself does parallel processing.
     withoutCluster: true,
-    import: () => import("~/server/migration/migration_service_worker.js"),
+    import: () => import("~/server/migration/migration_service.js"),
 });
