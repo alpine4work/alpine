@@ -15,10 +15,7 @@ import {Replace} from "~/shared/helpers/types/replace.js";
  * Context module for DynamoDB. Holds a DynamoDB client which is accessible to
  * our `internal` folder with the `getDynamoClient()` function.
  */
-export class DynamoContextModule<Modules extends {} = {}>
-    extends ContextModuleBase<Modules>
-    implements ForkableContextModuleBase
-{
+export class DynamoContextModule extends ContextModuleBase implements ForkableContextModuleBase {
     private readonly _client!: DynamoClient;
 
     /**
@@ -157,14 +154,7 @@ export class DynamoContextModule<Modules extends {} = {}>
      */
     public expectStrongReadConsistency<Modules extends {}>(
         this: ContextModuleBase<Modules> & DynamoContextModule,
-    ): ContextWithDestroy<
-        Replace<
-            Modules,
-            {
-                dynamo: DynamoContextModule<{}>;
-            }
-        >
-    > {
+    ): ContextWithDestroy<Replace<Modules, {dynamo: DynamoContextModule}>> {
         if (this._expectsStrongReadConsistency) return this._context as any;
 
         return this._context.clone({
@@ -181,14 +171,7 @@ export class DynamoContextModule<Modules extends {} = {}>
      */
     public unexpectStrongReadConsistency<Modules extends {}>(
         this: ContextModuleBase<Modules> & DynamoContextModule,
-    ): ContextWithDestroy<
-        Replace<
-            Modules,
-            {
-                dynamo: DynamoContextModule<{}>;
-            }
-        >
-    > {
+    ): ContextWithDestroy<Replace<Modules, {dynamo: DynamoContextModule}>> {
         if (!this._expectsStrongReadConsistency) return this._context as any;
 
         return this._context.clone({

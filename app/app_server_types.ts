@@ -10,6 +10,9 @@ export type AppServerConstants = {
     readonly options: ServiceTokenAgentOptions &
         ServerProcessContextOptions & {
             readonly shouldSeedDynamo?: boolean;
+            readonly edgeServiceUrl?: string;
+            readonly opensearchLocalPort?: string;
+            readonly opensearchHost?: string;
             readonly taskRealtimeServiceLocalPort?: string;
             readonly ecsCluster?: string;
             readonly taskRealtimeServiceEcsTaskDefinitionFamily?: string;

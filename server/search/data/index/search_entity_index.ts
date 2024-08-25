@@ -1,9 +1,6 @@
 import murmurhash from "murmurhash";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
-import {
-    ServerSessionActionContext,
-    ServerSessionActionContextModules,
-} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getChannelIfPossible} from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -45,7 +42,11 @@ import {
     SearchEntitySemanticIndexEmbeddingChunk,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
-import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
+import {
+    SearchSessionActionContext,
+    SearchSessionActionContextModules,
+    SearchSystemActionContextModules,
+} from "~/server/search/data/index/search_action_context.js";
 import {
     getPossiblyStaleChannelSearchAffinityIds,
     getPossiblyStaleTaskCollectionSearchAffinityIds,
@@ -363,7 +364,15 @@ export const processSearchEntityJobUpdateDependentEntitiesTestCounter =
  * [1]: https://cohere.com
  */
 export async function processIndexSearchEntityJob(
-    context: SearchEntityIndexSystemActionContext,
+    context: Context<
+        SearchSystemActionContextModules & {
+            /**
+             * A language model is optional in unit tests. But must be provided in
+             * production and local developer environments.
+             */
+            languageModel?: LanguageModelContextModule;
+        }
+    >,
     job: IndexSearchEntityJobDescription,
     jobStartTime: Date,
 ) {
@@ -819,7 +828,7 @@ function assertSearchQueryTextLength(queryText: string) {
  * type-ahead functionality.
  */
 export async function searchByKeywords(
-    context: ServerSessionActionContext,
+    context: SearchSessionActionContext,
     {
         spaceId,
         queryText,
@@ -1296,7 +1305,7 @@ function enrichOpensearchSearchHitExplanation(
 // attack risk.
 export async function searchBySemantics(
     context: Context<
-        ServerSessionActionContextModules & {
+        SearchSessionActionContextModules & {
             languageModel: LanguageModelContextModule;
         }
     >,
@@ -1583,7 +1592,7 @@ async function prepareSearchEntityMediaForResult(
  * and the account has access to the search entity.
  */
 export async function getSearchEntitiesTitleAndMediaIfExist(
-    context: ServerSessionActionContext,
+    context: SearchSessionActionContext,
     {spaceId, entityIds}: {spaceId: SpaceId; entityIds: ReadonlyArray<SearchEntityId>},
 ): Promise<
     ReadonlyArray<{
@@ -1644,7 +1653,7 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
  * they're currently searching for.
  */
 export async function searchByAffinity(
-    context: ServerSessionActionContext,
+    context: SearchSessionActionContext,
     {spaceId, limit, timeZone}: {spaceId: SpaceId; limit: number; timeZone: TimeZone},
 ): Promise<{results: Array<SearchResult>}> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1744,7 +1753,7 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
  * On the client we boost channels an account has an affinity for.
  */
 export async function searchChannelsByKeywords(
-    context: ServerSessionActionContext,
+    context: SearchSessionActionContext,
     {
         spaceId,
         queryText,

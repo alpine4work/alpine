@@ -1,6 +1,7 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
@@ -19,7 +20,6 @@ import {
     TaskRealtimeQuerySubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeStore} from "~/server/tasks/realtime/task_realtime_store.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeTaskSubscription,
     TaskRealtimeTaskSubscriptionCallbacks,
@@ -263,10 +263,7 @@ export class TaskRealtimeServer {
      * server was recently discovered that means we haven't been receiving
      * `sendActionTransaction()` calls and we need to catch up.
      */
-    private async _ensureFullActionHistory(
-        context: TaskRealtimeSystemActionContext,
-        spaceId: SpaceId,
-    ) {
+    private async _ensureFullActionHistory(context: TaskSystemActionContext, spaceId: SpaceId) {
         assert(this._state !== null);
         const {discoveredTime} = await this._state.discoveredPromise;
         const visibleStartTime = this._actionHistory.getVisibleStartTime();
@@ -332,7 +329,7 @@ export class TaskRealtimeServer {
     }
 
     public async loadQuery(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         options: {
             spaceId: SpaceId;
             filters: TaskQueryNormalizedFilters;
@@ -355,7 +352,7 @@ export class TaskRealtimeServer {
     }
 
     public async subscribeToQuery(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         options: {
             spaceId: SpaceId;
             filters: TaskQueryNormalizedFilters;
@@ -375,7 +372,7 @@ export class TaskRealtimeServer {
     }
 
     public async subscribeToTask(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         options: {
             spaceId: SpaceId;
@@ -394,7 +391,7 @@ export class TaskRealtimeServer {
     }
 
     public async subscribeToCollection(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         options: {
             spaceId: SpaceId;
@@ -413,7 +410,7 @@ export class TaskRealtimeServer {
     }
 
     public async applyActionTransaction(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         actionTransaction: {
             spaceId: SpaceId;
             committedTime: Date;
@@ -470,7 +467,7 @@ export class TaskRealtimeServer {
      * a timeout is reached.
      */
     public async getTask(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         spaceId: SpaceId,
         taskId: TaskId,
     ): Promise<TaskIndexDoc> {
@@ -495,7 +492,7 @@ export class TaskRealtimeServer {
      * we retry until a timeout is reached.
      */
     public async getCollection(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
     ): Promise<TaskCollectionIndexDoc> {

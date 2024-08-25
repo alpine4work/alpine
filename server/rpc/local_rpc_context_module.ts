@@ -1,8 +1,6 @@
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {allRpcImplementations} from "~/server/rpc/all_rpc_implementations.js";
-import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {RpcServerActionExtraContextModules} from "~/server/rpc/rpc_server_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
@@ -19,11 +17,7 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
  * a single line.
  */
 export class LocalRpcContextModule extends RpcContextModuleBase<
-    ServerUnknownActionContextModules & {
-        tasks: TaskContextModule;
-        languageModel: LanguageModelContextModule;
-        apns: ApnsContextModuleBase;
-    }
+    ServerUnknownActionContextModules & RpcServerActionExtraContextModules
 > {
     public async execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,

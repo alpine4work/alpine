@@ -1,7 +1,7 @@
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeStoreTaskEntry} from "~/server/tasks/realtime/task_realtime_store.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeTaskReferencesSubscriptionBase,
     TaskRealtimeTaskReferencesSubscriptionCallbacks,
@@ -34,7 +34,7 @@ export type TaskRealtimeTaskSubscriptionCallbacks =
          * gets the initial task.
          */
         onTaskSubscribe(
-            context: TaskRealtimeSystemActionContext,
+            context: TaskSystemActionContext,
             eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             newTask: TaskIndexDoc,
         ): void;
@@ -43,7 +43,7 @@ export type TaskRealtimeTaskSubscriptionCallbacks =
          * Called whenever the task we're subscribed to updates.
          */
         onTaskUpdate(
-            context: TaskRealtimeSystemActionContext,
+            context: TaskSystemActionContext,
             eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             taskId: TaskId,
             oldTask: TaskIndexDoc,
@@ -68,7 +68,7 @@ export class TaskRealtimeTaskSubscription {
     private readonly _internal: TaskRealtimeTaskSubscriptionInternal;
 
     constructor(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskEntry: TaskRealtimeStoreTaskEntry,
         callbacks: TaskRealtimeTaskSubscriptionCallbacks,
@@ -96,7 +96,7 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
     protected _isSubscribed = true;
 
     constructor(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskEntry: TaskRealtimeStoreTaskEntry,
         callbacks: TaskRealtimeTaskSubscriptionCallbacks,
@@ -139,7 +139,7 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
     }
 
     public onTaskUpdate(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,

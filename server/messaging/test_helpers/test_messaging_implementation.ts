@@ -1,5 +1,8 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {
+    TestContext,
+    TestSessionActionContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
     createTestSession,
@@ -204,7 +207,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * All rooms must be part of a space.
      */
     createRoom: (
-        context: ServerSessionActionContext,
+        context: TestSessionActionContext,
         spaceId: SpaceId,
         sessions: Array<TestSessionItem>,
     ) => Promise<RoomInterface<RoomKey>>;
@@ -216,7 +219,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      */
     createPrivateRoom:
         | ((
-              context: ServerSessionActionContext,
+              context: TestSessionActionContext,
               spaceId: SpaceId,
               insideSessions: Array<TestSessionItem>,
               outsideSession: TestSessionItem,
@@ -226,7 +229,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * Gets an existing room.
      */
-    getRoom: (context: ServerSessionActionContext, key: RoomKey) => Promise<RoomInterface<RoomKey>>;
+    getRoom: (context: TestSessionActionContext, key: RoomKey) => Promise<RoomInterface<RoomKey>>;
 
     /**
      * Get the key for a room that doesn't exist.
@@ -346,13 +349,13 @@ export function testMessagingImplementation<RoomKey extends string>(
     const content3 = createSimpleMessageContent("test3");
     const content4 = createSimpleMessageContent("test4");
 
-    const createRoom = (context: ServerSessionActionContext, spaceId: SpaceId) => {
+    const createRoom = (context: TestSessionActionContext, spaceId: SpaceId) => {
         return _createRoom(context, spaceId, [session1, session2, session3]);
     };
 
     const createPrivateRoom =
         typeof _createPrivateRoom === "function"
-            ? (context: ServerSessionActionContext, spaceId: SpaceId) =>
+            ? (context: TestSessionActionContext, spaceId: SpaceId) =>
                   _createPrivateRoom(context, spaceId, [session1, session2, session3], session4)
             : "Unimplemented";
 

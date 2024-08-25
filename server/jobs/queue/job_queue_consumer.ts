@@ -6,14 +6,8 @@ import {
     SQSClient,
 } from "@aws-sdk/client-sqs";
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerSystemActionContext,
-    ServerSystemActionContextModules,
-} from "~/server/context/server_action_context.js";
-import {
-    ServerProcessContext,
-    ServerProcessContextModules,
-} from "~/server/context/server_process_context.js";
+import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
@@ -94,18 +88,18 @@ const stopError = new CancelledError("Job queue consumer stopped");
  *
  * [1]: https://go.dev/tour/concurrency/1
  */
-export class JobQueueConsumer {
-    private readonly _processContext: ServerProcessContext;
+export class JobQueueConsumer<ProcessContextModules extends ServerProcessContextModules> {
+    private readonly _processContext: Context<ProcessContextModules>;
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
     private readonly _processJob: (
-        context: ServerSystemActionContext,
+        context: Context<ProcessContextModules & ServerSystemActionContextModules>,
         job: JobDescription,
         jobStartTime: Date,
         span: TracerSpan,
     ) => Promise<void>;
     private readonly _processMaintenanceJob: (
-        context: Context<Omit<ServerSystemActionContextModules, "actor">>,
+        context: Context<ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">>,
         job: MaintenanceJobDescription,
         jobStartTime: Date,
         span: TracerSpan,
@@ -118,7 +112,7 @@ export class JobQueueConsumer {
     private readonly _processPromises = new Set<Promise<void>>();
 
     private constructor(
-        context: ServerProcessContext,
+        context: Context<ProcessContextModules>,
         {
             region,
             queueUrl,
@@ -128,13 +122,15 @@ export class JobQueueConsumer {
             region: string;
             queueUrl: string;
             processJob: (
-                context: ServerSystemActionContext,
+                context: Context<ProcessContextModules & ServerSystemActionContextModules>,
                 job: JobDescription,
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
             processMaintenanceJob: (
-                context: Context<Omit<ServerSystemActionContextModules, "actor">>,
+                context: Context<
+                    ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">
+                >,
                 job: MaintenanceJobDescription,
                 jobStartTime: Date,
                 span: TracerSpan,
@@ -151,19 +147,21 @@ export class JobQueueConsumer {
         this._processMaintenanceJob = processMaintenanceJob;
     }
 
-    public static start(
-        context: ServerProcessContext,
+    public static start<ProcessContextModules extends ServerProcessContextModules>(
+        context: Context<ProcessContextModules>,
         options: {
             region: string;
             queueUrl: string;
             processJob: (
-                context: ServerSystemActionContext,
+                context: Context<ProcessContextModules & ServerSystemActionContextModules>,
                 job: JobDescription,
                 jobStartTime: Date,
                 span: TracerSpan,
             ) => Promise<void>;
             processMaintenanceJob: (
-                context: Context<Omit<ServerSystemActionContextModules, "actor">>,
+                context: Context<
+                    ProcessContextModules & Omit<ServerSystemActionContextModules, "actor">
+                >,
                 job: MaintenanceJobDescription,
                 jobStartTime: Date,
                 span: TracerSpan,
@@ -517,7 +515,14 @@ export class JobQueueConsumer {
                         ),
                     },
                     actionContext =>
-                        this._processJob(actionContext, messageBody.job, jobStartTime, span!),
+                        this._processJob(
+                            actionContext as Context<
+                                ProcessContextModules & ServerSystemActionContextModules
+                            >,
+                            messageBody.job,
+                            jobStartTime,
+                            span!,
+                        ),
                 );
             } else {
                 await this._processContext.with<
@@ -536,7 +541,10 @@ export class JobQueueConsumer {
                     },
                     actionContext =>
                         this._processMaintenanceJob(
-                            actionContext,
+                            actionContext as Context<
+                                ProcessContextModules &
+                                    Omit<ServerSystemActionContextModules, "actor">
+                            >,
                             messageBody.job,
                             jobStartTime,
                             span!,

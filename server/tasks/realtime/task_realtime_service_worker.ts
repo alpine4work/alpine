@@ -1,4 +1,5 @@
 import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
+import {join as joinPath} from "path";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
@@ -8,8 +9,6 @@ import {
 import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
-    ServerSystemActionContext,
-    ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
@@ -26,15 +25,20 @@ import {
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {
     authorizeSpaceAccess,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
+import {
+    TaskSystemActionContext,
+    TaskSystemActionContextModules,
+} from "~/server/tasks/data/task_action_context.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
@@ -60,6 +64,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -92,6 +97,8 @@ type Options = ServiceOptions<typeof options>;
 
 export const options = {
     portBase: {type: "string"},
+    opensearchLocalPort: {type: "string"},
+    opensearchHost: {type: "string"},
     ...serviceTokenAgentParseOptions,
     ...serverProcessContextParseOptions,
 } as const;
@@ -122,12 +129,44 @@ export async function run({
 
     const awsSigner = new AwsRequestSigner();
 
-    const processContext = createServerProcessContext({
+    const baseProcessContext = createServerProcessContext({
         tracer,
         shutdownManager,
-        tokenAgent,
         awsSigner,
         options,
+    });
+
+    const opensearchContextModule = OpensearchContextModule.new(
+        new OpensearchClient({
+            url:
+                process.env.NODE_ENV === "production"
+                    ? `https://${assertExists(
+                          options.opensearchHost,
+                          "`opensearchHost` option is required in production",
+                      )}`
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              options.opensearchLocalPort,
+                              "`opensearchLocalPort` option is required in development",
+                          ),
+                          10,
+                      )}`,
+            signer: awsSigner,
+            ensureLocalCachePath:
+                process.env.NODE_ENV !== "production"
+                    ? joinPath(
+                          assertExists(
+                              options.ensureLocalCachePath,
+                              "`ensureLocalCachePath` option is required in development",
+                          ),
+                          "opensearch",
+                      )
+                    : null,
+        }),
+    );
+
+    const processContext = baseProcessContext.clone({
+        opensearch: opensearchContextModule,
     });
 
     const [server, {start}] = TaskRealtimeServer.new(processContext);
@@ -164,12 +203,12 @@ export async function run({
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<Value>,
+        action: (context: TaskSystemActionContext) => Promise<Value>,
     ): Promise<Value> => {
         return processContext.with<
             Omit<
-                ServerSystemActionContextModules,
-                Exclude<keyof ServerProcessContextModules, "tracer">
+                TaskSystemActionContextModules,
+                Exclude<keyof ServerProcessContextModules, "tracer"> | "opensearch"
             >,
             Value
         >(
@@ -311,7 +350,7 @@ export async function run({
 
                 return baseContext.with(
                     {actor: actorContextModule},
-                    async (context: TaskRealtimeSystemActionContext) => {
+                    async (context: TaskSystemActionContext) => {
                         const actionTransaction =
                             TaskRealtimeApplyActionTransactionInputSchema.deserialize(
                                 await request.json(),

@@ -1,11 +1,9 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerSessionActionContext,
-    ServerSystemActionContext,
-} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
@@ -15,7 +13,6 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -81,7 +78,7 @@ export async function loadTaskRealtimeQueries(
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<Value>,
+            action: (context: TaskSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
         spaceId: SpaceId;
         queries: ReadonlyArray<{
@@ -119,10 +116,7 @@ export async function loadTaskRealtimeQueries(
     const loadTaskPromiseById = new Map<TaskId, Promise<void>>();
     const loadCollectionPromiseById = new Map<TaskCollectionId, Promise<void>>();
 
-    const trackTaskDependencies = (
-        context: TaskRealtimeSystemActionContext,
-        task: TaskIndexDoc,
-    ) => {
+    const trackTaskDependencies = (context: TaskSystemActionContext, task: TaskIndexDoc) => {
         const parentTaskId = task.parent.taskId.value;
         if (parentTaskId && !loadTaskPromiseById.has(parentTaskId)) {
             const promise = (async () => {
@@ -203,7 +197,7 @@ export async function loadTaskRealtimeQueries(
     > = [];
 
     const loadQuery = async (
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         {
             filters,
             sorts,

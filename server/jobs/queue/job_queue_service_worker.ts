@@ -1,5 +1,6 @@
 import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
+import {join as joinPath} from "path";
 import {
     DynamoActorContextModule,
     DynamoSystemActorContextModule,
@@ -11,7 +12,6 @@ import {
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {
     GithubContextModule,
     UnimplementedGithubContextModule,
@@ -25,10 +25,12 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/job_queue_consumer.js";
 import {
-    JobQueueSystemActionContext,
-    JobQueueSystemActionContextModules,
-    MaintenanceJobQueueSystemActionContextModules,
-} from "~/server/jobs/queue/job_queue_system_action_context.js";
+    JobQueueServiceProcessContext,
+    JobQueueServiceProcessContextModules,
+    JobQueueServiceSystemActionContext,
+    JobQueueServiceSystemActionContextModules,
+    MaintenanceJobQueueServiceSystemActionContextModules,
+} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processJob} from "~/server/jobs/queue/process_job.js";
 import {processMaintenanceJob} from "~/server/jobs/queue/process_maintenance_job.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
@@ -45,9 +47,12 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
+import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -59,6 +64,9 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 type Options = ServiceOptions<typeof options>;
 
 export const options = {
+    opensearchLocalPort: {type: "string"},
+    opensearchHost: {type: "string"},
+    edgeServiceUrl: {type: "string"},
     allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
     taskRealtimeServiceLocalPort: {type: "string"},
@@ -119,6 +127,42 @@ export async function run({
 
     const awsSigner = new AwsRequestSigner();
 
+    const baseProcessContext = createServerProcessContext({
+        tracer,
+        shutdownManager,
+        awsSigner,
+        options,
+    });
+
+    const opensearchContextModule = OpensearchContextModule.new(
+        new OpensearchClient({
+            url:
+                process.env.NODE_ENV === "production"
+                    ? `https://${assertExists(
+                          options.opensearchHost,
+                          "`opensearchHost` option is required in production",
+                      )}`
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              options.opensearchLocalPort,
+                              "`opensearchLocalPort` option is required in development",
+                          ),
+                          10,
+                      )}`,
+            signer: awsSigner,
+            ensureLocalCachePath:
+                process.env.NODE_ENV !== "production"
+                    ? joinPath(
+                          assertExists(
+                              options.ensureLocalCachePath,
+                              "`ensureLocalCachePath` option is required in development",
+                          ),
+                          "opensearch",
+                      )
+                    : null,
+        }),
+    );
+
     const languageModel =
         process.env.NODE_ENV === "production"
             ? new CohereEmbedEnglishV3LanguageModel({
@@ -133,16 +177,6 @@ export async function run({
                       "`allMiniLmL6V2LanguageModel` option is required in development",
                   ),
               );
-
-    const processContext = createServerProcessContext({
-        tracer,
-        shutdownManager,
-        tokenAgent,
-        awsSigner,
-        options,
-    }).clone({
-        languageModel: new LanguageModelContextModule(languageModel),
-    });
 
     const taskRealtimeServiceRouter =
         process.env.NODE_ENV === "production"
@@ -173,7 +207,7 @@ export async function run({
     if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) {
         apnsContextModule = new TestApnsContextModule();
     } else {
-        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
+        const apnsConnectionPool = new ApnsConnectionPool(baseProcessContext, {
             certificate: apnsCertificate,
             certificatePrivateKey: apnsCertificatePrivateKey,
         });
@@ -229,6 +263,21 @@ export async function run({
                   ),
               });
 
+    const processContext: JobQueueServiceProcessContext = baseProcessContext.clone({
+        edge: new EdgeServiceContextModule({
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+            tokenAgent,
+        }),
+        opensearch: opensearchContextModule,
+        languageModel: new LanguageModelContextModule(languageModel),
+        apns: apnsContextModule,
+        github: githubContextModule,
+        scheduler: schedulerContextModule,
+    });
+
     const consumer = JobQueueConsumer.start(processContext, {
         region: "us-east-1",
         queueUrl: jobQueueUrl,
@@ -247,12 +296,12 @@ export async function run({
                     cache: CacheContextModule;
                 }>,
                 spaceId: SpaceId,
-                action: (context: JobQueueSystemActionContext) => Promise<Value>,
+                action: (context: JobQueueServiceSystemActionContext) => Promise<Value>,
             ): Promise<Value> => {
                 return processContext.with<
                     Omit<
-                        JobQueueSystemActionContextModules,
-                        Exclude<keyof ServerProcessContextModules, "tracer">
+                        JobQueueServiceSystemActionContextModules,
+                        Exclude<keyof JobQueueServiceProcessContextModules, "tracer">
                     >,
                     Value
                 >(
@@ -273,21 +322,23 @@ export async function run({
                             router: taskRealtimeServiceRouter,
                             dangerouslyEscalateToSystemContext,
                         }),
-                        apns: apnsContextModule,
                     },
                     action,
                 );
             };
 
             const actionContext = _actionContext.clone<
-                Omit<JobQueueSystemActionContextModules, keyof ServerSystemActionContextModules>
+                Omit<
+                    JobQueueServiceSystemActionContextModules,
+                    | keyof ServerSystemActionContextModules
+                    | keyof JobQueueServiceProcessContextModules
+                >
             >({
                 tasks: new TaskContextModule({
                     tokenAgent,
                     router: taskRealtimeServiceRouter,
                     dangerouslyEscalateToSystemContext,
                 }),
-                apns: apnsContextModule,
             });
 
             return processJob(actionContext, job, jobStartTime, span);
@@ -307,12 +358,12 @@ export async function run({
                     cache: CacheContextModule;
                 }>,
                 spaceId: SpaceId,
-                action: (context: JobQueueSystemActionContext) => Promise<Value>,
+                action: (context: JobQueueServiceSystemActionContext) => Promise<Value>,
             ): Promise<Value> => {
                 return processContext.with<
                     Omit<
-                        JobQueueSystemActionContextModules,
-                        Exclude<keyof ServerProcessContextModules, "tracer">
+                        JobQueueServiceSystemActionContextModules,
+                        Exclude<keyof JobQueueServiceProcessContextModules, "tracer">
                     >,
                     Value
                 >(
@@ -336,7 +387,6 @@ export async function run({
                             router: taskRealtimeServiceRouter,
                             dangerouslyEscalateToSystemContext,
                         }),
-                        apns: apnsContextModule,
                     },
                     action,
                 );
@@ -344,8 +394,9 @@ export async function run({
 
             const actionContext = _actionContext.clone<
                 Omit<
-                    MaintenanceJobQueueSystemActionContextModules,
-                    keyof ServerSystemActionContextModules
+                    MaintenanceJobQueueServiceSystemActionContextModules,
+                    | keyof ServerSystemActionContextModules
+                    | keyof JobQueueServiceProcessContextModules
                 >
             >({
                 tasks: new TaskContextModule({
@@ -353,8 +404,6 @@ export async function run({
                     router: taskRealtimeServiceRouter,
                     dangerouslyEscalateToSystemContext,
                 }),
-                github: githubContextModule,
-                scheduler: schedulerContextModule,
             });
 
             return processMaintenanceJob(actionContext, job, jobStartTime, span);

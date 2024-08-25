@@ -1,10 +1,5 @@
 import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerActionContext,
-    ServerSessionActionContext,
-    ServerSystemActionContext,
-} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
@@ -38,6 +33,11 @@ import {
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
+import {
+    TaskActionContext,
+    TaskSessionActionContext,
+    TaskSystemActionContext,
+} from "~/server/tasks/data/task_action_context.js";
 import {
     TaskCollectionIndexActualDoc,
     TaskCollectionIndexDocType,
@@ -175,7 +175,7 @@ const taskIndexSearchEntityJobDelaySeconds = 60;
  *
  * Throws an error in production.
  */
-export async function ensureLocalTaskIndexesIfEnabled(context: ServerActionContext) {
+export async function ensureLocalTaskIndexesIfEnabled(context: TaskActionContext) {
     assert(process.env.NODE_ENV !== "production");
 
     await runAllPromises([
@@ -268,7 +268,7 @@ export async function getTaskCollectionIndexDocsIfExist(
  * to the index in the background.
  */
 export async function getTaskFromIndex(
-    context: ServerSystemActionContext,
+    context: TaskSystemActionContext,
     spaceId: SpaceId,
     taskId: TaskId,
 ): Promise<{
@@ -328,7 +328,7 @@ export async function getTaskFromIndex(
  * to the index in the background.
  */
 export async function getTaskCollectionFromIndex(
-    context: ServerSystemActionContext,
+    context: TaskSystemActionContext,
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ): Promise<TaskCollectionModel> {
@@ -415,7 +415,7 @@ export const indexTaskActionTransactionAfterUpdateTestCheckpoint = new TestCheck
  *   is valid.
  */
 export function indexTaskActionTransactionAssumingItsCommitted(
-    context: ServerSystemActionContext,
+    context: TaskSystemActionContext,
     spaceId: SpaceId,
     actorId: AccountId | null,
     actions: ReadonlyArray<TaskAction>,
@@ -455,7 +455,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
  * in place.
  */
 class TaskActionTransactionIndexState {
-    private readonly _context: ServerSystemActionContext;
+    private readonly _context: TaskSystemActionContext;
     public readonly spaceId: SpaceId;
     public readonly retry: (error?: unknown) => never;
     private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>;
@@ -490,7 +490,7 @@ class TaskActionTransactionIndexState {
     >();
 
     private constructor(
-        context: ServerSystemActionContext,
+        context: TaskSystemActionContext,
         spaceId: SpaceId,
         retry: (error?: unknown) => never,
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
@@ -504,7 +504,7 @@ class TaskActionTransactionIndexState {
     }
 
     public static async index(
-        context: ServerSystemActionContext,
+        context: TaskSystemActionContext,
         spaceId: SpaceId,
         actorId: AccountId | null,
         actions: ReadonlyArray<TaskAction>,
@@ -1277,7 +1277,7 @@ export const indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint =
  * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
  */
 function indexTaskUpdateAccountNameActionAssumingItsCommitted(
-    context: ServerSystemActionContext,
+    context: TaskSystemActionContext,
     spaceId: SpaceId,
     action: TaskUpdateAccountNameAction,
     {onRetry}: {onRetry?: () => void} = {},
@@ -1555,7 +1555,7 @@ export async function queryTaskIndex(
  * name query.
  */
 export async function searchTaskCollections(
-    context: ServerSessionActionContext,
+    context: TaskSessionActionContext,
     {spaceId, nameQuery, limit}: {spaceId: SpaceId; nameQuery: string; limit: number},
 ): Promise<Array<TaskCollectionModelSearchResult & {readonly score: number}>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1692,7 +1692,7 @@ export async function searchTaskCollections(
  * should be run whenever the task changes.
  */
 export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
-    context: ServerSessionActionContext,
+    context: TaskSessionActionContext,
     {spaceId, taskId}: {spaceId: SpaceId; taskId: TaskId},
     action: () => Promise<Value>,
 ): Promise<Value> {

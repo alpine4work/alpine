@@ -2,7 +2,7 @@ import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {
@@ -48,7 +48,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<void>,
+        action: (context: TaskSystemActionContext) => Promise<void>,
     ) => Promise<void>;
 
     constructor({
@@ -61,7 +61,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<void>,
+            action: (context: TaskSystemActionContext) => Promise<void>,
         ) => Promise<void>;
     }) {
         super();
@@ -147,7 +147,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<void>,
+            action: (context: TaskSystemActionContext) => Promise<void>,
         ) => Promise<void>;
     }) {
         super({dangerouslyEscalateToSystemContext});
@@ -437,7 +437,7 @@ export class TestTaskContextModule extends TaskContextModuleBase {
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<void>,
+            action: (context: TaskSystemActionContext) => Promise<void>,
         ) => Promise<void>;
         shouldSkipIndexing: boolean;
     }) {

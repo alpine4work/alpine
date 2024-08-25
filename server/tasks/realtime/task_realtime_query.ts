@@ -5,6 +5,7 @@ import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_acti
 import {applyTaskUpdateAccountNameToTaskIndexDoc} from "~/server/tasks/data/apply_task_update_account_name_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
 import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
@@ -13,7 +14,6 @@ import {
     TaskRealtimeStoreInternal,
     TaskRealtimeStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_store.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {CancelledError, InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -359,10 +359,7 @@ export class TaskRealtimeQuery {
      * Callers are expected to look again at the number of tasks and decide whether
      * to load more tasks or not.
      */
-    public async loadMoreTasks(
-        context: TaskRealtimeSystemActionContext,
-        limit: number,
-    ): Promise<void> {
+    public async loadMoreTasks(context: TaskSystemActionContext, limit: number): Promise<void> {
         assert(!this._isDestroyed);
         assert(Number.isInteger(limit));
         if (limit < 0) return;
@@ -431,10 +428,7 @@ export class TaskRealtimeQuery {
      * 7. Load tasks from step 5 we think we might need to add to our query and
      *    test if they are actually visible in our query or not.
      */
-    private async _loadMoreTasks(
-        context: TaskRealtimeSystemActionContext,
-        limit: number,
-    ): Promise<void> {
+    private async _loadMoreTasks(context: TaskSystemActionContext, limit: number): Promise<void> {
         assert(limit >= 0);
 
         // Our query is already fully loaded!
@@ -492,7 +486,7 @@ export class TaskRealtimeQuery {
     // We do return a promise for some async followup work but this function should
     // not be marked as `async`!
     private _loadMoreTasksSync(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         limit: number,
         afterCursor: TaskQuerySortCursor | null,
         loadedTasks: Array<OpensearchClientDocWithId<TaskId, TaskIndexActualDoc>>,
@@ -795,7 +789,7 @@ export class TaskRealtimeQuery {
      * If expectations fail then we throw an error in dev and test.
      */
     public onVisibleTaskUpdate(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -933,7 +927,7 @@ export class TaskRealtimeQuery {
      * If expectations fail then we throw an error in dev and test.
      */
     public maybeAddVisibleTask(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         task: TaskIndexDoc,
     ): {isVisible: boolean} {

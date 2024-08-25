@@ -59,11 +59,9 @@ export type WorkerActionContextModules = MergeObjectIntersection<
  */
 export type WorkerSessionActionContext = Context<WorkerSessionActionContextModules>;
 
-export type WorkerSessionActionContextModules = MergeObjectIntersection<
-    WorkerActionContextModulesBase & {
-        actor: SessionActorContextModule;
-    }
->;
+export type WorkerSessionActionContextModules = WorkerActionContextModulesBase & {
+    actor: SessionActorContextModule;
+};
 
 /**
  * Generic context for handling actions against our system with a
@@ -71,8 +69,6 @@ export type WorkerSessionActionContextModules = MergeObjectIntersection<
  */
 export type WorkerSystemActionContext = Context<WorkerSystemActionContextModules>;
 
-export type WorkerSystemActionContextModules = MergeObjectIntersection<
-    WorkerActionContextModulesBase & {
-        actor: SystemActorContextModule;
-    }
->;
+export type WorkerSystemActionContextModules = WorkerActionContextModulesBase & {
+    actor: SystemActorContextModule;
+};

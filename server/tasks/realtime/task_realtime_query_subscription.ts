@@ -1,8 +1,8 @@
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeQuery} from "~/server/tasks/realtime/task_realtime_query.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeTaskReferencesSubscriptionBase,
     TaskRealtimeTaskReferencesSubscriptionCallbacks,
@@ -58,7 +58,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          * this is the first time the client is seeing the task.
          */
         onLoadedTaskAdd(
-            context: TaskRealtimeSystemActionContext,
+            context: TaskSystemActionContext,
             eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             newTask: TaskIndexDoc,
         ): void;
@@ -70,7 +70,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          * Clients should apply these actions locally.
          */
         onLoadedTaskUpdate(
-            context: TaskRealtimeSystemActionContext,
+            context: TaskSystemActionContext,
             eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             taskId: TaskId,
             oldTask: TaskIndexDoc,
@@ -96,7 +96,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
 export class TaskRealtimeQuerySubscription {
     private readonly _internal: TaskRealtimeQuerySubscriptionInternal;
     private readonly _withFatalErrorHandling: <Value>(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         action: () => Promise<Value>,
     ) => Promise<Value>;
 
@@ -104,7 +104,7 @@ export class TaskRealtimeQuerySubscription {
         query: TaskRealtimeQuery,
         callbacks: TaskRealtimeQuerySubscriptionCallbacks,
         withFatalErrorHandling: <Value>(
-            context: TaskRealtimeSystemActionContext,
+            context: TaskSystemActionContext,
             action: () => Promise<Value>,
         ) => Promise<Value>,
     ) {
@@ -139,7 +139,7 @@ export class TaskRealtimeQuerySubscription {
      * Returns the current loaded state of our subscription.
      */
     public loadMoreTasks(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): Promise<{
@@ -268,7 +268,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
      * subscription's state.
      */
     public async loadMoreTasks(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): Promise<{
@@ -294,7 +294,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     // state synchronously. We enforce this part is synchronous so we know that no
     // concurrent actions will happen while we're updating our state.
     private _loadMoreTasksSync(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): {
@@ -322,7 +322,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     public onVisibleTaskAdd(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -342,7 +342,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     public onVisibleTaskUpdate(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
@@ -385,7 +385,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     public onVisibleTaskRemove(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
@@ -406,7 +406,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     private _onLoadedTaskAdd(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -435,7 +435,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     }
 
     private _onLoadedTaskUpdate(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,

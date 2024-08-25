@@ -34,6 +34,10 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
+import {
+    TaskSessionActionContext,
+    TaskSessionActionContextModules,
+} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
@@ -988,7 +992,7 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
  * property).
  */
 export function commitTaskActionTransaction(
-    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: Context<TaskSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
     options: {
@@ -5661,7 +5665,7 @@ function convertTaskCollectionIndexDocToItem(
  * we'll create their first page.
  */
 export async function getTaskNotepadPageIds(
-    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    context: Context<TaskSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
 ): Promise<TaskNotepadPageIdCompressedSet> {
     const notepadItem = await TaskTable.getItemIfExists(context, {
@@ -5770,7 +5774,7 @@ export function getTaskNotesContent(
  * track of old steps (unlike document content). There's no way to recover!
  */
 export function updateTaskNotesContent(
-    context: ServerSessionActionContext,
+    context: TaskSessionActionContext,
     {
         spaceId,
         taskId,

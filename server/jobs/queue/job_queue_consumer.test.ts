@@ -1,4 +1,7 @@
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {
+    TestContextModules,
+    createTestContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {
     JobQueueConsumer,
@@ -15,7 +18,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-let consumer: JobQueueConsumer | null = null;
+let consumer: JobQueueConsumer<TestContextModules> | null = null;
 
 let receiveMessageRecorder: {getCount: () => number};
 let deleteMessageBatchRecorder: {getCount: () => number};

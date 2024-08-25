@@ -18,9 +18,8 @@ import {
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {
     ServerSessionActionContextModules,
-    ServerSystemActionContext,
     ServerSystemActionContextModules,
-    ServerUnknownActionContext,
+    ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {
@@ -30,6 +29,7 @@ import {
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
@@ -41,6 +41,7 @@ import {
     TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -68,8 +69,32 @@ const env = parseDotenv();
 process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
 process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
 
-export type TestContext = Context<ServerProcessContextModules> &
-    TestContextHelpers<ServerProcessContextModules>;
+type TestContextExtraModules = {
+    email: EmailContextModuleBase;
+    opensearch: OpensearchContextModule;
+    edge: EdgeServiceContextModuleBase;
+};
+
+export type TestContextModules = ServerProcessContextModules & TestContextExtraModules;
+
+export type TestContext = Context<TestContextModules> & TestContextHelpers<TestContextModules>;
+
+export type TestSessionActionContextModules = ServerSessionActionContextModules &
+    TestContextExtraModules & {
+        fork: ForkActionContextModule;
+    };
+
+export type TestSessionActionContext = Context<TestSessionActionContextModules>;
+
+export type TestSystemActionContextModules = ServerSystemActionContextModules &
+    TestContextExtraModules;
+
+export type TestSystemActionContext = Context<TestSystemActionContextModules>;
+
+export type TestUnknownActionContextModules = ServerUnknownActionContextModules &
+    TestContextExtraModules;
+
+export type TestUnknownActionContext = Context<TestUnknownActionContextModules>;
 
 type TestContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> =
     ContextWithDestroy<Modules> & TestContextHelpers<Modules>;
@@ -86,7 +111,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     /**
      * An action where we don't know whether we're authenticated or not.
      */
-    unauthenticatedAction(): ServerUnknownActionContext;
+    unauthenticatedAction(): TestUnknownActionContext;
 
     /**
      * An action with an authenticated session.
@@ -96,11 +121,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
             | {id: SessionId; account: {id: AccountId}; createdTime: Date}
             | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
         options?: {serviceName: ActorServiceName},
-    ): Context<
-        ServerSessionActionContextModules & {
-            fork: ForkActionContextModule;
-        }
-    >;
+    ): TestSessionActionContext;
 
     /**
      * An authenticated system action.
@@ -108,14 +129,14 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     systemAction(
         spaceId: SpaceId,
         options?: {serviceName: ActorServiceName},
-    ): ServerSystemActionContext;
+    ): TestSystemActionContext;
 
     /**
      * Add a `CacheContextModule` to our test context. Each time you call
      * `withCache()` we create a new cache for the returned context object.
      */
     withCache(): Context<
-        ServerProcessContextModules & {
+        TestContextModules & {
             cache: CacheContextModule;
             dynamoBatchContext: DynamoBatchContextModule;
         }
@@ -131,7 +152,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<Value>,
+        action: (context: TestSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
 
     /**
@@ -173,7 +194,7 @@ export function createTestContext({
     | {
           shouldSendJobsToSqs?: false;
           processJob?: (
-              context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+              context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
               job: JobDescription,
               jobStartTime: Date,
               span: TracerSpan,
@@ -266,13 +287,10 @@ export function createTestContext({
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<Value>,
+        action: (context: TestSystemActionContext) => Promise<Value>,
     ): Promise<Value> => {
         return processContext.with<
-            Omit<
-                ServerSystemActionContextModules,
-                Exclude<keyof ServerProcessContextModules, "tracer">
-            >,
+            Omit<TestSystemActionContextModules, Exclude<keyof TestContextModules, "tracer">>,
             Value
         >(
             {
@@ -288,7 +306,7 @@ export function createTestContext({
         );
     };
 
-    const createUnauthenticatedSessionContext = (): ServerUnknownActionContext => {
+    const createUnauthenticatedSessionContext = (): TestUnknownActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
@@ -306,11 +324,7 @@ export function createTestContext({
         }: {
             serviceName?: ActorServiceName;
         } = {},
-    ): Context<
-        ServerSessionActionContextModules & {
-            fork: ForkActionContextModule;
-        }
-    > => {
+    ): TestSessionActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
@@ -330,7 +344,7 @@ export function createTestContext({
         }: {
             serviceName?: ActorServiceName;
         } = {},
-    ): ServerSystemActionContext => {
+    ): TestSystemActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
@@ -349,7 +363,7 @@ export function createTestContext({
     const opensearchContextModule = OpensearchContextModule.test();
     const jobsContextModule = JobsContextModule.test();
 
-    const processContext = Context.new<ServerProcessContextModules>({
+    const processContext = Context.new<TestContextModules>({
         process: ProcessContextModule.test(testSharedHooks),
         tracer: new TracerContextModule(testTracer),
         dynamo: dynamoContextModule,

@@ -1,8 +1,15 @@
 import {createRequestHandler} from "@remix-run/node";
 import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
+import {join as joinPath} from "path";
 import * as build from "virtual:remix/server-build";
 import {AppServer, AppServerConstants} from "~/app/app_server_types.js";
+import {
+    AppServiceProcessContext,
+    AppServiceProcessContextModules,
+    AppServiceSystemActionContext,
+    AppServiceSystemActionContextModules,
+} from "~/app/app_service_context.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
@@ -17,12 +24,9 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
-import {
-    ServerSystemActionContext,
-    ServerSystemActionContextModules,
-} from "~/server/context/server_action_context.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
@@ -34,6 +38,8 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {
@@ -43,6 +49,7 @@ import {
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
+import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
@@ -121,13 +128,41 @@ async function createAppServer({
                   ),
               );
 
-    const processContext = createServerProcessContext({
+    const baseProcessContext = createServerProcessContext({
         tracer,
         shutdownManager,
-        tokenAgent,
         awsSigner,
         options,
     });
+
+    const opensearchContextModule = OpensearchContextModule.new(
+        new OpensearchClient({
+            url:
+                process.env.NODE_ENV === "production"
+                    ? `https://${assertExists(
+                          options.opensearchHost,
+                          "`opensearchHost` option is required in production",
+                      )}`
+                    : `http://localhost:${parseInt(
+                          assertExists(
+                              options.opensearchLocalPort,
+                              "`opensearchLocalPort` option is required in development",
+                          ),
+                          10,
+                      )}`,
+            signer: awsSigner,
+            ensureLocalCachePath:
+                process.env.NODE_ENV !== "production"
+                    ? joinPath(
+                          assertExists(
+                              options.ensureLocalCachePath,
+                              "`ensureLocalCachePath` option is required in development",
+                          ),
+                          "opensearch",
+                      )
+                    : null,
+        }),
+    );
 
     // Create the router object here so we cache `TaskRealtimeService` routes
     // across the entire process.
@@ -160,7 +195,7 @@ async function createAppServer({
     if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) {
         apnsContextModule = new TestApnsContextModule();
     } else {
-        const apnsConnectionPool = new ApnsConnectionPool(processContext, {
+        const apnsConnectionPool = new ApnsConnectionPool(baseProcessContext, {
             certificate: apnsCertificate,
             certificatePrivateKey: apnsCertificatePrivateKey,
         });
@@ -174,6 +209,23 @@ async function createAppServer({
 
         apnsContextModule = new ApnsContextModule(apnsConnectionPool);
     }
+
+    const processContext: AppServiceProcessContext = baseProcessContext.clone({
+        email:
+            process.env.NODE_ENV === "production"
+                ? new SesEmailContextModule("https://email.us-east-1.amazonaws.com", awsSigner)
+                : new NoopEmailContextModule(),
+        edge: new EdgeServiceContextModule({
+            edgeServiceUrl: assertExists(
+                options.edgeServiceUrl,
+                "`edgeServiceUrl` option is required",
+            ),
+            tokenAgent,
+        }),
+        opensearch: opensearchContextModule,
+        languageModel: new LanguageModelContextModule(languageModel),
+        apns: apnsContextModule,
+    });
 
     let hasSeededDynamo = false;
 
@@ -263,12 +315,12 @@ async function createAppServer({
                         cache: CacheContextModule;
                     }>,
                     spaceId: SpaceId,
-                    action: (context: ServerSystemActionContext) => Promise<Value>,
+                    action: (context: AppServiceSystemActionContext) => Promise<Value>,
                 ): Promise<Value> => {
                     return processContext.with<
                         Omit<
-                            ServerSystemActionContextModules,
-                            Exclude<keyof ServerProcessContextModules, "tracer">
+                            AppServiceSystemActionContextModules,
+                            Exclude<keyof AppServiceProcessContextModules, "tracer">
                         >,
                         Value
                     >(
@@ -297,7 +349,7 @@ async function createAppServer({
                 const response = await processContext.with<
                     Omit<
                         LoaderContextModules,
-                        Exclude<keyof ServerProcessContextModules, "tracer">
+                        Exclude<keyof AppServiceProcessContextModules, "tracer">
                     >,
                     globalThis.Response
                 >(
@@ -313,8 +365,6 @@ async function createAppServer({
                             tokenAgent,
                             dangerouslyEscalateToSystemContext,
                         }),
-                        languageModel: new LanguageModelContextModule(languageModel),
-                        apns: apnsContextModule,
                     },
                     context => {
                         // The first time our server process runs in development, seed DynamoDB with

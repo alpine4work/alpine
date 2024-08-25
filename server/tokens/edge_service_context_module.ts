@@ -1,10 +1,10 @@
-import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenPayload} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -30,20 +30,14 @@ export interface EdgeServiceContextModuleBase extends ContextModuleBase, Forkabl
 export class EdgeServiceContextModule
     extends ContextModuleBase<{
         tracer: TracerContextModule;
-        actor: DynamoActorContextModule;
+        actor: ContextModuleBase & {getTokenPayload(): TokenPayload};
     }>
     implements EdgeServiceContextModuleBase
 {
     private readonly _edgeServiceUrl: string;
-    private readonly _tokenAgent: TokenAgent | "Unimplemented";
+    private readonly _tokenAgent: TokenAgent;
 
-    constructor({
-        edgeServiceUrl,
-        tokenAgent,
-    }: {
-        edgeServiceUrl: string;
-        tokenAgent: TokenAgent | "Unimplemented";
-    }) {
+    constructor({edgeServiceUrl, tokenAgent}: {edgeServiceUrl: string; tokenAgent: TokenAgent}) {
         super();
         this._edgeServiceUrl = edgeServiceUrl;
         this._tokenAgent = tokenAgent;
@@ -70,13 +64,6 @@ export class EdgeServiceContextModule
     ): Promise<void> {
         // Double-check that we're sending a request to our durable object.
         assert(url.startsWith("/api/durable-objects/"));
-
-        // TODO(calebmer, 2024-04-15): `MigrationService` currently doesn't have a
-        // `TokenAgent`. It should get a `TokenAgent`! Being able to make requests
-        // to other services can be important for migrations.
-        if (this._tokenAgent === "Unimplemented") {
-            throw new UnimplementedError("`TokenAgent` is not initialized in this service");
-        }
 
         // Include a token showing this request is from `AppService`.
         const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(

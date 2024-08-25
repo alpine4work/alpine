@@ -65,26 +65,31 @@ interface DynamoActorContextModuleBase extends ActorContextModuleBase {
  * does not need to consider it. It mainly exists as an optimization to let us
  * lazily authenticate HTTP requests only when we need it.
  */
-export class DynamoUnknownActorContextModule<
-    Modules extends {
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        dynamo: DynamoContextModule;
-        cache: CacheContextModule;
-    } = {
-        process: ProcessContextModule;
-        tracer: TracerContextModule;
-        dynamo: DynamoContextModule;
-        cache: CacheContextModule;
-    },
-> extends ContextModuleBase<Modules> {
+export class DynamoUnknownActorContextModule extends ContextModuleBase<{
+    process: ProcessContextModule;
+    tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
+    cache: CacheContextModule;
+}> {
     private readonly _authenticate: (
-        context: Context<Modules>,
+        context: Context<{
+            process: ProcessContextModule;
+            tracer: TracerContextModule;
+            dynamo: DynamoContextModule;
+            cache: CacheContextModule;
+        }>,
     ) => Promise<DynamoActorContextModule | null>;
     private readonly _contextModuleRef: {current: Promise<DynamoActorContextModule | null> | null};
 
     constructor(
-        authenticate: (context: Context<Modules>) => Promise<DynamoActorContextModule | null>,
+        authenticate: (
+            context: Context<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                dynamo: DynamoContextModule;
+                cache: CacheContextModule;
+            }>,
+        ) => Promise<DynamoActorContextModule | null>,
     ) {
         super();
         this._authenticate = authenticate;
@@ -112,7 +117,7 @@ export class DynamoUnknownActorContextModule<
             actor: DynamoUnknownActorContextModule;
         },
     >(
-        this: DynamoUnknownActorContextModule<Modules>,
+        this: ContextModuleBase<Modules> & DynamoUnknownActorContextModule,
     ): Promise<Context<Replace<Modules, {actor: DynamoActorContextModule}>>> {
         const contextModule = await this._getContextModule();
         if (!contextModule) throw unauthenticatedSessionError();
@@ -168,7 +173,7 @@ export class DynamoSessionActorContextModule
             actor: DynamoUnknownActorContextModule;
         },
     >(
-        this: DynamoUnknownActorContextModule<Modules> & DynamoSessionActorContextModule,
+        this: ContextModuleBase<Modules> & DynamoSessionActorContextModule,
     ): Promise<Context<Replace<Modules, {actor: DynamoSessionActorContextModule}>>> {
         return this._context as any;
     }
@@ -281,7 +286,7 @@ export class DynamoSystemActorContextModule
             actor: DynamoUnknownActorContextModule;
         },
     >(
-        this: DynamoUnknownActorContextModule<Modules> & DynamoSystemActorContextModule,
+        this: ContextModuleBase<Modules> & DynamoSystemActorContextModule,
     ): Promise<Context<Replace<Modules, {actor: DynamoSystemActorContextModule}>>> {
         return this._context as any;
     }

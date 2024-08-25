@@ -1,9 +1,9 @@
 import {ApnsContextModuleBase, TestApnsContextModule} from "~/server/apns/apns_context_module.js";
-import {
-    ServerSystemActionContext,
-    ServerSystemActionContextModules,
-} from "~/server/context/server_action_context.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
+import {
+    TestSystemActionContext,
+    TestSystemActionContextModules,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
@@ -27,7 +27,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 export class TestLocalJobSender implements JobSenderBase {
     private readonly _processJob: (
-        context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+        context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
         job: JobDescription,
         jobStartTime: Date,
         span: TracerSpan,
@@ -39,7 +39,7 @@ export class TestLocalJobSender implements JobSenderBase {
         span: TracerSpan,
     ) => Promise<void>;
 
-    private readonly _createSystemContext: (spaceId: SpaceId) => ServerSystemActionContext;
+    private readonly _createSystemContext: (spaceId: SpaceId) => TestSystemActionContext;
 
     constructor({
         processJob,
@@ -47,7 +47,7 @@ export class TestLocalJobSender implements JobSenderBase {
         createSystemContext,
     }: {
         processJob: (
-            context: Context<ServerSystemActionContextModules & {apns: ApnsContextModuleBase}>,
+            context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
             job: JobDescription,
             jobStartTime: Date,
             span: TracerSpan,
@@ -58,7 +58,7 @@ export class TestLocalJobSender implements JobSenderBase {
             jobStartTime: Date,
             span: TracerSpan,
         ) => Promise<void>;
-        createSystemContext: (spaceId: SpaceId) => ServerSystemActionContext;
+        createSystemContext: (spaceId: SpaceId) => TestSystemActionContext;
     }) {
         assert(process.env.NODE_ENV === "test");
 

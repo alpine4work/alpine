@@ -1,7 +1,7 @@
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskRealtimeStoreCollectionEntry} from "~/server/tasks/realtime/task_realtime_store.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeUnsubscribeUpdateEventBuilder,
     TaskRealtimeUpdateEventBuilderBase,
@@ -27,7 +27,7 @@ export type TaskRealtimeCollectionSubscriptionCallbacks = {
      * subscriber gets the initial collection.
      */
     onCollectionSubscribe(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ): void;
@@ -36,7 +36,7 @@ export type TaskRealtimeCollectionSubscriptionCallbacks = {
      * Called whenever the collection we're subscribed to updates.
      */
     onCollectionUpdate(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
@@ -61,7 +61,7 @@ export class TaskRealtimeCollectionSubscription {
     private readonly _internal: TaskRealtimeCollectionSubscriptionInternal;
 
     constructor(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionEntry: TaskRealtimeStoreCollectionEntry,
         callbacks: TaskRealtimeCollectionSubscriptionCallbacks,
@@ -89,7 +89,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
     private _isSubscribed = true;
 
     constructor(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionEntry: TaskRealtimeStoreCollectionEntry,
         callbacks: TaskRealtimeCollectionSubscriptionCallbacks,
@@ -120,7 +120,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
     }
 
     public onCollectionUpdate(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,

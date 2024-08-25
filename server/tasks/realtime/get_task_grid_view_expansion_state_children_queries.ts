@@ -1,7 +1,7 @@
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {isTaskIndexDocAccessAuthorized} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     TaskGridViewExpansionState,
@@ -22,7 +22,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
  * anymore.
  */
 export function getTaskGridViewExpansionStateChildrenQueries<Result>(
-    context: TaskRealtimeSystemActionContext,
+    context: TaskSystemActionContext,
     {
         server,
         spaceId,

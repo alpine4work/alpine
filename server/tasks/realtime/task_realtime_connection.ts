@@ -2,11 +2,11 @@ import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_m
 import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
-    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
@@ -24,7 +24,6 @@ import {
     TaskRealtimeQuerySubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeTaskSubscription,
     TaskRealtimeTaskSubscriptionCallbacks,
@@ -92,7 +91,7 @@ export class TaskRealtimeConnection {
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<Value>,
+        action: (context: TaskSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
     public readonly sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
     private readonly _closeWithError: (context: ServerProcessContext, error: unknown) => void;
@@ -132,7 +131,7 @@ export class TaskRealtimeConnection {
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<Value>,
+            action: (context: TaskSystemActionContext) => Promise<Value>,
         ) => Promise<Value>;
         sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
         closeWithError: (context: ServerProcessContext, error: unknown) => void;
@@ -213,7 +212,7 @@ export class TaskRealtimeConnection {
 
     private _subscribeToQuery(
         sessionContext: ServerSessionActionContext,
-        systemContext: TaskRealtimeSystemActionContext,
+        systemContext: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         input: {
             limit: number;
@@ -236,7 +235,7 @@ export class TaskRealtimeConnection {
 
     private async _actuallySubscribeToQuery(
         sessionContext: ServerSessionActionContext,
-        systemContext: TaskRealtimeSystemActionContext,
+        systemContext: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         {
             limit,
@@ -458,7 +457,7 @@ export class TaskRealtimeConnection {
 
     private _subscribeToTask(
         sessionContext: ServerSessionActionContext,
-        systemContext: TaskRealtimeSystemActionContext,
+        systemContext: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
     ): Promise<{
@@ -505,7 +504,7 @@ export class TaskRealtimeConnection {
 
     private _subscribeToCollection(
         sessionContext: ServerSessionActionContext,
-        systemContext: TaskRealtimeSystemActionContext,
+        systemContext: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
     ): Promise<{
@@ -969,7 +968,7 @@ export class TaskRealtimeConnection {
     >();
 
     private _onDirectlySubscribedTaskAdd(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
@@ -1054,7 +1053,7 @@ export class TaskRealtimeConnection {
     }
 
     private _onDirectlySubscribedCollectionAdd(
-        context: TaskRealtimeSystemActionContext,
+        context: TaskSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ) {
@@ -1487,9 +1486,7 @@ export class TaskRealtimeConnection {
         },
     };
 
-    private async _authorizeReferencedTasksAndCollections(
-        context: TaskRealtimeSystemActionContext,
-    ) {
+    private async _authorizeReferencedTasksAndCollections(context: TaskSystemActionContext) {
         const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
         // Create a snapshot of `referencedTaskStateById` while we're reauthorizing.

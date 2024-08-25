@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/@types/cookie",
         "//:node_modules/cookie",
         "//:node_modules/jose",
+        "//shared/context",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

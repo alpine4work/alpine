@@ -9,18 +9,11 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@aws-sdk/credential-providers",
-        "//:node_modules/@smithy/types",
-        "//:node_modules/aws4fetch",
         "//server/accounts",
         "//server/dynamo/core",
-        "//server/emails",
         "//server/jobs/core",
-        "//server/opensearch",
-        "//server/tokens",
         "//shared/context",
         "//shared/helpers",
-        "//shared/id",
         "//shared/tracer",
     ],
 )

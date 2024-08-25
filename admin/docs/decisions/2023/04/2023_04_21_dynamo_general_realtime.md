@@ -89,7 +89,7 @@ identical except we add the following properties to your schema:
 -   `modelSchema`: A union schema for all models returned by model builder functions in `models`.
     Used to serialize/deserialize realtime events.
 
--   `sendEventTransaction`: The abstraction does not handle event delivery for you. You are
+-   `broadcastEventTransaction`: The abstraction does not handle event delivery for you. You are
     responsible for delivering realtime events to clients. This function is called whenever a new
     realtime event transaction is produced.
 

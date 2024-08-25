@@ -1,5 +1,8 @@
 import {addDays, subDays, subMinutes} from "date-fns";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerActionContextModules,
+} from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -13,6 +16,8 @@ import {
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {DynamoCondition} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
+import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
@@ -39,6 +44,15 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
 import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.js";
+
+// Intentionally not exported. We encourage users of
+// `dynamo_general_realtime_table_schema.ts` to create their own named context
+// types. e.g. `ForumActionContext` in `forum_table.ts`.
+type ServerActionContextModulesWithBroadcast = ServerActionContextModules & {
+    edge: EdgeServiceContextModuleBase;
+};
+
+type ServerActionContextWithBroadcast = Context<ServerActionContextModulesWithBroadcast>;
 
 export type DynamoGeneralRealtimeTableSchemaGetTypes<
     Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
@@ -276,8 +290,8 @@ export class DynamoGeneralRealtimeTableSchema<
     private readonly _models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
-    private readonly _sendEventTransactionCallback: (
-        context: ServerActionContext,
+    private readonly _broadcastEventTransactionCallback: (
+        context: ServerActionContextWithBroadcast,
         readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
     ) => Promise<void>;
@@ -301,7 +315,7 @@ export class DynamoGeneralRealtimeTableSchema<
         partitions,
         models,
         modelSchema,
-        sendEventTransaction,
+        broadcastEventTransaction,
         isTableRealtimeQueryDisabled = false,
     }: {
         name: string;
@@ -338,8 +352,8 @@ export class DynamoGeneralRealtimeTableSchema<
          * realtime event streams! Otherwise they may get access to data they're not
          * allowed to see.
          */
-        sendEventTransaction: (
-            context: ServerActionContext,
+        broadcastEventTransaction: (
+            context: ServerActionContextWithBroadcast,
             readTime: Date,
             eventTransaction: ReadonlyArray<
                 DynamoGeneralRealtimeEvent<DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>>
@@ -371,7 +385,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 ] as any as PartitionsConfig,
             }),
             models,
-            sendEventTransaction,
+            broadcastEventTransaction,
             isTableRealtimeQueryDisabled,
         });
     }
@@ -379,15 +393,15 @@ export class DynamoGeneralRealtimeTableSchema<
     private constructor({
         table,
         models,
-        sendEventTransaction,
+        broadcastEventTransaction,
         isTableRealtimeQueryDisabled,
     }: {
         table: DynamoTableSchema<Types>;
         models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
             DynamoTableSchemaTypes.ConfigBase["partitions"]
         >;
-        sendEventTransaction: (
-            context: ServerActionContext,
+        broadcastEventTransaction: (
+            context: ServerActionContextWithBroadcast,
             readTime: Date,
             eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
         ) => Promise<void>;
@@ -395,7 +409,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }) {
         this._table = table;
         this._models = models;
-        this._sendEventTransactionCallback = sendEventTransaction;
+        this._broadcastEventTransactionCallback = broadcastEventTransaction;
         this._isTableRealtimeQueryDisabled = isTableRealtimeQueryDisabled;
     }
 
@@ -423,8 +437,8 @@ export class DynamoGeneralRealtimeTableSchema<
         return cursorByIndexName;
     }
 
-    private _sendEventTransaction(
-        context: ServerActionContext,
+    private _broadcastEventTransaction(
+        context: ServerActionContextWithBroadcast,
         readTime: Date,
         eventTransaction: ReadonlyArray<
             DynamoGeneralRealtimeInternalEvent<Types["Item"], ModelMap[string][string]>
@@ -519,7 +533,11 @@ export class DynamoGeneralRealtimeTableSchema<
             //
             // That way a strong consistency read of events in DynamoDB will give you all
             // events sent before the start of the read.
-            await this._sendEventTransactionCallback(context, readTime, actualEventTransaction);
+            await this._broadcastEventTransactionCallback(
+                context,
+                readTime,
+                actualEventTransaction,
+            );
         });
     }
 
@@ -532,7 +550,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * to correctly order events received out-of-order on the client.
      */
     public async createItem<Item extends Types["Item"]>(
-        context: ServerActionContext,
+        context: ServerActionContextWithBroadcast,
         item: Item,
     ): Promise<{
         getRealtimeItem: () => Promise<
@@ -561,7 +579,7 @@ export class DynamoGeneralRealtimeTableSchema<
         const modelPromise = this._buildModel(context, item);
 
         context.process.waitUntil(
-            this._sendEventTransaction(context, readTime, [
+            this._broadcastEventTransaction(context, readTime, [
                 {type: "PutItem", item, key, version, getModel: () => modelPromise},
             ]),
         );
@@ -612,7 +630,7 @@ export class DynamoGeneralRealtimeTableSchema<
     // future. See the TODO note on the top of our class for how we might implement
     // item deletion.
     public async updateItem<Key extends Types["ItemKey"]>(
-        context: ServerActionContext,
+        context: ServerActionContextWithBroadcast,
         itemKey: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key>,
@@ -625,7 +643,7 @@ export class DynamoGeneralRealtimeTableSchema<
         getCursorByIndexName: () => Map<string, DynamoIndexCursor>;
     }>;
     public async updateItem<Key extends Types["ItemKey"]>(
-        context: ServerActionContext,
+        context: ServerActionContextWithBroadcast,
         itemKey: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
@@ -638,7 +656,7 @@ export class DynamoGeneralRealtimeTableSchema<
         getCursorByIndexName: () => Map<string, DynamoIndexCursor>;
     }>;
     public async updateItem<Key extends Types["ItemKey"]>(
-        context: ServerActionContext,
+        context: ServerActionContextWithBroadcast,
         itemKey: Key,
         // Typed as `never` since a caller should always match one of the overloads,
         // not this base definition.
@@ -681,7 +699,7 @@ export class DynamoGeneralRealtimeTableSchema<
         const modelPromise = this._buildModel(context, item);
 
         context.process.waitUntil(
-            this._sendEventTransaction(context, readTime, [
+            this._broadcastEventTransaction(context, readTime, [
                 {type: "PutItem", item, key, version, getModel: () => modelPromise},
             ]),
         );
@@ -705,7 +723,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * `updateItem()` which does it for you.
      */
     public async directlyUpdateItem<Item extends Types["Item"]>(
-        context: ServerActionContext,
+        context: ServerActionContextWithBroadcast,
         item: Item,
     ): Promise<{
         getRealtimeItem: () => Promise<
@@ -734,7 +752,7 @@ export class DynamoGeneralRealtimeTableSchema<
         const modelPromise = this._buildModel(context, item);
 
         context.process.waitUntil(
-            this._sendEventTransaction(context, readTime, [
+            this._broadcastEventTransaction(context, readTime, [
                 {type: "PutItem", item, key, version, getModel: () => modelPromise},
             ]),
         );
@@ -752,7 +770,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * from `DynamoTableSchema`.
      */
     public static async executeTransaction(
-        context: ServerActionContext,
+        context: ServerActionContextWithBroadcast,
         entries: ReadonlyArray<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
@@ -787,7 +805,7 @@ export class DynamoGeneralRealtimeTableSchema<
         context.process.waitUntil(async () => {
             await runAllPromises(
                 mapIterable(eventsBySchema, ([schema, events]) =>
-                    schema._sendEventTransaction(context, readTime, events),
+                    schema._broadcastEventTransaction(context, readTime, events),
                 ),
             );
         });
@@ -1196,8 +1214,12 @@ export class DynamoGeneralRealtimeTableSchema<
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public async realtimeQuery(context: ServerActionContext, options: {}): Promise<never> {
+    public async realtimeQuery(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        context: ServerActionContext,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        options: {},
+    ): Promise<never> {
         if (this._isTableRealtimeQueryDisabled) {
             throw new InternalError("Realtime queries have been disabled");
         }

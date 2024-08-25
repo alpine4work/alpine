@@ -79,12 +79,6 @@ export async function run({
     const processContext = createServerProcessContext({
         tracer,
         shutdownManager,
-        // TODO(calebmer, 2024-08-05): The deploy service doesn't currently communicate
-        // with any other services but might in the future. I need to decide whether or
-        // not the server process context should contain context modules to communicate
-        // with other services like `edge`. Maybe there should be a second limited
-        // server process context type that doesn't need access to other services.
-        tokenAgent: "Unimplemented",
         awsSigner,
         options,
     }).clone({

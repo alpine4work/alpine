@@ -53,6 +53,7 @@ import {
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {getTaskNotificationSubscribers, getTaskOwner} from "~/server/tasks/data/task_table.js";
+import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
     isTextEndedWithPunctuation,
@@ -124,6 +125,27 @@ import {truncateDocumentTitleForNotification} from "~/shared/notifications/trunc
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+type InboxActionExtraBroadcastContextModules = {
+    edge: EdgeServiceContextModuleBase;
+};
+
+export type InboxActionContextModulesWithBroadcast = ServerActionContextModules &
+    InboxActionExtraBroadcastContextModules;
+
+export type InboxActionContextWithBroadcast = Context<InboxActionContextModulesWithBroadcast>;
+
+export type InboxSessionActionContextModulesWithBroadcast = ServerSessionActionContextModules &
+    InboxActionExtraBroadcastContextModules;
+
+export type InboxSessionActionContextWithBroadcast =
+    Context<InboxSessionActionContextModulesWithBroadcast>;
+
+export type InboxSystemActionContextModulesWithBroadcast = ServerSystemActionContextModules &
+    InboxActionExtraBroadcastContextModules;
+
+export type InboxSystemActionContextWithBroadcast =
+    Context<InboxSystemActionContextModulesWithBroadcast>;
 
 /**
  * The initial generation of a new inbox.
@@ -933,7 +955,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    sendEventTransaction: async (context, readTime, eventTransaction) => {
+    broadcastEventTransaction: async (context, readTime, eventTransaction) => {
         // Split up event transactions by unique `SpaceId` and `AccountId`
         // combinations. By splitting a transaction it may not be applied atomically.
         // We split by `AccountId` since events need to go to different durable
@@ -1187,7 +1209,7 @@ function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttri
  * Get the session account's inbox in the provided space.
  */
 export async function getInbox(
-    context: ServerSessionActionContext,
+    context: InboxSessionActionContextWithBroadcast,
     {spaceId, consistency = "Eventual"}: {spaceId: SpaceId; consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1395,7 +1417,7 @@ export async function backfillInboxEntries(
 // will be directly added to the top of the inbox while the user is actively
 // observing.
 export async function observeInbox(
-    context: ServerSessionActionContext,
+    context: InboxSessionActionContextWithBroadcast,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1550,7 +1572,7 @@ function getInboxEntryKey(itemKey: InboxEntryItemKey): InboxEntryKey {
  * `processNotificationEvent()`.
  */
 export async function archiveInboxEntry(
-    context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
+    context: Context<InboxSessionActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<{archiveTime: Date}> {
     return archiveInboxEntryItemKey(
@@ -1569,7 +1591,7 @@ export async function archiveInboxEntry(
  * primary inbox so the user can easily find it.
  */
 export function unarchiveInboxEntry(
-    context: ServerSessionActionContext,
+    context: InboxSessionActionContextWithBroadcast,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
     return unarchiveInboxEntryItemKey(
@@ -1583,7 +1605,7 @@ export function unarchiveInboxEntry(
 }
 
 async function archiveInboxEntryItemKey(
-    context: Context<ServerSessionActionContextModules & {apns: ApnsContextModuleBase}>,
+    context: Context<InboxSessionActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
     itemKey: InboxEntryItemKey,
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -1708,7 +1730,7 @@ async function archiveInboxEntryItemKey(
 }
 
 async function unarchiveInboxEntryItemKey(
-    context: ServerSessionActionContext,
+    context: InboxSessionActionContextWithBroadcast,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -1756,10 +1778,6 @@ export const notificationEventProcessingTestCounter = new TestCounter<AccountId>
 export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
 
-type ProcessNotificationEventSystemActionContext = Context<
-    ServerSystemActionContextModules & {apns: ApnsContextModuleBase}
->;
-
 /**
  * Processes a notification generating event by fanning out to subscriber
  * inboxes and notification destinations (like email or mobile push
@@ -1768,7 +1786,7 @@ type ProcessNotificationEventSystemActionContext = Context<
  * This function is idempotent.
  */
 export async function processNotificationEvent(
-    context: ProcessNotificationEventSystemActionContext,
+    context: Context<InboxSystemActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {
@@ -1782,7 +1800,7 @@ export async function processNotificationEvent(
 }
 
 function actuallyProcessNotificationEvent(
-    context: ProcessNotificationEventSystemActionContext,
+    context: Context<InboxSystemActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
     event: NotificationEvent,
     span: TracerSpan,
 ): Promise<void> {
@@ -1848,7 +1866,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * as a whole will be idempotent.
      */
     updateInboxEntry: (
-        context: ServerSystemActionContext,
+        context: InboxSystemActionContextWithBroadcast,
         event: Event,
         options: {
             info: Info;
@@ -1910,7 +1928,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         body: string;
     }>;
 }): (
-    context: ProcessNotificationEventSystemActionContext,
+    context: Context<InboxSystemActionContextModulesWithBroadcast & {apns: ApnsContextModuleBase}>,
     event: Event,
     span: TracerSpan,
 ) => Promise<void> {
@@ -2261,7 +2279,7 @@ type UpdateInboxEntryResult = {
  * when possible which means we need `update` to be idempotent.
  */
 async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
-    context: ServerSystemActionContext,
+    context: InboxSystemActionContextWithBroadcast,
     event: NotificationEvent,
     accountId: AccountId,
     itemKey: ItemKey,
@@ -2279,7 +2297,9 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 
     return context.dynamo.retryTransaction(run);
 
-    async function run(context: ServerSystemActionContext): Promise<UpdateInboxEntryResult | null> {
+    async function run(
+        context: InboxSystemActionContextWithBroadcast,
+    ): Promise<UpdateInboxEntryResult | null> {
         const isInitialAttempt = !hasAttempted;
         hasAttempted = true;
 
@@ -3435,7 +3455,7 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
  * underlying channel posts inbox entry so it will accumulate no new posts.
  */
 export async function getInboxChannelPostsEntryPosts(
-    context: ServerSessionActionContext,
+    context: InboxSessionActionContextWithBroadcast,
     {
         spaceId,
         channelId,
@@ -3618,7 +3638,7 @@ export async function getInboxChannelPostsEntryPosts(
  * new threads.
  */
 export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
-    context: ServerSessionActionContext,
+    context: InboxSessionActionContextWithBroadcast,
     {
         spaceId,
         documentId,

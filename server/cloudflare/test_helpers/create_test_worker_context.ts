@@ -5,10 +5,11 @@ import {
     WorkerSystemActionContextModules,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {
-    ServerSessionActionContextModules,
-    ServerSystemActionContextModules,
-} from "~/server/context/server_action_context.js";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+    TestContext,
+    TestSessionActionContextModules,
+    TestSystemActionContextModules,
+    createTestContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
@@ -17,13 +18,13 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 
 type TestWorkerSessionActionContext = Context<TestWorkerSessionActionContextModules>;
 
-type TestWorkerSessionActionContextModules = ServerSessionActionContextModules &
-    Omit<WorkerSessionActionContextModules, keyof ServerSessionActionContextModules>;
+type TestWorkerSessionActionContextModules = TestSessionActionContextModules &
+    Omit<WorkerSessionActionContextModules, keyof TestSessionActionContextModules>;
 
 type TestWorkerSystemActionContext = Context<TestWorkerSystemActionContextModules>;
 
-type TestWorkerSystemActionContextModules = ServerSystemActionContextModules &
-    Omit<WorkerSystemActionContextModules, keyof ServerSystemActionContextModules>;
+type TestWorkerSystemActionContextModules = TestSystemActionContextModules &
+    Omit<WorkerSystemActionContextModules, keyof TestSystemActionContextModules>;
 
 export type TestWorkerContext = Replace<
     TestContext,

@@ -2,17 +2,15 @@ import {ServerRoute} from "@remix-run/server-runtime";
 import {parse as parseCookieHeader, serialize as serializeSetCookieHeader} from "cookie";
 import {differenceInDays, isValid as isValidDate, parseISO} from "date-fns";
 import {Params} from "react-router";
-import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
-import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
-import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {DynamoUnknownActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
-import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {RpcServerActionContextModules} from "~/server/rpc/rpc_server_action_context.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
@@ -26,31 +24,13 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type LoaderContext = Context<LoaderContextModules>;
 
-export type LoaderContextModules = MergeObjectIntersection<
-    ServerUnknownActionContextModules & {
-        rpc: LocalRpcContextModule;
-        loader: LoaderContextModule;
-
-        /**
-         * Our Remix server has access to the tasks context module which we don't make
-         * generally available to a `ServerActionContext`.
-         */
-        tasks: TaskContextModule;
-
-        /**
-         * The language model we use for tasks like embedding search queries.
-         */
-        languageModel: LanguageModelContextModule;
-
-        /**
-         * Access our connection pool to Apple Push Notification service to send push
-         * notifications when appropriate. Generally push notifications are sent from
-         * `JobQueueService` when processing notification events but there are a couple
-         * cases where notifications need to be sent from `AppService`.
-         */
-        apns: ApnsContextModuleBase;
-    }
->;
+export type LoaderContextModules = Replace<
+    RpcServerActionContextModules,
+    {actor: DynamoUnknownActorContextModule}
+> & {
+    rpc: LocalRpcContextModule;
+    loader: LoaderContextModule;
+};
 
 export interface LoaderArgs {
     request: Request;

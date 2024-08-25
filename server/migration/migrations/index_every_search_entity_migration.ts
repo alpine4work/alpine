@@ -1,14 +1,12 @@
 import {expensiveScanEveryChatAndChatMessageForMigration} from "~/server/chat/data/chat_table.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {expensiveScanEveryDocumentAndDocumentCommentForMigration} from "~/server/documents/data/documents_table.js";
-import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {
     expensiveScanEveryChannelAndPostForMigration,
     expensiveScanEveryPostCommentForMigration,
 } from "~/server/forum/data/forum_table.js";
-import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {expensiveScanEverySpaceAccountForMigration} from "~/server/spaces/spaces_table.js";
 import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/tasks/data/task_table.js";
-import {Context} from "~/shared/context/context.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
@@ -26,7 +24,7 @@ const countLogInterval = process.env.NODE_ENV !== "production" ? 100 : 1000;
  * need to re-index all content from the source.
  */
 export function runIndexEverySearchEntityMigration(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    context: ServerProcessContext,
     options: {segmentIndex: number; totalSegmentCount: number},
 ) {
     return runIndexSearchEntityMigrationModules(context, allMigrationModules, options);
@@ -38,7 +36,7 @@ export function runIndexEverySearchEntityMigration(
  * types.
  */
 export function runIndexTaskAndTaskCollectionSearchEntitiesMigration(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    context: ServerProcessContext,
     options: {segmentIndex: number; totalSegmentCount: number},
 ) {
     return runIndexSearchEntityMigrationModules(
@@ -49,12 +47,12 @@ export function runIndexTaskAndTaskCollectionSearchEntitiesMigration(
 }
 
 type MigrationModule = (
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    context: ServerProcessContext,
     options: {segmentIndex: number; totalSegmentCount: number},
 ) => Promise<void>;
 
 async function runIndexSearchEntityMigrationModules(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    context: ServerProcessContext,
     modules: Array<MigrationModule>,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
@@ -106,13 +104,10 @@ async function runIndexSearchEntityMigrationModules(
 function createDynamoScanMigrationModule<Item>(
     description: string,
     scan: (
-        context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+        context: ServerProcessContext,
         options: {segmentIndex: number; totalSegmentCount: number},
     ) => AsyncIterable<Item>,
-    processItem: (
-        context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
-        item: Item,
-    ) => MaybePromise<void>,
+    processItem: (context: ServerProcessContext, item: Item) => MaybePromise<void>,
 ): MigrationModule {
     return async (context, options) => {
         // We use a linked span instead of a child span since it's not practical to

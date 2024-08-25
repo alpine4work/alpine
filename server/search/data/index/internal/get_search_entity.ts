@@ -25,7 +25,7 @@ import {
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
-import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
+import {SearchSystemActionContext} from "~/server/search/data/index/search_action_context.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {getTaskCollectionFromIndex, getTaskFromIndex} from "~/server/tasks/data/task_index.js";
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
@@ -165,7 +165,7 @@ interface TaskCollectionModelForAuthorization {
  * we might get the chat message's data from before your update.
  */
 class SearchEntityReadState {
-    private readonly _context: SearchEntityIndexSystemActionContext;
+    private readonly _context: SearchSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
     private readonly _targetId: SearchEntityId;
 
@@ -184,7 +184,7 @@ class SearchEntityReadState {
     >();
 
     constructor(
-        context: SearchEntityIndexSystemActionContext,
+        context: SearchSystemActionContext,
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
         targetId: SearchEntityId,
     ) {
@@ -528,7 +528,7 @@ class SearchEntityReadState {
  * reads are made with strong consistency).
  */
 export async function getSearchEntity(
-    context: SearchEntityIndexSystemActionContext,
+    context: SearchSystemActionContext,
     idObject: SearchEntityIdObject,
     tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
 ): Promise<{

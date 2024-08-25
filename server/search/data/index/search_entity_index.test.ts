@@ -5,9 +5,11 @@ import {
     getOrCreateChatForAccounts,
     sendChatMessage,
 } from "~/server/chat/data/chat_table.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {
+    TestSessionActionContext,
+    createTestContext,
+} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createChannel, createPost, updateChannelName} from "~/server/forum/data/forum_table.js";
 import {
     AllMiniLmL6V2LanguageModel,
@@ -1800,7 +1802,7 @@ test("get search entities only sees entities the account has access to", async (
     await context.opensearch.refresh(SearchEntityKeywordIndex);
     await context.opensearch.refresh(SearchEntitySemanticIndex);
 
-    const getSearchEntityIds = async (context: ServerSessionActionContext, space: TestSpace) => {
+    const getSearchEntityIds = async (context: TestSessionActionContext, space: TestSpace) => {
         const entities = await getSearchEntitiesTitleAndMediaIfExist(context, {
             spaceId: space.id,
             entityIds: [

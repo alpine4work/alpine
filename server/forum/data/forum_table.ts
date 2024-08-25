@@ -7,9 +7,13 @@ import {
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
 import {
     ServerActionContext,
+    ServerActionContextModules,
     ServerSessionActionContext,
+    ServerSessionActionContextModules,
     ServerSystemActionContext,
+    ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
+import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -33,6 +37,7 @@ import {
     internalCreateAlphaSpaceAsAdmin,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
+import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -95,6 +100,27 @@ import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js"
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+
+type ForumActionExtraBroadcastContextModules = {
+    edge: EdgeServiceContextModuleBase;
+};
+
+export type ForumActionContextModulesWithBroadcast = ServerActionContextModules &
+    ForumActionExtraBroadcastContextModules;
+
+export type ForumActionContextWithBroadcast = Context<ForumActionContextModulesWithBroadcast>;
+
+export type ForumSessionActionContextModulesWithBroadcast = ServerSessionActionContextModules &
+    ForumActionExtraBroadcastContextModules;
+
+export type ForumSessionActionContextWithBroadcast =
+    Context<ForumSessionActionContextModulesWithBroadcast>;
+
+export type ForumSystemActionContextModulesWithBroadcast = ServerSystemActionContextModules &
+    ForumActionExtraBroadcastContextModules;
+
+export type ForumSystemActionContextWithBroadcast =
+    Context<ForumSystemActionContextModulesWithBroadcast>;
 
 const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
     // Disable table-level realtime queries
@@ -259,7 +285,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    sendEventTransaction: async (context, readTime, eventTransaction) => {
+    broadcastEventTransaction: async (context, readTime, eventTransaction) => {
         // Split up event transactions so we send everything in a `ChannelId` to
         // that channel and nothing else. We have to split for security: if two
         // channels are updated in the same transaction, a user connected to
@@ -622,7 +648,7 @@ export async function* expensiveScanEveryPostCommentForMigration(
  * migration won't have been run.
  */
 export async function runMoveForumChannelsAndPostsMigration(
-    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    context: ServerProcessContext,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     let n = 0;
@@ -784,7 +810,7 @@ export async function createAlphaSpaceAsAdmin(
  * Create a new channel.
  */
 export async function createChannel(
-    context: ServerSessionActionContext,
+    context: ForumSessionActionContextWithBroadcast,
     {
         spaceId,
         channelId = generateId<ChannelId>(),
@@ -1108,7 +1134,7 @@ export async function authorizeChannelAccess(
  * Updates the name of the channel.
  */
 export async function updateChannelName(
-    context: ServerActionContext,
+    context: ForumActionContextWithBroadcast,
     {
         channelId,
         name,
@@ -1177,7 +1203,7 @@ export async function updateChannelName(
  * Updates the description of the channel.
  */
 export async function updateChannelDescription(
-    context: ServerActionContext,
+    context: ForumActionContextWithBroadcast,
     {
         channelId,
         description,
@@ -1240,7 +1266,7 @@ export async function updateChannelDescription(
  * Updates the name and description of the channel.
  */
 export async function updateChannelNameAndDescription(
-    context: ServerActionContext,
+    context: ForumActionContextWithBroadcast,
     {
         channelId,
         name,
@@ -1341,7 +1367,7 @@ export async function getChannelPosts(
  * disconnected from realtime.
  */
 export async function backfillChannelPosts(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {channelId, readTime}: {channelId: ChannelId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
     const [, result] = await runAllPromises([
@@ -1359,7 +1385,7 @@ export async function backfillChannelPosts(
  * Create a new post by the current account in the provided channel.
  */
 export async function createPost(
-    context: ServerSessionActionContext,
+    context: ForumSessionActionContextWithBroadcast,
     {channelId, content}: {channelId: ChannelId; content: PostContent},
 ): Promise<{
     id: PostId;
@@ -1672,7 +1698,7 @@ export async function getPostNotificationSubscribers(
  * Update the contents of a post if you are the post's author.
  */
 export async function updatePostContent(
-    context: ServerSessionActionContext,
+    context: ForumSessionActionContextWithBroadcast,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{
     contentUpdatedTime: Date;

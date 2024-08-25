@@ -1,7 +1,7 @@
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {TestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {TestSessionActionContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
     createTestSession,
@@ -69,7 +69,7 @@ export function testMessagingRealtimeImplementation<
         deleteMessage,
     }: {
         createRoom: (
-            context: ServerSessionActionContext,
+            context: TestSessionActionContext,
             spaceId: SpaceId,
             sessions: Array<TestSessionItem>,
         ) => Promise<RoomInterface<RoomKey>>;
@@ -120,7 +120,7 @@ export function testMessagingRealtimeImplementation<
         references: emptyContentReferences,
     };
 
-    const createRoom = (context: ServerSessionActionContext, spaceId: SpaceId) => {
+    const createRoom = (context: TestSessionActionContext, spaceId: SpaceId) => {
         return _createRoom(context, spaceId, [session1, session2, session3]);
     };
 
