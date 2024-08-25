@@ -17,7 +17,7 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
+import {StepByJsonId} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -550,9 +550,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
         });
 
         const stepSchemas: {
-            [Key in ExhaustiveStep["jsonID"]]: Schema<
-                Omit<ExhaustiveStep & {jsonID: Key}, "jsonID">
-            >;
+            [Key in keyof StepByJsonId]: Schema<StepByJsonId[Key]>;
         } = {
             attr: AttrStepSchema,
             addMark: AddMarkStepSchema,
