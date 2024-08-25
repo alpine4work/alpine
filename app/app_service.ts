@@ -195,7 +195,7 @@ async function createAppService({
     // In tests, don't send push notifications. Otherwise in development and
     // production set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
-    if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) {
+    if (process.env.NODE_ENV === "test") {
         apnsContextModule = new TestApnsContextModule();
     } else {
         const apnsConnectionPool = new ApnsConnectionPool(baseProcessContext, {
@@ -256,7 +256,7 @@ async function createAppService({
             if (url.pathname === "/api/internal/healthcheck") return [url.pathname, "HealthCheck"];
 
             // Add route when running integration tests...
-            if (process.env.PLAYWRIGHT_TEST_PATH) {
+            if (process.env.NODE_ENV === "test") {
                 if (url.pathname === "/api/internal/test/clearSpaceAccountsCache")
                     return [url.pathname, "ClearSpaceAccountsCacheForTest"];
             }

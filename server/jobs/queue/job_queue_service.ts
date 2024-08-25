@@ -204,7 +204,7 @@ export async function run({
     // In tests, don't send push notifications. Otherwise in development and
     // production set up a connection pool to APNs so we can send notifications.
     let apnsContextModule: ApnsContextModuleBase;
-    if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH) {
+    if (process.env.NODE_ENV === "test") {
         apnsContextModule = new TestApnsContextModule();
     } else {
         const apnsConnectionPool = new ApnsConnectionPool(baseProcessContext, {

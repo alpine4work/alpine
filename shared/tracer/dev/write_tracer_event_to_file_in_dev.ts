@@ -56,7 +56,9 @@ export function writeTracerEventToFileInDev(event: TracerEvent) {
     }
 
     // Don't send events to tracer when running tests. To detect whether we're
-    // running a Playwright integration test we must check `PLAYWRIGHT_TEST_PATH`.
+    // running a Playwright integration test we must check `PLAYWRIGHT_TEST_PATH`
+    // because when we run esbuild to bundle `EdgeService` it'll inline
+    // `process.env.NODE_ENV` as the constant `development`.
     //
     // This mirrors the behavior in `test_tracer.ts`. See `test_tracer.ts` for more
     // information on why we don't log tracer events in tests.

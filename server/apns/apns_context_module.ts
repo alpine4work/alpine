@@ -103,7 +103,7 @@ export class ApnsContextModule extends ApnsContextModuleBase {
 export class TestApnsContextModule extends ApnsContextModuleBase {
     constructor() {
         super();
-        assert(process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_TEST_PATH);
+        assert(process.env.NODE_ENV === "test");
     }
 
     public async sendAlert() {

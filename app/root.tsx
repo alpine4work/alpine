@@ -130,7 +130,7 @@ export async function loader({context}: LoaderArgs) {
         initialAppRenderId: generateId(),
         browserId: context.loader.getBrowserId(),
         clientInfo: context.loader.getClientInfo(),
-        isIntegrationTest: !!process.env.PLAYWRIGHT_TEST_PATH,
+        isIntegrationTest: process.env.NODE_ENV === "test",
     });
 }
 
