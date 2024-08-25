@@ -4,7 +4,7 @@ entry point can't be hot reloaded in development mode.
 """
 
 APP_WRAPPER_SRCS = [
-    "app_server_types.ts",
-    "app_service.ts",
-    "app_service_worker.ts",
+    "app_service_main.ts",
+    "app_service_types.ts",
+    "app_service_wrapper.ts",
 ]
