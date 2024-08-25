@@ -357,7 +357,6 @@ async function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
-                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--inspectorPort=${taskRealtimeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],

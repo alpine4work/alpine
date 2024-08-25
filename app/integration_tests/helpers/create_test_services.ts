@@ -278,7 +278,6 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
             ],
             {
                 env: process.env,

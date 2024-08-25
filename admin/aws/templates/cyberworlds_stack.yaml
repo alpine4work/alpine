@@ -1769,8 +1769,7 @@ Resources:
                                     - DomainEndpoint
                               - " --jobQueueUrl="
                               - Ref: SqsJobQueue62388F96
-                              - " --edgeServiceUrl=https://cyberworlds.dev
-                                --honeycombApiKey=$HONEYCOMB_API_KEY
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
                                 --appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY
                                 --edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY
                                 --taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY
