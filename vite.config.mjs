@@ -40,7 +40,7 @@ export default defineConfig(({mode}) => {
                 // This property is implemented in our `@remix-run/dev` patch. It's used to
                 // include our `AppService` entry point code in the final bundle alongside
                 // Remix code so we don't import the same module multiple times in production.
-                additionalServerInputPath: "./app/app_service.js",
+                additionalServerInputPath: "./app/app_service_main.js",
 
                 // Ignore any TypeScript route files that might be in the build directory. We
                 // `.js` files transpiled by SWC.

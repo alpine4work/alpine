@@ -25,7 +25,7 @@ ts_project(
 js_binary(
     name = "migration",
     data = [":migration_lib"],
-    entry_point = "migration_service.js",
+    entry_point = "migration_service_main.js",
     visibility = [
         "//admin/dev:__pkg__",
     ],

@@ -133,7 +133,7 @@ filegroup(
 js_binary(
     name = "app_wrapper",
     data = [":app_wrapper_lib"],
-    entry_point = "app_service.js",
+    entry_point = "app_service_main.js",
 )
 
 APP_BUILD_SHARED_ARGS = ["vite:build"]
@@ -165,7 +165,7 @@ remix_bin.remix(
         "//app/static",
     ],
     outs = [
-        "build/server/app_service.js",
+        "build/server/app_service_main.js",
         "build/server/remix_server_build.js",
     ],
     args = select({
@@ -194,7 +194,7 @@ output_files(
 output_files(
     name = "app_build_server",
     paths = [
-        "app/build/server/app_service.js",
+        "app/build/server/app_service_main.js",
         "app/build/server/remix_server_build.js",
         "app/build/server/assets",
     ],
@@ -231,7 +231,7 @@ js_binary(
         ":app_build",
         ":app_runfiles",
     ],
-    entry_point = "build/server/app_service.js",
+    entry_point = "build/server/app_service_main.js",
     no_copy_to_bin = [":app_runfiles"],
     visibility = ["//app/integration_tests:__pkg__"],
 )
@@ -250,7 +250,7 @@ js_binary(
         ":app_build_server",
         ":app_runfiles",
     ],
-    entry_point = "build/server/app_service.js",
+    entry_point = "build/server/app_service_main.js",
     no_copy_to_bin = [":app_runfiles"],
 )
 

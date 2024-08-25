@@ -4,7 +4,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 js_binary(
     name = "script",
     data = [":script_lib"],
-    entry_point = "deploy_service.js",
+    entry_point = "deploy_service_main.js",
     env = {"NODE_ENV": "production"},
 )
 

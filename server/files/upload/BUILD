@@ -29,7 +29,7 @@ ts_project(
 js_binary(
     name = "upload",
     data = [":upload_lib"],
-    entry_point = "file_upload_service.js",
+    entry_point = "file_upload_service_main.js",
     visibility = [
         "//app/integration_tests:__pkg__",
     ],
