@@ -8,6 +8,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 // Import all the JavaScript files in our `server` directory. Only the sources
@@ -60,7 +61,20 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
         );
     });
 
-    return {schemas, indexNamesByTableName};
+    return {
+        schemas: Array.from(schemas.values()).sort((schema1, schema2) =>
+            defaultCompareStrings(schema1.getName(), schema2.getName()),
+        ),
+        indexNamesByTableName: Array.from(
+            flatMapIterable(indexNamesByTableName, ([tableName, indexNames]) =>
+                mapIterable(indexNames, indexName => ({tableName, indexName})),
+            ),
+        ).sort(
+            (index1, index2) =>
+                defaultCompareStrings(index1.tableName, index2.tableName) ||
+                defaultCompareStrings(index1.indexName, index2.indexName),
+        ),
+    };
 });
 
 /**
@@ -70,7 +84,7 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
  */
 export async function getAllDynamoTableSchemas() {
     const {schemas} = await importAllDynamoTableSchemasPromise.get();
-    return schemas.values();
+    return schemas;
 }
 
 /**
@@ -82,7 +96,5 @@ export async function getAllDynamoTableSchemas() {
  */
 export async function getAllDynamoTableSchemaIndexNames() {
     const {indexNamesByTableName} = await importAllDynamoTableSchemasPromise.get();
-    return flatMapIterable(indexNamesByTableName, ([tableName, indexNames]) =>
-        mapIterable(indexNames, indexName => ({tableName, indexName})),
-    );
+    return indexNamesByTableName;
 }

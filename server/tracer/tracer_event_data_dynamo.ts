@@ -14,15 +14,27 @@
  * dependents on `//server/dynamo` changes.
  */
 export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
+    "Accounts",
+    "AlphaAccess",
+    "Chat",
+    "Deploy",
+    "Documents",
+    "Forum",
+    "ForumRealtime",
+    "Inbox",
+    "SearchEntities",
+    "Spaces",
+    "TaskActions",
+    "Tasks",
     "Accounts_Index1",
+    "Chat_Index1",
+    "Forum_Index1",
+    "ForumRealtime_Index1",
+    "Inbox_Index1",
     "SearchEntities_Index1",
     "SearchEntities_Index2",
     "SearchEntities_Index3",
-    "Chat_Index1",
-    "ForumRealtime_Index1",
-    "Forum_Index1",
     "TaskActions_Index1",
-    "Inbox_Index1",
 ]);
 
 /**
@@ -41,4 +53,16 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
  */
 // prettier-ignore
 export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, ReadonlyArray<string>>([
+    ["Accounts", ["Account", "AccountEmailAddress", "Session", "AppleDeviceToken"]],
+    ["AlphaAccess", ["AlphaConfiguration", "AlphaAccessRequests"]],
+    ["Chat", ["Chat"]],
+    ["Deploy", ["Deploy"]],
+    ["Documents", ["Document", "DocumentCommentThread"]],
+    ["Forum", ["Channel", "Post"]],
+    ["ForumRealtime", ["Channel", "Post", "Realtime"]],
+    ["Inbox", ["Account", "Inbox", "Realtime"]],
+    ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections"]],
+    ["Spaces", ["Space", "Account"]],
+    ["TaskActions", ["TaskActions"]],
+    ["Tasks", ["Account", "TaskCollection", "Task", "TaskGridViewExpansionState"]],
 ]);
