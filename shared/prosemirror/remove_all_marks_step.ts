@@ -20,6 +20,8 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
  * in `prosemirror-transform` once.
  */
 export class RemoveAllMarksStep extends Step {
+    public override readonly jsonID = "removeAllMarks";
+
     public readonly mark: Mark;
 
     constructor(mark: Mark) {
@@ -110,6 +112,8 @@ export class RemoveAllMarksStep extends Step {
  * in `prosemirror-transform` once.
  */
 export class AddMarksAfterRemoveAllStep extends Step {
+    public override readonly jsonID = "addMarksAfterRemoveAll";
+
     public readonly mark: Mark;
     public readonly ranges: ReadonlyArray<{
         readonly from: number;

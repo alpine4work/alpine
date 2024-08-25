@@ -971,6 +971,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/SearchEntitiesTable/Resource
+    DeployTableF6562626:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: Deploy
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/DeployTable/Resource
     ChatTable7A2D1C24:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -1110,31 +1135,6 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/DocumentsTable/Resource
-    DeployTableF6562626:
-        Type: AWS::DynamoDB::Table
-        Properties:
-            AttributeDefinitions:
-                - AttributeName: partitionKey
-                  AttributeType: S
-                - AttributeName: sortKey
-                  AttributeType: S
-            BillingMode: PAY_PER_REQUEST
-            DeletionProtectionEnabled: true
-            KeySchema:
-                - AttributeName: partitionKey
-                  KeyType: HASH
-                - AttributeName: sortKey
-                  KeyType: RANGE
-            PointInTimeRecoverySpecification:
-                PointInTimeRecoveryEnabled: true
-            TableName: Deploy
-            TimeToLiveSpecification:
-                AttributeName: expirationTime
-                Enabled: true
-        UpdateReplacePolicy: Retain
-        DeletionPolicy: Retain
-        Metadata:
-            aws:cdk:path: CyberworldsStack/DeployTable/Resource
     TaskActionsTableFC756837:
         Type: AWS::DynamoDB::Table
         Properties:

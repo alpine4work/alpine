@@ -5,7 +5,7 @@ import {appStaticManifestPaths as oldAppStaticManifestPaths} from "./app_static_
 async function main() {
     const [outputPath, ...newAppStaticManifestPaths] = process.argv.slice(2);
 
-    const newAppStaticManifestPathPrefix = "app/static/";
+    const newAppStaticManifestPathPrefix = "app/static/files/";
 
     const appStaticManifestPaths = Array.from(
         new Set([
