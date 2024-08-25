@@ -18,7 +18,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type FileUploadServiceRoute = {readonly type: "NotFound"} | {readonly type: "Upload"};
 
-export function createFileUploadServer(
+export function createFileUploadService(
     tracer: TracerRoot,
     processContext: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
 ) {

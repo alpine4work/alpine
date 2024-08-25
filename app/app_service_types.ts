@@ -4,7 +4,7 @@ import {ServiceTokenAgentOptions} from "~/server/node/create_service_token_agent
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-export type AppServerConstants = {
+export type AppServiceConstants = {
     readonly tracer: TracerRoot;
     readonly shutdownManager: ShutdownManagerBase;
     readonly options: ServiceTokenAgentOptions &
@@ -23,8 +23,8 @@ export type AppServerConstants = {
         };
 };
 
-export type AppServer = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void;
+export type AppService = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => void;
 
-export type AppServerModule = {
-    readonly getAppServer: (constants: AppServerConstants) => Promise<AppServer>;
+export type AppServiceModule = {
+    readonly getAppService: (constants: AppServiceConstants) => Promise<AppService>;
 };

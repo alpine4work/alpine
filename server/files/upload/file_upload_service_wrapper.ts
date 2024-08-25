@@ -1,4 +1,4 @@
-import {createFileUploadServer} from "~/server/files/upload/file_upload_server.js";
+import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
 import {createServerProcessContextModule} from "~/server/node/create_server_process_context_module.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
@@ -31,7 +31,7 @@ export async function run({
         tracer: new TracerContextModule(tracer),
     });
 
-    const server = createFileUploadServer(tracer, processContext);
+    const server = createFileUploadService(tracer, processContext);
 
     registerGracefulServerShutdown(shutdownManager, server);
 

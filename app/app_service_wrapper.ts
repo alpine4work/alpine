@@ -2,7 +2,7 @@ import {IncomingMessage, ServerResponse, createServer} from "http";
 import {join as joinPath, resolve as resolvePath} from "path";
 import createServeStaticMiddleware from "serve-static";
 import {WebSocket} from "ws";
-import {AppServerConstants, AppServerModule} from "~/app/app_server_types.js";
+import {AppServiceConstants, AppServiceModule} from "~/app/app_service_types.js";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -103,7 +103,7 @@ export async function run({
               })
             : null;
 
-    const appServerConstants: AppServerConstants = {
+    const constants: AppServiceConstants = {
         tracer,
         shutdownManager: isViteDevEnabled
             ? new HotShutdownManager(tracer, shutdownManager)
@@ -111,15 +111,15 @@ export async function run({
         options,
     };
 
-    let appServerModule: AppServerModule | null = !isViteDevEnabled
+    let module: AppServiceModule | null = !isViteDevEnabled
         ? // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
           // @ts-ignore: When type checking `//app:app_wrapper` the types for
           // `"~/app/app_server.js"` aren't available. The types are available for
           // `//admin/typescript/workspace:workspace_test` however.
-          await import("~/app/app_server.js")
+          await import("~/app/app_service.js")
         : null;
 
-    let requestListener = (await appServerModule?.getAppServer(appServerConstants)) ?? null;
+    let requestListener = (await module?.getAppService(constants)) ?? null;
 
     // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Load Balancer -> us
     // in application code in production.
@@ -146,22 +146,20 @@ export async function run({
             } else {
                 void (async () => {
                     try {
-                        const oldAppServerModule = appServerModule;
+                        const oldModule = module;
 
-                        appServerModule = (await viteDevServer!.ssrLoadModule(
+                        module = (await viteDevServer!.ssrLoadModule(
                             "/app/app_server.js",
-                        )) as AppServerModule;
+                        )) as AppServiceModule;
 
                         // If the `app_server.ts` module changed then run shutdown listeners from the
                         // old app server module.
-                        if (oldAppServerModule !== null && oldAppServerModule !== appServerModule) {
-                            assert(
-                                appServerConstants.shutdownManager instanceof HotShutdownManager,
-                            );
-                            appServerConstants.shutdownManager.clear();
+                        if (oldModule !== null && oldModule !== module) {
+                            assert(constants.shutdownManager instanceof HotShutdownManager);
+                            constants.shutdownManager.clear();
                         }
 
-                        requestListener = await appServerModule.getAppServer(appServerConstants);
+                        requestListener = await module.getAppService(constants);
                         requestListener(req, res);
                     } catch (error) {
                         res.writeHead(500, {"content-type": "text/plain"});

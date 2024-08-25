@@ -4,7 +4,7 @@ import {Server} from "http";
 import net from "net";
 import {join as joinPath} from "path";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createFileUploadServer} from "~/server/files/upload/file_upload_server.js";
+import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
 import {UploadFileEventSchema} from "~/server/files/upload/internal/upload_file.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
@@ -17,7 +17,7 @@ const context = createTestContext();
 
 beforeAll(async () => {
     port = await getPort();
-    server = createFileUploadServer(context.tracer.getRoot(), context);
+    server = createFileUploadService(context.tracer.getRoot(), context);
 
     await new Promise<void>(resolve => {
         server.listen(port, resolve);

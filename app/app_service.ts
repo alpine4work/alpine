@@ -3,13 +3,13 @@ import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
 import {join as joinPath} from "path";
 import * as build from "virtual:remix/server-build";
-import {AppServer, AppServerConstants} from "~/app/app_server_types.js";
 import {
     AppServiceProcessContext,
     AppServiceProcessContextModules,
     AppServiceSystemActionContext,
     AppServiceSystemActionContextModules,
 } from "~/app/app_service_context.js";
+import {AppService, AppServiceConstants} from "~/app/app_service_types.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
@@ -64,8 +64,10 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
-let appServerConstants: AppServerConstants | null = null;
-let appServer: Promise<AppServer> | null = null;
+let appService: {
+    constants: AppServiceConstants;
+    promise: Promise<AppService>;
+} | null = null;
 
 /**
  * Get the app server if it exists and creates the app server if it doesn't
@@ -73,27 +75,29 @@ let appServer: Promise<AppServer> | null = null;
  * time this function is called.
  *
  * Our app server is designed this way to work well with Vite hot reloading. If
- * a Vite hot reload happens `appServer` will need to be created again. But it
+ * a Vite hot reload happens `AppService` will need to be created again. But it
  * only needs to be created once until the next hot reload.
  */
-export function getAppServer(constants: AppServerConstants): Promise<AppServer> {
-    if (appServerConstants !== null) {
-        if (appServerConstants !== constants) {
-            throw new InternalError("Expected app server constants object to never change");
+export function getAppService(constants: AppServiceConstants): Promise<AppService> {
+    if (appService !== null) {
+        if (appService.constants !== constants) {
+            throw new InternalError("Expected `AppService` constants object to never change");
         }
     } else {
-        appServerConstants = constants;
-        appServer = createAppServer(constants);
+        appService = {
+            constants,
+            promise: createAppService(constants),
+        };
     }
 
-    return appServer!;
+    return appService.promise;
 }
 
-async function createAppServer({
+async function createAppService({
     tracer,
     shutdownManager,
     options,
-}: Replace<AppServerConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppServer> {
+}: Replace<AppServiceConstants, {shutdownManager: ShutdownManagerBase}>): Promise<AppService> {
     const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey] = await runAllPromises([
         createServiceTokenAgent({
             serviceName: "AppService",
