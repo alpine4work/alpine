@@ -286,6 +286,8 @@ function classifyCloudflareR2Error(error: unknown): ErrorBase {
     let errorCode: ErrorCode | null = null;
     if (originalErrorCode === "NoSuchKey") {
         errorCode = ErrorCode.NotFound;
+    } else if (originalErrorCode === "InternalError") {
+        errorCode = ErrorCode.Internal;
     }
 
     const message = `Cloudflare R2 ${

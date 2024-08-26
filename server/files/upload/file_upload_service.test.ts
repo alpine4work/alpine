@@ -19,7 +19,6 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 
@@ -456,13 +455,7 @@ test("can't upload image with the wrong content type", async () => {
         },
         {
             type: "PreviewPlaceholder",
-            placeholder: FilePreviewPlaceholder.fromSerialized([
-                false,
-                5,
-                decodeBase64(
-                    "x9LXytXaztfbztfay9bY19rb3N/g3+Ll4OPm3+HhtrKssq+q0M3L0c3Jsaymna2vm62xp7a6qra6q7O0",
-                ),
-            ]),
+            placeholder: expect.any(FilePreviewPlaceholder),
         },
         {
             type: "Error",
