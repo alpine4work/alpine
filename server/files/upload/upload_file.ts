@@ -83,7 +83,14 @@ export async function uploadFile(
     };
 
     try {
-        await actuallyUploadFile(context, span, route, url, headers, req, sendEvent);
+        const promise = actuallyUploadFile(context, span, route, url, headers, req, sendEvent);
+
+        // Make sure the server doesn't shutdown while we're uploading and processing a
+        // file. Otherwise we may leave the database in a bad state if we don't finish
+        // cleaning up after an error, for instance.
+        context.process.waitUntil(promise);
+
+        await promise;
 
         if (!res.writableEnded) {
             res.end();
@@ -293,12 +300,7 @@ async function actuallyUploadFile(
 
             sendEvent({type: "Finish"});
         } catch (error) {
-            const cleanupPromise = fileUploader.cleanupAfterError(context);
-
-            // Don't shutdown the server until we finish cleaning up.
-            context.process.waitUntil(cleanupPromise);
-
-            await cleanupPromise;
+            await fileUploader.cleanupAfterError(context);
             throw error;
         }
     } finally {
