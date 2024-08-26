@@ -1885,6 +1885,13 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:TaskRealtimeServiceSecrets:jobQueueServicePublicKey::"
+                      - Name: FILE_UPLOAD_SERVICE_PUBLIC_KEY
+                        ValueFrom:
+                            Fn::Join:
+                                - ""
+                                - - "arn:aws:secretsmanager:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - ":secret:TaskRealtimeServiceSecrets:fileUploadServicePublicKey::"
                       - Name: HONEYCOMB_API_KEY
                         ValueFrom:
                             Fn::Join:

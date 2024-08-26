@@ -225,6 +225,10 @@ export class AwsTaskRealtimeService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
+                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "fileUploadServicePublicKey",
+                ),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
             },
             environment: {
