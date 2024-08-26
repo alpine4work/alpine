@@ -3742,14 +3742,9 @@ Resources:
                       - -c
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/migration/migration --opensearchHost=
-                              - Fn::GetAtt:
-                                    - OpensearchDomainCED7C974
-                                    - DomainEndpoint
-                              - " --jobQueueUrl="
+                            - - /var/www/server/migration/migration --jobQueueUrl=
                               - Ref: SqsJobQueue62388F96
-                              - " --edgeServiceUrl=https://cyberworlds.dev
-                                --honeycombApiKey=$HONEYCOMB_API_KEY --migration=$MIGRATION
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY --migration=$MIGRATION
                                 --segmentIndex=$SEGMENT_INDEX
                                 --totalSegmentCount=$TOTAL_SEGMENT_COUNT"
                   Environment:

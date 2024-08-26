@@ -3268,9 +3268,7 @@ Resources:
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
-                        7456c59242b\\\",\\\"opensearchHost\\\":\\\""
-                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"https://sqs.
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3290,7 +3288,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -3317,9 +3315,7 @@ Resources:
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
-                        7456c59242b\\\",\\\"opensearchHost\\\":\\\""
-                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"https://sqs.
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3339,7 +3335,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -3366,9 +3362,7 @@ Resources:
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
-                        7456c59242b\\\",\\\"opensearchHost\\\":\\\""
-                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"https://sqs.
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3388,7 +3382,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -3415,9 +3409,7 @@ Resources:
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
-                        7456c59242b\\\",\\\"opensearchHost\\\":\\\""
-                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"https://sqs.
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3437,7 +3429,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -3464,9 +3456,7 @@ Resources:
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
-                        7456c59242b\\\",\\\"opensearchHost\\\":\\\""
-                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"https://sqs.
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3486,7 +3476,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn
@@ -3512,9 +3502,7 @@ Resources:
                       - "', $$.Execution.Name, $.runner.domain, $.owner, $.repo, $.runner.token,
                         'aws-deploy', $.runner.registrationUrl,
                         States.Base64Encode('{\\\"cloudflareAccountId\\\":\\\"d496846050bfc973d2461\
-                        7456c59242b\\\",\\\"opensearchHost\\\":\\\""
-                      - Fn::ImportValue: CyberworldsStack:OpensearchHost
-                      - \",\"jobQueueUrl\":\"https://sqs.
+                        7456c59242b\\\",\\\"jobQueueUrl\\\":\\\"https://sqs."
                       - Fn::Select:
                             - 3
                             - Fn::Split:
@@ -3534,7 +3522,7 @@ Resources:
                             - Fn::Split:
                                   - ":"
                                   - Fn::ImportValue: CyberworldsStack:JobQueueArn
-                      - \",\"edgeServiceUrl\":\"https://cyberworlds.dev\"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
+                      - \"}')))","InstanceInitiatedShutdownBehavior":"terminate","IamInstanceProfile":{"Arn":"
                       - Fn::GetAtt:
                             - GithubRunnersDeployRunnerProviderInstanceProfile8A464F20
                             - Arn

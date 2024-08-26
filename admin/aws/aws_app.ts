@@ -19,7 +19,7 @@ export async function createAwsApp() {
     const app = new App({autoSynth: false});
 
     const stack = new Stack(app, "CyberworldsStack", {env: {region: "us-east-1"}});
-    const {importDynamo, importOpensearch, importSqs} = await addAwsResources(stack);
+    const {importDynamo, importSqs} = await addAwsResources(stack);
 
     // Resources related to continuous integration and continuous deployment live in
     // this stack. The term "lifecycle" is from the industry term
@@ -30,7 +30,6 @@ export async function createAwsApp() {
     addAwsLifecycleResources(lifecycleStack, {
         cloudflareAccountId,
         importDynamo,
-        importOpensearch,
         importSqs,
     });
 
@@ -112,17 +111,14 @@ function addAwsLifecycleResources(
     {
         cloudflareAccountId,
         importDynamo,
-        importOpensearch,
         importSqs,
     }: {
         cloudflareAccountId: string;
         importDynamo: (stack: Stack) => AwsDynamo;
-        importOpensearch: (stack: Stack) => AwsOpensearch;
         importSqs: (stack: Stack) => AwsSqs;
     },
 ) {
     const dynamo = importDynamo(stack);
-    const opensearch = importOpensearch(stack);
     const sqs = importSqs(stack);
 
     // Create our own VPC for lifecycle resources. Right now, we put most resources
@@ -147,7 +143,6 @@ function addAwsLifecycleResources(
         vpc,
         cloudflareAccountId,
         dynamo,
-        opensearch,
         sqs,
     });
 }

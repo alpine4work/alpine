@@ -13,7 +13,6 @@ import {ManagedPolicy, PolicyStatement, Role} from "aws-cdk-lib/aws-iam";
 import {BlockPublicAccess, Bucket} from "aws-cdk-lib/aws-s3";
 import {Construct} from "constructs";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
-import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,13 +24,11 @@ export class AwsGithubRunners extends Construct {
             vpc,
             cloudflareAccountId,
             dynamo,
-            opensearch,
             sqs,
         }: {
             vpc: IVpc;
             cloudflareAccountId: string;
             dynamo: AwsDynamo;
-            opensearch: AwsOpensearch;
             sqs: AwsSqs;
         },
     ) {
@@ -315,11 +312,9 @@ export class AwsGithubRunners extends Construct {
             // environment variable. We add this option to
             // `@cloudsnorkel/cdk-github-runners` through a patch.
             userDataExtra: Fn.join("", [
-                `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"opensearchHost":"`,
-                opensearch.opensearchHost,
-                '","jobQueueUrl":"',
+                `{"cloudflareAccountId":${JSON.stringify(cloudflareAccountId)},"jobQueueUrl":"`,
                 sqs.getJobQueueUrl(),
-                '","edgeServiceUrl":"https://cyberworlds.dev"}',
+                '"}',
             ]),
         });
 
