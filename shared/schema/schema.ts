@@ -561,6 +561,82 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     }
 
     /**
+     * A simpler version of `Schema.union()` that supports switching on a boolean
+     * property.
+     *
+     * The first schema is for `true` and the second schema is for `false`.
+     */
+    public static booleanUnion<
+        const TypeKey extends string,
+        TrueSchema extends ObjectSchema<any> & {
+            // We need to put our `key` type constraint on `deserialize` instead of the
+            // type parameter so the object type can be covariant instead of invariant.
+            deserialize: (value: SchemaSerializedValue) => Record<TypeKey, true>;
+        },
+        FalseSchema extends ObjectSchema<any> & {
+            // We need to put our `key` type constraint on `deserialize` instead of the
+            // type parameter so the object type can be covariant instead of invariant.
+            deserialize: (value: SchemaSerializedValue) => Record<TypeKey, false>;
+        },
+    >(
+        typeKey: TypeKey,
+        trueSchema: TrueSchema,
+        falseSchema: FalseSchema,
+    ): Schema<SchemaType<TrueSchema> | SchemaType<FalseSchema>> {
+        assert(isIdentifier(typeKey));
+
+        const {validate: validateTrue} = trueSchema;
+        const {validate: validateFalse} = falseSchema;
+
+        return new Schema<SchemaType<TrueSchema> | SchemaType<FalseSchema>>({
+            getDescription: () => ({
+                type: "BooleanUnion",
+                typeKey,
+                trueSchema: trueSchema.getDescription(),
+                falseSchema: falseSchema.getDescription(),
+            }),
+            serialize: value => {
+                if ((value as any)[typeKey]) {
+                    return trueSchema.serialize(value);
+                } else {
+                    return falseSchema.serialize(value);
+                }
+            },
+            deserialize: value => {
+                if (typeof value !== "object" || value === null)
+                    throw new SchemaDeserializationError("Expected an object");
+
+                if (!hasOwnProperty(value, typeKey) || typeof value[typeKey] !== "boolean")
+                    throw new SchemaDeserializationError(
+                        `Required property \`${typeKey}\` not found`,
+                    );
+
+                if (value[typeKey]) {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "UnionVariant", typeKey: typeKey, typeValue: true},
+                        () => trueSchema.deserialize(value),
+                    );
+                } else {
+                    return withSchemaDeserializationStackFrame(
+                        {type: "UnionVariant", typeKey: typeKey, typeValue: false},
+                        () => falseSchema.deserialize(value),
+                    );
+                }
+            },
+            validate:
+                validateTrue || validateFalse
+                    ? value => {
+                          if ((value as any).ok) {
+                              validateTrue?.(value);
+                          } else {
+                              validateFalse?.(value);
+                          }
+                      }
+                    : null,
+        });
+    }
+
+    /**
      * A simpler version of `Schema.union()` that supports `Result<T>` objects.
      *
      * The first schema is for `ok: true` and the second schema is for `ok: false`.
@@ -580,52 +656,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         okSchema: OkSchema,
         errorSchema: ErrorSchema,
     ): Schema<SchemaType<OkSchema> | SchemaType<ErrorSchema>> {
-        const {validate: validateOk} = okSchema;
-        const {validate: validateError} = errorSchema;
-
-        return new Schema<SchemaType<OkSchema> | SchemaType<ErrorSchema>>({
-            getDescription: () => ({
-                type: "Result",
-                okSchema: okSchema.getDescription(),
-                errorSchema: errorSchema.getDescription(),
-            }),
-            serialize: value => {
-                if ((value as any).ok) {
-                    return okSchema.serialize(value);
-                } else {
-                    return errorSchema.serialize(value);
-                }
-            },
-            deserialize: value => {
-                if (typeof value !== "object" || value === null)
-                    throw new SchemaDeserializationError("Expected an object");
-
-                if (!hasOwnProperty(value, "ok") || typeof value.ok !== "boolean")
-                    throw new SchemaDeserializationError("Required property `ok` not found");
-
-                if (value.ok) {
-                    return withSchemaDeserializationStackFrame(
-                        {type: "UnionVariant", typeKey: "ok", typeValue: true},
-                        () => okSchema.deserialize(value),
-                    );
-                } else {
-                    return withSchemaDeserializationStackFrame(
-                        {type: "UnionVariant", typeKey: "ok", typeValue: false},
-                        () => errorSchema.deserialize(value),
-                    );
-                }
-            },
-            validate:
-                validateOk || validateError
-                    ? value => {
-                          if ((value as any).ok) {
-                              validateOk?.(value);
-                          } else {
-                              validateError?.(value);
-                          }
-                      }
-                    : null,
-        });
+        return this.booleanUnion("ok", okSchema, errorSchema);
     }
 
     /**

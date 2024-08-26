@@ -1,6 +1,5 @@
 import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
 import {join as joinPath} from "path";
-import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
@@ -11,7 +10,6 @@ import {
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
-import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
@@ -27,10 +25,8 @@ import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {
-    authorizeSpaceAccess,
-    isAccountMemberOfSpaceWithoutAuthorization,
-} from "~/server/spaces/spaces_table.js";
+import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
     TaskSystemActionContext,
@@ -46,19 +42,16 @@ import {
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
-import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-    UnauthenticatedError,
 } from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -275,15 +268,15 @@ export async function run({
     ): Promise<Response | void> => {
         const {spaceId} = route;
 
-        const baseContext = processContext.clone({
+        const baseActionContext = processContext.clone({
             tracer: new TracerContextModule(span),
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
         });
 
-        const actorContextModule = await createActorContextModule(
-            baseContext,
-            request,
+        const actorContextModule = await createDynamoActorContextModule(
+            baseActionContext,
+            request.headers,
             tokenAgent,
             spaceId,
         );
@@ -306,7 +299,7 @@ export async function run({
                     );
                 }
 
-                return baseContext.with(
+                return baseActionContext.with(
                     {
                         actor: actorContextModule,
                         fork: new ForkActionContextModule(),
@@ -348,7 +341,7 @@ export async function run({
                     throw new PermissionDeniedError("Only system actors can apply transactions");
                 }
 
-                return baseContext.with(
+                return baseActionContext.with(
                     {actor: actorContextModule},
                     async (context: TaskSystemActionContext) => {
                         const actionTransaction =
@@ -378,7 +371,7 @@ export async function run({
                     throw new PermissionDeniedError("Only session actors can load queries");
                 }
 
-                return baseContext.with(
+                return baseActionContext.with(
                     {actor: actorContextModule},
                     async (context: ServerSessionActionContext) => {
                         const input = TaskRealtimeLoadQueriesInputSchema.deserialize(
@@ -427,7 +420,7 @@ export async function run({
                     throw new PermissionDeniedError("Only session actors can load queries");
                 }
 
-                return baseContext.with({actor: actorContextModule}, async context => {
+                return baseActionContext.with({actor: actorContextModule}, async context => {
                     await server.authorizeTaskAccess(context, spaceId, route.taskId, "View");
 
                     return dangerouslyEscalateToSystemContext(context, spaceId, async context => {
@@ -600,67 +593,4 @@ export async function run({
             console.log(`Listening on port ${port} (pid: ${process.pid})`);
         }
     });
-}
-
-async function createActorContextModule(
-    context: Context<
-        DynamoContextModules & {
-            process: ProcessContextModule;
-            cache: CacheContextModule;
-        }
-    >,
-    request: Request,
-    tokenAgent: TokenAgent,
-    spaceId: SpaceId,
-) {
-    const authorizationHeader = request.headers.get("authorization");
-    if (!authorizationHeader) throw new UnauthenticatedError('Expected an "Authorization" header');
-
-    const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
-
-    if (!authorizationHeaderMatch) {
-        throw new InvalidArgumentError(
-            'Expected "Authorization" header to have "Bearer" authentication scheme',
-        );
-    }
-
-    const authorizationHeaderToken = authorizationHeaderMatch[1] ?? "";
-    const {serviceName, payload: authorizationHeaderPayload} =
-        await tokenAgent.publicSide.verifyToken(authorizationHeaderToken);
-
-    switch (authorizationHeaderPayload.type) {
-        case "Session": {
-            const [session] = await runAllPromises([
-                Session.getIfExists(
-                    context,
-                    authorizationHeaderPayload.sessionId,
-                    authorizationHeaderPayload.accountId,
-                ),
-                // Optimization: When loading our session from the database, also attempt to
-                // load whether the account associated with the session is a member of the
-                // space we're in.
-                isAccountMemberOfSpaceWithoutAuthorization(
-                    context,
-                    spaceId,
-                    authorizationHeaderPayload.accountId,
-                ),
-            ]);
-
-            if (!session) {
-                throw new PermissionDeniedError("Session not found");
-            }
-            return DynamoSessionActorContextModule.dangerouslyNew(serviceName, session);
-        }
-        case "System": {
-            if (spaceId !== authorizationHeaderPayload.spaceId) {
-                throw new PermissionDeniedError("System actor doesn't have access to space");
-            }
-            return DynamoSystemActorContextModule.dangerouslyNew(
-                serviceName,
-                authorizationHeaderPayload.spaceId,
-            );
-        }
-        default:
-            throw exhaustive(authorizationHeaderPayload);
-    }
 }

@@ -28,6 +28,10 @@ export class TestSession {
         return new TestSession(account, id, createdTime);
     }
 
+    public getTokenPayload() {
+        return {type: "Session" as const, sessionId: this.id, accountId: this.account.id};
+    }
+
     public action() {
         return this.context.action(this);
     }

@@ -22,9 +22,10 @@ beforeAll(async () => {
         edgeServiceFamilyKeyPair,
         taskRealtimeServiceKeyPair,
         jobQueueServiceKeyPair,
+        fileUploadServiceKeyPair,
     ] = await runAllPromises(
         createArrayWithLength(
-            4,
+            5,
             () =>
                 new Promise<{publicKey: string; privateKey: string}>((resolve, reject) =>
                     generateKeyPair(
@@ -47,6 +48,7 @@ beforeAll(async () => {
     assert(edgeServiceFamilyKeyPair);
     assert(taskRealtimeServiceKeyPair);
     assert(jobQueueServiceKeyPair);
+    assert(fileUploadServiceKeyPair);
 
     [appServiceTokenAgent, edgeServiceTokenAgent, documentCollaborationServiceTokenAgent] =
         await runAllPromises([
@@ -57,6 +59,7 @@ beforeAll(async () => {
                     edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
+                    fileUploadServicePublicKey: fileUploadServiceKeyPair.publicKey,
                 }),
                 AppServiceTokenAgentPrivateSide.new({
                     serviceName: "AppService",
@@ -70,6 +73,7 @@ beforeAll(async () => {
                     edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
+                    fileUploadServicePublicKey: fileUploadServiceKeyPair.publicKey,
                 }),
                 TokenAgentPrivateSide.new({
                     serviceName: "EdgeService",
@@ -83,6 +87,7 @@ beforeAll(async () => {
                     edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
                     jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
+                    fileUploadServicePublicKey: fileUploadServiceKeyPair.publicKey,
                 }),
                 TokenAgentPrivateSide.new({
                     serviceName: "DocumentCollaborationService",

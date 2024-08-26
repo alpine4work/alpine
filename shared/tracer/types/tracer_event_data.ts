@@ -5,6 +5,7 @@ import {
     ChannelId,
     ChatId,
     DocumentId,
+    FileId,
     NotificationEventId,
     PeekId,
     PostId,
@@ -454,6 +455,9 @@ export type TracerEventData = {
 
         /** Information about the chat the event was fired while looking at. */
         readonly chatId?: ChatId;
+
+        /** This event involves the file with the following ID. */
+        readonly fileId?: FileId;
 
         /**
          * If this event is coming from a peek then this object will be populated with
@@ -1064,6 +1068,17 @@ export type TracerEventData = {
          * a weekday.
          */
         readonly isTimeDeployable?: boolean;
+    };
+
+    /**
+     * Information regarding files uploaded to our product.
+     */
+    readonly file?: {
+        /** The content type of the file we're operating against. */
+        readonly contentType?: string;
+
+        /** The content length of the file we're operating against. */
+        readonly contentLength?: number;
     };
 };
 

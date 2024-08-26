@@ -186,6 +186,10 @@ export class AwsAppService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
+                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "fileUploadServicePublicKey",
+                ),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
                 COHERE_API_KEY: EcsSecret.fromSecretsManager(secrets, "cohereApiKey"),
                 APNS_CERTIFICATE: EcsSecret.fromSecretsManager(secrets, "apnsCertificate"),
@@ -219,6 +223,7 @@ export class AwsAppService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
+                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",
                     "--apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY",

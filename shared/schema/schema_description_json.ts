@@ -14,7 +14,7 @@ const schemaCompositeDescriptionTypes: {
     Array: true,
     Object: true,
     Union: true,
-    Result: true,
+    BooleanUnion: true,
     Set: true,
     Map: true,
     Tuple: true,

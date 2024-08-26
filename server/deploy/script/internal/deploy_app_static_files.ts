@@ -3,8 +3,8 @@ import {max as maxDate, subDays} from "date-fns";
 import fs from "fs-extra";
 import {extname, join as joinPath} from "path";
 import serveStatic from "serve-static";
-import {isCloudflareR2NoSuchKeyError} from "~/server/deploy/script/internal/cloudflare_r2_client.js";
-import {CloudflareR2ContextModule} from "~/server/deploy/script/internal/cloudflare_r2_context_module.js";
+import {isCloudflareR2NoSuchKeyError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Context} from "~/shared/context/context.js";
@@ -45,12 +45,12 @@ const AppStaticBucketManifestSchema = Schema.object({
  * a successful deploy to make sure new assets don't expire.
  */
 export async function uploadAppStaticFilesBeforeDeploy(
-    context: Context<DynamoContextModules & {cloudflareR2: CloudflareR2ContextModule}>,
+    context: Context<DynamoContextModules & {r2: CloudflareR2ContextModule}>,
 ) {
     let oldManifest: AppStaticBucketManifest;
 
     try {
-        const manifestOutput = await context.cloudflareR2.GetObject({
+        const manifestOutput = await context.r2.GetObject({
             Bucket: appStaticBucketName,
             Key: "manifest.json",
         });
@@ -134,7 +134,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
     // We don't need to worry about multiple scripts trying to write to
     // `manifest.json` at the same time since only one `deploy()` function may be
     // run at a time. This is validated by our `prepareDeploy()` function.
-    await context.cloudflareR2.PutObject({
+    await context.r2.PutObject({
         Bucket: appStaticBucketName,
         Key: "manifest.json",
         ContentType: "application/json",
@@ -162,7 +162,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 }
             }
 
-            await context.cloudflareR2.PutObject({
+            await context.r2.PutObject({
                 Bucket: appStaticBucketName,
                 Key: `files/${newFile.path}`,
                 ContentMD5: newFile.contentMd5,
@@ -189,7 +189,7 @@ async function getFileMd5Hash(path: string): Promise<string> {
 }
 
 export async function cleanupAppStaticFilesAfterDeploy(
-    context: Context<DynamoContextModules & {cloudflareR2: CloudflareR2ContextModule}>,
+    context: Context<DynamoContextModules & {r2: CloudflareR2ContextModule}>,
     {
         manifest: oldManifest,
         paths,
@@ -229,14 +229,14 @@ export async function cleanupAppStaticFilesAfterDeploy(
 
     await runAllPromises(
         mapIterable(expiredPaths, async expiredPath => {
-            await context.cloudflareR2.DeleteObject({
+            await context.r2.DeleteObject({
                 Bucket: appStaticBucketName,
                 Key: `files/${expiredPath}`,
             });
         }),
     );
 
-    await context.cloudflareR2.PutObject({
+    await context.r2.PutObject({
         Bucket: appStaticBucketName,
         Key: "manifest.json",
         ContentType: "application/json",

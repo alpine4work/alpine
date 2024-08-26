@@ -7,7 +7,7 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
 import {Context} from "~/shared/context/context.js";
 
-type AppServiceProcessExtraContextModules = {
+type AppServiceExtraContextModules = {
     email: EmailContextModuleBase;
     edge: EdgeServiceContextModule;
     opensearch: OpensearchContextModule;
@@ -16,11 +16,11 @@ type AppServiceProcessExtraContextModules = {
 };
 
 export type AppServiceProcessContextModules = ServerProcessContextModules &
-    AppServiceProcessExtraContextModules;
+    AppServiceExtraContextModules;
 
 export type AppServiceProcessContext = Context<AppServiceProcessContextModules>;
 
 export type AppServiceSystemActionContextModules = ServerSystemActionContextModules &
-    AppServiceProcessExtraContextModules;
+    AppServiceExtraContextModules;
 
 export type AppServiceSystemActionContext = Context<AppServiceSystemActionContextModules>;

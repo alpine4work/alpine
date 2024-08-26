@@ -16,6 +16,7 @@ const tokenServiceNames = [
     "AppService",
     "TaskRealtimeService",
     "JobQueueService",
+    "FileUploadService",
     ...tokenEdgeServiceFamilyNames,
 ] as const;
 

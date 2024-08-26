@@ -8,14 +8,14 @@ import {
     PutObjectCommandInput,
     PutObjectCommandOutput,
 } from "@aws-sdk/client-s3";
-import {CloudflareR2Client} from "~/server/deploy/script/internal/cloudflare_r2_client.js";
+import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: TracerContextModule}> {
-    private readonly _client: CloudflareR2Client;
+    private readonly _client: CloudflareR2ClientBase;
 
-    constructor(client: CloudflareR2Client) {
+    constructor(client: CloudflareR2ClientBase) {
         super();
         this._client = client;
     }

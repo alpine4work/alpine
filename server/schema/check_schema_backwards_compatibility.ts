@@ -203,7 +203,7 @@ export function checkSchemaBackwardsCompatibility(
                         );
                     } else {
                         withSchemaSerializedValueDescriptionStackFrame(
-                            {type: "UnionVariant", typeKey: "type", typeValue: type},
+                            {type: "UnionVariant", typeKey: nextSchema.typeKey, typeValue: type},
                             () => {
                                 checkSchemaBackwardsCompatibility(
                                     lastVariantSchema,
@@ -215,30 +215,37 @@ export function checkSchemaBackwardsCompatibility(
                 }
                 return;
             }
-            case "Result": {
-                if (lastSchema.type !== "Result") {
+            case "BooleanUnion": {
+                if (lastSchema.type !== "BooleanUnion") {
                     throw new SchemaBackwardsIncompatibleError(
                         `\`${lastSchema.type}\` type is incompatible with \`${nextSchema.type}\` type`,
                     );
                 }
 
-                withSchemaSerializedValueDescriptionStackFrame(
-                    {type: "UnionVariant", typeKey: "ok", typeValue: true},
-                    () => {
-                        checkSchemaBackwardsCompatibility(lastSchema.okSchema, nextSchema.okSchema);
-                    },
-                );
+                if (lastSchema.typeKey !== nextSchema.typeKey)
+                    throw new SchemaBackwardsIncompatibleError(
+                        `Union type key \`${lastSchema.typeKey}\` is incompatible with \`${nextSchema.typeKey}\``,
+                    );
 
                 withSchemaSerializedValueDescriptionStackFrame(
-                    {type: "UnionVariant", typeKey: "ok", typeValue: false},
+                    {type: "UnionVariant", typeKey: nextSchema.typeKey, typeValue: true},
                     () => {
                         checkSchemaBackwardsCompatibility(
-                            lastSchema.errorSchema,
-                            nextSchema.errorSchema,
+                            lastSchema.trueSchema,
+                            nextSchema.trueSchema,
                         );
                     },
                 );
 
+                withSchemaSerializedValueDescriptionStackFrame(
+                    {type: "UnionVariant", typeKey: nextSchema.typeKey, typeValue: false},
+                    () => {
+                        checkSchemaBackwardsCompatibility(
+                            lastSchema.falseSchema,
+                            nextSchema.falseSchema,
+                        );
+                    },
+                );
                 return;
             }
             case "Set": {

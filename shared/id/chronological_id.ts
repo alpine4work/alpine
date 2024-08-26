@@ -1,6 +1,6 @@
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {Id, encodeId} from "~/shared/id/id.js";
+import {Id, decodeId, encodeId} from "~/shared/id/id.js";
 
 /**
  * Chronological `Id`s are lexicographically orderable by generation time and
@@ -104,6 +104,13 @@ function generateDecodedChronologicalIdWithTime(time: number): Uint8Array {
     bytes.set(randomBytes, 8);
 
     return bytes;
+}
+
+/**
+ * Parse the timestamp from `ChronologicalId`.
+ */
+export function getChronologicalIdTime(id: ChronologicalId): number {
+    return getDecodedChronologicalIdTime(decodeId(id));
 }
 
 /**

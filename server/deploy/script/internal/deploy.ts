@@ -1,4 +1,5 @@
 import {addMinutes, subMinutes} from "date-fns";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     cleanupDeploy,
     githubOwner,
@@ -6,7 +7,6 @@ import {
     prepareDeploy,
 } from "~/server/deploy/data/deploy_table.js";
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
-import {CloudflareR2ContextModule} from "~/server/deploy/script/internal/cloudflare_r2_context_module.js";
 import {
     cleanupAppStaticFilesAfterDeploy,
     uploadAppStaticFilesBeforeDeploy,
@@ -44,7 +44,7 @@ export async function deploy(
         DynamoContextModules & {
             jobs: JobsContextModule;
             github: GithubContextModuleBase;
-            cloudflareR2: CloudflareR2ContextModule;
+            r2: CloudflareR2ContextModule;
         }
     >,
     {
@@ -176,7 +176,7 @@ async function actuallyDeploy(
         DynamoContextModules & {
             jobs: JobsContextModule;
             github: GithubContextModuleBase;
-            cloudflareR2: CloudflareR2ContextModule;
+            r2: CloudflareR2ContextModule;
         }
     >,
     {

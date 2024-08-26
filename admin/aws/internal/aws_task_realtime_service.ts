@@ -249,6 +249,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
+                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY",
                 ].join(" ")}`,
             ],

@@ -32,6 +32,7 @@ async function main() {
             edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
             taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
             jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
+            fileUploadServicePublicKey: fileUploadServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             fileUploadServiceHostname,
             honeycombApiKey,
@@ -45,6 +46,7 @@ async function main() {
             edgeServiceFamilyPublicKey: {type: "string"},
             taskRealtimeServicePublicKey: {type: "string"},
             jobQueueServicePublicKey: {type: "string"},
+            fileUploadServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             fileUploadServiceHostname: {type: "string"},
             honeycombApiKey: {type: "string"},
@@ -64,6 +66,8 @@ async function main() {
     if (!taskRealtimeServicePublicKeyPath)
         throw new Error("Missing `taskRealtimeServicePublicKeyPath` arg");
     if (!jobQueueServicePublicKeyPath) throw new Error("Missing `jobQueueServicePublicKey` arg");
+    if (!fileUploadServicePublicKeyPath)
+        throw new Error("Missing `fileUploadServicePublicKeyPath` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
     if (!fileUploadServiceHostname) throw new Error("Missing `fileUploadServiceHostname` arg");
@@ -73,12 +77,14 @@ async function main() {
         edgeServiceFamilyPublicKey,
         taskRealtimeServicePublicKey,
         jobQueueServicePublicKey,
+        fileUploadServicePublicKey,
         edgeServiceFamilyPrivateKey,
     ] = await Promise.all([
         fs.readFile(appServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
         fs.readFile(taskRealtimeServicePublicKeyPath, "utf8"),
         fs.readFile(jobQueueServicePublicKeyPath, "utf8"),
+        fs.readFile(fileUploadServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
     ]);
 
@@ -103,6 +109,7 @@ async function main() {
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
             TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,
             JOB_QUEUE_SERVICE_PUBLIC_KEY: jobQueueServicePublicKey,
+            FILE_UPLOAD_SERVICE_PUBLIC_KEY: fileUploadServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             FILE_UPLOAD_SERVICE_HOSTNAME: fileUploadServiceHostname,
             HONEYCOMB_API_KEY: honeycombApiKey,

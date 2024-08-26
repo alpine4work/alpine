@@ -35,7 +35,7 @@ export type SchemaSerializedCompositeValueDescription =
     | SchemaSerializedArrayValueDescription
     | SchemaSerializedObjectValueDescription
     | SchemaSerializedUnionValueDescription
-    | SchemaSerializedResultValueDescription
+    | SchemaSerializedBooleanUnionValueDescription
     | SchemaSerializedSetValueDescription
     | SchemaSerializedMapValueDescription
     | SchemaSerializedTupleValueDescription;
@@ -70,10 +70,11 @@ export type SchemaSerializedUnionValueDescription = {
     };
 };
 
-export type SchemaSerializedResultValueDescription = {
-    readonly type: "Result";
-    readonly okSchema: SchemaSerializedValueDescription;
-    readonly errorSchema: SchemaSerializedValueDescription;
+export type SchemaSerializedBooleanUnionValueDescription = {
+    readonly type: "BooleanUnion";
+    readonly typeKey: string;
+    readonly trueSchema: SchemaSerializedValueDescription;
+    readonly falseSchema: SchemaSerializedValueDescription;
 };
 
 export type SchemaSerializedSetValueDescription = {

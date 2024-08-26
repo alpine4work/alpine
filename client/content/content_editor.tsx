@@ -1031,6 +1031,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // some slice of ProseMirror content around.
                 if (
                     context !== null &&
+                    spaceContext !== null &&
                     slice.size === 0 &&
                     event.dataTransfer &&
                     event.dataTransfer.files.length > 0
@@ -1047,11 +1048,11 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                     await fetchWithTracer(
                                         context.tracer.getTracer(),
-                                        "/api/files/upload",
+                                        `/api/files/${spaceContext.space.id}/upload`,
                                         {
                                             serviceName: "FileUploadService",
                                             method: "POST",
-                                            route: "/api/files/upload",
+                                            route: "/api/files/:spaceId/upload",
                                             headers: {
                                                 // TODO(calebmer, #files): Validate content type. If
                                                 // content type is unsupported we shouldn't prevent

@@ -43,6 +43,12 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["@smithy/util-buffer-from", ["2.2.0", "3.0.0"]],
     ["@smithy/util-utf8", ["2.3.0", "3.0.0"]],
 
+    // We keep using Miniflare v2 in our development environment since it runs in
+    // a Node.js environment instead of a custom JavaScript VM (backed by
+    // `workerd`). This makes programs running with Miniflare v2 easier to debug
+    // since we can use the usual Node.js debugging processes.
+    ["miniflare", ["2.14.2", "3.20230628.0"]],
+
     // NOTE(calebmer, 2024-08-13): Duplicate packages after adding dependencies
     // for `aws-cdk` to `packageExtensions` that we can't easily resolve but
     // shouldn't cause issues.
@@ -54,6 +60,10 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["socks-proxy-agent", ["6.2.1", "8.0.4"]],
     ["sprintf-js", ["1.0.3", "1.1.3"]],
     ["yaml", ["1.10.2", "2.5.0"]],
+
+    // NOTE(calebmer, 2024-08-26): We started using `whatwg-mimetype` but a
+    // dependency has an older major version.
+    ["whatwg-mimetype", ["3.0.0", "4.0.0"]],
 
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
@@ -161,7 +171,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["micromark", ["3.1.0", "4.0.0"]],
     ["mime", ["1.6.0", "2.6.0", "3.0.0"]],
     ["mimic-fn", ["2.1.0", "4.0.0"]],
-    ["miniflare", ["2.14.0", "3.20230628.0"]],
     ["minimatch", ["3.1.2", "5.1.1", "9.0.5"]],
     ["minipass", ["3.3.4", "7.1.1"]],
     ["ms", ["2.0.0", "2.1.2", "2.1.3"]],
@@ -205,7 +214,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["tslib", ["1.14.1", "2.4.0", "2.6.3"]],
     ["type-fest", ["0.20.2", "0.21.3"]],
     ["type", ["1.2.0", "2.7.2"]],
-    ["undici", ["5.20.0", "6.17.0"]],
+    ["undici", ["5.28.2", "6.17.0"]],
     ["unique-filename", ["1.1.1", "3.0.0"]],
     ["unique-slug", ["2.0.2", "4.0.0"]],
     ["unist-util-is", ["5.1.1", "6.0.0"]],

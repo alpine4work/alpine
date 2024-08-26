@@ -16,8 +16,55 @@ import {
 import {ErrorBase, UnknownError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
+
+// This Cloudflare R2 client uses the Node.js AWS SDK so shouldn't be used in
+// a Cloudflare Worker. In a Cloudflare Worker there's the `R2Bucket` binding
+// you should use.
+assert(process.versions.node);
+
+export interface CloudflareR2ClientBase {
+    /**
+     * S3 [`GetObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    GetObject(tracer: TracerBase, input: GetObjectCommandInput): Promise<GetObjectCommandOutput>;
+
+    /**
+     * S3 [`HeadObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    HeadObject(tracer: TracerBase, input: HeadObjectCommandInput): Promise<HeadObjectCommandOutput>;
+
+    /**
+     * S3 [`PutObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    PutObject(tracer: TracerBase, input: PutObjectCommandInput): Promise<PutObjectCommandOutput>;
+
+    /**
+     * S3 [`DeleteObject`][1] action. See [Cloudflare R2 S3 API compatibility
+     * notes][2].
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
+     * [2]: https://developers.cloudflare.com/r2/api/s3/api/
+     */
+    DeleteObject(
+        tracer: TracerBase,
+        input: DeleteObjectCommandInput,
+    ): Promise<DeleteObjectCommandOutput>;
+}
 
 /**
  * Client to [Cloudflare's R2 object storage service][1].
@@ -27,7 +74,7 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  *
  * [1]: https://developers.cloudflare.com/r2/
  */
-export class CloudflareR2Client {
+export class CloudflareR2Client implements CloudflareR2ClientBase {
     // We use an AWS S3 client for accessing Cloudflare R2 (which is API compatible
     // with S3) because the S3 client is well known and well maintained. Cloudflare
     // does not provide their own client for Node.js besides the [client available

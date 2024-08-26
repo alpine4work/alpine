@@ -172,6 +172,10 @@ export class AwsJobQueueService extends Construct {
                     secrets,
                     "jobQueueServicePublicKey",
                 ),
+                FILE_UPLOAD_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "fileUploadServicePublicKey",
+                ),
                 JOB_QUEUE_SERVICE_PRIVATE_KEY: EcsSecret.fromSecretsManager(
                     secrets,
                     "jobQueueServicePrivateKey",
@@ -228,6 +232,7 @@ export class AwsJobQueueService extends Construct {
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
                     "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
+                    "--fileUploadServicePublicKey=\\$FILE_UPLOAD_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$JOB_QUEUE_SERVICE_PRIVATE_KEY",
                     "--apnsCertificate=\\$APNS_CERTIFICATE",
                     "--apnsCertificatePrivateKey=\\$APNS_CERTIFICATE_PRIVATE_KEY",

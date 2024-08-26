@@ -1,7 +1,7 @@
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
 
 /**
  * File preview placeholder blur image.
@@ -32,7 +32,7 @@ export const FilePreviewPlaceholder = createSchemaLazyTransformClass<
             readonly r: number;
             readonly g: number;
             readonly b: number;
-            readonly alpha: number | undefined;
+            readonly alpha?: number;
         }>
     >
 >(Schema.tuple([Schema.boolean, Schema.integer, Schema.bytes]), {
@@ -64,11 +64,10 @@ export const FilePreviewPlaceholder = createSchemaLazyTransformClass<
             }
         }
 
-        return [hasAlphaChannel, width, data];
+        return [hasAlphaChannel, width, new JsonStringifiableUint8Array(data)];
     },
     deserialize: ([hasAlphaChannel, width, data]) => {
         const channelCount = hasAlphaChannel ? 4 : 3;
-        const pixelCount = data.length / channelCount;
 
         const pixelGrid: Array<
             Array<{
@@ -79,7 +78,7 @@ export const FilePreviewPlaceholder = createSchemaLazyTransformClass<
             }>
         > = [[]];
 
-        for (let i = 0; i < pixelCount; i++) {
+        for (let i = 0; i < data.length; i += channelCount) {
             const r = data[i]!;
             const g = data[i + 1]!;
             const b = data[i + 2]!;

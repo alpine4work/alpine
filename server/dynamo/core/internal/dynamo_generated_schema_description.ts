@@ -2923,6 +2923,203 @@ export const dynamoGeneratedSchemaDescription: {
             },
             "indexes": []
         },
+        "Files": {
+            "name": "Files",
+            "partitionByType": {
+                "Space": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "FileTotals": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "count": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "contentLength": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "File": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "fileId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "contentType": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "image/png",
+                                                "image/jpeg"
+                                            ]
+                                        },
+                                        "optional": false
+                                    },
+                                    "contentLength": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "uploaderId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "isUploading": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "preview": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "BooleanUnion",
+                                                "typeKey": "isProcessing",
+                                                "trueSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "isProcessing": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": true
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "size": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "width": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "height": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "placeholder": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Tuple",
+                                                                    "elementSchemas": [
+                                                                        {
+                                                                            "type": "Boolean"
+                                                                        },
+                                                                        {
+                                                                            "type": "Integer"
+                                                                        },
+                                                                        {
+                                                                            "type": "Bytes"
+                                                                        }
+                                                                    ],
+                                                                    "referenceId": "381ba747"
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "falseSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "isProcessing": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": false
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "size": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "width": {
+                                                                        "valueSchema": {
+                                                                            "type": "Integer"
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "height": {
+                                                                        "valueSchema": {
+                                                                            "type": "Integer"
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "placeholder": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "381ba747"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": []
+        },
         "Forum": {
             "name": "Forum",
             "partitionByType": {

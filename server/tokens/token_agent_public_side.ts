@@ -31,6 +31,8 @@ export class TokenAgentPublicSide {
     private readonly _taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
     private readonly _jobQueueServicePublicKeyForRs256: KeyLike;
     private readonly _jobQueueServicePublicKeyForRsaOaep: KeyLike;
+    private readonly _fileUploadServicePublicKeyForRs256: KeyLike;
+    private readonly _fileUploadServicePublicKeyForRsaOaep: KeyLike;
 
     private constructor({
         serviceName,
@@ -42,6 +44,8 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKeyForRsaOaep,
         jobQueueServicePublicKeyForRs256,
         jobQueueServicePublicKeyForRsaOaep,
+        fileUploadServicePublicKeyForRs256,
+        fileUploadServicePublicKeyForRsaOaep,
     }: {
         serviceName: TokenServiceName;
         appServicePublicKeyForRs256: KeyLike;
@@ -52,6 +56,8 @@ export class TokenAgentPublicSide {
         taskRealtimeServicePublicKeyForRsaOaep: KeyLike;
         jobQueueServicePublicKeyForRs256: KeyLike;
         jobQueueServicePublicKeyForRsaOaep: KeyLike;
+        fileUploadServicePublicKeyForRs256: KeyLike;
+        fileUploadServicePublicKeyForRsaOaep: KeyLike;
     }) {
         this._serviceName = serviceName;
         this._appServicePublicKeyForRs256 = appServicePublicKeyForRs256;
@@ -62,6 +68,8 @@ export class TokenAgentPublicSide {
         this._taskRealtimeServicePublicKeyForRsaOaep = taskRealtimeServicePublicKeyForRsaOaep;
         this._jobQueueServicePublicKeyForRs256 = jobQueueServicePublicKeyForRs256;
         this._jobQueueServicePublicKeyForRsaOaep = jobQueueServicePublicKeyForRsaOaep;
+        this._fileUploadServicePublicKeyForRs256 = fileUploadServicePublicKeyForRs256;
+        this._fileUploadServicePublicKeyForRsaOaep = fileUploadServicePublicKeyForRsaOaep;
     }
 
     public static async new({
@@ -70,12 +78,14 @@ export class TokenAgentPublicSide {
         edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyString,
         taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyString,
         jobQueueServicePublicKey: jobQueueServicePublicKeyString,
+        fileUploadServicePublicKey: fileUploadServicePublicKeyString,
     }: {
         serviceName: TokenServiceName;
         appServicePublicKey: string;
         edgeServiceFamilyPublicKey: string;
         taskRealtimeServicePublicKey: string;
         jobQueueServicePublicKey: string;
+        fileUploadServicePublicKey: string;
     }) {
         const [
             appServicePublicKeyForRs256,
@@ -86,6 +96,8 @@ export class TokenAgentPublicSide {
             taskRealtimeServicePublicKeyForRsaOaep,
             jobQueueServicePublicKeyForRs256,
             jobQueueServicePublicKeyForRsaOaep,
+            fileUploadServicePublicKeyForRs256,
+            fileUploadServicePublicKeyForRsaOaep,
         ] = await runAllPromises([
             importSPKI(appServicePublicKeyString, "RS256"),
             importSPKI(appServicePublicKeyString, "RSA-OAEP"),
@@ -95,6 +107,8 @@ export class TokenAgentPublicSide {
             importSPKI(taskRealtimeServicePublicKeyString, "RSA-OAEP"),
             importSPKI(jobQueueServicePublicKeyString, "RS256"),
             importSPKI(jobQueueServicePublicKeyString, "RSA-OAEP"),
+            importSPKI(fileUploadServicePublicKeyString, "RS256"),
+            importSPKI(fileUploadServicePublicKeyString, "RSA-OAEP"),
         ]);
 
         return new TokenAgentPublicSide({
@@ -107,6 +121,8 @@ export class TokenAgentPublicSide {
             taskRealtimeServicePublicKeyForRsaOaep,
             jobQueueServicePublicKeyForRs256,
             jobQueueServicePublicKeyForRsaOaep,
+            fileUploadServicePublicKeyForRs256,
+            fileUploadServicePublicKeyForRsaOaep,
         });
     }
 
@@ -126,6 +142,8 @@ export class TokenAgentPublicSide {
                 return this._taskRealtimeServicePublicKeyForRs256;
             case "JobQueueService":
                 return this._jobQueueServicePublicKeyForRs256;
+            case "FileUploadService":
+                return this._fileUploadServicePublicKeyForRs256;
             default:
                 throw exhaustive(serviceName);
         }
@@ -147,6 +165,8 @@ export class TokenAgentPublicSide {
                 return this._taskRealtimeServicePublicKeyForRsaOaep;
             case "JobQueueService":
                 return this._jobQueueServicePublicKeyForRsaOaep;
+            case "FileUploadService":
+                return this._fileUploadServicePublicKeyForRsaOaep;
             default:
                 throw exhaustive(serviceName);
         }

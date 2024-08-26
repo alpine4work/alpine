@@ -7,9 +7,9 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
-import {createServerProcessContextModule} from "~/server/node/create_server_process_context_module.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -46,7 +46,15 @@ export function createServerProcessContext({
     options: ServerProcessContextOptions;
 }): ServerProcessContext {
     return Context.new<ServerProcessContextModules>({
-        process: createServerProcessContextModule({tracer, shutdownManager}),
+        process: new ProcessContextModule({
+            waitUntil: promise => {
+                shutdownManager.registerWaitUntilPromise(
+                    promise.catch(error => {
+                        tracer.logUncaughtException("Uncaught exception from `waitUntil()`", error);
+                    }),
+                );
+            },
+        }),
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new({
             url:

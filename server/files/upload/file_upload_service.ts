@@ -1,30 +1,43 @@
 import {IncomingMessage, ServerResponse, createServer} from "http";
-import {uploadFile} from "~/server/files/upload/internal/upload_file.js";
+import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {FileUploadServiceProcessContext} from "~/server/files/upload/file_upload_service_context.js";
+import {uploadFile} from "~/server/files/upload/upload_file.js";
 import {createStandardizedRequestHeaders} from "~/server/node/create_standardized_server.js";
+import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {
     addRequestTracerSpanData,
     startTracerSpanFromPropagationContextHeader,
 } from "~/server/tracer/trace_server_response.js";
-import {Context} from "~/shared/context/context.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {isId} from "~/shared/id/id.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {obfuscateSetCookieHeaderString} from "~/shared/tracer/fetch_with_tracer.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-export type FileUploadServiceRoute = {readonly type: "NotFound"} | {readonly type: "Upload"};
+export type FileUploadServiceRoute =
+    | {readonly type: "NotFound"}
+    | {readonly type: "Upload"; readonly spaceId: SpaceId};
 
 export function createFileUploadService(
-    tracer: TracerRoot,
-    processContext: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+    processContext: FileUploadServiceProcessContext,
+    tokenAgent: TokenAgent,
 ) {
+    const tracer = processContext.tracer.getRoot();
+
     function parseRoute(url: URL): [string, FileUploadServiceRoute] {
-        if (url.pathname === "/upload") {
-            return [url.pathname, {type: "Upload"}];
+        const pathnameParts = url.pathname.slice(1).split("/");
+        const firstPathnamePart = pathnameParts[0];
+
+        if (firstPathnamePart && isId<SpaceId>(firstPathnamePart)) {
+            if (pathnameParts.length === 2 && pathnameParts[1] === "upload") {
+                return ["/:spaceId/upload", {type: "Upload", spaceId: firstPathnamePart}];
+            }
         }
 
         return ["/*", {type: "NotFound"}];
@@ -38,25 +51,30 @@ export function createFileUploadService(
         req: IncomingMessage,
         res: ServerResponse<IncomingMessage>,
     ) {
-        switch (route.type) {
-            case "NotFound": {
-                res.writeHead(404, {"content-type": "text/plain"});
-                res.end("404 Not Found");
-                break;
-            }
-            case "Upload": {
-                return uploadFile(
-                    processContext.clone({tracer: new TracerContextModule(span)}),
-                    span,
-                    url,
-                    headers,
-                    req,
-                    res,
-                );
-            }
-            default:
-                throw exhaustive(route);
+        if (route.type === "NotFound") {
+            res.writeHead(404, {"content-type": "text/plain"});
+            res.end("404 Not Found");
+            return;
         }
+
+        const {spaceId} = route;
+
+        const baseActionContext = processContext.clone({
+            tracer: new TracerContextModule(span),
+            cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
+        });
+
+        const actorContextModule = await createDynamoActorContextModule(
+            baseActionContext,
+            headers,
+            tokenAgent,
+            spaceId,
+        );
+
+        return baseActionContext.with({actor: actorContextModule}, context =>
+            uploadFile(context, span, route, url, headers, req, res),
+        );
     }
 
     // We don't use `createStandardizedServer()` for `FileUploadService` because we
@@ -114,12 +132,18 @@ export function createFileUploadService(
                 if (res.headersSent) {
                     res.end();
                 } else {
-                    res.writeHead(500, {"content-type": "text/plain"});
+                    const statusCode = isSystemError(error) ? 500 : 400;
+                    const statusMessage =
+                        statusCode === 400 ? "Bad Request" : "Internal Server Error";
 
-                    if (process.env.NODE_ENV === "production" || !(error instanceof Error)) {
-                        res.end("500 Internal Server Error");
+                    res.writeHead(statusCode, {"content-type": "text/plain"});
+
+                    if (process.env.NODE_ENV !== "development" || !(error instanceof Error)) {
+                        res.end(`${statusCode} ${statusMessage}`);
                     } else {
-                        res.end(`500 Internal Server Error\n\n${error.stack ?? error.message}`);
+                        res.end(
+                            `${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`,
+                        );
                     }
                 }
             }

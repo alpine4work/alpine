@@ -117,6 +117,8 @@ const sqsLocalLogsPath = joinPath(devEnvPaths.log, "sqs");
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
 const sqsLocalStatsPort = parsePort(env.SQS_LOCAL_STATS_PORT);
 
+const cloudflareR2LocalDataPath = joinPath(devEnvPaths.data, "r2");
+
 const keysDirectoryPath = joinPath(devEnvPaths.config, "keys");
 
 const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
@@ -133,6 +135,9 @@ const taskRealtimeServicePublicKeyPath = joinPath(
 
 const jobQueueServicePrivateKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa");
 const jobQueueServicePublicKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa.pub");
+
+const fileUploadServicePrivateKeyPath = joinPath(keysDirectoryPath, "file_upload_service_rsa");
+const fileUploadServicePublicKeyPath = joinPath(keysDirectoryPath, "file_upload_service_rsa.pub");
 
 const apnsCertificatePath = joinPath(
     runfilesPath,
@@ -282,12 +287,13 @@ async function createArtifacts() {
                 "--viteDev",
                 `--viteCachePath=${joinPath(devEnvPaths.cache, "vite")}`,
                 `--bazelDevServerPort=${bazelDevServerPort}`,
-                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--appServicePublicKey=${appServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
+                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 "--shouldSeedDynamo",
                 `--dynamoLocalPort=${dynamoLocalPort}`,
@@ -328,6 +334,7 @@ async function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--fileUploadServiceHostname=localhost:${fileUploadDevPort}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
@@ -352,6 +359,7 @@ async function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
@@ -371,6 +379,7 @@ async function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
@@ -397,6 +406,16 @@ async function createArtifacts() {
             },
             args: [
                 `--inspectorPort=${fileUploadInspectorDevPort}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--servicePrivateKey=${fileUploadServicePrivateKeyPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
+                `--dynamoLocalPort=${dynamoLocalPort}`,
+                `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--cloudflareR2LocalPath=${cloudflareR2LocalDataPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

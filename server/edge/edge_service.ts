@@ -33,6 +33,7 @@ type EdgeServiceEnv = {
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
     JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
+    FILE_UPLOAD_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     FILE_UPLOAD_SERVICE_HOSTNAME?: string;
     HONEYCOMB_API_KEY?: string;
@@ -180,7 +181,7 @@ async function handleFetch(
         | {type: "MyAccountService"; accountId: string; pathname: string}
         | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
         | {type: "TaskRealtimeService"; spaceId: SpaceId}
-        | {type: "UploadFile"} = "AppService";
+        | {type: "UploadFile"; spaceId: SpaceId} = "AppService";
 
     if (!url.pathname.startsWith("/api/")) {
         // Route to `AppService`...
@@ -272,10 +273,17 @@ async function handleFetch(
     } else if (
         // TODO(calebmer, #files): Deploy `FileUploadService` to production.
         process.env.NODE_ENV === "development" &&
-        url.pathname === "/api/files/upload"
+        url.pathname.startsWith("/api/files/")
     ) {
-        routeString = "/api/files/upload";
-        route = {type: "UploadFile"};
+        const pathSegments = url.pathname.slice("/api/files/".length).split("/");
+        if (
+            pathSegments.length === 2 &&
+            isId<SpaceId>(pathSegments[0]!) &&
+            pathSegments[1] === "upload"
+        ) {
+            routeString = "/api/files/:spaceId/upload";
+            route = {type: "UploadFile", spaceId: pathSegments[0]};
+        }
     }
 
     return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
@@ -304,6 +312,12 @@ async function handleFetch(
                 if (!jobQueueServicePublicKey)
                     throw new InternalError("Missing `JOB_QUEUE_SERVICE_PUBLIC_KEY` env variable");
 
+                const fileUploadServicePublicKey = env.FILE_UPLOAD_SERVICE_PUBLIC_KEY;
+                if (!fileUploadServicePublicKey)
+                    throw new InternalError(
+                        "Missing `FILE_UPLOAD_SERVICE_PUBLIC_KEY` env variable",
+                    );
+
                 const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
                 if (!edgeServiceFamilyPrivateKey)
                     throw new InternalError(
@@ -317,6 +331,7 @@ async function handleFetch(
                         edgeServiceFamilyPublicKey,
                         taskRealtimeServicePublicKey,
                         jobQueueServicePublicKey,
+                        fileUploadServicePublicKey,
                     }),
                     TokenAgentPrivateSide.new({
                         serviceName: "EdgeService",
@@ -487,8 +502,23 @@ async function handleFetch(
                     const headers = new Headers(request.headers);
                     addTracerPropagationContextHeader(headers, span);
 
+                    // We authenticate with an `Authorization` not a `Cookie` header.
+                    headers.delete("cookie");
+
+                    // When connecting to `FileUploadService` via the edge, you must authenticate
+                    // with a session cookie. `Authorization` headers are ignored.
+                    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+                    if (!sessionCookieToken) throw unauthenticatedSessionError();
+
+                    const requestToken =
+                        await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                            "FileUploadService",
+                            sessionCookieToken,
+                        );
+                    headers.set("authorization", `bearer ${requestToken}`);
+
                     // eslint-disable-next-line no-global-fetch
-                    return fetch(`http://${fileUploadServiceHostname}/upload`, {
+                    return fetch(`http://${fileUploadServiceHostname}/${route.spaceId}/upload`, {
                         method: request.method,
                         headers,
                         body: request.body,

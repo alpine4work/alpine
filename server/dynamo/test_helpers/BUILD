@@ -23,6 +23,7 @@ ts_project(
         "//server/notifications/core",
         "//server/opensearch",
         "//server/spaces",
+        "//server/tokens",
         "//server/tracer",
         "//shared/context",
         "//shared/helpers",

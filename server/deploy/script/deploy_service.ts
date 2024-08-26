@@ -1,7 +1,7 @@
 import {createActionAuth} from "@octokit/auth-action";
+import {CloudflareR2Client} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {GithubContextModule} from "~/server/deploy/data/github_context_module.js";
-import {CloudflareR2Client} from "~/server/deploy/script/internal/cloudflare_r2_client.js";
-import {CloudflareR2ContextModule} from "~/server/deploy/script/internal/cloudflare_r2_context_module.js";
 import {deploy} from "~/server/deploy/script/internal/deploy.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
@@ -87,7 +87,7 @@ export async function run({
             // variables.
             createActionAuth().hook,
         ),
-        cloudflareR2: new CloudflareR2ContextModule(
+        r2: new CloudflareR2ContextModule(
             new CloudflareR2Client({
                 accountId: cloudflareAccountId,
                 accessKeyId: cloudflareR2AccessKeyId,

@@ -12,6 +12,7 @@ export const serviceTokenAgentParseOptions = {
     edgeServiceFamilyPublicKey: {type: "string"},
     taskRealtimeServicePublicKey: {type: "string"},
     jobQueueServicePublicKey: {type: "string"},
+    fileUploadServicePublicKey: {type: "string"},
     servicePrivateKey: {type: "string"},
 } as const;
 
@@ -20,6 +21,7 @@ export type ServiceTokenAgentOptions = {
     readonly edgeServiceFamilyPublicKey?: string;
     readonly taskRealtimeServicePublicKey?: string;
     readonly jobQueueServicePublicKey?: string;
+    readonly fileUploadServicePublicKey?: string;
     readonly servicePrivateKey?: string;
 };
 
@@ -51,6 +53,8 @@ export async function createServiceTokenAgent<
         throw new InternalError("Missing `taskRealtimeServicePublicKey` option");
     if (!options.jobQueueServicePublicKey)
         throw new InternalError("Missing `jobQueueServicePublicKey` option");
+    if (!options.fileUploadServicePublicKey)
+        throw new InternalError("Missing `fileUploadServicePublicKey` option");
     if (!options.servicePrivateKey) throw new InternalError("Missing `servicePrivateKey` option");
 
     const [
@@ -58,12 +62,14 @@ export async function createServiceTokenAgent<
         edgeServiceFamilyPublicKey,
         taskRealtimeServicePublicKey,
         jobQueueServicePublicKey,
+        fileUploadServicePublicKey,
         servicePrivateKey,
     ] = await runAllPromises([
         getServiceTokenAgentKeyFromOption(options.appServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.edgeServiceFamilyPublicKey),
         getServiceTokenAgentKeyFromOption(options.taskRealtimeServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.jobQueueServicePublicKey),
+        getServiceTokenAgentKeyFromOption(options.fileUploadServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.servicePrivateKey),
     ]);
 
@@ -74,6 +80,7 @@ export async function createServiceTokenAgent<
             edgeServiceFamilyPublicKey,
             taskRealtimeServicePublicKey,
             jobQueueServicePublicKey,
+            fileUploadServicePublicKey,
         }),
         privateSideClass.new({
             serviceName,

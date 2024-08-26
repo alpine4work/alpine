@@ -60,6 +60,15 @@ export function createSchemaLazyTransformClass<SerializedValue, DeserializedValu
 
             this._serializedValue = serializedValue;
             this._deserializedValue = deserializedValue;
+
+            // In Jest eagerly call `get()` and `serialize()` which caches the
+            // serialized/deserialized data so `expect().toEqual()` never shows uncached
+            // data as the reason why two objects don't match. Seeing the cached data can
+            // also help determine the difference in a diff.
+            if (import.meta.jest) {
+                this.get();
+                this.serialize();
+            }
         }
 
         public static fromSerialized(serializedValue: SerializedValue) {

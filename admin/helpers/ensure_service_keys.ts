@@ -117,5 +117,32 @@ export async function ensureServiceKeys(directoryPath: string) {
                 fs.writeFile(joinPath(directoryPath, "job_queue_service_rsa.pub"), publicKey),
             ]);
         })(),
+        (async () => {
+            if (await fs.pathExists(joinPath(directoryPath, "file_upload_service_rsa"))) return;
+            await fs.ensureDir(directoryPath);
+
+            const {publicKey, privateKey} = await new Promise<{
+                publicKey: string;
+                privateKey: string;
+            }>((resolve, reject) =>
+                generateKeyPair(
+                    "rsa",
+                    {
+                        modulusLength: 2048,
+                        publicKeyEncoding: {type: "spki", format: "pem"},
+                        privateKeyEncoding: {type: "pkcs8", format: "pem"},
+                    },
+                    (error, publicKey, privateKey) => {
+                        if (error) reject(error);
+                        else resolve({publicKey, privateKey});
+                    },
+                ),
+            );
+
+            await runAllPromises([
+                fs.writeFile(joinPath(directoryPath, "file_upload_service_rsa"), privateKey),
+                fs.writeFile(joinPath(directoryPath, "file_upload_service_rsa.pub"), publicKey),
+            ]);
+        })(),
     ]);
 }

@@ -149,7 +149,7 @@ export async function run({
                         const oldModule = module;
 
                         module = (await viteDevServer!.ssrLoadModule(
-                            "/app/app_server.js",
+                            "/app/app_service.js",
                         )) as AppServiceModule;
 
                         // If the `app_server.ts` module changed then run shutdown listeners from the

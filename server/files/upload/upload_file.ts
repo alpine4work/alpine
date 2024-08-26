@@ -1,33 +1,47 @@
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import createSharp from "sharp";
-import {FilePreviewPlaceholder} from "~/server/files/upload/internal/file_preview_placeholder.js";
+import {startUploadingAndProcessingFile} from "~/server/files/data/files_table.js";
+import {FileUploadServiceActionContext} from "~/server/files/upload/file_upload_service_context.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     ErrorBase,
-    FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
+    PermissionDeniedError,
     UnknownError,
 } from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {
+    FileContentType,
+    isFileContentType,
+    normalizeContentType,
+} from "~/shared/files/file_content_type.js";
+import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+export const filesR2BucketName = "cyberworlds-files";
 
 type UploadFileEvent = SchemaType<typeof UploadFileEventSchema>;
 
 export const UploadFileEventSchema = Schema.union({
-    Ok: Schema.object({
-        type: Schema.value("Ok"),
+    Start: Schema.object({
+        type: Schema.value("Start"),
+        fileId: Schema.id<FileId>(),
+    }),
+    Finish: Schema.object({
+        type: Schema.value("Finish"),
     }),
     PreviewSize: Schema.object({
         type: Schema.value("PreviewSize"),
@@ -45,36 +59,15 @@ export const UploadFileEventSchema = Schema.union({
 });
 
 export async function uploadFile(
-    context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+    context: FileUploadServiceActionContext,
     span: TracerSpan,
+    route: {spaceId: SpaceId},
     url: URL,
     headers: Headers,
     req: IncomingMessage,
     res: ServerResponse<IncomingMessage>,
 ): Promise<void> {
-    // Keep track of the amount of time it takes to get the file's preview size.
-    // Once we have the file's preview size, that's when the client can add the
-    // file to whatever content the user is editing.
-    let hasFinishedPreviewSizeSpan = false;
-    const {span: previewSizeSpan, finishSpan: finishPreviewSizeSpan} =
-        span.startSpan("Get file preview size");
-
-    let hasFinishedPreviewPlaceholderSpan = false;
-    const {span: previewPlaceholderSpan, finishSpan: finishPreviewPlaceholderSpan} = span.startSpan(
-        "Get file preview placeholder",
-    );
-
     const sendEvent = (event: UploadFileEvent) => {
-        if (event.type === "PreviewSize") {
-            hasFinishedPreviewSizeSpan = true;
-            finishPreviewSizeSpan();
-        }
-
-        if (event.type === "PreviewPlaceholder") {
-            hasFinishedPreviewPlaceholderSpan = true;
-            finishPreviewPlaceholderSpan();
-        }
-
         if (!res.headersSent) {
             res.writeHead(200, {"content-type": "application/x-ndjson"});
         }
@@ -85,51 +78,13 @@ export async function uploadFile(
     };
 
     try {
-        await actuallyUploadFile(context, url, headers, req, sendEvent);
-
-        if (!hasFinishedPreviewSizeSpan) {
-            previewSizeSpan.addException(new InternalError("Didn't get file preview size"));
-
-            hasFinishedPreviewSizeSpan = true;
-            finishPreviewSizeSpan();
-        }
-
-        if (!hasFinishedPreviewPlaceholderSpan) {
-            previewPlaceholderSpan.addException(
-                new InternalError("Didn't get file preview placeholder"),
-            );
-
-            hasFinishedPreviewPlaceholderSpan = true;
-            finishPreviewPlaceholderSpan();
-        }
+        await actuallyUploadFile(context, span, route, url, headers, req, sendEvent);
 
         if (!res.writableEnded) {
             res.end();
         }
     } catch (error) {
         span.addException(error);
-
-        // Use non-system error code since we probably were't able to get the file
-        // preview size because of the error that was thrown.
-        if (!hasFinishedPreviewSizeSpan) {
-            previewSizeSpan.addException(
-                new FailedPreconditionError("Didn't get file preview size"),
-            );
-
-            hasFinishedPreviewSizeSpan = true;
-            finishPreviewSizeSpan();
-        }
-
-        // Use non-system error code since we probably were't able to get the file
-        // preview size because of the error that was thrown.
-        if (!hasFinishedPreviewPlaceholderSpan) {
-            previewPlaceholderSpan.addException(
-                new FailedPreconditionError("Didn't get file preview placeholder"),
-            );
-
-            hasFinishedPreviewPlaceholderSpan = true;
-            finishPreviewPlaceholderSpan();
-        }
 
         // If we haven't sent headers yet, make sure we write the head with an error
         // status code. If we've already sent an event we're unfortunately stuck with
@@ -154,25 +109,38 @@ export async function uploadFile(
 const maxFileByteSize = 1e9;
 
 async function actuallyUploadFile(
-    context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+    originalContext: FileUploadServiceActionContext,
+    span: TracerSpan,
+    {spaceId}: {spaceId: SpaceId},
     url: URL,
     headers: Headers,
     req: IncomingMessage,
     sendEvent: (event: UploadFileEvent) => void,
 ): Promise<void> {
+    // Make sure we've been proxied through `EdgeService` when uploading a file. We
+    // don't support uploading directly from other services like `JobQueueService`.
+    if (originalContext.actor.serviceName !== "EdgeService")
+        throw new PermissionDeniedError("Only `EdgeService` can upload a file");
+
+    const context = originalContext.actor.authorizeSession();
+
+    await authorizeSpaceAccess(context, spaceId);
+
     if (req.method !== "POST") throw new InvalidArgumentError('Must use "POST" method');
 
-    let contentType = headers.get("content-type");
-    if (contentType === null) throw new InvalidArgumentError('"Content-Type" header is required');
+    const originalContentType = headers.get("content-type");
+    if (originalContentType === null)
+        throw new InvalidArgumentError('"Content-Type" header is required');
 
-    const originalContentType = contentType;
-    contentType = contentType.split(";", 2)[0]!.toLowerCase();
+    const normalizedContentType = normalizeContentType(originalContentType);
 
-    if (!isFileContentType(contentType)) {
+    if (!isFileContentType(normalizedContentType)) {
         throw new InvalidArgumentError(
             quote`Unsupported "Content-Type" header ${originalContentType}`,
         );
     }
+
+    const contentType = normalizedContentType;
 
     const contentLengthString = headers.get("content-length");
     if (contentLengthString === null) {
@@ -196,35 +164,89 @@ async function actuallyUploadFile(
         );
     }
 
-    const uploadFileContentType = uploadFileByContentType[contentType];
+    span.addData({file: {contentType, contentLength}});
 
-    await uploadFileContentType(context, req, sendEvent);
+    const processFilePreview = processFilePreviewByContentType[contentType];
+
+    // TODO(calebmer, #files): Cleanup in case upload or processing fails?
+    // TODO(calebmer, #files): Multipart uploads?
+    const fileUploader = await startUploadingAndProcessingFile(context, {
+        spaceId,
+        contentType,
+        contentLength,
+        hasPreview: !!processFilePreview,
+    });
+
+    span.addPropagatedData({context: {fileId: fileUploader.fileId}});
+
+    sendEvent({type: "Start", fileId: fileUploader.fileId});
+
+    await runAllPromises([
+        (async () => {
+            await context.r2.PutObject({
+                Bucket: filesR2BucketName,
+                Key: `${spaceId}/${fileUploader.fileId}`,
+                ContentType: contentType,
+                Body: req,
+            });
+
+            await fileUploader.finishUploading(context);
+        })(),
+        processFilePreview
+            ? context.tracer.withSpan("Process file preview", async (context, span) => {
+                  span.addData({file: {contentType, contentLength}});
+
+                  const {sizePromise, placeholderPromise} = processFilePreview(context, req);
+
+                  await runAllPromises([
+                      span.withSpan("Process file preview size", async span => {
+                          span.addData({file: {contentType, contentLength}});
+
+                          const size = await sizePromise;
+
+                          await fileUploader.finishProcessingPreviewSize(context, size);
+                          sendEvent({type: "PreviewSize", width: size.width, height: size.height});
+                      }),
+                      span.withSpan("Process file preview placeholder", async span => {
+                          span.addData({file: {contentType, contentLength}});
+
+                          const placeholder = await placeholderPromise;
+
+                          await fileUploader.finishProcessingPreviewPlaceholder(
+                              context,
+                              placeholder,
+                          );
+                          sendEvent({type: "PreviewPlaceholder", placeholder});
+                      }),
+                  ]);
+              })
+            : null,
+    ]);
+
+    sendEvent({type: "Finish"});
 }
 
-type FileContentType = "image/png" | "image/jpeg";
-
-function isFileContentType(contentType: string): contentType is FileContentType {
-    return hasOwnProperty(uploadFileByContentType, contentType);
-}
-
-const uploadFileByContentType: {
-    [Key in FileContentType]: (
-        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
-        req: IncomingMessage,
-        sendEvent: (event: UploadFileEvent) => void,
-    ) => Promise<void>;
+const processFilePreviewByContentType: {
+    [Key in FileContentType]:
+        | ((
+              context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+              req: IncomingMessage,
+          ) => {
+              sizePromise: Promise<{width: number; height: number}>;
+              placeholderPromise: Promise<FilePreviewPlaceholder>;
+          })
+        | null;
 } = {
-    "image/png": createUploadImageFile("image/png"),
-    "image/jpeg": createUploadImageFile("image/jpeg"),
+    "image/png": createProcessImageFilePreview("image/png"),
+    "image/jpeg": createProcessImageFilePreview("image/jpeg"),
 };
 
-function createUploadImageFile(contentType: "image/png" | "image/jpeg") {
-    return async (
+function createProcessImageFilePreview(contentType: "image/png" | "image/jpeg") {
+    return (
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         req: IncomingMessage,
-        sendEvent: (event: UploadFileEvent) => void,
     ) => {
-        const metadataPromise = (async () => {
+        const sizePromise = (async () => {
             const sharp = createSharp({pages: 1});
 
             req.pipe(sharp);
@@ -254,11 +276,10 @@ function createUploadImageFile(contentType: "image/png" | "image/jpeg") {
                 throw new InternalError('Couldn\'t find "width" or "height" of image file');
             }
 
-            sendEvent({
-                type: "PreviewSize",
+            return {
                 width: metadata.width,
                 height: metadata.height,
-            });
+            };
         })();
 
         // Generate a placeholder image which we'll render before the browser has
@@ -273,7 +294,8 @@ function createUploadImageFile(contentType: "image/png" | "image/jpeg") {
 
             req.pipe(sharp);
 
-            const placeholderSize = 8;
+            // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
+            const placeholderSize = 5;
 
             const {
                 data,
@@ -288,30 +310,10 @@ function createUploadImageFile(contentType: "image/png" | "image/jpeg") {
 
             assert(channels === 3 || channels === 4);
 
-            const placeholder = FilePreviewPlaceholder.fromSerialized([
-                channels === 4,
-                width,
-                data,
-            ]);
-
-            sendEvent({
-                type: "PreviewPlaceholder",
-                placeholder,
-            });
+            return FilePreviewPlaceholder.fromSerialized([channels === 4, width, data]);
         })();
 
-        await runAllPromises([
-            metadataPromise.catch(error => {
-                // TODO(calebmer, #files): Cancel image upload?
-                throw error;
-            }),
-            placeholderPromise.catch(error => {
-                // TODO(calebmer, #files): Cancel image upload?
-                throw error;
-            }),
-        ]);
-
-        sendEvent({type: "Ok"});
+        return {sizePromise, placeholderPromise};
     };
 }
 

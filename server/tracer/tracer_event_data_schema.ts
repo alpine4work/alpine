@@ -177,6 +177,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         channelId: Schema.id(),
         postId: Schema.id(),
         chatId: Schema.id(),
+        fileId: Schema.id(),
         peek: {
             aboveDocumentId: Schema.id(),
             aboveChannelId: Schema.id(),
@@ -362,6 +363,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         newCommit: Schema.string,
         zonedTime: Schema.string,
         isTimeDeployable: Schema.boolean,
+    },
+    file: {
+        contentType: Schema.string,
+        contentLength: Schema.integer,
     },
 };
 

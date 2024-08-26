@@ -9,7 +9,7 @@ import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js"
 import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
 import {Context} from "~/shared/context/context.js";
 
-type JobQueueServiceProcessExtraContextModules = {
+type JobQueueServiceExtraContextModules = {
     edge: EdgeServiceContextModule;
     opensearch: OpensearchContextModule;
     languageModel: LanguageModelContextModule;
@@ -23,12 +23,12 @@ type JobQueueServiceActionExtraContextModules = {
 };
 
 export type JobQueueServiceProcessContextModules = ServerProcessContextModules &
-    JobQueueServiceProcessExtraContextModules;
+    JobQueueServiceExtraContextModules;
 
 export type JobQueueServiceProcessContext = Context<JobQueueServiceProcessContextModules>;
 
 export type JobQueueServiceSystemActionContextModules = ServerSystemActionContextModules &
-    JobQueueServiceProcessExtraContextModules &
+    JobQueueServiceExtraContextModules &
     JobQueueServiceActionExtraContextModules;
 
 export type JobQueueServiceSystemActionContext = Context<JobQueueServiceSystemActionContextModules>;
@@ -37,7 +37,7 @@ export type MaintenanceJobQueueServiceSystemActionContextModules = Omit<
     ServerSystemActionContextModules,
     "actor"
 > &
-    JobQueueServiceProcessExtraContextModules &
+    JobQueueServiceExtraContextModules &
     JobQueueServiceActionExtraContextModules;
 
 export type MaintenanceJobQueueSystemActionContext =

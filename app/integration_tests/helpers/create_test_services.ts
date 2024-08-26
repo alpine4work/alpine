@@ -164,6 +164,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
             "job_queue_service_rsa.pub",
         );
 
+        const fileUploadServicePublicKeyPath = joinPath(
+            keysDirectoryPath,
+            "file_upload_service_rsa.pub",
+        );
+
         const [
             edgeServicePort,
             taskRealtimeServicePort,
@@ -206,6 +211,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
@@ -250,6 +256,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 // TODO(calebmer, #files): Run the file upload service in tests.
                 `--fileUploadServiceHostname=localhost:${fileUploadServicePort}`,
@@ -273,6 +280,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
@@ -298,6 +306,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,

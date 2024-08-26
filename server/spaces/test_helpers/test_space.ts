@@ -64,6 +64,10 @@ export class TestSpace {
         return new TestSpace(context, id);
     }
 
+    public getTokenPayload() {
+        return {type: "System" as const, spaceId: this.id};
+    }
+
     /**
      * Get a `TestSpace` helper object for an existing space. In case you didn't
      * create the space with `TestSpace.create()`. Throws an error if the space

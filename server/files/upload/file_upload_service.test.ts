@@ -1,23 +1,52 @@
-import fs from "fs";
+import {R2Bucket} from "@miniflare/r2";
+import {FileStorage} from "@miniflare/storage-file";
+import fsWithoutPromises from "fs";
+import fs from "fs/promises";
 import getPort from "get-port";
 import {Server} from "http";
 import net from "net";
 import {join as joinPath} from "path";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
+import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
-import {UploadFileEventSchema} from "~/server/files/upload/internal/upload_file.js";
+import {UploadFileEventSchema, filesR2BucketName} from "~/server/files/upload/upload_file.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 
+const jpegTestFixturePath = joinPath(
+    runfilesPath,
+    "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+);
+
+let serverTokenAgent: TokenAgent;
+let tokenAgent: TokenAgent;
 let port: number;
 let server: Server;
 
 const context = createTestContext();
 
 beforeAll(async () => {
-    port = await getPort();
-    server = createFileUploadService(context.tracer.getRoot(), context);
+    const r2Storage = new FileStorage(joinPath(context.getTempPath(), "r2", filesR2BucketName));
+    const r2Bucket = new R2Bucket(r2Storage);
+    const r2ContextModule = new CloudflareR2ContextModule(
+        new MiniflareR2Client(new Map([[filesR2BucketName, r2Bucket]])),
+    );
+
+    [[serverTokenAgent, tokenAgent], port] = await runAllPromises([
+        createTestTokenAgents(context, ["FileUploadService", "EdgeService"]),
+        getPort(),
+    ]);
+    server = createFileUploadService(context.clone({r2: r2ContextModule}), serverTokenAgent);
 
     await new Promise<void>(resolve => {
         server.listen(port, resolve);
@@ -32,6 +61,18 @@ afterAll(async () => {
         });
     });
 });
+
+async function authorization(
+    session: TestSession | TestSpace,
+    authorizationTokenAgent: TokenAgent = tokenAgent,
+) {
+    const token = await authorizationTokenAgent.privateSide.dangerouslySignShortLivedToken(
+        "FileUploadService",
+        session.getTokenPayload(),
+    );
+
+    return `Bearer ${token}`;
+}
 
 function massageHeaders(headers: Headers) {
     return omitObject(Object.fromEntries(headers), [
@@ -50,16 +91,86 @@ function parseJsonEvents(responseText: string) {
 }
 
 test("404 response for unknown routes", async () => {
-    const response = await fetch(`http://localhost:${port}/unknown`);
+    {
+        const response = await fetch(`http://localhost:${port}/unknown`);
+        const responseText = await response.text();
+
+        expect(response.status).toEqual(404);
+        expect(massageHeaders(response.headers)).toEqual({"content-type": "text/plain"});
+        expect(responseText).toEqual("404 Not Found");
+    }
+
+    {
+        const response = await fetch(`http://localhost:${port}/upload`);
+        const responseText = await response.text();
+
+        expect(response.status).toEqual(404);
+        expect(massageHeaders(response.headers)).toEqual({"content-type": "text/plain"});
+        expect(responseText).toEqual("404 Not Found");
+    }
+
+    {
+        const response = await fetch(
+            `http://localhost:${port}/${generateChronologicalId()}/upload/unknown`,
+        );
+        const responseText = await response.text();
+
+        expect(response.status).toEqual(404);
+        expect(massageHeaders(response.headers)).toEqual({"content-type": "text/plain"});
+        expect(responseText).toEqual("404 Not Found");
+    }
+});
+
+test("must provide an Authorization header to upload route", async () => {
+    const space = await TestSpace.create(context);
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`);
     const responseText = await response.text();
 
-    expect(response.status).toEqual(404);
+    expect(response.status).toEqual(400);
     expect(massageHeaders(response.headers)).toEqual({"content-type": "text/plain"});
-    expect(responseText).toEqual("404 Not Found");
+    expect(responseText).toEqual("400 Bad Request");
+});
+
+test("must use session with upload route", async () => {
+    const space = await TestSpace.create(context);
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        headers: {authorization: await authorization(space)},
+    });
+    const responseText = await response.text();
+
+    expect(response.status).toEqual(400);
+    expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+    expect(parseJsonEvents(responseText)).toEqual([
+        {type: "Error", error: new PermissionDeniedError("System actor is not a session actor")},
+    ]);
+});
+
+test("must be authorized to access space to upload", async () => {
+    const otherSpace = await TestSpace.create(context);
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${otherSpace.id}/upload`, {
+        headers: {authorization: await authorization(session)},
+    });
+    const responseText = await response.text();
+
+    expect(response.status).toEqual(400);
+    expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+    expect(parseJsonEvents(responseText)).toEqual([
+        {type: "Error", error: new PermissionDeniedError("Account doesn't have access to space")},
+    ]);
 });
 
 test("must use POST method to upload route", async () => {
-    const response = await fetch(`http://localhost:${port}/upload`);
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        headers: {authorization: await authorization(session)},
+    });
     const responseText = await response.text();
 
     expect(response.status).toEqual(400);
@@ -70,7 +181,13 @@ test("must use POST method to upload route", async () => {
 });
 
 test("must provide Content-Type header to upload route", async () => {
-    const response = await fetch(`http://localhost:${port}/upload`, {method: "POST"});
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {authorization: await authorization(session)},
+    });
     const responseText = await response.text();
 
     expect(response.status).toEqual(400);
@@ -81,9 +198,15 @@ test("must provide Content-Type header to upload route", async () => {
 });
 
 test("must provide a valid Content-Type header to upload route", async () => {
-    const response = await fetch(`http://localhost:${port}/upload`, {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
-        headers: {"content-type": "text/html"},
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "text/html",
+        },
     });
     const responseText = await response.text();
 
@@ -98,9 +221,15 @@ test("must provide a valid Content-Type header to upload route", async () => {
 });
 
 test("can't upload data with a Content-Length header that's too big", async () => {
-    const response = await fetch(`http://localhost:${port}/upload`, {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
-        headers: {"content-type": "image/png"},
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/png",
+        },
         body: new Uint8Array(2e9),
     });
     const responseText = await response.text();
@@ -118,6 +247,9 @@ test("can't upload data with a Content-Length header that's too big", async () =
 });
 
 test("if more data is written than what's in Content-Length server truncates the content and only processes the truncated content", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
     // We use Node.js's raw `net.connect()` utilities in this test to send an HTTP
     // request because we want to intentionally write more bytes than what's
     // declared by `Content-Length`. Node.js's `http.createServer()` should
@@ -146,12 +278,15 @@ test("if more data is written than what's in Content-Length server truncates the
             socket.on("error", reject);
         });
 
+        const authorizationHeader = await authorization(session);
+
         await new Promise<void>((resolve, reject) => {
             socket.write(
                 `\
-POST /upload HTTP/1.1\r\n\
+POST /${space.id}/upload HTTP/1.1\r\n\
 Host: localhost:${port}\r\n\
 Connection: close\r\n\
+Authorization: ${authorizationHeader}\r\n\
 Content-Type: image/jpeg\r\n\
 Content-Length: 33102\r\n\
 \r\n\
@@ -163,12 +298,7 @@ Content-Length: 33102\r\n\
             );
         });
 
-        fs.createReadStream(
-            joinPath(
-                runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
-            ),
-        ).pipe(socket, {end: false});
+        fsWithoutPromises.createReadStream(jpegTestFixturePath).pipe(socket, {end: false});
 
         await socketClosePromise;
 
@@ -176,7 +306,8 @@ Content-Length: 33102\r\n\
             socketText
                 .replace(/^Date: .*?\r\n/m, "")
                 .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
-                .replace(/,"placeholder":\[false,8,".*?"\]/m, ',"placeholder":[false,8,"..."]'),
+                .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
+                .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
         ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
@@ -184,13 +315,16 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
+{"type":"Start","fileId":"..."}\n\
+\r\n\
+chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewPlaceholder","placeholder":[false,8,"..."]}\n\
+{"type":"PreviewPlaceholder","placeholder":[false,5,"..."]}\n\
 \r\n\
 chunk\r\n\
-{"type":"Ok"}\n\
+{"type":"Finish"}\n\
 \r\n\
 chunk\r\n\
 \r\n\
@@ -219,12 +353,15 @@ chunk\r\n\
             socket.on("error", reject);
         });
 
+        const authorizationHeader = await authorization(session);
+
         await new Promise<void>((resolve, reject) => {
             socket.write(
                 `\
-POST /upload HTTP/1.1\r\n\
+POST /${space.id}/upload HTTP/1.1\r\n\
 Host: localhost:${port}\r\n\
 Connection: close\r\n\
+Authorization: ${authorizationHeader}\r\n\
 Content-Type: image/jpeg\r\n\
 Content-Length: 33002\r\n\
 \r\n\
@@ -236,12 +373,7 @@ Content-Length: 33002\r\n\
             );
         });
 
-        fs.createReadStream(
-            joinPath(
-                runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
-            ),
-        ).pipe(socket, {end: false});
+        fsWithoutPromises.createReadStream(jpegTestFixturePath).pipe(socket, {end: false});
 
         await socketClosePromise;
 
@@ -249,6 +381,7 @@ Content-Length: 33002\r\n\
             socketText
                 .replace(/^Date: .*?\r\n/m, "")
                 .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
+                .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
                 .replace(/,"stack":".*?"/m, "")
                 .replace(/,"original":{.*?}/m, ""),
         ).toEqual(`\
@@ -256,6 +389,9 @@ HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
 Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
+\r\n\
+chunk\r\n\
+{"type":"Start","fileId":"..."}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375}\n\
@@ -270,19 +406,69 @@ chunk\r\n\
 });
 
 test("can't upload invalid image data", async () => {
-    const response = await fetch(`http://localhost:${port}/upload`, {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
         method: "POST",
-        headers: {"content-type": "image/png"},
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/png",
+        },
         body: new Uint8Array(1e5),
     });
     const responseText = await response.text();
 
-    expect(response.status).toEqual(400);
+    expect(response.status).toEqual(200);
     expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
     expect(parseJsonEvents(responseText)).toEqual([
         {
+            type: "Start",
+            fileId: expect.any(String),
+        },
+        {
             type: "Error",
             error: new InvalidArgumentError("Input buffer contains unsupported image format"),
+        },
+    ]);
+});
+
+test("can't upload image with the wrong content type", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/png",
+        },
+        body: await fs.readFile(jpegTestFixturePath),
+    });
+    const responseText = await response.text();
+
+    expect(response.status).toEqual(200);
+    expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+    expect(parseJsonEvents(responseText)).toEqual([
+        {
+            type: "Start",
+            fileId: expect.any(String),
+        },
+        {
+            type: "PreviewPlaceholder",
+            placeholder: FilePreviewPlaceholder.fromSerialized([
+                false,
+                5,
+                decodeBase64(
+                    "x9LXytXaztfbztfay9bY19rb3N/g3+Ll4OPm3+HhtrKssq+q0M3L0c3Jsaymna2vm62xp7a6qra6q7O0",
+                ),
+            ]),
+        },
+        {
+            type: "Error",
+            error: new InvalidArgumentError(
+                'Expected file in "png" format but received file in "jpeg" format',
+            ),
         },
     ]);
 });
