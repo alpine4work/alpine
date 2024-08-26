@@ -145,7 +145,7 @@ APP_BUILD_DEVELOPMENT_ARGS = APP_BUILD_SHARED_ARGS + [
 
 APP_BUILD_PRODUCTION_ARGS = APP_BUILD_SHARED_ARGS + [
     "--mode=production",
-    "--minify=true",
+    "--minify=terser",
 ]
 
 APP_BUILD_DEVELOPMENT_ENV = {
@@ -160,6 +160,7 @@ remix_bin.remix(
     name = "app_build",
     srcs = [
         ":app_lib",
+        "//:node_modules/terser",
         "//:node_modules/vite",
         "//:remix_config_files",
         "//app/static",

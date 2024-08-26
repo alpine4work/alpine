@@ -17,7 +17,7 @@ index 70c183de6d9a19bd97e694a7c2e0f3ad67c0a0de..8bee451e7d26c013d2b4ae5854bd698c
      }
      if (route) routes$1.push(route);
 diff --git a/dist/vite/plugin.js b/dist/vite/plugin.js
-index bf608523a542d69398ed7afa51562c63a36ce8ed..dfeea3adaef336991412dbc17a5813f795aa2116 100644
+index bf608523a542d69398ed7afa51562c63a36ce8ed..186f09d47356b90bb63583614d6dface3a9444d3 100644
 --- a/dist/vite/plugin.js
 +++ b/dist/vite/plugin.js
 @@ -370,7 +370,8 @@ const remixVitePlugin = (remixUserConfig = {}) => {
@@ -40,7 +40,24 @@ index bf608523a542d69398ed7afa51562c63a36ce8ed..dfeea3adaef336991412dbc17a5813f7
      });
      for (let preset of remixUserConfig.presets ?? []) {
        var _preset$remixConfigRe;
-@@ -691,9 +693,18 @@ const remixVitePlugin = (remixUserConfig = {}) => {
+@@ -674,7 +676,15 @@ const remixVitePlugin = (remixUserConfig = {}) => {
+               rollupOptions: {
+                 ...baseRollupOptions,
+                 preserveEntrySignatures: "exports-only",
+-                input: [ctx.entryClientFilePath, ...Object.values(ctx.remixConfig.routes).map(route => `${path__namespace.resolve(ctx.remixConfig.appDirectory, route.file)}${BUILD_CLIENT_ROUTE_QUERY_STRING}`)]
++                input: [ctx.entryClientFilePath, ...Object.values(ctx.remixConfig.routes).map(route => `${path__namespace.resolve(ctx.remixConfig.appDirectory, route.file)}${BUILD_CLIENT_ROUTE_QUERY_STRING}`)],
++                output: {
++                  // NOTE(calebmer): Mangle chunk names in production. So someone inspecting our
++                  // network tab can't easily tell what each file does.
++                  ...(viteConfigEnv.mode === "production" ? {chunkFileNames: "assets/chunk-[hash].js"} : {}),
++                  // NOTE(calebmer): Use a more aesthetic set of hash characters. Compared to
++                  // base64 which'll include dashes and underscores.
++                  hashCharacters: "base36",
++                },
+               }
+             } : {
+               // We move SSR-only assets to client assets. Note that the
+@@ -691,10 +701,22 @@ const remixVitePlugin = (remixUserConfig = {}) => {
                rollupOptions: {
                  ...baseRollupOptions,
                  preserveEntrySignatures: "exports-only",
@@ -57,11 +74,16 @@ index bf608523a542d69398ed7afa51562c63a36ce8ed..dfeea3adaef336991412dbc17a5813f7
 +                },
                  output: {
 -                  entryFileNames: ctx.remixConfig.serverBuildFile,
+-                  format: ctx.remixConfig.serverModuleFormat
 +                  entryFileNames: "[name]",
-                   format: ctx.remixConfig.serverModuleFormat
++                  format: ctx.remixConfig.serverModuleFormat,
++                  // NOTE(calebmer): Use a more aesthetic set of hash characters. Compared to
++                  // base64 which'll include dashes and underscores.
++                  hashCharacters: "base36",
                  }
                }
-@@ -945,7 +956,11 @@ const remixVitePlugin = (remixUserConfig = {}) => {
+             })
+@@ -945,7 +967,11 @@ const remixVitePlugin = (remixUserConfig = {}) => {
        let resolved = await this.resolve(id, importer, options);
        if (!resolved) return;
        let serverFileRE = /\.server(\.[cm]?[jt]sx?)?$/;
@@ -74,7 +96,7 @@ index bf608523a542d69398ed7afa51562c63a36ce8ed..dfeea3adaef336991412dbc17a5813f7
        let isDotServer = serverFileRE.test(resolved.id) || serverDirRE.test(resolved.id);
        if (!isDotServer) return;
        if (!importer) return;
-@@ -1043,29 +1058,14 @@ const remixVitePlugin = (remixUserConfig = {}) => {
+@@ -1043,29 +1069,14 @@ const remixVitePlugin = (remixUserConfig = {}) => {
        let isJSX = filepath.endsWith("x");
        let useFastRefresh = !ssr && (isJSX || code.includes(devRuntime));
        if (!useFastRefresh) return;
