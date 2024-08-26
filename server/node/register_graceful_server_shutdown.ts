@@ -27,7 +27,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 
 // If the server needs to be stopped and it seems to be having trouble keeping
 // up with pending requests we should just force the closing of the connections
-const forcedStopTimeout = 1000 * 120;
+const forcedStopTimeoutMs = 1000 * 120;
 
 // In cases a client is sending no more requests, we won't have the opportunity
 // to send `Connection: close` back In these cases we should just end the
@@ -43,7 +43,7 @@ const forcedStopTimeout = 1000 * 120;
 //
 // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout
 // [2]:  https://www.tessian.com/blog/how-to-fix-http-502-errors/#:~:text=The%20502%20Bad%20Gateway%20error,segment%20to%20the%20ALB%20socket.
-const timeoutToTryEndIdle = 1000 * 65;
+const timeoutToTryEndIdleMs = 1000 * 65;
 
 /**
  * Register a shutdown listener for our HTTP server that stops the server from
@@ -87,7 +87,7 @@ export function registerGracefulServerShutdown(shutdownManager: ShutdownManager,
     // in-flight from the client we respond with a `Connection: close` header once
     // the server starts being terminated. We'll only immediately close connections
     // where we have responded this header. For others, we'll only close them if
-    // they're still open after `timeoutToTryEndIdle` This won't help against
+    // they're still open after `timeoutToTryEndIdleMs` This won't help against
     // clients that don't respect the `Connection: close` header
     const hasRepliedClosedConnectionForSockets = new WeakSet<Socket>();
 
@@ -136,13 +136,13 @@ export function registerGracefulServerShutdown(shutdownManager: ShutdownManager,
                     socket.end();
                 }
             }
-        }, timeoutToTryEndIdle);
+        }, timeoutToTryEndIdleMs);
 
         const timeout2 = createTimeout(() => {
             for (const socket of reqCountBySocket.keys()) {
                 socket.end();
             }
-        }, forcedStopTimeout);
+        }, forcedStopTimeoutMs);
 
         await new Promise<void>((resolve, reject) =>
             // callback won't be called as long as there are open connections. So here

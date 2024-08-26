@@ -3,7 +3,7 @@ import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {allMigrations} from "~/server/migration/all_migrations.js";
 import {
     createServerProcessContext,
-    serverProcessContextParseOptions,
+    serverProcessContextOptions,
 } from "~/server/node/create_server_process_context.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
@@ -52,7 +52,7 @@ export const options = {
     migration: {type: "string"},
     segmentIndex: {type: "string", default: "0"},
     totalSegmentCount: {type: "string", default: "1"},
-    ...serverProcessContextParseOptions,
+    ...serverProcessContextOptions,
 } as const;
 
 export async function run({

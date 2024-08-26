@@ -391,6 +391,7 @@ async function createArtifacts() {
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--cloudflareR2LocalPath=${cloudflareR2LocalDataPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),

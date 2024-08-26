@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//server/apns",
         "//server/deploy/data",
+        "//server/files/data",
         "//server/jobs/core",
         "//server/language_models/all_mini_lm_l6_v2",
         "//server/language_models/cohere_embed_english_v3",

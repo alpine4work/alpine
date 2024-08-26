@@ -1,3 +1,4 @@
+import {cleanupTimedOutFileUpload} from "~/server/files/data/files_table.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processNotificationEvent} from "~/server/notifications/data/notifications_table.js";
@@ -25,6 +26,11 @@ export async function processJob(
         }
         case "NotificationEvent": {
             await processNotificationEvent(context, job.event, span);
+            return;
+        }
+        case "CleanupTimedOutFileUpload": {
+            const {didNothing} = await cleanupTimedOutFileUpload(context, job.fileId);
+            span.addData({common: {didNothing}});
             return;
         }
         default:

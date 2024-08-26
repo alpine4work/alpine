@@ -51,7 +51,11 @@ export interface CloudflareR2ClientBase {
      * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
      * [2]: https://developers.cloudflare.com/r2/api/s3/api/
      */
-    PutObject(tracer: TracerBase, input: PutObjectCommandInput): Promise<PutObjectCommandOutput>;
+    PutObject(
+        tracer: TracerBase,
+        input: PutObjectCommandInput,
+        options?: {signal?: AbortSignal},
+    ): Promise<PutObjectCommandOutput>;
 
     /**
      * S3 [`DeleteObject`][1] action. See [Cloudflare R2 S3 API compatibility
@@ -212,6 +216,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
     public PutObject(
         tracer: TracerBase,
         input: PutObjectCommandInput,
+        {signal}: {signal?: AbortSignal} = {},
     ): Promise<PutObjectCommandOutput> {
         let spanName = "Cloudflare R2 PutObject";
 
@@ -234,7 +239,7 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
             });
 
             return this._client
-                .send(new PutObjectCommand(input))
+                .send(new PutObjectCommand(input), {abortSignal: signal})
                 .catch(rethrowClassifiedCloudflareR2Error);
         });
     }

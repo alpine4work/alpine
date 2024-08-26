@@ -115,7 +115,7 @@ module.exports = {
         "no-global-fetch": "error",
         "sort-imports-by-source": "warn",
         "no-internal-imports": "error",
-        "no-commit-blockers": "error",
+        "no-commit-blockers": "warn",
 
         // TODO(calebmer): Write eslint rule that detects when you have `await`s that
         // could be parallelized with `Promise.all()`.

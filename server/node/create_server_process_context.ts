@@ -14,7 +14,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-export const serverProcessContextParseOptions = {
+export const serverProcessContextOptions = {
     ensureLocalCachePath: {type: "string"},
     dynamoLocalPort: {type: "string"},
     jobQueueUrl: {type: "string"},
@@ -31,7 +31,7 @@ export type ServerProcessContextOptions = {
  * service. Probably in a `runService()` call.
  *
  * Requires some parameters we expect to come from the command line.
- * `serverProcessContextParseOptions` is an object defining the args you can
+ * `serverProcessContextOptions` is an object defining the args you can
  * pass into `parseArgs()`.
  */
 export function createServerProcessContext({

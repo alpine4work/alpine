@@ -7,7 +7,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-export const serviceTokenAgentParseOptions = {
+export const serviceTokenAgentOptions = {
     appServicePublicKey: {type: "string"},
     edgeServiceFamilyPublicKey: {type: "string"},
     taskRealtimeServicePublicKey: {type: "string"},
@@ -27,7 +27,7 @@ export type ServiceTokenAgentOptions = {
 
 /**
  * Creates a `TokenAgent` from parsed options (from `parseArgs()`) passed to a
- * service. The schema for these options is `serviceTokenAgentParseOptions`.
+ * service. The schema for these options is `serviceTokenAgentOptions`.
  */
 export async function createServiceTokenAgent<
     PrivateSide extends TokenAgentPrivateSide = TokenAgentPrivateSide,

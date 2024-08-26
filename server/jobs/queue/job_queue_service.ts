@@ -1,6 +1,5 @@
 import {createAppAuth as createGithubAppAuth} from "@octokit/auth-app";
 import fs from "fs-extra";
-import {join as joinPath} from "path";
 import {
     DynamoActorContextModule,
     DynamoSystemActorContextModule,
@@ -11,6 +10,10 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
+import {
+    createServiceCloudflareR2ContextModule,
+    serviceCloudflareR2Options,
+} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {
     GithubContextModule,
@@ -38,17 +41,19 @@ import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {
     createServerProcessContext,
-    serverProcessContextParseOptions,
+    serverProcessContextOptions,
 } from "~/server/node/create_server_process_context.js";
 import {
     createServiceTokenAgent,
     getServiceTokenAgentKeyFromOption,
-    serviceTokenAgentParseOptions,
+    serviceTokenAgentOptions,
 } from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
-import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {
+    createServiceOpensearchContextModule,
+    serviceOpensearchOptions,
+} from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
@@ -64,8 +69,6 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 type Options = ServiceOptions<typeof options>;
 
 export const options = {
-    opensearchLocalPort: {type: "string"},
-    opensearchHost: {type: "string"},
     edgeServiceUrl: {type: "string"},
     allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
@@ -81,8 +84,10 @@ export const options = {
     githubAppClientId: {type: "string"},
     githubAppClientSecret: {type: "string"},
     githubAppInstallationId: {type: "string"},
-    ...serviceTokenAgentParseOptions,
-    ...serverProcessContextParseOptions,
+    ...serviceTokenAgentOptions,
+    ...serverProcessContextOptions,
+    ...serviceOpensearchOptions,
+    ...serviceCloudflareR2Options,
 } as const;
 
 export async function run({
@@ -134,34 +139,7 @@ export async function run({
         options,
     });
 
-    const opensearchContextModule = OpensearchContextModule.new(
-        new OpensearchClient({
-            url:
-                process.env.NODE_ENV === "production"
-                    ? `https://${assertExists(
-                          options.opensearchHost,
-                          "`opensearchHost` option is required in production",
-                      )}`
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              options.opensearchLocalPort,
-                              "`opensearchLocalPort` option is required in development",
-                          ),
-                          10,
-                      )}`,
-            signer: awsSigner,
-            ensureLocalCachePath:
-                process.env.NODE_ENV !== "production"
-                    ? joinPath(
-                          assertExists(
-                              options.ensureLocalCachePath,
-                              "`ensureLocalCachePath` option is required in development",
-                          ),
-                          "opensearch",
-                      )
-                    : null,
-        }),
-    );
+    const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
 
     const languageModel =
         process.env.NODE_ENV === "production"
@@ -263,6 +241,8 @@ export async function run({
                   ),
               });
 
+    const r2ContextModule = createServiceCloudflareR2ContextModule(options);
+
     const processContext: JobQueueServiceProcessContext = baseProcessContext.clone({
         edge: new EdgeServiceContextModule({
             edgeServiceUrl: assertExists(
@@ -276,6 +256,7 @@ export async function run({
         apns: apnsContextModule,
         github: githubContextModule,
         scheduler: schedulerContextModule,
+        r2: r2ContextModule,
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

@@ -1,11 +1,18 @@
+import {addMilliseconds, addSeconds} from "date-fns";
 import prettyBytes from "pretty-bytes";
+import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
+import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
+    ServerActionContextModules,
     ServerSessionActionContext,
+    ServerSessionActionContextModules,
     ServerSystemActionContext,
+    ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
     PermissionDeniedError,
@@ -15,7 +22,12 @@ import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_conten
 import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    defaultUncertaintyWindowMs,
+    isDateDefinitelyLessThanWithUncertaintyWindow,
+} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -173,6 +185,19 @@ const FilesTable = DynamoTableSchema.new({
 type FileItem = DynamoTableItemType<typeof FilesTable, "Space", "File">;
 
 /**
+ * If a file upload doesn't complete within this amount of time, we abort the
+ * file upload.
+ */
+export const uploadFileTimeoutMs = 1000 * 60 * 10;
+
+/**
+ * How long to wait after we start an upload to run our `CleanupFileUpload`
+ * job. Longer than `uploadFileTimeoutMs` to make sure `FileUploadService` has
+ * actually aborted the upload.
+ */
+const cleanupTimedOutFileUploadDelaySeconds = (uploadFileTimeoutMs + 1000 * 60 * 2) / 1000;
+
+/**
  * The total number of bytes you're allowed to store in an Alpine space on the
  * free plan (5 GB). After you exceed this amount we'll start deleting old
  * files. This is the same as Slack's file limit for their free plan.
@@ -192,7 +217,7 @@ const maxFileTotalContentLengthForSpace = 5e9;
  * update the file item in DynamoDB as we hit certain milestones. (e.g. When
  * `preview.size` has finished processing.)
  */
-export function startUploadingAndProcessingFile(
+export async function startUploadingAndProcessingFile(
     context: ServerSessionActionContext,
     {
         spaceId,
@@ -206,9 +231,28 @@ export function startUploadingAndProcessingFile(
         hasPreview: boolean;
     },
 ): Promise<FileUploader> {
-    return context.dynamo.retryTransaction(async context => {
-        await authorizeSpaceAccess(context, spaceId);
+    await authorizeSpaceAccess(context, spaceId);
 
+    const fileId = generateChronologicalId<FileId>();
+
+    // Once a file upload starts, if it hasn't finished uploading after ~10min then
+    // we cancel the upload and cleanup its data. To guarantee this cleanup will
+    // happen we use `sendImmediately()`. If `sendImmediately()` resolves we know
+    // the cleanup job has been durably written to our job queue.
+    //
+    // This job guarantees we cleanup files even if we can't run try/catch
+    // handlers. For example, when we crash because of an out-of-memory exception.
+    // Or when the server is forced to shutdown because of a deploy or some other
+    // AWS issue.
+    //
+    // 99% of the time we expect this job will do nothing. It exists as a final
+    // defense to make sure files that failed to upload are cleaned up.
+    await context.jobs.sendImmediately(
+        {type: "CleanupTimedOutFileUpload", spaceId, fileId},
+        {delaySeconds: cleanupTimedOutFileUploadDelaySeconds},
+    );
+
+    return context.dynamo.retryTransaction(async context => {
         const fileTotalsItem = (await FilesTable.getItemIfExists(context, {
             partitionType: "Space",
             sortRangeType: "FileTotals",
@@ -233,7 +277,7 @@ export function startUploadingAndProcessingFile(
             partitionType: "Space",
             sortRangeType: "File",
             spaceId,
-            fileId: generateChronologicalId<FileId>(),
+            fileId,
             contentType,
             contentLength,
             uploaderId: context.actor.getAccountId(),
@@ -257,6 +301,120 @@ export function startUploadingAndProcessingFile(
         ]);
 
         return new FileUploader(fileItem);
+    });
+}
+
+/**
+ * Function we call to process the `CleanupTimedOutFileUpload` job. Checks if
+ * the file is still uploading. If it is, makes sure the object is deleted and
+ * its `contentLength` is returned to the space's totals.
+ */
+export async function cleanupTimedOutFileUpload(
+    context: Context<ServerSystemActionContextModules & {r2: CloudflareR2ContextModule}>,
+    fileId: FileId,
+): Promise<{didNothing: boolean}> {
+    const spaceId = context.actor.getSpaceId();
+
+    const currentTime = new Date();
+    const createdTime = new Date(getChronologicalIdTime(fileId));
+    const uploadTimeoutTime = addMilliseconds(createdTime, uploadFileTimeoutMs);
+
+    // If we haven't passed the file upload timeout then try again later.
+    if (!isDateDefinitelyLessThanWithUncertaintyWindow(uploadTimeoutTime, currentTime)) {
+        await context.jobs.sendImmediately(
+            {
+                type: "CleanupTimedOutFileUpload",
+                spaceId,
+                fileId,
+            },
+            {
+                delaySeconds: Math.max(
+                    0,
+                    Math.ceil(
+                        (addSeconds(createdTime, cleanupTimedOutFileUploadDelaySeconds).getTime() -
+                            currentTime.getTime() +
+                            defaultUncertaintyWindowMs) /
+                            1000,
+                    ),
+                ),
+            },
+        );
+        return {didNothing: true};
+    }
+
+    const fileItem = await FilesTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Space",
+            sortRangeType: "File",
+            spaceId,
+            fileId,
+        },
+        {consistency: "Strong"},
+    );
+
+    // If there's no file item, as a precaution make sure there's no corresponding
+    // R2 object. `DeleteObject` is idempotent. It won't throw an error if the
+    // object doesn't exist.
+    if (!fileItem) {
+        await context.r2.DeleteObject({Bucket: filesBucketName, Key: `${spaceId}/${fileId}`});
+        return {didNothing: false};
+    }
+
+    // Great! The item finished uploading and its preview finished processing. We
+    // don't need to cleanup.
+    if (!fileItem.isUploading && (!fileItem.preview || !fileItem.preview.isProcessing)) {
+        return {didNothing: true};
+    }
+
+    await actuallyCleanupFileItem(context, fileItem);
+    return {didNothing: false};
+}
+
+async function actuallyCleanupFileItem(
+    context: Context<ServerActionContextModules & {r2: CloudflareR2ContextModule}>,
+    fileItem: FileItem,
+) {
+    const {spaceId, fileId} = fileItem;
+
+    // Make sure the R2 object associated with the file is deleted if an object
+    // exists. `DeleteObject` is idempotent. It won't throw an error if the object
+    // doesn't exist.
+    await context.r2.DeleteObject({Bucket: filesBucketName, Key: `${spaceId}/${fileId}`});
+
+    let hasAttempted = false;
+    const initialFileItem = fileItem;
+
+    // Delete the file item from DynamoDB and remove its allocated `contentLength`
+    // from `FileTotals` so it doesn't count against the space's file upload limit.
+    await context.dynamo.retryTransaction(async context => {
+        const isInitialAttempt = !hasAttempted;
+        hasAttempted = true;
+
+        const [fileTotalsItem, fileItem] = await runAllPromises([
+            FilesTable.getItem(context, {
+                partitionType: "Space",
+                sortRangeType: "FileTotals",
+                spaceId,
+            }),
+            isInitialAttempt
+                ? initialFileItem
+                : FilesTable.getItem(context, {
+                      partitionType: "Space",
+                      sortRangeType: "File",
+                      spaceId,
+                      fileId,
+                  }),
+        ]);
+
+        await DynamoTableSchema.executeTransaction(context, [
+            FilesTable.transactionDirectlyUpdateItem({
+                ...fileTotalsItem,
+                count: fileTotalsItem.count - 1,
+                contentLength: fileTotalsItem.contentLength - fileItem.contentLength,
+            }),
+            FilesTable.transactionDeleteItemIfExists(fileItem),
+        ]);
     });
 }
 
@@ -405,6 +563,23 @@ export class FileUploader {
                 },
                 {initialItem: itemRef.current},
             );
+        });
+    }
+
+    /**
+     * If there was an error while uploading a file then this function is called to
+     * cleanup our database. It deletes the associated Cloudflare R2 object,
+     * deletes the file DynamoDB item, and updates the `FileTotals` item counters.
+     */
+    public async cleanupAfterError(
+        context: Context<ServerSessionActionContextModules & {r2: CloudflareR2ContextModule}>,
+    ) {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        await this._item.withLock(async itemRef => {
+            await actuallyCleanupFileItem(context, itemRef.current);
         });
     }
 }

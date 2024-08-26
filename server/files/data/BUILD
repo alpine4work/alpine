@@ -12,6 +12,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/pretty-bytes",
+        "//server/cloudflare/r2",
         "//server/context",
         "//server/dynamo/core",
         "//server/helpers",

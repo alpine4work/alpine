@@ -163,6 +163,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     common: {
         count: Schema.integer,
         isBlocking: Schema.boolean,
+        didNothing: Schema.boolean,
     },
     context: {
         handler: Schema.string,

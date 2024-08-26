@@ -91,6 +91,13 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 },
             });
 
+            if (!object) {
+                throw new NotFoundError("R2 object not found", {
+                    // Make sure `isCloudflareR2NoSuchKeyError()` returns true for this error.
+                    cause: {Code: "NoSuchKey"},
+                });
+            }
+
             span.addData({
                 cloudflare: {
                     r2: {
@@ -107,17 +114,17 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                         "`$metadata` is unimplemented for `MiniflareR2Client`",
                     );
                 },
-                LastModified: object?.uploaded,
-                ContentLength: object?.size,
-                ETag: object?.etag,
-                VersionId: object?.version,
-                ContentType: object?.httpMetadata.contentType,
-                ContentLanguage: object?.httpMetadata.contentLanguage,
-                ContentDisposition: object?.httpMetadata.contentDisposition,
-                ContentEncoding: object?.httpMetadata.contentEncoding,
-                CacheControl: object?.httpMetadata.cacheControl,
+                LastModified: object.uploaded,
+                ContentLength: object.size,
+                ETag: object.etag,
+                VersionId: object.version,
+                ContentType: object.httpMetadata.contentType,
+                ContentLanguage: object.httpMetadata.contentLanguage,
+                ContentDisposition: object.httpMetadata.contentDisposition,
+                ContentEncoding: object.httpMetadata.contentEncoding,
+                CacheControl: object.httpMetadata.cacheControl,
                 Body:
-                    object !== null && "body" in object
+                    "body" in object
                         ? Object.assign(Readable.fromWeb(object.body), {
                               transformToByteArray: () =>
                                   convertReadableStreamToUint8Array(object.body),
@@ -164,11 +171,18 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
 
             const object = await this._getBucket(bucketName).head(assertExists(key));
 
+            if (!object) {
+                throw new NotFoundError("R2 object not found", {
+                    // Make sure `isCloudflareR2NoSuchKeyError()` returns true for this error.
+                    cause: {Code: "NoSuchKey"},
+                });
+            }
+
             span.addData({
                 cloudflare: {
                     r2: {
                         object: {
-                            contentType: object?.httpMetadata.contentType,
+                            contentType: object.httpMetadata.contentType,
                         },
                     },
                 },
@@ -180,15 +194,15 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                         "`$metadata` is unimplemented for `MiniflareR2Client`",
                     );
                 },
-                LastModified: object?.uploaded,
-                ContentLength: object?.size,
-                ETag: object?.etag,
-                VersionId: object?.version,
-                ContentType: object?.httpMetadata.contentType,
-                ContentLanguage: object?.httpMetadata.contentLanguage,
-                ContentDisposition: object?.httpMetadata.contentDisposition,
-                ContentEncoding: object?.httpMetadata.contentEncoding,
-                CacheControl: object?.httpMetadata.cacheControl,
+                LastModified: object.uploaded,
+                ContentLength: object.size,
+                ETag: object.etag,
+                VersionId: object.version,
+                ContentType: object.httpMetadata.contentType,
+                ContentLanguage: object.httpMetadata.contentLanguage,
+                ContentDisposition: object.httpMetadata.contentDisposition,
+                ContentEncoding: object.httpMetadata.contentEncoding,
+                CacheControl: object.httpMetadata.cacheControl,
             };
         });
     }

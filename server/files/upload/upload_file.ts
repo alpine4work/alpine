@@ -1,13 +1,19 @@
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import createSharp from "sharp";
-import {startUploadingAndProcessingFile} from "~/server/files/data/files_table.js";
+import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
+import {
+    startUploadingAndProcessingFile,
+    uploadFileTimeoutMs,
+} from "~/server/files/data/files_table.js";
 import {FileUploadServiceActionContext} from "~/server/files/upload/file_upload_service_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
+    CancelledError,
+    DeadlineExceededError,
     ErrorBase,
     InternalError,
     InvalidArgumentError,
@@ -23,6 +29,7 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -30,8 +37,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-export const filesR2BucketName = "cyberworlds-files";
 
 type UploadFileEvent = SchemaType<typeof UploadFileEventSchema>;
 
@@ -168,62 +173,139 @@ async function actuallyUploadFile(
 
     const processFilePreview = processFilePreviewByContentType[contentType];
 
-    // TODO(calebmer, #files): Cleanup in case upload or processing fails?
-    // TODO(calebmer, #files): Multipart uploads?
-    const fileUploader = await startUploadingAndProcessingFile(context, {
-        spaceId,
-        contentType,
-        contentLength,
-        hasPreview: !!processFilePreview,
-    });
+    const abortController = new AbortController();
+    const timeout = createTimeout(() => {
+        abortController.abort(new DeadlineExceededError("Upload file timeout exceeded"));
+    }, uploadFileTimeoutMs);
 
-    span.addPropagatedData({context: {fileId: fileUploader.fileId}});
+    // If the request receives the `close` event before the `end` event then abort
+    // the file upload since the client didn't finish sending us data.
+    const handleEnd = () => {
+        req.off("end", handleEnd);
+        req.off("close", handleClose);
+    };
+    const handleClose = () => {
+        abortController.abort(new CancelledError("Upload file request was closed"));
+    };
+    req.on("end", handleEnd);
+    req.on("close", handleClose);
 
-    sendEvent({type: "Start", fileId: fileUploader.fileId});
+    try {
+        const fileUploader = await startUploadingAndProcessingFile(context, {
+            spaceId,
+            contentType,
+            contentLength,
+            hasPreview: !!processFilePreview,
+        });
 
-    await runAllPromises([
-        (async () => {
-            await context.r2.PutObject({
-                Bucket: filesR2BucketName,
-                Key: `${spaceId}/${fileUploader.fileId}`,
-                ContentType: contentType,
-                Body: req,
-            });
+        span.addPropagatedData({context: {fileId: fileUploader.fileId}});
 
-            await fileUploader.finishUploading(context);
-        })(),
-        processFilePreview
-            ? context.tracer.withSpan("Process file preview", async (context, span) => {
-                  span.addData({file: {contentType, contentLength}});
+        sendEvent({type: "Start", fileId: fileUploader.fileId});
 
-                  const {sizePromise, placeholderPromise} = processFilePreview(context, req);
+        try {
+            const promise = runAllPromises([
+                (async () => {
+                    // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
+                    // someday if we want to support users on spotty internet connections or speed
+                    // up large file uploads (for files >100 MB). For now, the simplicity of doing
+                    // all processing in one shot within `FileUploadService` is nice.
+                    //
+                    // TODO(calebmer, #files): Consider transitioning objects to infrequent access
+                    // after 1-3 months?
+                    // https://developers.cloudflare.com/r2/buckets/object-lifecycles
+                    await context.r2.PutObject(
+                        {
+                            Bucket: filesBucketName,
+                            Key: `${spaceId}/${fileUploader.fileId}`,
+                            ContentType: contentType,
+                            Body: req,
+                        },
+                        {signal: abortController.signal},
+                    );
 
-                  await runAllPromises([
-                      span.withSpan("Process file preview size", async span => {
+                    if (abortController.signal.aborted) throw abortController.signal.reason;
+                    await fileUploader.finishUploading(context);
+                })(),
+                processFilePreview
+                    ? context.tracer.withSpan("Process file preview", async (context, span) => {
                           span.addData({file: {contentType, contentLength}});
 
-                          const size = await sizePromise;
-
-                          await fileUploader.finishProcessingPreviewSize(context, size);
-                          sendEvent({type: "PreviewSize", width: size.width, height: size.height});
-                      }),
-                      span.withSpan("Process file preview placeholder", async span => {
-                          span.addData({file: {contentType, contentLength}});
-
-                          const placeholder = await placeholderPromise;
-
-                          await fileUploader.finishProcessingPreviewPlaceholder(
+                          const {sizePromise, placeholderPromise} = processFilePreview(
                               context,
-                              placeholder,
+                              req,
                           );
-                          sendEvent({type: "PreviewPlaceholder", placeholder});
-                      }),
-                  ]);
-              })
-            : null,
-    ]);
 
-    sendEvent({type: "Finish"});
+                          await runAllPromises([
+                              span.withSpan("Process file preview size", async span => {
+                                  span.addData({file: {contentType, contentLength}});
+
+                                  const size = await sizePromise.catch(error => {
+                                      // Cancel the upload if file processing fails.
+                                      abortController.abort(error);
+
+                                      throw error;
+                                  });
+
+                                  if (abortController.signal.aborted)
+                                      throw abortController.signal.reason;
+
+                                  await fileUploader.finishProcessingPreviewSize(context, size);
+                                  sendEvent({
+                                      type: "PreviewSize",
+                                      width: size.width,
+                                      height: size.height,
+                                  });
+                              }),
+                              span.withSpan("Process file preview placeholder", async span => {
+                                  span.addData({file: {contentType, contentLength}});
+
+                                  const placeholder = await placeholderPromise.catch(error => {
+                                      // Cancel the upload if file processing fails.
+                                      abortController.abort(error);
+
+                                      throw error;
+                                  });
+
+                                  if (abortController.signal.aborted)
+                                      throw abortController.signal.reason;
+
+                                  await fileUploader.finishProcessingPreviewPlaceholder(
+                                      context,
+                                      placeholder,
+                                  );
+                                  sendEvent({type: "PreviewPlaceholder", placeholder});
+                              }),
+                          ]);
+                      })
+                    : null,
+            ]);
+
+            await Promise.race([
+                promise,
+                new Promise((resolve, reject) => {
+                    const handleAbort = () => {
+                        abortController.signal.removeEventListener("abort", handleAbort);
+                        reject(abortController.signal.reason);
+                    };
+                    abortController.signal.addEventListener("abort", handleAbort);
+                }),
+            ]);
+
+            sendEvent({type: "Finish"});
+        } catch (error) {
+            const cleanupPromise = fileUploader.cleanupAfterError(context);
+
+            // Don't shutdown the server until we finish cleaning up.
+            context.process.waitUntil(cleanupPromise);
+
+            await cleanupPromise;
+            throw error;
+        }
+    } finally {
+        timeout.clear();
+        req.off("end", handleEnd);
+        req.off("close", handleClose);
+    }
 }
 
 const processFilePreviewByContentType: {

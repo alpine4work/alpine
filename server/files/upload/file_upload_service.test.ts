@@ -7,20 +7,29 @@ import {Server} from "http";
 import net from "net";
 import {join as joinPath} from "path";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
+import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
+import {getFile} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
-import {UploadFileEventSchema, filesR2BucketName} from "~/server/files/upload/upload_file.js";
+import {UploadFileEventSchema} from "~/server/files/upload/upload_file.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {assertId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 
 const jpegTestFixturePath = joinPath(
     runfilesPath,
@@ -35,10 +44,10 @@ let server: Server;
 const context = createTestContext();
 
 beforeAll(async () => {
-    const r2Storage = new FileStorage(joinPath(context.getTempPath(), "r2", filesR2BucketName));
+    const r2Storage = new FileStorage(joinPath(context.getTempPath(), "r2", filesBucketName));
     const r2Bucket = new R2Bucket(r2Storage);
     const r2ContextModule = new CloudflareR2ContextModule(
-        new MiniflareR2Client(new Map([[filesR2BucketName, r2Bucket]])),
+        new MiniflareR2Client(new Map([[filesBucketName, r2Bucket]])),
     );
 
     [[serverTokenAgent, tokenAgent], port] = await runAllPromises([
@@ -245,43 +254,40 @@ test("can't upload data with a Content-Length header that's too big", async () =
     ]);
 });
 
-test("if more data is written than what's in Content-Length server truncates the content and only processes the truncated content", async () => {
+// We use Node.js's raw `net.connect()` utilities in some tests to send an HTTP
+// request because we want to intentionally send requests outside of normal
+// HTTP syntax. For example writing more bytes than what's declared by
+// `Content-Length`. Or ending a request before it's finished. Node.js's
+test("can upload file with raw `net.connect()` calls", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    // We use Node.js's raw `net.connect()` utilities in this test to send an HTTP
-    // request because we want to intentionally write more bytes than what's
-    // declared by `Content-Length`. Node.js's `http.createServer()` should
-    // truncate for us. But we want to make sure this happens with a test so we
-    // don't accidentally let attackers upload larger files then what we allow.
+    const socket = net.connect({
+        host: "localhost",
+        port,
+    });
 
-    {
-        const socket = net.connect({
-            host: "localhost",
-            port,
-        });
+    let socketText = "";
 
-        let socketText = "";
+    socket.on("data", chunk => {
+        socketText += chunk.toString("utf8");
+    });
 
-        socket.on("data", chunk => {
-            socketText += chunk.toString("utf8");
-        });
+    const socketClosePromise = new Promise<void>((resolve, reject) => {
+        socket.on("close", resolve);
+        socket.on("error", reject);
+    });
 
-        const socketClosePromise = new Promise<void>((resolve, reject) => {
-            socket.on("close", resolve);
-            socket.on("error", reject);
-        });
+    await new Promise<void>((resolve, reject) => {
+        socket.on("connect", resolve);
+        socket.on("error", reject);
+    });
 
-        await new Promise<void>((resolve, reject) => {
-            socket.on("connect", resolve);
-            socket.on("error", reject);
-        });
+    const authorizationHeader = await authorization(session);
 
-        const authorizationHeader = await authorization(session);
-
-        await new Promise<void>((resolve, reject) => {
-            socket.write(
-                `\
+    await new Promise<void>((resolve, reject) => {
+        socket.write(
+            `\
 POST /${space.id}/upload HTTP/1.1\r\n\
 Host: localhost:${port}\r\n\
 Connection: close\r\n\
@@ -290,24 +296,24 @@ Content-Type: image/jpeg\r\n\
 Content-Length: 33102\r\n\
 \r\n\
 `,
-                error => {
-                    if (error) reject(error);
-                    else resolve();
-                },
-            );
-        });
+            error => {
+                if (error) reject(error);
+                else resolve();
+            },
+        );
+    });
 
-        fsWithoutPromises.createReadStream(jpegTestFixturePath).pipe(socket, {end: false});
+    fsWithoutPromises.createReadStream(jpegTestFixturePath).pipe(socket, {end: false});
 
-        await socketClosePromise;
+    await socketClosePromise;
 
-        expect(
-            socketText
-                .replace(/^Date: .*?\r\n/m, "")
-                .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
-                .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
-                .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
-        ).toEqual(`\
+    expect(
+        socketText
+            .replace(/^Date: .*?\r\n/m, "")
+            .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
+            .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
+            .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
+    ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
 Connection: close\r\n\
@@ -328,35 +334,59 @@ chunk\r\n\
 chunk\r\n\
 \r\n\
 `);
-    }
 
-    {
-        const socket = net.connect({
-            host: "localhost",
-            port,
-        });
+    const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
+    const fileId = assertId<FileId>(match[1]!);
 
-        let socketText = "";
+    expect(await getFile(space.systemAction(), fileId)).toEqual(
+        new FileModel({
+            id: fileId,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: false,
+            preview: {
+                isProcessing: false,
+                size: {width: 500, height: 375},
+                placeholder: expect.any(FilePreviewPlaceholder),
+            },
+        }),
+    );
+});
 
-        socket.on("data", chunk => {
-            socketText += chunk.toString("utf8");
-        });
+// `http.createServer()` should truncate for us when we write more bytes than
+// what's in `Content-Length`. But we want to make sure this happens with a
+// test so we don't accidentally let attackers upload larger files then what
+// we allow.
+test("if more data is written than what's in Content-Length server truncates the content and only processes the truncated content", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
 
-        const socketClosePromise = new Promise<void>((resolve, reject) => {
-            socket.on("close", resolve);
-            socket.on("error", reject);
-        });
+    const socket = net.connect({
+        host: "localhost",
+        port,
+    });
 
-        await new Promise<void>((resolve, reject) => {
-            socket.on("connect", resolve);
-            socket.on("error", reject);
-        });
+    let socketText = "";
 
-        const authorizationHeader = await authorization(session);
+    socket.on("data", chunk => {
+        socketText += chunk.toString("utf8");
+    });
 
-        await new Promise<void>((resolve, reject) => {
-            socket.write(
-                `\
+    const socketClosePromise = new Promise<void>((resolve, reject) => {
+        socket.on("close", resolve);
+        socket.on("error", reject);
+    });
+
+    await new Promise<void>((resolve, reject) => {
+        socket.on("connect", resolve);
+        socket.on("error", reject);
+    });
+
+    const authorizationHeader = await authorization(session);
+
+    await new Promise<void>((resolve, reject) => {
+        socket.write(
+            `\
 POST /${space.id}/upload HTTP/1.1\r\n\
 Host: localhost:${port}\r\n\
 Connection: close\r\n\
@@ -365,25 +395,25 @@ Content-Type: image/jpeg\r\n\
 Content-Length: 33002\r\n\
 \r\n\
 `,
-                error => {
-                    if (error) reject(error);
-                    else resolve();
-                },
-            );
-        });
+            error => {
+                if (error) reject(error);
+                else resolve();
+            },
+        );
+    });
 
-        fsWithoutPromises.createReadStream(jpegTestFixturePath).pipe(socket, {end: false});
+    fsWithoutPromises.createReadStream(jpegTestFixturePath).pipe(socket, {end: false});
 
-        await socketClosePromise;
+    await socketClosePromise;
 
-        expect(
-            socketText
-                .replace(/^Date: .*?\r\n/m, "")
-                .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
-                .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
-                .replace(/,"stack":".*?"/m, "")
-                .replace(/,"original":{.*?}/m, ""),
-        ).toEqual(`\
+    expect(
+        socketText
+            .replace(/^Date: .*?\r\n/m, "")
+            .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
+            .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
+            .replace(/,"stack":".*?"/m, "")
+            .replace(/,"original":{.*?}/m, ""),
+    ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
 Connection: close\r\n\
@@ -401,7 +431,224 @@ chunk\r\n\
 chunk\r\n\
 \r\n\
 `);
-    }
+
+    const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
+    const fileId = assertId<FileId>(match[1]!);
+
+    await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
+});
+
+test("request can be ended before completion", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const socket = net.connect({
+        host: "localhost",
+        port,
+    });
+
+    let socketText = "";
+
+    socket.on("data", chunk => {
+        socketText += chunk.toString("utf8");
+    });
+
+    const socketClosePromise = new Promise<void>((resolve, reject) => {
+        socket.on("close", resolve);
+        socket.on("error", reject);
+    });
+
+    await new Promise<void>((resolve, reject) => {
+        socket.on("connect", resolve);
+        socket.on("error", reject);
+    });
+
+    const authorizationHeader = await authorization(session);
+
+    await new Promise<void>((resolve, reject) => {
+        socket.write(
+            `\
+POST /${space.id}/upload HTTP/1.1\r\n\
+Host: localhost:${port}\r\n\
+Connection: close\r\n\
+Authorization: ${authorizationHeader}\r\n\
+Content-Type: image/jpeg\r\n\
+Content-Length: 33102\r\n\
+\r\n\
+`,
+            error => {
+                if (error) reject(error);
+                else resolve();
+            },
+        );
+    });
+
+    const jpegTestFixtureContents = await fs.readFile(jpegTestFixturePath);
+
+    socket.write(
+        jpegTestFixtureContents.subarray(0, Math.floor(jpegTestFixtureContents.length / 2)),
+    );
+
+    const fileId = await waitForExpect(() => {
+        const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
+        return assertId<FileId>(match[1]!);
+    });
+
+    expect(await getFile(space.systemAction(), fileId)).toEqual(
+        new FileModel({
+            id: fileId,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: null,
+                placeholder: null,
+            },
+        }),
+    );
+
+    socket.end();
+
+    await socketClosePromise;
+
+    expect(
+        socketText
+            .replace(/^Date: .*?\r\n/m, "")
+            .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
+            .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
+            .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
+    ).toEqual(`\
+HTTP/1.1 200 OK\r\n\
+content-type: application/x-ndjson\r\n\
+Connection: close\r\n\
+Transfer-Encoding: chunked\r\n\
+\r\n\
+chunk\r\n\
+{"type":"Start","fileId":"..."}\n\
+\r\n\
+`);
+
+    await waitForExpect(async () => {
+        await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
+    });
+});
+
+test("can observe file while it's being uploaded", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const socket = net.connect({
+        host: "localhost",
+        port,
+    });
+
+    let socketText = "";
+
+    socket.on("data", chunk => {
+        socketText += chunk.toString("utf8");
+    });
+
+    const socketClosePromise = new Promise<void>((resolve, reject) => {
+        socket.on("close", resolve);
+        socket.on("error", reject);
+    });
+
+    await new Promise<void>((resolve, reject) => {
+        socket.on("connect", resolve);
+        socket.on("error", reject);
+    });
+
+    const authorizationHeader = await authorization(session);
+
+    await new Promise<void>((resolve, reject) => {
+        socket.write(
+            `\
+POST /${space.id}/upload HTTP/1.1\r\n\
+Host: localhost:${port}\r\n\
+Connection: close\r\n\
+Authorization: ${authorizationHeader}\r\n\
+Content-Type: image/jpeg\r\n\
+Content-Length: 33102\r\n\
+\r\n\
+`,
+            error => {
+                if (error) reject(error);
+                else resolve();
+            },
+        );
+    });
+
+    const jpegTestFixtureContents = await fs.readFile(jpegTestFixturePath);
+
+    socket.write(
+        jpegTestFixtureContents.subarray(0, Math.floor(jpegTestFixtureContents.length / 2)),
+    );
+
+    const fileId = await waitForExpect(() => {
+        const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
+        return assertId<FileId>(match[1]!);
+    });
+
+    expect(await getFile(space.systemAction(), fileId)).toEqual(
+        new FileModel({
+            id: fileId,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: null,
+                placeholder: null,
+            },
+        }),
+    );
+
+    socket.write(jpegTestFixtureContents.subarray(Math.floor(jpegTestFixtureContents.length / 2)));
+
+    await socketClosePromise;
+
+    expect(
+        socketText
+            .replace(/^Date: .*?\r\n/m, "")
+            .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
+            .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
+            .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
+    ).toEqual(`\
+HTTP/1.1 200 OK\r\n\
+content-type: application/x-ndjson\r\n\
+Connection: close\r\n\
+Transfer-Encoding: chunked\r\n\
+\r\n\
+chunk\r\n\
+{"type":"Start","fileId":"..."}\n\
+\r\n\
+chunk\r\n\
+{"type":"PreviewSize","width":500,"height":375}\n\
+\r\n\
+chunk\r\n\
+{"type":"PreviewPlaceholder","placeholder":[false,5,"..."]}\n\
+\r\n\
+chunk\r\n\
+{"type":"Finish"}\n\
+\r\n\
+chunk\r\n\
+\r\n\
+`);
+
+    expect(await getFile(space.systemAction(), fileId)).toEqual(
+        new FileModel({
+            id: fileId,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: false,
+            preview: {
+                isProcessing: false,
+                size: {width: 500, height: 375},
+                placeholder: expect.any(FilePreviewPlaceholder),
+            },
+        }),
+    );
 });
 
 test("can't upload invalid image data", async () => {
@@ -420,7 +667,8 @@ test("can't upload invalid image data", async () => {
 
     expect(response.status).toEqual(200);
     expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
-    expect(parseJsonEvents(responseText)).toEqual([
+    const events = parseJsonEvents(responseText);
+    expect(events).toEqual([
         {
             type: "Start",
             fileId: expect.any(String),
@@ -430,6 +678,14 @@ test("can't upload invalid image data", async () => {
             error: new InvalidArgumentError("Input buffer contains unsupported image format"),
         },
     ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : null)),
+        ),
+    );
+
+    await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
 });
 
 test("can't upload image with the wrong content type", async () => {
@@ -448,14 +704,11 @@ test("can't upload image with the wrong content type", async () => {
 
     expect(response.status).toEqual(200);
     expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
-    expect(parseJsonEvents(responseText)).toEqual([
+    const events = parseJsonEvents(responseText);
+    expect(events).toEqual([
         {
             type: "Start",
             fileId: expect.any(String),
-        },
-        {
-            type: "PreviewPlaceholder",
-            placeholder: expect.any(FilePreviewPlaceholder),
         },
         {
             type: "Error",
@@ -464,4 +717,60 @@ test("can't upload image with the wrong content type", async () => {
             ),
         },
     ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : null)),
+        ),
+    );
+
+    await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
+});
+
+test("can upload image", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/jpeg",
+        },
+        body: await fs.readFile(jpegTestFixturePath),
+    });
+    const responseText = await response.text();
+
+    expect(response.status).toEqual(200);
+    expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+    const events = parseJsonEvents(responseText);
+    expect(events).toEqual([
+        {
+            type: "Start",
+            fileId: expect.any(String),
+        },
+        {type: "PreviewSize", width: 500, height: 375},
+        {type: "PreviewPlaceholder", placeholder: expect.any(FilePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : null)),
+        ),
+    );
+
+    expect(await getFile(space.systemAction(), fileId)).toEqual(
+        new FileModel({
+            id: fileId,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: false,
+            preview: {
+                isProcessing: false,
+                size: {width: 500, height: 375},
+                placeholder: expect.any(FilePreviewPlaceholder),
+            },
+        }),
+    );
 });

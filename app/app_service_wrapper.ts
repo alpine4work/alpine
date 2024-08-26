@@ -6,11 +6,12 @@ import {AppServiceConstants, AppServiceModule} from "~/app/app_service_types.js"
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {serverProcessContextParseOptions} from "~/server/node/create_server_process_context.js";
-import {serviceTokenAgentParseOptions} from "~/server/node/create_service_token_agent.js";
+import {serverProcessContextOptions} from "~/server/node/create_server_process_context.js";
+import {serviceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager, ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
+import {serviceOpensearchOptions} from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -32,8 +33,6 @@ export const options = {
     viteCachePath: {type: "string"},
     bazelDevServerPort: {type: "string"},
     shouldSeedDynamo: {type: "boolean"},
-    opensearchLocalPort: {type: "string"},
-    opensearchHost: {type: "string"},
     edgeServiceUrl: {type: "string"},
     taskRealtimeServiceLocalPort: {type: "string"},
     ecsCluster: {type: "string"},
@@ -42,8 +41,9 @@ export const options = {
     cohereApiKey: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
-    ...serviceTokenAgentParseOptions,
-    ...serverProcessContextParseOptions,
+    ...serviceTokenAgentOptions,
+    ...serverProcessContextOptions,
+    ...serviceOpensearchOptions,
 } as const;
 
 export async function run({

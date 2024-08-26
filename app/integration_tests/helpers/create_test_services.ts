@@ -136,6 +136,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
     test.beforeAll(async () => {
         const keysDirectoryPath = joinPath(context.getTempPath(), "keys");
         const ensureLocalCachePath = joinPath(context.getTempPath(), "ensure");
+        const cloudflareR2LocalPath = joinPath(context.getTempPath(), "r2");
 
         const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
         const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
@@ -316,6 +317,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--allMiniLmL6V2LanguageModel=${allMiniLmL6V2LanguageModelPath}`,
                 `--apnsCertificate=${apnsCertificatePath}`,
                 `--apnsCertificatePrivateKey=${apnsCertificatePrivateKeyPath}`,
+                `--cloudflareR2LocalPath=${cloudflareR2LocalPath}`,
             ],
             {
                 env: process.env,

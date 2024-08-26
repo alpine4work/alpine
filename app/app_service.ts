@@ -1,7 +1,6 @@
 import {createRequestHandler} from "@remix-run/node";
 import {ServerRoute} from "@remix-run/server-runtime";
 import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
-import {join as joinPath} from "path";
 import * as build from "virtual:remix/server-build";
 import {
     AppServiceProcessContext,
@@ -38,8 +37,7 @@ import {
 } from "~/server/node/create_service_token_agent.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
-import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
-import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {createServiceOpensearchContextModule} from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {
@@ -138,34 +136,7 @@ async function createAppService({
         options,
     });
 
-    const opensearchContextModule = OpensearchContextModule.new(
-        new OpensearchClient({
-            url:
-                process.env.NODE_ENV === "production"
-                    ? `https://${assertExists(
-                          options.opensearchHost,
-                          "`opensearchHost` option is required in production",
-                      )}`
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              options.opensearchLocalPort,
-                              "`opensearchLocalPort` option is required in development",
-                          ),
-                          10,
-                      )}`,
-            signer: awsSigner,
-            ensureLocalCachePath:
-                process.env.NODE_ENV !== "production"
-                    ? joinPath(
-                          assertExists(
-                              options.ensureLocalCachePath,
-                              "`ensureLocalCachePath` option is required in development",
-                          ),
-                          "opensearch",
-                      )
-                    : null,
-        }),
-    );
+    const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
 
     // Create the router object here so we cache `TaskRealtimeService` routes
     // across the entire process.

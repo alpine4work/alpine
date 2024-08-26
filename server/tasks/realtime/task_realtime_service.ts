@@ -1,5 +1,4 @@
 import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
-import {join as joinPath} from "path";
 import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
@@ -14,17 +13,19 @@ import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_modu
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerProcessContext,
-    serverProcessContextParseOptions,
+    serverProcessContextOptions,
 } from "~/server/node/create_server_process_context.js";
 import {
     createServiceTokenAgent,
-    serviceTokenAgentParseOptions,
+    serviceTokenAgentOptions,
 } from "~/server/node/create_service_token_agent.js";
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
-import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {
+    createServiceOpensearchContextModule,
+    serviceOpensearchOptions,
+} from "~/server/opensearch/create_service_opensearch_context_module.js";
 import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
@@ -57,7 +58,6 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -90,10 +90,9 @@ type Options = ServiceOptions<typeof options>;
 
 export const options = {
     portBase: {type: "string"},
-    opensearchLocalPort: {type: "string"},
-    opensearchHost: {type: "string"},
-    ...serviceTokenAgentParseOptions,
-    ...serverProcessContextParseOptions,
+    ...serviceTokenAgentOptions,
+    ...serverProcessContextOptions,
+    ...serviceOpensearchOptions,
 } as const;
 
 export async function run({
@@ -129,34 +128,7 @@ export async function run({
         options,
     });
 
-    const opensearchContextModule = OpensearchContextModule.new(
-        new OpensearchClient({
-            url:
-                process.env.NODE_ENV === "production"
-                    ? `https://${assertExists(
-                          options.opensearchHost,
-                          "`opensearchHost` option is required in production",
-                      )}`
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              options.opensearchLocalPort,
-                              "`opensearchLocalPort` option is required in development",
-                          ),
-                          10,
-                      )}`,
-            signer: awsSigner,
-            ensureLocalCachePath:
-                process.env.NODE_ENV !== "production"
-                    ? joinPath(
-                          assertExists(
-                              options.ensureLocalCachePath,
-                              "`ensureLocalCachePath` option is required in development",
-                          ),
-                          "opensearch",
-                      )
-                    : null,
-        }),
-    );
+    const opensearchContextModule = createServiceOpensearchContextModule(awsSigner, options);
 
     const processContext = baseProcessContext.clone({
         opensearch: opensearchContextModule,

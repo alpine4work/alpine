@@ -398,6 +398,12 @@ export type TracerEventData = {
          * this instance it's not.
          */
         readonly isBlocking?: boolean;
+
+        /**
+         * Has this span done nothing? If true this span is a noop (no operation). What
+         * that means exactly depends on the context of the span.
+         */
+        readonly didNothing?: boolean;
     };
 
     /**

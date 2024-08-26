@@ -6,7 +6,7 @@ import {deploy} from "~/server/deploy/script/internal/deploy.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerProcessContext,
-    serverProcessContextParseOptions,
+    serverProcessContextOptions,
 } from "~/server/node/create_server_process_context.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
@@ -26,7 +26,7 @@ export const options = {
     cloudflareR2AccessKeyId: {type: "string"},
     cloudflareR2SecretAccessKey: {type: "string"},
     cloudflareWorkersToken: {type: "string"},
-    ...serverProcessContextParseOptions,
+    ...serverProcessContextOptions,
 } as const;
 
 export async function run({

@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "//:node_modules/@aws-sdk/client-s3",
         "//:node_modules/@miniflare/r2",
+        "//:node_modules/@miniflare/storage-file",
         "//:node_modules/@smithy/types",
         "//shared/context",
         "//shared/error",

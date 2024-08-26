@@ -49,8 +49,11 @@ export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: Tracer
      * [1]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
      * [2]: https://developers.cloudflare.com/r2/api/s3/api/
      */
-    public PutObject(input: PutObjectCommandInput): Promise<PutObjectCommandOutput> {
-        return this._client.PutObject(this._context.tracer.getTracer(), input);
+    public PutObject(
+        input: PutObjectCommandInput,
+        options?: {signal?: AbortSignal},
+    ): Promise<PutObjectCommandOutput> {
+        return this._client.PutObject(this._context.tracer.getTracer(), input, options);
     }
 
     /**
