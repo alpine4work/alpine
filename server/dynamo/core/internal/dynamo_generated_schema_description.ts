@@ -2977,8 +2977,13 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Enum",
                                             "values": [
+                                                "image/apng",
+                                                "image/avif",
+                                                "image/gif",
+                                                "image/jpeg",
                                                 "image/png",
-                                                "image/jpeg"
+                                                "image/svg+xml",
+                                                "image/webp"
                                             ]
                                         },
                                         "optional": false

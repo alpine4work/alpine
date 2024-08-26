@@ -24,6 +24,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {
     FileContentType,
+    WebSafeImageFileContentType,
     isFileContentType,
     normalizeContentType,
 } from "~/shared/files/file_content_type.js";
@@ -88,7 +89,12 @@ export async function uploadFile(
         // Make sure the server doesn't shutdown while we're uploading and processing a
         // file. Otherwise we may leave the database in a bad state if we don't finish
         // cleaning up after an error, for instance.
-        context.process.waitUntil(promise);
+        context.process.waitUntil(
+            promise.catch(() => {
+                // Ignore any errors. Errors from this promise will be handled by our
+                // catch below.
+            }),
+        );
 
         await promise;
 
@@ -230,7 +236,8 @@ async function actuallyUploadFile(
                         {signal: abortController.signal},
                     );
 
-                    if (abortController.signal.aborted) throw abortController.signal.reason;
+                    if (abortController.signal.aborted) return;
+
                     await fileUploader.finishUploading(context);
                 })(),
                 processFilePreview
@@ -253,10 +260,10 @@ async function actuallyUploadFile(
                                       throw error;
                                   });
 
-                                  if (abortController.signal.aborted)
-                                      throw abortController.signal.reason;
+                                  if (abortController.signal.aborted) return;
 
                                   await fileUploader.finishProcessingPreviewSize(context, size);
+
                                   sendEvent({
                                       type: "PreviewSize",
                                       width: size.width,
@@ -273,13 +280,13 @@ async function actuallyUploadFile(
                                       throw error;
                                   });
 
-                                  if (abortController.signal.aborted)
-                                      throw abortController.signal.reason;
+                                  if (abortController.signal.aborted) return;
 
                                   await fileUploader.finishProcessingPreviewPlaceholder(
                                       context,
                                       placeholder,
                                   );
+
                                   sendEvent({type: "PreviewPlaceholder", placeholder});
                               }),
                           ]);
@@ -289,7 +296,7 @@ async function actuallyUploadFile(
 
             await Promise.race([
                 promise,
-                new Promise((resolve, reject) => {
+                new Promise<void>((resolve, reject) => {
                     const handleAbort = () => {
                         abortController.signal.removeEventListener("abort", handleAbort);
                         reject(abortController.signal.reason);
@@ -321,11 +328,16 @@ const processFilePreviewByContentType: {
           })
         | null;
 } = {
-    "image/png": createProcessImageFilePreview("image/png"),
-    "image/jpeg": createProcessImageFilePreview("image/jpeg"),
+    "image/apng": createProcessWebSafeImageFilePreview("image/apng"),
+    "image/avif": createProcessWebSafeImageFilePreview("image/avif"),
+    "image/gif": createProcessWebSafeImageFilePreview("image/gif"),
+    "image/jpeg": createProcessWebSafeImageFilePreview("image/jpeg"),
+    "image/png": createProcessWebSafeImageFilePreview("image/png"),
+    "image/svg+xml": createProcessWebSafeImageFilePreview("image/svg+xml"),
+    "image/webp": createProcessWebSafeImageFilePreview("image/webp"),
 };
 
-function createProcessImageFilePreview(contentType: "image/png" | "image/jpeg") {
+function createProcessWebSafeImageFilePreview(contentType: WebSafeImageFileContentType) {
     return (
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         req: IncomingMessage,
@@ -338,13 +350,31 @@ function createProcessImageFilePreview(contentType: "image/png" | "image/jpeg") 
             const metadata = await sharp.metadata().catch(rethrowClassifiedSharpError);
 
             let expectedFormat: keyof createSharp.FormatEnum;
+            let expectedCompression: createSharp.Metadata["compression"];
 
             switch (contentType) {
-                case "image/png":
+                case "image/apng":
                     expectedFormat = "png";
+                    break;
+                case "image/avif":
+                    // See: https://github.com/lovell/sharp/issues/2504
+                    expectedFormat = "heif";
+                    expectedCompression = "av1";
+                    break;
+                case "image/gif":
+                    expectedFormat = "gif";
                     break;
                 case "image/jpeg":
                     expectedFormat = "jpeg";
+                    break;
+                case "image/png":
+                    expectedFormat = "png";
+                    break;
+                case "image/svg+xml":
+                    expectedFormat = "svg";
+                    break;
+                case "image/webp":
+                    expectedFormat = "webp";
                     break;
                 default:
                     throw exhaustive(contentType);
@@ -353,6 +383,12 @@ function createProcessImageFilePreview(contentType: "image/png" | "image/jpeg") 
             if (metadata.format !== expectedFormat) {
                 throw new InvalidArgumentError(
                     quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
+                );
+            }
+
+            if (metadata.compression !== expectedCompression) {
+                throw new InvalidArgumentError(
+                    quote`Expected file in ${expectedFormat} format to use ${expectedCompression} compression but received file with ${metadata.compression} compression`,
                 );
             }
 

@@ -10,11 +10,47 @@ import {Schema} from "~/shared/schema/schema.js";
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
  */
-export type FileContentType = "image/png" | "image/jpeg";
+export type FileContentType = ImageFileContentType;
+
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+export type ImageFileContentType = WebSafeImageFileContentType | WebUnsafeImageFileContentType;
+
+/**
+ * Image types with broad web browser support (Chrome, Firefox, and Safari)
+ * that are safe to serve in an `<img>` tag.
+ *
+ * This list is based on MDN's “[Common image file types][1].”
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
+ */
+export type WebSafeImageFileContentType =
+    | "image/apng"
+    | "image/avif"
+    | "image/gif"
+    | "image/jpeg"
+    | "image/png"
+    | "image/svg+xml"
+    | "image/webp";
+
+/**
+ * Somewhat popular image types that don't have broad web browser support. We
+ * need to convert these images into a format with better web browser support.
+ *
+ * This list is based on MDN's “[Common image file types][1].”
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
+ */
+// TODO(calebmer, #files): "image/bmp" | "image/ico" | "image/tiff"
+export type WebUnsafeImageFileContentType = never;
 
 const fileContentTypesMap: {[Key in FileContentType]: true} = {
-    "image/png": true,
+    "image/apng": true,
+    "image/avif": true,
+    "image/gif": true,
     "image/jpeg": true,
+    "image/png": true,
+    "image/svg+xml": true,
+    "image/webp": true,
 };
 
 /**
