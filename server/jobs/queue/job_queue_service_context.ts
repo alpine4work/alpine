@@ -1,5 +1,4 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
-import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {GithubContextModuleBase} from "~/server/deploy/data/github_context_module.js";
@@ -17,7 +16,6 @@ type JobQueueServiceExtraContextModules = {
     apns: ApnsContextModuleBase;
     github: GithubContextModuleBase;
     scheduler: SchedulerContextModuleBase;
-    r2: CloudflareR2ContextModule;
 };
 
 type JobQueueServiceActionExtraContextModules = {

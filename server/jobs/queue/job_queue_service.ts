@@ -10,10 +10,6 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
-import {
-    createServiceCloudflareR2ContextModule,
-    serviceCloudflareR2Options,
-} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {
     GithubContextModule,
@@ -87,7 +83,6 @@ export const options = {
     ...serviceTokenAgentOptions,
     ...serverProcessContextOptions,
     ...serviceOpensearchOptions,
-    ...serviceCloudflareR2Options,
 } as const;
 
 export async function run({
@@ -241,8 +236,6 @@ export async function run({
                   ),
               });
 
-    const r2ContextModule = createServiceCloudflareR2ContextModule(options);
-
     const processContext: JobQueueServiceProcessContext = baseProcessContext.clone({
         edge: new EdgeServiceContextModule({
             edgeServiceUrl: assertExists(
@@ -256,7 +249,6 @@ export async function run({
         apns: apnsContextModule,
         github: githubContextModule,
         scheduler: schedulerContextModule,
-        r2: r2ContextModule,
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

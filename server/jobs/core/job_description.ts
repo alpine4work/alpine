@@ -1,7 +1,7 @@
 import {NotificationEventJobDescriptionSchema} from "~/server/notifications/core/notification_event.js";
 import {IndexSearchEntityJobDescriptionSchema} from "~/server/search/core/index_search_entity_job_description.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -66,19 +66,8 @@ const TestJobDescriptionSchema = Schema.object({
     shouldThrow: Schema.boolean.optional(),
 });
 
-export type CleanupTimedOutFileUploadJobDescription = SchemaType<
-    typeof CleanupTimedOutFileUploadJobDescriptionSchema
->;
-
-const CleanupTimedOutFileUploadJobDescriptionSchema = Schema.object({
-    type: Schema.value("CleanupTimedOutFileUpload"),
-    spaceId: Schema.id<SpaceId>(),
-    fileId: Schema.id<FileId>(),
-});
-
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
     NotificationEvent: NotificationEventJobDescriptionSchema,
-    CleanupTimedOutFileUpload: CleanupTimedOutFileUploadJobDescriptionSchema,
 });
