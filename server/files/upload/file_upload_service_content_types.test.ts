@@ -16,24 +16,26 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
-// Make sure we have at least one file as a test case for each of the
-// `FileContentType`s we support.
+// Use TypeScript to make sure we have at least one file as a test case for
+// each of the `FileContentType`s we support.
 const testCases: {
     [Key in FileContentType]: NonEmptyReadonlyArray<{
         path: string;
         contentLength: number;
         size: {width: number; height: number};
+        placeholder: FilePreviewPlaceholder;
     }>;
 } = {
     "image/apng": [
@@ -41,11 +43,21 @@ const testCases: {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.png",
             contentLength: 103683,
             size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+            ]),
         },
         {
             path: "wikimedia_bouncing_beach_ball.png",
             contentLength: 61968,
             size: {width: 100, height: 100},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/2tQE6OEuGIhLLwXAAAAAAAAAABhbGdelbRa/01KNWAAAAAAAAAAAAApcx8ANiOIJUIAGwAAAAAAAAAAqqpVA/7+SAdVVVUDAAAAAA==",
+            ]),
         },
     ],
     "image/avif": [
@@ -53,6 +65,11 @@ const testCases: {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.avif",
             contentLength: 3704,
             size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "yNTYy9bbz9jcztfbzdba1tnZ2tzd3+Pj4uTl3d7fuLSvtLKt0M7L0M3IsK2klaerlqqun7C1o7K1p7K0",
+            ]),
         },
     ],
     "image/gif": [
@@ -60,11 +77,21 @@ const testCases: {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.gif",
             contentLength: 64718,
             size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "x9TY/8vW2//O2Nv/ztfa/83W2v/W2dn/2Nzd/97j5f/i5OX/3d7f/7a0rv+0saz/0M7L/9DNyP+xrKX/laer/5aprf+fr7T/o7K1/6eytf8=",
+            ]),
         },
         {
             path: "wikimedia_rotating_earth.gif",
             contentLength: 118405,
             size: {width: 400, height: 400},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "AgEA/wMFEP8BAw//AAAA/wAAAf8AAAr/DhZM/3lwWf9HQSr/AgEC/wACCv8nLFX/o5xp/1ZTKv8AAAL/BAQA/wIDIv8HCyf/DhEF/wAABP8BAQL/AgEB/wQCBv8DAQT/AgED/w==",
+            ]),
         },
     ],
     "image/jpeg": [
@@ -72,6 +99,11 @@ const testCases: {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
             contentLength: 33102,
             size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "x9LXytXaztfbztfay9bY19rb3N/g3+Ll4OPm3+HhtrKssq+q0M3L0c3Jsaymna2vm62xp7a6qra6q7O0",
+            ]),
         },
     ],
     "image/png": [
@@ -79,11 +111,21 @@ const testCases: {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.png",
             contentLength: 103683,
             size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+            ]),
         },
         {
             path: "wikimedia_bouncing_beach_ball.png",
             contentLength: 61968,
             size: {width: 100, height: 100},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/2tQE6OEuGIhLLwXAAAAAAAAAABhbGdelbRa/01KNWAAAAAAAAAAAAApcx8ANiOIJUIAGwAAAAAAAAAAqqpVA/7+SAdVVVUDAAAAAA==",
+            ]),
         },
     ],
     "image/svg+xml": [
@@ -91,6 +133,11 @@ const testCases: {
             path: "undraw_landscape_photographer.svg",
             contentLength: 4701,
             size: {width: 732, height: 619},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "VVVVA2hWeVd3YrucAAAAAAAAAAAAAAAAaFz/DVZY/70AAAAAAAAAAAAAAAAAAAAALSxEowAAAAAAAAAAAAAAAAAAAABEO0+JAAAAAAAAAAA=",
+            ]),
         },
     ],
     "image/webp": [
@@ -98,6 +145,11 @@ const testCases: {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.webp",
             contentLength: 60260,
             size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "yNTXzdba0Njc0Njcztfa297e3uLj4uXl4uTl3+Hhr62nq6mjxsXDysfCp6Sdoa+yorK2qbm7rru9sru9",
+            ]),
         },
     ],
 };
@@ -162,7 +214,12 @@ function parseJsonEvents(responseText: string) {
 }
 
 for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
-    for (const {path, contentLength, size} of contentTypeTestCases) {
+    for (const {
+        path,
+        contentLength: expectedContentLength,
+        size: expectedSize,
+        placeholder: expectedPlaceholder,
+    } of contentTypeTestCases) {
         // eslint-disable-next-line jest/valid-title
         test(quote`can upload ${contentType} file ${path}`, async () => {
             const space = await TestSpace.create(context);
@@ -180,7 +237,6 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
             });
             const responseText = await response.text();
 
-            expect(response.status).toEqual(200);
             expect(massageHeaders(response.headers)).toEqual({
                 "content-type": "application/x-ndjson",
             });
@@ -190,16 +246,21 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                     type: "Start",
                     fileId: expect.any(String),
                 },
-                {type: "PreviewSize", width: size.width, height: size.height},
+                {type: "PreviewSize", width: expectedSize.width, height: expectedSize.height},
                 {type: "PreviewPlaceholder", placeholder: expect.any(FilePreviewPlaceholder)},
                 {type: "Finish"},
             ]);
+            expect(response.status).toEqual(200);
 
             const fileId = assertExists(
-                iterableFirst(
-                    filterMapIterable(events, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
+                findMapIterable(events, event =>
+                    event.type === "Start" ? event.fileId : undefined,
+                ),
+            );
+
+            const placeholder = assertExists(
+                findMapIterable(events, event =>
+                    event.type === "PreviewPlaceholder" ? event.placeholder : undefined,
                 ),
             );
 
@@ -207,15 +268,67 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                 new FileModel({
                     id: fileId,
                     contentType: contentType as FileContentType,
-                    contentLength,
+                    contentLength: expectedContentLength,
                     isUploading: false,
                     preview: {
                         isProcessing: false,
-                        size: {width: size.width, height: size.height},
+                        size: {width: expectedSize.width, height: expectedSize.height},
                         placeholder: expect.any(FilePreviewPlaceholder),
                     },
                 }),
             );
+
+            // Compare placeholders. Sharp's placeholder generation isn't deterministic
+            // across platforms. So check that placeholders are close to each other if not
+            // exactly equal.
+            {
+                const actualPixelGrid = placeholder.get();
+                const expectedPixelGrid = expectedPlaceholder.get();
+                const actualPlaceholderString = JSON.stringify(
+                    FilePreviewPlaceholder.schema.serialize(placeholder),
+                );
+
+                if (actualPixelGrid.length !== expectedPixelGrid.length) {
+                    throw new InvalidArgumentError(
+                        `Placeholder height doesn't match, actual placeholder: ${actualPlaceholderString}`,
+                    );
+                }
+
+                for (let y = 0; y < actualPixelGrid.length; y++) {
+                    const actualPixelRow = actualPixelGrid[y]!;
+                    const expectedPixelRow = expectedPixelGrid[y]!;
+
+                    if (actualPixelRow.length !== expectedPixelRow.length) {
+                        throw new InvalidArgumentError(
+                            `Placeholder width doesn't match, actual placeholder: ${actualPlaceholderString}`,
+                        );
+                    }
+
+                    for (let x = 0; x < actualPixelRow.length; x++) {
+                        const actualPixel = actualPixelRow[x]!;
+                        const expectedPixel = expectedPixelRow[x]!;
+
+                        // Make sure we're not comparing the exact same `FilePreviewPlaceholder`
+                        // object.
+                        assert(actualPixel !== expectedPixel);
+
+                        const distance = Math.sqrt(
+                            (actualPixel.r - expectedPixel.r) ** 2 +
+                                (actualPixel.g - expectedPixel.g) ** 2 +
+                                (actualPixel.b - expectedPixel.b) ** 2 +
+                                ((actualPixel.alpha ?? 1) * 255 -
+                                    (expectedPixel.alpha ?? 1) * 255) **
+                                    2,
+                        );
+
+                        if (distance >= 2) {
+                            throw new InvalidArgumentError(
+                                `Placeholder pixel doesn't match (distance = ${distance}), actual placeholder: ${actualPlaceholderString}`,
+                            );
+                        }
+                    }
+                }
+            }
         });
     }
 }

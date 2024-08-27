@@ -1,4 +1,5 @@
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {JsonStringifiableUint8Array} from "~/shared/schema/schema.js";
 
 test("can serialize/deserialize a file preview placeholder", () => {
     const serializedPlaceholder = [
@@ -79,4 +80,76 @@ test("can serialize/deserialize a file preview placeholder", () => {
     expect(
         JSON.parse(JSON.stringify(new FilePreviewPlaceholder(deserializedPlaceholder).serialize())),
     ).toEqual(serializedPlaceholder);
+});
+
+test("can go through a serialize, JSON, deserialize, serialize loop", () => {
+    const placeholder1 = FilePreviewPlaceholder.fromSerialized([
+        false,
+        5,
+        new Uint8Array([
+            200, 212, 216, 205, 215, 219, 206, 216, 220, 206, 215, 219, 205, 214, 218, 214, 217,
+            217, 218, 220, 220, 223, 227, 227, 226, 228, 229, 221, 222, 224, 184, 180, 174, 182,
+            178, 172, 208, 206, 203, 208, 205, 200, 176, 173, 164, 149, 167, 171, 150, 170, 173,
+            159, 178, 180, 163, 178, 181, 167, 178, 180,
+        ]),
+    ]);
+
+    const placeholder2 = FilePreviewPlaceholder.schema.serialize(placeholder1);
+
+    expect(placeholder2).toEqual([
+        false,
+        5,
+        new JsonStringifiableUint8Array(
+            new Uint8Array([
+                200, 212, 216, 205, 215, 219, 206, 216, 220, 206, 215, 219, 205, 214, 218, 214, 217,
+                217, 218, 220, 220, 223, 227, 227, 226, 228, 229, 221, 222, 224, 184, 180, 174, 182,
+                178, 172, 208, 206, 203, 208, 205, 200, 176, 173, 164, 149, 167, 171, 150, 170, 173,
+                159, 178, 180, 163, 178, 181, 167, 178, 180,
+            ]),
+        ),
+    ]);
+
+    const placeholder3 = JSON.stringify(placeholder2);
+
+    expect(placeholder3).toEqual(
+        '[false,5,"yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0"]',
+    );
+
+    const placeholder4 = JSON.parse(placeholder3);
+
+    expect(placeholder4).toEqual([
+        false,
+        5,
+        "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+    ]);
+
+    const placeholder5 = FilePreviewPlaceholder.schema.deserialize(placeholder4);
+
+    expect(placeholder5).toEqual(
+        FilePreviewPlaceholder.fromSerialized([
+            false,
+            5,
+            new Uint8Array([
+                200, 212, 216, 205, 215, 219, 206, 216, 220, 206, 215, 219, 205, 214, 218, 214, 217,
+                217, 218, 220, 220, 223, 227, 227, 226, 228, 229, 221, 222, 224, 184, 180, 174, 182,
+                178, 172, 208, 206, 203, 208, 205, 200, 176, 173, 164, 149, 167, 171, 150, 170, 173,
+                159, 178, 180, 163, 178, 181, 167, 178, 180,
+            ]),
+        ]),
+    );
+
+    const placeholder6 = FilePreviewPlaceholder.schema.serialize(placeholder5);
+
+    expect(placeholder6).toEqual([
+        false,
+        5,
+        new JsonStringifiableUint8Array(
+            new Uint8Array([
+                200, 212, 216, 205, 215, 219, 206, 216, 220, 206, 215, 219, 205, 214, 218, 214, 217,
+                217, 218, 220, 220, 223, 227, 227, 226, 228, 229, 221, 222, 224, 184, 180, 174, 182,
+                178, 172, 208, 206, 203, 208, 205, 200, 176, 173, 164, 149, 167, 171, 150, 170, 173,
+                159, 178, 180, 163, 178, 181, 167, 178, 180,
+            ]),
+        ),
+    ]);
 });

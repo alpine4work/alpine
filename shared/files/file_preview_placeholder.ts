@@ -1,7 +1,7 @@
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * File preview placeholder blur image.
@@ -26,7 +26,7 @@ import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
 export type FilePreviewPlaceholder = InstanceType<typeof FilePreviewPlaceholder>;
 
 export const FilePreviewPlaceholder = createSchemaLazyTransformClass<
-    readonly [boolean, number, Uint8Array],
+    readonly [hasAlphaChannel: boolean, width: number, data: Uint8Array],
     NonEmptyReadonlyArray<
         NonEmptyReadonlyArray<{
             readonly r: number;
@@ -64,7 +64,7 @@ export const FilePreviewPlaceholder = createSchemaLazyTransformClass<
             }
         }
 
-        return [hasAlphaChannel, width, new JsonStringifiableUint8Array(data)];
+        return [hasAlphaChannel, width, data];
     },
     deserialize: ([hasAlphaChannel, width, data]) => {
         const channelCount = hasAlphaChannel ? 4 : 3;
