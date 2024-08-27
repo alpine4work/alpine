@@ -3277,7 +3277,7 @@ export function deleteTaskAndAllChildren(
                 ),
                 ...filterMapArray(
                     updatedTaskItems,
-                    ({oldTaskItem, newTaskItem}): TaskAction | null => {
+                    ({oldTaskItem, newTaskItem}): TaskAction | undefined => {
                         const countKeys = [
                             "addedChildTaskCount",
                             "removedChildTaskCount",
