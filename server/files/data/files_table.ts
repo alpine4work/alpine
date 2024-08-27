@@ -149,21 +149,6 @@ const FilesTable = DynamoTableSchema.new({
                          * - `placeholder`: Before the preview image loads, we immediately show a
                          *   blurred placeholder representing the preview image. The placeholder is
                          *   <700 bytes so it's cheap to send over the network.
-                         *
-                         * - `image`: If the file isn't itself a web safe image (one of
-                         *   `WebSafeImageFileContentType`) or not an image at all (e.g. a video or
-                         *   PDF) then we need to generate a preview image.
-                         *
-                         *   If `image` isn't undefined that means the file has a preview image
-                         *   located in Cloudflare R2 at `${spaceId}/${fileId}.preview`. If
-                         *   `image.contentType` is null that means there will be a preview image but
-                         *   it's currently processing. Again, `image: undefined` and `image: null`
-                         *   mean different things! `image: null` means there is a preview image and
-                         *   its processing whereas `image: undefined` means there is no preview image
-                         *   (the file itself is the preview image).
-                         *
-                         *   If `image` is non-null then `size` and `placeholder` refer to the `image`
-                         *   property.
                          */
                         preview: Schema.booleanUnion(
                             "isProcessing",
@@ -174,11 +159,6 @@ const FilesTable = DynamoTableSchema.new({
                                     height: Schema.integer,
                                 }).nullable(),
                                 placeholder: FilePreviewPlaceholder.schema.nullable(),
-                                image: Schema.object({
-                                    contentType: FileContentTypeSchema,
-                                })
-                                    .nullable()
-                                    .optional(),
                             }),
                             Schema.object({
                                 isProcessing: Schema.value(false),
@@ -187,9 +167,6 @@ const FilesTable = DynamoTableSchema.new({
                                     height: Schema.integer,
                                 }),
                                 placeholder: FilePreviewPlaceholder.schema,
-                                image: Schema.object({
-                                    contentType: FileContentTypeSchema,
-                                }).optional(),
                             }),
                         ).nullable(),
                     }),
