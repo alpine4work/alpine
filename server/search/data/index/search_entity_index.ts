@@ -1664,21 +1664,21 @@ export async function searchByAffinity(
 
     const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
         spaceId,
-        entityIds: filterMapArray(affinityIds, ({affinityId}): SearchEntityId | null =>
-            affinityId !== "TaskNotepad" ? affinityId : null,
+        entityIds: filterMapArray(affinityIds, ({affinityId}): SearchEntityId | undefined =>
+            affinityId !== "TaskNotepad" ? affinityId : undefined,
         ),
     });
 
     const entityTitleAndMediaById = new Map(
         filterMapIterable(entitiesTitleAndMedia, entityTitleAndMedia =>
-            entityTitleAndMedia ? [entityTitleAndMedia.id, entityTitleAndMedia] : null,
+            entityTitleAndMedia ? [entityTitleAndMedia.id, entityTitleAndMedia] : undefined,
         ),
     );
 
     const results = await runAllPromises(
         filterMapArray(
             affinityIds,
-            ({affinityId, points, lastViewedTime}): MaybePromise<SearchResult> | null => {
+            ({affinityId, points, lastViewedTime}): MaybePromise<SearchResult> | undefined => {
                 const bodyTextSnippet = [
                     {
                         isHighlighted: false,
@@ -1704,7 +1704,7 @@ export async function searchByAffinity(
                 }
 
                 const entityTitleAndMedia = entityTitleAndMediaById.get(affinityId);
-                if (!entityTitleAndMedia) return null;
+                if (!entityTitleAndMedia) return;
 
                 return Promise.resolve(
                     entityTitleAndMedia.media

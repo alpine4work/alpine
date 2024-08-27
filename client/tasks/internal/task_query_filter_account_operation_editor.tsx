@@ -278,8 +278,8 @@ function TaskQueryFilterAccountOperationEditorPreview({
 
             const accounts = Array.from(
                 filterMapIterable(normalizedAccountIds, accountId => {
-                    if (accountId === "MissingAccount") return null;
-                    return getAccountIfExists(accountId) ?? null;
+                    if (accountId === "MissingAccount") return;
+                    return getAccountIfExists(accountId);
                 }),
             );
 

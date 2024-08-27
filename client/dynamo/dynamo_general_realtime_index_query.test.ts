@@ -23,7 +23,7 @@ function testItems<Model>(
     }
 
     expect(query.getLoadedItemByCursor().values).toEqual(
-        filterMapArray(items, item => (item.type === "Loaded" ? item.item : null)),
+        filterMapArray(items, item => (item.type === "Loaded" ? item.item : undefined)),
     );
 
     return items;

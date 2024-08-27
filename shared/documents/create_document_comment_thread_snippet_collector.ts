@@ -30,8 +30,8 @@ export function createDocumentCommentThreadSnippetCollector(
         const relevantCommentThreadIds: Array<DocumentCommentThreadId> = filterMapArray(
             node.marks,
             mark => {
-                if (mark.type.name !== "comment") return null;
-                if (!commentThreadIdSet.has(mark.attrs.commentThreadId)) return null;
+                if (mark.type.name !== "comment") return;
+                if (!commentThreadIdSet.has(mark.attrs.commentThreadId)) return;
                 return mark.attrs.commentThreadId;
             },
         );

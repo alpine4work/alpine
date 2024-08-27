@@ -176,7 +176,7 @@ export abstract class TaskRealtimeServiceRouterBase {
         const allHosts = await this.getHosts(context, spaceId);
 
         const healthyHosts = filterMapArray(allHosts, ({isHealthy, host}) =>
-            isHealthy ? host : null,
+            isHealthy ? host : undefined,
         );
 
         if (healthyHosts.length === 0) {
@@ -210,7 +210,7 @@ export abstract class TaskRealtimeServiceRouterBase {
         const allHosts = await this.getHosts(context, spaceId);
 
         const healthyHosts = filterMapArray(allHosts, ({isHealthy, host}) =>
-            isHealthy ? host : null,
+            isHealthy ? host : undefined,
         );
 
         if (healthyHosts.length === 0) {

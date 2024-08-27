@@ -956,7 +956,7 @@ function actuallyProcessFileUpdates(paths: Set<string>) {
                             );
 
                             if (!artifact.serverRestartPaths.has(relativePath)) {
-                                return null;
+                                return;
                             }
                         }
                     }

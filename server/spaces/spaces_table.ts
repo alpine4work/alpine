@@ -1452,13 +1452,13 @@ export async function getSpaceAccountNameSearchIndex(
     return {
         searchNames: queryText => {
             return filterMapArray(accountNameIndex.search(queryText), match => {
-                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return null;
+                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return;
                 return match.item;
             });
         },
         searchShortNames: queryText => {
             return filterMapArray(accountShortNameIndex.search(queryText), match => {
-                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return null;
+                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return;
                 return match.item;
             });
         },

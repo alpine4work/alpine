@@ -147,7 +147,7 @@ export class AddMarksAfterRemoveAllStep extends Step {
         const ranges = filterMapArray(this.ranges, range => {
             const from = mapping.mapResult(range.from, 1);
             const to = mapping.mapResult(range.to, -1);
-            if ((from.deleted && to.deleted) || from.pos >= to.pos) return null;
+            if ((from.deleted && to.deleted) || from.pos >= to.pos) return;
             return {from: from.pos, to: to.pos};
         });
 

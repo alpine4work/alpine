@@ -149,7 +149,7 @@ async function main(): Promise<{exitCode: number}> {
                         filterMapIterable(
                             testInfo.attempts.values(),
                             testAttemptInfo =>
-                                testAttemptInfo.logPath ?? testAttemptInfo.outputPath ?? null,
+                                testAttemptInfo.logPath ?? testAttemptInfo.outputPath ?? undefined,
                         ),
                     );
                 if (!primaryPath) return null;

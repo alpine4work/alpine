@@ -2421,7 +2421,7 @@ export async function getPostAndInitialComments(
         runAllPromises(commentPromises),
         runAllPromises(
             filterMapIterable(parentCommentIndexes, parentCommentIndex => {
-                if (commentIndexes.has(parentCommentIndex)) return null;
+                if (commentIndexes.has(parentCommentIndex)) return;
 
                 return (async () => {
                     const commentItem = await ForumTable.getItemIfExists(context, {

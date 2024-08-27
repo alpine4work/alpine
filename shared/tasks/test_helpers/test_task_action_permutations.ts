@@ -4731,7 +4731,7 @@ export function testTaskActionPermutations({
                                             action.taskId === expectation.taskId &&
                                             action.taskAction.type === "Create"
                                                 ? {time: action.time, taskAction: action.taskAction}
-                                                : null,
+                                                : undefined,
                                         ),
                                     );
 
@@ -4818,7 +4818,7 @@ export function testTaskActionPermutations({
                                                       time: action.time,
                                                       collectionAction: action.collectionAction,
                                                   }
-                                                : null,
+                                                : undefined,
                                         ),
                                     );
 

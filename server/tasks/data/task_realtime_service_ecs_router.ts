@@ -145,7 +145,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                                     cluster: this._ecsCluster,
                                     containerInstances: filterMapArray(
                                         describeTasksOutput.tasks ?? [],
-                                        task => task.containerInstanceArn ?? null,
+                                        task => task.containerInstanceArn,
                                     ),
                                 });
 
@@ -184,7 +184,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                                                 describeContainerInstancesOutput.containerInstances ??
                                                     [],
                                                 containerInstance =>
-                                                    containerInstance.ec2InstanceId ?? null,
+                                                    containerInstance.ec2InstanceId,
                                             ),
                                         },
                                     ],
@@ -199,7 +199,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                                 describeContainerInstancesOutput.containerInstances ?? [],
                                 containerInstance => {
                                     const {containerInstanceArn} = containerInstance;
-                                    if (!containerInstanceArn) return null;
+                                    if (!containerInstanceArn) return;
                                     return [containerInstanceArn, containerInstance];
                                 },
                             ),
@@ -210,7 +210,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                                 describeNetworkInterfacesOutput.NetworkInterfaces ?? [],
                                 networkInterface => {
                                     const instanceId = networkInterface.Attachment?.InstanceId;
-                                    if (!instanceId) return null;
+                                    if (!instanceId) return;
                                     return [instanceId, networkInterface];
                                 },
                             ),

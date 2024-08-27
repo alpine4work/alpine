@@ -154,10 +154,10 @@ export function createFileUploadService(
                     response: {
                         header: Object.fromEntries(
                             filterMapIterable(res.getHeaderNames(), headerName => {
-                                if (!tracerEventHttpHeaderNames.has(headerName)) return null;
+                                if (!tracerEventHttpHeaderNames.has(headerName)) return;
 
                                 const headerValue = res.getHeader(headerName);
-                                if (headerValue === undefined) return null;
+                                if (headerValue === undefined) return;
 
                                 const headerValueString: string =
                                     typeof headerValue === "number"

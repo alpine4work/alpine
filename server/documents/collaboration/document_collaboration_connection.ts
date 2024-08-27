@@ -140,7 +140,7 @@ export class DocumentCollaborationConnection {
                 const presenceStates = Array.from(
                     filterMapIterable(this._iterateOtherConnections(), connection => {
                         const state = connection.getPresenceState();
-                        if (!state) return null;
+                        if (!state) return;
 
                         // Record the smallest presence state version. We will also send steps to the
                         // client from this version to the client's version so the client can map

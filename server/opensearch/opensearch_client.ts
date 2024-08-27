@@ -1604,8 +1604,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     item.create?.error ??
                     item.update?.error ??
                     item.delete?.error ??
-                    item.index?.error ??
-                    null,
+                    item.index?.error,
             );
 
             const [versionConflictErrors, errors] = partitionArray(

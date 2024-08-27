@@ -122,7 +122,7 @@ export function useTaskCollectionComboBoxSearchState({
                         filterMapArray(searchByAffinityCollectionResults ?? [], (result, index) =>
                             // Only use results from the account's affinity when re-ranking collection
                             // results. Don't re-rank with results from the space's affinity.
-                            result.origin === "Account" ? [result.collection.id, index] : null,
+                            result.origin === "Account" ? [result.collection.id, index] : undefined,
                         ),
                     );
 

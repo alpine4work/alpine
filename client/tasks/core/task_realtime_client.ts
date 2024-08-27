@@ -219,20 +219,20 @@ export class TaskRealtimeClient {
 
             const newQueries = new Set(
                 filterMapIterable(subscriptions.queries, ([query, {isUnsubscribing}]) =>
-                    !isUnsubscribing ? query : null,
+                    !isUnsubscribing ? query : undefined,
                 ),
             );
             const newTaskSubscriptions = new Set(
                 flatMapIterable(subscriptions.taskSubscriptionsById.values(), subscriptions =>
                     filterMapIterable(subscriptions, ([subscription, {isUnsubscribing}]) =>
-                        !isUnsubscribing ? subscription : null,
+                        !isUnsubscribing ? subscription : undefined,
                     ),
                 ),
             );
             const newCollectionSubscriptions = new Set(
                 flatMapIterable(subscriptions.collectionSubscriptionsById.values(), subscriptions =>
                     filterMapIterable(subscriptions, ([subscription, {isUnsubscribing}]) =>
-                        !isUnsubscribing ? subscription : null,
+                        !isUnsubscribing ? subscription : undefined,
                     ),
                 ),
             );
@@ -617,7 +617,7 @@ export class TaskRealtimeClient {
                                 querySubscriptionIdResult =>
                                     querySubscriptionIdResult.status === "fulfilled"
                                         ? querySubscriptionIdResult.value
-                                        : null,
+                                        : undefined,
                             );
 
                             const taskSubscriptionIds = filterMapArray(
@@ -625,7 +625,7 @@ export class TaskRealtimeClient {
                                 taskSubscriptionIdResult =>
                                     taskSubscriptionIdResult.status === "fulfilled"
                                         ? taskSubscriptionIdResult.value
-                                        : null,
+                                        : undefined,
                             );
 
                             const collectionSubscriptionIds = filterMapArray(
@@ -633,7 +633,7 @@ export class TaskRealtimeClient {
                                 collectionSubscriptionIdResult =>
                                     collectionSubscriptionIdResult.status === "fulfilled"
                                         ? collectionSubscriptionIdResult.value
-                                        : null,
+                                        : undefined,
                             );
 
                             if (

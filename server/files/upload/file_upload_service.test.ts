@@ -681,7 +681,7 @@ test("can't upload invalid image data", async () => {
 
     const fileId = assertExists(
         iterableFirst(
-            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : null)),
+            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : undefined)),
         ),
     );
 
@@ -720,7 +720,7 @@ test("can't upload image with the wrong content type", async () => {
 
     const fileId = assertExists(
         iterableFirst(
-            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : null)),
+            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : undefined)),
         ),
     );
 
@@ -756,7 +756,7 @@ test("can upload image", async () => {
 
     const fileId = assertExists(
         iterableFirst(
-            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : null)),
+            filterMapIterable(events, event => (event.type === "Start" ? event.fileId : undefined)),
         ),
     );
 

@@ -54,7 +54,7 @@ const opensearchIndexStaticSettingsKeys = filterMapArray(
         }),
     ),
     ([key, isStatic]) =>
-        isStatic ? (key as keyof OpensearchIndexConfig<string>["settings"]["index"]) : null,
+        isStatic ? (key as keyof OpensearchIndexConfig<string>["settings"]["index"]) : undefined,
 );
 
 /**

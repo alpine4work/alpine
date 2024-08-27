@@ -204,7 +204,7 @@ export function reduceDocumentContentEditorState(
                         initialCommentContent: MessageContentWithReferences;
                     } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
 
-                    if (!createCommentThread) return null;
+                    if (!createCommentThread) return;
 
                     return {
                         commentThreadId: createCommentThread.commentThreadId,

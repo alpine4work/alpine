@@ -100,7 +100,7 @@ export default implementRpcs(definitions, {
 
             return {
                 spaces: filterMapArray(spaces, space => {
-                    if (!space) return null;
+                    if (!space) return;
 
                     const inbox = inboxBySpaceId.get(space.id) ?? null;
                     return {space, inbox};

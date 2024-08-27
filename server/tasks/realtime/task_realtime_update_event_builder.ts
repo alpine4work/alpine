@@ -354,8 +354,9 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
         const accountIds = new Set<AccountId>();
 
         const actions = Array.from(
-            filterMapIterable(event.actions, action =>
-                prepareTaskActionForClient(connection.accountId, action),
+            filterMapIterable(
+                event.actions,
+                action => prepareTaskActionForClient(connection.accountId, action) ?? undefined,
             ),
         );
 

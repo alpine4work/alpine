@@ -441,7 +441,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model, Extra = never> {
 
                 // This item does not have a cursor for this index so it is not present in
                 // the index.
-                if (cursor === undefined) return null;
+                if (cursor === undefined) return;
 
                 return [
                     cursor,

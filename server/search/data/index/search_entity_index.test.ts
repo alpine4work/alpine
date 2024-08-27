@@ -1819,7 +1819,7 @@ test("get search entities only sees entities the account has access to", async (
             ],
         });
 
-        return filterMapArray(entities, entity => entity?.id ?? null).sort(defaultCompareStrings);
+        return filterMapArray(entities, entity => entity?.id).sort(defaultCompareStrings);
     };
 
     await expect(getSearchEntityIds(otherSession.action(), space)).rejects.toThrow(

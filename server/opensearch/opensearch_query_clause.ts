@@ -314,7 +314,9 @@ export function getOpensearchQueryClauseDescription(
                     return "_";
                 } else {
                     return `{${filterMapArray(Object.entries(value), ([key, keyValue]) =>
-                        keyValue !== undefined ? `${JSON.stringify(key)}:${loop(keyValue)}` : null,
+                        keyValue !== undefined
+                            ? `${JSON.stringify(key)}:${loop(keyValue)}`
+                            : undefined,
                     ).join(",")}}`;
                 }
             }

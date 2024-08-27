@@ -198,7 +198,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
             const fileId = assertExists(
                 iterableFirst(
                     filterMapIterable(events, event =>
-                        event.type === "Start" ? event.fileId : null,
+                        event.type === "Start" ? event.fileId : undefined,
                     ),
                 ),
             );

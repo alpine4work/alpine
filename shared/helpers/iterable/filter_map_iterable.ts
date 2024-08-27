@@ -4,14 +4,14 @@
  */
 export function filterMapIterable<Value, NewValue>(
     iterable: Iterable<Value>,
-    filterMap: (value: Value, index: number) => NewValue | null,
+    filterMap: (value: Value, index: number) => NewValue | undefined,
 ): Iterable<NewValue> {
     return {
         [Symbol.iterator]: function* () {
             let index = 0;
             for (const value of iterable) {
                 const newValue = filterMap(value, index++);
-                if (newValue !== null) yield newValue;
+                if (newValue !== undefined) yield newValue;
             }
         },
     };

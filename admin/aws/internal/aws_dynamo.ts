@@ -137,7 +137,7 @@ export class AwsDynamo {
                     UpdateTable: false,
                 }),
             ),
-            ([action, isAllowed]) => (isAllowed ? action : null),
+            ([action, isAllowed]) => (isAllowed ? action : undefined),
         );
 
         grantee.grantPrincipal.addToPrincipalPolicy(

@@ -220,7 +220,7 @@ export async function cleanupAppStaticFilesAfterDeploy(
                 isDateDefinitelyLessThanWithUncertaintyWindow(newFile.uploadTime, expirationTime)
             ) {
                 expiredPaths.add(newFile.path);
-                return null;
+                return;
             }
 
             return newFile;

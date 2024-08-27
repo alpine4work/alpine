@@ -1965,7 +1965,7 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
     >;
 }>(node => {
     const commentThreadIds = filterMapArray(node.marks, mark => {
-        if (mark.type.name !== "comment") return null;
+        if (mark.type.name !== "comment") return;
         return assertId<DocumentCommentThreadId>(mark.attrs.commentThreadId);
     });
 

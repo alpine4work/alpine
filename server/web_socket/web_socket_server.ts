@@ -314,7 +314,7 @@ export class WebSocketServer<
                 return filterMapIterable(this._connections.values(), otherConnection =>
                     otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
                         ? otherConnection.connection
-                        : null,
+                        : undefined,
                 );
             },
             closeWithError: (context, error) => {
@@ -480,7 +480,7 @@ export class WebSocketServer<
      */
     public iterateAllConnections() {
         return filterMapIterable(this._connections.values(), connection =>
-            !connection.isSoftClosed() ? connection.connection : null,
+            !connection.isSoftClosed() ? connection.connection : undefined,
         );
     }
 
@@ -602,7 +602,7 @@ export class WebSocketServer<
                 return filterMapIterable(this._connections.values(), otherConnection =>
                     otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
                         ? otherConnection.connection
-                        : null,
+                        : undefined,
                 );
             },
             closeWithError: (context, error) => {

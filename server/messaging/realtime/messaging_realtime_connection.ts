@@ -415,7 +415,7 @@ export class MessagingRealtimeConnection<
                 typingStateByConnectionId: new Map(
                     filterMapIterable(this._iterateOtherConnections(), connection => {
                         const typingState = connection._typingState.getWithoutLock();
-                        if (typingState === null) return null;
+                        if (typingState === null) return;
                         return [connection._connectionId, typingState];
                     }),
                 ),

@@ -111,7 +111,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
 } | null> {
     const filterCollectionsLowestAccess = Store.many(
         filterMapArray(filters, filter => {
-            if (filter.type !== "Collections") return null;
+            if (filter.type !== "Collections") return;
 
             return createTaskQueryCollectionsFilterCollectionResultsStore({
                 store,

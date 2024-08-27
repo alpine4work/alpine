@@ -106,13 +106,13 @@ const options = {
     accountNameIndex: {
         searchNames: (queryText: string) => {
             return filterMapArray(accountNameIndex.search(queryText), match => {
-                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return null;
+                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return;
                 return match.item;
             });
         },
         searchShortNames: (queryText: string) => {
             return filterMapArray(accountShortNameIndex.search(queryText), match => {
-                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return null;
+                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return;
                 return match.item;
             });
         },

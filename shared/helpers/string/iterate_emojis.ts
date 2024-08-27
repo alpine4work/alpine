@@ -45,7 +45,7 @@ export function iterateEmojis(string: string): Iterable<{index: number; emoji: s
         // [4]: https://www.codejam.info/2021/11/emoji-variation-selector.html
         // [5]: https://css-tricks.com/text-that-sometimes-turns-to-emojis/
         if (/(?:(?=\p{Emoji})\P{Emoji_Presentation}(?!\uFE0F)|\p{Emoji}\uFE0E)/u.test(emoji))
-            return null;
+            return;
 
         return {index, emoji};
     });

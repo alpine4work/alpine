@@ -4,14 +4,14 @@
  */
 export function filterMapArray<Value, NewValue>(
     array: ReadonlyArray<Value>,
-    filterMap: (value: Value, index: number) => NewValue | null,
+    filterMap: (value: Value, index: number) => NewValue | undefined,
 ): Array<NewValue> {
     const newArray: Array<NewValue> = [];
 
     let index = 0;
     for (const value of array) {
         const newValue = filterMap(value, index++);
-        if (newValue !== null) newArray.push(newValue);
+        if (newValue !== undefined) newArray.push(newValue);
     }
 
     return newArray;

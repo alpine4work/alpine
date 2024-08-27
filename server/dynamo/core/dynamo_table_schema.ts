@@ -762,7 +762,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                             (indexDescription, i) => {
                                 const indexNumber = i + 1;
 
-                                if (existingIndexNames.has(`Index${indexNumber}`)) return null;
+                                if (existingIndexNames.has(`Index${indexNumber}`)) return;
 
                                 return {
                                     Create: {

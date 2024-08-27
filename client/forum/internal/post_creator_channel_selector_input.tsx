@@ -186,7 +186,7 @@ function PostCreatorChannelSelectorInput(
             const channelIdsFromSearchByAffinity = searchByAffinityOutput
                 ? new Set(
                       filterMapIterable(searchByAffinityOutput.results, result =>
-                          result.origin === "Account" ? result.channel.id : null,
+                          result.origin === "Account" ? result.channel.id : undefined,
                       ),
                   )
                 : null;

@@ -51,7 +51,7 @@ export async function getContentReferences(
 
     const accountById = new Map(
         filterMapIterable(accounts, account => {
-            if (!account) return null;
+            if (!account) return;
             return [account.id, account];
         }),
     );

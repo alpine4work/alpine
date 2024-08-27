@@ -3288,7 +3288,7 @@ export function deleteTaskAndAllChildren(
                         const oldTaskCounts = pickObject(oldTaskItem, countKeys);
                         const newTaskCounts = pickObject(newTaskItem, countKeys);
 
-                        if (isDeepEqual(oldTaskCounts, newTaskCounts)) return null;
+                        if (isDeepEqual(oldTaskCounts, newTaskCounts)) return;
 
                         return {
                             type: "UpdateTask",

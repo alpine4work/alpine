@@ -27,12 +27,12 @@ export function createDisplayTaskCollectionsStore({
             const collectionEntry = get(
                 referencesSubscription.getReferencedCollectionEntryStore(collectionId),
             );
-            if (!collectionEntry.collection) return null;
+            if (!collectionEntry.collection) return;
 
             // Test that the collection is not deleted and we have access via the
             // access policy.
             const access = getTaskCollectionEntryAccess(currentAccount.id, collectionEntry);
-            if (access.type !== "PermissionGranted") return null;
+            if (access.type !== "PermissionGranted") return;
 
             return collectionEntry.collection;
         });

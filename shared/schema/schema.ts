@@ -1113,7 +1113,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
         const validatePropertyByKey = new Map<string, (value: unknown) => void>(
             filterMapIterable(propertySchemaByKey, ([key, propertySchema]) => {
-                if (propertySchema.validateProperty === null) return null;
+                if (propertySchema.validateProperty === null) return;
                 return [key, propertySchema.validateProperty];
             }),
         );
@@ -1556,7 +1556,7 @@ export class UnionSchema<Value> extends Schema<Value> {
 
         const validateByType = new Map<string, (value: SchemaType<Config[keyof Config]>) => void>(
             filterMapIterable(schemaByType, ([type, {schema}]) => {
-                if (schema.validate === null) return null;
+                if (schema.validate === null) return;
                 return [type, schema.validate];
             }),
         );
