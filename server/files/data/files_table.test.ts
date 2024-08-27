@@ -236,7 +236,7 @@ test("can finish file processing preview size and preview placeholder", async ()
     );
 });
 
-test.only("can finish file processing preview size and preview placeholder in any order", async () => {
+test("can finish file processing preview size and preview placeholder in any order", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -262,8 +262,6 @@ test.only("can finish file processing preview size and preview placeholder in an
     );
 
     await fileUploader.finishProcessingPreviewPlaceholder(session.action(), filePreviewPlaceholder);
-
-    console.log((await getFile(space.systemAction(), fileUploader.fileId)).preview?.placeholder);
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
