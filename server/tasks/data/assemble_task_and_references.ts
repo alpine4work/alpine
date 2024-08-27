@@ -2,6 +2,7 @@ import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_c
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDocBase} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc, TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
+import {CancelledError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -106,7 +107,10 @@ export async function assembleTaskAndReferences(
                 }
                 // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
                 // just the first one. Probably by using an `AggregateError`.
-                else if (!isSystemError(error) && isSystemError(newError)) {
+                else if (
+                    (!isSystemError(error) && isSystemError(newError)) ||
+                    (error instanceof CancelledError && !(newError instanceof CancelledError))
+                ) {
                     error = newError;
                 }
             }

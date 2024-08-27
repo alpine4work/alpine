@@ -1,5 +1,8 @@
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContextModules,
+    ServerSessionActionContextModules,
+} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {Context} from "~/shared/context/context.js";
 
@@ -16,3 +19,9 @@ export type FileUploadServiceActionContextModules = ServerActionContextModules &
     FileUploadServiceExtraContextModules;
 
 export type FileUploadServiceActionContext = Context<FileUploadServiceActionContextModules>;
+
+export type FileUploadServiceSessionActionContextModules = ServerSessionActionContextModules &
+    FileUploadServiceExtraContextModules;
+
+export type FileUploadServiceSessionActionContext =
+    Context<FileUploadServiceSessionActionContextModules>;

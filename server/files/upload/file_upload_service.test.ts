@@ -320,7 +320,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"..."}\n\
+{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375}\n\
@@ -411,7 +411,7 @@ Content-Length: 33002\r\n\
             .replace(/^Date: .*?\r\n/m, "")
             .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
             .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
-            .replace(/,"stack":".*?"/m, "")
+            .replace(/,"stack":".*?"/gm, "")
             .replace(/,"original":{.*?}/m, ""),
     ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
@@ -420,7 +420,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"..."}\n\
+{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375}\n\
@@ -502,8 +502,8 @@ Content-Length: 33102\r\n\
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -525,7 +525,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"..."}\n\
+{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 `);
 
@@ -598,8 +598,8 @@ Content-Length: 33102\r\n\
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -621,7 +621,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"..."}\n\
+{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375}\n\
@@ -671,6 +671,8 @@ test("can't upload invalid image data", async () => {
     expect(events).toEqual([
         {
             type: "Start",
+            hasPreview: true,
+            hasPreviewImage: false,
             fileId: expect.any(String),
         },
         {
@@ -708,6 +710,8 @@ test("can't upload image with the wrong content type", async () => {
     expect(events).toEqual([
         {
             type: "Start",
+            hasPreview: true,
+            hasPreviewImage: false,
             fileId: expect.any(String),
         },
         {
@@ -747,6 +751,8 @@ test("can upload image", async () => {
     expect(events).toEqual([
         {
             type: "Start",
+            hasPreview: true,
+            hasPreviewImage: false,
             fileId: expect.any(String),
         },
         {type: "PreviewSize", width: 500, height: 375},

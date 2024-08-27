@@ -16,7 +16,12 @@ import {
     DynamoClientInternal,
 } from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    CancelledError,
+    DeadlineExceededError,
+    InternalError,
+    InvalidArgumentError,
+} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -377,7 +382,10 @@ export class DynamoClient {
                     if (!hasError) {
                         hasError = true;
                         error = entryError;
-                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                    } else if (
+                        (isSystemError(entryError) && !isSystemError(error)) ||
+                        (entryError instanceof CancelledError && !(error instanceof CancelledError))
+                    ) {
                         error = entryError;
                     }
                 }
@@ -390,7 +398,10 @@ export class DynamoClient {
                     if (!hasError) {
                         hasError = true;
                         error = entryError;
-                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                    } else if (
+                        (isSystemError(entryError) && !isSystemError(error)) ||
+                        (entryError instanceof CancelledError && !(error instanceof CancelledError))
+                    ) {
                         error = entryError;
                     }
                 }

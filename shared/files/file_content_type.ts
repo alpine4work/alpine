@@ -12,7 +12,6 @@ import {Schema} from "~/shared/schema/schema.js";
  */
 export type FileContentType = ImageFileContentType;
 
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type ImageFileContentType = WebSafeImageFileContentType | WebUnsafeImageFileContentType;
 
 /**
@@ -36,28 +35,40 @@ export type WebSafeImageFileContentType =
  * Somewhat popular image types that don't have broad web browser support. We
  * need to convert these images into a format with better web browser support.
  *
- * This list is based on MDN's “[Common image file types][1].”
+ * This list is based on MDN's “[Common image file types][1].” We include
+ * `.heif` and `.heic` since [`.heic` is Apple's default image file format][2].
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
+ * [2]: https://www.adobe.com/creativecloud/file-types/image/raster/heic-file.html
  */
-// TODO(calebmer, #files): "image/bmp" | "image/ico" | "image/tiff"
-export type WebUnsafeImageFileContentType = never;
+// TODO(calebmer, #files): Remove prettier-ignore.
+// prettier-ignore
+export type WebUnsafeImageFileContentType =
+    // TODO(calebmer, #files): Add this: | "image/bmp"
+    // TODO(calebmer, #files): Add this: | "image/ico"
+    | "image/tiff"
+    // TODO(calebmer, #files): Add this: | "image/heif"
+    // TODO(calebmer, #files): Add this: | "image/heic"
+    ;
 
-const fileContentTypesMap: {[Key in FileContentType]: true} = {
-    "image/apng": true,
-    "image/avif": true,
-    "image/gif": true,
-    "image/jpeg": true,
-    "image/png": true,
-    "image/svg+xml": true,
-    "image/webp": true,
+// Preferred extensions must be unique! So we can map back from the preferred
+// extension to a `FileContentType`.
+const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = {
+    "image/apng": "apng",
+    "image/avif": "avif",
+    "image/gif": "gif",
+    "image/jpeg": "jpeg",
+    "image/png": "png",
+    "image/svg+xml": "svg",
+    "image/webp": "webp",
+    "image/tiff": "tiff",
 };
 
 /**
  * A set of all our `FileContentType`s.
  */
 export const fileContentTypes = new Set(
-    Object.keys(fileContentTypesMap),
+    Object.keys(preferredExtensionByFileContentType),
 ) as ReadonlySet<FileContentType>;
 
 export const FileContentTypeSchema = Schema.enum(fileContentTypes);
@@ -83,4 +94,15 @@ export function normalizeContentType(contentType: string): string {
     }
 
     return parsedContentType.toString();
+}
+
+/**
+ * Get the preferred file extension for some `FileContentType`. We'll save
+ * files of this type with that extension. Web browsers use MIME types to
+ * determine the type of a file but OSes use file extensions to determine the
+ * type of a file. So including a file extension on saved files helps the OS
+ * render the file correctly.
+ */
+export function getFileContentTypePreferredExtension(contentType: FileContentType) {
+    return preferredExtensionByFileContentType[contentType];
 }

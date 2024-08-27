@@ -1,16 +1,18 @@
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import createSharp from "sharp";
+import {Readable} from "stream";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
+    FileUploader,
     startUploadingAndProcessingFile,
     uploadFileTimeoutMs,
 } from "~/server/files/data/files_table.js";
-import {FileUploadServiceActionContext} from "~/server/files/upload/file_upload_service_context.js";
+import {
+    FileUploadServiceActionContext,
+    FileUploadServiceSessionActionContext,
+} from "~/server/files/upload/file_upload_service_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
-import {Context} from "~/shared/context/context.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     CancelledError,
     DeadlineExceededError,
@@ -24,13 +26,18 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {
     FileContentType,
+    FileContentTypeSchema,
+    ImageFileContentType,
     WebSafeImageFileContentType,
+    WebUnsafeImageFileContentType,
+    getFileContentTypePreferredExtension,
     isFileContentType,
     normalizeContentType,
 } from "~/shared/files/file_content_type.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {waitForAbort} from "~/shared/helpers/async/wait_for_abort.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -45,6 +52,8 @@ export const UploadFileEventSchema = Schema.union({
     Start: Schema.object({
         type: Schema.value("Start"),
         fileId: Schema.id<FileId>(),
+        hasPreview: Schema.boolean,
+        hasPreviewImage: Schema.boolean,
     }),
     Finish: Schema.object({
         type: Schema.value("Finish"),
@@ -57,6 +66,11 @@ export const UploadFileEventSchema = Schema.union({
     PreviewPlaceholder: Schema.object({
         type: Schema.value("PreviewPlaceholder"),
         placeholder: FilePreviewPlaceholder.schema,
+    }),
+    PreviewImage: Schema.object({
+        type: Schema.value("PreviewImage"),
+        contentType: FileContentTypeSchema,
+        contentLength: Schema.integer,
     }),
     Error: Schema.object({
         type: Schema.value("Error"),
@@ -184,11 +198,14 @@ async function actuallyUploadFile(
 
     span.addData({file: {contentType, contentLength}});
 
-    const processFilePreview = processFilePreviewByContentType[contentType];
+    const fileProcessor = fileProcessorByContentType[contentType];
 
     const abortController = new AbortController();
-    const timeout = createTimeout(() => {
-        abortController.abort(new DeadlineExceededError("Upload file timeout exceeded"));
+
+    const abortTimeout = createTimeout(() => {
+        if (!abortController.signal.aborted) {
+            abortController.abort(new DeadlineExceededError("Upload file timeout exceeded"));
+        }
     }, uploadFileTimeoutMs);
 
     // If the request receives the `close` event before the `end` event then abort
@@ -198,7 +215,9 @@ async function actuallyUploadFile(
         req.off("close", handleClose);
     };
     const handleClose = () => {
-        abortController.abort(new CancelledError("Upload file request was closed"));
+        if (!abortController.signal.aborted) {
+            abortController.abort(new CancelledError("Upload file request closed prematurely"));
+        }
     };
     req.on("end", handleEnd);
     req.on("close", handleClose);
@@ -208,232 +227,412 @@ async function actuallyUploadFile(
             spaceId,
             contentType,
             contentLength,
-            hasPreview: !!processFilePreview,
+            hasPreview: fileProcessor.hasPreview,
+            hasPreviewImage: fileProcessor.hasPreviewImage,
         });
 
         span.addPropagatedData({context: {fileId: fileUploader.fileId}});
 
-        sendEvent({type: "Start", fileId: fileUploader.fileId});
-
-        try {
-            const promise = runAllPromises([
-                (async () => {
-                    // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
-                    // someday if we want to support users on spotty internet connections or speed
-                    // up large file uploads (for files >100 MB). For now, the simplicity of doing
-                    // all processing in one shot within `FileUploadService` is nice.
-                    //
-                    // TODO(calebmer, #files): Consider transitioning objects to infrequent access
-                    // after 1-3 months?
-                    // https://developers.cloudflare.com/r2/buckets/object-lifecycles
-                    await context.r2.PutObject(
-                        {
-                            Bucket: filesBucketName,
-                            Key: `${spaceId}/${fileUploader.fileId}`,
-                            ContentType: contentType,
-                            Body: req,
-                        },
-                        {signal: abortController.signal},
-                    );
-
-                    if (abortController.signal.aborted) return;
-
-                    await fileUploader.finishUploading(context);
-                })(),
-                processFilePreview
-                    ? context.tracer.withSpan("Process file preview", async (context, span) => {
-                          span.addData({file: {contentType, contentLength}});
-
-                          const {sizePromise, placeholderPromise} = processFilePreview(
-                              context,
-                              req,
-                          );
-
-                          await runAllPromises([
-                              span.withSpan("Process file preview size", async span => {
-                                  span.addData({file: {contentType, contentLength}});
-
-                                  const size = await sizePromise.catch(error => {
-                                      // Cancel the upload if file processing fails.
-                                      abortController.abort(error);
-
-                                      throw error;
-                                  });
-
-                                  if (abortController.signal.aborted) return;
-
-                                  await fileUploader.finishProcessingPreviewSize(context, size);
-
-                                  sendEvent({
-                                      type: "PreviewSize",
-                                      width: size.width,
-                                      height: size.height,
-                                  });
-                              }),
-                              span.withSpan("Process file preview placeholder", async span => {
-                                  span.addData({file: {contentType, contentLength}});
-
-                                  const placeholder = await placeholderPromise.catch(error => {
-                                      // Cancel the upload if file processing fails.
-                                      abortController.abort(error);
-
-                                      throw error;
-                                  });
-
-                                  if (abortController.signal.aborted) return;
-
-                                  await fileUploader.finishProcessingPreviewPlaceholder(
-                                      context,
-                                      placeholder,
-                                  );
-
-                                  sendEvent({type: "PreviewPlaceholder", placeholder});
-                              }),
-                          ]);
-                      })
-                    : null,
-            ]);
-
-            await Promise.race([
-                promise,
-                new Promise<void>((resolve, reject) => {
-                    const handleAbort = () => {
-                        abortController.signal.removeEventListener("abort", handleAbort);
-                        reject(abortController.signal.reason);
-                    };
-                    abortController.signal.addEventListener("abort", handleAbort);
-                }),
-            ]);
-
-            sendEvent({type: "Finish"});
-        } catch (error) {
-            await fileUploader.cleanupAfterError(context);
-            throw error;
-        }
+        await uploadAndProcessFile(context, {
+            spaceId,
+            contentType,
+            contentLength,
+            fileProcessor,
+            fileUploader,
+            stream: req,
+            sendEvent,
+            abortSignal: abortController.signal,
+            createAbortCatcher: message => error => {
+                if (!abortController.signal.aborted) {
+                    abortController.abort(new CancelledError(message, {cause: error}));
+                }
+                throw error;
+            },
+        });
     } finally {
-        timeout.clear();
+        abortTimeout.clear();
         req.off("end", handleEnd);
         req.off("close", handleClose);
     }
 }
 
-const processFilePreviewByContentType: {
-    [Key in FileContentType]:
-        | ((
-              context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
-              req: IncomingMessage,
+async function uploadAndProcessFile(
+    context: FileUploadServiceSessionActionContext,
+    {
+        spaceId,
+        contentType,
+        contentLength,
+        fileProcessor,
+        fileUploader,
+        stream,
+        sendEvent,
+        abortSignal,
+        createAbortCatcher,
+    }: {
+        spaceId: SpaceId;
+        contentType: FileContentType;
+        contentLength: number;
+        fileProcessor: FileProcessor;
+        fileUploader: FileUploader;
+        stream: Readable;
+        sendEvent: (event: UploadFileEvent) => void;
+        abortSignal: AbortSignal;
+        createAbortCatcher: (message: string) => (error: unknown) => never;
+    },
+) {
+    sendEvent({
+        type: "Start",
+        fileId: fileUploader.fileId,
+        hasPreview: fileProcessor.hasPreview,
+        hasPreviewImage: fileProcessor.hasPreviewImage,
+    });
+
+    // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
+    // someday if we want to support users on spotty internet connections or speed
+    // up large file uploads (for files >100 MB). For now, the simplicity of doing
+    // all processing in one shot within `FileUploadService` is nice.
+    const uploadPromise = (async () => {
+        // TODO(calebmer, #files): Consider transitioning objects to infrequent access
+        // after 1-3 months?
+        // https://developers.cloudflare.com/r2/buckets/object-lifecycles
+
+        // NOTE: We don't `Promise.race()` `PutObject()` with
+        // `waitForAbort(abortSignal)` since we need to wait for the `PutObject()` to
+        // finish in order for `fileUploader.cleanupAfterError()` to successfully
+        // cleanup the object.
+        //
+        // `PutObject()` should respect `signal` so we can handle the case where the
+        // request closes before it ends.
+        await context.r2.PutObject(
+            {
+                Bucket: filesBucketName,
+                Key: `${spaceId}/${fileUploader.fileId}.${getFileContentTypePreferredExtension(
+                    contentType,
+                )}`,
+                ContentType: contentType,
+                Body: stream,
+            },
+            {signal: abortSignal},
+        );
+
+        if (abortSignal.aborted) throw abortSignal.reason;
+
+        await fileUploader.finishUploading(context);
+    })().catch(createAbortCatcher("File uploading failed"));
+
+    const processPromise = fileProcessor.hasPreview
+        ? context.tracer.withSpan("Process file preview", async (context, span) => {
+              span.addData({file: {contentType, contentLength}});
+
+              const {sizePromise, placeholderPromise, imagePromise} = fileProcessor.process(
+                  stream,
+                  abortSignal,
+              );
+
+              const actualSizePromise = (async () => {
+                  const size = await sizePromise;
+                  if (abortSignal.aborted) throw abortSignal.reason;
+
+                  await fileUploader.finishProcessingPreviewSize(context, size);
+
+                  sendEvent({
+                      type: "PreviewSize",
+                      width: size.width,
+                      height: size.height,
+                  });
+              })().catch(createAbortCatcher("File preview size processing failed"));
+
+              const actualPlaceholderPromise = (async () => {
+                  const placeholder = await placeholderPromise;
+                  if (abortSignal.aborted) throw abortSignal.reason;
+
+                  await fileUploader.finishProcessingPreviewPlaceholder(context, placeholder);
+
+                  sendEvent({
+                      type: "PreviewPlaceholder",
+                      placeholder,
+                  });
+              })().catch(createAbortCatcher("File preview placeholder processing failed"));
+
+              const actualImagePromise = imagePromise
+                  ? (async () => {
+                        const image = await imagePromise;
+                        if (abortSignal.aborted) throw abortSignal.reason;
+
+                        // NOTE: We don't `Promise.race()` `PutObject()` with
+                        // `waitForAbort(abortSignal)` since we need to wait for the `PutObject()` to
+                        // finish in order for `fileUploader.cleanupAfterError()` to successfully
+                        // cleanup the object.
+                        await context.r2.PutObject(
+                            {
+                                Bucket: filesBucketName,
+                                Key: `${spaceId}/${
+                                    fileUploader.fileId
+                                }.preview.${getFileContentTypePreferredExtension(
+                                    image.contentType,
+                                )}`,
+                                ContentType: image.contentType,
+                                Body: image.data,
+                            },
+                            {signal: abortSignal},
+                        );
+
+                        if (abortSignal.aborted) throw abortSignal.reason;
+
+                        await fileUploader.finishProcessingPreviewImage(context, {
+                            contentType: image.contentType,
+                            contentLength: image.data.length,
+                        });
+
+                        sendEvent({
+                            type: "PreviewImage",
+                            contentType: image.contentType,
+                            contentLength: image.data.length,
+                        });
+                    })().catch(createAbortCatcher("File preview image processing failed"))
+                  : null;
+
+              await runAllPromises([
+                  span.withSpan("Process file preview size", span => {
+                      span.addData({file: {contentType, contentLength}});
+                      return actualSizePromise;
+                  }),
+                  span.withSpan("Process file preview placeholder", span => {
+                      span.addData({file: {contentType, contentLength}});
+                      return actualPlaceholderPromise;
+                  }),
+                  actualImagePromise
+                      ? span.withSpan("Process file preview image", span => {
+                            span.addData({file: {contentType, contentLength}});
+                            return actualImagePromise;
+                        })
+                      : null,
+              ]);
+          })
+        : null;
+
+    await runAllPromises([uploadPromise, processPromise]).catch(async error => {
+        await fileUploader.cleanupAfterError(context);
+        throw error;
+    });
+
+    sendEvent({type: "Finish"});
+}
+
+type FileProcessor =
+    | {
+          readonly hasPreview: false;
+          readonly hasPreviewImage: false;
+      }
+    | {
+          readonly hasPreview: true;
+          readonly hasPreviewImage: false;
+          readonly process: (
+              stream: Readable,
+              abortSignal: AbortSignal,
           ) => {
               sizePromise: Promise<{width: number; height: number}>;
               placeholderPromise: Promise<FilePreviewPlaceholder>;
-          })
-        | null;
+              imagePromise?: undefined;
+          };
+      }
+    | {
+          readonly hasPreview: true;
+          readonly hasPreviewImage: true;
+          readonly process: (
+              stream: Readable,
+              abortSignal: AbortSignal,
+          ) => {
+              sizePromise: Promise<{width: number; height: number}>;
+              placeholderPromise: Promise<FilePreviewPlaceholder>;
+              imagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
+          };
+      };
+
+const fileProcessorByContentType: {
+    [Key in FileContentType]: FileProcessor;
 } = {
-    "image/apng": createProcessWebSafeImageFilePreview("image/apng"),
-    "image/avif": createProcessWebSafeImageFilePreview("image/avif"),
-    "image/gif": createProcessWebSafeImageFilePreview("image/gif"),
-    "image/jpeg": createProcessWebSafeImageFilePreview("image/jpeg"),
-    "image/png": createProcessWebSafeImageFilePreview("image/png"),
-    "image/svg+xml": createProcessWebSafeImageFilePreview("image/svg+xml"),
-    "image/webp": createProcessWebSafeImageFilePreview("image/webp"),
+    "image/apng": createWebSafeImageFileProcessor("image/apng"),
+    "image/avif": createWebSafeImageFileProcessor("image/avif"),
+    "image/gif": createWebSafeImageFileProcessor("image/gif"),
+    "image/jpeg": createWebSafeImageFileProcessor("image/jpeg"),
+    "image/png": createWebSafeImageFileProcessor("image/png"),
+    "image/svg+xml": createWebSafeImageFileProcessor("image/svg+xml"),
+    "image/webp": createWebSafeImageFileProcessor("image/webp"),
+    "image/tiff": createWebUnsafeImageFileProcessor("image/tiff", "image/png"),
 };
 
-function createProcessWebSafeImageFilePreview(contentType: WebSafeImageFileContentType) {
-    return (
-        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
-        req: IncomingMessage,
-    ) => {
-        const sizePromise = (async () => {
-            const sharp = createSharp({pages: 1});
+function processImageFile(
+    contentType: ImageFileContentType,
+    stream: Readable,
+    abortSignal: AbortSignal,
+) {
+    const sizePromise = (async () => {
+        const sharp = createSharp({pages: 1});
 
-            req.pipe(sharp);
+        stream.pipe(sharp);
 
-            const metadata = await sharp.metadata().catch(rethrowClassifiedSharpError);
+        const metadata = await Promise.race([
+            sharp.metadata().catch(rethrowClassifiedSharpError),
+            // Sharp will never resolve in some abort scenarios since `req` will close but
+            // the stream won't end.
+            waitForAbort(abortSignal),
+        ]);
 
-            let expectedFormat: keyof createSharp.FormatEnum;
-            let expectedCompression: createSharp.Metadata["compression"];
+        let expectedFormat: keyof createSharp.FormatEnum;
+        let expectedCompression: createSharp.Metadata["compression"];
 
-            switch (contentType) {
-                case "image/apng":
-                    expectedFormat = "png";
-                    break;
-                case "image/avif":
-                    // See: https://github.com/lovell/sharp/issues/2504
-                    expectedFormat = "heif";
-                    expectedCompression = "av1";
-                    break;
-                case "image/gif":
-                    expectedFormat = "gif";
-                    break;
-                case "image/jpeg":
-                    expectedFormat = "jpeg";
-                    break;
-                case "image/png":
-                    expectedFormat = "png";
-                    break;
-                case "image/svg+xml":
-                    expectedFormat = "svg";
-                    break;
-                case "image/webp":
-                    expectedFormat = "webp";
-                    break;
-                default:
-                    throw exhaustive(contentType);
-            }
+        switch (contentType) {
+            case "image/apng":
+                expectedFormat = "png";
+                break;
+            case "image/avif":
+                // See: https://github.com/lovell/sharp/issues/2504
+                expectedFormat = "heif";
+                expectedCompression = "av1";
+                break;
+            case "image/gif":
+                expectedFormat = "gif";
+                break;
+            case "image/jpeg":
+                expectedFormat = "jpeg";
+                break;
+            case "image/png":
+                expectedFormat = "png";
+                break;
+            case "image/svg+xml":
+                expectedFormat = "svg";
+                break;
+            case "image/webp":
+                expectedFormat = "webp";
+                break;
+            case "image/tiff":
+                expectedFormat = "tiff";
+                break;
+            default:
+                throw exhaustive(contentType);
+        }
 
-            if (metadata.format !== expectedFormat) {
-                throw new InvalidArgumentError(
-                    quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
-                );
-            }
+        if (metadata.format !== expectedFormat) {
+            throw new InvalidArgumentError(
+                quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
+            );
+        }
 
-            if (metadata.compression !== expectedCompression) {
-                throw new InvalidArgumentError(
-                    quote`Expected file in ${expectedFormat} format to use ${expectedCompression} compression but received file with ${metadata.compression} compression`,
-                );
-            }
+        if (metadata.compression !== expectedCompression) {
+            throw new InvalidArgumentError(
+                quote`Expected file in ${expectedFormat} format to use ${expectedCompression} compression but received file with ${metadata.compression} compression`,
+            );
+        }
 
-            if (metadata.width === undefined || metadata.height === undefined) {
-                throw new InternalError('Couldn\'t find "width" or "height" of image file');
-            }
+        if (metadata.width === undefined || metadata.height === undefined) {
+            throw new InternalError('Couldn\'t find "width" or "height" of image file');
+        }
 
-            return {
-                width: metadata.width,
-                height: metadata.height,
-            };
-        })();
+        return {
+            width: metadata.width,
+            height: metadata.height,
+        };
+    })();
 
-        // Generate a placeholder image which we'll render before the browser has
-        // downloaded the full image. The code below is derived from the
-        // [`plaiceholder`][1] project. We don't use `plaiceholder` directly since it's
-        // fundamentally pretty simple and the implementation is inefficient. (It
-        // unconditionally generates a color and `base64` placeholder.)
-        //
-        // [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
-        const placeholderPromise = (async () => {
-            const sharp = createSharp({pages: 1});
+    // Generate a placeholder image which we'll render before the browser has
+    // downloaded the full image. The code below is derived from the
+    // [`plaiceholder`][1] project. We don't use `plaiceholder` directly since it's
+    // fundamentally pretty simple and the implementation is inefficient. (It
+    // unconditionally generates a color and `base64` placeholder.)
+    //
+    // [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
+    const placeholderPromise = (async () => {
+        const sharp = createSharp({pages: 1});
 
-            req.pipe(sharp);
+        stream.pipe(sharp);
 
-            // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
-            const placeholderSize = 5;
+        // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
+        const placeholderSize = 5;
 
-            const {
-                data,
-                info: {channels, width},
-            } = await sharp
+        const {
+            data,
+            info: {channels, width},
+        } = await Promise.race([
+            sharp
                 .resize(placeholderSize, placeholderSize, {fit: "inside"})
                 .toFormat("png")
                 .modulate({brightness: 1, saturation: 1.2})
                 .raw()
                 .toBuffer({resolveWithObject: true})
-                .catch(rethrowClassifiedSharpError);
+                .catch(rethrowClassifiedSharpError),
+            // Sharp will never resolve in some abort scenarios since `req` will close but
+            // the stream won't end.
+            waitForAbort(abortSignal),
+        ]);
 
-            assert(channels === 3 || channels === 4);
+        assert(channels === 3 || channels === 4);
 
-            return FilePreviewPlaceholder.fromSerialized([channels === 4, width, data]);
-        })();
+        return FilePreviewPlaceholder.fromSerialized([channels === 4, width, data]);
+    })();
 
-        return {sizePromise, placeholderPromise};
+    return {sizePromise, placeholderPromise};
+}
+
+function createWebSafeImageFileProcessor(contentType: WebSafeImageFileContentType): FileProcessor {
+    return {
+        hasPreview: true,
+        hasPreviewImage: false,
+        process: (stream, abortSignal) => processImageFile(contentType, stream, abortSignal),
+    };
+}
+
+function createWebUnsafeImageFileProcessor(
+    contentType: WebUnsafeImageFileContentType,
+    // Use `image/jpeg` if the image type doesn't support transparency since JPEG
+    // has better compression. Otherwise use `image/png`.
+    //
+    // https://www.adobe.com/creativecloud/file-types/image/comparison/jpeg-vs-png.html
+    previewImageContentType: "image/jpeg" | "image/png",
+): FileProcessor {
+    return {
+        hasPreview: true,
+        hasPreviewImage: true,
+        process: (stream, abortSignal) => {
+            let previewImageFormat: keyof createSharp.FormatEnum;
+
+            switch (previewImageContentType) {
+                case "image/jpeg":
+                    previewImageFormat = "jpeg";
+                    break;
+                case "image/png":
+                    previewImageFormat = "png";
+                    break;
+                default:
+                    throw exhaustive(previewImageContentType);
+            }
+
+            const {sizePromise, placeholderPromise} = processImageFile(
+                contentType,
+                stream,
+                abortSignal,
+            );
+
+            const imagePromise = (async () => {
+                const sharp = createSharp({pages: 1});
+
+                stream.pipe(sharp);
+
+                const data = await Promise.race([
+                    sharp
+                        .toFormat(previewImageFormat)
+                        .toBuffer()
+                        .catch(rethrowClassifiedSharpError),
+                    // Sharp will never resolve in some abort scenarios since `req` will close but
+                    // the stream won't end.
+                    waitForAbort(abortSignal),
+                ]);
+
+                return {contentType: previewImageContentType, data};
+            })();
+
+            return {sizePromise, placeholderPromise, imagePromise};
+        },
     };
 }
 

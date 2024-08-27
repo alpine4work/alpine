@@ -46,6 +46,7 @@ test("can start uploading and processing files", async () => {
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         });
 
         const endTime = Date.now();
@@ -63,8 +64,8 @@ test("can start uploading and processing files", async () => {
                 isUploading: true,
                 preview: {
                     isProcessing: true,
-                    size: null,
-                    placeholder: null,
+                    size: "Processing",
+                    placeholder: "Processing",
                 },
             }),
         );
@@ -78,6 +79,7 @@ test("can start uploading and processing files", async () => {
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         });
 
         const endTime = Date.now();
@@ -95,8 +97,8 @@ test("can start uploading and processing files", async () => {
                 isUploading: true,
                 preview: {
                     isProcessing: true,
-                    size: null,
-                    placeholder: null,
+                    size: "Processing",
+                    placeholder: "Processing",
                 },
             }),
         );
@@ -110,6 +112,7 @@ test("can start uploading and processing files", async () => {
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         });
 
         const endTime = Date.now();
@@ -127,8 +130,8 @@ test("can start uploading and processing files", async () => {
                 isUploading: true,
                 preview: {
                     isProcessing: true,
-                    size: null,
-                    placeholder: null,
+                    size: "Processing",
+                    placeholder: "Processing",
                 },
             }),
         );
@@ -146,6 +149,7 @@ test("can only start uploading and processing a file if you have access to the s
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 });
@@ -159,6 +163,7 @@ test("can't start uploading and processing files that exceed byte limit", async 
         contentType: "image/png",
         contentLength: 2e9,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     await startUploadingAndProcessingFile(session.action(), {
@@ -166,6 +171,7 @@ test("can't start uploading and processing files that exceed byte limit", async 
         contentType: "image/png",
         contentLength: 2e9,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     await expect(
@@ -174,6 +180,7 @@ test("can't start uploading and processing files that exceed byte limit", async 
             contentType: "image/png",
             contentLength: 2e9,
             hasPreview: true,
+            hasPreviewImage: false,
         }),
     ).rejects.toThrow(UnimplementedError);
 });
@@ -187,6 +194,7 @@ test("can finish file processing preview size and preview placeholder", async ()
         contentType: "image/png",
         contentLength: 100,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -197,8 +205,8 @@ test("can finish file processing preview size and preview placeholder", async ()
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -214,7 +222,7 @@ test("can finish file processing preview size and preview placeholder", async ()
             preview: {
                 isProcessing: true,
                 size: {width: 100, height: 100},
-                placeholder: null,
+                placeholder: "Processing",
             },
         }),
     );
@@ -245,6 +253,7 @@ test("can finish file processing preview size and preview placeholder in any ord
         contentType: "image/png",
         contentLength: 100,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -255,8 +264,8 @@ test("can finish file processing preview size and preview placeholder in any ord
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -271,7 +280,7 @@ test("can finish file processing preview size and preview placeholder in any ord
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
+                size: "Processing",
                 placeholder: filePreviewPlaceholder,
             },
         }),
@@ -304,6 +313,7 @@ test("can't finish file preview processing with a different account", async () =
         contentType: "image/png",
         contentLength: 100,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -314,8 +324,8 @@ test("can't finish file preview processing with a different account", async () =
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -339,8 +349,8 @@ test("can't finish file preview processing with a different account", async () =
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -355,6 +365,7 @@ test("can't finish file preview processing for files without a preview", async (
         contentType: "image/png",
         contentLength: 100,
         hasPreview: false,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -396,6 +407,7 @@ test("can't finish file preview processing if file processing has already comple
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         });
 
         await fileUploader.finishProcessingPreviewSize(session.action(), {
@@ -438,6 +450,7 @@ test("can't finish file preview processing if file processing has already comple
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         });
 
         await fileUploader.finishProcessingPreviewSize(session.action(), {
@@ -485,6 +498,7 @@ test("can't finish file preview processing for the same data twice", async () =>
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         });
 
         await fileUploader.finishProcessingPreviewSize(session.action(), {
@@ -508,6 +522,7 @@ test("can't finish file preview processing for the same data twice", async () =>
             contentType: "image/png",
             contentLength: 100,
             hasPreview: true,
+            hasPreviewImage: false,
         });
 
         await fileUploader.finishProcessingPreviewPlaceholder(
@@ -528,6 +543,493 @@ test("can't finish file preview processing for the same data twice", async () =>
     }
 });
 
+test("can finish file processing preview size, preview placeholder, and preview image", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/tiff",
+        contentLength: 100,
+        hasPreview: true,
+        hasPreviewImage: true,
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/tiff",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                image: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingPreviewSize(session.action(), {width: 100, height: 100});
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/tiff",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: {width: 100, height: 100},
+                placeholder: "Processing",
+                image: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingPreviewPlaceholder(session.action(), filePreviewPlaceholder);
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/tiff",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: {width: 100, height: 100},
+                placeholder: filePreviewPlaceholder,
+                image: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingPreviewImage(session.action(), {
+        contentType: "image/jpeg",
+        contentLength: 110,
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/tiff",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: false,
+                size: {width: 100, height: 100},
+                placeholder: filePreviewPlaceholder,
+                image: {
+                    contentType: "image/jpeg",
+                    contentLength: 110,
+                },
+            },
+        }),
+    );
+});
+
+test("can finish file processing preview size, preview placeholder, and preview image in any order", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    {
+        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+            spaceId: space.id,
+            contentType: "image/tiff",
+            contentLength: 100,
+            hasPreview: true,
+            hasPreviewImage: true,
+        });
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: "Processing",
+                    image: "Processing",
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingPreviewImage(session.action(), {
+            contentType: "image/jpeg",
+            contentLength: 110,
+        });
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: "Processing",
+                    image: {
+                        contentType: "image/jpeg",
+                        contentLength: 110,
+                    },
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingPreviewPlaceholder(
+            session.action(),
+            filePreviewPlaceholder,
+        );
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: filePreviewPlaceholder,
+                    image: {
+                        contentType: "image/jpeg",
+                        contentLength: 110,
+                    },
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingPreviewSize(session.action(), {width: 100, height: 100});
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: false,
+                    size: {width: 100, height: 100},
+                    placeholder: filePreviewPlaceholder,
+                    image: {
+                        contentType: "image/jpeg",
+                        contentLength: 110,
+                    },
+                },
+            }),
+        );
+    }
+
+    {
+        const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+            spaceId: space.id,
+            contentType: "image/tiff",
+            contentLength: 100,
+            hasPreview: true,
+            hasPreviewImage: true,
+        });
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: "Processing",
+                    image: "Processing",
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingPreviewImage(session.action(), {
+            contentType: "image/jpeg",
+            contentLength: 110,
+        });
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: true,
+                    size: "Processing",
+                    placeholder: "Processing",
+                    image: {
+                        contentType: "image/jpeg",
+                        contentLength: 110,
+                    },
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingPreviewSize(session.action(), {width: 100, height: 100});
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: true,
+                    size: {width: 100, height: 100},
+                    placeholder: "Processing",
+                    image: {
+                        contentType: "image/jpeg",
+                        contentLength: 110,
+                    },
+                },
+            }),
+        );
+
+        await fileUploader.finishProcessingPreviewPlaceholder(
+            session.action(),
+            filePreviewPlaceholder,
+        );
+
+        expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+            new FileModel({
+                id: fileUploader.fileId,
+                contentType: "image/tiff",
+                contentLength: 100,
+                isUploading: true,
+                preview: {
+                    isProcessing: false,
+                    size: {width: 100, height: 100},
+                    placeholder: filePreviewPlaceholder,
+                    image: {
+                        contentType: "image/jpeg",
+                        contentLength: 110,
+                    },
+                },
+            }),
+        );
+    }
+});
+
+test("can't finish file preview image processing with a different account", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/tiff",
+        contentLength: 100,
+        hasPreview: true,
+        hasPreviewImage: true,
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/tiff",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                image: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingPreviewImage(otherSession.action(), {
+            contentType: "image/jpeg",
+            contentLength: 110,
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/tiff",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                image: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish file preview image processing for files without a preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasPreview: false,
+        hasPreviewImage: false,
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            preview: null,
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingPreviewImage(session.action(), {
+            contentType: "image/jpeg",
+            contentLength: 110,
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            preview: null,
+        }),
+    );
+});
+
+test("can't finish file preview image processing for files without a preview image", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasPreview: true,
+        hasPreviewImage: false,
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingPreviewImage(session.action(), {
+            contentType: "image/jpeg",
+            contentLength: 110,
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview image"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish file preview image processing if file processing has already completely finished", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/tiff",
+        contentLength: 100,
+        hasPreview: true,
+        hasPreviewImage: true,
+    });
+
+    await fileUploader.finishProcessingPreviewSize(session.action(), {
+        width: 100,
+        height: 100,
+    });
+
+    await fileUploader.finishProcessingPreviewPlaceholder(session.action(), filePreviewPlaceholder);
+
+    await fileUploader.finishProcessingPreviewImage(session.action(), {
+        contentType: "image/jpeg",
+        contentLength: 110,
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/tiff",
+            contentLength: 100,
+            isUploading: true,
+            preview: {
+                isProcessing: false,
+                size: {width: 100, height: 100},
+                placeholder: filePreviewPlaceholder,
+                image: {contentType: "image/jpeg", contentLength: 110},
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingPreviewImage(session.action(), {
+            contentType: "image/jpeg",
+            contentLength: 110,
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError("File has already finished processing its preview"),
+    );
+});
+
+test("can't finish file preview image processing for the same data twice", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/tiff",
+        contentLength: 100,
+        hasPreview: true,
+        hasPreviewImage: true,
+    });
+
+    await fileUploader.finishProcessingPreviewImage(session.action(), {
+        contentType: "image/jpeg",
+        contentLength: 110,
+    });
+
+    await expect(
+        fileUploader.finishProcessingPreviewImage(session.action(), {
+            contentType: "image/jpeg",
+            contentLength: 110,
+        }),
+    ).rejects.toThrow(
+        new PermissionDeniedError("File has already finished processing its preview image"),
+    );
+});
+
 test("can finish file uploading", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -537,6 +1039,7 @@ test("can finish file uploading", async () => {
         contentType: "image/png",
         contentLength: 100,
         hasPreview: false,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -571,6 +1074,7 @@ test("can't finish file uploading twice", async () => {
         contentType: "image/png",
         contentLength: 100,
         hasPreview: false,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -610,6 +1114,7 @@ test("can't finish file uploading as a different account", async () => {
         contentType: "image/png",
         contentLength: 100,
         hasPreview: false,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -646,6 +1151,7 @@ test("can finish file processing then finish file uploading", async () => {
         contentType: "image/png",
         contentLength: 100,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -656,8 +1162,8 @@ test("can finish file processing then finish file uploading", async () => {
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -673,7 +1179,7 @@ test("can finish file processing then finish file uploading", async () => {
             preview: {
                 isProcessing: true,
                 size: {width: 100, height: 100},
-                placeholder: null,
+                placeholder: "Processing",
             },
         }),
     );
@@ -720,6 +1226,7 @@ test("can finish file uploading then finish file processing", async () => {
         contentType: "image/png",
         contentLength: 100,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -730,8 +1237,8 @@ test("can finish file uploading then finish file processing", async () => {
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -746,8 +1253,8 @@ test("can finish file uploading then finish file processing", async () => {
             isUploading: false,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -763,7 +1270,7 @@ test("can finish file uploading then finish file processing", async () => {
             preview: {
                 isProcessing: true,
                 size: {width: 100, height: 100},
-                placeholder: null,
+                placeholder: "Processing",
             },
         }),
     );
@@ -794,6 +1301,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
         contentType: "image/png",
         contentLength: 100,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -804,8 +1312,8 @@ test("can finish uploading interleaved with finishing file processing", async ()
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -821,7 +1329,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
             preview: {
                 isProcessing: true,
                 size: {width: 100, height: 100},
-                placeholder: null,
+                placeholder: "Processing",
             },
         }),
     );
@@ -837,7 +1345,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
             preview: {
                 isProcessing: true,
                 size: {width: 100, height: 100},
-                placeholder: null,
+                placeholder: "Processing",
             },
         }),
     );
@@ -868,6 +1376,7 @@ test("can finish file processing even if a different process updates file upload
         contentType: "image/png",
         contentLength: 100,
         hasPreview: true,
+        hasPreviewImage: false,
     });
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
@@ -878,8 +1387,8 @@ test("can finish file processing even if a different process updates file upload
             isUploading: true,
             preview: {
                 isProcessing: true,
-                size: null,
-                placeholder: null,
+                size: "Processing",
+                placeholder: "Processing",
             },
         }),
     );
@@ -895,7 +1404,7 @@ test("can finish file processing even if a different process updates file upload
             preview: {
                 isProcessing: true,
                 size: {width: 100, height: 100},
-                placeholder: null,
+                placeholder: "Processing",
             },
         }),
     );
@@ -911,8 +1420,8 @@ test("can finish file processing even if a different process updates file upload
         isUploading: true,
         preview: {
             isProcessing: true,
-            size: null,
-            placeholder: null,
+            size: "Processing",
+            placeholder: "Processing",
         },
     });
 
@@ -927,7 +1436,7 @@ test("can finish file processing even if a different process updates file upload
             preview: {
                 isProcessing: true,
                 size: {width: 100, height: 100},
-                placeholder: null,
+                placeholder: "Processing",
             },
         }),
     );

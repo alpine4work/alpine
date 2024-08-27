@@ -2983,8 +2983,10 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "image/jpeg",
                                                 "image/png",
                                                 "image/svg+xml",
-                                                "image/webp"
-                                            ]
+                                                "image/webp",
+                                                "image/tiff"
+                                            ],
+                                            "referenceId": "af264040"
                                         },
                                         "optional": false
                                     },
@@ -3065,6 +3067,30 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "image": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "contentType": {
+                                                                            "valueSchema": {
+                                                                                "type": "Reference",
+                                                                                "reuseReferenceId": "af264040"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "contentLength": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },
@@ -3104,6 +3130,27 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "reuseReferenceId": "381ba747"
                                                             },
                                                             "optional": false
+                                                        },
+                                                        "image": {
+                                                            "valueSchema": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "contentType": {
+                                                                        "valueSchema": {
+                                                                            "type": "Reference",
+                                                                            "reuseReferenceId": "af264040"
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "contentLength": {
+                                                                        "valueSchema": {
+                                                                            "type": "Integer"
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 }

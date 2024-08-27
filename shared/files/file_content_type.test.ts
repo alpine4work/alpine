@@ -1,4 +1,9 @@
-import {fileContentTypes, normalizeContentType} from "~/shared/files/file_content_type.js";
+import {
+    fileContentTypes,
+    getFileContentTypePreferredExtension,
+    normalizeContentType,
+} from "~/shared/files/file_content_type.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 
 test("can normalize content type", () => {
     expect(normalizeContentType("Text/HTML")).toEqual("text/html");
@@ -17,5 +22,11 @@ test("can normalize content type", () => {
 test("all file content types are normalized", () => {
     expect(Array.from(fileContentTypes, contentType => normalizeContentType(contentType))).toEqual(
         Array.from(fileContentTypes),
+    );
+});
+
+test("file content type preferred extensions are unique", () => {
+    expect(fileContentTypes.size).toEqual(
+        new Set(mapIterable(fileContentTypes, getFileContentTypePreferredExtension)).size,
     );
 });

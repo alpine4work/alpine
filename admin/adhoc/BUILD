@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/compromise",
         "//:node_modules/fs-extra",
         "//:node_modules/fuse.js",
+        "//:node_modules/sharp",
         "//admin/helpers",
         "//client/rpc",
         "//server/apns",

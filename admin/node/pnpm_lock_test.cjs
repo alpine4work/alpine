@@ -65,6 +65,11 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // dependency has an older major version.
     ["whatwg-mimetype", ["3.0.0", "4.0.0"]],
 
+    // NOTE(calebmer, 2024-08-27): Duplicate packages after adding `looks-same`
+    // that we can't easily resolve but shouldn't cause issues.
+    ["fs-extra", ["11.2.0", "8.1.0"]],
+    ["jsonfile", ["4.0.0", "6.1.0"]],
+
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
     // duplicate packages could be an issue and we tried to fix some easy
@@ -96,7 +101,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["chalk", ["2.4.2", "3.0.0", "4.1.2"]],
     ["chownr", ["1.1.4", "2.0.0"]],
     ["cliui", ["7.0.4", "8.0.1"]],
-    ["color-convert", ["1.9.3", "2.0.1"]],
+    ["color-convert", ["0.5.3", "1.9.3", "2.0.1"]],
     ["color-name", ["1.1.3", "1.1.4"]],
     ["color", ["3.2.1", "4.2.3"]],
     ["commander", ["2.20.3", "5.1.0"]],
@@ -221,7 +226,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["unist-util-stringify-position", ["3.0.2", "4.0.0"]],
     ["unist-util-visit-parents", ["5.1.1", "6.0.1"]],
     ["unist-util-visit", ["4.1.1", "5.0.0"]],
-    ["universalify", ["0.2.0", "2.0.0"]],
+    ["universalify", ["0.1.2", "0.2.0", "2.0.0"]],
     ["upper-case", ["1.1.3", "2.0.2"]],
     ["uuid", ["8.0.0", "8.3.2", "9.0.1"]],
     ["validate-npm-package-name", ["4.0.0", "5.0.1"]],

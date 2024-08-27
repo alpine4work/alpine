@@ -13,11 +13,17 @@ import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
+    InvalidArgumentError,
     PermissionDeniedError,
     UnimplementedError,
 } from "~/shared/error/error.js";
-import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    FileContentTypeSchema,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -129,46 +135,9 @@ const FilesTable = DynamoTableSchema.new({
                          * representation. For example, audio files or unknown binary files. If a file
                          * doesn't have a preview then this object will be null.
                          *
-                         * File previews are immutable after the file has been uploaded. However, while
-                         * the file is uploading various attributes may be null as we process the file.
-                         * For example, `size` will be null until we parse the file and figure out its
-                         * dimensions.
-                         *
-                         * Documentation for each property:
-                         *
-                         * - `size`: The width/height of the preview image.
-                         *
-                         *   We include dimensions in this object since `preview` is null for files
-                         *   which don't have a visual representation (e.g. audio files) and non-null
-                         *   for files which have a visual preview.
-                         *
-                         *   For images and videos, the dimensions in this object are the same as the
-                         *   underlying file's dimensions. For documents like a PDF, the dimensions in
-                         *   this object are the dimensions of the first page in the document.
-                         *
-                         * - `placeholder`: Before the preview image loads, we immediately show a
-                         *   blurred placeholder representing the preview image. The placeholder is
-                         *   <700 bytes so it's cheap to send over the network.
+                         * See the documentation on `FilePreview` for more information.
                          */
-                        preview: Schema.booleanUnion(
-                            "isProcessing",
-                            Schema.object({
-                                isProcessing: Schema.value(true),
-                                size: Schema.object({
-                                    width: Schema.integer,
-                                    height: Schema.integer,
-                                }).nullable(),
-                                placeholder: FilePreviewPlaceholder.schema.nullable(),
-                            }),
-                            Schema.object({
-                                isProcessing: Schema.value(false),
-                                size: Schema.object({
-                                    width: Schema.integer,
-                                    height: Schema.integer,
-                                }),
-                                placeholder: FilePreviewPlaceholder.schema,
-                            }),
-                        ).nullable(),
+                        preview: FilePreviewSchema.nullable(),
                     }),
                 },
             ],
@@ -221,13 +190,21 @@ export async function startUploadingAndProcessingFile(
         contentType,
         contentLength,
         hasPreview,
+        hasPreviewImage,
     }: {
         spaceId: SpaceId;
         contentType: FileContentType;
         contentLength: number;
         hasPreview: boolean;
+        hasPreviewImage: boolean;
     },
 ): Promise<FileUploader> {
+    if (!hasPreview && hasPreviewImage) {
+        throw new InvalidArgumentError(
+            `"hasPreviewImage" must be false when "hasPreview" is false`,
+        );
+    }
+
     await authorizeSpaceAccess(context, spaceId);
 
     const fileId = generateChronologicalId<FileId>();
@@ -265,8 +242,9 @@ export async function startUploadingAndProcessingFile(
             preview: hasPreview
                 ? {
                       isProcessing: true,
-                      size: null,
-                      placeholder: null,
+                      size: "Processing",
+                      placeholder: "Processing",
+                      image: hasPreviewImage ? "Processing" : undefined,
                   }
                 : null,
         };
@@ -306,8 +284,9 @@ export class FileUploader {
 
     /**
      * When we're done processing `preview.size` we call this method to add the
-     * preview size to DynamoDB. If we've finished processing both `preview.size`
-     * and `preview.placeholder` then we can set `preview.isProcessing` to false.
+     * preview size to DynamoDB. If we've finished processing all of
+     * `preview.size`, `preview.placeholder`, and `preview.image` then we can set
+     * `preview.isProcessing` to false.
      */
     public async finishProcessingPreviewSize(
         context: ServerSessionActionContext,
@@ -335,7 +314,7 @@ export class FileUploader {
                             "File has already finished processing its preview",
                         );
                     }
-                    if (item.preview.size) {
+                    if (item.preview.size !== "Processing") {
                         throw new FailedPreconditionError(
                             "File has already finished processing its preview size",
                         );
@@ -343,9 +322,21 @@ export class FileUploader {
 
                     return {
                         ...item,
-                        preview: item.preview.placeholder
-                            ? {isProcessing: false, size, placeholder: item.preview.placeholder}
-                            : {isProcessing: true, size, placeholder: item.preview.placeholder},
+                        preview:
+                            item.preview.placeholder !== "Processing" &&
+                            item.preview.image !== "Processing"
+                                ? {
+                                      isProcessing: false,
+                                      size,
+                                      placeholder: item.preview.placeholder,
+                                      image: item.preview.image,
+                                  }
+                                : {
+                                      isProcessing: true,
+                                      size,
+                                      placeholder: item.preview.placeholder,
+                                      image: item.preview.image,
+                                  },
                     };
                 },
                 {initialItem: itemRef.current},
@@ -355,8 +346,8 @@ export class FileUploader {
 
     /**
      * When we're done processing `preview.placeholder` we call this method to add
-     * the preview placeholder to DynamoDB. If we've finished processing both
-     * `preview.size` and `preview.placeholder` then we can set
+     * the preview placeholder to DynamoDB. If we've finished processing all of
+     * `preview.size`, `preview.placeholder`, and `preview.image` then we can set
      * `preview.isProcessing` to false.
      */
     public async finishProcessingPreviewPlaceholder(
@@ -385,7 +376,7 @@ export class FileUploader {
                             "File has already finished processing its preview",
                         );
                     }
-                    if (item.preview.placeholder) {
+                    if (item.preview.placeholder !== "Processing") {
                         throw new FailedPreconditionError(
                             "File has already finished processing its preview placeholder",
                         );
@@ -393,9 +384,87 @@ export class FileUploader {
 
                     return {
                         ...item,
-                        preview: item.preview.size
-                            ? {isProcessing: false, size: item.preview.size, placeholder}
-                            : {isProcessing: true, size: item.preview.size, placeholder},
+                        preview:
+                            item.preview.size !== "Processing" &&
+                            item.preview.image !== "Processing"
+                                ? {
+                                      isProcessing: false,
+                                      size: item.preview.size,
+                                      placeholder,
+                                      image: item.preview.image,
+                                  }
+                                : {
+                                      isProcessing: true,
+                                      size: item.preview.size,
+                                      placeholder,
+                                      image: item.preview.image,
+                                  },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * When we're done processing `preview.image` we call this method to add
+     * the preview image to DynamoDB. If we've finished processing all of
+     * `preview.size`, `preview.placeholder`, and `preview.image` then we can set
+     * `preview.isProcessing` to false.
+     */
+    public async finishProcessingPreviewImage(
+        context: ServerSessionActionContext,
+        image: {contentType: FileContentType; contentLength: number},
+    ) {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new FailedPreconditionError("File doesn't have a preview");
+                    }
+                    if (!item.preview.isProcessing) {
+                        throw new FailedPreconditionError(
+                            "File has already finished processing its preview",
+                        );
+                    }
+                    if (item.preview.image !== "Processing") {
+                        if (item.preview.image === undefined) {
+                            throw new FailedPreconditionError("File doesn't have a preview image");
+                        } else {
+                            throw new FailedPreconditionError(
+                                "File has already finished processing its preview image",
+                            );
+                        }
+                    }
+
+                    return {
+                        ...item,
+                        preview:
+                            item.preview.size !== "Processing" &&
+                            item.preview.placeholder !== "Processing"
+                                ? {
+                                      isProcessing: false,
+                                      size: item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      image,
+                                  }
+                                : {
+                                      isProcessing: true,
+                                      size: item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      image,
+                                  },
                     };
                 },
                 {initialItem: itemRef.current},
@@ -454,12 +523,22 @@ async function actuallyCleanupFileItem(
     context: Context<ServerActionContextModules & {r2: CloudflareR2ContextModule}>,
     fileItem: FileItem,
 ) {
-    const {spaceId, fileId} = fileItem;
+    const {spaceId, fileId, contentType} = fileItem;
+    const preferredExtension = getFileContentTypePreferredExtension(contentType);
 
     // Make sure the R2 object associated with the file is deleted if an object
     // exists. `DeleteObject` is idempotent. It won't throw an error if the object
     // doesn't exist.
-    await context.r2.DeleteObject({Bucket: filesBucketName, Key: `${spaceId}/${fileId}`});
+    await runAllPromises([
+        context.r2.DeleteObject({
+            Bucket: filesBucketName,
+            Key: `${spaceId}/${fileId}.${preferredExtension}`,
+        }),
+        context.r2.DeleteObject({
+            Bucket: filesBucketName,
+            Key: `${spaceId}/${fileId}.preview.${preferredExtension}`,
+        }),
+    ]);
 
     let hasAttempted = false;
     const initialFileItem = fileItem;

@@ -18,7 +18,7 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, UnknownError} from "~/shared/error/error.js";
+import {CancelledError, DataLossError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -414,7 +414,10 @@ export async function waitForProcessTaskActionTransactionsForTest() {
             }
             // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
             // just the first one. Probably by using an `AggregateError`.
-            else if (!isSystemError(error) && isSystemError(newError)) {
+            else if (
+                (!isSystemError(error) && isSystemError(newError)) ||
+                (error instanceof CancelledError && !(newError instanceof CancelledError))
+            ) {
                 error = newError;
             }
         }

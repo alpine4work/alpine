@@ -42,7 +42,8 @@ export function getTracerEventExceptionData(
               }
             : undefined,
 
-        // Only include causes that, themselves, are instances of `Error`.
+        // Only include causes that, themselves, are instances of `Error`. Only
+        // serialize causes 3 deep. (Same as `ErrorSchema.serialize()`.)
         cause:
             error instanceof Error && error.cause && error.cause instanceof Error
                 ? error.cause.cause && error.cause.cause instanceof Error

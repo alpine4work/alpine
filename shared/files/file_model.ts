@@ -1,5 +1,5 @@
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -13,24 +13,6 @@ export class FileModel extends Model(
         contentType: FileContentTypeSchema,
         contentLength: Schema.integer,
         isUploading: Schema.boolean,
-        preview: Schema.booleanUnion(
-            "isProcessing",
-            Schema.object({
-                isProcessing: Schema.value(true),
-                size: Schema.object({
-                    width: Schema.integer,
-                    height: Schema.integer,
-                }).nullable(),
-                placeholder: FilePreviewPlaceholder.schema.nullable(),
-            }),
-            Schema.object({
-                isProcessing: Schema.value(false),
-                size: Schema.object({
-                    width: Schema.integer,
-                    height: Schema.integer,
-                }),
-                placeholder: FilePreviewPlaceholder.schema,
-            }),
-        ).nullable(),
+        preview: FilePreviewSchema.nullable(),
     }),
 ) {}

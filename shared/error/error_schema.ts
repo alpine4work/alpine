@@ -11,7 +11,7 @@ import {
     ErrorDisplayMessageSegment,
 } from "~/shared/error/types/error_display_message_type.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
-import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export const ErrorDisplayMessageLinkSegmentSchema: ObjectSchema<ErrorDisplayMessageLinkSegment> =
     Schema.object({
@@ -37,19 +37,57 @@ const _ErrorDisplayMessageSchema = Schema.array(ErrorDisplayMessageSegmentSchema
 export const ErrorDisplayMessageSchema: Schema<ErrorDisplayMessage> =
     _ErrorDisplayMessageSchema as Schema<any>;
 
-export const ErrorSchema = Schema.object({
+const ErrorBaseRecursiveSchema = Schema.declare<{
+    readonly message: string;
+    readonly code?: number | undefined;
+    readonly displayMessage?: ErrorDisplayMessage | undefined;
+    readonly name?: string | undefined;
+    readonly stack?: string | undefined;
+}>();
+
+const ErrorBaseSchema = Schema.object({
     code: Schema.integer.optional(),
     message: Schema.string,
     displayMessage: ErrorDisplayMessageSchema.optional(),
     name: Schema.string.optional(),
     stack: Schema.string.optional(),
-    original: Schema.object({
-        time: Schema.date,
-        traceId: Schema.id<TraceId>(),
-        spanId: Schema.id<TraceSpanId>(),
-    }).optional(),
-}).transform<unknown>({
+    cause: ErrorBaseRecursiveSchema.optional(),
+});
+
+ErrorBaseRecursiveSchema.define(ErrorBaseSchema);
+
+const ErrorSchemaWithoutTransform = ErrorBaseSchema.merge(
+    Schema.object({
+        original: Schema.object({
+            time: Schema.date,
+            traceId: Schema.id<TraceId>(),
+            spanId: Schema.id<TraceSpanId>(),
+        }).optional(),
+    }),
+);
+
+export const ErrorSchema = ErrorSchemaWithoutTransform.transform<unknown>({
     serialize: error => ({
+        ...serializeErrorBase(error),
+        original: getErrorOriginalTracerSpan(error),
+
+        // Only include causes that, themselves, are instances of `Error`. Only
+        // serialize causes 3 deep. (Same as `getTracerEventExceptionData()`.)
+        cause:
+            error instanceof Error && error.cause && error.cause instanceof Error
+                ? error.cause.cause && error.cause.cause instanceof Error
+                    ? {
+                          ...serializeErrorBase(error.cause),
+                          cause: serializeErrorBase(error.cause.cause),
+                      }
+                    : serializeErrorBase(error.cause)
+                : undefined,
+    }),
+    deserialize: deserializeError,
+});
+
+function serializeErrorBase(error: unknown) {
+    return {
         code: error instanceof ErrorBase ? error.code : ErrorCode.Unknown,
         message: error instanceof Error ? error.message : "",
         displayMessage: error instanceof ErrorBase ? error.displayMessage : undefined,
@@ -58,38 +96,41 @@ export const ErrorSchema = Schema.object({
         ...(process.env.NODE_ENV !== "production" && error instanceof Error
             ? {name: error.name, stack: error.stack}
             : {}),
-        original: getErrorOriginalTracerSpan(error),
-    }),
-    deserialize: serializedError => {
-        const code =
-            serializedError.code !== undefined && isErrorCode(serializedError.code)
-                ? serializedError.code
-                : ErrorCode.Unknown;
-        const ErrorConstructor = getErrorConstructorForCode(code);
+    };
+}
 
-        const error = new ErrorConstructor(serializedError.message, {
-            displayMessage: serializedError.displayMessage,
-        });
+function deserializeError(
+    serializedError: SchemaType<typeof ErrorSchemaWithoutTransform>,
+): unknown {
+    const code =
+        serializedError.code !== undefined && isErrorCode(serializedError.code)
+            ? serializedError.code
+            : ErrorCode.Unknown;
+    const ErrorConstructor = getErrorConstructorForCode(code);
 
-        // If a stack trace was serialized with the error (in development we include a
-        // stack trace) then assign it to the error.
-        if (serializedError.stack) {
-            const errorStackPrefix = `${serializedError.name ?? error.name}: ${error.message}\n`;
-            const serverErrorStackPrefix = `${errorStackPrefix}\nServer stack trace:\n`;
+    const error = new ErrorConstructor(serializedError.message, {
+        displayMessage: serializedError.displayMessage,
+        cause: serializedError.cause ? deserializeError(serializedError.cause) : undefined,
+    });
 
-            const errorStackWithoutPrefix = serializedError.stack.startsWith(serverErrorStackPrefix)
-                ? serializedError.stack.slice(serverErrorStackPrefix.length)
-                : serializedError.stack.startsWith(errorStackPrefix)
-                ? serializedError.stack.slice(errorStackPrefix.length)
-                : serializedError.stack;
+    // If a stack trace was serialized with the error (in development we include a
+    // stack trace) then assign it to the error.
+    if (serializedError.stack) {
+        const errorStackPrefix = `${serializedError.name ?? error.name}: ${error.message}\n`;
+        const serverErrorStackPrefix = `${errorStackPrefix}\nServer stack trace:\n`;
 
-            error.stack = `${errorStackPrefix}\nServer stack trace:\n${errorStackWithoutPrefix}`;
-        }
+        const errorStackWithoutPrefix = serializedError.stack.startsWith(serverErrorStackPrefix)
+            ? serializedError.stack.slice(serverErrorStackPrefix.length)
+            : serializedError.stack.startsWith(errorStackPrefix)
+            ? serializedError.stack.slice(errorStackPrefix.length)
+            : serializedError.stack;
 
-        if (serializedError.original) {
-            setErrorOriginalTracerSpan(error, serializedError.original);
-        }
+        error.stack = `${errorStackPrefix}\nServer stack trace:\n${errorStackWithoutPrefix}`;
+    }
 
-        return error;
-    },
-});
+    if (serializedError.original) {
+        setErrorOriginalTracerSpan(error, serializedError.original);
+    }
+
+    return error;
+}

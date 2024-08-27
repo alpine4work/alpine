@@ -3,7 +3,9 @@ import {FileStorage} from "@miniflare/storage-file";
 import fs from "fs/promises";
 import getPort from "get-port";
 import {Server} from "http";
+import looksSame from "looks-same";
 import {join as joinPath} from "path";
+import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
@@ -16,8 +18,11 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {
+    FileContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -36,6 +41,7 @@ const testCases: {
         contentLength: number;
         size: {width: number; height: number};
         placeholder: FilePreviewPlaceholder;
+        image?: {contentType: FileContentType; contentLength: number; path: string};
     }>;
 } = {
     "image/apng": [
@@ -118,6 +124,16 @@ const testCases: {
             ]),
         },
         {
+            path: "wikimedia_png_transparency_demonstration.png",
+            contentLength: 76547,
+            size: {width: 336, height: 252},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "bGzYIUpW8Jo1f6owN7k9fFq0WhFupv8Xj2bAsLxTYc9jkTinAOsTDQAAAADTXDYvy2hP8t1gYD0AAAAAAAAAAJ+/fwiltkw/jcY4CQAAAAA=",
+            ]),
+        },
+        {
             path: "wikimedia_bouncing_beach_ball.png",
             contentLength: 61968,
             size: {width: 100, height: 100},
@@ -152,8 +168,41 @@ const testCases: {
             ]),
         },
     ],
+    "image/tiff": [
+        {
+            path: "unsplash_annie_spratt_0ArJET2aSIQ.tiff",
+            contentLength: 118764,
+            size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+            ]),
+            image: {
+                contentType: "image/png",
+                contentLength: 118887,
+                path: "unsplash_annie_spratt_0ArJET2aSIQ.png",
+            },
+        },
+        {
+            path: "wikimedia_png_transparency_demonstration.tiff",
+            contentLength: 107676,
+            size: {width: 336, height: 252},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "bGzYIUpX8Jo1f6owN7Q9fFq0WhFupv8Xj2bAsLxTYc9kjzanAOsTDQAAAADTXDYvymlP8t1gYD0AAAAAAAAAAJ+/fwilskQ/japVCQAAAAA=",
+            ]),
+            image: {
+                contentType: "image/png",
+                contentLength: 92902,
+                path: "wikimedia_png_transparency_demonstration.png",
+            },
+        },
+    ],
 };
 
+let r2Bucket: R2Bucket;
 let serverTokenAgent: TokenAgent;
 let tokenAgent: TokenAgent;
 let port: number;
@@ -163,7 +212,7 @@ const context = createTestContext();
 
 beforeAll(async () => {
     const r2Storage = new FileStorage(joinPath(context.getTempPath(), "r2", filesBucketName));
-    const r2Bucket = new R2Bucket(r2Storage);
+    r2Bucket = new R2Bucket(r2Storage);
     const r2ContextModule = new CloudflareR2ContextModule(
         new MiniflareR2Client(new Map([[filesBucketName, r2Bucket]])),
     );
@@ -213,12 +262,38 @@ function parseJsonEvents(responseText: string) {
         .map(eventString => UploadFileEventSchema.deserialize(JSON.parse(eventString)));
 }
 
+test("looks same tester works", async () => {
+    const {equal} = await looksSame(
+        ...(await runAllPromises([
+            fs.readFile(
+                joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.png",
+                ),
+            ),
+            fs.readFile(
+                joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.png",
+                ),
+            ),
+        ])),
+    );
+
+    if (equal) {
+        throw new InternalError(
+            "The two images we provided look the same when we expected them to not look the same",
+        );
+    }
+});
+
 for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
     for (const {
         path,
         contentLength: expectedContentLength,
         size: expectedSize,
         placeholder: expectedPlaceholder,
+        image: expectedImage,
     } of contentTypeTestCases) {
         // eslint-disable-next-line jest/valid-title
         test(quote`can upload ${contentType} file ${path}`, async () => {
@@ -240,15 +315,45 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
             expect(massageHeaders(response.headers)).toEqual({
                 "content-type": "application/x-ndjson",
             });
-            const events = parseJsonEvents(responseText);
+            const eventOrder = [
+                "Start",
+                "PreviewSize",
+                "PreviewPlaceholder",
+                "PreviewImage",
+                "Finish",
+            ];
+            const events = parseJsonEvents(responseText).sort(
+                (event1, event2) =>
+                    eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
+            );
             expect(events).toEqual([
                 {
                     type: "Start",
+                    hasPreview: true,
+                    hasPreviewImage: !!expectedImage,
                     fileId: expect.any(String),
                 },
-                {type: "PreviewSize", width: expectedSize.width, height: expectedSize.height},
-                {type: "PreviewPlaceholder", placeholder: expect.any(FilePreviewPlaceholder)},
-                {type: "Finish"},
+                {
+                    type: "PreviewSize",
+                    width: expectedSize.width,
+                    height: expectedSize.height,
+                },
+                {
+                    type: "PreviewPlaceholder",
+                    placeholder: expect.any(FilePreviewPlaceholder),
+                },
+                ...(expectedImage
+                    ? [
+                          {
+                              type: "PreviewImage",
+                              contentType: expectedImage.contentType,
+                              contentLength: expectedImage.contentLength,
+                          },
+                      ]
+                    : []),
+                {
+                    type: "Finish",
+                },
             ]);
             expect(response.status).toEqual(200);
 
@@ -274,6 +379,12 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                         isProcessing: false,
                         size: {width: expectedSize.width, height: expectedSize.height},
                         placeholder: expect.any(FilePreviewPlaceholder),
+                        image: expectedImage
+                            ? {
+                                  contentType: expectedImage.contentType,
+                                  contentLength: expectedImage.contentLength,
+                              }
+                            : undefined,
                     },
                 }),
             );
@@ -281,54 +392,111 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
             // Compare placeholders. Sharp's placeholder generation isn't deterministic
             // across platforms. So check that placeholders are close to each other if not
             // exactly equal.
-            {
-                const actualPixelGrid = placeholder.get();
-                const expectedPixelGrid = expectedPlaceholder.get();
-                const actualPlaceholderString = JSON.stringify(
-                    FilePreviewPlaceholder.schema.serialize(placeholder),
+            compareFilePreviewPlaceholders(placeholder, expectedPlaceholder);
+
+            if (expectedImage) {
+                const object = await r2Bucket.get(
+                    `${space.id}/${fileId}.preview.${getFileContentTypePreferredExtension(
+                        expectedImage.contentType,
+                    )}`,
+                );
+                if (!object) throw new NotFoundError("Preview image file not found");
+
+                const {equal} = await looksSame(
+                    ...(await runAllPromises([
+                        convertReadableStreamToUint8Array(object.body).then(buffer =>
+                            Buffer.from(buffer),
+                        ),
+                        fs.readFile(
+                            joinPath(
+                                runfilesPath,
+                                "cyberworlds/server/files/upload/test_fixtures",
+                                expectedImage.path,
+                            ),
+                        ),
+                    ])),
                 );
 
-                if (actualPixelGrid.length !== expectedPixelGrid.length) {
-                    throw new InvalidArgumentError(
-                        `Placeholder height doesn't match, actual placeholder: ${actualPlaceholderString}`,
+                if (!equal) {
+                    throw new InternalError(
+                        "Actual preview image doesn't look the same as expected preview image",
                     );
-                }
-
-                for (let y = 0; y < actualPixelGrid.length; y++) {
-                    const actualPixelRow = actualPixelGrid[y]!;
-                    const expectedPixelRow = expectedPixelGrid[y]!;
-
-                    if (actualPixelRow.length !== expectedPixelRow.length) {
-                        throw new InvalidArgumentError(
-                            `Placeholder width doesn't match, actual placeholder: ${actualPlaceholderString}`,
-                        );
-                    }
-
-                    for (let x = 0; x < actualPixelRow.length; x++) {
-                        const actualPixel = actualPixelRow[x]!;
-                        const expectedPixel = expectedPixelRow[x]!;
-
-                        // Make sure we're not comparing the exact same `FilePreviewPlaceholder`
-                        // object.
-                        assert(actualPixel !== expectedPixel);
-
-                        const distance = Math.sqrt(
-                            (actualPixel.r - expectedPixel.r) ** 2 +
-                                (actualPixel.g - expectedPixel.g) ** 2 +
-                                (actualPixel.b - expectedPixel.b) ** 2 +
-                                ((actualPixel.alpha ?? 1) * 255 -
-                                    (expectedPixel.alpha ?? 1) * 255) **
-                                    2,
-                        );
-
-                        if (distance >= 5) {
-                            throw new InvalidArgumentError(
-                                `Placeholder pixel doesn't match (distance = ${distance}), actual placeholder: ${actualPlaceholderString}`,
-                            );
-                        }
-                    }
                 }
             }
         });
     }
+}
+
+function compareFilePreviewPlaceholders(
+    actualPlaceholder: FilePreviewPlaceholder,
+    expectedPlaceholder: FilePreviewPlaceholder,
+) {
+    const actualPixelGrid = actualPlaceholder.get();
+    const expectedPixelGrid = expectedPlaceholder.get();
+    const actualPlaceholderString = JSON.stringify(
+        FilePreviewPlaceholder.schema.serialize(actualPlaceholder),
+    );
+
+    if (actualPixelGrid.length !== expectedPixelGrid.length) {
+        throw new InvalidArgumentError(
+            `Placeholder height doesn't match, actual placeholder: ${actualPlaceholderString}`,
+        );
+    }
+
+    for (let y = 0; y < actualPixelGrid.length; y++) {
+        const actualPixelRow = actualPixelGrid[y]!;
+        const expectedPixelRow = expectedPixelGrid[y]!;
+
+        if (actualPixelRow.length !== expectedPixelRow.length) {
+            throw new InvalidArgumentError(
+                `Placeholder width doesn't match, actual placeholder: ${actualPlaceholderString}`,
+            );
+        }
+
+        for (let x = 0; x < actualPixelRow.length; x++) {
+            const actualPixel = actualPixelRow[x]!;
+            const expectedPixel = expectedPixelRow[x]!;
+
+            // Make sure we're not comparing the exact same `FilePreviewPlaceholder`
+            // object.
+            assert(actualPixel !== expectedPixel);
+
+            const distance = Math.sqrt(
+                (actualPixel.r - expectedPixel.r) ** 2 +
+                    (actualPixel.g - expectedPixel.g) ** 2 +
+                    (actualPixel.b - expectedPixel.b) ** 2 +
+                    ((actualPixel.alpha ?? 1) * 255 - (expectedPixel.alpha ?? 1) * 255) ** 2,
+            );
+
+            if (distance >= 10) {
+                throw new InvalidArgumentError(
+                    `Placeholder pixel doesn't match (distance = ${distance}), actual placeholder: ${actualPlaceholderString}`,
+                );
+            }
+        }
+    }
+}
+
+function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
+    const result = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.length, 0));
+    let offset = 0;
+
+    for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    return result;
+}
+
+async function convertReadableStreamToUint8Array(
+    stream: ReadableStream<Uint8Array>,
+): Promise<Uint8Array> {
+    const chunks: Array<Uint8Array> = [];
+
+    for await (const chunk of stream) {
+        chunks.push(chunk);
+    }
+
+    return concatUint8Arrays(chunks);
 }

@@ -8,6 +8,7 @@ ts_project(
     test_data = glob(["test_fixtures/*"]),
     test_deps = [
         "//:node_modules/get-port",
+        "//:node_modules/looks-same",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
     ],

@@ -8,9 +8,11 @@ export function waitForAbort(signal: AbortSignal): Promise<never> {
         if (signal.aborted) {
             reject(signal.reason);
         } else {
-            signal.addEventListener("abort", () => {
+            const handleAbort = () => {
+                signal.removeEventListener("abort", handleAbort);
                 reject(signal.reason);
-            });
+            };
+            signal.addEventListener("abort", handleAbort);
         }
     });
 }

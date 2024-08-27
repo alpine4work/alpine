@@ -16,6 +16,7 @@ import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.j
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {CancelledError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -362,7 +363,10 @@ export async function loadTaskRealtimeQueries(
             }
             // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
             // just the first one. Probably by using an `AggregateError`.
-            else if (!isSystemError(error) && isSystemError(newError)) {
+            else if (
+                (!isSystemError(error) && isSystemError(newError)) ||
+                (error instanceof CancelledError && !(newError instanceof CancelledError))
+            ) {
                 error = newError;
             }
         }
