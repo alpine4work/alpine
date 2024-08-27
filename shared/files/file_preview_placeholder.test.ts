@@ -78,7 +78,13 @@ test("can serialize/deserialize a file preview placeholder", () => {
     expect(deserializedPlaceholder).toEqual(expectedDeserializedPlaceholder);
 
     expect(
-        JSON.parse(JSON.stringify(new FilePreviewPlaceholder(deserializedPlaceholder).serialize())),
+        JSON.parse(
+            JSON.stringify(
+                FilePreviewPlaceholder.schema.serialize(
+                    new FilePreviewPlaceholder(deserializedPlaceholder),
+                ),
+            ),
+        ),
     ).toEqual(serializedPlaceholder);
 });
 

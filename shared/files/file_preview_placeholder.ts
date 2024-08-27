@@ -1,7 +1,7 @@
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
 
 /**
  * File preview placeholder blur image.
@@ -64,7 +64,7 @@ export const FilePreviewPlaceholder = createSchemaLazyTransformClass<
             }
         }
 
-        return [hasAlphaChannel, width, data];
+        return [hasAlphaChannel, width, new JsonStringifiableUint8Array(data)];
     },
     deserialize: ([hasAlphaChannel, width, data]) => {
         const channelCount = hasAlphaChannel ? 4 : 3;

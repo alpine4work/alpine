@@ -2175,7 +2175,10 @@ Schema.integer = IntegerSchema.integer;
 export class BytesSchema extends Schema<Uint8Array> {
     public static override bytes = new BytesSchema({
         getDescription: () => ({type: "Bytes"}),
-        serialize: value => new JsonStringifiableUint8Array(value),
+        serialize: value => {
+            if (value instanceof JsonStringifiableUint8Array) return value;
+            return new JsonStringifiableUint8Array(value);
+        },
         deserialize: value => {
             if (value instanceof Uint8Array) return value;
 

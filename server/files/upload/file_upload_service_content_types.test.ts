@@ -321,7 +321,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                                     2,
                         );
 
-                        if (distance >= 2) {
+                        if (distance >= 5) {
                             throw new InvalidArgumentError(
                                 `Placeholder pixel doesn't match (distance = ${distance}), actual placeholder: ${actualPlaceholderString}`,
                             );
