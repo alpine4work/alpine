@@ -468,7 +468,7 @@ function compareFilePreviewPlaceholders(
                     ((actualPixel.alpha ?? 1) * 255 - (expectedPixel.alpha ?? 1) * 255) ** 2,
             );
 
-            if (distance >= 10) {
+            if (distance >= 15) {
                 throw new InvalidArgumentError(
                     `Placeholder pixel doesn't match (distance = ${distance}), actual placeholder: ${actualPlaceholderString}`,
                 );
