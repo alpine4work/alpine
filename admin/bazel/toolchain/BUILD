@@ -4,6 +4,7 @@ filegroup(name = "empty")
 
 linux_local_cc_toolchain_config(
     name = "linux_arm64_local_cc_toolchain_config",
+    target_cpu = "arm64",
 )
 
 cc_toolchain(

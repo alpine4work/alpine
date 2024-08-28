@@ -46,15 +46,21 @@ def _linux_local_cc_toolchain_config_impl(ctx):
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
         cxx_builtin_include_directories = ["/usr/include"],
-        toolchain_identifier = "linux_local",
+        toolchain_identifier = "local",
         compiler = "gcc",
         tool_paths = tool_paths,
-        abi_version = "unknown",
-        abi_libc_version = "unknown",
+        host_system_name = "local",
+        target_system_name = "local",
+        target_cpu = ctx.attrs.target_cpu,
+        target_libc = "linux",
+        abi_version = "local",
+        abi_libc_version = "local",
     )
 
 linux_local_cc_toolchain_config = rule(
     _linux_local_cc_toolchain_config_impl,
-    attrs = {},
+    attrs = {
+        "target_cpu": attr.string(),
+    },
     provides = [CcToolchainConfigInfo],
 )
