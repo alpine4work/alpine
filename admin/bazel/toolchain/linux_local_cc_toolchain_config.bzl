@@ -51,7 +51,7 @@ def _linux_local_cc_toolchain_config_impl(ctx):
         tool_paths = tool_paths,
         host_system_name = "local",
         target_system_name = "local",
-        target_cpu = ctx.attrs.target_cpu,
+        target_cpu = ctx.attr.target_cpu,
         target_libc = "linux",
         abi_version = "local",
         abi_libc_version = "local",
