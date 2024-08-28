@@ -1,0 +1,14 @@
+exports_files(
+    ["DynamoDBLocal.jar"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "DynamoDBLocal_lib",
+    srcs = glob(
+        ["**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
+    visibility = ["//visibility:public"],
+)

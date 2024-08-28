@@ -1,0 +1,9 @@
+filegroup(
+    name = "opensearch_local",
+    srcs = glob(
+        ["**/*"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = ["**/.*"],
+    ),
+    visibility = ["//visibility:public"],
+)

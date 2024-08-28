@@ -13,8 +13,36 @@ index 7eff984c..15febc93 100644
          srcs = srcs + extra_srcs,
          outs = outs + extra_outs,
          out_dirs = out_dirs,
+diff --git a/npm/extensions.bzl b/npm/extensions.bzl
+index f2c4c9d9..f3b00f0a 100644
+--- a/npm/extensions.bzl
++++ b/npm/extensions.bzl
+@@ -50,6 +50,7 @@ def _npm_translate_lock_bzlmod(attr):
+         generate_bzl_library_targets = attr.generate_bzl_library_targets,
+         lifecycle_hooks = attr.lifecycle_hooks,
+         lifecycle_hooks_envs = attr.lifecycle_hooks_envs,
++        lifecycle_hooks_srcs = attr.lifecycle_hooks_srcs,
+         lifecycle_hooks_execution_requirements = attr.lifecycle_hooks_execution_requirements,
+         lifecycle_hooks_exclude = attr.lifecycle_hooks_exclude,
+         lifecycle_hooks_no_sandbox = attr.lifecycle_hooks_no_sandbox,
+@@ -151,6 +152,7 @@ WARNING: Cannot determine home directory in order to load home `.npmrc` file in
+             generate_bzl_library_targets = attr.generate_bzl_library_targets,
+             lifecycle_hooks = i.lifecycle_hooks if i.lifecycle_hooks else [],
+             lifecycle_hooks_env = i.lifecycle_hooks_env,
++            lifecycle_hooks_srcs = i.lifecycle_hooks_srcs,
+             lifecycle_hooks_execution_requirements = i.lifecycle_hooks_execution_requirements,
+             lifecycle_hooks_use_default_shell_env = i.lifecycle_hooks_use_default_shell_env,
+             link_packages = i.link_packages,
+@@ -184,6 +186,7 @@ def _npm_import_bzlmod(i):
+         integrity = i.integrity,
+         lifecycle_hooks = i.lifecycle_hooks,
+         lifecycle_hooks_env = i.lifecycle_hooks_env,
++        lifecycle_hooks_srcs = i.lifecycle_hooks_srcs,
+         lifecycle_hooks_execution_requirements = i.lifecycle_hooks_execution_requirements,
+         lifecycle_hooks_no_sandbox = i.lifecycle_hooks_no_sandbox,
+         lifecycle_hooks_use_default_shell_env = i.lifecycle_hooks_use_default_shell_env,
 diff --git a/npm/private/npm_import.bzl b/npm/private/npm_import.bzl
-index d71b5ef4..e87b0018 100644
+index d71b5ef4..a5bc9b6b 100644
 --- a/npm/private/npm_import.bzl
 +++ b/npm/private/npm_import.bzl
 @@ -122,6 +122,23 @@ def npm_imported_package_store(name):
@@ -41,6 +69,15 @@ index d71b5ef4..e87b0018 100644
  _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
      lc_deps = {lc_deps}
  
+@@ -159,7 +176,7 @@ _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
+         srcs = [
+             "{npm_package_target}",
+             ":{{}}/pkg_pre_lc".format(store_target_name),
+-        ],
++        ] + {lifecycle_hooks_srcs},
+         # js_run_binary runs in the output dir; must add "../../../" because paths are relative to the exec root
+         args = [
+                    "{package}",
 @@ -189,7 +206,17 @@ _LINK_JS_PACKAGE_LIFECYCLE_TMPL = """\
          execution_requirements = {lifecycle_hooks_execution_requirements},
          mnemonic = "NpmLifecycleHook",
@@ -60,6 +97,125 @@ index d71b5ef4..e87b0018 100644
      )
  
      # post-lifecycle npm_package
+@@ -777,6 +804,10 @@ def _npm_import_links_rule_impl(rctx):
+         has_lifecycle_build_target = str(rctx.attr.lifecycle_build_target),
+         lifecycle_hooks_execution_requirements = starlark_codegen_utils.to_dict_attr(lifecycle_hooks_execution_requirements, 2),
+         lifecycle_hooks_env = starlark_codegen_utils.to_dict_attr(lifecycle_hooks_env),
++        # NOTE(calebmer): We add the ability to provide extra source files to a
++        # lifecycle hooks run. This is necessary when building the `sharp` module since
++        # we need to provide a custom `libvips` build.
++        lifecycle_hooks_srcs = starlark_codegen_utils.to_list_attr(rctx.attr.lifecycle_hooks_srcs),
+         lifecycle_output_dir = lifecycle_output_dir,
+         npm_link_package_bzl = "@%s//:%s" % (rctx.name, _DEFS_BZL_FILENAME),
+         link_packages = starlark_codegen_utils.to_dict_attr(link_packages, 1, quote_value = False),
+@@ -831,6 +862,7 @@ _ATTRS_LINKS = dicts.add(_COMMON_ATTRS, {
+     "dev": attr.bool(),
+     "lifecycle_build_target": attr.bool(),
+     "lifecycle_hooks_env": attr.string_list(),
++    "lifecycle_hooks_srcs": attr.string_list(),
+     "lifecycle_hooks_execution_requirements": attr.string_list(),
+     "lifecycle_hooks_use_default_shell_env": attr.bool(),
+     "transitive_closure": attr.string_list_dict(),
+@@ -903,6 +935,7 @@ def npm_import(
+         lifecycle_hooks = [],
+         lifecycle_hooks_execution_requirements = ["no-sandbox"],
+         lifecycle_hooks_env = [],
++        lifecycle_hooks_srcs = [],
+         lifecycle_hooks_use_default_shell_env = False,
+         integrity = "",
+         url = "",
+@@ -1247,6 +1280,7 @@ def npm_import(
+         transitive_closure = transitive_closure,
+         lifecycle_build_target = has_lifecycle_hooks or has_custom_postinstall,
+         lifecycle_hooks_env = lifecycle_hooks_env,
++        lifecycle_hooks_srcs = lifecycle_hooks_srcs,
+         lifecycle_hooks_execution_requirements = lifecycle_hooks_execution_requirements,
+         lifecycle_hooks_use_default_shell_env = lifecycle_hooks_use_default_shell_env,
+         bins = bins,
+diff --git a/npm/private/npm_translate_lock.bzl b/npm/private/npm_translate_lock.bzl
+index e64f3f66..403f6523 100644
+--- a/npm/private/npm_translate_lock.bzl
++++ b/npm/private/npm_translate_lock.bzl
+@@ -55,6 +55,7 @@ _ATTRS = {
+     "generate_bzl_library_targets": attr.bool(),
+     "replace_packages": attr.string_dict(),
+     "lifecycle_hooks_envs": attr.string_list_dict(),
++    "lifecycle_hooks_srcs": attr.string_list_dict(),
+     "lifecycle_hooks_execution_requirements": attr.string_list_dict(),
+     "lifecycle_hooks_use_default_shell_env": attr.string_dict(),
+     "lifecycle_hooks": attr.string_list_dict(),
+@@ -173,6 +174,7 @@ def npm_translate_lock(
+         run_lifecycle_hooks = True,
+         lifecycle_hooks = {},
+         lifecycle_hooks_envs = {},
++        lifecycle_hooks_srcs = {},
+         lifecycle_hooks_exclude = [],
+         lifecycle_hooks_execution_requirements = {},
+         lifecycle_hooks_no_sandbox = True,
+@@ -656,6 +658,7 @@ WARNING: `package_json` attribute in `npm_translate_lock(name = "{name}")` is de
+         no_optional = no_optional,
+         lifecycle_hooks = lifecycle_hooks,
+         lifecycle_hooks_envs = lifecycle_hooks_envs,
++        lifecycle_hooks_srcs = lifecycle_hooks_srcs,
+         lifecycle_hooks_execution_requirements = lifecycle_hooks_execution_requirements,
+         lifecycle_hooks_use_default_shell_env = lifecycle_hooks_use_default_shell_env,
+         replace_packages = replace_packages,
+diff --git a/npm/private/npm_translate_lock_generate.bzl b/npm/private/npm_translate_lock_generate.bzl
+index 7e3a0b16..36f470da 100644
+--- a/npm/private/npm_translate_lock_generate.bzl
++++ b/npm/private/npm_translate_lock_generate.bzl
+@@ -16,7 +16,7 @@ _NPM_IMPORT_TMPL = \
+         package = "{package}",
+         version = "{version}",
+         url = "{url}",
+-        package_visibility = {package_visibility},{maybe_dev}{maybe_commit}{maybe_generate_bzl_library_targets}{maybe_integrity}{maybe_deps}{maybe_transitive_closure}{maybe_patches}{maybe_patch_args}{maybe_lifecycle_hooks}{maybe_custom_postinstall}{maybe_lifecycle_hooks_env}{maybe_lifecycle_hooks_execution_requirements}{maybe_bins}{maybe_npm_auth}{maybe_npm_auth_basic}{maybe_npm_auth_username}{maybe_npm_auth_password}{maybe_replace_package}{maybe_lifecycle_hooks_use_default_shell_env}
++        package_visibility = {package_visibility},{maybe_dev}{maybe_commit}{maybe_generate_bzl_library_targets}{maybe_integrity}{maybe_deps}{maybe_transitive_closure}{maybe_patches}{maybe_patch_args}{maybe_lifecycle_hooks}{maybe_custom_postinstall}{maybe_lifecycle_hooks_env}{maybe_lifecycle_hooks_srcs}{maybe_lifecycle_hooks_execution_requirements}{maybe_bins}{maybe_npm_auth}{maybe_npm_auth_basic}{maybe_npm_auth_username}{maybe_npm_auth_password}{maybe_replace_package}{maybe_lifecycle_hooks_use_default_shell_env}
+     )
+ """
+ 
+@@ -503,6 +503,8 @@ def _gen_npm_import(rctx, _import, link_workspace):
+         lifecycle_hooks = %s,""" % _import.lifecycle_hooks) if _import.lifecycle_hooks else ""
+     maybe_lifecycle_hooks_env = ("""
+         lifecycle_hooks_env = %s,""" % _import.lifecycle_hooks_env) if _import.lifecycle_hooks and _import.lifecycle_hooks_env else ""
++    maybe_lifecycle_hooks_srcs = ("""
++        lifecycle_hooks_srcs = %s,""" % _import.lifecycle_hooks_srcs) if _import.lifecycle_hooks and _import.lifecycle_hooks_srcs else ""
+     maybe_lifecycle_hooks_execution_requirements = ("""
+         lifecycle_hooks_execution_requirements = %s,""" % _import.lifecycle_hooks_execution_requirements) if _import.lifecycle_hooks else ""
+     maybe_lifecycle_hooks_use_default_shell_env = ("""
+@@ -538,6 +540,7 @@ def _gen_npm_import(rctx, _import, link_workspace):
+         maybe_integrity = maybe_integrity,
+         maybe_lifecycle_hooks = maybe_lifecycle_hooks,
+         maybe_lifecycle_hooks_env = maybe_lifecycle_hooks_env,
++        maybe_lifecycle_hooks_srcs = maybe_lifecycle_hooks_srcs,
+         maybe_lifecycle_hooks_execution_requirements = maybe_lifecycle_hooks_execution_requirements,
+         maybe_lifecycle_hooks_use_default_shell_env = maybe_lifecycle_hooks_use_default_shell_env,
+         maybe_npm_auth = maybe_npm_auth,
+diff --git a/npm/private/npm_translate_lock_helpers.bzl b/npm/private/npm_translate_lock_helpers.bzl
+index 2e3e55ee..11a1e21d 100644
+--- a/npm/private/npm_translate_lock_helpers.bzl
++++ b/npm/private/npm_translate_lock_helpers.bzl
+@@ -397,11 +397,13 @@ ERROR: patch_args for package {package} contains a strip prefix that is incompat
+         if requires_build:
+             lifecycle_hooks, _ = _gather_values_from_matching_names(False, all_lifecycle_hooks, "*", name, friendly_name, unfriendly_name)
+             lifecycle_hooks_env, _ = _gather_values_from_matching_names(True, attr.lifecycle_hooks_envs, "*", name, friendly_name, unfriendly_name)
++            lifecycle_hooks_srcs, _ = _gather_values_from_matching_names(True, attr.lifecycle_hooks_srcs, "*", name, friendly_name, unfriendly_name)
+             lifecycle_hooks_execution_requirements, _ = _gather_values_from_matching_names(False, all_lifecycle_hooks_execution_requirements, "*", name, friendly_name, unfriendly_name)
+             lifecycle_hooks_use_default_shell_env, _ = _gather_values_from_matching_names(False, all_lifecycle_hooks_use_default_shell_env, "*", name, friendly_name, unfriendly_name)
+         else:
+             lifecycle_hooks = False
+             lifecycle_hooks_env = []
++            lifecycle_hooks_srcs = []
+             lifecycle_hooks_execution_requirements = []
+             lifecycle_hooks_use_default_shell_env = False
+ 
+@@ -451,6 +453,7 @@ ERROR: patch_args for package {package} contains a strip prefix that is incompat
+             root_package = root_package,
+             lifecycle_hooks = lifecycle_hooks,
+             lifecycle_hooks_env = lifecycle_hooks_env,
++            lifecycle_hooks_srcs = lifecycle_hooks_srcs,
+             lifecycle_hooks_execution_requirements = lifecycle_hooks_execution_requirements,
+             lifecycle_hooks_use_default_shell_env = lifecycle_hooks_use_default_shell_env[0] == "true" if lifecycle_hooks else False,
+             npm_auth = npm_auth_bearer,
 diff --git a/platforms/os/BUILD.bazel b/platforms/os/BUILD.bazel
 index 9cc3129b..874795a2 100644
 --- a/platforms/os/BUILD.bazel

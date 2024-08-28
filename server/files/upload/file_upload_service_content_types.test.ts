@@ -41,7 +41,11 @@ const testCases: {
         contentLength: number;
         size: {width: number; height: number};
         placeholder: FilePreviewPlaceholder;
-        image?: {contentType: FileContentType; contentLength: number; path: string};
+        image?: {
+            contentType: FileContentType;
+            contentLength: number;
+            similarPath: string;
+        };
     }>;
 } = {
     "image/apng": [
@@ -168,6 +172,23 @@ const testCases: {
             ]),
         },
     ],
+    "image/bmp": [
+        {
+            path: "unsplash_annie_spratt_0ArJET2aSIQ.bmp",
+            contentLength: 118764,
+            size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+            ]),
+            image: {
+                contentType: "image/jpeg",
+                contentLength: 118887,
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+            },
+        },
+    ],
     "image/tiff": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.tiff",
@@ -180,8 +201,8 @@ const testCases: {
             ]),
             image: {
                 contentType: "image/png",
-                contentLength: 118887,
-                path: "unsplash_annie_spratt_0ArJET2aSIQ.png",
+                contentLength: 138098,
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.png",
             },
         },
         {
@@ -195,8 +216,8 @@ const testCases: {
             ]),
             image: {
                 contentType: "image/png",
-                contentLength: 92902,
-                path: "wikimedia_png_transparency_demonstration.png",
+                contentLength: 108684,
+                similarPath: "wikimedia_png_transparency_demonstration.png",
             },
         },
     ],
@@ -411,7 +432,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                             joinPath(
                                 runfilesPath,
                                 "cyberworlds/server/files/upload/test_fixtures",
-                                expectedImage.path,
+                                expectedImage.similarPath,
                             ),
                         ),
                     ])),

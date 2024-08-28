@@ -34,7 +34,7 @@ jobs:
                   # run on different architectures so we can't share the cache but the cache
                   # invalidation logic should still be the same.
                   key: |
-                      bazel-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements.txt', 'admin/patches/bazel/*.patch') }}
+                      bazel-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch') }}
                   restore-keys: |
                       bazel-test-${{ runner.os }}-${{ runner.arch }}-
 
@@ -55,7 +55,6 @@ jobs:
               shell: bash
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //... --config=github-runner --remote_cache= --build_tests_only --test_tag_filters=-macos
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --remote_cache=
 
             # Save our repository cache after we finish fetching but before we run our
             # tests! The ordering here is important since we don't want to include test

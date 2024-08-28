@@ -1,6 +1,7 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
 load("//admin/node:package_light_json.bzl", "package_light_json")
 load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test")
@@ -66,16 +67,6 @@ alias(
         "@bazel_tools//src/conditions:windows": "@node_windows_amd64//:bin/node",
     }),
     visibility = ["//visibility:public"],
-)
-
-py_console_script_binary(
-    name = "ttx",
-    pkg = "@pypi//fonttools",
-    visibility = ["//visibility:public"],
-    deps = [
-        "@pypi//brotli",
-        "@pypi//zopfli",
-    ],
 )
 
 package_light_json(visibility = ["//visibility:public"])
@@ -146,4 +137,20 @@ copy_to_bin(
         exclude = [".env*.local"],
     ),
     visibility = ["//visibility:public"],
+)
+
+compile_pip_requirements(
+    name = "requirements",
+    src = "requirements.txt",
+    requirements_txt = "requirements_lock.txt",
+)
+
+py_console_script_binary(
+    name = "ttx",
+    pkg = "@pypi//fonttools",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@pypi//brotli",
+        "@pypi//zopfli",
+    ],
 )

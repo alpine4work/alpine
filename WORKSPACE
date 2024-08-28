@@ -78,7 +78,7 @@ load("@python//:defs.bzl", python_interpreter = "interpreter")
 pip_parse(
     name = "pypi",
     python_interpreter_target = python_interpreter,
-    requirements_lock = "//:requirements.txt",
+    requirements_lock = "//:requirements_lock.txt",
 )
 
 load("@pypi//:requirements.bzl", install_pypi_deps = "install_deps")
@@ -159,6 +159,23 @@ load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
 
 npm_translate_lock(
     name = "npm",
+    lifecycle_hooks_envs = {
+        "sharp": [
+            "npm_config_build_from_source=true",
+            "SHARP_FORCE_GLOBAL_LIBVIPS=true",
+            "PKG_CONFIG=$$JS_BINARY__EXECROOT/admin/npm/pkg_config_wrapper.sh $(BINDIR)",
+        ],
+    },
+    lifecycle_hooks_srcs = {
+        "sharp": [
+            "@gettext",
+            "@glib",
+            "@libvips",
+            "@zlib_for_glib//:zlib",
+            "@rules_foreign_cc//toolchains/private:pkgconfig_tool",
+            "//admin/npm:pkg_config_wrapper.sh",
+        ],
+    },
     npmrc = "//:.npmrc",
     patch_args = {},
     pnpm_lock = "//:pnpm-lock.yaml",
@@ -229,22 +246,7 @@ esbuild_register_toolchains(
 
 http_archive(
     name = "dynamo_local",
-    build_file_content = """\
-exports_files(
-    ["DynamoDBLocal.jar"],
-    visibility = ["//visibility:public"],
-)
-
-filegroup(
-    name = "DynamoDBLocal_lib",
-    srcs = glob(
-        ["**"],
-        # Exclude dot-files like `.DS_Store` on MacOS.
-        exclude = ["**/.*"],
-    ),
-    visibility = ["//visibility:public"],
-)
-""",
+    build_file = "@//admin/bazel:third_party/BUILD.dynamo_local.bazel",
     # Enable DynamoDB logging:
     # https://stackoverflow.com/questions/29525469/how-do-i-enable-dynamodb-local-logging
     patch_args = ["-p1"],
@@ -332,17 +334,7 @@ oci_pull(
 # [1]: https://github.com/Homebrew/homebrew-core/blob/af8df3291c69a65475cef507ca32cf7502ec8b9c/Formula/opensearch.rb
 http_archive(
     name = "opensearch_local",
-    build_file_content = """\
-filegroup(
-    name = "opensearch_local",
-    srcs = glob(
-        ["**/*"],
-        # Exclude dot-files like `.DS_Store` on MacOS.
-        exclude = ["**/.*"],
-    ),
-    visibility = ["//visibility:public"],
-)
-""",
+    build_file = "@//admin/bazel:third_party/BUILD.opensearch_local.bazel",
     integrity = "sha256-cF2JZX5psuh7h8acazK9tcjNu6wralJtliwqaBnd/V8=",
     patch_args = ["-p1"],
     patch_cmds = [
@@ -491,3 +483,116 @@ load(
 )
 
 xcodeproj_rules_dependencies()
+
+# =========================================================================== #
+#                         Foreign C/C++ build systems                         #
+# =========================================================================== #
+
+http_archive(
+    name = "rules_foreign_cc",
+    integrity = "sha256-oub7VuZJwe55cD6ZqgydE8bMU8jXoMu4eXqyiIu8maM=",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/rules_foreign_cc.patch"],
+    strip_prefix = "rules_foreign_cc-0.12.0",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.12.0.tar.gz",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+# =========================================================================== #
+#                             libvips (for sharp)                             #
+# =========================================================================== #
+
+# NOCOMMIT: Prefix module names with `foreign_cc_`?
+
+http_archive(
+    name = "libvips",
+    build_file = "@//admin/bazel:third_party/BUILD.libvips.bazel",
+    integrity = "sha256-PifZ9Tbq+tZAE5WP6eihlkyQtWTHMdSdt8GhwRsQUqA=",
+    strip_prefix = "vips-8.15.3",
+    url = "https://github.com/libvips/libvips/releases/download/v8.15.3/vips-8.15.3.tar.xz",
+)
+
+# Dependency of `libvips` (and `gobject-introspection`).
+http_archive(
+    name = "glib",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.glib.bazel",
+    sha256 = "1897fd8ad4ebb523c32fabe7508c3b0b039c089661ae1e7917df0956a320ac4d",
+    strip_prefix = "glib-2.77.0",
+    url = "https://download.gnome.org/sources/glib/2.77/glib-2.77.0.tar.xz",
+)
+
+# Dependency of `glib`.
+http_archive(
+    name = "gettext",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.gettext.bazel",
+    sha256 = "e8c3650e1d8cee875c4f355642382c1df83058bd5a11ee8555c0cf276d646d45",
+    strip_prefix = "gettext-0.21.1",
+    url = "https://ftp.gnu.org/gnu/gettext/gettext-0.21.1.tar.gz",
+)
+
+# Dependency of `glib`.
+http_archive(
+    name = "libffi",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.libffi.bazel",
+    sha256 = "0113d0f27ffe795158d06f56c9a7340fafc768586095b82a701c687ecb8e3672",
+    strip_prefix = "libffi-meson-3.2.9999.3",
+    url = "https://gitlab.freedesktop.org/gstreamer/meson-ports/libffi/-/archive/meson-3.2.9999.3/libffi-meson-3.2.9999.3.tar.gz",
+)
+
+# Dependency of `glib`.
+http_archive(
+    name = "pcre",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.pcre.bazel",
+    sha256 = "04e214c0c40a97b8a5c2b4ae88a3aa8a93e6f2e45c6b3534ddac351f26548577",
+    strip_prefix = "pcre2-10.37",
+    url = "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.37/pcre2-10.37.tar.gz",
+)
+
+# Dependency of `glib`.
+#
+# Something else in this `WORKSPACE` file is defining a `zlib` package. When
+# building `glib` we want to build our own from scratch using
+# `rules_foreign_cc`. Since it's unclear who's bringing the external package
+# in, for now we create a new repository `zlib_for_glib`.
+http_archive(
+    name = "zlib_for_glib",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.zlib_for_glib.bazel",
+    sha256 = "b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30",
+    strip_prefix = "zlib-1.2.13",
+    urls = [
+        "https://zlib.net/zlib-1.2.13.tar.gz",
+        "https://storage.googleapis.com/mirror.tensorflow.org/zlib.net/zlib-1.2.13.tar.gz",
+    ],
+)
+
+# Dependency of `libvips`.
+http_archive(
+    name = "gobject-introspection",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.gobject-introspection.bazel",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/gobject-introspection.patch"],
+    sha256 = "196178bf64345501dcdc4d8469b36aa6fe80489354efe71cb7cb8ab82a3738bf",
+    strip_prefix = "gobject-introspection-1.76.1",
+    url = "https://download.gnome.org/sources/gobject-introspection/1.76/gobject-introspection-1.76.1.tar.xz",
+)
+
+# Dependency of `gobject-introspection`.
+http_archive(
+    name = "bison",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.bison.bazel",
+    integrity = "sha256-BsnhO99+sk1M62tZIFpPZ8LH5yExGWREMP6C+9FKCrs=",
+    strip_prefix = "bison-3.8.2",
+    url = "https://ftp.gnu.org/gnu/bison/bison-3.8.2.tar.gz",
+)
+
+# Dependency of `bison`.
+http_archive(
+    name = "m4",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.m4.bazel",
+    sha256 = "63aede5c6d33b6d9b13511cd0be2cac046f2e70fd0a07aa9573a04a82783af96",
+    strip_prefix = "m4-1.4.19",
+    url = "https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.xz",
+)

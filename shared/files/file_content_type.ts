@@ -44,7 +44,7 @@ export type WebSafeImageFileContentType =
 // TODO(calebmer, #files): Remove prettier-ignore.
 // prettier-ignore
 export type WebUnsafeImageFileContentType =
-    // TODO(calebmer, #files): Add this: | "image/bmp"
+    | "image/bmp"
     // TODO(calebmer, #files): Add this: | "image/ico"
     | "image/tiff"
     // TODO(calebmer, #files): Add this: | "image/heif"
@@ -61,6 +61,7 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "image/png": "png",
     "image/svg+xml": "svg",
     "image/webp": "webp",
+    "image/bmp": "bmp",
     "image/tiff": "tiff",
 };
 

@@ -1,0 +1,82 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "meson")
+
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+)
+
+ENV = {
+    "PATH": "$$EXT_BUILD_DEPS/bison/bin:$$PATH",
+    "BISON_PKGDATADIR": "$$EXT_BUILD_DEPS/bison/share/bison",
+    "M4": "$$EXT_BUILD_DEPS/m4/bin/m4",
+}
+
+meson(
+    name = "gobject-introspection",
+    data = [
+        # Include `@glib` in `data` in addition to `deps` since we need the
+        # `out_data_dirs` from `@glib` to be available but they aren't if `@glib` is
+        # only in `deps`.
+        "@glib",
+        # Include `@m4` in `data` in addition to `deps` since we need the
+        # `out_binaries` from `@m4` to be available but they aren't if `@m4` is
+        # only in `deps`.
+        "@m4",
+    ],
+    env = select({
+        "@platforms//os:macos": ENV | {
+            # Needed to fix "ld: library 'intl' not found" error. `intl` is provided by
+            # `gettext`. So `gettext` needs to be on the library path for the linker to
+            # find it.
+            "CPATH": "$$EXT_BUILD_DEPS/gettext/include",
+            "LIBRARY_PATH": "$$EXT_BUILD_DEPS/gettext/lib",
+        },
+        "//conditions:default": ENV,
+    }),
+    lib_source = ":all_srcs",
+    out_binaries = [
+        "g-ir-annotation-tool",
+        "g-ir-compiler",
+        "g-ir-generate",
+        "g-ir-inspect",
+        "g-ir-scanner",
+    ],
+    out_data_dirs = [
+        "share",
+        "lib/pkgconfig",
+        "lib/girepository-1.0",
+        "lib/gobject-introspection",
+    ],
+    out_shared_libs = select({
+        "@platforms//os:linux": [
+            "libgirepository-1.0.1.so.0",
+            "libgirepository-1.0.so.0",
+        ],
+        "@platforms//os:macos": [
+            "libgirepository-1.0.1.dylib",
+            "libgirepository-1.0.dylib",
+        ],
+    }),
+    out_static_libs = [],
+    postfix_script = select({
+        # The `giscanner` Python extension is located in a different location than
+        # what's expected when we build dynamic libraries. Update the `LC_LOAD_DYLIB`
+        # paths to the correct value for our Python extension.
+        "@platforms//os:macos": """\
+install_name_tool $INSTALLDIR/lib/gobject-introspection/giscanner/_giscanner.cpython-39-darwin.so \\
+    -change @loader_path/../../../glib/glib/lib/libglib-2.0.0.dylib @loader_path/../../../../../glib/glib/lib/libglib-2.0.0.dylib \\
+    -change @loader_path/../../../gettext/gettext/lib/libintl.dylib @loader_path/../../../../../gettext/gettext/lib/libintl.dylib \\
+    -change @loader_path/../../../glib/glib/lib/libgobject-2.0.0.dylib @loader_path/../../../../../glib/glib/lib/libgobject-2.0.0.dylib \\
+    -change @loader_path/../../../glib/glib/lib/libgio-2.0.0.dylib @loader_path/../../../../../glib/glib/lib/libgio-2.0.0.dylib \\
+    -change @loader_path/../../../glib/glib/lib/libgmodule-2.0.0.dylib @loader_path/../../../../../glib/glib/lib/libgmodule-2.0.0.dylib
+""",
+        "//conditions:default": None,
+    }),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@bison",
+        "@gettext",
+        "@glib",
+        "@m4",
+    ],
+)

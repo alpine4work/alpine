@@ -1,0 +1,30 @@
+# Originally copied from:
+# https://github.com/bazelbuild/rules_foreign_cc/blob/d9367d28ad5292dd2ed42ae85223e79e845d0f3f/examples/third_party/glib/BUILD.libffi.bazel
+
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "meson")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+)
+
+meson(
+    name = "libffi",
+    lib_source = ":all_srcs",
+    out_data_dirs = ["lib/pkgconfig"],
+    out_interface_libs = select({
+        "@platforms//os:windows": ["ffi.lib"],
+        "//conditions:default": [],
+    }),
+    out_lib_dir = select({
+        "@platforms//os:linux": "lib/x86_64-linux-gnu",
+        "//conditions:default": "lib",
+    }),
+    out_shared_libs = select({
+        "@platforms//os:linux": ["libffi.so.7.1.0"],
+        "@platforms//os:macos": ["libffi.dylib"],
+        "@platforms//os:windows": ["ffi-7.dll"],
+    }),
+)

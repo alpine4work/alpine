@@ -459,6 +459,7 @@ const fileProcessorByContentType: {
     "image/png": createWebSafeImageFileProcessor("image/png"),
     "image/svg+xml": createWebSafeImageFileProcessor("image/svg+xml"),
     "image/webp": createWebSafeImageFileProcessor("image/webp"),
+    "image/bmp": createWebUnsafeImageFileProcessor("image/bmp", "image/jpeg"),
     "image/tiff": createWebUnsafeImageFileProcessor("image/tiff", "image/png"),
 };
 
@@ -505,6 +506,9 @@ function processImageFile(
                 break;
             case "image/webp":
                 expectedFormat = "webp";
+                break;
+            case "image/bmp":
+                expectedFormat = "bmp";
                 break;
             case "image/tiff":
                 expectedFormat = "tiff";

@@ -1,0 +1,68 @@
+load("@rules_foreign_cc//foreign_cc:meson.bzl", "meson")
+
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+)
+
+meson(
+    name = "libvips",
+    data = [
+        # Include `@glib` in `data` in addition to `deps` since we need the
+        # `out_binaries` from `@glib` to be available but they aren't if `@glib` is
+        # only in `deps`.
+        "@glib",
+        # Include `@gobject-introspection` in `data` in addition to `deps` since we
+        # need the `out_binaries` from `@gobject-introspection` to be available but
+        # they aren't if `@gobject-introspection` is only in `deps`.
+        "@gobject-introspection",
+    ],
+    env = select({
+        "@platforms//os:macos": {
+            # Needed to fix "ld: library 'intl' not found" error. `intl` is provided by
+            # `gettext`. So `gettext` needs to be on the library path for the linker to
+            # find it.
+            "CPATH": "$$EXT_BUILD_DEPS/gettext/include",
+            "LIBRARY_PATH": "$$EXT_BUILD_DEPS/gettext/lib",
+        },
+        "//conditions:default": {},
+    }),
+    lib_source = ":all_srcs",
+    options = {
+        "buildtype": "release",
+        "examples": "false",
+    },
+    out_binaries = [
+        "vips",
+        "vipsedit",
+        "vipsheader",
+        "vipsprofile",
+        "vipsthumbnail",
+    ],
+    out_data_dirs = [
+        "share",
+        "lib/girepository-1.0",
+        "lib/pkgconfig",
+    ],
+    out_shared_libs = select({
+        "@platforms//os:linux": [
+            "libvips-cpp.42.so.0",
+            "libvips-cpp.so.0",
+            "libvips.42.so.0",
+            "libvips.so.0",
+        ],
+        "@platforms//os:macos": [
+            "libvips-cpp.42.dylib",
+            "libvips-cpp.dylib",
+            "libvips.42.dylib",
+            "libvips.dylib",
+        ],
+    }),
+    out_static_libs = [],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@gettext",
+        "@glib",
+        "@gobject-introspection",
+    ],
+)

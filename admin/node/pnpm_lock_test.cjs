@@ -67,6 +67,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
 
     // NOTE(calebmer, 2024-08-27): Duplicate packages after adding `looks-same`
     // that we can't easily resolve but shouldn't cause issues.
+    ["sharp", ["0.32.6", "0.33.5"]],
     ["fs-extra", ["11.2.0", "8.1.0"]],
     ["jsonfile", ["4.0.0", "6.1.0"]],
 
