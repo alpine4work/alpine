@@ -18,11 +18,9 @@ filegroup(
 )
 
 DEPS = [
-    "@libffi",
-    "@pcre",
-    # Something in our `WORKSPACE` is defining `@zlib`. But we want to build our
-    # own copy of `@zlib`.
-    "@zlib_for_glib//:zlib",
+    "@foreign_cc_libffi//:libffi",
+    "@foreign_cc_pcre//:pcre",
+    "@foreign_cc_zlib//:zlib",
 ]
 
 meson(
@@ -109,7 +107,7 @@ meson(
     }),
     toolchains = ["@rules_python//python:current_py_toolchain"],
     deps = select({
-        "@platforms//os:macos": DEPS + ["@gettext"],
+        "@platforms//os:macos": DEPS + ["@foreign_cc_gettext//:gettext"],
         "//conditions:default": DEPS,
     }),
 )

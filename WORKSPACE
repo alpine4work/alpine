@@ -168,10 +168,10 @@ npm_translate_lock(
     },
     lifecycle_hooks_srcs = {
         "sharp": [
-            "@gettext",
-            "@glib",
-            "@libvips",
-            "@zlib_for_glib//:zlib",
+            "@foreign_cc_gettext//:gettext",
+            "@foreign_cc_glib//:glib",
+            "@foreign_cc_libvips//:libvips",
+            "@foreign_cc_zlib//:zlib",
             "@rules_foreign_cc//toolchains/private:pkgconfig_tool",
             "//admin/npm:pkg_config_wrapper.sh",
         ],
@@ -505,11 +505,9 @@ rules_foreign_cc_dependencies()
 #                             libvips (for sharp)                             #
 # =========================================================================== #
 
-# NOCOMMIT: Prefix module names with `foreign_cc_`?
-
 http_archive(
-    name = "libvips",
-    build_file = "@//admin/bazel:third_party/BUILD.libvips.bazel",
+    name = "foreign_cc_libvips",
+    build_file = "@//admin/bazel:third_party/BUILD.foreign_cc_libvips.bazel",
     integrity = "sha256-PifZ9Tbq+tZAE5WP6eihlkyQtWTHMdSdt8GhwRsQUqA=",
     strip_prefix = "vips-8.15.3",
     url = "https://github.com/libvips/libvips/releases/download/v8.15.3/vips-8.15.3.tar.xz",
@@ -517,8 +515,8 @@ http_archive(
 
 # Dependency of `libvips` (and `gobject-introspection`).
 http_archive(
-    name = "glib",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.glib.bazel",
+    name = "foreign_cc_glib",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_glib.bazel",
     sha256 = "1897fd8ad4ebb523c32fabe7508c3b0b039c089661ae1e7917df0956a320ac4d",
     strip_prefix = "glib-2.77.0",
     url = "https://download.gnome.org/sources/glib/2.77/glib-2.77.0.tar.xz",
@@ -526,8 +524,8 @@ http_archive(
 
 # Dependency of `glib`.
 http_archive(
-    name = "gettext",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.gettext.bazel",
+    name = "foreign_cc_gettext",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_gettext.bazel",
     sha256 = "e8c3650e1d8cee875c4f355642382c1df83058bd5a11ee8555c0cf276d646d45",
     strip_prefix = "gettext-0.21.1",
     url = "https://ftp.gnu.org/gnu/gettext/gettext-0.21.1.tar.gz",
@@ -535,8 +533,8 @@ http_archive(
 
 # Dependency of `glib`.
 http_archive(
-    name = "libffi",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.libffi.bazel",
+    name = "foreign_cc_libffi",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_libffi.bazel",
     sha256 = "0113d0f27ffe795158d06f56c9a7340fafc768586095b82a701c687ecb8e3672",
     strip_prefix = "libffi-meson-3.2.9999.3",
     url = "https://gitlab.freedesktop.org/gstreamer/meson-ports/libffi/-/archive/meson-3.2.9999.3/libffi-meson-3.2.9999.3.tar.gz",
@@ -544,36 +542,31 @@ http_archive(
 
 # Dependency of `glib`.
 http_archive(
-    name = "pcre",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.pcre.bazel",
+    name = "foreign_cc_pcre",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_pcre.bazel",
     sha256 = "04e214c0c40a97b8a5c2b4ae88a3aa8a93e6f2e45c6b3534ddac351f26548577",
     strip_prefix = "pcre2-10.37",
     url = "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.37/pcre2-10.37.tar.gz",
 )
 
 # Dependency of `glib`.
-#
-# Something else in this `WORKSPACE` file is defining a `zlib` package. When
-# building `glib` we want to build our own from scratch using
-# `rules_foreign_cc`. Since it's unclear who's bringing the external package
-# in, for now we create a new repository `zlib_for_glib`.
 http_archive(
-    name = "zlib_for_glib",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.zlib_for_glib.bazel",
+    name = "foreign_cc_zlib",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_zlib.bazel",
     sha256 = "b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30",
     strip_prefix = "zlib-1.2.13",
     urls = [
-        "https://zlib.net/zlib-1.2.13.tar.gz",
         "https://storage.googleapis.com/mirror.tensorflow.org/zlib.net/zlib-1.2.13.tar.gz",
+        "https://zlib.net/zlib-1.2.13.tar.gz",
     ],
 )
 
 # Dependency of `libvips`.
 http_archive(
-    name = "gobject-introspection",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.gobject-introspection.bazel",
+    name = "foreign_cc_gobject_introspection",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_gobject_introspection.bazel",
     patch_args = ["-p1"],
-    patches = ["//admin/patches:bazel/gobject-introspection.patch"],
+    patches = ["//admin/patches:bazel/foreign_cc_gobject_introspection.patch"],
     sha256 = "196178bf64345501dcdc4d8469b36aa6fe80489354efe71cb7cb8ab82a3738bf",
     strip_prefix = "gobject-introspection-1.76.1",
     url = "https://download.gnome.org/sources/gobject-introspection/1.76/gobject-introspection-1.76.1.tar.xz",
@@ -581,8 +574,8 @@ http_archive(
 
 # Dependency of `gobject-introspection`.
 http_archive(
-    name = "bison",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.bison.bazel",
+    name = "foreign_cc_bison",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_bison.bazel",
     integrity = "sha256-BsnhO99+sk1M62tZIFpPZ8LH5yExGWREMP6C+9FKCrs=",
     strip_prefix = "bison-3.8.2",
     url = "https://ftp.gnu.org/gnu/bison/bison-3.8.2.tar.gz",
@@ -590,8 +583,8 @@ http_archive(
 
 # Dependency of `bison`.
 http_archive(
-    name = "m4",
-    build_file = "@//admin/bazel:third_party/deps/BUILD.m4.bazel",
+    name = "foreign_cc_m4",
+    build_file = "@//admin/bazel:third_party/deps/BUILD.foreign_cc_m4.bazel",
     sha256 = "63aede5c6d33b6d9b13511cd0be2cac046f2e70fd0a07aa9573a04a82783af96",
     strip_prefix = "m4-1.4.19",
     url = "https://ftp.gnu.org/gnu/m4/m4-1.4.19.tar.xz",

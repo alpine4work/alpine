@@ -13,11 +13,11 @@ index c9927e7a934a660f8543f3e6718bc89a49f32e22..68ee29739e24d65be42352093a4ca607
 +      // NOTE(calebmer): Needed to fix "ld: library 'intl' not found" error. `intl`
 +      // is provided by `gettext`. So `gettext` needs to be on the library path for
 +      // the linker to find it.
-+      CPATH: process.env.BAZEL_BINDIR ? `${process.env.JS_BINARY__EXECROOT}/${process.env.BAZEL_BINDIR}/external/gettext/gettext/include` : undefined,
-+      LIBRARY_PATH: process.env.BAZEL_BINDIR ? `${process.env.JS_BINARY__EXECROOT}/${process.env.BAZEL_BINDIR}/external/gettext/gettext/lib` : undefined,
++      CPATH: process.env.BAZEL_BINDIR ? `${process.env.JS_BINARY__EXECROOT}/${process.env.BAZEL_BINDIR}/external/foreign_cc_gettext/gettext/include` : undefined,
++      LIBRARY_PATH: process.env.BAZEL_BINDIR ? `${process.env.JS_BINARY__EXECROOT}/${process.env.BAZEL_BINDIR}/external/foreign_cc_gettext/gettext/lib` : undefined,
 +    },
    }).status;
- 
+
  const globalLibvipsVersion = () => {
    if (process.platform !== 'win32') {
 -    const globalLibvipsVersion = spawnSync('pkg-config --modversion vips-cpp', {

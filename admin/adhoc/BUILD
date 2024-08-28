@@ -3,7 +3,6 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "adhoc_lib",
-    data = ["@libvips"],
     deps = [
         "//:node_modules/@aws-sdk/credential-providers",
         "//:node_modules/@types/color",
@@ -15,7 +14,6 @@ ts_project(
         "//:node_modules/compromise",
         "//:node_modules/fs-extra",
         "//:node_modules/fuse.js",
-        "//:node_modules/sharp",
         "//admin/helpers",
         "//client/rpc",
         "//server/apns",
