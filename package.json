@@ -268,6 +268,29 @@
     },
     "pnpm": {
         "updateNotifier": false,
+        "supportedArchitectures": {
+            "os": [
+                "darwin",
+                "linux"
+            ],
+            "cpu": [
+                "arm64",
+                "x64"
+            ]
+        },
+        "ignoredOptionalDependencies": [
+            "@img/sharp-libvips-linux-arm",
+            "@img/sharp-libvips-linux-s390x",
+            "@img/sharp-libvips-linuxmusl-arm64",
+            "@img/sharp-libvips-linuxmusl-x64",
+            "@img/sharp-linux-arm",
+            "@img/sharp-linux-s390x",
+            "@img/sharp-linuxmusl-arm64",
+            "@img/sharp-linuxmusl-x64",
+            "@img/sharp-wasm32",
+            "@img/sharp-win32-ia32",
+            "@img/sharp-win32-x64"
+        ],
         "overrides": {
             "@remix-run/dev@2.9.2>esbuild": "0.21.5",
             "@remix-run/dev@2.9.2>fs-extra": "^11.2.0",
