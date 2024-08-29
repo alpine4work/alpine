@@ -71,6 +71,7 @@ jobs:
               shell: bash
               run: |
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //server/deploy/script/... --config=github-runner --config=production --remote_cache=
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --config=production --remote_cache=
 
             # Save our repository cache after we finish fetching but before we run the
             # deploy! The ordering here is important since we don't want to include deploy
