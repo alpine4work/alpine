@@ -1,0 +1,28 @@
+{
+    "private": true,
+    "name": "@img/sharp-libvips-linux-arm64",
+    "version": "1.0.4",
+    "license": "LGPL-3.0-or-later",
+    "files": [
+        "lib",
+        "versions.json"
+    ],
+    "type": "commonjs",
+    "exports": {
+        "./lib": "./lib/index.js",
+        "./package": "./package.json",
+        "./versions": "./versions.json"
+    },
+    "config": {
+        "glibc": ">=2.26"
+    },
+    "os": [
+        "linux"
+    ],
+    "libc": [
+        "glibc"
+    ],
+    "cpu": [
+        "arm64"
+    ]
+}
