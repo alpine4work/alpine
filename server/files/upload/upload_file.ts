@@ -642,7 +642,10 @@ function createWebUnsafeImageFileProcessor(
 
                 const data = await Promise.race([
                     sharp
-                        .toFormat(previewImageFormat)
+                        .toFormat(
+                            previewImageFormat,
+                            previewImageFormat === "jpeg" ? {quality: 100} : {},
+                        )
                         .toBuffer()
                         .catch(rethrowClassifiedSharpError),
                     // Sharp will never resolve in some abort scenarios since `req` will close but

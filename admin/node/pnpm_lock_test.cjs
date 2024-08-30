@@ -67,7 +67,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
 
     // NOTE(calebmer, 2024-08-27): Duplicate packages after adding `looks-same`
     // that we can't easily resolve but shouldn't cause issues.
-    ["sharp", ["0.32.6", "0.33.5"]],
     ["fs-extra", ["11.2.0", "8.1.0"]],
     ["jsonfile", ["4.0.0", "6.1.0"]],
 
@@ -213,8 +212,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["strip-final-newline", ["2.0.0", "3.0.0"]],
     ["strip-json-comments", ["2.0.1", "3.1.1"]],
     ["supports-color", ["5.5.0", "7.2.0", "8.1.1"]],
-    ["tar-fs", ["2.1.1", "3.0.6"]],
-    ["tar-stream", ["2.2.0", "3.1.7"]],
     ["tr46", ["0.0.3", "3.0.0"]],
     ["tsconfig-paths", ["3.14.1", "4.1.0"]],
     ["tslib", ["1.14.1", "2.4.0", "2.6.3"]],
@@ -252,15 +249,25 @@ async function main() {
     const packageVersionsByName = new Map();
 
     for (const packageKey of Object.keys(pnpmLock.packages)) {
-        const match = packageKey.match(
-            /^\/((?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*)@(\d+\.\d+\.\d+(?:-[a-z0-9-~][a-z0-9-._~]*)?)(?:$|\()/,
-        );
+        const match = packageKey.startsWith("file:")
+            ? [packageKey, pnpmLock.packages[packageKey].name, packageKey]
+            : packageKey.match(
+                  /^\/((?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*)@(\d+\.\d+\.\d+(?:-[a-z0-9-~][a-z0-9-._~]*)?)(?:$|\()/,
+              );
         if (!match) {
             throw new Error(`Unexpected package key format: ${JSON.stringify(packageKey)}`);
         }
 
         const packageName = match[1];
         const packageVersion = match[2];
+
+        if (typeof packageName !== "string" || typeof packageVersion !== "string") {
+            throw new Error(
+                `Unexpected string package name and version but got name: ${JSON.stringify(
+                    packageName,
+                )}, version: ${JSON.stringify(packageName)}`,
+            );
+        }
 
         let packageVersions = packageVersionsByName.get(packageName);
 
@@ -318,6 +325,17 @@ async function main() {
         );
     }
 
+    let exitCode = unexpectedDuplicatePackageCount + unusedAllowedDuplicatePackageCount;
+
+    if (allowedDuplicatePackageVersionsByName.has("sharp")) {
+        exitCode++;
+
+        // eslint-disable-next-line no-console
+        console.log(
+            'Should only ever have one version of "sharp", duplicate versions will cause issues with native module loading',
+        );
+    }
+
     if (unexpectedDuplicatePackageCount > 0) {
         // eslint-disable-next-line no-console
         console.log("");
@@ -346,7 +364,7 @@ async function main() {
         console.log("that have different duplicate versions than what's in that map.");
     }
 
-    return {exitCode: unexpectedDuplicatePackageCount + unusedAllowedDuplicatePackageCount};
+    return {exitCode};
 }
 
 main().then(

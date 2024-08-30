@@ -159,6 +159,9 @@ load("@aspect_rules_js//npm:npm_import.bzl", "npm_translate_lock")
 
 npm_translate_lock(
     name = "npm",
+    lifecycle_hooks_envs = {
+        "sharp": ["SHARP_IGNORE_GLOBAL_LIBVIPS=true"],
+    },
     npmrc = "//:.npmrc",
     patch_args = {},
     pnpm_lock = "//:pnpm-lock.yaml",

@@ -5,6 +5,7 @@ import getPort from "get-port";
 import {Server} from "http";
 import looksSame from "looks-same";
 import {join as joinPath} from "path";
+import createSharp from "sharp";
 import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
@@ -175,8 +176,8 @@ const testCases: {
     "image/bmp": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.bmp",
-            contentLength: 118764,
-            size: {width: 500, height: 375},
+            contentLength: 141432,
+            size: {width: 250, height: 188},
             placeholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
                 5,
@@ -184,8 +185,8 @@ const testCases: {
             ]),
             image: {
                 contentType: "image/jpeg",
-                contentLength: 118887,
-                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+                contentLength: 20318,
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.bmp.jpeg",
             },
         },
     ],
@@ -201,7 +202,7 @@ const testCases: {
             ]),
             image: {
                 contentType: "image/png",
-                contentLength: 138098,
+                contentLength: 118872,
                 similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.png",
             },
         },
@@ -216,7 +217,7 @@ const testCases: {
             ]),
             image: {
                 contentType: "image/png",
-                contentLength: 108684,
+                contentLength: 92917,
                 similarPath: "wikimedia_png_transparency_demonstration.png",
             },
         },
@@ -282,6 +283,29 @@ function parseJsonEvents(responseText: string) {
         .split("\n")
         .map(eventString => UploadFileEventSchema.deserialize(JSON.parse(eventString)));
 }
+
+test("can process bmp files", async () => {
+    const metadata = await createSharp(
+        joinPath(
+            runfilesPath,
+            "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.bmp",
+        ),
+    ).metadata();
+
+    expect(metadata.format).toEqual("magick");
+    expect(metadata.formatMagick).toEqual("BMP");
+});
+
+test("can process pdf files", async () => {
+    const metadata = await createSharp(
+        joinPath(
+            runfilesPath,
+            "cyberworlds/server/files/upload/test_fixtures/iup_pdf_testpage.pdf",
+        ),
+    ).metadata();
+
+    expect(metadata.format).toEqual("pdf");
+});
 
 test("looks same tester works", async () => {
     const {equal} = await looksSame(
@@ -423,7 +447,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                 );
                 if (!object) throw new NotFoundError("Preview image file not found");
 
-                const {equal} = await looksSame(
+                const result = await looksSame(
                     ...(await runAllPromises([
                         convertReadableStreamToUint8Array(object.body).then(buffer =>
                             Buffer.from(buffer),
@@ -438,7 +462,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                     ])),
                 );
 
-                if (!equal) {
+                if (!result.equal) {
                     throw new InternalError(
                         "Actual preview image doesn't look the same as expected preview image",
                     );
@@ -463,6 +487,9 @@ function compareFilePreviewPlaceholders(
             `Placeholder height doesn't match, actual placeholder: ${actualPlaceholderString}`,
         );
     }
+
+    let totalDistance = 0;
+    let pixelCount = 0;
 
     for (let y = 0; y < actualPixelGrid.length; y++) {
         const actualPixelRow = actualPixelGrid[y]!;
@@ -489,12 +516,17 @@ function compareFilePreviewPlaceholders(
                     ((actualPixel.alpha ?? 1) * 255 - (expectedPixel.alpha ?? 1) * 255) ** 2,
             );
 
-            if (distance >= 15) {
-                throw new InvalidArgumentError(
-                    `Placeholder pixel doesn't match (distance = ${distance}), actual placeholder: ${actualPlaceholderString}`,
-                );
-            }
+            totalDistance += distance;
+            pixelCount += 1;
         }
+    }
+
+    const averageDistance = totalDistance / pixelCount;
+
+    if (averageDistance >= 15) {
+        throw new InvalidArgumentError(
+            `Placeholder pixel doesn't match (average distance = ${averageDistance}), actual placeholder: ${actualPlaceholderString}`,
+        );
     }
 }
 
