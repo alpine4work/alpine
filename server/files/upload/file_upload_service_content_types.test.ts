@@ -478,6 +478,8 @@ function compareFilePreviewPlaceholders(
 ) {
     const actualPixelGrid = actualPlaceholder.get();
     const expectedPixelGrid = expectedPlaceholder.get();
+    const actualSerializedPixelGrid = actualPlaceholder.serialize();
+    const expectedSerializedPixelGrid = expectedPlaceholder.serialize();
     const actualPlaceholderString = JSON.stringify(
         FilePreviewPlaceholder.schema.serialize(actualPlaceholder),
     );
@@ -487,6 +489,15 @@ function compareFilePreviewPlaceholders(
             `Placeholder height doesn't match, actual placeholder: ${actualPlaceholderString}`,
         );
     }
+
+    if (actualSerializedPixelGrid[0] !== expectedSerializedPixelGrid[0]) {
+        throw new InvalidArgumentError(
+            `Placeholder "hasAlphaChannel" doesn't match, actual placeholder: ${actualPlaceholderString}`,
+        );
+    }
+
+    const hasAlphaChannel = actualSerializedPixelGrid[0];
+    const channelCount = hasAlphaChannel ? 4 : 3;
 
     let totalDistance = 0;
     let pixelCount = 0;
@@ -509,12 +520,13 @@ function compareFilePreviewPlaceholders(
             // object.
             assert(actualPixel !== expectedPixel);
 
-            const distance = Math.sqrt(
-                (actualPixel.r - expectedPixel.r) ** 2 +
-                    (actualPixel.g - expectedPixel.g) ** 2 +
-                    (actualPixel.b - expectedPixel.b) ** 2 +
-                    ((actualPixel.alpha ?? 1) * 255 - (expectedPixel.alpha ?? 1) * 255) ** 2,
-            );
+            const distance =
+                Math.sqrt(
+                    (actualPixel.r - expectedPixel.r) ** 2 +
+                        (actualPixel.g - expectedPixel.g) ** 2 +
+                        (actualPixel.b - expectedPixel.b) ** 2 +
+                        ((actualPixel.alpha ?? 1) * 255 - (expectedPixel.alpha ?? 1) * 255) ** 2,
+                ) / channelCount;
 
             totalDistance += distance;
             pixelCount += 1;
@@ -523,7 +535,7 @@ function compareFilePreviewPlaceholders(
 
     const averageDistance = totalDistance / pixelCount;
 
-    if (averageDistance >= 15) {
+    if (averageDistance >= 4) {
         throw new InvalidArgumentError(
             `Placeholder pixel doesn't match (average distance = ${averageDistance}), actual placeholder: ${actualPlaceholderString}`,
         );

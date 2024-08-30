@@ -20,6 +20,7 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -677,7 +678,12 @@ test("can't upload invalid image data", async () => {
         },
         {
             type: "Error",
-            error: new InvalidArgumentError("Input buffer contains unsupported image format"),
+            error: expect.objectContaining({
+                code: ErrorCode.InvalidArgument,
+                message: expect.stringMatching(
+                    /^Input buffer has corrupt header: x2vips: libX error: Improper image header[^]*x2vips: unable to read buffer/,
+                ),
+            }),
         },
     ]);
 

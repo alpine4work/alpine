@@ -23,6 +23,7 @@ ts_project(
         "//shared/content",
         "//shared/context",
         "//shared/error",
+        "//shared/files",
         "//shared/helpers",
         "//shared/schema",
         "//shared/tracer",
