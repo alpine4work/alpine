@@ -46,6 +46,16 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+// Make sure we're using our custom `sharp` `libvips` build built from
+// [`cyberworlds/sharp-libvips`][1] by checking that additional modules are
+// available. We put this assertion here so production will loudly fail if
+// we're using the wrong `sharp` module.
+//
+// [1]: https://github.com/cyberworlds/sharp-libvips
+assert((createSharp.versions as any).de265 === "1.0.15");
+assert((createSharp.versions as any).graphicsmagick === "1.3.45");
+assert((createSharp.versions as any).pdfium === "chromium/6679");
+
 type UploadFileEvent = SchemaType<typeof UploadFileEventSchema>;
 
 export const UploadFileEventSchema = Schema.union({
@@ -482,6 +492,7 @@ function processImageFile(
 
         let expectedFormat: keyof createSharp.FormatEnum;
         let expectedCompression: createSharp.Metadata["compression"];
+        let expectedFormatMagick: createSharp.Metadata["formatMagick"];
 
         switch (contentType) {
             case "image/apng":
@@ -508,7 +519,8 @@ function processImageFile(
                 expectedFormat = "webp";
                 break;
             case "image/bmp":
-                expectedFormat = "bmp";
+                expectedFormat = "magick";
+                expectedFormatMagick = "BMP";
                 break;
             case "image/tiff":
                 expectedFormat = "tiff";
@@ -526,6 +538,12 @@ function processImageFile(
         if (metadata.compression !== expectedCompression) {
             throw new InvalidArgumentError(
                 quote`Expected file in ${expectedFormat} format to use ${expectedCompression} compression but received file with ${metadata.compression} compression`,
+            );
+        }
+
+        if (metadata.formatMagick !== expectedFormatMagick) {
+            throw new InvalidArgumentError(
+                quote`Expected file in ${expectedFormat} format to use ${expectedFormatMagick} magick format but received file with ${metadata.formatMagick} magick format`,
             );
         }
 
