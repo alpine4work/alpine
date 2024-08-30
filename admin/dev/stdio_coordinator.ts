@@ -1,7 +1,7 @@
 import ansiStyles from "ansi-styles";
 import chalk from "chalk";
 import {ChildProcess, ChildProcessByStdio, SpawnOptionsWithoutStdio, spawn} from "child_process";
-import {Readable, Writable} from "stream";
+import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
@@ -278,7 +278,7 @@ export function spawnWithBlockingStdio(
          */
         onStdioBlocked?: (writeStdout: (chunk: string) => void) => void;
     },
-): ChildProcessByStdio<null, Readable, Readable> {
+): ChildProcessByStdio<null, ReadableStream, ReadableStream> {
     const subprocess = spawn(command, args ?? [], {
         ...options,
         stdio: ["ignore", "pipe", "pipe"],
@@ -499,7 +499,7 @@ function mergeAnsiCodes(
  * with a prefix then it needs to be ended with a newline.
  */
 function writeWithStdioPrefix(
-    stream: Writable,
+    stream: WritableStream,
     chunkLines: ReadonlyArray<ChunkLine>,
     prefix: string | null,
 ) {
@@ -641,7 +641,7 @@ function writeWithStdioPrefix(
 }
 
 export function writeWithStdioPrefixForTest(
-    stream: Writable,
+    stream: WritableStream,
     chunkLines: ReadonlyArray<ChunkLine>,
     prefix: string | null,
 ) {

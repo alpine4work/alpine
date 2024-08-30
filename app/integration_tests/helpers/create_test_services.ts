@@ -4,7 +4,7 @@ import fs from "fs-extra";
 import getPort from "get-port";
 import {join as joinPath} from "path";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
-import {Readable} from "stream";
+import {Readable as ReadableStream} from "stream";
 import {ensureServiceKeys} from "~/admin/helpers/ensure_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -121,10 +121,16 @@ export function createTestServices(): {context: TestContext; services: TestServi
 
     let appServiceTokenAgentPrivateSide: AppServiceTokenAgentPrivateSide | undefined;
 
-    let appServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
-    let edgeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
-    let taskRealtimeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
-    let jobQueueServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
+    let appServiceSubprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream> | undefined;
+    let edgeServiceSubprocess:
+        | ChildProcessByStdio<null, ReadableStream, ReadableStream>
+        | undefined;
+    let taskRealtimeServiceSubprocess:
+        | ChildProcessByStdio<null, ReadableStream, ReadableStream>
+        | undefined;
+    let jobQueueServiceSubprocess:
+        | ChildProcessByStdio<null, ReadableStream, ReadableStream>
+        | undefined;
 
     let oneTimePasswords: Array<{emailAddress: string; oneTimePassword: string}> = [];
 

@@ -2985,7 +2985,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "image/svg+xml",
                                                 "image/webp",
                                                 "image/bmp",
-                                                "image/tiff"
+                                                "image/tiff",
+                                                "image/heif",
+                                                "image/heic"
                                             ],
                                             "referenceId": "af264040"
                                         },

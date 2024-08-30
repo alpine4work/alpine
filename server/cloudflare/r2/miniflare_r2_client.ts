@@ -12,8 +12,8 @@ import {
 // source files in production. We're just using the types in this module.
 import type * as miniflareTypes from "@miniflare/r2";
 import {NodeJsRuntimeStreamingBlobPayloadInputTypes} from "@smithy/types";
-import {Readable} from "stream";
-import {ReadableStream, TextDecoderStream} from "stream/web";
+import {Readable as ReadableStream} from "stream";
+import {ReadableStream as ReadableWebStream, TextDecoderStream} from "stream/web";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -125,7 +125,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 CacheControl: object.httpMetadata.cacheControl,
                 Body:
                     "body" in object
-                        ? Object.assign(Readable.fromWeb(object.body), {
+                        ? Object.assign(ReadableStream.fromWeb(object.body), {
                               transformToByteArray: () =>
                                   convertReadableStreamToUint8Array(object.body),
                               transformToString: (encoding?: string) =>
@@ -255,7 +255,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
 
             const object = await this._getBucket(bucketName).put(
                 assertExists(key),
-                body instanceof Readable ? Readable.toWeb(body) : body,
+                body instanceof ReadableStream ? ReadableStream.toWeb(body) : body,
                 {
                     httpMetadata: {
                         contentType,
@@ -342,7 +342,7 @@ function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
 }
 
 async function convertReadableStreamToUint8Array(
-    stream: ReadableStream<Uint8Array>,
+    stream: ReadableWebStream<Uint8Array>,
 ): Promise<Uint8Array> {
     const chunks: Array<Uint8Array> = [];
 
@@ -354,7 +354,7 @@ async function convertReadableStreamToUint8Array(
 }
 
 async function convertReadableStreamToString(
-    stream: ReadableStream<Uint8Array>,
+    stream: ReadableWebStream<Uint8Array>,
     encoding?: string,
 ): Promise<string> {
     let string = "";

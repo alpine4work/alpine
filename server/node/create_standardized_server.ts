@@ -2,7 +2,7 @@ import "~/server/node/install_response_with_web_socket_support.js";
 
 import {IncomingHttpHeaders, IncomingMessage, ServerResponse, createServer} from "http";
 import {Socket} from "net";
-import {Readable} from "stream";
+import {Readable as ReadableStream} from "stream";
 import {WebSocketServer} from "ws";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
@@ -107,7 +107,7 @@ export function createStandardizedRequest(req: IncomingMessage): Request {
     };
 
     if (req.method !== "GET" && req.method !== "HEAD") {
-        const body = Readable.toWeb(req);
+        const body = ReadableStream.toWeb(req);
 
         // @ts-expect-error: Global `ReadableStream` type is incompatible with Node.js
         // `ReadableStream` type.
@@ -165,7 +165,7 @@ export function sendStandardizedResponse(res: ServerResponse, response: Response
     res.writeHead(response.status);
 
     if (response.body) {
-        Readable.fromWeb(
+        ReadableStream.fromWeb(
             // @ts-expect-error: Global `ReadableStream` type is incompatible with Node.js
             // `ReadableStream` type.
             response.body,

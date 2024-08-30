@@ -21,6 +21,7 @@ import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -97,7 +98,7 @@ type TaskTaskActionTestArtifacts =
 let nextAccountNameVersion = 1;
 
 const taskTaskActionTestCases: Array<{
-    only?: boolean;
+    only?: CommitBlocker;
     name: string;
     create: (scenario: TaskActionTestScenario) => TaskTaskActionTestArtifacts;
 }> = [
@@ -1984,7 +1985,7 @@ type TaskActionTestArtifacts =
       };
 
 const taskActionTestCases: Array<{
-    only?: boolean;
+    only?: CommitBlocker;
     name: string;
     create: (scenario: TaskActionTestScenario) => TaskActionTestArtifacts;
 }> = [
@@ -4687,7 +4688,7 @@ export function testTaskActionPermutations({
 
         for (const permutation of permutations) {
             allTests.push({
-                only: testCase.only ?? false,
+                only: !!testCase.only,
                 describeName: testCase.name,
                 testName: `[${permutation.join(", ")}]`,
                 runTest: async () => {

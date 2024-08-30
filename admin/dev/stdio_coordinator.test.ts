@@ -1,4 +1,4 @@
-import {Writable} from "stream";
+import {Writable as WritableStream} from "stream";
 import {
     resetWriteWithStdioPrefixForTest,
     transformChunkForTest as transformChunk,
@@ -22,7 +22,7 @@ test("parses and prints a simple chunk without a newline", () => {
 
     let string = "";
 
-    const stream = new Writable();
+    const stream = new WritableStream();
 
     stream._write = (chunk, encoding, next) => {
         string += chunk.toString("utf8");
@@ -81,7 +81,7 @@ test("parses and prints a simple chunk with a newline", () => {
 
     let string = "";
 
-    const stream = new Writable();
+    const stream = new WritableStream();
 
     stream._write = (chunk, encoding, next) => {
         string += chunk.toString("utf8");
@@ -142,7 +142,7 @@ test("parses and prints a simple chunk with a newline and more content", () => {
 
     let string = "";
 
-    const stream = new Writable();
+    const stream = new WritableStream();
 
     stream._write = (chunk, encoding, next) => {
         string += chunk.toString("utf8");
@@ -211,7 +211,7 @@ test("parses and prints a simple chunk with two lines", () => {
 
     let string = "";
 
-    const stream = new Writable();
+    const stream = new WritableStream();
 
     stream._write = (chunk, encoding, next) => {
         string += chunk.toString("utf8");
@@ -297,7 +297,7 @@ test("parses and prints a chunk which closes styles on a different line", () => 
 
     let string = "";
 
-    const stream = new Writable();
+    const stream = new WritableStream();
 
     stream._write = (chunk, encoding, next) => {
         string += chunk.toString("utf8");
@@ -480,7 +480,7 @@ Uncaught exception from dev process manager: Error: spawn /private/var/tmp/_baze
 
     let string = "";
 
-    const stream = new Writable();
+    const stream = new WritableStream();
 
     stream._write = (chunk, encoding, next) => {
         string += chunk.toString("utf8");

@@ -1,7 +1,7 @@
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
-import createSharp from "sharp";
-import {Readable} from "stream";
+import sharp from "sharp";
+import {Readable as ReadableStream} from "stream";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
     FileUploader,
@@ -37,7 +37,6 @@ import {
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {waitForAbort} from "~/shared/helpers/async/wait_for_abort.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -52,9 +51,9 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // we're using the wrong `sharp` module.
 //
 // [1]: https://github.com/cyberworlds/sharp-libvips
-assert((createSharp.versions as any).de265 === "1.0.15");
-assert((createSharp.versions as any).graphicsmagick === "1.3.45");
-assert((createSharp.versions as any).pdfium === "chromium/6679");
+assert((sharp.versions as any).de265 === "1.0.15");
+assert((sharp.versions as any).graphicsmagick === "1.3.45");
+assert((sharp.versions as any).pdfium === "chromium/6679");
 
 type UploadFileEvent = SchemaType<typeof UploadFileEventSchema>;
 
@@ -284,7 +283,7 @@ async function uploadAndProcessFile(
         contentLength: number;
         fileProcessor: FileProcessor;
         fileUploader: FileUploader;
-        stream: Readable;
+        stream: ReadableStream;
         sendEvent: (event: UploadFileEvent) => void;
         abortSignal: AbortSignal;
         createAbortCatcher: (message: string) => (error: unknown) => never;
@@ -295,6 +294,43 @@ async function uploadAndProcessFile(
         fileId: fileUploader.fileId,
         hasPreview: fileProcessor.hasPreview,
         hasPreviewImage: fileProcessor.hasPreviewImage,
+    });
+
+    const dataPromise = new Promise<Buffer>((resolve, reject) => {
+        if (abortSignal.aborted) {
+            reject(abortSignal.reason);
+            return;
+        }
+
+        let chunks: Array<Buffer> = [];
+
+        const handleData = (data: Buffer) => {
+            chunks.push(data);
+        };
+
+        const handleEnd = () => {
+            const data = Buffer.concat(chunks);
+
+            chunks = [];
+            stream.off("data", handleData);
+            stream.off("end", handleEnd);
+            abortSignal.removeEventListener("abort", handleAbort);
+
+            resolve(data);
+        };
+
+        const handleAbort = () => {
+            chunks = [];
+            stream.off("data", handleData);
+            stream.off("end", handleEnd);
+            abortSignal.removeEventListener("abort", handleAbort);
+
+            reject(abortSignal.reason);
+        };
+
+        stream.on("data", handleData);
+        stream.on("end", handleEnd);
+        abortSignal.addEventListener("abort", handleAbort);
     });
 
     // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
@@ -336,19 +372,20 @@ async function uploadAndProcessFile(
 
               const {sizePromise, placeholderPromise, imagePromise} = fileProcessor.process(
                   stream,
+                  dataPromise,
                   abortSignal,
               );
 
               const actualSizePromise = (async () => {
-                  const size = await sizePromise;
+                  const {width, height} = await sizePromise;
                   if (abortSignal.aborted) throw abortSignal.reason;
 
-                  await fileUploader.finishProcessingPreviewSize(context, size);
+                  await fileUploader.finishProcessingPreviewSize(context, {width, height});
 
                   sendEvent({
                       type: "PreviewSize",
-                      width: size.width,
-                      height: size.height,
+                      width,
+                      height,
                   });
               })().catch(createAbortCatcher("File preview size processing failed"));
 
@@ -429,6 +466,42 @@ async function uploadAndProcessFile(
     sendEvent({type: "Finish"});
 }
 
+/**
+ * File processor object.
+ *
+ * Currently file processing only generates the file's preview. Basically all
+ * files have a preview (except audio files or opaque binary data). Any file
+ * that's not a web safe image will generate a preview image. If the file has
+ * a preview `hasPreview` will be true and if the file generates a preview
+ * image then `hasPreviewImage` will be true.
+ *
+ * The `process` function actually performs the file processing. It takes
+ * `stream` and `dataPromise` which represents the data in two different
+ * forms. `stream` is a Node.js stream, use this if your processor supports
+ * efficient stream processing. Otherwise you may use `dataPromise` which
+ * resolves once `stream` ends with the file's full data. `dataPromise` also
+ * rejects with `CancelledError` if the upload is aborted.
+ *
+ * If you're using `stream`, make sure to cancel your stream processing if the
+ * upload is aborted. Since `stream` may not end after an abort. You can find
+ * out if the upload is aborted with `abortSignal`.
+ *
+ * Unfortunately, `sharp` (which we use for processing many of our files) does
+ * not support efficient stream processing despite having a stream API. `sharp`
+ * in stream mode [waits for the stream to finish][1] instead of pushing data
+ * to `libvips` as it becomes available. So it makes no difference whether we
+ * use `const sharpInstance = sharp(); stream.pipe(sharpInstance)` or
+ * `sharp(await dataPromise)`. If anything `sharp(await dataPromise)` is more
+ * efficient since we only need to call `Buffer.concat()` to create the final
+ * file data once.
+ *
+ * Ideally `sharp` would take advantage of streaming when processing metadata
+ * since all it needs is the file header in most cases (though it's unclear if
+ * `libvips` itself can handle file streaming). We'll upgrade our
+ * implementation to use streaming if `sharp`'s implementation changes.
+ *
+ * [1]: https://github.com/lovell/sharp/blob/fc32e0bd3f9111b80cf078df7b0cfc355695674e/lib/input.js#L489-L500
+ */
 type FileProcessor =
     | {
           readonly hasPreview: false;
@@ -438,7 +511,8 @@ type FileProcessor =
           readonly hasPreview: true;
           readonly hasPreviewImage: false;
           readonly process: (
-              stream: Readable,
+              stream: ReadableStream,
+              dataPromise: Promise<Buffer>,
               abortSignal: AbortSignal,
           ) => {
               sizePromise: Promise<{width: number; height: number}>;
@@ -450,7 +524,8 @@ type FileProcessor =
           readonly hasPreview: true;
           readonly hasPreviewImage: true;
           readonly process: (
-              stream: Readable,
+              stream: ReadableStream,
+              dataPromise: Promise<Buffer>,
               abortSignal: AbortSignal,
           ) => {
               sizePromise: Promise<{width: number; height: number}>;
@@ -469,30 +544,26 @@ const fileProcessorByContentType: {
     "image/png": createWebSafeImageFileProcessor("image/png"),
     "image/svg+xml": createWebSafeImageFileProcessor("image/svg+xml"),
     "image/webp": createWebSafeImageFileProcessor("image/webp"),
-    "image/bmp": createWebUnsafeImageFileProcessor("image/bmp", "image/jpeg"),
-    "image/tiff": createWebUnsafeImageFileProcessor("image/tiff", "image/png"),
+    "image/bmp": createWebUnsafeImageFileProcessor("image/bmp"),
+    "image/tiff": createWebUnsafeImageFileProcessor("image/tiff"),
+    "image/heif": createWebUnsafeImageFileProcessor("image/heif"),
+    "image/heic": createWebUnsafeImageFileProcessor("image/heic"),
 };
 
-function processImageFile(
-    contentType: ImageFileContentType,
-    stream: Readable,
-    abortSignal: AbortSignal,
-) {
+function processImageFile(contentType: ImageFileContentType, dataPromise: Promise<Buffer>) {
     const sizePromise = (async () => {
-        const sharp = createSharp({pages: 1});
+        // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+        // more efficient to await `dataPromise` than to use `stream`. See our comment
+        // on `FileProcessor`.
+        const data = await dataPromise;
 
-        stream.pipe(sharp);
+        const metadata = await sharp(data, {pages: 1})
+            .metadata()
+            .catch(rethrowClassifiedSharpError);
 
-        const metadata = await Promise.race([
-            sharp.metadata().catch(rethrowClassifiedSharpError),
-            // Sharp will never resolve in some abort scenarios since `req` will close but
-            // the stream won't end.
-            waitForAbort(abortSignal),
-        ]);
-
-        let expectedFormat: keyof createSharp.FormatEnum;
-        let expectedCompression: createSharp.Metadata["compression"];
-        let expectedFormatMagick: createSharp.Metadata["formatMagick"];
+        let expectedFormat: keyof sharp.FormatEnum;
+        let expectedCompression: sharp.Metadata["compression"];
+        let expectedFormatMagick: sharp.Metadata["formatMagick"];
 
         switch (contentType) {
             case "image/apng":
@@ -525,6 +596,14 @@ function processImageFile(
             case "image/tiff":
                 expectedFormat = "tiff";
                 break;
+            case "image/heif":
+                expectedFormat = "heif";
+                expectedCompression = "hevc";
+                break;
+            case "image/heic":
+                expectedFormat = "heif";
+                expectedCompression = "hevc";
+                break;
             default:
                 throw exhaustive(contentType);
         }
@@ -554,6 +633,7 @@ function processImageFile(
         return {
             width: metadata.width,
             height: metadata.height,
+            hasAlpha: !!metadata.hasAlpha,
         };
     })();
 
@@ -565,32 +645,28 @@ function processImageFile(
     //
     // [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
     const placeholderPromise = (async () => {
-        const sharp = createSharp({pages: 1});
-
-        stream.pipe(sharp);
+        // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+        // more efficient to await `dataPromise` than to use `stream`. See our comment
+        // on `FileProcessor`.
+        const inputData = await dataPromise;
 
         // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
         const placeholderSize = 5;
 
         const {
-            data,
+            data: outputData,
             info: {channels, width},
-        } = await Promise.race([
-            sharp
-                .resize(placeholderSize, placeholderSize, {fit: "inside"})
-                .toFormat("png")
-                .modulate({brightness: 1, saturation: 1.2})
-                .raw()
-                .toBuffer({resolveWithObject: true})
-                .catch(rethrowClassifiedSharpError),
-            // Sharp will never resolve in some abort scenarios since `req` will close but
-            // the stream won't end.
-            waitForAbort(abortSignal),
-        ]);
+        } = await sharp(inputData, {pages: 1})
+            .resize(placeholderSize, placeholderSize, {fit: "inside"})
+            .toFormat("png")
+            .modulate({brightness: 1, saturation: 1.2})
+            .raw()
+            .toBuffer({resolveWithObject: true})
+            .catch(rethrowClassifiedSharpError);
 
         assert(channels === 3 || channels === 4);
 
-        return FilePreviewPlaceholder.fromSerialized([channels === 4, width, data]);
+        return FilePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
     })();
 
     return {sizePromise, placeholderPromise};
@@ -600,60 +676,41 @@ function createWebSafeImageFileProcessor(contentType: WebSafeImageFileContentTyp
     return {
         hasPreview: true,
         hasPreviewImage: false,
-        process: (stream, abortSignal) => processImageFile(contentType, stream, abortSignal),
+        process: (stream, dataPromise) => processImageFile(contentType, dataPromise),
     };
 }
 
 function createWebUnsafeImageFileProcessor(
     contentType: WebUnsafeImageFileContentType,
-    // Use `image/jpeg` if the image type doesn't support transparency since JPEG
-    // has better compression. Otherwise use `image/png`.
-    //
-    // https://www.adobe.com/creativecloud/file-types/image/comparison/jpeg-vs-png.html
-    previewImageContentType: "image/jpeg" | "image/png",
 ): FileProcessor {
     return {
         hasPreview: true,
         hasPreviewImage: true,
-        process: (stream, abortSignal) => {
-            let previewImageFormat: keyof createSharp.FormatEnum;
-
-            switch (previewImageContentType) {
-                case "image/jpeg":
-                    previewImageFormat = "jpeg";
-                    break;
-                case "image/png":
-                    previewImageFormat = "png";
-                    break;
-                default:
-                    throw exhaustive(previewImageContentType);
-            }
-
-            const {sizePromise, placeholderPromise} = processImageFile(
-                contentType,
-                stream,
-                abortSignal,
-            );
+        process: (stream, dataPromise) => {
+            const {sizePromise, placeholderPromise} = processImageFile(contentType, dataPromise);
 
             const imagePromise = (async () => {
-                const sharp = createSharp({pages: 1});
-
-                stream.pipe(sharp);
-
-                const data = await Promise.race([
-                    sharp
-                        .toFormat(
-                            previewImageFormat,
-                            previewImageFormat === "jpeg" ? {quality: 100} : {},
-                        )
-                        .toBuffer()
-                        .catch(rethrowClassifiedSharpError),
-                    // Sharp will never resolve in some abort scenarios since `req` will close but
-                    // the stream won't end.
-                    waitForAbort(abortSignal),
+                const [{hasAlpha}, inputData] = await runAllPromises([
+                    sizePromise,
+                    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+                    // more efficient to await `dataPromise` than to use `stream`. See our comment
+                    // on `FileProcessor`.
+                    dataPromise,
                 ]);
 
-                return {contentType: previewImageContentType, data};
+                // Use `image/jpeg` if the image type doesn't have transparency since JPEG
+                // has better compression. Otherwise use `image/png`.
+                //
+                // https://www.adobe.com/creativecloud/file-types/image/comparison/jpeg-vs-png.html
+                const outputContentType: FileContentType = hasAlpha ? "image/png" : "image/jpeg";
+                const outputFormat: keyof sharp.FormatEnum = hasAlpha ? "png" : "jpeg";
+
+                const outputData = await sharp(inputData, {pages: 1})
+                    .toFormat(outputFormat, outputFormat === "jpeg" ? {quality: 100} : {})
+                    .toBuffer()
+                    .catch(rethrowClassifiedSharpError);
+
+                return {contentType: outputContentType, data: outputData};
             })();
 
             return {sizePromise, placeholderPromise, imagePromise};

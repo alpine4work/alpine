@@ -107,7 +107,12 @@ case "$1" in
             if [ -z "$files" ]; then
                 echo "No tests for sources"
             else
-                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
+                files="$(./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))")"
+                if [ "$(wc -l <<< "$files" | tr -d " ")" = "1" ]; then
+                    echo -n $files | xargs ./admin/bin/bazel test --test_output=streamed
+                else
+                    echo -n $files | xargs ./admin/bin/bazel test
+                fi
             fi
         fi
         ;;

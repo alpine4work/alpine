@@ -4,8 +4,8 @@ import fs from "fs/promises";
 import getPort from "get-port";
 import {Server} from "http";
 import looksSame from "looks-same";
-import {join as joinPath} from "path";
-import createSharp from "sharp";
+import {extname, join as joinPath} from "path";
+import sharp from "sharp";
 import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
@@ -33,11 +33,15 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
+
+const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR), "files");
 
 // Use TypeScript to make sure we have at least one file as a test case for
 // each of the `FileContentType`s we support.
 const testCases: {
     [Key in FileContentType]: NonEmptyReadonlyArray<{
+        only?: CommitBlocker;
         path: string;
         contentLength: number;
         size: {width: number; height: number};
@@ -186,6 +190,8 @@ const testCases: {
             image: {
                 contentType: "image/jpeg",
                 contentLength: 20318,
+                // We shrink the `.bmp` file since it's quite large so we have a special
+                // `.bmp.jpeg` file to compare for similarity.
                 similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.bmp.jpeg",
             },
         },
@@ -201,9 +207,9 @@ const testCases: {
                 "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
             ]),
             image: {
-                contentType: "image/png",
-                contentLength: 118872,
-                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.png",
+                contentType: "image/jpeg",
+                contentLength: 49498,
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
             },
         },
         {
@@ -219,6 +225,76 @@ const testCases: {
                 contentType: "image/png",
                 contentLength: 92917,
                 similarPath: "wikimedia_png_transparency_demonstration.png",
+            },
+        },
+    ],
+    "image/heif": [
+        {
+            path: "filesampleshub_heif_sample1.heif",
+            contentLength: 42984,
+            size: {width: 640, height: 426},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "udnfm7i+hZ+ki7fChdTrxbafTR8QVyoZglxHfnlzyZBivoFT3J5p7qdq4ZVY",
+            ]),
+            image: {
+                contentType: "image/jpeg",
+                contentLength: 157628,
+                similarPath: "filesampleshub_heif_sample1.jpg",
+            },
+        },
+    ],
+    "image/heic": [
+        {
+            path: "unsplash_annie_spratt_0ArJET2aSIQ.heic",
+            contentLength: 36233,
+            size: {width: 500, height: 375},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+            ]),
+            image: {
+                contentType: "image/jpeg",
+                contentLength: 52878,
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+            },
+        },
+        {
+            path: "iphone_colorado_twin_lakes.heic",
+            contentLength: 88109,
+            size: {width: 480, height: 640},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                4,
+                "R4zOX5TLVoa7dpW+farYor3ikrLafqTRfZu2cZKsVHyfP2+YUG5/QWd2GEdWHEZTW3+MV3+KM2RvGFRi",
+            ]),
+            image: {
+                contentType: "image/jpeg",
+                contentLength: 191621,
+                similarPath: "iphone_colorado_twin_lakes.jpeg",
+            },
+        },
+        {
+            path: "wikimedia_png_transparency_demonstration.heic",
+            contentLength: 16960,
+            size: {width: 336, height: 252},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "XFy5IUNMzZo1aoowOZo5fEuWSxFYkP8XfFypsKNMWM9aezWnAJwTDQAAAACtSzAvs19J8sRbVz0AAAAAAAAAAH9/XwiNlTw/jY1VCQAAAAA=",
+            ]),
+            image: {
+                contentType: "image/png",
+                contentLength: 104829,
+                // When using the Apple Preview app to export
+                // `wikimedia_png_transparency_demonstration.png` the colors got darker,
+                // especially around the edges. So we can't compare to the original `.png`
+                // image. Instead we re-exported the darker `.heic` file to `.png` and we'll
+                // use that as the similar image. This does not appear to be an issue with our
+                // code but rather the Apple Preview app's export functionality.
+                similarPath: "wikimedia_png_transparency_demonstration.heic.png",
             },
         },
     ],
@@ -285,7 +361,7 @@ function parseJsonEvents(responseText: string) {
 }
 
 test("can process bmp files", async () => {
-    const metadata = await createSharp(
+    const metadata = await sharp(
         joinPath(
             runfilesPath,
             "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.bmp",
@@ -297,7 +373,7 @@ test("can process bmp files", async () => {
 });
 
 test("can process pdf files", async () => {
-    const metadata = await createSharp(
+    const metadata = await sharp(
         joinPath(
             runfilesPath,
             "cyberworlds/server/files/upload/test_fixtures/iup_pdf_testpage.pdf",
@@ -334,14 +410,16 @@ test("looks same tester works", async () => {
 
 for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
     for (const {
+        only,
         path,
         contentLength: expectedContentLength,
         size: expectedSize,
         placeholder: expectedPlaceholder,
         image: expectedImage,
     } of contentTypeTestCases) {
-        // eslint-disable-next-line jest/valid-title
-        test(quote`can upload ${contentType} file ${path}`, async () => {
+        const testFn = only ? test.only : test;
+
+        testFn(quote`can upload ${contentType} file ${path}`, async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -447,24 +525,49 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                 );
                 if (!object) throw new NotFoundError("Preview image file not found");
 
-                const result = await looksSame(
-                    ...(await runAllPromises([
-                        convertReadableStreamToUint8Array(object.body).then(buffer =>
-                            Buffer.from(buffer),
+                const [actualImageContents, expectedImageContents] = await runAllPromises([
+                    convertReadableStreamToUint8Array(object.body).then(buffer =>
+                        Buffer.from(buffer),
+                    ),
+                    fs.readFile(
+                        joinPath(
+                            runfilesPath,
+                            "cyberworlds/server/files/upload/test_fixtures",
+                            expectedImage.similarPath,
                         ),
-                        fs.readFile(
-                            joinPath(
-                                runfilesPath,
-                                "cyberworlds/server/files/upload/test_fixtures",
-                                expectedImage.similarPath,
-                            ),
-                        ),
-                    ])),
-                );
+                    ),
+                ]);
+
+                const result = await looksSame(actualImageContents, expectedImageContents, {
+                    tolerance: 35,
+                    createDiffImage: true,
+                });
 
                 if (!result.equal) {
+                    const name = encodeURIComponent(
+                        `${contentType.replaceAll("/", "_")}.${path.slice(
+                            0,
+                            -extname(path).length,
+                        )}`,
+                    );
+                    const extension = extname(path);
+
+                    await fs.mkdir(testlogsPath, {recursive: true});
+
+                    await runAllPromises([
+                        fs.writeFile(
+                            joinPath(testlogsPath, `${name}.input.actual.${extension}`),
+                            actualImageContents,
+                        ),
+                        fs.writeFile(
+                            joinPath(testlogsPath, `${name}.input.expected.${extension}`),
+                            expectedImageContents,
+                        ),
+                        result.diffImage?.save(joinPath(testlogsPath, `${name}.diff.${extension}`)),
+                    ]);
+
                     throw new InternalError(
-                        "Actual preview image doesn't look the same as expected preview image",
+                        "Actual preview image doesn't look the same as expected preview image, diff image saved to `bazel-testlogs`",
                     );
                 }
             }

@@ -413,6 +413,13 @@ module.exports = {
 
                 // Files in `/test/` folders can and should export things.
                 "jest/no-export": "off",
+
+                // Plenty of valid cases to call `expect()` outside of a test function. For
+                // example, calling `expect()` in a helper function. Or sometimes Jest won't be
+                // able to detect we're in a test block (if we're dynamically deciding between
+                // `test.only` and `test` for instance). Trust developers to do the right
+                // thing.
+                "jest/no-standalone-expect": "off",
             },
         },
         // Rules for just Jest test files, not helper files.

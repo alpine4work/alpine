@@ -41,15 +41,12 @@ export type WebSafeImageFileContentType =
  * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
  * [2]: https://www.adobe.com/creativecloud/file-types/image/raster/heic-file.html
  */
-// TODO(calebmer, #files): Remove prettier-ignore.
-// prettier-ignore
 export type WebUnsafeImageFileContentType =
     | "image/bmp"
     // TODO(calebmer, #files): Add this: | "image/ico"
     | "image/tiff"
-    // TODO(calebmer, #files): Add this: | "image/heif"
-    // TODO(calebmer, #files): Add this: | "image/heic"
-    ;
+    | "image/heif"
+    | "image/heic";
 
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
@@ -63,6 +60,8 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "image/webp": "webp",
     "image/bmp": "bmp",
     "image/tiff": "tiff",
+    "image/heif": "heif",
+    "image/heic": "heic",
 };
 
 /**
