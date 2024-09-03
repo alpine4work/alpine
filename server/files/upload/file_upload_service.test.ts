@@ -324,7 +324,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewSize","width":500,"height":375}\n\
+{"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewPlaceholder","placeholder":[false,5,"..."]}\n\
@@ -425,7 +425,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewSize","width":500,"height":375}\n\
+{"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
 \r\n\
 chunk\r\n\
 {"type":"Error","error":{"code":3,"message":"VipsJpeg: Premature end of input file","name":"InvalidArgumentError"}}\n\
@@ -626,7 +626,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewSize","width":500,"height":375}\n\
+{"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewPlaceholder","placeholder":[false,5,"..."]}\n\
@@ -763,7 +763,7 @@ test("can upload image", async () => {
             hasPreviewImage: false,
             fileId: expect.any(String),
         },
-        {type: "PreviewSize", width: 500, height: 375},
+        {type: "PreviewSize", width: 500, height: 375, scale: 1},
         {type: "PreviewPlaceholder", placeholder: expect.any(FilePreviewPlaceholder)},
         {type: "Finish"},
     ]);

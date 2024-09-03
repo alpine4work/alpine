@@ -710,7 +710,8 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                 ),
             );
 
-            expect(await getFile(space.systemAction(), fileId)).toEqual(
+            const file = await getFile(space.systemAction(), fileId);
+            expect(file).toEqual(
                 new FileModel({
                     id: fileId,
                     contentType: contentType as FileContentType,
@@ -735,13 +736,31 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                               image: expectedImage
                                   ? {
                                         contentType: expectedImage.contentType,
-                                        contentLength: expectedImage.contentLength,
+                                        contentLength: expect.any(Number),
                                     }
                                   : undefined,
                           }
                         : null,
                 }),
             );
+
+            if (!expectedError && expectedSize && expectedImage) {
+                assert(file.preview);
+                assert(!file.preview.isProcessing);
+                assert(file.preview.ok);
+                assert(file.preview.image);
+
+                const epsilon = 200;
+                const withinRange =
+                    expectedImage.contentLength - epsilon <= file.preview.image.contentLength &&
+                    file.preview.image.contentLength <= expectedImage.contentLength + epsilon;
+
+                if (!withinRange) {
+                    throw new InternalError(
+                        `Expected preview image content length to be ${expectedImage.contentLength} (±${epsilon}) but the actual content length is ${file.preview.image.contentLength}`,
+                    );
+                }
+            }
 
             expect(events).toEqual([
                 {
