@@ -22,6 +22,9 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // TODO(calebmer, #files): We'll need to make sure the AWS EC2 instance has a
 // bunch of popular fonts installed for SVG and PDF documents.
+//
+// Look at what Gotenberg is doing for fonts:
+// https://github.com/gotenberg/gotenberg/blob/da8eeb5d8f98e689b7eaa9276c8847fb7a390994/build/Dockerfile#L67-L117
 
 export type FileUploadServiceRoute =
     | {readonly type: "NotFound"}
