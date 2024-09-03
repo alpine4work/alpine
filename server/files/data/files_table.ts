@@ -12,11 +12,13 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynam
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
 import {
-    FailedPreconditionError,
+    InternalError,
     InvalidArgumentError,
     PermissionDeniedError,
     UnimplementedError,
 } from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {
     FileContentType,
     FileContentTypeSchema,
@@ -290,7 +292,7 @@ export class FileUploader {
      */
     public async finishProcessingPreviewSize(
         context: ServerSessionActionContext,
-        size: {width: number; height: number},
+        size: {width: number; height: number; scale: number},
     ) {
         if (this.uploaderId !== context.actor.getAccountId()) {
             throw new PermissionDeniedError("Account is not the file's uploader account");
@@ -307,15 +309,13 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new FailedPreconditionError("File doesn't have a preview");
+                        throw new InternalError("File doesn't have a preview");
                     }
                     if (!item.preview.isProcessing) {
-                        throw new FailedPreconditionError(
-                            "File has already finished processing its preview",
-                        );
+                        throw new InternalError("File has already finished processing its preview");
                     }
                     if (item.preview.size !== "Processing") {
-                        throw new FailedPreconditionError(
+                        throw new InternalError(
                             "File has already finished processing its preview size",
                         );
                     }
@@ -327,6 +327,7 @@ export class FileUploader {
                             item.preview.image !== "Processing"
                                 ? {
                                       isProcessing: false,
+                                      ok: true,
                                       size,
                                       placeholder: item.preview.placeholder,
                                       image: item.preview.image,
@@ -369,15 +370,13 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new FailedPreconditionError("File doesn't have a preview");
+                        throw new InternalError("File doesn't have a preview");
                     }
                     if (!item.preview.isProcessing) {
-                        throw new FailedPreconditionError(
-                            "File has already finished processing its preview",
-                        );
+                        throw new InternalError("File has already finished processing its preview");
                     }
                     if (item.preview.placeholder !== "Processing") {
-                        throw new FailedPreconditionError(
+                        throw new InternalError(
                             "File has already finished processing its preview placeholder",
                         );
                     }
@@ -389,6 +388,7 @@ export class FileUploader {
                             item.preview.image !== "Processing"
                                 ? {
                                       isProcessing: false,
+                                      ok: true,
                                       size: item.preview.size,
                                       placeholder,
                                       image: item.preview.image,
@@ -431,18 +431,16 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new FailedPreconditionError("File doesn't have a preview");
+                        throw new InternalError("File doesn't have a preview");
                     }
                     if (!item.preview.isProcessing) {
-                        throw new FailedPreconditionError(
-                            "File has already finished processing its preview",
-                        );
+                        throw new InternalError("File has already finished processing its preview");
                     }
                     if (item.preview.image !== "Processing") {
                         if (item.preview.image === undefined) {
-                            throw new FailedPreconditionError("File doesn't have a preview image");
+                            throw new InternalError("File doesn't have a preview image");
                         } else {
-                            throw new FailedPreconditionError(
+                            throw new InternalError(
                                 "File has already finished processing its preview image",
                             );
                         }
@@ -455,6 +453,7 @@ export class FileUploader {
                             item.preview.placeholder !== "Processing"
                                 ? {
                                       isProcessing: false,
+                                      ok: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
                                       image,
@@ -465,6 +464,72 @@ export class FileUploader {
                                       placeholder: item.preview.placeholder,
                                       image,
                                   },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * If there was an acceptable error while processing the file then we want to
+     * finish uploading the file but mark the preview with an error so the user
+     * knows why there's no preview.
+     *
+     * There are two types of errors when uploading files:
+     *
+     * 1. Unacceptable errors that abort the upload
+     * 2. Acceptable errors where the upload finishes but without a processed
+     *    preview
+     *
+     * An example of an unacceptable error is the user tries to upload a
+     * `image/jpeg` file which has a corrupted format. In this case we stop the
+     * upload and show an error to the user in the UI that their file upload didn't
+     * work.
+     *
+     * An example of an acceptable error is if the user tries to upload an
+     * `application/pdf` file with a password. In this case we can't show a preview
+     * since we can't read a password protected PDF since it's encrypted. We allow
+     * the upload to finish and instead of showing a preview we show the user some
+     * text along the lines of "can't show a password protected PDF".
+     *
+     * Acceptable errors call this function and leave a `FileItem` in the database.
+     * The user can still download the file we just can't preview it. Unacceptable
+     * errors should end up deleting the `FileItem` from DynamoDB altogether with
+     * the `cleanupAfterError()` function.
+     */
+    public async finishProcessingPreviewAfterAcceptableError(
+        context: ServerSessionActionContext,
+        error: {code: ErrorCode; displayMessage: ErrorDisplayMessage},
+    ) {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn't have a preview");
+                    }
+                    if (!item.preview.isProcessing) {
+                        throw new InternalError("File has already finished processing its preview");
+                    }
+
+                    return {
+                        ...item,
+                        preview: {
+                            isProcessing: false,
+                            ok: false,
+                            error,
+                        },
                     };
                 },
                 {initialItem: itemRef.current},
@@ -492,7 +557,7 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.isUploading) {
-                        throw new FailedPreconditionError("File has already finished uploading");
+                        throw new InternalError("File has already finished uploading");
                     }
                     return {...item, isUploading: false};
                 },
@@ -506,7 +571,7 @@ export class FileUploader {
      * cleanup our database. It deletes the associated Cloudflare R2 object,
      * deletes the file DynamoDB item, and updates the `FileTotals` item counters.
      */
-    public async cleanupAfterError(
+    public async cleanupAfterUnacceptableError(
         context: Context<ServerSessionActionContextModules & {r2: CloudflareR2ContextModule}>,
     ) {
         if (this.uploaderId !== context.actor.getAccountId()) {

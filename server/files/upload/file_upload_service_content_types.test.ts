@@ -21,6 +21,9 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {
     FileContentType,
     getFileContentTypePreferredExtension,
@@ -45,15 +48,25 @@ const testCases: {
         only?: CommitBlocker;
         path: string;
         contentLength: number;
-        size: {width: number; height: number};
-        placeholder: FilePreviewPlaceholder;
+        size?: {width: number; height: number; scale?: number};
+        placeholder?: FilePreviewPlaceholder;
         image?: {
             contentType: FileContentType;
             contentLength: number;
             similarPath: string;
         };
+        error?: {
+            code: ErrorCode;
+            displayMessage: ErrorDisplayMessage;
+        };
     }>;
 } = {
+    "application/octet-stream": [
+        {
+            path: "random.bin",
+            contentLength: 5000,
+        },
+    ],
     "image/apng": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.png",
@@ -199,11 +212,11 @@ const testCases: {
                 "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
             ]),
             image: {
-                contentType: "image/jpeg",
-                contentLength: 20318,
+                contentType: "image/avif",
+                contentLength: 5940,
                 // We shrink the `.bmp` file since it's quite large so we have a special
                 // `.bmp.jpeg` file to compare for similarity.
-                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.bmp.jpeg",
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.bmp.avif",
             },
         },
     ],
@@ -265,9 +278,9 @@ const testCases: {
                 "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
             ]),
             image: {
-                contentType: "image/jpeg",
-                contentLength: 49498,
-                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+                contentType: "image/avif",
+                contentLength: 16324,
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.avif",
             },
         },
         {
@@ -280,9 +293,9 @@ const testCases: {
                 "bGzYIUpX8Jo1f6owN7Q9fFq0WhFupv8Xj2bAsLxTYc9kjzanAOsTDQAAAADTXDYvymlP8t1gYD0AAAAAAAAAAJ+/fwilskQ/japVCQAAAAA=",
             ]),
             image: {
-                contentType: "image/png",
-                contentLength: 92917,
-                similarPath: "wikimedia_png_transparency_demonstration.png",
+                contentType: "image/avif",
+                contentLength: 24923,
+                similarPath: "wikimedia_png_transparency_demonstration.avif",
             },
         },
     ],
@@ -297,9 +310,9 @@ const testCases: {
                 "udnfm7i+hZ+ki7fChdTrxbafTR8QVyoZglxHfnlzyZBivoFT3J5p7qdq4ZVY",
             ]),
             image: {
-                contentType: "image/jpeg",
-                contentLength: 157628,
-                similarPath: "filesampleshub_heif_sample1.jpg",
+                contentType: "image/avif",
+                contentLength: 74432,
+                similarPath: "filesampleshub_heif_sample1.avif",
             },
         },
     ],
@@ -314,13 +327,13 @@ const testCases: {
                 "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
             ]),
             image: {
-                contentType: "image/jpeg",
-                contentLength: 52878,
-                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+                contentType: "image/avif",
+                contentLength: 16095,
+                similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.avif",
             },
         },
         {
-            path: "iphone_colorado_twin_lakes.heic",
+            path: "iphone_calebmer_colorado_twin_lakes.heic",
             contentLength: 88109,
             size: {width: 480, height: 640},
             placeholder: FilePreviewPlaceholder.schema.deserialize([
@@ -329,9 +342,9 @@ const testCases: {
                 "R4zOX5TLVoa7dpW+farYor3ikrLafqTRfZu2cZKsVHyfP2+YUG5/QWd2GEdWHEZTW3+MV3+KM2RvGFRi",
             ]),
             image: {
-                contentType: "image/jpeg",
-                contentLength: 191621,
-                similarPath: "iphone_colorado_twin_lakes.jpeg",
+                contentType: "image/avif",
+                contentLength: 72829,
+                similarPath: "iphone_calebmer_colorado_twin_lakes.avif",
             },
         },
         {
@@ -344,15 +357,140 @@ const testCases: {
                 "XFy5IUNMzZo1aoowOZo5fEuWSxFYkP8XfFypsKNMWM9aezWnAJwTDQAAAACtSzAvs19J8sRbVz0AAAAAAAAAAH9/XwiNlTw/jY1VCQAAAAA=",
             ]),
             image: {
-                contentType: "image/png",
-                contentLength: 104829,
+                contentType: "image/avif",
+                contentLength: 21462,
                 // When using the Apple Preview app to export
                 // `wikimedia_png_transparency_demonstration.png` the colors got darker,
                 // especially around the edges. So we can't compare to the original `.png`
                 // image. Instead we re-exported the darker `.heic` file to `.png` and we'll
                 // use that as the similar image. This does not appear to be an issue with our
                 // code but rather the Apple Preview app's export functionality.
-                similarPath: "wikimedia_png_transparency_demonstration.heic.png",
+                similarPath: "wikimedia_png_transparency_demonstration.heic.avif",
+            },
+        },
+    ],
+    "application/pdf": [
+        {
+            path: "iup_pdf_testpage.pdf",
+            contentLength: 67840,
+            size: {width: 1224, height: 1584, scale: 2},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                4,
+                "8gAA/+sAAP/7+/v//////8YAAv++AAD///////////////////////////////////////////////////////////////////////////8=",
+            ]),
+            image: {
+                contentType: "image/avif",
+                contentLength: 43729,
+                similarPath: "iup_pdf_testpage.avif",
+            },
+        },
+        {
+            path: "py_pdf_sample_google_doc_document.pdf",
+            contentLength: 80100,
+            size: {width: 1192, height: 1684, scale: 2},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                4,
+                "//////////+5tIj/2dnT//39/f/8/Pz/trqF/7W8gv8FBQX/AAAA/wAAAP8FBQT/ODg4/w0NDf8ODg7/QkJC/5OTk/+ioqL///////////8=",
+            ]),
+            image: {
+                contentType: "image/avif",
+                contentLength: 98603,
+                similarPath: "py_pdf_sample_google_doc_document.avif",
+            },
+        },
+        {
+            path: "py_pdf_sample_libreoffice_form.pdf",
+            contentLength: 34186,
+            size: {width: 1190, height: 1684, scale: 2},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                4,
+                "JSUl/wcHB/9DQ0P//////wAAAP/X19f/mpqa//////80NDT/R0dH//Hx8f////////////////////////////////////////////////8=",
+            ]),
+            image: {
+                contentType: "image/avif",
+                contentLength: 13628,
+                similarPath: "py_pdf_sample_libreoffice_form.avif",
+            },
+        },
+        {
+            path: "py_pdf_sample_libreoffice_write_password.pdf",
+            contentLength: 12783,
+            error: {
+                code: ErrorCode.PermissionDenied,
+                displayMessage: errorDisplayMessage`A password is required to read this file. Try opening the file in a PDF reader that supports password protected files.`,
+            },
+        },
+        {
+            path: "py_pdf_sample_multicolumn.pdf",
+            contentLength: 78657,
+            size: {width: 1190, height: 1684, scale: 2},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                4,
+                "//////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
+            ]),
+            image: {
+                contentType: "image/avif",
+                contentLength: 223379,
+                similarPath: "py_pdf_sample_multicolumn.avif",
+            },
+        },
+        {
+            path: "py_pdf_sample_pdflatex_outline.pdf",
+            contentLength: 48722,
+            size: {width: 1190, height: 1684, scale: 2},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                4,
+                "//////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
+            ]),
+            image: {
+                contentType: "image/avif",
+                contentLength: 7418,
+                similarPath: "py_pdf_sample_pdflatex_outline.avif",
+            },
+        },
+        {
+            path: "wikimedia_png_transparency_demonstration.pdf",
+            contentLength: 82860,
+            size: {width: 672, height: 504, scale: 2},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "7u77/46R7f/i6u//l9SZ//r9+v/39/3/tpzS/9eAhf+buYP/9fv1///////25eL/zXJi//Xb2P////////////7+/v/h4r7//f38//////8=",
+            ]),
+            image: {
+                contentType: "image/avif",
+                contentLength: 18137,
+                // The PDF preview:
+                //
+                // 1. Removes the transparent background and replaces it with a white
+                //    background
+                // 2. Is twice as large as `wikimedia_png_transparency_demonstration.avif`
+                //
+                // TODO(calebmer): Ideally we would preserve the transparent background. Vips
+                // can do this but [`sharp` doesn't expose the option we need][1].
+                //
+                // [1]: https://github.com/lovell/sharp/issues/3321
+                similarPath: "wikimedia_png_transparency_demonstration.pdf.avif",
+            },
+        },
+        {
+            path: "pdfsharp_sample_page_sizes.pdf",
+            contentLength: 40069,
+            size: {width: 4760, height: 6736, scale: 2},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                4,
+                "//////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
+            ]),
+            image: {
+                contentType: "image/avif",
+                contentLength: 1717,
+                similarPath: "pdfsharp_sample_page_sizes.avif",
             },
         },
     ],
@@ -525,6 +663,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
         size: expectedSize,
         placeholder: expectedPlaceholder,
         image: expectedImage,
+        error: expectedError,
     } of contentTypeTestCases) {
         const testFn = only ? test.only : test;
 
@@ -547,57 +686,27 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
             expect(massageHeaders(response.headers)).toEqual({
                 "content-type": "application/x-ndjson",
             });
+
             const eventOrder = [
                 "Start",
                 "PreviewSize",
                 "PreviewPlaceholder",
                 "PreviewImage",
+                "PreviewError",
                 "Finish",
             ];
             const events = parseJsonEvents(responseText).sort(
                 (event1, event2) =>
                     eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
             );
-            expect(events).toEqual([
-                {
-                    type: "Start",
-                    hasPreview: true,
-                    hasPreviewImage: !!expectedImage,
-                    fileId: expect.any(String),
-                },
-                {
-                    type: "PreviewSize",
-                    width: expectedSize.width,
-                    height: expectedSize.height,
-                },
-                {
-                    type: "PreviewPlaceholder",
-                    placeholder: expect.any(FilePreviewPlaceholder),
-                },
-                ...(expectedImage
-                    ? [
-                          {
-                              type: "PreviewImage",
-                              contentType: expectedImage.contentType,
-                              contentLength: expectedImage.contentLength,
-                          },
-                      ]
-                    : []),
-                {
-                    type: "Finish",
-                },
-            ]);
-            expect(response.status).toEqual(200);
+
+            expect(
+                findMapIterable(events, event => (event.type === "Error" ? event : undefined)),
+            ).toEqual(undefined);
 
             const fileId = assertExists(
                 findMapIterable(events, event =>
                     event.type === "Start" ? event.fileId : undefined,
-                ),
-            );
-
-            const placeholder = assertExists(
-                findMapIterable(events, event =>
-                    event.type === "PreviewPlaceholder" ? event.placeholder : undefined,
                 ),
             );
 
@@ -607,24 +716,93 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                     contentType: contentType as FileContentType,
                     contentLength: expectedContentLength,
                     isUploading: false,
-                    preview: {
-                        isProcessing: false,
-                        size: {width: expectedSize.width, height: expectedSize.height},
-                        placeholder: expect.any(FilePreviewPlaceholder),
-                        image: expectedImage
-                            ? {
-                                  contentType: expectedImage.contentType,
-                                  contentLength: expectedImage.contentLength,
-                              }
-                            : undefined,
-                    },
+                    preview: expectedError
+                        ? {
+                              isProcessing: false,
+                              ok: false,
+                              error: expectedError,
+                          }
+                        : expectedSize
+                        ? {
+                              isProcessing: false,
+                              ok: true,
+                              size: {
+                                  width: expectedSize.width,
+                                  height: expectedSize.height,
+                                  scale: expectedSize.scale ?? 1,
+                              },
+                              placeholder: expect.any(FilePreviewPlaceholder),
+                              image: expectedImage
+                                  ? {
+                                        contentType: expectedImage.contentType,
+                                        contentLength: expectedImage.contentLength,
+                                    }
+                                  : undefined,
+                          }
+                        : null,
                 }),
             );
 
-            // Compare placeholders. Sharp's placeholder generation isn't deterministic
-            // across platforms. So check that placeholders are close to each other if not
-            // exactly equal.
-            compareFilePreviewPlaceholders(placeholder, expectedPlaceholder);
+            expect(events).toEqual([
+                {
+                    type: "Start",
+                    hasPreview: !!expectedSize || !!expectedError,
+                    hasPreviewImage: !!expectedImage || !!expectedError,
+                    fileId: expect.any(String),
+                },
+                ...(expectedSize
+                    ? [
+                          {
+                              type: "PreviewSize",
+                              width: expectedSize.width,
+                              height: expectedSize.height,
+                              scale: expectedSize.scale ?? 1,
+                          },
+                      ]
+                    : []),
+                ...(expectedPlaceholder
+                    ? [
+                          {
+                              type: "PreviewPlaceholder",
+                              placeholder: expect.any(FilePreviewPlaceholder),
+                          },
+                      ]
+                    : []),
+                ...(expectedImage
+                    ? [
+                          {
+                              type: "PreviewImage",
+                              contentType: expectedImage.contentType,
+                              contentLength: expectedImage.contentLength,
+                          },
+                      ]
+                    : []),
+                ...(expectedError
+                    ? [
+                          {
+                              type: "PreviewError",
+                              error: expectedError,
+                          },
+                      ]
+                    : []),
+                {
+                    type: "Finish",
+                },
+            ]);
+            expect(response.status).toEqual(200);
+
+            const placeholder = findMapIterable(events, event =>
+                event.type === "PreviewPlaceholder" ? event.placeholder : undefined,
+            );
+
+            if (!expectedPlaceholder) {
+                expect(placeholder).toEqual(undefined);
+            } else {
+                // Compare placeholders. Sharp's placeholder generation isn't deterministic
+                // across platforms. So check that placeholders are close to each other if not
+                // exactly equal.
+                compareFilePreviewPlaceholders(assertExists(placeholder), expectedPlaceholder);
+            }
 
             if (expectedImage) {
                 const object = await r2Bucket.get(

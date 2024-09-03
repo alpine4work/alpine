@@ -8,9 +8,27 @@ import {Schema} from "~/shared/schema/schema.js";
  * case-insensitive we normalize them to lowercase. If a type has a parameter
  * we omit spaces.
  *
+ * If we don't know the type of a file we treat it as
+ * `application/octet-stream`. Which represents an unknown binary file. Could
+ * be an executable, could be data, we don't know.
+ *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
  */
-export type FileContentType = ImageFileContentType;
+export type FileContentType =
+    | "application/octet-stream"
+    | ImageFileContentType
+    | DocumentFileContentType;
+
+// TODO(calebmer, #files): File types to support:
+//
+// - [x] Images
+// - [ ] Documents
+// - [ ] Videos
+// - [ ] Code (optional)
+// - [ ] Audio (optional)
+//
+// A good reference for file types we should support is Canva:
+// https://www.canva.com/help/upload-formats-requirements
 
 export type ImageFileContentType = WebSafeImageFileContentType | WebUnsafeImageFileContentType;
 
@@ -48,9 +66,24 @@ export type WebUnsafeImageFileContentType =
     | "image/heif"
     | "image/heic";
 
+/**
+ * Document file types. All documents file types are converted to [PDF
+ * (Portable Document Format)][1] a versatile file format created by Adobe.
+ * Microsoft Word, Microsoft PowerPoint, and Microsoft Excel files are
+ * converted to PDF and displayed as a PDF in Alpine.
+ *
+ * At its simplest, PDFs are images with multiple pages. However, PDFs are a
+ * rich format that may contain much more like text and even interactive form
+ * inputs.
+ *
+ * [1]: https://www.adobe.com/acrobat/about-adobe-pdf.html
+ */
+export type DocumentFileContentType = "application/pdf";
+
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
 const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = {
+    "application/octet-stream": "bin",
     "image/apng": "apng",
     "image/avif": "avif",
     "image/gif": "gif",
@@ -63,6 +96,7 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "image/tiff": "tiff",
     "image/heif": "heif",
     "image/heic": "heic",
+    "application/pdf": "pdf",
 };
 
 /**

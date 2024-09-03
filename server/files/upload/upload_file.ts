@@ -23,8 +23,11 @@ import {
     PermissionDeniedError,
     UnknownError,
 } from "~/shared/error/error.js";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {getErrorCodes} from "~/shared/error/error_code.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessageSchema, ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {
     FileContentType,
     FileContentTypeSchema,
@@ -72,6 +75,7 @@ export const UploadFileEventSchema = Schema.union({
         type: Schema.value("PreviewSize"),
         width: Schema.integer,
         height: Schema.integer,
+        scale: Schema.integer.default(1),
     }),
     PreviewPlaceholder: Schema.object({
         type: Schema.value("PreviewPlaceholder"),
@@ -81,6 +85,13 @@ export const UploadFileEventSchema = Schema.union({
         type: Schema.value("PreviewImage"),
         contentType: FileContentTypeSchema,
         contentLength: Schema.integer,
+    }),
+    PreviewError: Schema.object({
+        type: Schema.value("PreviewError"),
+        error: Schema.object({
+            code: Schema.enum(getErrorCodes()),
+            displayMessage: ErrorDisplayMessageSchema,
+        }),
     }),
     Error: Schema.object({
         type: Schema.value("Error"),
@@ -377,22 +388,69 @@ async function uploadAndProcessFile(
                   abortSignal,
               );
 
-              const actualSizePromise = (async () => {
-                  const {width, height} = await sizePromise;
-                  if (abortSignal.aborted) throw abortSignal.reason;
+              let hasAcceptedPreviewError = false;
 
-                  await fileUploader.finishProcessingPreviewSize(context, {width, height});
+              const createPreviewAbortCatcher = (message: string) => {
+                  const abortCatcher = createAbortCatcher(message);
+
+                  return async (error: unknown) => {
+                      if (hasAcceptedPreviewError) throw error;
+
+                      if (
+                          !abortSignal.aborted &&
+                          error instanceof ErrorBase &&
+                          error.displayMessage
+                      ) {
+                          const acceptError = fileProcessor.acceptError?.(
+                              error,
+                              error.displayMessage,
+                          );
+
+                          if (acceptError) {
+                              hasAcceptedPreviewError = true;
+
+                              await fileUploader.finishProcessingPreviewAfterAcceptableError(
+                                  context,
+                                  {
+                                      code: error.code,
+                                      displayMessage: error.displayMessage,
+                                  },
+                              );
+
+                              sendEvent({
+                                  type: "PreviewError",
+                                  error: {
+                                      code: error.code,
+                                      displayMessage: error.displayMessage,
+                                  },
+                              });
+                              throw error;
+                          }
+                      }
+
+                      return abortCatcher(error);
+                  };
+              };
+
+              const actualSizePromise = (async () => {
+                  const {width, height, scale} = await sizePromise;
+                  if (abortSignal.aborted) throw abortSignal.reason;
+                  if (hasAcceptedPreviewError) return;
+
+                  await fileUploader.finishProcessingPreviewSize(context, {width, height, scale});
 
                   sendEvent({
                       type: "PreviewSize",
                       width,
                       height,
+                      scale,
                   });
-              })().catch(createAbortCatcher("File preview size processing failed"));
+              })().catch(createPreviewAbortCatcher("File preview size processing failed"));
 
               const actualPlaceholderPromise = (async () => {
                   const placeholder = await placeholderPromise;
                   if (abortSignal.aborted) throw abortSignal.reason;
+                  if (hasAcceptedPreviewError) return;
 
                   await fileUploader.finishProcessingPreviewPlaceholder(context, placeholder);
 
@@ -400,12 +458,13 @@ async function uploadAndProcessFile(
                       type: "PreviewPlaceholder",
                       placeholder,
                   });
-              })().catch(createAbortCatcher("File preview placeholder processing failed"));
+              })().catch(createPreviewAbortCatcher("File preview placeholder processing failed"));
 
               const actualImagePromise = imagePromise
                   ? (async () => {
                         const image = await imagePromise;
                         if (abortSignal.aborted) throw abortSignal.reason;
+                        if (hasAcceptedPreviewError) return;
 
                         // NOTE: We don't `Promise.race()` `PutObject()` with
                         // `waitForAbort(abortSignal)` since we need to wait for the `PutObject()` to
@@ -426,6 +485,7 @@ async function uploadAndProcessFile(
                         );
 
                         if (abortSignal.aborted) throw abortSignal.reason;
+                        if (hasAcceptedPreviewError) return;
 
                         await fileUploader.finishProcessingPreviewImage(context, {
                             contentType: image.contentType,
@@ -437,7 +497,7 @@ async function uploadAndProcessFile(
                             contentType: image.contentType,
                             contentLength: image.data.length,
                         });
-                    })().catch(createAbortCatcher("File preview image processing failed"))
+                    })().catch(createPreviewAbortCatcher("File preview image processing failed"))
                   : null;
 
               await runAllPromises([
@@ -455,17 +515,25 @@ async function uploadAndProcessFile(
                             return actualImagePromise;
                         })
                       : null,
-              ]);
+              ]).catch(error => {
+                  // If we caught the processing error, then don't fail our entire upload job. We
+                  // finished processing but stored an error in the database.
+                  if (hasAcceptedPreviewError) return;
+
+                  throw error;
+              });
           })
         : null;
 
     await runAllPromises([uploadPromise, processPromise]).catch(async error => {
-        await fileUploader.cleanupAfterError(context);
+        await fileUploader.cleanupAfterUnacceptableError(context);
         throw error;
     });
 
     sendEvent({type: "Finish"});
 }
+
+const sharpTimeoutSeconds = 20;
 
 /**
  * File processor object.
@@ -486,6 +554,13 @@ async function uploadAndProcessFile(
  * If you're using `stream`, make sure to cancel your stream processing if the
  * upload is aborted. Since `stream` may not end after an abort. You can find
  * out if the upload is aborted with `abortSignal`.
+ *
+ * If `acceptError` is provided and you return true for an error we won't
+ * cancel the file upload when processing throws but instead save the provided
+ * error's `displayMessage` in the database. Then when the user tries to
+ * view the preview we'll show them the error message. So the upload will be
+ * successful but the user won't be able to preview the file. `acceptError`
+ * will only be called for errors with a `displayMessage`.
  *
  * Unfortunately, `sharp` (which we use for processing many of our files) does
  * not support efficient stream processing despite having a stream API. `sharp`
@@ -516,10 +591,14 @@ type FileProcessor =
               dataPromise: Promise<Buffer>,
               abortSignal: AbortSignal,
           ) => {
-              sizePromise: Promise<{width: number; height: number}>;
+              sizePromise: Promise<{width: number; height: number; scale: number}>;
               placeholderPromise: Promise<FilePreviewPlaceholder>;
               imagePromise?: undefined;
           };
+          readonly acceptError?: (
+              error: ErrorBase,
+              displayMessage: ErrorDisplayMessage,
+          ) => boolean | undefined;
       }
     | {
           readonly hasPreview: true;
@@ -529,15 +608,22 @@ type FileProcessor =
               dataPromise: Promise<Buffer>,
               abortSignal: AbortSignal,
           ) => {
-              sizePromise: Promise<{width: number; height: number}>;
+              sizePromise: Promise<{width: number; height: number; scale: number}>;
               placeholderPromise: Promise<FilePreviewPlaceholder>;
               imagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
           };
+          readonly acceptError?: (
+              error: ErrorBase,
+              displayMessage: ErrorDisplayMessage,
+          ) => boolean | undefined;
       };
+
+const noFileProcessor: FileProcessor = {hasPreview: false, hasPreviewImage: false};
 
 const fileProcessorByContentType: {
     [Key in FileContentType]: FileProcessor;
 } = {
+    "application/octet-stream": noFileProcessor,
     "image/apng": createWebSafeImageFileProcessor("image/apng"),
     "image/avif": createWebSafeImageFileProcessor("image/avif"),
     "image/gif": createWebSafeImageFileProcessor("image/gif"),
@@ -550,6 +636,7 @@ const fileProcessorByContentType: {
     "image/tiff": createWebUnsafeImageFileProcessor("image/tiff"),
     "image/heif": createWebUnsafeImageFileProcessor("image/heif"),
     "image/heic": createWebUnsafeImageFileProcessor("image/heic"),
+    "application/pdf": createPdfDocumentFileProcessor(),
 };
 
 async function processFilePreviewPlaceholder(
@@ -563,6 +650,7 @@ async function processFilePreviewPlaceholder(
         data: outputData,
         info: {channels, width},
     } = await sharp(input, {...options, pages: 1})
+        .timeout({seconds: sharpTimeoutSeconds})
         .resize(placeholderSize, placeholderSize, {fit: "inside"})
         .toFormat("png")
         .modulate({brightness: 1, saturation: 1.2})
@@ -586,6 +674,7 @@ function processImageFile(
         const data = await dataPromise;
 
         const metadata = await sharp(data, {pages: 1})
+            .timeout({seconds: sharpTimeoutSeconds})
             .metadata()
             .catch(rethrowClassifiedSharpError);
 
@@ -661,7 +750,7 @@ function processImageFile(
         return {
             width: metadata.width,
             height: metadata.height,
-            hasAlphaChannel: !!metadata.hasAlpha,
+            scale: 1,
         };
     })();
 
@@ -705,29 +794,31 @@ function createWebUnsafeImageFileProcessor(
                 contentType: FileContentType;
                 data: Buffer;
             }> => {
-                const [{hasAlphaChannel}, inputData] = await runAllPromises([
-                    sizePromise,
-                    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-                    // more efficient to await `dataPromise` than to use `stream`. See our comment
-                    // on `FileProcessor`.
-                    dataPromise,
-                ]);
-
-                // Use `image/jpeg` if the image type doesn't have transparency since JPEG
-                // has better compression. Otherwise use `image/png`.
-                //
-                // https://www.adobe.com/creativecloud/file-types/image/comparison/jpeg-vs-png.html
-                const outputContentType: FileContentType = hasAlphaChannel
-                    ? "image/png"
-                    : "image/jpeg";
-                const outputFormat: keyof sharp.FormatEnum = hasAlphaChannel ? "png" : "jpeg";
+                // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+                // more efficient to await `dataPromise` than to use `stream`. See our comment
+                // on `FileProcessor`.
+                const inputData = await dataPromise;
 
                 const outputData = await sharp(inputData, {pages: 1})
-                    .toFormat(outputFormat, outputFormat === "jpeg" ? {quality: 100} : {})
+                    .timeout({seconds: sharpTimeoutSeconds})
+                    // AVIF is our preferred format for generating preview images. AVIF has full
+                    // browser support, provides better compression than JPEG and WebP, and has
+                    // alpha channel support (unlike JPEG).
+                    //
+                    // Some sources:
+                    //
+                    // - https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                    // - https://jakearchibald.com/2020/avif-has-landed
+                    //
+                    // Quality 90 since we don't want to remove detail from the source file in our
+                    // preview (which may already be compressed) but we also want some compression
+                    // since the extra storage cost of the preview file is on us. We could probably
+                    // get away with lower quality without a perceptible difference.
+                    .toFormat("avif", {quality: 90})
                     .toBuffer()
                     .catch(rethrowClassifiedSharpError);
 
-                return {contentType: outputContentType, data: outputData};
+                return {contentType: "image/avif", data: outputData};
             })();
 
             return {sizePromise, placeholderPromise, imagePromise};
@@ -759,6 +850,7 @@ function createIcoImageFileProcessor(): FileProcessor {
                 const sizePromise = Promise.resolve({
                     width: bestImage.width,
                     height: bestImage.height,
+                    scale: 1,
                 });
 
                 let placeholderPromise: Promise<FilePreviewPlaceholder>;
@@ -790,6 +882,7 @@ function createIcoImageFileProcessor(): FileProcessor {
                                     channels: 4,
                                 },
                             })
+                                .timeout({seconds: sharpTimeoutSeconds})
                                 .toFormat("png")
                                 .toBuffer()
                                 .catch(rethrowClassifiedSharpError);
@@ -814,13 +907,109 @@ function createIcoImageFileProcessor(): FileProcessor {
     };
 }
 
+function createPdfDocumentFileProcessor(): FileProcessor {
+    return {
+        hasPreview: true,
+        hasPreviewImage: true,
+        process: (stream, dataPromise) => {
+            const sizePromise = (async () => {
+                // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+                // more efficient to await `dataPromise` than to use `stream`. See our comment
+                // on `FileProcessor`.
+                const data = await dataPromise;
+
+                const metadata = await sharp(data, {pages: 1})
+                    .timeout({seconds: sharpTimeoutSeconds})
+                    .metadata()
+                    .catch(rethrowClassifiedSharpError);
+
+                const expectedFormat = "pdf";
+                if (metadata.format !== expectedFormat) {
+                    throw new InvalidArgumentError(
+                        quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
+                    );
+                }
+
+                if (metadata.width === undefined || metadata.height === undefined) {
+                    throw new InternalError('Couldn\'t find "width" or "height" of image file');
+                }
+
+                // We produce a JPEG preview image that's 2x bigger than the source PDF. This
+                // is so when viewing the preview image on a retina display with a scale factor
+                // of 2 it looks the same as if we directly rendered the document. Zooming in
+                // on the preview image won't look good since fundamentally we're taking a
+                // vector format (PDF) and converting it to a raster format (JPEG).
+                const scale = 2;
+
+                return {
+                    width: metadata.width * scale,
+                    height: metadata.height * scale,
+                    scale,
+                };
+            })();
+
+            return {
+                sizePromise,
+                placeholderPromise: (async () => {
+                    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+                    // more efficient to await `dataPromise` than to use `stream`. See our comment
+                    // on `FileProcessor`.
+                    const data = await dataPromise;
+                    return processFilePreviewPlaceholder(data);
+                })(),
+                imagePromise: (async () => {
+                    const [{width, height}, inputData] = await runAllPromises([
+                        sizePromise,
+                        // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+                        // more efficient to await `dataPromise` than to use `stream`. See our comment
+                        // on `FileProcessor`.
+                        dataPromise,
+                    ]);
+
+                    const outputData = await sharp(inputData, {pages: 1})
+                        .timeout({seconds: sharpTimeoutSeconds})
+                        // AVIF is our preferred format for generating preview images. AVIF has full
+                        // browser support, provides better compression than JPEG and WebP, and has
+                        // alpha channel support (unlike JPEG).
+                        //
+                        // Some sources:
+                        //
+                        // - https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                        // - https://jakearchibald.com/2020/avif-has-landed
+                        //
+                        // Quality 90 since we don't want to remove detail from the source file in our
+                        // preview (which may already be compressed) but we also want some compression
+                        // since the extra storage cost of the preview file is on us. We could probably
+                        // get away with lower quality without a perceptible difference.
+                        .toFormat("avif", {quality: 90})
+                        .resize(width, height)
+                        .toBuffer()
+                        .catch(rethrowClassifiedSharpError);
+
+                    return {contentType: "image/avif", data: outputData};
+                })(),
+            };
+        },
+        acceptError: error => error.displayMessage === pdfPasswordRequiredErrorDisplayMessage,
+    };
+}
+
 function rethrowClassifiedSharpError(error: unknown): never {
     throw classifySharpError(error);
 }
 
+const pdfPasswordRequiredErrorDisplayMessage = errorDisplayMessage`A password is required to read this file. Try opening the file in a PDF reader that supports password protected files.`;
+
 function classifySharpError(error: unknown): ErrorBase {
-    if (!isObject(error) || typeof error.message !== "string")
-        return new UnknownError(formatSharpErrorMessage(String(error)));
+    if (!isObject(error) || typeof error.message !== "string") {
+        return classifySharpError({message: String(error)});
+    }
+
+    // If our timeout was exceeded while processing the file. See:
+    // https://sharp.pixelplumbing.com/api-output#timeout
+    if (error.message.includes("timeout")) {
+        return new DeadlineExceededError(formatSharpErrorMessage(error.message));
+    }
 
     // Kinda hacky, but treat any error from `sharp` that refers to an "input" or
     // an "image" as a user error not a system error.
@@ -828,7 +1017,13 @@ function classifySharpError(error: unknown): ErrorBase {
     // e.g. This error:
     // https://github.com/lovell/sharp/blob/fc32e0bd3f9111b80cf078df7b0cfc355695674e/src/common.cc#L413
     if (/(input|image)/i.test(error.message)) {
-        return new InvalidArgumentError(formatSharpErrorMessage(error.message));
+        if (error.message.includes("pdf") && error.message.includes("password required")) {
+            return new PermissionDeniedError(formatSharpErrorMessage(error.message), {
+                displayMessage: pdfPasswordRequiredErrorDisplayMessage,
+            });
+        } else {
+            return new InvalidArgumentError(formatSharpErrorMessage(error.message));
+        }
     }
 
     // Unclassified `sharp` error. We've observed that errors from `sharp` often

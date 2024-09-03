@@ -568,12 +568,12 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      */
     public static booleanUnion<
         const TypeKey extends string,
-        TrueSchema extends ObjectSchema<any> & {
+        TrueSchema extends Schema<any> & {
             // We need to put our `key` type constraint on `deserialize` instead of the
             // type parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => Record<TypeKey, true>;
         },
-        FalseSchema extends ObjectSchema<any> & {
+        FalseSchema extends Schema<any> & {
             // We need to put our `key` type constraint on `deserialize` instead of the
             // type parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => Record<TypeKey, false>;
@@ -642,12 +642,12 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * The first schema is for `ok: true` and the second schema is for `ok: false`.
      */
     public static result<
-        OkSchema extends ObjectSchema<any> & {
+        OkSchema extends Schema<any> & {
             // We need to put our `ok` type constraint on `deserialize` instead of the
             // type parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => {ok: true};
         },
-        ErrorSchema extends ObjectSchema<any> & {
+        ErrorSchema extends Schema<any> & {
             // We need to put our `ok` type constraint on `deserialize` instead of the
             // type parameter so the object type can be covariant instead of invariant.
             deserialize: (value: SchemaSerializedValue) => {ok: false};

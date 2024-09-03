@@ -1,3 +1,5 @@
+import {getErrorCodes} from "~/shared/error/error_code.js";
+import {ErrorDisplayMessageSchema} from "~/shared/error/error_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -32,6 +34,12 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  *   since dimensions don't make sense for files which don't have a preview
  *   image (e.g. audio files or raw bytes).
  *
+ *   If our preview image is a scaled version of the original file, we'll include
+ *   a `scale` property to record how much the source file was scaled. For
+ *   example, PDF preview images are scaled up from the original PDF's dimensions
+ *   to preserve detail in a rasterized image format. If the preview image doesn't
+ *   really correspond with the source file's dimensions this value will be 1.
+ *
  * - `placeholder`: Before the preview image loads, we immediately show a
  *   blurred placeholder representing the preview image. The placeholder is
  *   <700 bytes so it's cheap to send over the network.
@@ -52,6 +60,15 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  *   `image.contentType` is the type of the preview image in Cloudflare R2 and
  *   `image.contentLength` is the size of the preview image in bytes in
  *   Cloudflare R2.
+ *
+ * - `error`: If there was an acceptable error while processing the file then
+ *   we finished uploading the file to Cloudflare R2 but we weren't able to
+ *   generate a preview. So instead there's an error with a human readable
+ *   `displayMessage` in this object.
+ *
+ *   An example of when you'll get an error here is if you upload a password
+ *   protected PDF file. The PDF file successfully uploads but we can't show a
+ *   preview because the file is encrypted.
  */
 export type FilePreview = SchemaType<typeof FilePreviewSchema>;
 
@@ -63,6 +80,7 @@ export const FilePreviewSchema = Schema.booleanUnion(
             Schema.object({
                 width: Schema.integer,
                 height: Schema.integer,
+                scale: Schema.integer.default(1),
             }),
         ),
         placeholder: processingSchema(FilePreviewPlaceholder.schema),
@@ -73,18 +91,33 @@ export const FilePreviewSchema = Schema.booleanUnion(
             }),
         ).optional(),
     }),
-    Schema.object({
-        isProcessing: Schema.value(false),
-        size: Schema.object({
-            width: Schema.integer,
-            height: Schema.integer,
+    Schema.result(
+        Schema.object({
+            isProcessing: Schema.value(false),
+            ok: Schema.value(true),
+            size: Schema.object({
+                width: Schema.integer,
+                height: Schema.integer,
+                scale: Schema.integer.default(1),
+            }),
+            placeholder: FilePreviewPlaceholder.schema,
+            image: Schema.object({
+                contentType: FileContentTypeSchema,
+                contentLength: Schema.integer,
+            }).optional(),
         }),
-        placeholder: FilePreviewPlaceholder.schema,
-        image: Schema.object({
-            contentType: FileContentTypeSchema,
-            contentLength: Schema.integer,
-        }).optional(),
-    }),
+        Schema.object({
+            isProcessing: Schema.value(false),
+            ok: Schema.value(false),
+            // Not a full `ErrorSchema` since we store this in the database. Storing
+            // properties like the stack trace, `original` trace, and `cause` don't
+            // make sense for a persisted error.
+            error: Schema.object({
+                code: Schema.enum(getErrorCodes()),
+                displayMessage: ErrorDisplayMessageSchema,
+            }),
+        }),
+    ),
 );
 
 /**

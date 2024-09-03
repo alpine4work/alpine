@@ -141,17 +141,23 @@ export enum ErrorCode {
     Unauthenticated = 16,
 }
 
-let errorCodes: Set<number>;
+let errorCodes: Set<ErrorCode>;
+
+/**
+ * Get all `ErrorCode`s.
+ */
+export function getErrorCodes(): ReadonlySet<ErrorCode> {
+    errorCodes ??= new Set<number>(
+        Object.values(ErrorCode).filter((code): code is number => typeof code === "number"),
+    );
+    return errorCodes;
+}
 
 /**
  * Is the provided number an `ErrorCode`?
  */
 export function isErrorCode(code: number): code is ErrorCode {
-    if (!errorCodes)
-        errorCodes = new Set<number>(
-            Object.values(ErrorCode).filter((code): code is number => typeof code === "number"),
-        );
-    return errorCodes.has(code);
+    return getErrorCodes().has(code);
 }
 
 /**

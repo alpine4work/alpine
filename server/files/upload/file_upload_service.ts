@@ -20,6 +20,9 @@ import {obfuscateSetCookieHeaderString} from "~/shared/tracer/fetch_with_tracer.
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+// TODO(calebmer, #files): We'll need to make sure the AWS EC2 instance has a
+// bunch of popular fonts installed for SVG and PDF documents.
+
 export type FileUploadServiceRoute =
     | {readonly type: "NotFound"}
     | {readonly type: "Upload"; readonly spaceId: SpaceId};

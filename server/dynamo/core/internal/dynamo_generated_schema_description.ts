@@ -2977,6 +2977,7 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Enum",
                                             "values": [
+                                                "application/octet-stream",
                                                 "image/apng",
                                                 "image/avif",
                                                 "image/gif",
@@ -2988,7 +2989,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "image/ico",
                                                 "image/tiff",
                                                 "image/heif",
-                                                "image/heic"
+                                                "image/heic",
+                                                "application/pdf"
                                             ],
                                             "referenceId": "af264040"
                                         },
@@ -3045,6 +3047,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "type": "Integer"
                                                                             },
                                                                             "optional": false
+                                                                        },
+                                                                        "scale": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": true
                                                                         }
                                                                     }
                                                                 }
@@ -3099,62 +3107,202 @@ export const dynamoGeneratedSchemaDescription: {
                                                     }
                                                 },
                                                 "falseSchema": {
-                                                    "type": "Object",
-                                                    "propertySchemaByKey": {
-                                                        "isProcessing": {
-                                                            "valueSchema": {
-                                                                "type": "Value",
-                                                                "value": false
+                                                    "type": "BooleanUnion",
+                                                    "typeKey": "ok",
+                                                    "trueSchema": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "isProcessing": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": false
+                                                                },
+                                                                "optional": false
                                                             },
-                                                            "optional": false
-                                                        },
-                                                        "size": {
-                                                            "valueSchema": {
-                                                                "type": "Object",
-                                                                "propertySchemaByKey": {
-                                                                    "width": {
-                                                                        "valueSchema": {
-                                                                            "type": "Integer"
+                                                            "ok": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": true
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "size": {
+                                                                "valueSchema": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "width": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
                                                                         },
-                                                                        "optional": false
-                                                                    },
-                                                                    "height": {
-                                                                        "valueSchema": {
-                                                                            "type": "Integer"
+                                                                        "height": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
                                                                         },
-                                                                        "optional": false
+                                                                        "scale": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": true
+                                                                        }
                                                                     }
-                                                                }
+                                                                },
+                                                                "optional": false
                                                             },
-                                                            "optional": false
-                                                        },
-                                                        "placeholder": {
-                                                            "valueSchema": {
-                                                                "type": "Reference",
-                                                                "reuseReferenceId": "381ba747"
+                                                            "placeholder": {
+                                                                "valueSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "381ba747"
+                                                                },
+                                                                "optional": false
                                                             },
-                                                            "optional": false
-                                                        },
-                                                        "image": {
-                                                            "valueSchema": {
-                                                                "type": "Object",
-                                                                "propertySchemaByKey": {
-                                                                    "contentType": {
-                                                                        "valueSchema": {
-                                                                            "type": "Reference",
-                                                                            "reuseReferenceId": "af264040"
+                                                            "image": {
+                                                                "valueSchema": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "contentType": {
+                                                                            "valueSchema": {
+                                                                                "type": "Reference",
+                                                                                "reuseReferenceId": "af264040"
+                                                                            },
+                                                                            "optional": false
                                                                         },
-                                                                        "optional": false
-                                                                    },
-                                                                    "contentLength": {
-                                                                        "valueSchema": {
-                                                                            "type": "Integer"
-                                                                        },
-                                                                        "optional": false
+                                                                        "contentLength": {
+                                                                            "valueSchema": {
+                                                                                "type": "Integer"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
                                                                     }
-                                                                }
+                                                                },
+                                                                "optional": true
+                                                            }
+                                                        }
+                                                    },
+                                                    "falseSchema": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "isProcessing": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": false
+                                                                },
+                                                                "optional": false
                                                             },
-                                                            "optional": true
+                                                            "ok": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": false
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "error": {
+                                                                "valueSchema": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "code": {
+                                                                            "valueSchema": {
+                                                                                "type": "Enum",
+                                                                                "values": [
+                                                                                    1,
+                                                                                    2,
+                                                                                    3,
+                                                                                    4,
+                                                                                    5,
+                                                                                    6,
+                                                                                    7,
+                                                                                    8,
+                                                                                    9,
+                                                                                    10,
+                                                                                    11,
+                                                                                    12,
+                                                                                    13,
+                                                                                    14,
+                                                                                    15,
+                                                                                    16
+                                                                                ]
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "displayMessage": {
+                                                                            "valueSchema": {
+                                                                                "type": "Array",
+                                                                                "itemSchema": {
+                                                                                    "type": "Union",
+                                                                                    "typeKey": "type",
+                                                                                    "variantSchemaByTypeValue": {
+                                                                                        "Text": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "type": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Value",
+                                                                                                        "value": "Text"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                },
+                                                                                                "text": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "String"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "SensitiveText": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "type": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Value",
+                                                                                                        "value": "SensitiveText"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                },
+                                                                                                "text": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "String"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "Link": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "type": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Value",
+                                                                                                        "value": "Link"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                },
+                                                                                                "text": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "String"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                },
+                                                                                                "url": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "String"
+                                                                                                    },
+                                                                                                    "optional": false
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
                                                         }
                                                     }
                                                 }

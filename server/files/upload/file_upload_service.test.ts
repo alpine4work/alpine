@@ -347,7 +347,8 @@ chunk\r\n\
             isUploading: false,
             preview: {
                 isProcessing: false,
-                size: {width: 500, height: 375},
+                ok: true,
+                size: {width: 500, height: 375, scale: 1},
                 placeholder: expect.any(FilePreviewPlaceholder),
             },
         }),
@@ -645,7 +646,8 @@ chunk\r\n\
             isUploading: false,
             preview: {
                 isProcessing: false,
-                size: {width: 500, height: 375},
+                ok: true,
+                size: {width: 500, height: 375, scale: 1},
                 placeholder: expect.any(FilePreviewPlaceholder),
             },
         }),
@@ -780,7 +782,8 @@ test("can upload image", async () => {
             isUploading: false,
             preview: {
                 isProcessing: false,
-                size: {width: 500, height: 375},
+                ok: true,
+                size: {width: 500, height: 375, scale: 1},
                 placeholder: expect.any(FilePreviewPlaceholder),
             },
         }),
