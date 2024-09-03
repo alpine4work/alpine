@@ -1,3 +1,4 @@
+import decodeIco from "decode-ico";
 import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
@@ -545,12 +546,39 @@ const fileProcessorByContentType: {
     "image/svg+xml": createWebSafeImageFileProcessor("image/svg+xml"),
     "image/webp": createWebSafeImageFileProcessor("image/webp"),
     "image/bmp": createWebUnsafeImageFileProcessor("image/bmp"),
+    "image/ico": createIcoImageFileProcessor(),
     "image/tiff": createWebUnsafeImageFileProcessor("image/tiff"),
     "image/heif": createWebUnsafeImageFileProcessor("image/heif"),
     "image/heic": createWebUnsafeImageFileProcessor("image/heic"),
 };
 
-function processImageFile(contentType: ImageFileContentType, dataPromise: Promise<Buffer>) {
+async function processFilePreviewPlaceholder(
+    input: Buffer | ArrayBuffer | Uint8Array,
+    options?: sharp.SharpOptions,
+): Promise<FilePreviewPlaceholder> {
+    // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
+    const placeholderSize = 5;
+
+    const {
+        data: outputData,
+        info: {channels, width},
+    } = await sharp(input, {...options, pages: 1})
+        .resize(placeholderSize, placeholderSize, {fit: "inside"})
+        .toFormat("png")
+        .modulate({brightness: 1, saturation: 1.2})
+        .raw()
+        .toBuffer({resolveWithObject: true})
+        .catch(rethrowClassifiedSharpError);
+
+    assert(channels === 3 || channels === 4);
+
+    return FilePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
+}
+
+function processImageFile(
+    contentType: Exclude<ImageFileContentType, "image/ico">,
+    dataPromise: Promise<Buffer>,
+) {
     const sizePromise = (async () => {
         // Unfortunately, `sharp` doesn't support efficient stream processing so it's
         // more efficient to await `dataPromise` than to use `stream`. See our comment
@@ -633,7 +661,7 @@ function processImageFile(contentType: ImageFileContentType, dataPromise: Promis
         return {
             width: metadata.width,
             height: metadata.height,
-            hasAlpha: !!metadata.hasAlpha,
+            hasAlphaChannel: !!metadata.hasAlpha,
         };
     })();
 
@@ -650,23 +678,7 @@ function processImageFile(contentType: ImageFileContentType, dataPromise: Promis
         // on `FileProcessor`.
         const inputData = await dataPromise;
 
-        // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
-        const placeholderSize = 5;
-
-        const {
-            data: outputData,
-            info: {channels, width},
-        } = await sharp(inputData, {pages: 1})
-            .resize(placeholderSize, placeholderSize, {fit: "inside"})
-            .toFormat("png")
-            .modulate({brightness: 1, saturation: 1.2})
-            .raw()
-            .toBuffer({resolveWithObject: true})
-            .catch(rethrowClassifiedSharpError);
-
-        assert(channels === 3 || channels === 4);
-
-        return FilePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
+        return processFilePreviewPlaceholder(inputData);
     })();
 
     return {sizePromise, placeholderPromise};
@@ -681,7 +693,7 @@ function createWebSafeImageFileProcessor(contentType: WebSafeImageFileContentTyp
 }
 
 function createWebUnsafeImageFileProcessor(
-    contentType: WebUnsafeImageFileContentType,
+    contentType: Exclude<WebUnsafeImageFileContentType, "image/ico">,
 ): FileProcessor {
     return {
         hasPreview: true,
@@ -689,8 +701,11 @@ function createWebUnsafeImageFileProcessor(
         process: (stream, dataPromise) => {
             const {sizePromise, placeholderPromise} = processImageFile(contentType, dataPromise);
 
-            const imagePromise = (async () => {
-                const [{hasAlpha}, inputData] = await runAllPromises([
+            const imagePromise = (async (): Promise<{
+                contentType: FileContentType;
+                data: Buffer;
+            }> => {
+                const [{hasAlphaChannel}, inputData] = await runAllPromises([
                     sizePromise,
                     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
                     // more efficient to await `dataPromise` than to use `stream`. See our comment
@@ -702,8 +717,10 @@ function createWebUnsafeImageFileProcessor(
                 // has better compression. Otherwise use `image/png`.
                 //
                 // https://www.adobe.com/creativecloud/file-types/image/comparison/jpeg-vs-png.html
-                const outputContentType: FileContentType = hasAlpha ? "image/png" : "image/jpeg";
-                const outputFormat: keyof sharp.FormatEnum = hasAlpha ? "png" : "jpeg";
+                const outputContentType: FileContentType = hasAlphaChannel
+                    ? "image/png"
+                    : "image/jpeg";
+                const outputFormat: keyof sharp.FormatEnum = hasAlphaChannel ? "png" : "jpeg";
 
                 const outputData = await sharp(inputData, {pages: 1})
                     .toFormat(outputFormat, outputFormat === "jpeg" ? {quality: 100} : {})
@@ -714,6 +731,85 @@ function createWebUnsafeImageFileProcessor(
             })();
 
             return {sizePromise, placeholderPromise, imagePromise};
+        },
+    };
+}
+
+/**
+ * Special handling for `image/ico` files that selects the largest image from the
+ * `.ico` container format and creates a preview from that.
+ */
+function createIcoImageFileProcessor(): FileProcessor {
+    return {
+        hasPreview: true,
+        hasPreviewImage: true,
+        process: (stream, dataPromise) => {
+            const promise = (async () => {
+                const data = await dataPromise;
+
+                const bestImage = decodeIco(data).sort(
+                    (image1, image2) => image2.width * image2.height - image1.width * image1.height,
+                )[0];
+                if (!bestImage) {
+                    throw new InvalidArgumentError('No images in ".ico" file');
+                }
+
+                const bestImageData = Buffer.from(bestImage.data);
+
+                const sizePromise = Promise.resolve({
+                    width: bestImage.width,
+                    height: bestImage.height,
+                });
+
+                let placeholderPromise: Promise<FilePreviewPlaceholder>;
+                let imagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
+                switch (bestImage.type) {
+                    case "png": {
+                        placeholderPromise = processFilePreviewPlaceholder(bestImageData);
+
+                        imagePromise = Promise.resolve({
+                            contentType: "image/png",
+                            data: bestImageData,
+                        });
+                        break;
+                    }
+                    case "bmp": {
+                        placeholderPromise = processFilePreviewPlaceholder(bestImageData, {
+                            raw: {
+                                width: bestImage.width,
+                                height: bestImage.height,
+                                channels: 4,
+                            },
+                        });
+
+                        imagePromise = (async () => {
+                            const data = await sharp(bestImage.data, {
+                                raw: {
+                                    width: bestImage.width,
+                                    height: bestImage.height,
+                                    channels: 4,
+                                },
+                            })
+                                .toFormat("png")
+                                .toBuffer()
+                                .catch(rethrowClassifiedSharpError);
+
+                            return {contentType: "image/png", data};
+                        })();
+                        break;
+                    }
+                    default:
+                        throw exhaustive(bestImage);
+                }
+
+                return {sizePromise, placeholderPromise, imagePromise};
+            })();
+
+            return {
+                sizePromise: promise.then(({sizePromise}) => sizePromise),
+                placeholderPromise: promise.then(({placeholderPromise}) => placeholderPromise),
+                imagePromise: promise.then(({imagePromise}) => imagePromise),
+            };
         },
     };
 }

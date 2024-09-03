@@ -2985,6 +2985,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "image/svg+xml",
                                                 "image/webp",
                                                 "image/bmp",
+                                                "image/ico",
                                                 "image/tiff",
                                                 "image/heif",
                                                 "image/heic"

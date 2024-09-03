@@ -1,5 +1,6 @@
 import {R2Bucket} from "@miniflare/r2";
 import {FileStorage} from "@miniflare/storage-file";
+import decodeIco from "decode-ico";
 import fs from "fs/promises";
 import getPort from "get-port";
 import {Server} from "http";
@@ -164,6 +165,16 @@ const testCases: {
                 "VVVVA2hWeVd3YrucAAAAAAAAAAAAAAAAaFz/DVZY/70AAAAAAAAAAAAAAAAAAAAALSxEowAAAAAAAAAAAAAAAAAAAABEO0+JAAAAAAAAAAA=",
             ]),
         },
+        {
+            path: "alpine_favicon_old.svg",
+            contentLength: 594,
+            size: {width: 74, height: 74},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "AAAAAAAAAAAMDAwpAAAAAAAAAAAAAAAACwsLQwsLDtAAAAADAAAAAAAAAAELCwy0CgoNZAoKDq0AAAABCQkNUAsLDocTExMNCgoNeAkJDVAKCg5hCwsOiAkJDWcREREPCgoOYQ==",
+            ]),
+        },
     ],
     "image/webp": [
         {
@@ -193,6 +204,53 @@ const testCases: {
                 // We shrink the `.bmp` file since it's quite large so we have a special
                 // `.bmp.jpeg` file to compare for similarity.
                 similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.bmp.jpeg",
+            },
+        },
+    ],
+    "image/ico": [
+        {
+            path: "alpine_favicon_old.ico",
+            contentLength: 15086,
+            size: {width: 48, height: 48},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "AAAAAAAAFQwLCwsrAAAAAAAAAAIAAAAACQkMUgoKDdMAAAAGAAAAAAAAAAkLCw2XCgoOfQoKDaoAAAADDAwOagsLDqwAAAAACgoOjAsLDm0LCwttCwsNlwwMD1QJCQkbDAwMag==",
+            ]),
+            image: {
+                contentType: "image/png",
+                contentLength: 843,
+                similarPath: "alpine_favicon_old.png",
+            },
+        },
+        {
+            path: "stackoverflow_favicon.ico",
+            contentLength: 5430,
+            size: {width: 32, height: 32},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "AAAAAAAAAAD/iwAL9nsIHQAAAAAAAAABAAAAAP96AEn/dQCP/n8JHAAAAAD/egAb/3gAkP91AI3/fwAOf6/vEM2OYWb/cgB72otPanGq4huZqrsPo6CgZ6udlFmiop9gn5+qGA==",
+            ]),
+            image: {
+                contentType: "image/png",
+                contentLength: 632,
+                similarPath: "stackoverflow_favicon.png",
+            },
+        },
+        {
+            path: "stackoverflow_favicon.png.ico",
+            contentLength: 1264,
+            size: {width: 32, height: 32},
+            placeholder: FilePreviewPlaceholder.schema.deserialize([
+                true,
+                5,
+                "AAAAAAAAAAD/iwAL/3cIHgAAAAAAAAAAAAAAAP93AE3/eACO9X8JHAAAAAD+fwAc/3UAhP9zAIf/eAARX6//EMqRZGv/eACb1YlRekTM/w+WpaURoaGhWqWenkecoqVTnZ2dFQ==",
+            ]),
+            image: {
+                contentType: "image/png",
+                contentLength: 819,
+                similarPath: "stackoverflow_favicon.png",
             },
         },
     ],
@@ -383,7 +441,7 @@ test("can process pdf files", async () => {
     expect(metadata.format).toEqual("pdf");
 });
 
-test("looks same tester works", async () => {
+test("`looks-same` dependency works", async () => {
     const {equal} = await looksSame(
         ...(await runAllPromises([
             fs.readFile(
@@ -406,6 +464,57 @@ test("looks same tester works", async () => {
             "The two images we provided look the same when we expected them to not look the same",
         );
     }
+});
+
+test("`decode-ico` dependency can parse ico files with png and with bmp", async () => {
+    const result1 = decodeIco(
+        await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/stackoverflow_favicon.ico",
+            ),
+        ),
+    );
+
+    expect(
+        result1.map(image => ({type: image.type, width: image.width, height: image.height})),
+    ).toEqual([
+        {type: "bmp", width: 16, height: 16},
+        {type: "bmp", width: 32, height: 32},
+    ]);
+
+    const result2 = decodeIco(
+        await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/stackoverflow_favicon.png.ico",
+            ),
+        ),
+    );
+
+    expect(
+        result2.map(image => ({type: image.type, width: image.width, height: image.height})),
+    ).toEqual([
+        {type: "png", width: 16, height: 16},
+        {type: "png", width: 32, height: 32},
+    ]);
+
+    const result3 = decodeIco(
+        await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/alpine_favicon_old.ico",
+            ),
+        ),
+    );
+
+    expect(
+        result3.map(image => ({type: image.type, width: image.width, height: image.height})),
+    ).toEqual([
+        {type: "bmp", width: 48, height: 48},
+        {type: "bmp", width: 32, height: 32},
+        {type: "bmp", width: 16, height: 16},
+    ]);
 });
 
 for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
@@ -550,20 +659,20 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                             -extname(path).length,
                         )}`,
                     );
-                    const extension = extname(path);
+                    const extension = extname(expectedImage.similarPath);
 
                     await fs.mkdir(testlogsPath, {recursive: true});
 
                     await runAllPromises([
                         fs.writeFile(
-                            joinPath(testlogsPath, `${name}.input.actual.${extension}`),
+                            joinPath(testlogsPath, `${name}.input.actual${extension}`),
                             actualImageContents,
                         ),
                         fs.writeFile(
-                            joinPath(testlogsPath, `${name}.input.expected.${extension}`),
+                            joinPath(testlogsPath, `${name}.input.expected${extension}`),
                             expectedImageContents,
                         ),
-                        result.diffImage?.save(joinPath(testlogsPath, `${name}.diff.${extension}`)),
+                        result.diffImage?.save(joinPath(testlogsPath, `${name}.diff${extension}`)),
                     ]);
 
                     throw new InternalError(

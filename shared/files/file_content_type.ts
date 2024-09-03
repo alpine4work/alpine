@@ -43,7 +43,7 @@ export type WebSafeImageFileContentType =
  */
 export type WebUnsafeImageFileContentType =
     | "image/bmp"
-    // TODO(calebmer, #files): Add this: | "image/ico"
+    | "image/ico"
     | "image/tiff"
     | "image/heif"
     | "image/heic";
@@ -59,6 +59,7 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "image/svg+xml": "svg",
     "image/webp": "webp",
     "image/bmp": "bmp",
+    "image/ico": "ico",
     "image/tiff": "tiff",
     "image/heif": "heif",
     "image/heic": "heic",
