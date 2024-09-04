@@ -1,8 +1,11 @@
 import decodeIco from "decode-ico";
+import fsSync from "fs";
+import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";
+import {join as joinPath} from "path";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
-import {Readable as ReadableStream} from "stream";
+import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
     FileUploader,
@@ -13,6 +16,9 @@ import {
     FileUploadServiceActionContext,
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
+import {runProcess} from "~/server/helpers/node/run_process.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {
     CancelledError,
@@ -31,20 +37,26 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {
     FileContentType,
     FileContentTypeSchema,
-    ImageFileContentType,
-    WebSafeImageFileContentType,
-    WebUnsafeImageFileContentType,
+    FileDocumentContentType,
+    FileImageContentType,
+    FileWebSafeImageContentType,
+    FileWebUnsafeImageContentType,
     getFileContentTypePreferredExtension,
     isFileContentType,
     normalizeContentType,
 } from "~/shared/files/file_content_type.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {If} from "~/shared/helpers/types/if.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -65,11 +77,18 @@ export const UploadFileEventSchema = Schema.union({
     Start: Schema.object({
         type: Schema.value("Start"),
         fileId: Schema.id<FileId>(),
+        hasAlternative: Schema.boolean,
         hasPreview: Schema.boolean,
         hasPreviewImage: Schema.boolean,
     }),
     Finish: Schema.object({
         type: Schema.value("Finish"),
+    }),
+    Alternative: Schema.object({
+        type: Schema.value("Alternative"),
+        contentType: FileContentTypeSchema,
+        contentLength: Schema.integer,
+        isPreviewImage: Schema.boolean,
     }),
     PreviewSize: Schema.object({
         type: Schema.value("PreviewSize"),
@@ -102,11 +121,14 @@ export const UploadFileEventSchema = Schema.union({
 export async function uploadFile(
     context: FileUploadServiceActionContext,
     span: TracerSpan,
-    route: {spaceId: SpaceId},
-    url: URL,
-    headers: Headers,
     req: IncomingMessage,
     res: ServerResponse<IncomingMessage>,
+    options: {
+        url: URL;
+        spaceId: SpaceId;
+        headers: Headers;
+        temporaryDirectoryPath: string;
+    },
 ): Promise<void> {
     const sendEvent = (event: UploadFileEvent) => {
         if (!res.headersSent) {
@@ -119,7 +141,7 @@ export async function uploadFile(
     };
 
     try {
-        const promise = actuallyUploadFile(context, span, route, url, headers, req, sendEvent);
+        const promise = actuallyUploadFile(context, span, req, sendEvent, options);
 
         // Make sure the server doesn't shutdown while we're uploading and processing a
         // file. Otherwise we may leave the database in a bad state if we don't finish
@@ -164,11 +186,18 @@ const maxFileByteSize = 1e9;
 async function actuallyUploadFile(
     originalContext: FileUploadServiceActionContext,
     span: TracerSpan,
-    {spaceId}: {spaceId: SpaceId},
-    url: URL,
-    headers: Headers,
     req: IncomingMessage,
     sendEvent: (event: UploadFileEvent) => void,
+    {
+        spaceId,
+        headers,
+        temporaryDirectoryPath,
+    }: {
+        url: URL;
+        spaceId: SpaceId;
+        headers: Headers;
+        temporaryDirectoryPath: string;
+    },
 ): Promise<void> {
     // Make sure we've been proxied through `EdgeService` when uploading a file. We
     // don't support uploading directly from other services like `JobQueueService`.
@@ -248,6 +277,7 @@ async function actuallyUploadFile(
             spaceId,
             contentType,
             contentLength,
+            hasAlternative: !!fileProcessor.hasAlternative,
             hasPreview: fileProcessor.hasPreview,
             hasPreviewImage: fileProcessor.hasPreviewImage,
         });
@@ -262,7 +292,8 @@ async function actuallyUploadFile(
             fileUploader,
             stream: req,
             sendEvent,
-            abortSignal: abortController.signal,
+            signal: abortController.signal,
+            temporaryDirectoryPath,
             createAbortCatcher: message => error => {
                 if (!abortController.signal.aborted) {
                     abortController.abort(new CancelledError(message, {cause: error}));
@@ -287,7 +318,8 @@ async function uploadAndProcessFile(
         fileUploader,
         stream,
         sendEvent,
-        abortSignal,
+        temporaryDirectoryPath,
+        signal,
         createAbortCatcher,
     }: {
         spaceId: SpaceId;
@@ -297,52 +329,17 @@ async function uploadAndProcessFile(
         fileUploader: FileUploader;
         stream: ReadableStream;
         sendEvent: (event: UploadFileEvent) => void;
-        abortSignal: AbortSignal;
+        temporaryDirectoryPath: string;
+        signal: AbortSignal;
         createAbortCatcher: (message: string) => (error: unknown) => never;
     },
 ) {
     sendEvent({
         type: "Start",
         fileId: fileUploader.fileId,
+        hasAlternative: !!fileProcessor.hasAlternative,
         hasPreview: fileProcessor.hasPreview,
         hasPreviewImage: fileProcessor.hasPreviewImage,
-    });
-
-    const dataPromise = new Promise<Buffer>((resolve, reject) => {
-        if (abortSignal.aborted) {
-            reject(abortSignal.reason);
-            return;
-        }
-
-        let chunks: Array<Buffer> = [];
-
-        const handleData = (data: Buffer) => {
-            chunks.push(data);
-        };
-
-        const handleEnd = () => {
-            const data = Buffer.concat(chunks);
-
-            chunks = [];
-            stream.off("data", handleData);
-            stream.off("end", handleEnd);
-            abortSignal.removeEventListener("abort", handleAbort);
-
-            resolve(data);
-        };
-
-        const handleAbort = () => {
-            chunks = [];
-            stream.off("data", handleData);
-            stream.off("end", handleEnd);
-            abortSignal.removeEventListener("abort", handleAbort);
-
-            reject(abortSignal.reason);
-        };
-
-        stream.on("data", handleData);
-        stream.on("end", handleEnd);
-        abortSignal.addEventListener("abort", handleAbort);
     });
 
     // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
@@ -355,38 +352,42 @@ async function uploadAndProcessFile(
         // https://developers.cloudflare.com/r2/buckets/object-lifecycles
 
         // NOTE: We don't `Promise.race()` `PutObject()` with
-        // `waitForAbort(abortSignal)` since we need to wait for the `PutObject()` to
-        // finish in order for `fileUploader.cleanupAfterError()` to successfully
-        // cleanup the object.
+        // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
+        // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
+        // successfully cleanup the object.
         //
         // `PutObject()` should respect `signal` so we can handle the case where the
         // request closes before it ends.
         await context.r2.PutObject(
             {
                 Bucket: filesBucketName,
-                Key: `${spaceId}/${fileUploader.fileId}.${getFileContentTypePreferredExtension(
-                    contentType,
-                )}`,
+                Key: `${spaceId}/${fileUploader.fileId}`,
                 ContentType: contentType,
                 Body: stream,
             },
-            {signal: abortSignal},
+            {signal: signal},
         );
 
-        if (abortSignal.aborted) throw abortSignal.reason;
+        if (signal.aborted) throw signal.reason;
 
         await fileUploader.finishUploading(context);
     })().catch(createAbortCatcher("File uploading failed"));
 
     const processPromise = fileProcessor.hasPreview
-        ? context.tracer.withSpan("Process file preview", async (context, span) => {
+        ? context.tracer.withSpan("Process file", async (context, span) => {
               span.addData({file: {contentType, contentLength}});
 
-              const {sizePromise, placeholderPromise, imagePromise} = fileProcessor.process(
-                  stream,
-                  dataPromise,
-                  abortSignal,
-              );
+              const {
+                  previewSizePromise,
+                  previewPlaceholderPromise,
+                  previewImagePromise,
+                  alternativePromise,
+              } = fileProcessor.process(stream, signal, {
+                  span,
+                  fileId: fileUploader.fileId,
+                  contentLength,
+                  temporaryDirectoryPath,
+              });
 
               let hasAcceptedPreviewError = false;
 
@@ -396,11 +397,7 @@ async function uploadAndProcessFile(
                   return async (error: unknown) => {
                       if (hasAcceptedPreviewError) throw error;
 
-                      if (
-                          !abortSignal.aborted &&
-                          error instanceof ErrorBase &&
-                          error.displayMessage
-                      ) {
+                      if (!signal.aborted && error instanceof ErrorBase && error.displayMessage) {
                           const acceptError = fileProcessor.acceptError?.(
                               error,
                               error.displayMessage,
@@ -432,9 +429,48 @@ async function uploadAndProcessFile(
                   };
               };
 
-              const actualSizePromise = (async () => {
-                  const {width, height, scale} = await sizePromise;
-                  if (abortSignal.aborted) throw abortSignal.reason;
+              const actualAlternativePromise = alternativePromise
+                  ? (async () => {
+                        const alternative = await alternativePromise;
+                        if (signal.aborted) throw signal.reason;
+
+                        let contentLength = 0;
+
+                        alternative.stream.on("data", (chunk: Buffer) => {
+                            contentLength += chunk.length;
+                        });
+
+                        // NOTE: We don't `Promise.race()` `PutObject()` with
+                        // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
+                        // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
+                        // successfully cleanup the object.
+                        await context.r2.PutObject(
+                            {
+                                Bucket: filesBucketName,
+                                Key: `${spaceId}/${fileUploader.fileId}-alternative`,
+                                ContentType: alternative.contentType,
+                                Body: alternative.stream,
+                            },
+                            {signal},
+                        );
+
+                        await fileUploader.finishProcessingAlternative(context, {
+                            contentType: alternative.contentType,
+                            contentLength,
+                        });
+
+                        sendEvent({
+                            type: "Alternative",
+                            contentType: alternative.contentType,
+                            contentLength,
+                            isPreviewImage: false,
+                        });
+                    })().catch(createAbortCatcher("File alternative processing failed"))
+                  : null;
+
+              const actualPreviewSizePromise = (async () => {
+                  const {width, height, scale} = await previewSizePromise;
+                  if (signal.aborted) throw signal.reason;
                   if (hasAcceptedPreviewError) return;
 
                   await fileUploader.finishProcessingPreviewSize(context, {width, height, scale});
@@ -447,9 +483,9 @@ async function uploadAndProcessFile(
                   });
               })().catch(createPreviewAbortCatcher("File preview size processing failed"));
 
-              const actualPlaceholderPromise = (async () => {
-                  const placeholder = await placeholderPromise;
-                  if (abortSignal.aborted) throw abortSignal.reason;
+              const actualPreviewPlaceholderPromise = (async () => {
+                  const placeholder = await previewPlaceholderPromise;
+                  if (signal.aborted) throw signal.reason;
                   if (hasAcceptedPreviewError) return;
 
                   await fileUploader.finishProcessingPreviewPlaceholder(context, placeholder);
@@ -460,59 +496,76 @@ async function uploadAndProcessFile(
                   });
               })().catch(createPreviewAbortCatcher("File preview placeholder processing failed"));
 
-              const actualImagePromise = imagePromise
+              const actualPreviewImagePromise = previewImagePromise
                   ? (async () => {
-                        const image = await imagePromise;
-                        if (abortSignal.aborted) throw abortSignal.reason;
+                        const previewImage = await previewImagePromise;
+                        if (signal.aborted) throw signal.reason;
                         if (hasAcceptedPreviewError) return;
 
                         // NOTE: We don't `Promise.race()` `PutObject()` with
-                        // `waitForAbort(abortSignal)` since we need to wait for the `PutObject()` to
-                        // finish in order for `fileUploader.cleanupAfterError()` to successfully
-                        // cleanup the object.
+                        // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
+                        // finish in order for `fileUploader.cleanupAfterUnacceptableError()` to
+                        // successfully cleanup the object.
                         await context.r2.PutObject(
                             {
                                 Bucket: filesBucketName,
-                                Key: `${spaceId}/${
-                                    fileUploader.fileId
-                                }.preview.${getFileContentTypePreferredExtension(
-                                    image.contentType,
-                                )}`,
-                                ContentType: image.contentType,
-                                Body: image.data,
+                                Key: `${spaceId}/${fileUploader.fileId}-preview`,
+                                ContentType: previewImage.contentType,
+                                Body: previewImage.data,
                             },
-                            {signal: abortSignal},
+                            {signal},
                         );
 
-                        if (abortSignal.aborted) throw abortSignal.reason;
+                        if (signal.aborted) throw signal.reason;
                         if (hasAcceptedPreviewError) return;
 
                         await fileUploader.finishProcessingPreviewImage(context, {
-                            contentType: image.contentType,
-                            contentLength: image.data.length,
+                            contentType: previewImage.contentType,
+                            contentLength: previewImage.data.length,
+                            isAlternative: fileProcessor.hasAlternative === "PreviewImage",
                         });
 
                         sendEvent({
                             type: "PreviewImage",
-                            contentType: image.contentType,
-                            contentLength: image.data.length,
+                            contentType: previewImage.contentType,
+                            contentLength: previewImage.data.length,
                         });
+
+                        if (fileProcessor.hasAlternative === "PreviewImage") {
+                            sendEvent({
+                                type: "Alternative",
+                                contentType: previewImage.contentType,
+                                contentLength: previewImage.data.length,
+                                isPreviewImage: true,
+                            });
+                        }
                     })().catch(createPreviewAbortCatcher("File preview image processing failed"))
                   : null;
 
+              // Specific file processors often have dependencies on one another, e.g.
+              // "Process file preview size" depends on "Process file alternative" for Microsoft Word
+              // documents. However, we intentionally measure spans from the start of file processing
+              // so that when we look at the duration we get the user duration perceived by the user
+              // (since as each of these resolves we `sendEvent()` to the user).
               await runAllPromises([
+                  actualAlternativePromise
+                      ? span.withSpan("Process file alternative", span => {
+                            span.addData({file: {contentType, contentLength}});
+                            return actualAlternativePromise;
+                        })
+                      : null,
                   span.withSpan("Process file preview size", span => {
                       span.addData({file: {contentType, contentLength}});
-                      return actualSizePromise;
+                      return actualPreviewSizePromise;
                   }),
                   span.withSpan("Process file preview placeholder", span => {
                       span.addData({file: {contentType, contentLength}});
-                      return actualPlaceholderPromise;
+                      return actualPreviewPlaceholderPromise;
                   }),
-                  actualImagePromise
+                  actualPreviewImagePromise
                       ? span.withSpan("Process file preview image", span => {
                             span.addData({file: {contentType, contentLength}});
-                            return actualImagePromise;
+                            return actualPreviewImagePromise;
                         })
                       : null,
               ]).catch(error => {
@@ -533,6 +586,91 @@ async function uploadAndProcessFile(
     sendEvent({type: "Finish"});
 }
 
+/**
+ * Resolves once the provided `stream` has ended with a `Buffer` representing
+ * all data from the stream. If aborted while waiting on the stream the promise
+ * will reject with the `AbortSignal`'s reason.
+ */
+function waitForReadableStreamData(stream: ReadableStream, signal: AbortSignal): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
+        if (signal.aborted) {
+            reject(signal.reason);
+            return;
+        }
+
+        let chunks: Array<Buffer> = [];
+
+        if (stream.readableEnded) {
+            resolve(Buffer.concat(chunks));
+            return;
+        }
+
+        const handleData = (data: Buffer) => {
+            chunks.push(data);
+        };
+
+        const handleEnd = () => {
+            const data = Buffer.concat(chunks);
+
+            chunks = [];
+            stream.off("data", handleData);
+            stream.off("end", handleEnd);
+            signal.removeEventListener("abort", handleAbort);
+
+            resolve(data);
+        };
+
+        const handleAbort = () => {
+            chunks = [];
+            stream.off("data", handleData);
+            stream.off("end", handleEnd);
+            signal.removeEventListener("abort", handleAbort);
+
+            reject(signal.reason);
+        };
+
+        stream.on("data", handleData);
+        stream.on("end", handleEnd);
+        signal.addEventListener("abort", handleAbort);
+    });
+}
+
+/**
+ * Resolves once the provided `stream` has ended. Does not keep track of data
+ * from the stream. If aborted while waiting on the stream the promise will
+ * reject with the `AbortSignal`'s reason.
+ */
+function waitForWritableStreamClose(stream: WritableStream, signal: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        if (signal.aborted) {
+            reject(signal.reason);
+            return;
+        }
+
+        if (stream.closed) {
+            resolve();
+            return;
+        }
+
+        const handleClose = () => {
+            stream.off("close", handleClose);
+            signal.removeEventListener("abort", handleAbort);
+
+            resolve();
+        };
+
+        const handleAbort = () => {
+            stream.off("close", handleClose);
+            signal.removeEventListener("abort", handleAbort);
+
+            reject(signal.reason);
+        };
+
+        stream.on("close", handleClose);
+        signal.addEventListener("abort", handleAbort);
+    });
+}
+
 const sharpTimeoutSeconds = 20;
 
 /**
@@ -545,22 +683,15 @@ const sharpTimeoutSeconds = 20;
  * image then `hasPreviewImage` will be true.
  *
  * The `process` function actually performs the file processing. It takes
- * `stream` and `dataPromise` which represents the data in two different
- * forms. `stream` is a Node.js stream, use this if your processor supports
- * efficient stream processing. Otherwise you may use `dataPromise` which
- * resolves once `stream` ends with the file's full data. `dataPromise` also
- * rejects with `CancelledError` if the upload is aborted.
+ * `stream` which provides file data. You must synchronously start listening to
+ * the `stream` or you may miss data! You may use `waitForReadableStreamData()`
+ * to wait until we've received all data from the readable stream.
  *
- * If you're using `stream`, make sure to cancel your stream processing if the
- * upload is aborted. Since `stream` may not end after an abort. You can find
- * out if the upload is aborted with `abortSignal`.
+ * Make sure to cancel your stream processing if the upload is aborted (see
+ * `signal`). Since `stream` may not end after an abort! e.g. When the
+ * connection times out.
  *
- * If `acceptError` is provided and you return true for an error we won't
- * cancel the file upload when processing throws but instead save the provided
- * error's `displayMessage` in the database. Then when the user tries to
- * view the preview we'll show them the error message. So the upload will be
- * successful but the user won't be able to preview the file. `acceptError`
- * will only be called for errors with a `displayMessage`.
+ * ## Sharp and stream processing
  *
  * Unfortunately, `sharp` (which we use for processing many of our files) does
  * not support efficient stream processing despite having a stream API. `sharp`
@@ -579,65 +710,105 @@ const sharpTimeoutSeconds = 20;
  * [1]: https://github.com/lovell/sharp/blob/fc32e0bd3f9111b80cf078df7b0cfc355695674e/lib/input.js#L489-L500
  */
 type FileProcessor =
-    | {
-          readonly hasPreview: false;
-          readonly hasPreviewImage: false;
-      }
-    | {
-          readonly hasPreview: true;
-          readonly hasPreviewImage: false;
-          readonly process: (
-              stream: ReadableStream,
-              dataPromise: Promise<Buffer>,
-              abortSignal: AbortSignal,
-          ) => {
-              sizePromise: Promise<{width: number; height: number; scale: number}>;
-              placeholderPromise: Promise<FilePreviewPlaceholder>;
-              imagePromise?: undefined;
-          };
-          readonly acceptError?: (
-              error: ErrorBase,
-              displayMessage: ErrorDisplayMessage,
-          ) => boolean | undefined;
-      }
-    | {
-          readonly hasPreview: true;
-          readonly hasPreviewImage: true;
-          readonly process: (
-              stream: ReadableStream,
-              dataPromise: Promise<Buffer>,
-              abortSignal: AbortSignal,
-          ) => {
-              sizePromise: Promise<{width: number; height: number; scale: number}>;
-              placeholderPromise: Promise<FilePreviewPlaceholder>;
-              imagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
-          };
-          readonly acceptError?: (
-              error: ErrorBase,
-              displayMessage: ErrorDisplayMessage,
-          ) => boolean | undefined;
-      };
+    | NoopFileProcessor
+    | FileProcessorTemplate<false, false>
+    | FileProcessorTemplate<true, false>
+    | FileProcessorTemplate<true, true>
+    | FileProcessorTemplate<true, "PreviewImage">;
 
-const noFileProcessor: FileProcessor = {hasPreview: false, hasPreviewImage: false};
+interface NoopFileProcessor {
+    readonly hasPreview: false;
+    readonly hasPreviewImage: false;
+    readonly hasAlternative: false;
+}
+
+interface FileProcessorTemplate<
+    HasPreviewImage extends boolean,
+    HasAlternative extends boolean | "PreviewImage",
+> {
+    readonly hasPreview: true;
+    readonly hasPreviewImage: HasPreviewImage;
+    readonly hasAlternative: HasAlternative;
+
+    process(
+        stream: ReadableStream,
+        abortSignal: AbortSignal,
+        options: {
+            span: TracerSpan;
+            fileId: FileId;
+            contentLength: number;
+            temporaryDirectoryPath: string;
+        },
+    ): MergeObjectIntersection<
+        {
+            previewSizePromise: Promise<{width: number; height: number; scale: number}>;
+            previewPlaceholderPromise: Promise<FilePreviewPlaceholder>;
+        } & If<
+            HasPreviewImage,
+            {previewImagePromise: Promise<{contentType: FileContentType; data: Buffer}>},
+            {previewImagePromise?: undefined}
+        > &
+            (HasAlternative extends "PreviewImage"
+                ? {
+                      previewImagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
+                      alternativePromise?: undefined;
+                  }
+                : If<
+                      HasAlternative & boolean,
+                      {
+                          alternativePromise: Promise<{
+                              contentType: FileContentType;
+                              stream: ReadableStream;
+                          }>;
+                      },
+                      {alternativePromise?: undefined}
+                  >)
+    >;
+
+    /**
+     * If `acceptError` is implemented and you return true for an error we won't
+     * cancel the file upload when processing throws but instead save the provided
+     * error's `displayMessage` in the database. Then when the user tries to
+     * view the preview we'll show them the error message. So the upload will be
+     * successful but the user won't be able to preview the file. `acceptError`
+     * will only be called for errors with a `displayMessage`.
+     */
+    acceptError?(error: ErrorBase, displayMessage: ErrorDisplayMessage): boolean | undefined;
+}
+
+const noopFileProcessor: FileProcessor = {
+    hasPreview: false,
+    hasPreviewImage: false,
+    hasAlternative: false,
+};
+
+const createFileProcessorByContentType: {
+    [Key in FileContentType]: (contentType: Key) => FileProcessor;
+} = {
+    "application/octet-stream": () => noopFileProcessor,
+    "image/apng": createWebSafeImageFileProcessor,
+    "image/avif": createWebSafeImageFileProcessor,
+    "image/gif": createWebSafeImageFileProcessor,
+    "image/jpeg": createWebSafeImageFileProcessor,
+    "image/png": createWebSafeImageFileProcessor,
+    "image/svg+xml": createWebSafeImageFileProcessor,
+    "image/webp": createWebSafeImageFileProcessor,
+    "image/bmp": createWebUnsafeImageFileProcessor,
+    "image/ico": createIcoImageFileProcessor,
+    "image/tiff": createWebUnsafeImageFileProcessor,
+    "image/heif": createWebUnsafeImageFileProcessor,
+    "image/heic": createWebUnsafeImageFileProcessor,
+    "application/pdf": createPdfDocumentFileProcessor,
+    "application/msword": createDocumentFileProcessor,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        createDocumentFileProcessor,
+};
 
 const fileProcessorByContentType: {
     [Key in FileContentType]: FileProcessor;
-} = {
-    "application/octet-stream": noFileProcessor,
-    "image/apng": createWebSafeImageFileProcessor("image/apng"),
-    "image/avif": createWebSafeImageFileProcessor("image/avif"),
-    "image/gif": createWebSafeImageFileProcessor("image/gif"),
-    "image/jpeg": createWebSafeImageFileProcessor("image/jpeg"),
-    "image/png": createWebSafeImageFileProcessor("image/png"),
-    "image/svg+xml": createWebSafeImageFileProcessor("image/svg+xml"),
-    "image/webp": createWebSafeImageFileProcessor("image/webp"),
-    "image/bmp": createWebUnsafeImageFileProcessor("image/bmp"),
-    "image/ico": createIcoImageFileProcessor(),
-    "image/tiff": createWebUnsafeImageFileProcessor("image/tiff"),
-    "image/heif": createWebUnsafeImageFileProcessor("image/heif"),
-    "image/heic": createWebUnsafeImageFileProcessor("image/heic"),
-    "application/pdf": createPdfDocumentFileProcessor(),
-};
+} = mapObjectValues(createFileProcessorByContentType, (createFileProcessor, contentType) =>
+    (createFileProcessor as any)(contentType),
+);
 
 async function processFilePreviewPlaceholder(
     input: Buffer | ArrayBuffer | Uint8Array,
@@ -664,13 +835,10 @@ async function processFilePreviewPlaceholder(
 }
 
 function processImageFile(
-    contentType: Exclude<ImageFileContentType, "image/ico">,
+    contentType: Exclude<FileImageContentType, "image/ico">,
     dataPromise: Promise<Buffer>,
 ) {
-    const sizePromise = (async () => {
-        // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-        // more efficient to await `dataPromise` than to use `stream`. See our comment
-        // on `FileProcessor`.
+    const previewSizePromise = (async () => {
         const data = await dataPromise;
 
         const metadata = await sharp(data, {pages: 1})
@@ -761,36 +929,45 @@ function processImageFile(
     // unconditionally generates a color and `base64` placeholder.)
     //
     // [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
-    const placeholderPromise = (async () => {
-        // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-        // more efficient to await `dataPromise` than to use `stream`. See our comment
-        // on `FileProcessor`.
+    const previewPlaceholderPromise = (async () => {
         const inputData = await dataPromise;
-
         return processFilePreviewPlaceholder(inputData);
     })();
 
-    return {sizePromise, placeholderPromise};
+    return {previewSizePromise, previewPlaceholderPromise};
 }
 
-function createWebSafeImageFileProcessor(contentType: WebSafeImageFileContentType): FileProcessor {
+function createWebSafeImageFileProcessor(contentType: FileWebSafeImageContentType): FileProcessor {
     return {
         hasPreview: true,
         hasPreviewImage: false,
-        process: (stream, dataPromise) => processImageFile(contentType, dataPromise),
+        hasAlternative: false,
+        process: (stream, signal) => {
+            // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+            // more efficient to await `dataPromise` than to use `stream`. See our comment
+            // on `FileProcessor`.
+            const dataPromise = waitForReadableStreamData(stream, signal);
+
+            return processImageFile(contentType, dataPromise);
+        },
     };
 }
 
 function createWebUnsafeImageFileProcessor(
-    contentType: Exclude<WebUnsafeImageFileContentType, "image/ico">,
+    contentType: Exclude<FileWebUnsafeImageContentType, "image/ico">,
 ): FileProcessor {
     return {
         hasPreview: true,
         hasPreviewImage: true,
-        process: (stream, dataPromise) => {
-            const {sizePromise, placeholderPromise} = processImageFile(contentType, dataPromise);
+        hasAlternative: "PreviewImage",
+        process: (stream, signal) => {
+            const dataPromise = waitForReadableStreamData(stream, signal);
+            const {previewSizePromise, previewPlaceholderPromise} = processImageFile(
+                contentType,
+                dataPromise,
+            );
 
-            const imagePromise = (async (): Promise<{
+            const previewImagePromise = (async (): Promise<{
                 contentType: FileContentType;
                 data: Buffer;
             }> => {
@@ -801,40 +978,53 @@ function createWebUnsafeImageFileProcessor(
 
                 const outputData = await sharp(inputData, {pages: 1})
                     .timeout({seconds: sharpTimeoutSeconds})
-                    // AVIF is our preferred format for generating preview images. AVIF has full
-                    // browser support, provides better compression than JPEG and WebP, and has
-                    // alpha channel support (unlike JPEG).
+                    // AVIF is our preferred format for generating preview images ([source][1],
+                    // [source][2]). AVIF has full browser support, provides better compression
+                    // than JPEG and WebP, and has alpha channel support (unlike JPEG).
                     //
-                    // Some sources:
+                    // Ideally we'd produce an image with lossless compression here since this file
+                    // will be used as an alternative for the file in our image viewer. However,
+                    // producing an image with lossless compression from an image with some
+                    // compression (e.g. an `.heic` image) creates a much bigger file. So instead
+                    // we opt for some compression but set our quality level really high (93). We
+                    // don't want to produce a file too much larger than our input file and we also
+                    // want to maintain as much detail as possible.
                     //
-                    // - https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
-                    // - https://jakearchibald.com/2020/avif-has-landed
+                    // Quality level of 93 was picked so that an `.heic` photo taken from my
+                    // (@calebmer's) iPhone exported at high quality is about the same file size as
+                    // the generated preview image.
                     //
-                    // Quality 90 since we don't want to remove detail from the source file in our
-                    // preview (which may already be compressed) but we also want some compression
-                    // since the extra storage cost of the preview file is on us. We could probably
-                    // get away with lower quality without a perceptible difference.
-                    .toFormat("avif", {quality: 90})
+                    // If we decide to switch this to lossless images we should use WebP instead
+                    // since [AVIF is worse at lossless compression][3].
+                    //
+                    // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                    // [2]: https://jakearchibald.com/2020/avif-has-landed
+                    // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
+                    .toFormat("avif", {quality: 93})
                     .toBuffer()
                     .catch(rethrowClassifiedSharpError);
 
                 return {contentType: "image/avif", data: outputData};
             })();
 
-            return {sizePromise, placeholderPromise, imagePromise};
+            return {previewSizePromise, previewPlaceholderPromise, previewImagePromise};
         },
     };
 }
 
 /**
  * Special handling for `image/ico` files that selects the largest image from the
- * `.ico` container format and creates a preview from that.
+ * `.ico` container format and creates a preview from that. `.ico` files are a
+ * container format that include images in either `png` or `bmp` format.
  */
 function createIcoImageFileProcessor(): FileProcessor {
     return {
         hasPreview: true,
         hasPreviewImage: true,
-        process: (stream, dataPromise) => {
+        hasAlternative: "PreviewImage",
+        process: (stream, signal) => {
+            const dataPromise = waitForReadableStreamData(stream, signal);
+
             const promise = (async () => {
                 const data = await dataPromise;
 
@@ -847,26 +1037,26 @@ function createIcoImageFileProcessor(): FileProcessor {
 
                 const bestImageData = Buffer.from(bestImage.data);
 
-                const sizePromise = Promise.resolve({
+                const previewSizePromise = Promise.resolve({
                     width: bestImage.width,
                     height: bestImage.height,
                     scale: 1,
                 });
 
-                let placeholderPromise: Promise<FilePreviewPlaceholder>;
-                let imagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
+                let previewPlaceholderPromise: Promise<FilePreviewPlaceholder>;
+                let previewImagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
                 switch (bestImage.type) {
                     case "png": {
-                        placeholderPromise = processFilePreviewPlaceholder(bestImageData);
+                        previewPlaceholderPromise = processFilePreviewPlaceholder(bestImageData);
 
-                        imagePromise = Promise.resolve({
+                        previewImagePromise = Promise.resolve({
                             contentType: "image/png",
                             data: bestImageData,
                         });
                         break;
                     }
                     case "bmp": {
-                        placeholderPromise = processFilePreviewPlaceholder(bestImageData, {
+                        previewPlaceholderPromise = processFilePreviewPlaceholder(bestImageData, {
                             raw: {
                                 width: bestImage.width,
                                 height: bestImage.height,
@@ -874,7 +1064,7 @@ function createIcoImageFileProcessor(): FileProcessor {
                             },
                         });
 
-                        imagePromise = (async () => {
+                        previewImagePromise = (async () => {
                             const data = await sharp(bestImage.data, {
                                 raw: {
                                     width: bestImage.width,
@@ -895,102 +1085,346 @@ function createIcoImageFileProcessor(): FileProcessor {
                         throw exhaustive(bestImage);
                 }
 
-                return {sizePromise, placeholderPromise, imagePromise};
+                return {previewSizePromise, previewPlaceholderPromise, previewImagePromise};
             })();
 
             return {
-                sizePromise: promise.then(({sizePromise}) => sizePromise),
-                placeholderPromise: promise.then(({placeholderPromise}) => placeholderPromise),
-                imagePromise: promise.then(({imagePromise}) => imagePromise),
+                previewSizePromise: promise.then(({previewSizePromise}) => previewSizePromise),
+                previewPlaceholderPromise: promise.then(
+                    ({previewPlaceholderPromise}) => previewPlaceholderPromise,
+                ),
+                previewImagePromise: promise.then(({previewImagePromise}) => previewImagePromise),
             };
         },
     };
 }
 
+/**
+ * Create a file processor for PDF files. We process PDF files with `sharp`. We
+ * use a [custom `sharp` build][1] that includes [PDFium from Chrome][2] to
+ * render PDFs. Only the first page of the PDF is rendered.
+ *
+ * [1]: https://github.com/cyberworlds/sharp-libvips
+ * [2]: https://pdfium.googlesource.com/pdfium
+ */
 function createPdfDocumentFileProcessor(): FileProcessor {
     return {
         hasPreview: true,
         hasPreviewImage: true,
-        process: (stream, dataPromise) => {
-            const sizePromise = (async () => {
-                // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-                // more efficient to await `dataPromise` than to use `stream`. See our comment
-                // on `FileProcessor`.
-                const data = await dataPromise;
+        hasAlternative: false,
 
-                const metadata = await sharp(data, {pages: 1})
-                    .timeout({seconds: sharpTimeoutSeconds})
-                    .metadata()
-                    .catch(rethrowClassifiedSharpError);
+        // If the PDF is password protected then it's ok to finish the upload. We won't
+        // be able to render the PDF but the user should still be able to download it
+        // and view the PDF on their local machine.
+        acceptError: error => error.displayMessage === pdfPasswordRequiredErrorDisplayMessage,
 
-                const expectedFormat = "pdf";
-                if (metadata.format !== expectedFormat) {
-                    throw new InvalidArgumentError(
-                        quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
-                    );
-                }
+        process: processPdfDocumentFile,
+    };
+}
 
-                if (metadata.width === undefined || metadata.height === undefined) {
-                    throw new InternalError('Couldn\'t find "width" or "height" of image file');
-                }
+function processPdfDocumentFile(
+    stream: ReadableStream,
+    signal: AbortSignal,
+): ReturnType<FileProcessorTemplate<true, false>["process"]> {
+    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+    // more efficient to await `dataPromise` than to use `stream`. See our comment
+    // on `FileProcessor`.
+    const dataPromise = waitForReadableStreamData(stream, signal);
 
-                // We produce a JPEG preview image that's 2x bigger than the source PDF. This
-                // is so when viewing the preview image on a retina display with a scale factor
-                // of 2 it looks the same as if we directly rendered the document. Zooming in
-                // on the preview image won't look good since fundamentally we're taking a
-                // vector format (PDF) and converting it to a raster format (JPEG).
-                const scale = 2;
+    const previewSizePromise = (async () => {
+        const data = await dataPromise;
 
-                return {
-                    width: metadata.width * scale,
-                    height: metadata.height * scale,
-                    scale,
-                };
-            })();
+        const metadata = await sharp(data, {pages: 1})
+            .timeout({seconds: sharpTimeoutSeconds})
+            .metadata()
+            .catch(rethrowClassifiedSharpError);
+
+        const expectedFormat = "pdf";
+        if (metadata.format !== expectedFormat) {
+            throw new InvalidArgumentError(
+                quote`Expected file in ${expectedFormat} format but received file in ${metadata.format} format`,
+            );
+        }
+
+        if (metadata.width === undefined || metadata.height === undefined) {
+            throw new InternalError('Couldn\'t find "width" or "height" of image file');
+        }
+
+        // We produce a JPEG preview image that's 2x bigger than the source PDF. This
+        // is so when viewing the preview image on a retina display with a scale factor
+        // of 2 it looks the same as if we directly rendered the document. Zooming in
+        // on the preview image won't look good since fundamentally we're taking a
+        // vector format (PDF) and converting it to a raster format (JPEG).
+        const scale = 2;
+
+        return {
+            width: metadata.width * scale,
+            height: metadata.height * scale,
+            scale,
+        };
+    })();
+
+    return {
+        previewSizePromise,
+        previewPlaceholderPromise: (async () => {
+            const data = await dataPromise;
+            return processFilePreviewPlaceholder(data);
+        })(),
+        previewImagePromise: (async () => {
+            const [{width, height}, inputData] = await runAllPromises([
+                previewSizePromise,
+                dataPromise,
+            ]);
+
+            const outputData = await sharp(inputData, {pages: 1})
+                .timeout({seconds: sharpTimeoutSeconds})
+                // AVIF is our preferred format for generating preview images ([source][1],
+                // [source][2]). AVIF has full browser support, provides better compression
+                // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+                //
+                // Quality 80 since:
+                //
+                // - The preview's dimensions are already 2x the original file's
+                // - We only use this when previewing the file, when viewing the file we use a
+                //   full PDF renderer
+                //
+                // We want some compression since the extra storage cost of the preview file is
+                // bourne by us.
+                //
+                // If we need lossless images we should use WebP instead since [AVIF is worse
+                // at lossless compression][3].
+                //
+                // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+                // [2]: https://jakearchibald.com/2020/avif-has-landed
+                // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
+                .toFormat("avif", {quality: 80})
+                .resize(width, height)
+                .toBuffer()
+                .catch(rethrowClassifiedSharpError);
+
+            return {contentType: "image/avif", data: outputData};
+        })(),
+    };
+}
+
+/**
+ * Lookup system installed [LibreOffice][1] executable path using common
+ * installation locations. If you add a path here you should also update
+ * `dev test` which also needs to check if LibreOffice is installed.
+ *
+ * [1]: https://www.libreoffice.org
+ */
+const libreofficeExecutablePath = new Lazy(async () => {
+    let paths: Array<string>;
+
+    // Derived from:
+    // https://github.com/elwerene/libreoffice-convert/blob/c47f41de41910fcec077dabaae6f8ed7925605b5/index.js#L20-L34
+    switch (process.platform) {
+        case "darwin": {
+            paths = ["/Applications/LibreOffice.app/Contents/MacOS/soffice"];
+            break;
+        }
+        case "linux": {
+            paths = [
+                "/usr/bin/libreoffice",
+                "/usr/bin/soffice",
+                "/snap/bin/libreoffice",
+                "/opt/libreoffice/program/soffice",
+            ];
+            break;
+        }
+        default: {
+            throw new InternalError(
+                quote`Haven't implemented finding LibreOffice executable on platform ${process.platform}`,
+            );
+        }
+    }
+
+    const errors: Array<unknown> = [];
+
+    for (const path of paths) {
+        try {
+            await fs.access(path, fs.constants.X_OK);
+            return path;
+        } catch (error) {
+            errors.push(error);
+        }
+    }
+
+    throw new InternalError(
+        "Couldn't find LibreOffice executable. For features that require LibreOffice to " +
+            "work (e.g. converting Microsoft Word documents to PDF) you need to install " +
+            "LibreOffice on the machine running `FileUploadService`: " +
+            "https://www.libreoffice.org/download/download-libreoffice",
+        {cause: errors},
+    );
+});
+
+function createDocumentFileProcessor(
+    contentType: Exclude<FileDocumentContentType, "application/pdf">,
+): FileProcessor {
+    return {
+        hasPreview: true,
+        hasPreviewImage: true,
+        hasAlternative: true,
+        process: (
+            inputStream,
+            signal,
+            {span, fileId, contentLength, temporaryDirectoryPath: temporaryDirectoryParentPath},
+        ) => {
+            const alternativePromiseResolver = createPromiseResolver<{
+                contentType: FileContentType;
+                stream: ReadableStream;
+            }>();
+
+            const previewSizePromiseResolver = createPromiseResolver<{
+                width: number;
+                height: number;
+                scale: number;
+            }>();
+
+            const previewPlaceholderPromiseResolver =
+                createPromiseResolver<FilePreviewPlaceholder>();
+
+            let pendingChunks: Array<Buffer> = [];
+            const handleDataWhilePending = (chunk: Buffer) => pendingChunks.push(chunk);
+            inputStream.on("data", handleDataWhilePending);
+
+            const previewImagePromise: Promise<{contentType: FileContentType; data: Buffer}> =
+                withTemporaryDirectory(
+                    temporaryDirectoryParentPath,
+                    `${fileId}_`,
+                    async temporaryDirectoryPath => {
+                        const userInstallationPath = joinPath(temporaryDirectoryPath, "user");
+
+                        const inputPath = joinPath(
+                            temporaryDirectoryPath,
+                            `file.${getFileContentTypePreferredExtension(contentType)}`,
+                        );
+                        const inputWriteStream = fsSync.createWriteStream(inputPath);
+
+                        try {
+                            await span.withSpan("LibreOffice convert to PDF", async span => {
+                                // See the LibreOffice documentation for more information on filters:
+                                // https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
+                                let outputFilter: string;
+                                switch (contentType) {
+                                    case "application/msword":
+                                    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                                        outputFilter = "writer_pdf_Export";
+                                        break;
+                                    default:
+                                        throw exhaustive(contentType);
+                                }
+
+                                span.addData({
+                                    file: {contentType, contentLength},
+                                    libreoffice: {outputFilter},
+                                });
+
+                                // Write any chunks we received while waiting to create our temporary
+                                // directory. Then continue piping
+                                {
+                                    const chunks = pendingChunks;
+                                    pendingChunks = [];
+                                    inputStream.off("data", handleDataWhilePending);
+                                    for (const chunk of chunks) {
+                                        inputWriteStream.write(chunk);
+                                    }
+                                }
+
+                                inputStream.pipe(inputWriteStream);
+
+                                // Wait for us to finish writing to our file. Also listen to the abort
+                                // signal. If we abort before finishing the stream we shouldn't continue.
+                                await waitForWritableStreamClose(inputWriteStream, signal);
+
+                                const executablePath = await libreofficeExecutablePath.get();
+
+                                const startTime = span.clock.now();
+
+                                // Pass all the same flags as `unoserver` and `libreoffice-convert`:
+                                //
+                                // - https://github.com/unoconv/unoserver/blob/dc4c0168d2bfa7b055fd0937071dcab5952da22e/src/unoserver/server.py#L73-L79
+                                // - https://github.com/elwerene/libreoffice-convert/blob/c47f41de41910fcec077dabaae6f8ed7925605b5/index.js#L53-L59
+                                await runProcess(
+                                    executablePath,
+                                    [
+                                        "--headless",
+                                        "--invisible",
+                                        "--nocrashreport",
+                                        "--nodefault",
+                                        "--nologo",
+                                        "--nofirststartwizard",
+                                        "--norestore",
+                                        `-env:UserInstallation=file://${userInstallationPath}`,
+                                        ["--convert-to", `pdf:${outputFilter}`],
+                                        ["--outdir", temporaryDirectoryPath],
+                                        inputPath,
+                                    ],
+                                    {
+                                        cwd: runfilesPath,
+                                        signal,
+                                    },
+                                );
+
+                                const processDurationMs = span.clock.now() - startTime;
+
+                                // Record just the process duration since waiting on the input stream depends
+                                // on client network performance.
+                                span.addData({common: {processDurationMs}});
+                            });
+                        } finally {
+                            inputWriteStream.destroy();
+                        }
+
+                        const outputReadStream = fsSync.createReadStream(
+                            joinPath(temporaryDirectoryPath, "file.pdf"),
+                        );
+
+                        alternativePromiseResolver.resolve({
+                            contentType: "application/pdf",
+                            stream: outputReadStream,
+                        });
+
+                        const {previewSizePromise, previewPlaceholderPromise, previewImagePromise} =
+                            processPdfDocumentFile(outputReadStream, signal);
+
+                        previewSizePromise.then(
+                            previewSizePromiseResolver.resolve,
+                            previewSizePromiseResolver.reject,
+                        );
+
+                        previewPlaceholderPromise.then(
+                            previewPlaceholderPromiseResolver.resolve,
+                            previewPlaceholderPromiseResolver.reject,
+                        );
+
+                        const [image] = await runAllPromises([
+                            previewImagePromise,
+                            // Wait for these promises before returning even though we don't use their data
+                            // so we only cleanup our temporary directory after all promises have been
+                            // resolved.
+                            previewSizePromise,
+                            previewPlaceholderPromise,
+                        ]);
+
+                        return image;
+                    },
+                ).catch(error => {
+                    alternativePromiseResolver.reject(error);
+                    previewSizePromiseResolver.reject(error);
+                    previewPlaceholderPromiseResolver.reject(error);
+                    throw error;
+                });
 
             return {
-                sizePromise,
-                placeholderPromise: (async () => {
-                    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-                    // more efficient to await `dataPromise` than to use `stream`. See our comment
-                    // on `FileProcessor`.
-                    const data = await dataPromise;
-                    return processFilePreviewPlaceholder(data);
-                })(),
-                imagePromise: (async () => {
-                    const [{width, height}, inputData] = await runAllPromises([
-                        sizePromise,
-                        // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-                        // more efficient to await `dataPromise` than to use `stream`. See our comment
-                        // on `FileProcessor`.
-                        dataPromise,
-                    ]);
-
-                    const outputData = await sharp(inputData, {pages: 1})
-                        .timeout({seconds: sharpTimeoutSeconds})
-                        // AVIF is our preferred format for generating preview images. AVIF has full
-                        // browser support, provides better compression than JPEG and WebP, and has
-                        // alpha channel support (unlike JPEG).
-                        //
-                        // Some sources:
-                        //
-                        // - https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
-                        // - https://jakearchibald.com/2020/avif-has-landed
-                        //
-                        // Quality 90 since we don't want to remove detail from the source file in our
-                        // preview (which may already be compressed) but we also want some compression
-                        // since the extra storage cost of the preview file is on us. We could probably
-                        // get away with lower quality without a perceptible difference.
-                        .toFormat("avif", {quality: 90})
-                        .resize(width, height)
-                        .toBuffer()
-                        .catch(rethrowClassifiedSharpError);
-
-                    return {contentType: "image/avif", data: outputData};
-                })(),
+                alternativePromise: alternativePromiseResolver.promise,
+                previewSizePromise: previewSizePromiseResolver.promise,
+                previewPlaceholderPromise: previewPlaceholderPromiseResolver.promise,
+                previewImagePromise,
             };
         },
-        acceptError: error => error.displayMessage === pdfPasswordRequiredErrorDisplayMessage,
     };
 }
 

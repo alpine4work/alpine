@@ -22,7 +22,7 @@ export async function createTestTokenAgents<
     context: TestContext,
     serviceNames: ServiceNames,
 ): Promise<{[Key in keyof ServiceNames]: TokenAgent}> {
-    const keysDirectoryPath = joinPath(context.getTempPath(), "keys");
+    const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
 
     await ensureServiceKeys(keysDirectoryPath);
 

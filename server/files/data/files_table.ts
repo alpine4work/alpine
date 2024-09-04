@@ -19,12 +19,8 @@ import {
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {
-    FileContentType,
-    FileContentTypeSchema,
-    getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
@@ -84,6 +80,8 @@ const FilesTable = DynamoTableSchema.new({
                  * new reference to the file instead of reuploading the file.
                  *
                  * File content is immutable after it's been uploaded.
+                 *
+                 * The file is stored in Cloudflare R2 with the key `${spaceId}/${fileId}`.
                  */
                 // TODO(calebmer): At some point we'll need to implement a file garbage
                 // collector. For example, you add a file to a document then you delete the
@@ -126,6 +124,32 @@ const FilesTable = DynamoTableSchema.new({
                         isUploading: Schema.boolean,
 
                         /**
+                         * An (ideally lossless) alternative to the file we can render on the client.
+                         * We support many more document types than what the client can actually
+                         * render. For example, the user may upload a `.tiff` image but `.tiff` images
+                         * can't be rendered in a web browser. Or the user may upload a Microsoft Word
+                         * document but we need to convert such a document to `.pdf` before we can
+                         * render it. This property records whether the file has an alternative.
+                         *
+                         * If non-null the file has an alternative that'll be rendered instead of the
+                         * main file itself. If `isPreviewImage` is true then the alternative is the
+                         * same as what's in `preview.image`. (`isPreviewImage` being true implies there
+                         * must be a `preview.image`.)
+                         *
+                         * The alternative is only rendered in the fullscreen file viewer. Though a
+                         * preview image may be generated from the alternative file.
+                         *
+                         * - If `alternative` has finished uploading and `isPreviewImage` is false then
+                         *   the alternative file is stored in Cloudflare R2 with the key:
+                         *   `${spaceId}/${fileId}-alternative`.
+                         *
+                         * - If `alternative` has finished uploading and `isPreviewImage` is true then
+                         *   the alternative file is stored in Cloudflare R2 with the key:
+                         *   `${spaceId}/${fileId}-preview`.
+                         */
+                        alternative: FileAlternativeSchema.nullable().default(null),
+
+                        /**
                          * A visual preview image for the file. Previews are a scaled down, often
                          * non-interactive, display of a file. For example files displayed in a
                          * document image gallery are previews.
@@ -138,6 +162,9 @@ const FilesTable = DynamoTableSchema.new({
                          * doesn't have a preview then this object will be null.
                          *
                          * See the documentation on `FilePreview` for more information.
+                         *
+                         * If `preview.image` is available then the preview file is stored in
+                         * Cloudflare R2 with the key: `${spaceId}/${fileId}-preview`.
                          */
                         preview: FilePreviewSchema.nullable(),
                     }),
@@ -193,10 +220,12 @@ export async function startUploadingAndProcessingFile(
         contentLength,
         hasPreview,
         hasPreviewImage,
+        hasAlternative,
     }: {
         spaceId: SpaceId;
         contentType: FileContentType;
         contentLength: number;
+        hasAlternative: boolean;
         hasPreview: boolean;
         hasPreviewImage: boolean;
     },
@@ -241,6 +270,7 @@ export async function startUploadingAndProcessingFile(
             contentLength,
             uploaderId: context.actor.getAccountId(),
             isUploading: true,
+            alternative: hasAlternative ? {isUploading: true} : null,
             preview: hasPreview
                 ? {
                       isProcessing: true,
@@ -282,6 +312,49 @@ export class FileUploader {
         this.fileId = item.fileId;
         this.uploaderId = item.uploaderId;
         this._item = new MutexValue(item);
+    }
+
+    // NOCOMMIT: Documentation and tests!
+    public async finishProcessingAlternative(
+        context: ServerSessionActionContext,
+        alternative: {contentType: FileContentType; contentLength: number},
+    ) {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        await this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.alternative) {
+                        throw new InternalError("File doesn't have an alternative");
+                    }
+                    if (!item.alternative.isUploading) {
+                        throw new InternalError(
+                            "File has already finished uploading its alternative",
+                        );
+                    }
+
+                    return {
+                        ...item,
+                        alternative: {
+                            isUploading: false,
+                            contentType: alternative.contentType,
+                            contentLength: alternative.contentLength,
+                            isPreviewImage: false,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
     }
 
     /**
@@ -414,7 +487,15 @@ export class FileUploader {
      */
     public async finishProcessingPreviewImage(
         context: ServerSessionActionContext,
-        image: {contentType: FileContentType; contentLength: number},
+        {
+            contentType,
+            contentLength,
+            isAlternative,
+        }: {
+            contentType: FileContentType;
+            contentLength: number;
+            isAlternative: boolean;
+        },
     ) {
         if (this.uploaderId !== context.actor.getAccountId()) {
             throw new PermissionDeniedError("Account is not the file's uploader account");
@@ -445,9 +526,23 @@ export class FileUploader {
                             );
                         }
                     }
+                    // NOCOMMIT: Tests!
+                    if (isAlternative) {
+                        if (!item.alternative) {
+                            throw new InternalError("File doesn't have an alternative");
+                        }
+                        if (!item.alternative.isUploading) {
+                            throw new InternalError(
+                                "File has already finished uploading its alternative",
+                            );
+                        }
+                    }
 
                     return {
                         ...item,
+                        alternative: isAlternative
+                            ? {isUploading: false, contentType, contentLength, isPreviewImage: true}
+                            : item.alternative,
                         preview:
                             item.preview.size !== "Processing" &&
                             item.preview.placeholder !== "Processing"
@@ -456,13 +551,13 @@ export class FileUploader {
                                       ok: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
-                                      image,
+                                      image: {contentType, contentLength},
                                   }
                                 : {
                                       isProcessing: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
-                                      image,
+                                      image: {contentType, contentLength},
                                   },
                     };
                 },
@@ -496,7 +591,7 @@ export class FileUploader {
      * Acceptable errors call this function and leave a `FileItem` in the database.
      * The user can still download the file we just can't preview it. Unacceptable
      * errors should end up deleting the `FileItem` from DynamoDB altogether with
-     * the `cleanupAfterError()` function.
+     * the `cleanupAfterUnacceptableError()` function.
      */
     public async finishProcessingPreviewAfterAcceptableError(
         context: ServerSessionActionContext,
@@ -588,20 +683,27 @@ async function actuallyCleanupFileItem(
     context: Context<ServerActionContextModules & {r2: CloudflareR2ContextModule}>,
     fileItem: FileItem,
 ) {
-    const {spaceId, fileId, contentType} = fileItem;
-    const preferredExtension = getFileContentTypePreferredExtension(contentType);
+    const {spaceId, fileId} = fileItem;
 
     // Make sure the R2 object associated with the file is deleted if an object
     // exists. `DeleteObject` is idempotent. It won't throw an error if the object
     // doesn't exist.
+    //
+    // We unconditionally try and delete the alternative object and preview object
+    // since `fileItem` may not have successfully updated after the objects were
+    // uploaded.
     await runAllPromises([
         context.r2.DeleteObject({
             Bucket: filesBucketName,
-            Key: `${spaceId}/${fileId}.${preferredExtension}`,
+            Key: `${spaceId}/${fileId}`,
         }),
         context.r2.DeleteObject({
             Bucket: filesBucketName,
-            Key: `${spaceId}/${fileId}.preview.${preferredExtension}`,
+            Key: `${spaceId}/${fileId}-alternative`,
+        }),
+        context.r2.DeleteObject({
+            Bucket: filesBucketName,
+            Key: `${spaceId}/${fileId}-preview`,
         }),
     ]);
 
@@ -663,6 +765,7 @@ export async function getFile(
         contentType: item.contentType,
         contentLength: item.contentLength,
         isUploading: item.isUploading,
+        alternative: item.alternative,
         preview: item.preview,
     });
 }

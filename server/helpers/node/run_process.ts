@@ -24,6 +24,7 @@ export async function runProcess(
     {
         cwd = getWorkspacePath(),
         env,
+        signal,
         isErrorExitCode = exitCode => exitCode !== 0,
         withOutputInErrorMessage = process.env.NODE_ENV !== "production",
     }: {
@@ -43,6 +44,11 @@ export async function runProcess(
          * exit code is an error.
          */
         isErrorExitCode?: (exitCode: number) => boolean;
+
+        /**
+         * Allows aborting the child process.
+         */
+        signal?: AbortSignal;
 
         /**
          * Should we include stdout and stderr in the error message?
@@ -65,6 +71,7 @@ export async function runProcess(
         cwd,
         env: {...getProcessEnvToPropagate(), ...env},
         stdio: ["ignore", "pipe", "pipe"],
+        signal,
     });
 
     let stdout = "";

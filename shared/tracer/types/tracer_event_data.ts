@@ -404,6 +404,14 @@ export type TracerEventData = {
          * that means exactly depends on the context of the span.
          */
         readonly didNothing?: boolean;
+
+        /**
+         * If our span ran some process this is the duration of that process's
+         * execution. Useful if your span contains other work like setup/teardown
+         * before and after the process execution. Since you may use this property
+         * instead of creating another span to track just the process duration.
+         */
+        readonly processDurationMs?: number;
     };
 
     /**
@@ -1085,6 +1093,20 @@ export type TracerEventData = {
 
         /** The content length of the file we're operating against. */
         readonly contentLength?: number;
+    };
+
+    /**
+     * Information regarding an execution of the [LibreOffice][1] CLI.
+     *
+     * [1]: https://www.libreoffice.org
+     */
+    readonly libreoffice?: {
+        /**
+         * The [output filter][1] used when running the LibreOffice binary with `--convert-to`.
+         *
+         * [1]: https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
+         */
+        readonly outputFilter?: string;
     };
 };
 

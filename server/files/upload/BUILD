@@ -10,8 +10,16 @@ ts_project(
         "//:node_modules/get-port",
         "//:node_modules/looks-same",
         "//server/dynamo/test_helpers",
+        "//server/files/upload/test_helpers",
         "//server/spaces/test_helpers",
     ],
+    tests = {
+        "file_upload_service_content_types_libreoffice_test": {
+            "size": "medium",
+            "tags": ["libreoffice"],
+        },
+    },
+    visibility = ["//server/files/upload/test_helpers:__pkg__"],
     deps = [
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
@@ -38,9 +46,7 @@ js_binary(
     name = "upload",
     data = [":upload_lib"],
     entry_point = "file_upload_service_main.js",
-    visibility = [
-        "//app/integration_tests:__pkg__",
-    ],
+    visibility = ["//app/integration_tests:__pkg__"],
 )
 
 js_image_layer(

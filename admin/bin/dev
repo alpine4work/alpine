@@ -76,8 +76,32 @@ case "$1" in
         ;;
 
     test)
+        # Check if LibreOffice is installed by checking the same paths as
+        # `libreofficeExecutablePath` in `upload_file.ts`. If it's installed then we
+        # can run LibreOffice tests.
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            if [ -z "/Applications/LibreOffice.app/Contents/MacOS/soffice" ]; then
+                has_libreoffice=false
+            else
+                has_libreoffice=true
+            fi
+        elif [[ "$OSTYPE" == "linux"* ]]; then
+            if [ -z "/usr/bin/libreoffice" ] && [ -z "/usr/bin/soffice" ] && [ -z "/snap/bin/libreoffice" ] && [ -z "/opt/libreoffice/program/soffice" ]; then
+                has_libreoffice=false
+            else
+                has_libreoffice=true
+            fi
+        else
+            has_libreoffice=false
+        fi
+
         if has_arg "--all" "${@:2}"; then
-            ./admin/bin/bazel test //... --test_tag_filters=dev-test
+            test_tag_filters=dev-test
+            if [[ "$has_libreoffice" == "false" ]]; then
+                test_tag_filters="$test_tag_filters,-libreoffice"
+            fi
+
+            ./admin/bin/bazel test //... "--test_tag_filters=$test_tag_filters"
         elif [ -z "$2" ]; then
             # - `git diff --name-only main`: Finds all the files which are different from
             #   the `main` branch.
@@ -95,7 +119,14 @@ case "$1" in
             if [ -z "$files" ]; then
                 echo "No changed files"
             else
-                ./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))" | xargs ./admin/bin/bazel test
+                query_base="tests(//...)"
+                query="attr(tags, '\bdev-test\b', $query_base)"
+                if [[ "$has_libreoffice" == "false" ]]; then
+                    query="$query except attr(tags, '\blibreoffice\b', $query_base)"
+                fi
+                query="tests(rdeps($query, $files))"
+
+                ./admin/bin/bazel query --noshow_progress "$query" | xargs ./admin/bin/bazel test
             fi
         else
             # - `echo "${@:2}"`: Use files from the command line.
@@ -107,11 +138,18 @@ case "$1" in
             if [ -z "$files" ]; then
                 echo "No tests for sources"
             else
-                files="$(./admin/bin/bazel query --noshow_progress "tests(rdeps(attr(tags, '\bdev-test\b', tests(//...)), $files))")"
-                if [ "$(wc -l <<< "$files" | tr -d " ")" = "1" ]; then
-                    echo -n $files | xargs ./admin/bin/bazel test --test_output=streamed
+                query_base="tests(//...)"
+                query="attr(tags, '\bdev-test\b', $query_base)"
+                if [[ "$has_libreoffice" == "false" ]]; then
+                    query="$query except attr(tags, '\blibreoffice\b', $query_base)"
+                fi
+                query="tests(rdeps($query, $files))"
+
+                tests="$(./admin/bin/bazel query --noshow_progress "$query")"
+                if [ "$(wc -l <<< "$tests" | tr -d " ")" = "1" ]; then
+                    echo -n $tests | xargs ./admin/bin/bazel test --test_output=streamed
                 else
-                    echo -n $files | xargs ./admin/bin/bazel test
+                    echo -n $tests | xargs ./admin/bin/bazel test
                 fi
             fi
         fi

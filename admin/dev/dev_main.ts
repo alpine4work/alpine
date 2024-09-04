@@ -98,6 +98,7 @@ const jobQueueDevInspectorPort = parsePort(env.JOB_QUEUE_DEV_INSPECTOR_PORT);
 const fileUploadDevPort = parsePort(env.FILE_UPLOAD_DEV_PORT);
 const fileUploadInspectorDevPort = parsePort(env.FILE_UPLOAD_DEV_INSPECTOR_PORT);
 const fileUploadDevPrivatePorts = parsePorts(env.FILE_UPLOAD_DEV_PRIVATE_PORTS);
+const fileUploadServiceTemporaryDirectoryPath = joinPath(devEnvPaths.temp, "files");
 
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
@@ -264,7 +265,7 @@ export type ArtifactServer =
           readonly subprocess: null;
       };
 
-async function createArtifacts() {
+function createArtifacts() {
     const artifacts: ReadonlyArray<Artifact> = [
         // App assets are built with a file artifact then `//app:app_wrapper` runs a
         // lightweight `AppService` which serves Remix routes through a Vite dev
@@ -416,6 +417,7 @@ async function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--cloudflareR2LocalPath=${cloudflareR2LocalDataPath}`,
+                `--temporaryDirectoryPath=${fileUploadServiceTemporaryDirectoryPath}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -471,6 +473,9 @@ const fastSetupPromise = runAllPromises([
         });
     }),
     bazelDevServerPromise,
+    // Cleanup `FileUploadService`'s temporary directory whenever our dev process
+    // manager restarts to make sure we start from a clean slate.
+    fs.rm(fileUploadServiceTemporaryDirectoryPath, {recursive: true}),
 ]);
 
 // Don't wait for these promises to resolve before printing that our
@@ -490,18 +495,16 @@ const slowSetupPromise = runAllPromises([
     }),
 ]);
 
-const artifactsPromise = createArtifacts().then(artifacts =>
-    runAllPromises(
-        artifacts.map(async artifact => {
-            await runAllPromises([
-                rebuildArtifact(artifact),
-                updateArtifactDependencyBazelPackagePaths(artifact),
-                artifact.ports
-                    ? createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise})
-                    : null,
-            ]);
-        }),
-    ),
+const artifactsPromise = runAllPromises(
+    createArtifacts().map(async artifact => {
+        await runAllPromises([
+            rebuildArtifact(artifact),
+            updateArtifactDependencyBazelPackagePaths(artifact),
+            artifact.ports
+                ? createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise})
+                : null,
+        ]);
+    }),
 );
 
 const fastMainPromise = runAllPromises([fastSetupPromise, artifactsPromise]);

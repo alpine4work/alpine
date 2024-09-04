@@ -100,7 +100,7 @@ type TestContextWithDestroy<Modules extends {[key: string]: ContextModuleBase}> 
     ContextWithDestroy<Modules> & TestContextHelpers<Modules>;
 
 type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
-    getTempPath(): string;
+    getTemporaryDirectoryPath(): string;
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
     readonly isOpensearchEnabled: boolean;
@@ -208,14 +208,15 @@ export function createTestContext({
     // actual test failures due to timeout.
     if (import.meta.jest) import.meta.jest.setTimeout(1000 * 10);
 
-    let tempPath: string | null = null;
+    let temporaryDirectoryPath: string | null = null;
     let dynamoLocal: DynamoLocal | null = null;
     let opensearchLocal: OpensearchLocal | null = null;
     let sqsLocal: SqsLocal | null = null;
 
-    const getTempPath = () => {
-        if (tempPath === null) throw new InternalError("Temporary directory has not been created");
-        return tempPath;
+    const getTemporaryDirectoryPath = () => {
+        if (temporaryDirectoryPath === null)
+            throw new InternalError("Temporary directory has not been created");
+        return temporaryDirectoryPath;
     };
 
     const getDynamoLocalPort = () => {
@@ -374,7 +375,7 @@ export function createTestContext({
     });
 
     const helpers: TestContextHelpers<any> = {
-        getTempPath,
+        getTemporaryDirectoryPath,
         getDynamoLocalPort,
         getOpensearchLocalPort,
         isOpensearchEnabled: shouldStartOpensearch,
@@ -400,16 +401,16 @@ export function createTestContext({
         // `bazel-testlogs` directory. Put our service logs in this directory.
         const testUndeclaredOutputsPath = assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR);
 
-        const [newTempPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] =
+        const [newTemporaryDirectoryPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] =
             await runAllPromises([
                 fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
                 getPort(),
                 shouldStartOpensearch ? getPort() : null,
                 shouldSendJobsToSqs ? getPort() : null,
             ]);
-        tempPath = newTempPath;
+        temporaryDirectoryPath = newTemporaryDirectoryPath;
 
-        const ensureLocalCachePath = joinPath(tempPath, "ensure");
+        const ensureLocalCachePath = joinPath(temporaryDirectoryPath, "ensure");
 
         [dynamoLocal, opensearchLocal, sqsLocal] = await runAllPromises([
             startDynamoLocal({
@@ -419,8 +420,8 @@ export function createTestContext({
             }),
             shouldStartOpensearch
                 ? startOpensearchLocal({
-                      configPath: joinPath(tempPath, "opensearch/config"),
-                      dataPath: joinPath(tempPath, "opensearch/data"),
+                      configPath: joinPath(temporaryDirectoryPath, "opensearch/config"),
+                      dataPath: joinPath(temporaryDirectoryPath, "opensearch/data"),
                       logsPath: joinPath(testUndeclaredOutputsPath, "opensearch"),
                       port: assertExists(opensearchLocalPort),
                   })

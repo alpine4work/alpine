@@ -24,10 +24,12 @@ export function createPromiseResolver<T = void>(): PromiseResolver<T> {
         promise,
         isSettled: () => isSettled,
         resolve: value => {
+            if (isSettled === true) return;
             isSettled = true;
             resolve!(value);
         },
         reject: error => {
+            if (isSettled === true) return;
             isSettled = true;
             reject!(error);
         },

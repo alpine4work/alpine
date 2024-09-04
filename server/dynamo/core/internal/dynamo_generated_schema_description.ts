@@ -2990,7 +2990,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "image/tiff",
                                                 "image/heif",
                                                 "image/heic",
-                                                "application/pdf"
+                                                "application/pdf",
+                                                "application/msword",
+                                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                             ],
                                             "referenceId": "af264040"
                                         },
@@ -3013,6 +3015,59 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Boolean"
                                         },
                                         "optional": false
+                                    },
+                                    "alternative": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "BooleanUnion",
+                                                "typeKey": "isUploading",
+                                                "trueSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "isUploading": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": true
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "falseSchema": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "isUploading": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": false
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "contentType": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "af264040"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "contentLength": {
+                                                            "valueSchema": {
+                                                                "type": "Integer"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "isPreviewImage": {
+                                                            "valueSchema": {
+                                                                "type": "Boolean"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "preview": {
                                         "valueSchema": {

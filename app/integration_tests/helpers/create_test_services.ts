@@ -140,8 +140,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
     });
 
     test.beforeAll(async () => {
-        const keysDirectoryPath = joinPath(context.getTempPath(), "keys");
-        const ensureLocalCachePath = joinPath(context.getTempPath(), "ensure");
+        const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
+        const ensureLocalCachePath = joinPath(context.getTemporaryDirectoryPath(), "ensure");
 
         const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
         const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");

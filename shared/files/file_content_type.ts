@@ -16,8 +16,8 @@ import {Schema} from "~/shared/schema/schema.js";
  */
 export type FileContentType =
     | "application/octet-stream"
-    | ImageFileContentType
-    | DocumentFileContentType;
+    | FileImageContentType
+    | FileDocumentContentType;
 
 // TODO(calebmer, #files): File types to support:
 //
@@ -30,7 +30,7 @@ export type FileContentType =
 // A good reference for file types we should support is Canva:
 // https://www.canva.com/help/upload-formats-requirements
 
-export type ImageFileContentType = WebSafeImageFileContentType | WebUnsafeImageFileContentType;
+export type FileImageContentType = FileWebSafeImageContentType | FileWebUnsafeImageContentType;
 
 /**
  * Image types with broad web browser support (Chrome, Firefox, and Safari)
@@ -40,7 +40,7 @@ export type ImageFileContentType = WebSafeImageFileContentType | WebUnsafeImageF
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
  */
-export type WebSafeImageFileContentType =
+export type FileWebSafeImageContentType =
     | "image/apng"
     | "image/avif"
     | "image/gif"
@@ -59,7 +59,7 @@ export type WebSafeImageFileContentType =
  * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
  * [2]: https://www.adobe.com/creativecloud/file-types/image/raster/heic-file.html
  */
-export type WebUnsafeImageFileContentType =
+export type FileWebUnsafeImageContentType =
     | "image/bmp"
     | "image/ico"
     | "image/tiff"
@@ -76,9 +76,16 @@ export type WebUnsafeImageFileContentType =
  * rich format that may contain much more like text and even interactive form
  * inputs.
  *
+ * You can find common MIME types and their file extensions in the MDN article
+ * “[Common MIME types][2]”.
+ *
  * [1]: https://www.adobe.com/acrobat/about-adobe-pdf.html
+ * [2]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
  */
-export type DocumentFileContentType = "application/pdf";
+export type FileDocumentContentType =
+    | "application/pdf"
+    | "application/msword"
+    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
@@ -97,6 +104,8 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "image/heif": "heif",
     "image/heic": "heic",
     "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
 };
 
 /**

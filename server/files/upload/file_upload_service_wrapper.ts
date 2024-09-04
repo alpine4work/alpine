@@ -16,12 +16,14 @@ import {registerGracefulServerShutdown} from "~/server/node/register_graceful_se
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {InternalError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 type Options = ServiceOptions<typeof options>;
 
 export const options = {
     port: {type: "string"},
+    temporaryDirectoryPath: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverProcessContextOptions,
     ...serviceCloudflareR2Options,
@@ -37,7 +39,8 @@ export async function run({
     shutdownManager: ShutdownManager;
 }) {
     const port = options.port ? parseInt(options.port, 10) : null;
-    if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
+    if (!port || !Number.isInteger(port))
+        throw new InternalError("`port` integer option is required");
 
     const awsSigner = new AwsRequestSigner();
 
@@ -55,7 +58,10 @@ export async function run({
         r2: createServiceCloudflareR2ContextModule(options),
     });
 
-    const server = createFileUploadService(processContext, tokenAgent);
+    const server = createFileUploadService(processContext, {
+        tokenAgent,
+        temporaryDirectoryPath: assertExists("`temporaryDirectoryPath` option is required"),
+    });
 
     registerGracefulServerShutdown(shutdownManager, server);
 

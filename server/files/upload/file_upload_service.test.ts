@@ -45,7 +45,9 @@ let server: Server;
 const context = createTestContext();
 
 beforeAll(async () => {
-    const r2Storage = new FileStorage(joinPath(context.getTempPath(), "r2", filesBucketName));
+    const r2Storage = new FileStorage(
+        joinPath(context.getTemporaryDirectoryPath(), "r2", filesBucketName),
+    );
     const r2Bucket = new R2Bucket(r2Storage);
     const r2ContextModule = new CloudflareR2ContextModule(
         new MiniflareR2Client(new Map([[filesBucketName, r2Bucket]])),
@@ -55,7 +57,10 @@ beforeAll(async () => {
         createTestTokenAgents(context, ["FileUploadService", "EdgeService"]),
         getPort(),
     ]);
-    server = createFileUploadService(context.clone({r2: r2ContextModule}), serverTokenAgent);
+    server = createFileUploadService(context.clone({r2: r2ContextModule}), {
+        tokenAgent: serverTokenAgent,
+        temporaryDirectoryPath: joinPath(context.getTemporaryDirectoryPath(), "files"),
+    });
 
     await new Promise<void>(resolve => {
         server.listen(port, resolve);
@@ -321,7 +326,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
@@ -345,6 +350,7 @@ chunk\r\n\
             contentType: "image/jpeg",
             contentLength: 33102,
             isUploading: false,
+            alternative: null,
             preview: {
                 isProcessing: false,
                 ok: true,
@@ -422,7 +428,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
@@ -502,6 +508,7 @@ Content-Length: 33102\r\n\
             contentType: "image/jpeg",
             contentLength: 33102,
             isUploading: true,
+            alternative: null,
             preview: {
                 isProcessing: true,
                 size: "Processing",
@@ -527,7 +534,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 `);
 
@@ -598,6 +605,7 @@ Content-Length: 33102\r\n\
             contentType: "image/jpeg",
             contentLength: 33102,
             isUploading: true,
+            alternative: null,
             preview: {
                 isProcessing: true,
                 size: "Processing",
@@ -623,7 +631,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
 \r\n\
 chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
@@ -644,6 +652,7 @@ chunk\r\n\
             contentType: "image/jpeg",
             contentLength: 33102,
             isUploading: false,
+            alternative: null,
             preview: {
                 isProcessing: false,
                 ok: true,
@@ -674,6 +683,7 @@ test("can't upload invalid image data", async () => {
     expect(events).toEqual([
         {
             type: "Start",
+            hasAlternative: false,
             hasPreview: true,
             hasPreviewImage: false,
             fileId: expect.any(String),
@@ -718,6 +728,7 @@ test("can't upload image with the wrong content type", async () => {
     expect(events).toEqual([
         {
             type: "Start",
+            hasAlternative: false,
             hasPreview: true,
             hasPreviewImage: false,
             fileId: expect.any(String),
@@ -759,6 +770,7 @@ test("can upload image", async () => {
     expect(events).toEqual([
         {
             type: "Start",
+            hasAlternative: false,
             hasPreview: true,
             hasPreviewImage: false,
             fileId: expect.any(String),
@@ -780,6 +792,7 @@ test("can upload image", async () => {
             contentType: "image/jpeg",
             contentLength: 33102,
             isUploading: false,
+            alternative: null,
             preview: {
                 isProcessing: false,
                 ok: true,

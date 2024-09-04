@@ -26,13 +26,16 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // Look at what Gotenberg is doing for fonts:
 // https://github.com/gotenberg/gotenberg/blob/da8eeb5d8f98e689b7eaa9276c8847fb7a390994/build/Dockerfile#L67-L117
 
+// TODO(calebmer, #files): Write about resource utilization. Maybe in a
+// technical decision log entry.
+
 export type FileUploadServiceRoute =
     | {readonly type: "NotFound"}
     | {readonly type: "Upload"; readonly spaceId: SpaceId};
 
 export function createFileUploadService(
     processContext: FileUploadServiceProcessContext,
-    tokenAgent: TokenAgent,
+    {tokenAgent, temporaryDirectoryPath}: {tokenAgent: TokenAgent; temporaryDirectoryPath: string},
 ) {
     const tracer = processContext.tracer.getRoot();
 
@@ -79,7 +82,12 @@ export function createFileUploadService(
         );
 
         return baseActionContext.with({actor: actorContextModule}, context =>
-            uploadFile(context, span, route, url, headers, req, res),
+            uploadFile(context, span, req, res, {
+                url,
+                spaceId: route.spaceId,
+                headers,
+                temporaryDirectoryPath,
+            }),
         );
     }
 

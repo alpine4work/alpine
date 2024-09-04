@@ -164,6 +164,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         count: Schema.integer,
         isBlocking: Schema.boolean,
         didNothing: Schema.boolean,
+        processDurationMs: Schema.float,
     },
     context: {
         handler: Schema.string,
@@ -368,6 +369,9 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     file: {
         contentType: Schema.string,
         contentLength: Schema.integer,
+    },
+    libreoffice: {
+        outputFilter: Schema.string,
     },
 };
 
