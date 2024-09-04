@@ -70,7 +70,14 @@ export class AwsGithubRunners extends Construct {
         const deployInstanceClass = awsServiceInstanceClass;
         const deployInstanceType = InstanceType.of(deployInstanceClass, InstanceSize.LARGE);
 
-        const createImageBuilderComponents = (extraAptDependencies: Array<string> = []) => [
+        const createImageBuilderComponents = (
+            extraAptDependencies: Array<string> = [],
+            {
+                noInstallRecommends: extraAptDependenciesWithNoInstallRecommends = [],
+            }: {
+                noInstallRecommends?: Array<string>;
+            } = {},
+        ) => [
             RunnerImageComponent.requiredPackages(),
             RunnerImageComponent.runnerUser(),
             RunnerImageComponent.git(),
@@ -104,6 +111,13 @@ export class AwsGithubRunners extends Construct {
                             ...extraAptDependencies,
                         ]),
                     ).join(" ")}`,
+                    ...(extraAptDependenciesWithNoInstallRecommends.length > 0
+                        ? [
+                              `apt-get install -y --no-install-recommends ${Array.from(
+                                  new Set(extraAptDependenciesWithNoInstallRecommends),
+                              ).join(" ")}`,
+                          ]
+                        : []),
                 ],
             }),
         ];
@@ -119,111 +133,118 @@ export class AwsGithubRunners extends Construct {
             os: Os.LINUX_UBUNTU,
             architecture: Architecture.ARM64,
 
-            components: createImageBuilderComponents([
-                // Dependencies required by Playwright for running Chromium:
-                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L252-L275
-                //
-                // We could also run `playwright install-deps` but putting them on the machine
-                // image is more efficient.
-                "libasound2",
-                "libatk-bridge2.0-0",
-                "libatk1.0-0",
-                "libatspi2.0-0",
-                "libcairo2",
-                "libcups2",
-                "libdbus-1-3",
-                "libdrm2",
-                "libgbm1",
-                "libglib2.0-0",
-                "libnspr4",
-                "libnss3",
-                "libpango-1.0-0",
-                "libwayland-client0",
-                "libx11-6",
-                "libxcb1",
-                "libxcomposite1",
-                "libxdamage1",
-                "libxext6",
-                "libxfixes3",
-                "libxkbcommon0",
-                "libxrandr2",
+            components: createImageBuilderComponents(
+                [
+                    // Dependencies required by Playwright for running Chromium:
+                    // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L252-L275
+                    //
+                    // We could also run `playwright install-deps` but putting them on the machine
+                    // image is more efficient.
+                    "libasound2",
+                    "libatk-bridge2.0-0",
+                    "libatk1.0-0",
+                    "libatspi2.0-0",
+                    "libcairo2",
+                    "libcups2",
+                    "libdbus-1-3",
+                    "libdrm2",
+                    "libgbm1",
+                    "libglib2.0-0",
+                    "libnspr4",
+                    "libnss3",
+                    "libpango-1.0-0",
+                    "libwayland-client0",
+                    "libx11-6",
+                    "libxcb1",
+                    "libxcomposite1",
+                    "libxdamage1",
+                    "libxext6",
+                    "libxfixes3",
+                    "libxkbcommon0",
+                    "libxrandr2",
 
-                // Dependencies required by Playwright for running WebKit:
-                // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L305-L362
-                //
-                // We could also run `playwright install-deps` but putting them on the machine
-                // image is more efficient.
-                "libsoup-3.0-0",
-                "libenchant-2-2",
-                "gstreamer1.0-libav",
-                "gstreamer1.0-plugins-bad",
-                "gstreamer1.0-plugins-base",
-                "gstreamer1.0-plugins-good",
-                "libicu70",
-                "libatk-bridge2.0-0",
-                "libatk1.0-0",
-                "libcairo2",
-                "libdbus-1-3",
-                "libdrm2",
-                "libegl1",
-                "libepoxy0",
-                "libevdev2",
-                "libffi7",
-                "libfontconfig1",
-                "libfreetype6",
-                "libgbm1",
-                "libgdk-pixbuf-2.0-0",
-                "libgles2",
-                "libglib2.0-0",
-                "libglx0",
-                "libgstreamer-gl1.0-0",
-                "libgstreamer-plugins-base1.0-0",
-                "libgstreamer1.0-0",
-                "libgtk-3-0",
-                "libgudev-1.0-0",
-                "libharfbuzz-icu0",
-                "libharfbuzz0b",
-                "libhyphen0",
-                "libjpeg-turbo8",
-                "liblcms2-2",
-                "libmanette-0.2-0",
-                "libnotify4",
-                "libopengl0",
-                "libopenjp2-7",
-                "libopus0",
-                "libpango-1.0-0",
-                "libpng16-16",
-                "libproxy1v5",
-                "libsecret-1-0",
-                "libwayland-client0",
-                "libwayland-egl1",
-                "libwayland-server0",
-                "libwebpdemux2",
-                "libwoff1",
-                "libx11-6",
-                "libxcomposite1",
-                "libxdamage1",
-                "libxkbcommon0",
-                "libxml2",
-                "libxslt1.1",
-                "libx264-163",
-                "libatomic1",
-                "libevent-2.1-7",
-                // Playwright errs if this isn't installed when running WebKit, but it's not
-                // present in the list we linked above.
-                "libxt6",
+                    // Dependencies required by Playwright for running WebKit:
+                    // https://github.com/microsoft/playwright/blob/99a36310570617222290c09b96a2026beb8b00f9/packages/playwright-core/src/server/registry/nativeDeps.ts#L305-L362
+                    //
+                    // We could also run `playwright install-deps` but putting them on the machine
+                    // image is more efficient.
+                    "libsoup-3.0-0",
+                    "libenchant-2-2",
+                    "gstreamer1.0-libav",
+                    "gstreamer1.0-plugins-bad",
+                    "gstreamer1.0-plugins-base",
+                    "gstreamer1.0-plugins-good",
+                    "libicu70",
+                    "libatk-bridge2.0-0",
+                    "libatk1.0-0",
+                    "libcairo2",
+                    "libdbus-1-3",
+                    "libdrm2",
+                    "libegl1",
+                    "libepoxy0",
+                    "libevdev2",
+                    "libffi7",
+                    "libfontconfig1",
+                    "libfreetype6",
+                    "libgbm1",
+                    "libgdk-pixbuf-2.0-0",
+                    "libgles2",
+                    "libglib2.0-0",
+                    "libglx0",
+                    "libgstreamer-gl1.0-0",
+                    "libgstreamer-plugins-base1.0-0",
+                    "libgstreamer1.0-0",
+                    "libgtk-3-0",
+                    "libgudev-1.0-0",
+                    "libharfbuzz-icu0",
+                    "libharfbuzz0b",
+                    "libhyphen0",
+                    "libjpeg-turbo8",
+                    "liblcms2-2",
+                    "libmanette-0.2-0",
+                    "libnotify4",
+                    "libopengl0",
+                    "libopenjp2-7",
+                    "libopus0",
+                    "libpango-1.0-0",
+                    "libpng16-16",
+                    "libproxy1v5",
+                    "libsecret-1-0",
+                    "libwayland-client0",
+                    "libwayland-egl1",
+                    "libwayland-server0",
+                    "libwebpdemux2",
+                    "libwoff1",
+                    "libx11-6",
+                    "libxcomposite1",
+                    "libxdamage1",
+                    "libxkbcommon0",
+                    "libxml2",
+                    "libxslt1.1",
+                    "libx264-163",
+                    "libatomic1",
+                    "libevent-2.1-7",
+                    // Playwright errs if this isn't installed when running WebKit, but it's not
+                    // present in the list we linked above.
+                    "libxt6",
 
-                // Dependencies for fixing the following error when `DEBUG=pw:browser*` is set.
-                // https://github.com/microsoft/playwright/issues/27855#issuecomment-1789282663
-                //
-                // ```
-                // pw:browser [pid=1594][err] (MiniBrowser:1600): GLib-GIO-CRITICAL **: 18:21:12.441: g_application_quit: assertion 'G_IS_APPLICATION (application)' failed
-                // ```
-                "libfaad2",
-                "libkate1",
-                "libfdk-aac2",
-                "libwpewebkit-1.0-3",
-            ]),
+                    // Dependencies for fixing the following error when `DEBUG=pw:browser*` is set.
+                    // https://github.com/microsoft/playwright/issues/27855#issuecomment-1789282663
+                    //
+                    // ```
+                    // pw:browser [pid=1594][err] (MiniBrowser:1600): GLib-GIO-CRITICAL **: 18:21:12.441: g_application_quit: assertion 'G_IS_APPLICATION (application)' failed
+                    // ```
+                    "libfaad2",
+                    "libkate1",
+                    "libfdk-aac2",
+                    "libwpewebkit-1.0-3",
+                ],
+                {
+                    // Install `libreoffice` without any of its GUI dependencies since we'll only
+                    // use the `libreoffice` CLI and we'll only use it in tests.
+                    noInstallRecommends: ["libreoffice"],
+                },
+            ),
         });
 
         const testRunnerProvider = new Ec2RunnerProvider(this, "TestRunnerProvider", {

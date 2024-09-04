@@ -948,6 +948,7 @@ Resources:
                                           libwayland-server0 libwebpdemux2 libwoff1 libxml2
                                           libxslt1.1 libx264-163 libatomic1 libevent-2.1-7 libxt6
                                           libfaad2 libkate1 libfdk-aac2 libwpewebkit-1.0-3
+                                        - apt-get install -y --no-install-recommends libreoffice
                 description: Component 7 Custom-AptGetInstall
         UpdateReplacePolicy: Retain
         DeletionPolicy: Retain
@@ -971,7 +972,8 @@ Resources:
                 libmanette-0.2-0 libnotify4 libopengl0 libopenjp2-7 libopus0 libpng16-16 libproxy1v5
                 libsecret-1-0 libwayland-egl1 libwayland-server0 libwebpdemux2 libwoff1 libxml2
                 libxslt1.1 libx264-163 libatomic1 libevent-2.1-7 libxt6 libfaad2 libkate1
-                libfdk-aac2 libwpewebkit-1.0-3"]}}]}]}'
+                libfdk-aac2 libwpewebkit-1.0-3","apt-get install -y --no-install-recommends
+                libreoffice"]}}]}]}'
             Description: Component 7 Custom-AptGetInstall
             Name: CyberworldsLifecycleStack-GithubRunners-TestRunnerImageBuilder-Component7Custom-AptGetInstall-101EA842
             Platform: Linux
