@@ -792,7 +792,10 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                           {
                               type: "PreviewImage",
                               contentType: expectedImage.contentType,
-                              contentLength: expectedImage.contentLength,
+                              contentLength:
+                                  file.preview && !file.preview.isProcessing && file.preview.ok
+                                      ? file.preview.image?.contentLength
+                                      : null,
                           },
                       ]
                     : []),
