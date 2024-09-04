@@ -201,14 +201,14 @@ export function testFileUploadServiceContentTypes(testCases: {
                         isUploading: false,
                         alternative: expectedAlternative
                             ? {
-                                  isUploading: false,
+                                  isProcessing: false,
                                   contentType: expectedAlternative.contentType,
                                   contentLength: expect.any(Number),
                                   isPreviewImage: false,
                               }
                             : expectedIsPreviewImageAlternative
                             ? {
-                                  isUploading: false,
+                                  isProcessing: false,
                                   contentType: assertExists(expectedPreviewImage).contentType,
                                   contentLength: expect.any(Number),
                                   isPreviewImage: true,
@@ -262,7 +262,7 @@ export function testFileUploadServiceContentTypes(testCases: {
 
                     if (expectedIsPreviewImageAlternative) {
                         assert(file.alternative);
-                        assert(!file.alternative.isUploading);
+                        assert(!file.alternative.isProcessing);
 
                         expect(file.alternative.contentLength).toEqual(
                             file.preview.image.contentLength,
@@ -272,7 +272,7 @@ export function testFileUploadServiceContentTypes(testCases: {
 
                 if (expectedAlternative) {
                     assert(file.alternative);
-                    assert(!file.alternative.isUploading);
+                    assert(!file.alternative.isProcessing);
 
                     const epsilon = 200;
                     const withinRange =
@@ -341,7 +341,7 @@ export function testFileUploadServiceContentTypes(testCases: {
                                   type: "Alternative",
                                   contentType: expectedAlternative.contentType,
                                   contentLength:
-                                      file.alternative && !file.alternative.isUploading
+                                      file.alternative && !file.alternative.isProcessing
                                           ? file.alternative.contentLength
                                           : null,
                                   isPreviewImage: false,

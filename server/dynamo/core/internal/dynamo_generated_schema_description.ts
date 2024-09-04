@@ -3021,11 +3021,11 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Nullable",
                                             "schema": {
                                                 "type": "BooleanUnion",
-                                                "typeKey": "isUploading",
+                                                "typeKey": "isProcessing",
                                                 "trueSchema": {
                                                     "type": "Object",
                                                     "propertySchemaByKey": {
-                                                        "isUploading": {
+                                                        "isProcessing": {
                                                             "valueSchema": {
                                                                 "type": "Value",
                                                                 "value": true
@@ -3037,7 +3037,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "falseSchema": {
                                                     "type": "Object",
                                                     "propertySchemaByKey": {
-                                                        "isUploading": {
+                                                        "isProcessing": {
                                                             "valueSchema": {
                                                                 "type": "Value",
                                                                 "value": false

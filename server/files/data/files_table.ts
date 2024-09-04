@@ -270,7 +270,7 @@ export async function startUploadingAndProcessingFile(
             contentLength,
             uploaderId: context.actor.getAccountId(),
             isUploading: true,
-            alternative: hasAlternative ? {isUploading: true} : null,
+            alternative: hasAlternative ? {isProcessing: true} : null,
             preview: hasPreview
                 ? {
                       isProcessing: true,
@@ -314,7 +314,11 @@ export class FileUploader {
         this._item = new MutexValue(item);
     }
 
-    // NOCOMMIT: Documentation and tests!
+    /**
+     * Finish processing the file's alternative if the file has an alternative. If
+     * the file was not declared to have an alternative upon creation then this
+     * method will throw an error.
+     */
     public async finishProcessingAlternative(
         context: ServerSessionActionContext,
         alternative: {contentType: FileContentType; contentLength: number},
@@ -336,16 +340,16 @@ export class FileUploader {
                     if (!item.alternative) {
                         throw new InternalError("File doesn't have an alternative");
                     }
-                    if (!item.alternative.isUploading) {
+                    if (!item.alternative.isProcessing) {
                         throw new InternalError(
-                            "File has already finished uploading its alternative",
+                            "File has already finished processing its alternative",
                         );
                     }
 
                     return {
                         ...item,
                         alternative: {
-                            isUploading: false,
+                            isProcessing: false,
                             contentType: alternative.contentType,
                             contentLength: alternative.contentLength,
                             isPreviewImage: false,
@@ -526,14 +530,13 @@ export class FileUploader {
                             );
                         }
                     }
-                    // NOCOMMIT: Tests!
                     if (isAlternative) {
                         if (!item.alternative) {
                             throw new InternalError("File doesn't have an alternative");
                         }
-                        if (!item.alternative.isUploading) {
+                        if (!item.alternative.isProcessing) {
                             throw new InternalError(
-                                "File has already finished uploading its alternative",
+                                "File has already finished processing its alternative",
                             );
                         }
                     }
@@ -541,7 +544,12 @@ export class FileUploader {
                     return {
                         ...item,
                         alternative: isAlternative
-                            ? {isUploading: false, contentType, contentLength, isPreviewImage: true}
+                            ? {
+                                  isProcessing: false,
+                                  contentType,
+                                  contentLength,
+                                  isPreviewImage: true,
+                              }
                             : item.alternative,
                         preview:
                             item.preview.size !== "Processing" &&
