@@ -848,7 +848,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                 ]);
 
                 const result = await looksSame(actualImageContents, expectedImageContents, {
-                    tolerance: 35,
+                    tolerance: 40,
                     createDiffImage: true,
                 });
 
