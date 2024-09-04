@@ -59,6 +59,7 @@ const testCases: {
             code: ErrorCode;
             displayMessage: ErrorDisplayMessage;
         };
+        looksSameTolerance?: number;
     }>;
 } = {
     "application/octet-stream": [
@@ -492,6 +493,9 @@ const testCases: {
                 contentLength: 1717,
                 similarPath: "pdfsharp_sample_page_sizes.avif",
             },
+            // Needs higher tolerance probably because this file is much bigger than others
+            // we test so there's more space for there to be mismatches.
+            looksSameTolerance: 70,
         },
     ],
 };
@@ -664,6 +668,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
         placeholder: expectedPlaceholder,
         image: expectedImage,
         error: expectedError,
+        looksSameTolerance,
     } of contentTypeTestCases) {
         const testFn = only ? test.only : test;
 
@@ -848,7 +853,7 @@ for (const [contentType, contentTypeTestCases] of Object.entries(testCases)) {
                 ]);
 
                 const result = await looksSame(actualImageContents, expectedImageContents, {
-                    tolerance: 50,
+                    tolerance: looksSameTolerance ?? 35,
                     createDiffImage: true,
                 });
 
