@@ -2,9 +2,10 @@ import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_c
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {TaskCollectionIndexDocBase} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc, TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
-import {CancelledError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    getAggregateErrorPriority,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -89,6 +90,7 @@ export async function assembleTaskAndReferences(
     // while waiting so we need to loop until `promises` is empty.
     {
         let hasError = false;
+        let errorPriority = 0;
         let error: unknown;
 
         // Wait for all discovered promises to resolve before returning.
@@ -101,16 +103,17 @@ export async function assembleTaskAndReferences(
             try {
                 await runAllPromises(currentPromises);
             } catch (newError) {
+                const newErrorPriority = getAggregateErrorPriority(newError);
+
                 if (!hasError) {
                     hasError = true;
+                    errorPriority = newErrorPriority;
                     error = newError;
                 }
                 // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
                 // just the first one. Probably by using an `AggregateError`.
-                else if (
-                    (!isSystemError(error) && isSystemError(newError)) ||
-                    (error instanceof CancelledError && !(newError instanceof CancelledError))
-                ) {
+                else if (newErrorPriority > errorPriority) {
+                    errorPriority = newErrorPriority;
                     error = newError;
                 }
             }

@@ -18,11 +18,14 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {CancelledError, DataLossError, UnknownError} from "~/shared/error/error.js";
+import {DataLossError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    getAggregateErrorPriority,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
     AccountId,
@@ -400,6 +403,7 @@ export async function waitForProcessTaskActionTransactionsForTest() {
     assert(processTaskActionTransactionPromisesForTest);
 
     let hasError = false;
+    let errorPriority = 0;
     let error: unknown;
 
     // Wait for all promises to resolve. If there's an error, don't throw it until
@@ -408,16 +412,17 @@ export async function waitForProcessTaskActionTransactionsForTest() {
         try {
             await runAllPromises(processTaskActionTransactionPromisesForTest);
         } catch (newError) {
+            const newErrorPriority = getAggregateErrorPriority(newError);
+
             if (!hasError) {
                 hasError = true;
+                errorPriority = newErrorPriority;
                 error = newError;
             }
             // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
             // just the first one. Probably by using an `AggregateError`.
-            else if (
-                (!isSystemError(error) && isSystemError(newError)) ||
-                (error instanceof CancelledError && !(newError instanceof CancelledError))
-            ) {
+            else if (newErrorPriority > errorPriority) {
+                errorPriority = newErrorPriority;
                 error = newError;
             }
         }

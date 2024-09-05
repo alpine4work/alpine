@@ -16,9 +16,10 @@ import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.j
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {CancelledError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    getAggregateErrorPriority,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -345,6 +346,7 @@ export async function loadTaskRealtimeQueries(
     const extraQueries = await runAllPromises(extraQueryPromises);
 
     let hasError = false;
+    let errorPriority = 0;
     let error: unknown;
 
     // Wait for all discovered promises to resolve before returning.
@@ -357,16 +359,17 @@ export async function loadTaskRealtimeQueries(
         try {
             await runAllPromises(currentPromises);
         } catch (newError) {
+            const newErrorPriority = getAggregateErrorPriority(newError);
+
             if (!hasError) {
                 hasError = true;
+                errorPriority = newErrorPriority;
                 error = newError;
             }
             // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
             // just the first one. Probably by using an `AggregateError`.
-            else if (
-                (!isSystemError(error) && isSystemError(newError)) ||
-                (error instanceof CancelledError && !(newError instanceof CancelledError))
-            ) {
+            else if (newErrorPriority > errorPriority) {
+                errorPriority = newErrorPriority;
                 error = newError;
             }
         }

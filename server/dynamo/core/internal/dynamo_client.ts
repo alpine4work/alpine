@@ -25,7 +25,10 @@ import {
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    getAggregateErrorPriority,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -368,6 +371,7 @@ export class DynamoClient {
         // just the first one. Probably by using an `AggregateError`.
         {
             let hasError = false;
+            let errorPriority = 0;
             let error: unknown = null;
             const promises: Array<Promise<void>> = [];
 
@@ -379,13 +383,14 @@ export class DynamoClient {
                         promises.push(maybePromise);
                     }
                 } catch (entryError) {
+                    const entryErrorPriority = getAggregateErrorPriority(entryError);
+
                     if (!hasError) {
                         hasError = true;
+                        errorPriority = entryErrorPriority;
                         error = entryError;
-                    } else if (
-                        (isSystemError(entryError) && !isSystemError(error)) ||
-                        (entryError instanceof CancelledError && !(error instanceof CancelledError))
-                    ) {
+                    } else if (entryErrorPriority > errorPriority) {
+                        errorPriority = entryErrorPriority;
                         error = entryError;
                     }
                 }
@@ -450,6 +455,7 @@ export class DynamoClient {
         // just the first one. Probably by using an `AggregateError`.
         {
             let hasError = false;
+            let errorPriority = 0;
             let error: unknown = null;
             const promises: Array<Promise<void>> = [];
 
@@ -464,10 +470,14 @@ export class DynamoClient {
                         promises.push(maybePromise);
                     }
                 } catch (entryError) {
+                    const entryErrorPriority = getAggregateErrorPriority(entryError);
+
                     if (!hasError) {
                         hasError = true;
+                        errorPriority = entryErrorPriority;
                         error = entryError;
-                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                    } else if (entryErrorPriority > errorPriority) {
+                        errorPriority = entryErrorPriority;
                         error = entryError;
                     }
                 }

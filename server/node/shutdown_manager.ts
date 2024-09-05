@@ -1,6 +1,8 @@
-import {CancelledError, ErrorBase} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {ErrorBase} from "~/shared/error/error.js";
+import {
+    getAggregateErrorPriority,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
@@ -155,6 +157,7 @@ export class ShutdownManager implements ShutdownManagerBase {
                 })
                 .then(async () => {
                     let hasError = false;
+                    let errorPriority = 0;
                     let error: unknown;
 
                     // Wait for all promises to resolve. If there's an error, don't throw it until
@@ -164,17 +167,17 @@ export class ShutdownManager implements ShutdownManagerBase {
                             try {
                                 await runAllPromises(this._waitUntilPromises);
                             } catch (newError) {
+                                const newErrorPriority = getAggregateErrorPriority(newError);
+
                                 if (!hasError) {
                                     hasError = true;
+                                    errorPriority = newErrorPriority;
                                     error = newError;
                                 }
                                 // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
                                 // just the first one. Probably by using an `AggregateError`.
-                                else if (
-                                    (!isSystemError(error) && isSystemError(newError)) ||
-                                    (error instanceof CancelledError &&
-                                        !(newError instanceof CancelledError))
-                                ) {
+                                else if (newErrorPriority > errorPriority) {
+                                    errorPriority = newErrorPriority;
                                     error = newError;
                                 }
                             }
