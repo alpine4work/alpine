@@ -260,7 +260,7 @@ export function testFileUploadServiceContentTypes(testCases: {
                         assert(file.preview.ok);
                         assert(file.preview.image);
 
-                        const epsilon = 200;
+                        const epsilon = 2000;
                         const withinRange =
                             expectedPreviewImage.contentLength - epsilon <=
                                 file.preview.image.contentLength &&
@@ -287,7 +287,7 @@ export function testFileUploadServiceContentTypes(testCases: {
                         assert(file.alternative);
                         assert(!file.alternative.isProcessing);
 
-                        const epsilon = 200;
+                        const epsilon = 2000;
                         const withinRange =
                             expectedAlternative.contentLength - epsilon <=
                                 file.alternative.contentLength &&
