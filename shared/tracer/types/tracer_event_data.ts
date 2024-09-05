@@ -1093,6 +1093,43 @@ export type TracerEventData = {
 
         /** The content length of the file we're operating against. */
         readonly contentLength?: number;
+
+        readonly alternative?: {
+            /** The content type of the file's alternative. */
+            readonly contentType?: string;
+
+            /** The content length of the file's alternative. */
+            readonly contentLength?: number;
+
+            /**
+             * The ratio of the file alternative's content length to the file's own
+             * content length.
+             */
+            readonly contentLengthRatio?: number;
+        };
+
+        readonly preview?: {
+            /** The content type of the file's preview. */
+            readonly contentType?: string;
+
+            /** The content length of the file's preview. */
+            readonly contentLength?: number;
+
+            /**
+             * The ratio of the file preview's content length to the file's own
+             * content length.
+             */
+            readonly contentLengthRatio?: number;
+
+            /** The width of the file preview image. */
+            readonly width?: number;
+
+            /** The height of the file preview image. */
+            readonly height?: number;
+
+            /** The scale of the file preview image. */
+            readonly scale?: number;
+        };
     };
 
     /**

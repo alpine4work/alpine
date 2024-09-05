@@ -5,6 +5,9 @@ format using some image editor program (e.g. `.jpeg` to `.avif` conversion).
 
 Some links to sources we used (not all sources are listed):
 
+-   `file_examples_*`: Files from [File Examples](https://file-examples.com/) a service for
+    developers and testers that provides sample documents. e.g. This
+    [Microsoft Word sample](https://file-examples.com/index.php/sample-documents-download/sample-doc-download/).
 -   `filesampleshub_*`: Files from [FileSamplesHub](https://filesampleshub.com). e.g. This
     [HEIF sample](https://filesampleshub.com/format/image/heif).
 -   `iphone_${photographer}_*`: Photos taken from an iPhone. Includes the name of the photographer

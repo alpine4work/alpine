@@ -369,6 +369,19 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     file: {
         contentType: Schema.string,
         contentLength: Schema.integer,
+        alternative: {
+            contentType: Schema.string,
+            contentLength: Schema.integer,
+            contentLengthRatio: Schema.float,
+        },
+        preview: {
+            contentType: Schema.string,
+            contentLength: Schema.integer,
+            contentLengthRatio: Schema.float,
+            width: Schema.integer,
+            height: Schema.integer,
+            scale: Schema.integer,
+        },
     },
     libreoffice: {
         outputFilter: Schema.string,

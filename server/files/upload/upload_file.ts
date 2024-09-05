@@ -52,6 +52,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -434,10 +435,10 @@ async function uploadAndProcessFile(
                         const alternative = await alternativePromise;
                         if (signal.aborted) throw signal.reason;
 
-                        let contentLength = 0;
+                        let alternativeContentLength = 0;
 
                         alternative.stream.on("data", (chunk: Buffer) => {
-                            contentLength += chunk.length;
+                            alternativeContentLength += chunk.length;
                         });
 
                         // NOTE: We don't `Promise.race()` `PutObject()` with
@@ -456,15 +457,25 @@ async function uploadAndProcessFile(
 
                         await fileUploader.finishProcessingAlternative(context, {
                             contentType: alternative.contentType,
-                            contentLength,
+                            contentLength: alternativeContentLength,
                         });
 
                         sendEvent({
                             type: "Alternative",
                             contentType: alternative.contentType,
-                            contentLength,
+                            contentLength: alternativeContentLength,
                             isPreviewImage: false,
                         });
+
+                        return {
+                            file: {
+                                alternative: {
+                                    contentType: alternative.contentType,
+                                    contentLength: alternativeContentLength,
+                                    contentLengthRatio: alternativeContentLength / contentLength,
+                                },
+                            },
+                        };
                     })().catch(createAbortCatcher("File alternative processing failed"))
                   : null;
 
@@ -481,6 +492,16 @@ async function uploadAndProcessFile(
                       height,
                       scale,
                   });
+
+                  return {
+                      file: {
+                          preview: {
+                              width,
+                              height,
+                              scale,
+                          },
+                      },
+                  };
               })().catch(createPreviewAbortCatcher("File preview size processing failed"));
 
               const actualPreviewPlaceholderPromise = (async () => {
@@ -539,6 +560,25 @@ async function uploadAndProcessFile(
                                 isPreviewImage: true,
                             });
                         }
+
+                        return {
+                            file: {
+                                preview: {
+                                    contentType: previewImage.contentType,
+                                    contentLength: previewImage.data.length,
+                                    contentLengthRatio: previewImage.data.length / contentLength,
+                                },
+                                alternative:
+                                    fileProcessor.hasAlternative === "PreviewImage"
+                                        ? {
+                                              contentType: previewImage.contentType,
+                                              contentLength: previewImage.data.length,
+                                              contentLengthRatio:
+                                                  previewImage.data.length / contentLength,
+                                          }
+                                        : undefined,
+                            },
+                        };
                     })().catch(createPreviewAbortCatcher("File preview image processing failed"))
                   : null;
 
@@ -549,23 +589,26 @@ async function uploadAndProcessFile(
               // (since as each of these resolves we `sendEvent()` to the user).
               await runAllPromises([
                   actualAlternativePromise
-                      ? span.withSpan("Process file alternative", span => {
+                      ? span.withSpan("Process file alternative", async span => {
                             span.addData({file: {contentType, contentLength}});
-                            return actualAlternativePromise;
+                            const spanData = await actualAlternativePromise;
+                            span.addData(spanData);
                         })
                       : null,
-                  span.withSpan("Process file preview size", span => {
+                  span.withSpan("Process file preview size", async span => {
                       span.addData({file: {contentType, contentLength}});
-                      return actualPreviewSizePromise;
+                      const spanData = await actualPreviewSizePromise;
+                      if (spanData) span.addData(spanData);
                   }),
                   span.withSpan("Process file preview placeholder", span => {
                       span.addData({file: {contentType, contentLength}});
                       return actualPreviewPlaceholderPromise;
                   }),
                   actualPreviewImagePromise
-                      ? span.withSpan("Process file preview image", span => {
+                      ? span.withSpan("Process file preview image", async span => {
                             span.addData({file: {contentType, contentLength}});
-                            return actualPreviewImagePromise;
+                            const spanData = await actualPreviewImagePromise;
+                            if (spanData) span.addData(spanData);
                         })
                       : null,
               ]).catch(error => {
@@ -800,7 +843,13 @@ const createFileProcessorByContentType: {
     "image/heic": createWebUnsafeImageFileProcessor,
     "application/pdf": createPdfDocumentFileProcessor,
     "application/msword": createDocumentFileProcessor,
+    "application/vnd.ms-excel": createDocumentFileProcessor,
+    "application/vnd.ms-powerpoint": createDocumentFileProcessor,
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        createDocumentFileProcessor,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        createDocumentFileProcessor,
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation":
         createDocumentFileProcessor,
 };
 
@@ -1118,20 +1167,21 @@ function createPdfDocumentFileProcessor(): FileProcessor {
         // and view the PDF on their local machine.
         acceptError: error => error.displayMessage === pdfPasswordRequiredErrorDisplayMessage,
 
-        process: processPdfDocumentFile,
+        process: (stream, signal) => processPdfDocumentFile(stream, signal),
     };
 }
 
 function processPdfDocumentFile(
     stream: ReadableStream,
     signal: AbortSignal,
+    {extractPreview}: {extractPreview?: sharp.Region} = {},
 ): ReturnType<FileProcessorTemplate<true, false>["process"]> {
     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
     // more efficient to await `dataPromise` than to use `stream`. See our comment
     // on `FileProcessor`.
     const dataPromise = waitForReadableStreamData(stream, signal);
 
-    const previewSizePromise = (async () => {
+    const previewSizeWithoutExtractPromise = (async () => {
         const data = await dataPromise;
 
         const metadata = await sharp(data, {pages: 1})
@@ -1164,46 +1214,76 @@ function processPdfDocumentFile(
         };
     })();
 
-    return {
-        previewSizePromise,
-        previewPlaceholderPromise: (async () => {
+    const previewImagePromise = (async (): Promise<{
+        contentType: FileContentType;
+        data: Buffer;
+    }> => {
+        const [{width, height, scale}, inputData] = await runAllPromises([
+            previewSizeWithoutExtractPromise,
+            dataPromise,
+        ]);
+
+        let sharpInstance = sharp(inputData, {pages: 1})
+            .timeout({seconds: sharpTimeoutSeconds})
+            // AVIF is our preferred format for generating preview images ([source][1],
+            // [source][2]). AVIF has full browser support, provides better compression
+            // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+            //
+            // Quality 80 since:
+            //
+            // - The preview's dimensions are already 2x the original file's
+            // - We only use this when previewing the file, when viewing the file we use a
+            //   full PDF renderer
+            //
+            // We want some compression since the extra storage cost of the preview file is
+            // bourne by us.
+            //
+            // If we need lossless images we should use WebP instead since [AVIF is worse
+            // at lossless compression][3].
+            //
+            // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+            // [2]: https://jakearchibald.com/2020/avif-has-landed
+            // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
+            .toFormat("avif", {quality: 80})
+            .resize(width, height);
+
+        if (extractPreview) {
+            const extractLeft = clamp(0, extractPreview.left * scale, width);
+            const extractTop = clamp(0, extractPreview.top * scale, height);
+
+            sharpInstance = sharpInstance.extract({
+                left: extractLeft,
+                width: clamp(0, extractPreview.width * scale, width - extractLeft),
+                top: extractTop,
+                height: clamp(0, extractPreview.height * scale, height - extractTop),
+            });
+        }
+
+        const outputData = await sharpInstance.toBuffer().catch(rethrowClassifiedSharpError);
+
+        return {contentType: "image/avif", data: outputData};
+    })();
+
+    const previewPlaceholderPromise = (async () => {
+        if (extractPreview) {
+            const {data} = await previewImagePromise;
+            return processFilePreviewPlaceholder(data);
+        } else {
             const data = await dataPromise;
             return processFilePreviewPlaceholder(data);
-        })(),
-        previewImagePromise: (async () => {
-            const [{width, height}, inputData] = await runAllPromises([
-                previewSizePromise,
-                dataPromise,
-            ]);
+        }
+    })();
 
-            const outputData = await sharp(inputData, {pages: 1})
-                .timeout({seconds: sharpTimeoutSeconds})
-                // AVIF is our preferred format for generating preview images ([source][1],
-                // [source][2]). AVIF has full browser support, provides better compression
-                // than JPEG and WebP, and has alpha channel support (unlike JPEG).
-                //
-                // Quality 80 since:
-                //
-                // - The preview's dimensions are already 2x the original file's
-                // - We only use this when previewing the file, when viewing the file we use a
-                //   full PDF renderer
-                //
-                // We want some compression since the extra storage cost of the preview file is
-                // bourne by us.
-                //
-                // If we need lossless images we should use WebP instead since [AVIF is worse
-                // at lossless compression][3].
-                //
-                // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
-                // [2]: https://jakearchibald.com/2020/avif-has-landed
-                // [3]: https://github.com/AOMediaCodec/av1-avif/issues/111#issuecomment-717710961
-                .toFormat("avif", {quality: 80})
-                .resize(width, height)
-                .toBuffer()
-                .catch(rethrowClassifiedSharpError);
-
-            return {contentType: "image/avif", data: outputData};
-        })(),
+    return {
+        previewSizePromise: extractPreview
+            ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => ({
+                  width: clamp(0, extractPreview.width * scale, width),
+                  height: clamp(0, extractPreview.height * scale, height),
+                  scale,
+              }))
+            : previewSizeWithoutExtractPromise,
+        previewPlaceholderPromise,
+        previewImagePromise,
     };
 }
 
@@ -1303,20 +1383,40 @@ function createDocumentFileProcessor(
                         );
                         const inputWriteStream = fsSync.createWriteStream(inputPath);
 
+                        // See the LibreOffice documentation for more information on filters:
+                        // https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
+                        let outputFilter: string;
+                        let shouldCropPreviewImage: boolean;
+                        switch (contentType) {
+                            case "application/msword":
+                            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                                outputFilter = "writer_pdf_Export";
+                                shouldCropPreviewImage = false;
+                                break;
+                            case "application/vnd.ms-excel":
+                            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                                // Output the Excel sheet onto a single page. See:
+                                // https://ask.libreoffice.org/t/libreoffice-xls-to-pdf-conversion-breaks-single-page-content-into-multiple-pages-on-ubuntu-18-04/49104/2
+                                outputFilter =
+                                    'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
+
+                                // Spreadsheets are an infinite canvas and aren't typically restricted by any
+                                // page size. So we want to crop our preview image to the top-left corner of
+                                // the sheet. Otherwise the preview image could be so large as to not be
+                                // particularly useful.
+                                shouldCropPreviewImage = true;
+                                break;
+                            case "application/vnd.ms-powerpoint":
+                            case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                                outputFilter = "impress_pdf_Export";
+                                shouldCropPreviewImage = false;
+                                break;
+                            default:
+                                throw exhaustive(contentType);
+                        }
+
                         try {
                             await span.withSpan("LibreOffice convert to PDF", async span => {
-                                // See the LibreOffice documentation for more information on filters:
-                                // https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
-                                let outputFilter: string;
-                                switch (contentType) {
-                                    case "application/msword":
-                                    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                                        outputFilter = "writer_pdf_Export";
-                                        break;
-                                    default:
-                                        throw exhaustive(contentType);
-                                }
-
                                 span.addData({
                                     file: {contentType, contentLength},
                                     libreoffice: {outputFilter},
@@ -1388,7 +1488,12 @@ function createDocumentFileProcessor(
                         });
 
                         const {previewSizePromise, previewPlaceholderPromise, previewImagePromise} =
-                            processPdfDocumentFile(outputReadStream, signal);
+                            processPdfDocumentFile(outputReadStream, signal, {
+                                extractPreview: shouldCropPreviewImage
+                                    ? // Extract to the size of a default 4:3 Microsoft PowerPoint slide.
+                                      {left: 0, top: 0, width: 720, height: 540}
+                                    : undefined,
+                            });
 
                         previewSizePromise.then(
                             previewSizePromiseResolver.resolve,

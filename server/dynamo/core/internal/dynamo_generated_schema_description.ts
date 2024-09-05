@@ -2992,7 +2992,11 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "image/heic",
                                                 "application/pdf",
                                                 "application/msword",
-                                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                                "application/vnd.ms-excel",
+                                                "application/vnd.ms-powerpoint",
+                                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
                                             ],
                                             "referenceId": "af264040"
                                         },

@@ -5,6 +5,7 @@ import getPort from "get-port";
 import {Server} from "http";
 import looksSame from "looks-same";
 import {extname, join as joinPath} from "path";
+import sharp from "sharp";
 import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
@@ -18,7 +19,12 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileContentType, FileDocumentContentType} from "~/shared/files/file_content_type.js";
@@ -32,6 +38,7 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 
 const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR), "files");
 
@@ -41,7 +48,11 @@ export type FileUploadServiceContentTypeTestCase = NonEmptyReadonlyArray<{
     only?: CommitBlocker;
     path: string;
     contentLength: number;
-    alternative?: {contentType: FileContentType; contentLength: number};
+    alternative?: {
+        contentType: FileContentType;
+        contentLength: number;
+        similarPath: string;
+    };
     previewSize?: {width: number; height: number; scale?: number};
     previewPlaceholder?: FilePreviewPlaceholder;
     isPreviewImageAlternative?: boolean;
@@ -136,306 +147,467 @@ export function testFileUploadServiceContentTypes(testCases: {
             isPreviewImageAlternative: expectedIsPreviewImageAlternative,
             previewImage: expectedPreviewImage,
             previewError: expectedPreviewError,
-            looksSameTolerance,
+            looksSameTolerance = 35,
         } of contentTypeTestCases) {
             const testFn = only ? test.only : test;
 
-            testFn(quote`can upload ${contentType} file ${path}`, async () => {
-                const space = await TestSpace.create(context);
-                const session = await space.createSession();
+            testFn(
+                quote`can upload ${contentType} file ${path}`,
+                async () => {
+                    const space = await TestSpace.create(context);
+                    const session = await space.createSession();
 
-                // eslint-disable-next-line no-global-fetch
-                const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
-                    method: "POST",
-                    headers: {
-                        authorization: await authorization(session),
-                        "content-type": contentType,
-                    },
-                    body: await fs.readFile(
-                        joinPath(
-                            runfilesPath,
-                            "cyberworlds/server/files/upload/test_fixtures",
-                            path,
+                    // eslint-disable-next-line no-global-fetch
+                    const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+                        method: "POST",
+                        headers: {
+                            authorization: await authorization(session),
+                            "content-type": contentType,
+                        },
+                        body: await fs.readFile(
+                            joinPath(
+                                runfilesPath,
+                                "cyberworlds/server/files/upload/test_fixtures",
+                                path,
+                            ),
                         ),
-                    ),
-                });
-                const responseText = await response.text();
+                    });
+                    const responseText = await response.text();
 
-                expect(massageHeaders(response.headers)).toEqual({
-                    "content-type": "application/x-ndjson",
-                });
+                    expect(massageHeaders(response.headers)).toEqual({
+                        "content-type": "application/x-ndjson",
+                    });
 
-                const eventOrder = [
-                    "Start",
-                    "PreviewSize",
-                    "PreviewPlaceholder",
-                    "PreviewImage",
-                    "PreviewError",
-                    "Alternative",
-                    "Finish",
-                ];
-                const events = parseJsonEvents(responseText).sort(
-                    (event1, event2) =>
-                        eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
-                );
+                    const eventOrder = [
+                        "Start",
+                        "PreviewSize",
+                        "PreviewPlaceholder",
+                        "PreviewImage",
+                        "PreviewError",
+                        "Alternative",
+                        "Finish",
+                    ];
+                    const events = parseJsonEvents(responseText).sort(
+                        (event1, event2) =>
+                            eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
+                    );
 
-                const error = findMapIterable(events, event =>
-                    event.type === "Error" ? event.error : undefined,
-                );
-                if (error !== undefined) {
-                    throw error;
-                }
+                    const error = findMapIterable(events, event =>
+                        event.type === "Error" ? event.error : undefined,
+                    );
+                    if (error !== undefined) {
+                        throw error;
+                    }
 
-                const fileId = assertExists(
-                    findMapIterable(events, event =>
-                        event.type === "Start" ? event.fileId : undefined,
-                    ),
-                );
+                    const fileId = assertExists(
+                        findMapIterable(events, event =>
+                            event.type === "Start" ? event.fileId : undefined,
+                        ),
+                    );
 
-                const file = await getFile(space.systemAction(), fileId);
-                expect(file).toEqual(
-                    new FileModel({
-                        id: fileId,
-                        contentType: contentType as FileContentType,
-                        contentLength: expectedContentLength,
-                        isUploading: false,
-                        alternative: expectedAlternative
-                            ? {
-                                  isProcessing: false,
-                                  contentType: expectedAlternative.contentType,
-                                  contentLength: expect.any(Number),
-                                  isPreviewImage: false,
-                              }
-                            : expectedIsPreviewImageAlternative
-                            ? {
-                                  isProcessing: false,
-                                  contentType: assertExists(expectedPreviewImage).contentType,
-                                  contentLength: expect.any(Number),
-                                  isPreviewImage: true,
-                              }
-                            : null,
-                        preview: expectedPreviewError
-                            ? {
-                                  isProcessing: false,
-                                  ok: false,
-                                  error: expectedPreviewError,
-                              }
-                            : expectedPreviewSize
-                            ? {
-                                  isProcessing: false,
-                                  ok: true,
-                                  size: {
+                    const file = await getFile(space.systemAction(), fileId);
+                    expect(file).toEqual(
+                        new FileModel({
+                            id: fileId,
+                            contentType: contentType as FileContentType,
+                            contentLength: expectedContentLength,
+                            isUploading: false,
+                            alternative: expectedAlternative
+                                ? {
+                                      isProcessing: false,
+                                      contentType: expectedAlternative.contentType,
+                                      contentLength: expect.any(Number),
+                                      isPreviewImage: false,
+                                  }
+                                : expectedIsPreviewImageAlternative
+                                ? {
+                                      isProcessing: false,
+                                      contentType: assertExists(expectedPreviewImage).contentType,
+                                      contentLength: expect.any(Number),
+                                      isPreviewImage: true,
+                                  }
+                                : null,
+                            preview: expectedPreviewError
+                                ? {
+                                      isProcessing: false,
+                                      ok: false,
+                                      error: expectedPreviewError,
+                                  }
+                                : expectedPreviewSize
+                                ? {
+                                      isProcessing: false,
+                                      ok: true,
+                                      size: {
+                                          width: expectedPreviewSize.width,
+                                          height: expectedPreviewSize.height,
+                                          scale: expectedPreviewSize.scale ?? 1,
+                                      },
+                                      placeholder: expect.any(FilePreviewPlaceholder),
+                                      image: expectedPreviewImage
+                                          ? {
+                                                contentType: expectedPreviewImage.contentType,
+                                                contentLength: expect.any(Number),
+                                            }
+                                          : undefined,
+                                  }
+                                : null,
+                        }),
+                    );
+
+                    if (!expectedPreviewError && expectedPreviewSize && expectedPreviewImage) {
+                        assert(file.preview);
+                        assert(!file.preview.isProcessing);
+                        assert(file.preview.ok);
+                        assert(file.preview.image);
+
+                        const epsilon = 200;
+                        const withinRange =
+                            expectedPreviewImage.contentLength - epsilon <=
+                                file.preview.image.contentLength &&
+                            file.preview.image.contentLength <=
+                                expectedPreviewImage.contentLength + epsilon;
+
+                        if (!withinRange) {
+                            throw new InternalError(
+                                `Expected preview image content length to be ${expectedPreviewImage.contentLength} (±${epsilon}) but the actual content length is ${file.preview.image.contentLength}`,
+                            );
+                        }
+
+                        if (expectedIsPreviewImageAlternative) {
+                            assert(file.alternative);
+                            assert(!file.alternative.isProcessing);
+
+                            expect(file.alternative.contentLength).toEqual(
+                                file.preview.image.contentLength,
+                            );
+                        }
+                    }
+
+                    if (expectedAlternative) {
+                        assert(file.alternative);
+                        assert(!file.alternative.isProcessing);
+
+                        const epsilon = 200;
+                        const withinRange =
+                            expectedAlternative.contentLength - epsilon <=
+                                file.alternative.contentLength &&
+                            file.alternative.contentLength <=
+                                expectedAlternative.contentLength + epsilon;
+
+                        if (!withinRange) {
+                            throw new InternalError(
+                                `Expected alternative file content length to be ${expectedAlternative.contentLength} (±${epsilon}) but the actual content length is ${file.alternative.contentLength}`,
+                            );
+                        }
+                    }
+
+                    expect(events).toEqual([
+                        {
+                            type: "Start",
+                            hasAlternative:
+                                !!expectedAlternative || !!expectedIsPreviewImageAlternative,
+                            hasPreview: !!expectedPreviewSize || !!expectedPreviewError,
+                            hasPreviewImage: !!expectedPreviewImage || !!expectedPreviewError,
+                            fileId: expect.any(String),
+                        },
+                        ...(expectedPreviewSize
+                            ? [
+                                  {
+                                      type: "PreviewSize",
                                       width: expectedPreviewSize.width,
                                       height: expectedPreviewSize.height,
                                       scale: expectedPreviewSize.scale ?? 1,
                                   },
-                                  placeholder: expect.any(FilePreviewPlaceholder),
-                                  image: expectedPreviewImage
-                                      ? {
-                                            contentType: expectedPreviewImage.contentType,
-                                            contentLength: expect.any(Number),
-                                        }
-                                      : undefined,
-                              }
-                            : null,
-                    }),
-                );
-
-                if (!expectedPreviewError && expectedPreviewSize && expectedPreviewImage) {
-                    assert(file.preview);
-                    assert(!file.preview.isProcessing);
-                    assert(file.preview.ok);
-                    assert(file.preview.image);
-
-                    const epsilon = 200;
-                    const withinRange =
-                        expectedPreviewImage.contentLength - epsilon <=
-                            file.preview.image.contentLength &&
-                        file.preview.image.contentLength <=
-                            expectedPreviewImage.contentLength + epsilon;
-
-                    if (!withinRange) {
-                        throw new InternalError(
-                            `Expected preview image content length to be ${expectedPreviewImage.contentLength} (±${epsilon}) but the actual content length is ${file.preview.image.contentLength}`,
-                        );
-                    }
-
-                    if (expectedIsPreviewImageAlternative) {
-                        assert(file.alternative);
-                        assert(!file.alternative.isProcessing);
-
-                        expect(file.alternative.contentLength).toEqual(
-                            file.preview.image.contentLength,
-                        );
-                    }
-                }
-
-                if (expectedAlternative) {
-                    assert(file.alternative);
-                    assert(!file.alternative.isProcessing);
-
-                    const epsilon = 200;
-                    const withinRange =
-                        expectedAlternative.contentLength - epsilon <=
-                            file.alternative.contentLength &&
-                        file.alternative.contentLength <=
-                            expectedAlternative.contentLength + epsilon;
-
-                    if (!withinRange) {
-                        throw new InternalError(
-                            `Expected alternative file content length to be ${expectedAlternative.contentLength} (±${epsilon}) but the actual content length is ${file.alternative.contentLength}`,
-                        );
-                    }
-                }
-
-                expect(events).toEqual([
-                    {
-                        type: "Start",
-                        hasAlternative:
-                            !!expectedAlternative || !!expectedIsPreviewImageAlternative,
-                        hasPreview: !!expectedPreviewSize || !!expectedPreviewError,
-                        hasPreviewImage: !!expectedPreviewImage || !!expectedPreviewError,
-                        fileId: expect.any(String),
-                    },
-                    ...(expectedPreviewSize
-                        ? [
-                              {
-                                  type: "PreviewSize",
-                                  width: expectedPreviewSize.width,
-                                  height: expectedPreviewSize.height,
-                                  scale: expectedPreviewSize.scale ?? 1,
-                              },
-                          ]
-                        : []),
-                    ...(expectedPreviewPlaceholder
-                        ? [
-                              {
-                                  type: "PreviewPlaceholder",
-                                  placeholder: expect.any(FilePreviewPlaceholder),
-                              },
-                          ]
-                        : []),
-                    ...(expectedPreviewImage
-                        ? [
-                              {
-                                  type: "PreviewImage",
-                                  contentType: expectedPreviewImage.contentType,
-                                  contentLength:
-                                      file.preview && !file.preview.isProcessing && file.preview.ok
-                                          ? file.preview.image?.contentLength
-                                          : null,
-                              },
-                          ]
-                        : []),
-                    ...(expectedPreviewError
-                        ? [
-                              {
-                                  type: "PreviewError",
-                                  error: expectedPreviewError,
-                              },
-                          ]
-                        : []),
-                    ...(expectedAlternative
-                        ? [
-                              {
-                                  type: "Alternative",
-                                  contentType: expectedAlternative.contentType,
-                                  contentLength:
-                                      file.alternative && !file.alternative.isProcessing
-                                          ? file.alternative.contentLength
-                                          : null,
-                                  isPreviewImage: false,
-                              },
-                          ]
-                        : expectedIsPreviewImageAlternative
-                        ? [
-                              {
-                                  type: "Alternative",
-                                  contentType: assertExists(expectedPreviewImage).contentType,
-                                  contentLength:
-                                      file.preview && !file.preview.isProcessing && file.preview.ok
-                                          ? file.preview.image?.contentLength
-                                          : null,
-                                  isPreviewImage: true,
-                              },
-                          ]
-                        : []),
-                    {
-                        type: "Finish",
-                    },
-                ]);
-                expect(response.status).toEqual(200);
-
-                const placeholder = findMapIterable(events, event =>
-                    event.type === "PreviewPlaceholder" ? event.placeholder : undefined,
-                );
-
-                if (!expectedPreviewPlaceholder) {
-                    expect(placeholder).toEqual(undefined);
-                } else {
-                    // Compare placeholders. Sharp's placeholder generation isn't deterministic
-                    // across platforms. So check that placeholders are close to each other if not
-                    // exactly equal.
-                    compareFilePreviewPlaceholders(
-                        assertExists(placeholder),
-                        expectedPreviewPlaceholder,
-                    );
-                }
-
-                if (expectedPreviewImage) {
-                    const object = await r2Bucket.get(`${space.id}/${fileId}-preview`);
-                    if (!object) throw new NotFoundError("Preview image file not found");
-
-                    const [actualImageContents, expectedImageContents] = await runAllPromises([
-                        convertReadableStreamToUint8Array(object.body).then(buffer =>
-                            Buffer.from(buffer),
-                        ),
-                        fs.readFile(
-                            joinPath(
-                                runfilesPath,
-                                "cyberworlds/server/files/upload/test_fixtures",
-                                expectedPreviewImage.similarPath,
-                            ),
-                        ),
+                              ]
+                            : []),
+                        ...(expectedPreviewPlaceholder
+                            ? [
+                                  {
+                                      type: "PreviewPlaceholder",
+                                      placeholder: expect.any(FilePreviewPlaceholder),
+                                  },
+                              ]
+                            : []),
+                        ...(expectedPreviewImage
+                            ? [
+                                  {
+                                      type: "PreviewImage",
+                                      contentType: expectedPreviewImage.contentType,
+                                      contentLength:
+                                          file.preview &&
+                                          !file.preview.isProcessing &&
+                                          file.preview.ok
+                                              ? file.preview.image?.contentLength
+                                              : null,
+                                  },
+                              ]
+                            : []),
+                        ...(expectedPreviewError
+                            ? [
+                                  {
+                                      type: "PreviewError",
+                                      error: expectedPreviewError,
+                                  },
+                              ]
+                            : []),
+                        ...(expectedAlternative
+                            ? [
+                                  {
+                                      type: "Alternative",
+                                      contentType: expectedAlternative.contentType,
+                                      contentLength:
+                                          file.alternative && !file.alternative.isProcessing
+                                              ? file.alternative.contentLength
+                                              : null,
+                                      isPreviewImage: false,
+                                  },
+                              ]
+                            : expectedIsPreviewImageAlternative
+                            ? [
+                                  {
+                                      type: "Alternative",
+                                      contentType: assertExists(expectedPreviewImage).contentType,
+                                      contentLength:
+                                          file.preview &&
+                                          !file.preview.isProcessing &&
+                                          file.preview.ok
+                                              ? file.preview.image?.contentLength
+                                              : null,
+                                      isPreviewImage: true,
+                                  },
+                              ]
+                            : []),
+                        {
+                            type: "Finish",
+                        },
                     ]);
+                    expect(response.status).toEqual(200);
 
-                    const result = await looksSame(actualImageContents, expectedImageContents, {
-                        tolerance: looksSameTolerance ?? 35,
-                        createDiffImage: true,
+                    const placeholder = findMapIterable(events, event =>
+                        event.type === "PreviewPlaceholder" ? event.placeholder : undefined,
+                    );
+
+                    if (!expectedPreviewPlaceholder) {
+                        expect(placeholder).toEqual(undefined);
+                    } else {
+                        // Compare placeholders. Sharp's placeholder generation isn't deterministic
+                        // across platforms. So check that placeholders are close to each other if not
+                        // exactly equal.
+                        compareFilePreviewPlaceholders(
+                            assertExists(placeholder),
+                            expectedPreviewPlaceholder,
+                        );
+                    }
+
+                    await testFileUploadServiceContentTypeExpectedAlternativeSimilarity({
+                        r2Bucket,
+                        contentType,
+                        path,
+                        space,
+                        fileId,
+                        expectedAlternative,
+                        looksSameTolerance,
                     });
 
-                    if (!result.equal) {
-                        const name = encodeURIComponent(
-                            `${contentType.replaceAll("/", "_")}.${path.slice(
-                                0,
-                                -extname(path).length,
-                            )}`,
-                        );
-                        const extension = extname(expectedPreviewImage.similarPath);
-
-                        await fs.mkdir(testlogsPath, {recursive: true});
-
-                        await runAllPromises([
-                            fs.writeFile(
-                                joinPath(testlogsPath, `${name}.input.actual${extension}`),
-                                actualImageContents,
-                            ),
-                            fs.writeFile(
-                                joinPath(testlogsPath, `${name}.input.expected${extension}`),
-                                expectedImageContents,
-                            ),
-                            result.diffImage?.save(
-                                joinPath(testlogsPath, `${name}.diff${extension}`),
-                            ),
-                        ]);
-
-                        throw new InternalError(
-                            "Actual preview image doesn't look the same as expected preview image, diff image saved to `bazel-testlogs`",
-                        );
-                    }
-                }
-            });
+                    await testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
+                        r2Bucket,
+                        contentType,
+                        path,
+                        space,
+                        fileId,
+                        expectedPreviewImage,
+                        looksSameTolerance,
+                    });
+                },
+                30 * 1000,
+            );
         }
+    }
+}
+
+async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity({
+    r2Bucket,
+    path,
+    space,
+    fileId,
+    contentType,
+    expectedAlternative,
+    looksSameTolerance,
+}: {
+    r2Bucket: R2Bucket;
+    contentType: string;
+    path: string;
+    space: TestSpace;
+    fileId: FileId;
+    expectedAlternative:
+        | {contentType: FileContentType; contentLength: number; similarPath: string}
+        | undefined;
+    looksSameTolerance: number;
+}) {
+    if (!expectedAlternative) return;
+
+    const object = await r2Bucket.get(`${space.id}/${fileId}-alternative`);
+    if (!object) throw new NotFoundError("File alternative not found");
+
+    const [actualContents, expectedContents] = await runAllPromises([
+        convertReadableStreamToUint8Array(object.body).then(buffer => Buffer.from(buffer)),
+        fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures",
+                expectedAlternative.similarPath,
+            ),
+        ),
+    ]);
+
+    const name = encodeURIComponent(
+        `${contentType.replaceAll("/", "_")}.${path.slice(0, -extname(path).length)}`,
+    );
+
+    if (expectedAlternative.contentType === "application/pdf") {
+        const [actualMetadata, expectedMetadata] = await runAllPromises([
+            sharp(actualContents).metadata(),
+            sharp(expectedContents).metadata(),
+        ]);
+
+        if (
+            typeof actualMetadata.pages !== "number" ||
+            actualMetadata.pages !== expectedMetadata.pages
+        ) {
+            await fs.mkdir(testlogsPath, {recursive: true});
+
+            await runAllPromises([
+                fs.writeFile(joinPath(testlogsPath, `${name}.input.actual.pdf`), actualContents),
+                fs.writeFile(
+                    joinPath(testlogsPath, `${name}.input.expected.pdf`),
+                    expectedContents,
+                ),
+            ]);
+
+            throw new InternalError(
+                quote`Actual alternative PDF doesn't have the same number of pages as expected alternative PDF (actual page count: ${actualMetadata.pages}, expected page count: ${expectedMetadata.pages}), files saved to \`bazel-testlogs\``,
+            );
+        }
+
+        for (let i = 0; i < actualMetadata.pages; i++) {
+            const [actualPageContents, expectedPageContents] = await runAllPromises([
+                sharp(actualContents, {pages: 1, page: i})
+                    .toFormat("avif", {quality: 90})
+                    .toBuffer(),
+                sharp(expectedContents, {pages: 1, page: i})
+                    .toFormat("avif", {quality: 90})
+                    .toBuffer(),
+            ]);
+
+            const result = await looksSame(actualPageContents, expectedPageContents, {
+                tolerance: looksSameTolerance,
+                createDiffImage: true,
+            });
+
+            if (!result.equal) {
+                await fs.mkdir(testlogsPath, {recursive: true});
+
+                await runAllPromises([
+                    fs.writeFile(
+                        joinPath(testlogsPath, `${name}.input.actual.pdf`),
+                        actualContents,
+                    ),
+                    fs.writeFile(
+                        joinPath(testlogsPath, `${name}.input.expected.pdf`),
+                        expectedContents,
+                    ),
+                    fs.writeFile(
+                        joinPath(testlogsPath, `${name}.input.page${i + 1}.actual.avif`),
+                        actualPageContents,
+                    ),
+                    fs.writeFile(
+                        joinPath(testlogsPath, `${name}.input.page${i + 1}.expected.avif`),
+                        expectedPageContents,
+                    ),
+                    result.diffImage?.save(
+                        joinPath(testlogsPath, `${name}.diff.page${i + 1}.avif`),
+                    ),
+                ]);
+
+                throw new InternalError(
+                    quote`Actual alternative PDF page ${
+                        i + 1
+                    } doesn't look the same as expected alternative PDF page ${
+                        i + 1
+                    }, diff image saved to \`bazel-testlogs\``,
+                );
+            }
+        }
+    } else {
+        throw new UnimplementedError(
+            quote`Similarity test for content type ${expectedAlternative.contentType} hasn't been implemented`,
+        );
+    }
+}
+
+async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
+    r2Bucket,
+    contentType,
+    path,
+    space,
+    fileId,
+    expectedPreviewImage,
+    looksSameTolerance,
+}: {
+    r2Bucket: R2Bucket;
+    contentType: string;
+    path: string;
+    space: TestSpace;
+    fileId: FileId;
+    expectedPreviewImage:
+        | {contentType: FileContentType; contentLength: number; similarPath: string}
+        | undefined;
+    looksSameTolerance: number;
+}) {
+    if (!expectedPreviewImage) return expectedPreviewImage;
+
+    const object = await r2Bucket.get(`${space.id}/${fileId}-preview`);
+    if (!object) throw new NotFoundError("File preview image file not found");
+
+    const [actualImageContents, expectedImageContents] = await runAllPromises([
+        convertReadableStreamToUint8Array(object.body).then(buffer => Buffer.from(buffer)),
+        fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures",
+                expectedPreviewImage.similarPath,
+            ),
+        ),
+    ]);
+
+    const result = await looksSame(actualImageContents, expectedImageContents, {
+        tolerance: looksSameTolerance,
+        createDiffImage: true,
+    });
+
+    if (!result.equal) {
+        const name = encodeURIComponent(
+            `${contentType.replaceAll("/", "_")}.${path.slice(0, -extname(path).length)}`,
+        );
+        const extension = extname(expectedPreviewImage.similarPath);
+
+        await fs.mkdir(testlogsPath, {recursive: true});
+
+        await runAllPromises([
+            fs.writeFile(
+                joinPath(testlogsPath, `${name}.input.actual${extension}`),
+                actualImageContents,
+            ),
+            fs.writeFile(
+                joinPath(testlogsPath, `${name}.input.expected${extension}`),
+                expectedImageContents,
+            ),
+            result.diffImage?.save(joinPath(testlogsPath, `${name}.diff${extension}`)),
+        ]);
+
+        throw new InternalError(
+            "Actual preview image doesn't look the same as expected preview image, diff image saved to `bazel-testlogs`",
+        );
     }
 }
 

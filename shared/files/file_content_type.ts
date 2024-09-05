@@ -22,7 +22,7 @@ export type FileContentType =
 // TODO(calebmer, #files): File types to support:
 //
 // - [x] Images
-// - [ ] Documents
+// - [x] Documents
 // - [ ] Videos
 // - [ ] Code (optional)
 // - [ ] Audio (optional)
@@ -85,7 +85,11 @@ export type FileWebUnsafeImageContentType =
 export type FileDocumentContentType =
     | "application/pdf"
     | "application/msword"
-    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    | "application/vnd.ms-excel"
+    | "application/vnd.ms-powerpoint"
+    | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    | "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
@@ -105,7 +109,11 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "image/heic": "heic",
     "application/pdf": "pdf",
     "application/msword": "doc",
+    "application/vnd.ms-excel": "xls",
+    "application/vnd.ms-powerpoint": "ppt",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
 };
 
 /**
