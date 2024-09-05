@@ -1277,8 +1277,8 @@ function processPdfDocumentFile(
     return {
         previewSizePromise: extractPreview
             ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => ({
-                  width: clamp(0, extractPreview.width * scale, width),
-                  height: clamp(0, extractPreview.height * scale, height),
+                  width: clamp(0, width, extractPreview.width * scale),
+                  height: clamp(0, height, extractPreview.height * scale),
                   scale,
               }))
             : previewSizeWithoutExtractPromise,

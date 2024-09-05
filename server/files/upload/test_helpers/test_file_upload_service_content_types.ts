@@ -27,7 +27,11 @@ import {
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {FileContentType, FileDocumentContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    FileDocumentContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -268,8 +272,30 @@ export function testFileUploadServiceContentTypes(testCases: {
                                 expectedPreviewImage.contentLength + epsilon;
 
                         if (!withinRange) {
+                            const name = encodeURIComponent(
+                                `${contentType.replaceAll("/", "_")}.${path.slice(
+                                    0,
+                                    -extname(path).length,
+                                )}`,
+                            );
+
+                            const object = await r2Bucket.get(`${space.id}/${fileId}-preview`);
+                            if (!object) throw new NotFoundError("File preview image not found");
+
+                            await fs.mkdir(testlogsPath, {recursive: true});
+
+                            await fs.writeFile(
+                                joinPath(
+                                    testlogsPath,
+                                    `${name}.preview.${getFileContentTypePreferredExtension(
+                                        expectedPreviewImage.contentType,
+                                    )}`,
+                                ),
+                                await convertReadableStreamToUint8Array(object.body),
+                            );
+
                             throw new InternalError(
-                                `Expected preview image content length to be ${expectedPreviewImage.contentLength} (±${epsilon}) but the actual content length is ${file.preview.image.contentLength}`,
+                                `Expected preview image content length to be ${expectedPreviewImage.contentLength} (±${epsilon}) but the actual content length is ${file.preview.image.contentLength}, preview image file saved to \`bazel-testlogs\``,
                             );
                         }
 
@@ -295,8 +321,30 @@ export function testFileUploadServiceContentTypes(testCases: {
                                 expectedAlternative.contentLength + epsilon;
 
                         if (!withinRange) {
+                            const name = encodeURIComponent(
+                                `${contentType.replaceAll("/", "_")}.${path.slice(
+                                    0,
+                                    -extname(path).length,
+                                )}`,
+                            );
+
+                            const object = await r2Bucket.get(`${space.id}/${fileId}-alternative`);
+                            if (!object) throw new NotFoundError("File alternative not found");
+
+                            await fs.mkdir(testlogsPath, {recursive: true});
+
+                            await fs.writeFile(
+                                joinPath(
+                                    testlogsPath,
+                                    `${name}.alternative.${getFileContentTypePreferredExtension(
+                                        expectedAlternative.contentType,
+                                    )}`,
+                                ),
+                                await convertReadableStreamToUint8Array(object.body),
+                            );
+
                             throw new InternalError(
-                                `Expected alternative file content length to be ${expectedAlternative.contentLength} (±${epsilon}) but the actual content length is ${file.alternative.contentLength}`,
+                                `Expected alternative file content length to be ${expectedAlternative.contentLength} (±${epsilon}) but the actual content length is ${file.alternative.contentLength}, alternative file saved to \`bazel-testlogs\``,
                             );
                         }
                     }
