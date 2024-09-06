@@ -1,11 +1,13 @@
 import {
-    FileLibreofficeContentType,
     FileUploadServiceContentTypeTestCase,
     testFileUploadServiceContentTypes,
 } from "~/server/files/upload/test_helpers/test_file_upload_service_content_types.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    FileMicrosoftOfficeDocumentContentType,
+} from "~/shared/files/file_content_type.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 
 // Use TypeScript to make sure we have at least one file as a test case for
@@ -13,7 +15,7 @@ import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js
 const testCases: {
     [Key in Exclude<
         FileContentType,
-        FileLibreofficeContentType
+        FileMicrosoftOfficeDocumentContentType
     >]: FileUploadServiceContentTypeTestCase;
 } = {
     "application/octet-stream": [

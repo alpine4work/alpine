@@ -1094,6 +1094,9 @@ export type TracerEventData = {
         /** The content length of the file we're operating against. */
         readonly contentLength?: number;
 
+        /** What type of processor are we using for this content? */
+        readonly processorType?: string;
+
         readonly alternative?: {
             /** The content type of the file's alternative. */
             readonly contentType?: string;

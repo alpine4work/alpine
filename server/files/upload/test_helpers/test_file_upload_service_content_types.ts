@@ -29,7 +29,6 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {
     FileContentType,
-    FileDocumentContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -45,8 +44,6 @@ import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR), "files");
-
-export type FileLibreofficeContentType = Exclude<FileDocumentContentType, "application/pdf">;
 
 export type FileUploadServiceContentTypeTestCase = NonEmptyReadonlyArray<{
     only?: CommitBlocker;

@@ -83,7 +83,12 @@ export type FileWebUnsafeImageContentType =
  * [2]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
  */
 export type FileDocumentContentType =
-    | "application/pdf"
+    | FilePdfDocumentContentType
+    | FileMicrosoftOfficeDocumentContentType;
+
+export type FilePdfDocumentContentType = "application/pdf";
+
+export type FileMicrosoftOfficeDocumentContentType =
     | "application/msword"
     | "application/vnd.ms-excel"
     | "application/vnd.ms-powerpoint"

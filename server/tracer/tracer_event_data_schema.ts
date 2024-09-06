@@ -369,6 +369,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     file: {
         contentType: Schema.string,
         contentLength: Schema.integer,
+        processorType: IdentifierStringSchema,
         alternative: {
             contentType: Schema.string,
             contentLength: Schema.integer,
