@@ -1,7 +1,7 @@
 import {
-    FileUploadServiceContentTypeTestCase,
-    testFileUploadServiceContentTypes,
-} from "~/server/files/upload/test_helpers/test_file_upload_service_content_types.js";
+    FileProcessorContentTypeTestCase,
+    testFileProcessorContentTypes,
+} from "~/server/files/upload/test_helpers/test_file_processor_content_types.js";
 import {FileMicrosoftOfficeDocumentContentType} from "~/shared/files/file_content_type.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 
@@ -13,7 +13,7 @@ import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js
 // `dev test` won't run this test file unless LibreOffice is installed. But
 // `dev test` will run the rest of our content type tests.
 const testCases: {
-    [Key in FileMicrosoftOfficeDocumentContentType]: FileUploadServiceContentTypeTestCase;
+    [Key in FileMicrosoftOfficeDocumentContentType]: FileProcessorContentTypeTestCase;
 } = {
     "application/msword": [
         {
@@ -183,4 +183,4 @@ const testCases: {
     ],
 };
 
-testFileUploadServiceContentTypes(testCases);
+testFileProcessorContentTypes(testCases);

@@ -1,7 +1,7 @@
 import {
-    FileUploadServiceContentTypeTestCase,
-    testFileUploadServiceContentTypes,
-} from "~/server/files/upload/test_helpers/test_file_upload_service_content_types.js";
+    FileProcessorContentTypeTestCase,
+    testFileProcessorContentTypes,
+} from "~/server/files/upload/test_helpers/test_file_processor_content_types.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
@@ -16,7 +16,7 @@ const testCases: {
     [Key in Exclude<
         FileContentType,
         FileMicrosoftOfficeDocumentContentType
-    >]: FileUploadServiceContentTypeTestCase;
+    >]: FileProcessorContentTypeTestCase;
 } = {
     "application/octet-stream": [
         {
@@ -418,4 +418,4 @@ const testCases: {
     ],
 };
 
-testFileUploadServiceContentTypes(testCases);
+testFileProcessorContentTypes(testCases);

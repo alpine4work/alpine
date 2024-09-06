@@ -42,7 +42,7 @@ import {FileId} from "~/shared/id/types/id_types.js";
 
 const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR), "files");
 
-export type FileUploadServiceContentTypeTestCase = NonEmptyReadonlyArray<{
+export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
     only?: CommitBlocker;
     path: string;
     alternative?: {
@@ -63,8 +63,8 @@ export type FileUploadServiceContentTypeTestCase = NonEmptyReadonlyArray<{
     looksSameTolerance?: number;
 }>;
 
-export function testFileUploadServiceContentTypes(testCases: {
-    [key: string]: FileUploadServiceContentTypeTestCase;
+export function testFileProcessorContentTypes(testCases: {
+    [key: string]: FileProcessorContentTypeTestCase;
 }) {
     let r2Bucket: R2Bucket;
     let serverTokenAgent: TokenAgent;
@@ -185,6 +185,13 @@ export function testFileUploadServiceContentTypes(testCases: {
                         (event1, event2) =>
                             eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
                     );
+
+                    if (expectedPreviewError) {
+                        // eslint-disable-next-line no-commit-blockers
+                        // NOCOMMIT: Debugging CI tests
+                        // eslint-disable-next-line no-console
+                        console.log("YOYOYO: Events", events);
+                    }
 
                     const error = findMapIterable(events, event =>
                         event.type === "Error" ? event.error : undefined,

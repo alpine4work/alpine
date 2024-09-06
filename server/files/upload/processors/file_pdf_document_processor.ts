@@ -35,7 +35,19 @@ export function createFilePdfDocumentProcessor(): FileProcessor {
         // If the PDF is password protected then it's ok to finish the upload. We won't
         // be able to render the PDF but the user should still be able to download it
         // and view the PDF on their local machine.
-        acceptError: error => error.displayMessage === pdfPasswordRequiredErrorDisplayMessage,
+        acceptError: error => {
+            // eslint-disable-next-line no-commit-blockers
+            // NOCOMMIT: Debugging CI tests
+            // eslint-disable-next-line no-console
+            console.log(
+                "YOYOYO: Accept error?",
+                error.displayMessage === pdfPasswordRequiredErrorDisplayMessage,
+                error.displayMessage,
+                error,
+            );
+
+            return error.displayMessage === pdfPasswordRequiredErrorDisplayMessage;
+        },
 
         process: (stream, signal) => processPdfDocumentFile(stream, signal),
     };
@@ -146,11 +158,27 @@ export function processPdfDocumentFile(
 
     return {
         previewSizePromise: extractPreview
-            ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => ({
-                  width: clamp(0, width, extractPreview.width * scale),
-                  height: clamp(0, height, extractPreview.height * scale),
-                  scale,
-              }))
+            ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => {
+                  // eslint-disable-next-line no-commit-blockers
+                  // NOCOMMIT: Debugging CI tests
+                  // eslint-disable-next-line no-console
+                  console.log(
+                      "YOYOYO: Clamp preview size!",
+                      extractPreview,
+                      {width, height, scale},
+                      {
+                          width: clamp(0, width, extractPreview.width * scale),
+                          height: clamp(0, height, extractPreview.height * scale),
+                          scale,
+                      },
+                  );
+
+                  return {
+                      width: clamp(0, width, extractPreview.width * scale),
+                      height: clamp(0, height, extractPreview.height * scale),
+                      scale,
+                  };
+              })
             : previewSizeWithoutExtractPromise,
         previewPlaceholderPromise,
         previewImagePromise,
