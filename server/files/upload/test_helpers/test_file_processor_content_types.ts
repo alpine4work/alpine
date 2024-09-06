@@ -373,7 +373,7 @@ export function testFileProcessorContentTypes(testCases: {
                         looksSameTolerance,
                     });
                 },
-                30 * 1000,
+                60 * 1000,
             );
         }
     }

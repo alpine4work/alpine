@@ -78,6 +78,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "file_examples_xls_50_rows.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
     ],
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
@@ -97,6 +101,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "file_examples_xlsx_50_rows.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
         {
             // Tests charts and multiple sheets.
@@ -115,6 +123,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "calebmer_typing_speed_percentile_calculator.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
         {
             path: "calebmer_small_spreadsheet.xlsx",
@@ -132,6 +144,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "calebmer_small_spreadsheet.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
     ],
     "application/vnd.ms-powerpoint": [
