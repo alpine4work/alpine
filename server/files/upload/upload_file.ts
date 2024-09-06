@@ -402,11 +402,6 @@ async function uploadAndProcessFile(
                           if (acceptError) {
                               hasAcceptedPreviewError = true;
 
-                              // eslint-disable-next-line no-commit-blockers
-                              // NOCOMMIT: Debugging CI tests
-                              // eslint-disable-next-line no-console
-                              console.log("YOYOYO: Has accepted preview error");
-
                               await fileUploader.finishProcessingPreviewAfterAcceptableError(
                                   context,
                                   {

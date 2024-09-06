@@ -186,13 +186,6 @@ export function testFileProcessorContentTypes(testCases: {
                             eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
                     );
 
-                    if (expectedPreviewError) {
-                        // eslint-disable-next-line no-commit-blockers
-                        // NOCOMMIT: Debugging CI tests
-                        // eslint-disable-next-line no-console
-                        console.log("YOYOYO: Events", events);
-                    }
-
                     const error = findMapIterable(events, event =>
                         event.type === "Error" ? event.error : undefined,
                     );
