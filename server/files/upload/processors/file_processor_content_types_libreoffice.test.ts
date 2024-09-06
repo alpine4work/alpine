@@ -32,6 +32,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "file_examples_doc_100kb.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
     ],
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
@@ -51,6 +55,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "file_examples_docx_100kb.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
     ],
     "application/vnd.ms-excel": [
@@ -143,6 +151,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "file_examples_ppt_250kb.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
     ],
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
@@ -162,6 +174,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "file_examples_pptx_250kb.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
         {
             path: "calebmer_basic_presentation.pptx",
@@ -179,6 +195,10 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "calebmer_basic_presentation.avif",
             },
+            // LibreOffice may generate files with meaningful differences between MacOS and
+            // Linux due to platform differences. For example, differences in font
+            // rendering. So use a generous tolerance.
+            looksSameTolerance: 120,
         },
     ],
 };
