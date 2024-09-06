@@ -19,7 +19,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 
 export class AwsGithubRunners extends Construct {
     constructor(
-        parentScope: Stack,
+        parentScope: Construct,
         {
             vpc,
             cloudflareAccountId,
@@ -33,6 +33,8 @@ export class AwsGithubRunners extends Construct {
         },
     ) {
         super(parentScope, "GithubRunners");
+
+        const stack = Stack.of(this);
 
         const bucket = new Bucket(this, "BazelRemoteBucket", {
             // Manually assign a bucket name so that we can reference it by name in
@@ -126,12 +128,18 @@ export class AwsGithubRunners extends Construct {
             vpc,
             subnetSelection: {subnetType: SubnetType.PUBLIC},
 
+            os: Os.LINUX_UBUNTU,
+            architecture: Architecture.ARM64,
+            baseAmi: stack.formatArn({
+                service: "imagebuilder",
+                resource: "image",
+                account: "aws",
+                resourceName: `ubuntu-server-24-lts-arm64/x.x.x`,
+            }),
             awsImageBuilderOptions: {
                 // We can use a different size when building our image.
                 instanceType: InstanceType.of(testInstanceClass, InstanceSize.MEDIUM),
             },
-            os: Os.LINUX_UBUNTU,
-            architecture: Architecture.ARM64,
 
             components: createImageBuilderComponents(
                 [
@@ -298,12 +306,18 @@ export class AwsGithubRunners extends Construct {
                 vpc,
                 subnetSelection: {subnetType: SubnetType.PUBLIC},
 
+                os: Os.LINUX_UBUNTU,
+                architecture: Architecture.X86_64,
+                baseAmi: stack.formatArn({
+                    service: "imagebuilder",
+                    resource: "image",
+                    account: "aws",
+                    resourceName: `ubuntu-server-24-lts-x86/x.x.x`,
+                }),
                 awsImageBuilderOptions: {
                     // We can use a different size when building our image.
                     instanceType: InstanceType.of(deployInstanceClass, InstanceSize.SMALL),
                 },
-                os: Os.LINUX_UBUNTU,
-                architecture: Architecture.X86_64,
 
                 components: createImageBuilderComponents(),
             },
@@ -362,10 +376,10 @@ export class AwsGithubRunners extends Construct {
             new PolicyStatement({
                 actions: ["sts:AssumeRole"],
                 resources: [
-                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-lookup-role-*`,
-                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-file-publishing-role-*`,
-                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-image-publishing-role-*`,
-                    `arn:aws:iam::${parentScope.account}:role/cdk-hnb659fds-deploy-role-*`,
+                    `arn:aws:iam::${stack.account}:role/cdk-hnb659fds-lookup-role-*`,
+                    `arn:aws:iam::${stack.account}:role/cdk-hnb659fds-file-publishing-role-*`,
+                    `arn:aws:iam::${stack.account}:role/cdk-hnb659fds-image-publishing-role-*`,
+                    `arn:aws:iam::${stack.account}:role/cdk-hnb659fds-deploy-role-*`,
                 ],
             }),
         );
