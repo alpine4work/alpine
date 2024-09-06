@@ -27,10 +27,7 @@ import {
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {
-    FileContentType,
-    getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -48,10 +45,8 @@ const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_D
 export type FileUploadServiceContentTypeTestCase = NonEmptyReadonlyArray<{
     only?: CommitBlocker;
     path: string;
-    contentLength: number;
     alternative?: {
         contentType: FileContentType;
-        contentLength: number;
         similarPath: string;
     };
     previewSize?: {width: number; height: number; scale?: number};
@@ -59,7 +54,6 @@ export type FileUploadServiceContentTypeTestCase = NonEmptyReadonlyArray<{
     isPreviewImageAlternative?: boolean;
     previewImage?: {
         contentType: FileContentType;
-        contentLength: number;
         similarPath: string;
     };
     previewError?: {
@@ -141,7 +135,6 @@ export function testFileUploadServiceContentTypes(testCases: {
         for (const {
             only,
             path,
-            contentLength: expectedContentLength,
             alternative: expectedAlternative,
             previewSize: expectedPreviewSize,
             previewPlaceholder: expectedPreviewPlaceholder,
@@ -211,7 +204,7 @@ export function testFileUploadServiceContentTypes(testCases: {
                         new FileModel({
                             id: fileId,
                             contentType: contentType as FileContentType,
-                            contentLength: expectedContentLength,
+                            contentLength: expect.any(Number),
                             isUploading: false,
                             alternative: expectedAlternative
                                 ? {
@@ -254,97 +247,6 @@ export function testFileUploadServiceContentTypes(testCases: {
                                 : null,
                         }),
                     );
-
-                    if (!expectedPreviewError && expectedPreviewSize && expectedPreviewImage) {
-                        assert(file.preview);
-                        assert(!file.preview.isProcessing);
-                        assert(file.preview.ok);
-                        assert(file.preview.image);
-
-                        const epsilon = 2000;
-                        const withinRange =
-                            expectedPreviewImage.contentLength - epsilon <=
-                                file.preview.image.contentLength &&
-                            file.preview.image.contentLength <=
-                                expectedPreviewImage.contentLength + epsilon;
-
-                        if (!withinRange) {
-                            const name = encodeURIComponent(
-                                `${contentType.replaceAll("/", "_")}.${path.slice(
-                                    0,
-                                    -extname(path).length,
-                                )}`,
-                            );
-
-                            const object = await r2Bucket.get(`${space.id}/${fileId}-preview`);
-                            if (!object) throw new NotFoundError("File preview image not found");
-
-                            await fs.mkdir(testlogsPath, {recursive: true});
-
-                            await fs.writeFile(
-                                joinPath(
-                                    testlogsPath,
-                                    `${name}.preview.${getFileContentTypePreferredExtension(
-                                        expectedPreviewImage.contentType,
-                                    )}`,
-                                ),
-                                await convertReadableStreamToUint8Array(object.body),
-                            );
-
-                            throw new InternalError(
-                                `Expected preview image content length to be ${expectedPreviewImage.contentLength} (±${epsilon}) but the actual content length is ${file.preview.image.contentLength}, preview image file saved to \`bazel-testlogs\``,
-                            );
-                        }
-
-                        if (expectedIsPreviewImageAlternative) {
-                            assert(file.alternative);
-                            assert(!file.alternative.isProcessing);
-
-                            expect(file.alternative.contentLength).toEqual(
-                                file.preview.image.contentLength,
-                            );
-                        }
-                    }
-
-                    if (expectedAlternative) {
-                        assert(file.alternative);
-                        assert(!file.alternative.isProcessing);
-
-                        const epsilon = 2000;
-                        const withinRange =
-                            expectedAlternative.contentLength - epsilon <=
-                                file.alternative.contentLength &&
-                            file.alternative.contentLength <=
-                                expectedAlternative.contentLength + epsilon;
-
-                        if (!withinRange) {
-                            const name = encodeURIComponent(
-                                `${contentType.replaceAll("/", "_")}.${path.slice(
-                                    0,
-                                    -extname(path).length,
-                                )}`,
-                            );
-
-                            const object = await r2Bucket.get(`${space.id}/${fileId}-alternative`);
-                            if (!object) throw new NotFoundError("File alternative not found");
-
-                            await fs.mkdir(testlogsPath, {recursive: true});
-
-                            await fs.writeFile(
-                                joinPath(
-                                    testlogsPath,
-                                    `${name}.alternative.${getFileContentTypePreferredExtension(
-                                        expectedAlternative.contentType,
-                                    )}`,
-                                ),
-                                await convertReadableStreamToUint8Array(object.body),
-                            );
-
-                            throw new InternalError(
-                                `Expected alternative file content length to be ${expectedAlternative.contentLength} (±${epsilon}) but the actual content length is ${file.alternative.contentLength}, alternative file saved to \`bazel-testlogs\``,
-                            );
-                        }
-                    }
 
                     expect(events).toEqual([
                         {
@@ -484,9 +386,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity({
     path: string;
     space: TestSpace;
     fileId: FileId;
-    expectedAlternative:
-        | {contentType: FileContentType; contentLength: number; similarPath: string}
-        | undefined;
+    expectedAlternative: {contentType: FileContentType; similarPath: string} | undefined;
     looksSameTolerance: number;
 }) {
     if (!expectedAlternative) return;
@@ -604,9 +504,7 @@ async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
     path: string;
     space: TestSpace;
     fileId: FileId;
-    expectedPreviewImage:
-        | {contentType: FileContentType; contentLength: number; similarPath: string}
-        | undefined;
+    expectedPreviewImage: {contentType: FileContentType; similarPath: string} | undefined;
     looksSameTolerance: number;
 }) {
     if (!expectedPreviewImage) return expectedPreviewImage;

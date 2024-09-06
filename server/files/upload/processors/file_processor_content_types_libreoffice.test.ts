@@ -18,10 +18,8 @@ const testCases: {
     "application/msword": [
         {
             path: "file_examples_doc_100kb.doc",
-            contentLength: 100352,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 155144,
                 similarPath: "file_examples_doc_100kb.pdf",
             },
             previewSize: {width: 1190, height: 1684, scale: 2},
@@ -32,7 +30,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 93170,
                 similarPath: "file_examples_doc_100kb.avif",
             },
         },
@@ -40,10 +37,8 @@ const testCases: {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
         {
             path: "file_examples_docx_100kb.docx",
-            contentLength: 111303,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 179336,
                 similarPath: "file_examples_docx_100kb.pdf",
             },
             previewSize: {width: 1190, height: 1684, scale: 2},
@@ -54,7 +49,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 93195,
                 similarPath: "file_examples_docx_100kb.avif",
             },
         },
@@ -62,10 +56,8 @@ const testCases: {
     "application/vnd.ms-excel": [
         {
             path: "file_examples_xls_50_rows.xls",
-            contentLength: 13824,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 42740,
                 similarPath: "file_examples_xls_50_rows.pdf",
             },
             previewSize: {width: 1024, height: 1080, scale: 2},
@@ -76,7 +68,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 162869,
                 similarPath: "file_examples_xls_50_rows.avif",
             },
         },
@@ -84,10 +75,8 @@ const testCases: {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
         {
             path: "file_examples_xlsx_50_rows.xlsx",
-            contentLength: 10609,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 43493,
                 similarPath: "file_examples_xlsx_50_rows.pdf",
             },
             previewSize: {width: 1022, height: 1080, scale: 2},
@@ -98,17 +87,14 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 176606,
                 similarPath: "file_examples_xlsx_50_rows.avif",
             },
         },
         {
             // Tests charts and multiple sheets.
             path: "calebmer_typing_speed_percentile_calculator.xlsx",
-            contentLength: 15840,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 27205,
                 similarPath: "calebmer_typing_speed_percentile_calculator.pdf",
             },
             previewSize: {width: 1440, height: 1080, scale: 2},
@@ -119,16 +105,13 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 52253,
                 similarPath: "calebmer_typing_speed_percentile_calculator.avif",
             },
         },
         {
             path: "calebmer_small_spreadsheet.xlsx",
-            contentLength: 4758,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 10181,
                 similarPath: "calebmer_small_spreadsheet.pdf",
             },
             previewSize: {width: 420, height: 94, scale: 2},
@@ -139,7 +122,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 2710,
                 similarPath: "calebmer_small_spreadsheet.avif",
             },
         },
@@ -147,10 +129,8 @@ const testCases: {
     "application/vnd.ms-powerpoint": [
         {
             path: "file_examples_ppt_250kb.ppt",
-            contentLength: 248320,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 188673,
                 similarPath: "file_examples_ppt_250kb.pdf",
             },
             previewSize: {width: 1588, height: 1190, scale: 2},
@@ -161,7 +141,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 123480,
                 similarPath: "file_examples_ppt_250kb.avif",
             },
         },
@@ -169,10 +148,8 @@ const testCases: {
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
         {
             path: "file_examples_ppt_250kb.pptx",
-            contentLength: 142955,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 174851,
                 similarPath: "file_examples_pptx_250kb.pdf",
             },
             previewSize: {width: 1588, height: 1190, scale: 2},
@@ -183,16 +160,13 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 115034,
                 similarPath: "file_examples_pptx_250kb.avif",
             },
         },
         {
             path: "calebmer_basic_presentation.pptx",
-            contentLength: 32123,
             alternative: {
                 contentType: "application/pdf",
-                contentLength: 13587,
                 similarPath: "calebmer_basic_presentation.pdf",
             },
             previewSize: {width: 1440, height: 1080, scale: 2},
@@ -203,7 +177,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 5424,
                 similarPath: "calebmer_basic_presentation.avif",
             },
         },

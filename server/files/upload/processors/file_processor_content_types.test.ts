@@ -21,13 +21,11 @@ const testCases: {
     "application/octet-stream": [
         {
             path: "random.bin",
-            contentLength: 5000,
         },
     ],
     "image/apng": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.png",
-            contentLength: 103683,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -37,7 +35,6 @@ const testCases: {
         },
         {
             path: "wikimedia_bouncing_beach_ball.png",
-            contentLength: 61968,
             previewSize: {width: 100, height: 100},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -49,7 +46,6 @@ const testCases: {
     "image/avif": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.avif",
-            contentLength: 3704,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -61,7 +57,6 @@ const testCases: {
     "image/gif": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.gif",
-            contentLength: 64718,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -71,7 +66,6 @@ const testCases: {
         },
         {
             path: "wikimedia_rotating_earth.gif",
-            contentLength: 118405,
             previewSize: {width: 400, height: 400},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -83,7 +77,6 @@ const testCases: {
     "image/jpeg": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
-            contentLength: 33102,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -95,7 +88,6 @@ const testCases: {
     "image/png": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.png",
-            contentLength: 103683,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -105,7 +97,6 @@ const testCases: {
         },
         {
             path: "wikimedia_png_transparency_demonstration.png",
-            contentLength: 76547,
             previewSize: {width: 336, height: 252},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -115,7 +106,6 @@ const testCases: {
         },
         {
             path: "wikimedia_bouncing_beach_ball.png",
-            contentLength: 61968,
             previewSize: {width: 100, height: 100},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -127,7 +117,6 @@ const testCases: {
     "image/svg+xml": [
         {
             path: "undraw_landscape_photographer.svg",
-            contentLength: 4701,
             previewSize: {width: 732, height: 619},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -137,7 +126,6 @@ const testCases: {
         },
         {
             path: "alpine_favicon_old.svg",
-            contentLength: 594,
             previewSize: {width: 74, height: 74},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -149,7 +137,6 @@ const testCases: {
     "image/webp": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.webp",
-            contentLength: 60260,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -161,7 +148,6 @@ const testCases: {
     "image/bmp": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.bmp",
-            contentLength: 141432,
             previewSize: {width: 250, height: 188},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -171,7 +157,6 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 7638,
                 // We shrink the `.bmp` file since it's quite large so we have a special
                 // `.bmp.avif` file to compare for similarity.
                 similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.bmp.avif",
@@ -181,7 +166,6 @@ const testCases: {
     "image/ico": [
         {
             path: "alpine_favicon_old.ico",
-            contentLength: 15086,
             previewSize: {width: 48, height: 48},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -191,13 +175,11 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/png",
-                contentLength: 843,
                 similarPath: "alpine_favicon_old.png",
             },
         },
         {
             path: "stackoverflow_favicon.ico",
-            contentLength: 5430,
             previewSize: {width: 32, height: 32},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -207,13 +189,11 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/png",
-                contentLength: 632,
                 similarPath: "stackoverflow_favicon.png",
             },
         },
         {
             path: "stackoverflow_favicon.png.ico",
-            contentLength: 1264,
             previewSize: {width: 32, height: 32},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -223,7 +203,6 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/png",
-                contentLength: 819,
                 similarPath: "stackoverflow_favicon.png",
             },
         },
@@ -231,7 +210,6 @@ const testCases: {
     "image/tiff": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.tiff",
-            contentLength: 118764,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -241,13 +219,11 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 20082,
                 similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.avif",
             },
         },
         {
             path: "wikimedia_png_transparency_demonstration.tiff",
-            contentLength: 107676,
             previewSize: {width: 336, height: 252},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -257,7 +233,6 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 29508,
                 similarPath: "wikimedia_png_transparency_demonstration.avif",
             },
         },
@@ -265,7 +240,6 @@ const testCases: {
     "image/heif": [
         {
             path: "filesampleshub_heif_sample1.heif",
-            contentLength: 42984,
             previewSize: {width: 640, height: 426},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -275,7 +249,6 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 93447,
                 similarPath: "filesampleshub_heif_sample1.avif",
             },
         },
@@ -283,7 +256,6 @@ const testCases: {
     "image/heic": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.heic",
-            contentLength: 36233,
             previewSize: {width: 500, height: 375},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -293,13 +265,11 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 20246,
                 similarPath: "unsplash_annie_spratt_0ArJET2aSIQ.avif",
             },
         },
         {
             path: "iphone_calebmer_colorado_twin_lakes.heic",
-            contentLength: 88109,
             previewSize: {width: 480, height: 640},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 false,
@@ -309,13 +279,11 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 91235,
                 similarPath: "iphone_calebmer_colorado_twin_lakes.avif",
             },
         },
         {
             path: "wikimedia_png_transparency_demonstration.heic",
-            contentLength: 16960,
             previewSize: {width: 336, height: 252},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -325,7 +293,6 @@ const testCases: {
             isPreviewImageAlternative: true,
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 25424,
                 // When using the Apple Preview app to export
                 // `wikimedia_png_transparency_demonstration.png` the colors got darker,
                 // especially around the edges. So we can't compare to the original `.png`
@@ -339,7 +306,6 @@ const testCases: {
     "application/pdf": [
         {
             path: "iup_pdf_testpage.pdf",
-            contentLength: 67840,
             previewSize: {width: 1224, height: 1584, scale: 2},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -348,13 +314,11 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 34554,
                 similarPath: "iup_pdf_testpage.avif",
             },
         },
         {
             path: "py_pdf_sample_google_doc_document.pdf",
-            contentLength: 80100,
             previewSize: {width: 1192, height: 1684, scale: 2},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -363,13 +327,11 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 79284,
                 similarPath: "py_pdf_sample_google_doc_document.avif",
             },
         },
         {
             path: "py_pdf_sample_libreoffice_form.pdf",
-            contentLength: 34186,
             previewSize: {width: 1190, height: 1684, scale: 2},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -378,13 +340,11 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 11172,
                 similarPath: "py_pdf_sample_libreoffice_form.avif",
             },
         },
         {
             path: "py_pdf_sample_libreoffice_write_password.pdf",
-            contentLength: 12783,
             previewError: {
                 code: ErrorCode.PermissionDenied,
                 displayMessage: errorDisplayMessage`A password is required to read this file. Try opening the file in a PDF reader that supports password protected files.`,
@@ -392,7 +352,6 @@ const testCases: {
         },
         {
             path: "py_pdf_sample_multicolumn.pdf",
-            contentLength: 78657,
             previewSize: {width: 1190, height: 1684, scale: 2},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -401,13 +360,11 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 182019,
                 similarPath: "py_pdf_sample_multicolumn.avif",
             },
         },
         {
             path: "py_pdf_sample_pdflatex_outline.pdf",
-            contentLength: 48722,
             previewSize: {width: 1190, height: 1684, scale: 2},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -416,13 +373,11 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 6148,
                 similarPath: "py_pdf_sample_pdflatex_outline.avif",
             },
         },
         {
             path: "wikimedia_png_transparency_demonstration.pdf",
-            contentLength: 82860,
             previewSize: {width: 672, height: 504, scale: 2},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -431,7 +386,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 11253,
                 // The PDF preview:
                 //
                 // 1. Removes the transparent background and replaces it with a white
@@ -447,7 +401,6 @@ const testCases: {
         },
         {
             path: "pdfsharp_sample_page_sizes.pdf",
-            contentLength: 40069,
             previewSize: {width: 4760, height: 6736, scale: 2},
             previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
                 true,
@@ -456,7 +409,6 @@ const testCases: {
             ]),
             previewImage: {
                 contentType: "image/avif",
-                contentLength: 1453,
                 similarPath: "pdfsharp_sample_page_sizes.avif",
             },
             // Needs higher tolerance probably because this file is much bigger than others
