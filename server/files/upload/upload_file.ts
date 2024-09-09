@@ -18,6 +18,8 @@ import {createFilePdfDocumentProcessor} from "~/server/files/upload/processors/f
 import {FileProcessor, fileNoopProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {createFileWebSafeImageProcessor} from "~/server/files/upload/processors/file_web_safe_image_processor.js";
 import {createFileWebUnsafeImageProcessor} from "~/server/files/upload/processors/file_web_unsafe_image_processor.js";
+import {createFileWebUnsafeVideoProcessor} from "~/server/files/upload/processors/file_web_unsafe_video_processor.js";
+import {createFileWebmVideoProcessor} from "~/server/files/upload/processors/file_webm_video_processor.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {
     CancelledError,
@@ -78,7 +80,7 @@ export const UploadFileEventSchema = Schema.union({
         type: Schema.value("PreviewSize"),
         width: Schema.integer,
         height: Schema.integer,
-        scale: Schema.integer.default(1),
+        scale: Schema.float,
     }),
     PreviewPlaceholder: Schema.object({
         type: Schema.value("PreviewPlaceholder"),
@@ -88,6 +90,10 @@ export const UploadFileEventSchema = Schema.union({
         type: Schema.value("PreviewImage"),
         contentType: FileContentTypeSchema,
         contentLength: Schema.integer,
+    }),
+    PreviewVideoDuration: Schema.object({
+        type: Schema.value("PreviewVideoDuration"),
+        videoDuration: Schema.integer,
     }),
     PreviewError: Schema.object({
         type: Schema.value("PreviewError"),
@@ -270,6 +276,7 @@ async function actuallyUploadFile(
             hasAlternative: !!fileProcessor.hasAlternative,
             hasPreview: fileProcessor.hasPreview,
             hasPreviewImage: fileProcessor.hasPreviewImage,
+            hasPreviewVideoDuration: fileProcessor.hasPreviewVideoDuration,
         });
 
         span.addPropagatedData({context: {fileId: fileUploader.fileId}});
@@ -363,6 +370,8 @@ async function uploadAndProcessFile(
         await fileUploader.finishUploading(context);
     })().catch(createAbortCatcher("File uploading failed"));
 
+    const actualCreateAbortCatcher = createAbortCatcher;
+
     const processPromise = fileProcessor.hasPreview
         ? context.tracer.withSpan("Process file", async (context, span) => {
               span.addData({
@@ -374,10 +383,12 @@ async function uploadAndProcessFile(
               });
 
               const {
+                  extraPromise,
+                  alternativePromise,
                   previewSizePromise,
                   previewPlaceholderPromise,
                   previewImagePromise,
-                  alternativePromise,
+                  previewVideoDurationPromise,
               } = fileProcessor.process(stream, signal, {
                   span,
                   fileId: fileUploader.fileId,
@@ -387,8 +398,10 @@ async function uploadAndProcessFile(
 
               let hasAcceptedPreviewError = false;
 
-              const createPreviewAbortCatcher = (message: string) => {
-                  const abortCatcher = createAbortCatcher(message);
+              const createAbortCatcherWithoutAcceptError = actualCreateAbortCatcher;
+
+              const createAbortCatcher = (message: string) => {
+                  const abortCatcher = createAbortCatcherWithoutAcceptError(message);
 
                   return async (error: unknown) => {
                       if (hasAcceptedPreviewError) throw error;
@@ -425,16 +438,25 @@ async function uploadAndProcessFile(
                   };
               };
 
+              // We wait for the extra promise to finish before we consider processing to be
+              // complete. But the extra promise doesn't return any data. Useful if you've
+              // resolved all other promises with streams but want a promise that'll wait for
+              // the stream to complete.
+              const actualExtraPromise = extraPromise?.catch(createAbortCatcherWithoutAcceptError);
+
               const actualAlternativePromise = alternativePromise
                   ? (async () => {
                         const alternative = await alternativePromise;
                         if (signal.aborted) throw signal.reason;
 
-                        let alternativeContentLength = 0;
-
-                        alternative.stream.on("data", (chunk: Buffer) => {
-                            alternativeContentLength += chunk.length;
-                        });
+                        let dataContentLength: number = 0;
+                        if (alternative.data instanceof Buffer) {
+                            dataContentLength = alternative.data.length;
+                        } else {
+                            alternative.data.on("data", (chunk: Buffer) => {
+                                dataContentLength += chunk.length;
+                            });
+                        }
 
                         // NOTE: We don't `Promise.race()` `PutObject()` with
                         // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
@@ -445,20 +467,20 @@ async function uploadAndProcessFile(
                                 Bucket: filesBucketName,
                                 Key: `${spaceId}/${fileUploader.fileId}-alternative`,
                                 ContentType: alternative.contentType,
-                                Body: alternative.stream,
+                                Body: alternative.data,
                             },
                             {signal},
                         );
 
                         await fileUploader.finishProcessingAlternative(context, {
                             contentType: alternative.contentType,
-                            contentLength: alternativeContentLength,
+                            contentLength: dataContentLength,
                         });
 
                         sendEvent({
                             type: "Alternative",
                             contentType: alternative.contentType,
-                            contentLength: alternativeContentLength,
+                            contentLength: dataContentLength,
                             isPreviewImage: false,
                         });
 
@@ -466,38 +488,62 @@ async function uploadAndProcessFile(
                             file: {
                                 alternative: {
                                     contentType: alternative.contentType,
-                                    contentLength: alternativeContentLength,
-                                    contentLengthRatio: alternativeContentLength / contentLength,
+                                    contentLength: dataContentLength,
+                                    contentLengthRatio: dataContentLength / contentLength,
                                 },
                             },
                         };
-                    })().catch(createAbortCatcher("File alternative processing failed"))
+                    })().catch(
+                        // We don't currently allow errors from alternative file generation to be
+                        // accepted. If a file has an alternative then the alternative must be
+                        // generated. Also, accepted errors are stored in `preview`. This would leave
+                        // `alternative` in a processing state forever.
+                        createAbortCatcherWithoutAcceptError("File alternative processing failed"),
+                    )
                   : null;
 
               const actualPreviewSizePromise = (async () => {
-                  const {width, height, scale} = await previewSizePromise;
+                  const size = await previewSizePromise;
                   if (signal.aborted) throw signal.reason;
                   if (hasAcceptedPreviewError) return;
 
-                  await fileUploader.finishProcessingPreviewSize(context, {width, height, scale});
+                  await fileUploader.finishProcessingPreviewSize(
+                      context,
+                      {
+                          width: size.width,
+                          height: size.height,
+                          scale: size.scale,
+                      },
+                      size.videoDuration !== undefined
+                          ? {alsoPreviewVideoDuration: size.videoDuration}
+                          : undefined,
+                  );
 
                   sendEvent({
                       type: "PreviewSize",
-                      width,
-                      height,
-                      scale,
+                      width: size.width,
+                      height: size.height,
+                      scale: size.scale,
                   });
+
+                  if (size.videoDuration !== undefined) {
+                      sendEvent({
+                          type: "PreviewVideoDuration",
+                          videoDuration: size.videoDuration,
+                      });
+                  }
 
                   return {
                       file: {
                           preview: {
-                              width,
-                              height,
-                              scale,
+                              width: size.width,
+                              height: size.height,
+                              scale: size.scale,
+                              videoDurationMs: size.videoDuration,
                           },
                       },
                   };
-              })().catch(createPreviewAbortCatcher("File preview size processing failed"));
+              })().catch(createAbortCatcher("File preview size processing failed"));
 
               const actualPreviewPlaceholderPromise = (async () => {
                   const placeholder = await previewPlaceholderPromise;
@@ -510,13 +556,22 @@ async function uploadAndProcessFile(
                       type: "PreviewPlaceholder",
                       placeholder,
                   });
-              })().catch(createPreviewAbortCatcher("File preview placeholder processing failed"));
+              })().catch(createAbortCatcher("File preview placeholder processing failed"));
 
               const actualPreviewImagePromise = previewImagePromise
                   ? (async () => {
                         const previewImage = await previewImagePromise;
                         if (signal.aborted) throw signal.reason;
                         if (hasAcceptedPreviewError) return;
+
+                        let dataContentLength: number = 0;
+                        if (previewImage.data instanceof Buffer) {
+                            dataContentLength = previewImage.data.length;
+                        } else {
+                            previewImage.data.on("data", (chunk: Buffer) => {
+                                dataContentLength += chunk.length;
+                            });
+                        }
 
                         // NOTE: We don't `Promise.race()` `PutObject()` with
                         // `waitForAbort(signal)` since we need to wait for the `PutObject()` to
@@ -537,21 +592,21 @@ async function uploadAndProcessFile(
 
                         await fileUploader.finishProcessingPreviewImage(context, {
                             contentType: previewImage.contentType,
-                            contentLength: previewImage.data.length,
+                            contentLength: dataContentLength,
                             isAlternative: fileProcessor.hasAlternative === "PreviewImage",
                         });
 
                         sendEvent({
                             type: "PreviewImage",
                             contentType: previewImage.contentType,
-                            contentLength: previewImage.data.length,
+                            contentLength: dataContentLength,
                         });
 
                         if (fileProcessor.hasAlternative === "PreviewImage") {
                             sendEvent({
                                 type: "Alternative",
                                 contentType: previewImage.contentType,
-                                contentLength: previewImage.data.length,
+                                contentLength: dataContentLength,
                                 isPreviewImage: true,
                             });
                         }
@@ -560,24 +615,52 @@ async function uploadAndProcessFile(
                             file: {
                                 preview: {
                                     contentType: previewImage.contentType,
-                                    contentLength: previewImage.data.length,
-                                    contentLengthRatio: previewImage.data.length / contentLength,
+                                    contentLength: dataContentLength,
+                                    contentLengthRatio: dataContentLength / contentLength,
                                 },
                                 alternative:
                                     fileProcessor.hasAlternative === "PreviewImage"
                                         ? {
                                               contentType: previewImage.contentType,
-                                              contentLength: previewImage.data.length,
-                                              contentLengthRatio:
-                                                  previewImage.data.length / contentLength,
+                                              contentLength: dataContentLength,
+                                              contentLengthRatio: dataContentLength / contentLength,
                                           }
                                         : undefined,
                             },
                         };
-                    })().catch(createPreviewAbortCatcher("File preview image processing failed"))
+                    })().catch(createAbortCatcher("File preview image processing failed"))
                   : null;
 
-              const commonSpanData = {
+              const actualPreviewVideoDurationPromise = previewVideoDurationPromise
+                  ? (async () => {
+                        const previewVideoDuration = await previewVideoDurationPromise;
+                        if (signal.aborted) throw signal.reason;
+                        if (hasAcceptedPreviewError) return;
+
+                        const {wasUpdated} =
+                            await fileUploader.finishProcessingPreviewVideoDurationIfNeeded(
+                                context,
+                                previewVideoDuration,
+                            );
+
+                        if (wasUpdated) {
+                            sendEvent({
+                                type: "PreviewVideoDuration",
+                                videoDuration: previewVideoDuration,
+                            });
+                        }
+
+                        return {
+                            file: {preview: {videoDurationMs: previewVideoDuration}},
+                            // Record if there was no update (since `previewSizePromise` saved the video
+                            // duration). The `child` key will only be added to `childSpan` and not our
+                            // parent processor span.
+                            child: {common: {didNothing: !wasUpdated}},
+                        };
+                    })().catch(createAbortCatcher("File preview video duration processing failed"))
+                  : null;
+
+              const sharedChildSpanData = {
                   file: {
                       contentType,
                       contentLength,
@@ -591,27 +674,47 @@ async function uploadAndProcessFile(
               // so that when we look at the duration we get the user duration perceived by the user
               // (since as each of these resolves we `sendEvent()` to the user).
               await runAllPromises([
+                  actualExtraPromise,
                   actualAlternativePromise
-                      ? span.withSpan("Process file alternative", async span => {
-                            span.addData(commonSpanData);
+                      ? span.withSpan("Process file alternative", async childSpan => {
+                            childSpan.addData(sharedChildSpanData);
                             const spanData = await actualAlternativePromise;
+                            childSpan.addData(spanData);
                             span.addData(spanData);
                         })
                       : null,
-                  span.withSpan("Process file preview size", async span => {
-                      span.addData(commonSpanData);
+                  span.withSpan("Process file preview size", async childSpan => {
+                      childSpan.addData(sharedChildSpanData);
                       const spanData = await actualPreviewSizePromise;
-                      if (spanData) span.addData(spanData);
+                      if (spanData) {
+                          childSpan.addData(spanData);
+                          span.addData(spanData);
+                      }
                   }),
-                  span.withSpan("Process file preview placeholder", span => {
-                      span.addData(commonSpanData);
-                      return actualPreviewPlaceholderPromise;
+                  span.withSpan("Process file preview placeholder", async childSpan => {
+                      childSpan.addData(sharedChildSpanData);
+                      await actualPreviewPlaceholderPromise;
                   }),
                   actualPreviewImagePromise
-                      ? span.withSpan("Process file preview image", async span => {
-                            span.addData(commonSpanData);
+                      ? span.withSpan("Process file preview image", async childSpan => {
+                            childSpan.addData(sharedChildSpanData);
                             const spanData = await actualPreviewImagePromise;
-                            if (spanData) span.addData(spanData);
+                            if (spanData) {
+                                childSpan.addData(spanData);
+                                span.addData(spanData);
+                            }
+                        })
+                      : null,
+                  actualPreviewVideoDurationPromise
+                      ? span.withSpan("Process file preview video duration", async childSpan => {
+                            childSpan.addData(sharedChildSpanData);
+                            const spanData = await actualPreviewVideoDurationPromise;
+                            if (spanData) {
+                                const {child: childSpanData, ...sharedSpanData} = spanData;
+                                childSpan.addData(childSpanData);
+                                childSpan.addData(sharedSpanData);
+                                span.addData(sharedSpanData);
+                            }
                         })
                       : null,
               ]).catch(error => {
@@ -658,6 +761,10 @@ const createFileProcessorByContentType: {
         createFileMicrosoftOfficeDocumentProcessor,
     "application/vnd.openxmlformats-officedocument.presentationml.presentation":
         createFileMicrosoftOfficeDocumentProcessor,
+    "video/webm": createFileWebmVideoProcessor,
+    "video/quicktime": createFileWebUnsafeVideoProcessor,
+    "video/mpeg": createFileWebUnsafeVideoProcessor,
+    "video/x-matroska": createFileWebUnsafeVideoProcessor,
 };
 
 const fileProcessorByContentType: {

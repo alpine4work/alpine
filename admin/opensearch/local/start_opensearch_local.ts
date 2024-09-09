@@ -247,7 +247,7 @@ grant {
         if (typeof exitCode === "number") {
             errorPromiseResolver.reject(
                 new UnknownError(
-                    `"opensearch" process exited with code ${exitCode}${stderrMessage}`,
+                    `Process exited with code ${exitCode} ("opensearch")${stderrMessage}`,
                     {cause: {exitCode}},
                 ),
             );
@@ -255,7 +255,7 @@ grant {
             const signalMessage = signal !== null ? quote(signal) : "null";
             errorPromiseResolver.reject(
                 new UnknownError(
-                    `"opensearch" process exited by signal ${signalMessage}${stderrMessage}`,
+                    `Process exited from signal ${signalMessage} ("opensearch")${stderrMessage}`,
                 ),
             );
         }

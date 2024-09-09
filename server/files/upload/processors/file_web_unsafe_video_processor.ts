@@ -1,0 +1,371 @@
+import {spawn} from "child_process";
+import fsSync from "fs";
+import fs from "fs/promises";
+import {join as joinPath} from "path";
+import {PassThrough as PassThroughStream, Readable as ReadableStream} from "stream";
+import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
+import {processFilePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
+import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
+import {
+    ffmpegExecutablePath,
+    ffmpegPreviewImageOutputContentType,
+    ffmpegPreviewImageOutputExtension,
+    ffmpegPreviewImageOutputOptions,
+    parseFfmpegStderrDuration,
+    parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
+} from "~/server/files/upload/processors/file_video_processor_base.js";
+import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
+import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
+import {InternalError, UnknownError} from "~/shared/error/error.js";
+import {
+    FileContentType,
+    FileWebUnsafeVideoContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
+import {FilePreviewSize} from "~/shared/files/file_preview.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
+
+/**
+ * For video formats that don't have broad browser support we convert them to
+ * WebM using the VP9 video codec and Opus audio codec. This is what [MDN
+ * recommends for a good everyday video codec]. We save the WebM data as the
+ * file's alternative so it's displayed in our file viewer instead of the file
+ * itself.
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
+ */
+export function createFileWebUnsafeVideoProcessor(
+    contentType: FileWebUnsafeVideoContentType,
+): FileProcessor {
+    const processorType = "WebUnsafeVideo";
+
+    return {
+        type: processorType,
+        hasPreviewImage: true,
+        hasAlternative: true,
+        hasPreview: true,
+        hasPreviewVideoDuration: true,
+        process: (
+            stream,
+            signal,
+            {span, fileId, contentLength, temporaryDirectoryPath: parentTemporaryDirectoryPath},
+        ) => {
+            const alternativePromiseResolver = createPromiseResolver<{
+                contentType: FileContentType;
+                data: ReadableStream;
+            }>();
+
+            const previewSizePromiseResolver = createPromiseResolver<
+                FilePreviewSize & {videoDuration?: number}
+            >();
+            const previewImagePromiseResolver = createPromiseResolver<{
+                contentType: FileContentType;
+                data: Buffer;
+            }>();
+            const previewVideoDurationPromiseResolver = createPromiseResolver<number>();
+
+            const extraPromise = (() => {
+                // Pause our stream while we wait to create the temporary directory. We use
+                // `.pipe(new PassThroughStream())` to create a new stream with a new internal
+                // buffer instead of pausing the stream we were provided (which is being used
+                // to upload the file to Cloudflare R2).
+                const pausedStream = new PassThroughStream();
+                pausedStream.pause();
+                stream.pipe(pausedStream);
+
+                return withTemporaryDirectory(
+                    parentTemporaryDirectoryPath,
+                    `${fileId}_`,
+                    async temporaryDirectoryPath => {
+                        const outputPath = joinPath(
+                            temporaryDirectoryPath,
+                            `output.${ffmpegPreviewImageOutputExtension}`,
+                        );
+
+                        // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
+                        // to provide FFmpeg a file path. For example [MOV must be seekable][1]. MPEG
+                        // can't find the duration when it's streamed in.
+                        //
+                        // [1]: https://ffmpeg.org/ffmpeg-protocols.html#pipe
+                        const inputPath =
+                            contentType === "video/quicktime" || contentType === "video/mpeg"
+                                ? joinPath(
+                                      temporaryDirectoryPath,
+                                      `input.${getFileContentTypePreferredExtension(contentType)}`,
+                                  )
+                                : null;
+
+                        if (inputPath !== null) {
+                            const writeStream = fsSync.createWriteStream(inputPath);
+
+                            pausedStream.pipe(writeStream);
+                            pausedStream.resume();
+
+                            await waitForWritableStreamClose(writeStream, signal);
+                        }
+
+                        const previewImageSubprocess = spawn(
+                            ffmpegExecutablePath,
+                            [
+                                // Input is coming from stdin unless `inputPath` is set.
+                                // https://ffmpeg.org/ffmpeg-protocols.html#pipe
+                                "-i",
+                                inputPath ?? "pipe:0",
+                                // Capture a thumbnail from the first second of the video.
+                                ...ffmpegPreviewImageOutputOptions,
+                                // We must output to a file. We can't output to stdout when taking a screenshot
+                                // or else we get the error "[avif] muxer does not support non seekable
+                                // output".
+                                outputPath,
+                            ],
+                            {
+                                cwd: runfilesPath,
+                                env: getProcessEnvToPropagate(),
+                                stdio: ["pipe", "pipe", "pipe"],
+                                signal,
+                            },
+                        );
+
+                        const alternativeSubprocess = spawn(
+                            ffmpegExecutablePath,
+                            [
+                                // Input is coming from stdin unless `inputPath` is set.
+                                // https://ffmpeg.org/ffmpeg-protocols.html#pipe
+                                "-i",
+                                inputPath ?? "pipe:0",
+                                // Convert the video file to WebM using the VP9 video codec and Opus audio
+                                // codec. This is what [MDN recommends for a good everyday video codec].
+                                //
+                                // [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
+                                "-f",
+                                "webm",
+                                "-vcodec",
+                                "libvpx-vp9",
+                                "-acodec",
+                                "libopus",
+                                // Output the new video to stdout.
+                                "pipe:1",
+                            ],
+                            {
+                                cwd: runfilesPath,
+                                env: getProcessEnvToPropagate(),
+                                stdio: ["pipe", "pipe", "pipe"],
+                                signal,
+                            },
+                        );
+
+                        if (inputPath === null) {
+                            pausedStream.pipe(previewImageSubprocess.stdin);
+                            pausedStream.pipe(alternativeSubprocess.stdin);
+                            pausedStream.resume();
+                        }
+
+                        let previewImageStderr = "";
+                        let alternativeStderr = "";
+
+                        // This function checks to see if the input's duration and width/height have
+                        // been written to stderr and if it has then we can resolve
+                        // `previewImagePromise`. This will push an update to the user waiting on their
+                        // file to upload so they can see a preview of the file in the product.
+                        const attemptResolvePreviewSize = () => {
+                            if (previewSizePromiseResolver.isSettled()) return;
+
+                            try {
+                                const previewSize =
+                                    parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
+                                        previewImageStderr,
+                                    );
+                                if (!previewSize) return;
+
+                                previewSizePromiseResolver.resolve(previewSize);
+
+                                if (previewSize.videoDuration !== undefined) {
+                                    previewVideoDurationPromiseResolver.resolve(
+                                        previewSize.videoDuration,
+                                    );
+                                }
+                            } catch (error) {
+                                previewSizePromiseResolver.reject(error);
+                            }
+                        };
+
+                        previewImageSubprocess.stderr.on("data", (chunk: Buffer) => {
+                            const string = chunk.toString("utf8");
+                            previewImageStderr += string;
+
+                            attemptResolvePreviewSize();
+                        });
+
+                        alternativeSubprocess.stderr.on("data", (chunk: Buffer) => {
+                            const string = chunk.toString("utf8");
+                            alternativeStderr += string;
+                        });
+
+                        // `alternativeSubprocess.stdout` will stream the transcoded alternative file.
+                        alternativePromiseResolver.resolve({
+                            contentType: "video/webm",
+                            data: alternativeSubprocess.stdout,
+                        });
+
+                        await runAllPromises([
+                            (async () => {
+                                await span.withSpan("FFmpeg generate preview image", async span => {
+                                    span.addData({
+                                        file: {contentType, contentLength, processorType},
+                                    });
+
+                                    await waitForProcessExit(previewImageSubprocess, {
+                                        onStdinError: error => {
+                                            // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
+                                            // taken the screenshot. We can't destroy `pausedStream` once since it'll still
+                                            // be used to pipe data into `alternativeSubprocess`.
+                                            if (isObject(error) && error.code === "EPIPE") {
+                                                pausedStream.unpipe(previewImageSubprocess.stdin);
+                                                return {preventDefault: true};
+                                            }
+                                        },
+                                    }).catch(error => {
+                                        // If our process was aborted then rethrow the abort error instead of a new
+                                        // `UnknownError`.
+                                        if (signal.aborted) throw signal.reason;
+
+                                        // We include the stderr in error messages even in production since it shouldn't
+                                        // contain sensitive user data. Even if it does contain sensitive user data it
+                                        // should be so opaque as to not be useful for reconstructing the video file.
+                                        //
+                                        // However, including the stderr will really help us debug any issues.
+                                        throw new UnknownError(
+                                            `${
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : String(error)
+                                            }\n\nstderr:\n${previewImageStderr.trim()}`,
+                                            {
+                                                cause:
+                                                    error instanceof Error
+                                                        ? error.cause
+                                                        : undefined,
+                                            },
+                                        );
+                                    });
+
+                                    attemptResolvePreviewSize();
+
+                                    if (!previewSizePromiseResolver.isSettled()) {
+                                        throw new InternalError(
+                                            `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${previewImageStderr.trim()}`,
+                                        );
+                                    }
+                                });
+
+                                previewImagePromiseResolver.resolve({
+                                    contentType: ffmpegPreviewImageOutputContentType,
+                                    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+                                    // more efficient to read the full data buffer into memory than to use
+                                    // `fs.createReadStream()` and stream that data into `sharp`. See our comment
+                                    // on `FileProcessor`.
+                                    //
+                                    // Reading the file into memory also allows our temporary directory to be
+                                    // cleaned up.
+                                    data: await fs.readFile(outputPath),
+                                });
+                            })(),
+                            span.withSpan("FFmpeg transcode alternative", async span => {
+                                span.addData({
+                                    file: {contentType, contentLength, processorType},
+                                });
+
+                                await waitForProcessExit(alternativeSubprocess).catch(error => {
+                                    // If our process was aborted then rethrow the abort error instead of a new
+                                    // `UnknownError`.
+                                    if (signal.aborted) throw signal.reason;
+
+                                    // We include the stderr in error messages even in production since it shouldn't
+                                    // contain sensitive user data. Even if it does contain sensitive user data it
+                                    // should be so opaque as to not be useful for reconstructing the video file.
+                                    //
+                                    // However, including the stderr will really help us debug any issues.
+                                    throw new UnknownError(
+                                        `${
+                                            error instanceof Error ? error.message : String(error)
+                                        }\n\nstderr:\n${alternativeStderr.trim()}`,
+                                        {
+                                            cause: error instanceof Error ? error.cause : undefined,
+                                        },
+                                    );
+                                });
+
+                                // If the video duration wasn't present in the video's metadata then we wait
+                                // until FFmpeg finishes and parse the duration from `time` printed at the end
+                                // of FFmpeg's stderr.
+                                if (!previewVideoDurationPromiseResolver.isSettled()) {
+                                    const match = alternativeStderr
+                                        .trimEnd()
+                                        .match(/time=(\d\d:\d\d:\d\d(?:\.\d+)?).*$/);
+                                    if (!match) {
+                                        throw new InternalError(
+                                            `Couldn't parse video duration from FFmpeg stderr\n\nstderr:\n${alternativeStderr.trim()}`,
+                                        );
+                                    }
+
+                                    previewVideoDurationPromiseResolver.resolve(
+                                        parseFfmpegStderrDuration(match[1]!),
+                                    );
+                                }
+                            }),
+                        ]);
+                    },
+                );
+            })().then(
+                () => {
+                    // All of these promise resolvers MUST have either been resolved or rejected by
+                    // the end of this promise. So any promise resolvers that haven't been settled
+                    // yet reject with an error as a safety mechanism.
+                    if (!alternativePromiseResolver.isSettled()) {
+                        alternativePromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
+                    if (!previewSizePromiseResolver.isSettled()) {
+                        previewSizePromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
+                    if (!previewImagePromiseResolver.isSettled()) {
+                        previewImagePromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
+                    if (!previewVideoDurationPromiseResolver.isSettled()) {
+                        previewVideoDurationPromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
+                },
+                error => {
+                    alternativePromiseResolver.reject(error);
+                    previewSizePromiseResolver.reject(error);
+                    previewImagePromiseResolver.reject(error);
+                    previewVideoDurationPromiseResolver.reject(error);
+                    throw error;
+                },
+            );
+
+            return {
+                extraPromise,
+                alternativePromise: alternativePromiseResolver.promise,
+                previewSizePromise: previewSizePromiseResolver.promise,
+                previewPlaceholderPromise: (async () => {
+                    const {data} = await previewImagePromiseResolver.promise;
+                    return processFilePreviewPlaceholder(data);
+                })(),
+                previewImagePromise: previewImagePromiseResolver.promise,
+                previewVideoDurationPromise: previewVideoDurationPromiseResolver.promise,
+            };
+        },
+    };
+}

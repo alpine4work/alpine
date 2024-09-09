@@ -358,7 +358,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
             // `prosemirror-transform`.
             //
             // https://github.com/ProseMirror/prosemirror-transform/blob/8d6be028eebb28a2d981dee146eacdd2c1cffcd4/src/attr_step.ts#L42-L50
-            .migrate({
+            .migration({
                 serialize: value => {
                     assert(isPlainObject(value));
                     assert(isPlainObject(value.attr));

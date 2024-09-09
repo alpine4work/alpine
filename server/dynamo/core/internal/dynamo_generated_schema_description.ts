@@ -2996,7 +2996,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "application/vnd.ms-powerpoint",
                                                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                                                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                                "video/webm",
+                                                "video/mp4",
+                                                "video/quicktime",
+                                                "video/mpeg",
+                                                "video/x-matroska"
                                             ],
                                             "referenceId": "af264040"
                                         },
@@ -3109,11 +3114,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         },
                                                                         "scale": {
                                                                             "valueSchema": {
-                                                                                "type": "Integer"
+                                                                                "type": "Float"
                                                                             },
                                                                             "optional": true
                                                                         }
-                                                                    }
+                                                                    },
+                                                                    "referenceId": "cb7e2a6c"
                                                                 }
                                                             },
                                                             "optional": false
@@ -3162,6 +3168,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": true
+                                                        },
+                                                        "videoDurationMs": {
+                                                            "valueSchema": {
+                                                                "type": "Nullable",
+                                                                "schema": {
+                                                                    "type": "Float"
+                                                                }
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },
@@ -3187,27 +3202,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                             },
                                                             "size": {
                                                                 "valueSchema": {
-                                                                    "type": "Object",
-                                                                    "propertySchemaByKey": {
-                                                                        "width": {
-                                                                            "valueSchema": {
-                                                                                "type": "Integer"
-                                                                            },
-                                                                            "optional": false
-                                                                        },
-                                                                        "height": {
-                                                                            "valueSchema": {
-                                                                                "type": "Integer"
-                                                                            },
-                                                                            "optional": false
-                                                                        },
-                                                                        "scale": {
-                                                                            "valueSchema": {
-                                                                                "type": "Integer"
-                                                                            },
-                                                                            "optional": true
-                                                                        }
-                                                                    }
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "cb7e2a6c"
                                                                 },
                                                                 "optional": false
                                                             },
@@ -3236,6 +3232,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "optional": false
                                                                         }
                                                                     }
+                                                                },
+                                                                "optional": true
+                                                            },
+                                                            "videoDurationMs": {
+                                                                "valueSchema": {
+                                                                    "type": "Float"
                                                                 },
                                                                 "optional": true
                                                             }

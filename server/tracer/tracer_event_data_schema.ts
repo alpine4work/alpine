@@ -381,7 +381,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             contentLengthRatio: Schema.float,
             width: Schema.integer,
             height: Schema.integer,
-            scale: Schema.integer,
+            scale: Schema.float,
+            videoDurationMs: Schema.float,
         },
     },
     libreoffice: {

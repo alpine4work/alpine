@@ -154,3 +154,14 @@ py_console_script_binary(
         "@pypi//zopfli",
     ],
 )
+
+alias(
+    name = "cmake",
+    actual = select({
+        "@bazel_tools//src/conditions:darwin_arm64": "@cmake_macos//:bin/cmake",
+        "@bazel_tools//src/conditions:darwin_x86_64": "@cmake_macos//:bin/cmake",
+        "@bazel_tools//src/conditions:linux_aarch64": "@cmake_linux_aarch64//:bin/cmake",
+        "@bazel_tools//src/conditions:linux_x86_64": "@cmake_linux_x86_64//:bin/cmake",
+    }),
+    visibility = ["//visibility:public"],
+)

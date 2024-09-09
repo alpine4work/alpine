@@ -17,7 +17,8 @@ import {Schema} from "~/shared/schema/schema.js";
 export type FileContentType =
     | "application/octet-stream"
     | FileImageContentType
-    | FileDocumentContentType;
+    | FileDocumentContentType
+    | FileVideoContentType;
 
 // TODO(calebmer, #files): File types to support:
 //
@@ -96,6 +97,137 @@ export type FileMicrosoftOfficeDocumentContentType =
     | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     | "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+/**
+ * Video files we support. We support all the same video types as Canva. See
+ * [Canva's upload formats][1]. Many common video types do not have good
+ * browser support. For example QuickTime (`.mov`) which is Apple's proprietary
+ * format (you get it from e.g. a screen recording on a MacOS device) is only
+ * supported in Safari. So we need to convert videos in formats browsers don't
+ * support to formats browsers will support.
+ *
+ * MDN's documentation is _very_ helpful when navigating common video formats.
+ * Video file types are typically a container format that contains video data
+ * represented by some video codec and audio data represented by some audio
+ * codec. Useful MDN documentation articles:
+ *
+ * - [Media container formats][2]
+ * - [Web video codec guide][3]
+ * - [Web audio codec guide][4]
+ *
+ * MDN also provides a [recommendation for which video file to use in different
+ * scenarios][5]. We follow MDN's "Recommendations for everyday videos" when we
+ * need to convert a video file that doesn't have good browser support to one
+ * that does. As of 2024-09-06 MDN's recommendation is to use a WebM container
+ * using the VP9 video codec and the Opus audio codec. These codecs are royalty
+ * free, provide good performance, and are well-supported in recent browsers.
+ * AV1 is likely the video format of the future (supported by WebM) but it's
+ * [not well supported on iOS or Safari][6] which currently require a hardware
+ * decoder.
+ *
+ * Video format reference:
+ *
+ * - [QuickTime (MOV)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#quicktime)
+ *   - Supported common video codecs:
+ *     - [MPEG-1](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#mpeg-1_part_2_video)
+ *     - [MPEG-2](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#mpeg-2_part_2_video)
+ *   - Supported common audio codecs:
+ *     - [ALAC](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#alac_apple_lossless_audio_codec)
+ *   - Browser compatibility notes: None of QuickTime's common video codecs or
+ *     audio codecs have sufficient browser compatibility. We must convert all
+ *     QuickTime files to our standard video format.
+ *
+ * - [MPEG-4 (MP4)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#mpeg-4_mp4)
+ *   - Supported common video codecs:
+ *     - [AV1](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#av1)
+ *     - [AVC (H.264)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#avc_h.264)
+ *     - [HEVC (H.265)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#hevc_h.265)
+ *     - [MP4V-ES](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#mp4v-es)
+ *     - [MPEG-2](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#mpeg-2_part_2_video)
+ *     - [VP9](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#vp9)
+ *   - Supported common audio codecs:
+ *     - [AAC](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#aac_advanced_audio_coding)
+ *     - [ALAC](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#alac_apple_lossless_audio_codec)
+ *     - [FLAC](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#flac_free_lossless_audio_codec)
+ *     - [MP3](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#mp3_mpeg-1_audio_layer_iii)
+ *     - [Opus](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#opus)
+ *   - Browser compatibility notes:
+ *     - AVC (H.264), VP9, FLAC, MP3 (audio codec), and Opus have full browser
+ *       compatibility.
+ *     - AV1 is partially supported by all major browsers, Safari requires
+ *       specific hardware support.
+ *     - HEVC (H.265) is supported by all browsers except Firefox. Firefox won't
+ *       add support for patent reasons.
+ *     - MP4V-ES is only supported by Firefox.
+ *     - MPEG-2 and ALAC are only supported by Safari.
+ *     - AAC's compatibility is spotty.
+ *
+ * - [MPEG/MPEG-2](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#mpegmpeg-2)
+ *   - Supported common video codecs:
+ *     - [MPEG-1](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#mpeg-1_part_2_video)
+ *     - [MPEG-2](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#mpeg-2_part_2_video)
+ *   - Supported common audio codecs:
+ *     - [MP3](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#mp3_mpeg-1_audio_layer_iii)
+ *   - Browser compatibility notes: None of MPEG's common video codecs have
+ *     sufficient browser compatibility. We must convert all MPEG files to our
+ *     standard video format.
+ *
+ * - [Matroska (MKV)](https://en.wikipedia.org/wiki/Matroska)
+ *   - MDN doesn't have documentation for the Matroska format. You can see
+ *     Matroska's video/audio codec support in Wikipedia's “[Comparison of
+ *     video container formats][7]” article. It supports some video codecs with
+ *     browser support (e.g. VP9) and some video codecs which don't have broad
+ *     browser support (e.g. MPEG-2).
+ *
+ *     We include support since it's even given we use FFmpeg and Canva
+ *     supports it so there must be a reason why it's useful.
+ *
+ * - [WebM](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#webm)
+ *   - Supported common video codecs:
+ *     - [AV1](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#av1)
+ *     - [VP8](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#vp8)
+ *     - [VP9](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#vp9)
+ *   - Supported common audio codecs:
+ *     - [Opus](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#opus)
+ *     - [Vorbis](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#vorbis)
+ *   - Browser compatibility notes: All video and audio codecs are supported
+ *     across all browsers.
+ *
+ * So of the video formats we support, the following are fully unsafe for web
+ * and need to be converted to a web safe format:
+ *
+ * - QuickTime (MOV)
+ * - MPEG/MPEG-2
+ * - Matroska (MKV)
+ *
+ * The following are fully safe for web and can be served as-is:
+ *
+ * - WebM
+ *
+ * ...and the following are sometimes safe for web, sometimes unsafe, depends
+ * on the video and audio codec used:
+ *
+ * - MPEG-4 (MP4)
+ *
+ * [1]: https://www.canva.com/help/upload-formats-requirements
+ * [2]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers
+ * [3]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs
+ * [4]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs
+ * [5]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
+ * [6]: https://caniuse.com/av1
+ * [7]: https://en.wikipedia.org/wiki/Comparison_of_video_container_formats
+ * [8]: https://caniuse.com/ogg-vorbis
+ */
+export type FileVideoContentType =
+    | FileWebmVideoContentType
+    | FileMP4VideoContentType
+    | FileWebUnsafeVideoContentType;
+
+export type FileWebmVideoContentType = "video/webm";
+
+export type FileMP4VideoContentType = "video/mp4";
+
+export type FileWebUnsafeVideoContentType = "video/quicktime" | "video/mpeg" | "video/x-matroska";
+
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
 const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = {
@@ -119,6 +251,11 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+    "video/webm": "webm",
+    "video/mp4": "mp4",
+    "video/quicktime": "mov",
+    "video/mpeg": "mpeg",
+    "video/x-matroska": "mkv",
 };
 
 /**

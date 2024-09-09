@@ -1,5 +1,6 @@
-import {spawn} from "child_process";
+import {ChildProcessByStdio, spawn} from "child_process";
 import path from "path";
+import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
@@ -24,9 +25,11 @@ export async function runProcess(
     {
         cwd = getWorkspacePath(),
         env,
+        stdin,
         signal,
         isErrorExitCode = exitCode => exitCode !== 0,
         withOutputInErrorMessage = process.env.NODE_ENV !== "production",
+        onStdinError,
     }: {
         /**
          * What directory should the process run in? By default runs in the root
@@ -40,15 +43,20 @@ export async function runProcess(
         env?: {[key: string]: string | undefined};
 
         /**
-         * Should we throw an error for the provided exit code? By default any non-zero
-         * exit code is an error.
+         * Data to pipe into stdin.
          */
-        isErrorExitCode?: (exitCode: number) => boolean;
+        stdin?: string | Uint8Array | ReadableStream;
 
         /**
          * Allows aborting the child process.
          */
         signal?: AbortSignal;
+
+        /**
+         * Should we throw an error for the provided exit code? By default any non-zero
+         * exit code is an error.
+         */
+        isErrorExitCode?: (exitCode: number) => boolean;
 
         /**
          * Should we include stdout and stderr in the error message?
@@ -61,6 +69,13 @@ export async function runProcess(
          * to true for better debugging.
          */
         withOutputInErrorMessage?: boolean;
+
+        /**
+         * If an error is emitted from our stdin stream you can handle it with this
+         * function. If you return `{preventDefault: true}` then we won't reject the
+         * `runProcess()` promise.
+         */
+        onStdinError?: (error: unknown) => {preventDefault: boolean} | void;
     } = {},
 ): Promise<string> {
     const flattenedArgs: Array<string | undefined | null | false> =
@@ -70,9 +85,18 @@ export async function runProcess(
     const subprocess = spawn(command, flattenedArgs.filter(isNonNullableOrFalse), {
         cwd,
         env: {...getProcessEnvToPropagate(), ...env},
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
         signal,
-    });
+    }) as ChildProcessByStdio<WritableStream | null, ReadableStream, ReadableStream>;
+
+    if (stdin !== undefined) {
+        if (stdin instanceof ReadableStream) {
+            stdin.pipe(subprocess.stdin!);
+        } else {
+            subprocess.stdin!.write(stdin);
+            subprocess.stdin!.end();
+        }
+    }
 
     let stdout = "";
     let stderr = "";
@@ -103,7 +127,7 @@ export async function runProcess(
                 if (isErrorExitCode(exitCode)) {
                     reject(
                         new UnknownError(
-                            `${nameMessage} process exited with code ${exitCode}${outputMessage}`,
+                            `Process exited with code ${exitCode} (${nameMessage})${outputMessage}`,
                             {cause: {exitCode}},
                         ),
                     );
@@ -114,13 +138,37 @@ export async function runProcess(
                 const signalMessage = signal !== null ? quote(signal) : "null";
                 reject(
                     new UnknownError(
-                        `${nameMessage} process exited by signal ${signalMessage}${outputMessage}`,
+                        `Process exited from signal ${signalMessage} (${nameMessage})${outputMessage}`,
                     ),
                 );
             }
         });
 
         subprocess.on("error", error => {
+            if (finished) return;
+            finished = true;
+
+            reject(error);
+        });
+
+        subprocess.stdin?.on("error", error => {
+            const result = onStdinError?.(error);
+            if (result?.preventDefault) return;
+
+            if (finished) return;
+            finished = true;
+
+            reject(error);
+        });
+
+        subprocess.stdout.on("error", error => {
+            if (finished) return;
+            finished = true;
+
+            reject(error);
+        });
+
+        subprocess.stderr.on("error", error => {
             if (finished) return;
             finished = true;
 

@@ -1132,6 +1132,9 @@ export type TracerEventData = {
 
             /** The scale of the file preview image. */
             readonly scale?: number;
+
+            /** If this is a video, how long is the video in milliseconds? */
+            readonly videoDurationMs?: number;
         };
     };
 

@@ -5,6 +5,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "upload_lib",
+    data = ["@ffmpeg"],
     test_data = glob(["test_fixtures/*"]),
     test_deps = [
         "//:node_modules/get-port",
@@ -14,7 +15,7 @@ ts_project(
         "//server/spaces/test_helpers",
     ],
     tests = {
-        "processors/file_processor_content_types_libreoffice_test": {
+        "processors/file_processor_content_types_microsoft_office_test": {
             "size": "medium",
             "tags": ["libreoffice"],
         },

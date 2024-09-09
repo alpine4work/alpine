@@ -32,15 +32,27 @@ export function waitForReadableStreamData(
             chunks = [];
             stream.off("data", handleData);
             stream.off("end", handleEnd);
+            stream.off("error", handleError);
             signal.removeEventListener("abort", handleAbort);
 
             resolve(data);
+        };
+
+        const handleError = (error: unknown) => {
+            chunks = [];
+            stream.off("data", handleData);
+            stream.off("end", handleEnd);
+            stream.off("error", handleError);
+            signal.removeEventListener("abort", handleAbort);
+
+            reject(error);
         };
 
         const handleAbort = () => {
             chunks = [];
             stream.off("data", handleData);
             stream.off("end", handleEnd);
+            stream.off("error", handleError);
             signal.removeEventListener("abort", handleAbort);
 
             reject(signal.reason);
@@ -48,6 +60,7 @@ export function waitForReadableStreamData(
 
         stream.on("data", handleData);
         stream.on("end", handleEnd);
+        stream.on("error", handleError);
         signal.addEventListener("abort", handleAbort);
     });
 }

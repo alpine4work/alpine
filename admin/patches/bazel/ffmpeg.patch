@@ -1,0 +1,27 @@
+diff --color -ur a/Makefile b/Makefile
+--- a/Makefile	2024-09-05 13:40:51
++++ b/Makefile	2024-09-05 13:41:52
+@@ -123,8 +123,10 @@
+ $(foreach D,$(FFLIBS),$(eval $(call DOSUBDIR,lib$(D))))
+ 
+ include $(SRC_PATH)/fftools/Makefile
+-include $(SRC_PATH)/doc/Makefile
+-include $(SRC_PATH)/doc/examples/Makefile
++# NOTE(calebmer): We don't build FFmpeg documentation.
++#
++# include $(SRC_PATH)/doc/Makefile
++# include $(SRC_PATH)/doc/examples/Makefile
+ 
+ $(ALLFFLIBS:%=lib%/version.o): libavutil/ffversion.h
+ 
+@@ -196,7 +198,9 @@
+ build: all alltools examples testprogs
+ check: all alltools examples testprogs fate
+ 
+-include $(SRC_PATH)/tests/Makefile
++# NOTE(calebmer): We don't build FFmpeg tests.
++#
++# include $(SRC_PATH)/tests/Makefile
+ 
+ $(sort $(OUTDIRS)):
+ 	$(Q)mkdir -p $@

@@ -1,0 +1,70 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+
+# We copy sources to the build directory so we don't need to perform an
+# out-of-tree build which isn't universally supported by all library build
+# tools.
+copy_to_bin(
+    name = "libopus_srcs",
+    srcs = glob(
+        include = ["**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = [".*"],
+    ),
+)
+
+genrule(
+    name = "libopus",
+    srcs = [":libopus_srcs"],
+    # Our installation directory is `install2` instead of `install` since there's
+    # an existing `INSTALL` file so Bazel won't create an `install` directory.
+    outs = [
+        "install2/include/opus/opus.h",
+        "install2/include/opus/opus_multistream.h",
+        "install2/include/opus/opus_types.h",
+        "install2/include/opus/opus_defines.h",
+        "install2/include/opus/opus_projection.h",
+        "install2/lib/pkgconfig/opus.pc",
+        "install2/lib/libopus.la",
+        "install2/lib/libopus.a",
+        "install2/share/aclocal/opus.m4",
+    ],
+    cmd = """
+bazel_sandbox=$$(pwd)
+
+cd $(RULEDIR)
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                 configure                                  #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+./configure \\
+    "--prefix=$$(pwd)/install2" \\
+    --disable-maintainer-mode \\
+    --disable-shared \\
+    --enable-static \\
+    --disable-doc \\
+    --disable-extra-programs \\
+    >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                    make                                    #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                make install                                #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 install-strip >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
+sed -i "" "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" install2/lib/pkgconfig/opus.pc
+""",
+    tags = ["cpu:6"],
+    visibility = ["//visibility:public"],
+)

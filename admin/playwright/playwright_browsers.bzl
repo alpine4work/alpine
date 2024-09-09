@@ -25,7 +25,7 @@ def _playwright_browsers_repository_impl(rctx):
     )
 
     if exec_result.return_code != 0:
-        fail("\"playwright\" exited with code {} (stdout and stderr included for debugging)\n\nstdout:\n{}\n\nstderr:\n{}".format(
+        fail("Process exited with code {} (\"playwright\")\n\nstdout:\n{}\n\nstderr:\n{}".format(
             exec_result.return_code,
             exec_result.stdout,
             exec_result.stderr,

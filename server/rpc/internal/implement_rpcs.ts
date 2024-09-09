@@ -138,7 +138,13 @@ export function implementRpcs<Definitions extends {[key: string]: RpcDefinition<
 
             return {
                 execute,
-                executeWithoutSerialization,
+                executeWithoutSerialization: (context, input) => {
+                    // Make sure the input is well formed beyond complying with the TypeScript
+                    // types without doing a full serialization/deserialization.
+                    definition.inputSchema.validate?.(input);
+
+                    return executeWithoutSerialization(context, input);
+                },
             };
         },
     );

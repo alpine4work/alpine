@@ -10,11 +10,16 @@ import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {getFile} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
+import {
+    ffmpegExecutablePath,
+    ffprobeExecutablePath,
+} from "~/server/files/upload/processors/file_video_processor_base.js";
 import {UploadFileEventSchema} from "~/server/files/upload/upload_file.js";
+import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -35,6 +40,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
@@ -49,7 +55,12 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         contentType: FileContentType;
         similarPath: string;
     };
-    previewSize?: {width: number; height: number; scale?: number};
+    previewVideoDuration?: number;
+    previewSize?: {
+        width: number;
+        height: number;
+        scale?: number;
+    };
     previewPlaceholder?: FilePreviewPlaceholder;
     isPreviewImageAlternative?: boolean;
     previewImage?: {
@@ -136,6 +147,7 @@ export function testFileProcessorContentTypes(testCases: {
             only,
             path,
             alternative: expectedAlternative,
+            previewVideoDuration: expectedPreviewVideoDuration,
             previewSize: expectedPreviewSize,
             previewPlaceholder: expectedPreviewPlaceholder,
             isPreviewImageAlternative: expectedIsPreviewImageAlternative,
@@ -151,6 +163,14 @@ export function testFileProcessorContentTypes(testCases: {
                     const space = await TestSpace.create(context);
                     const session = await space.createSession();
 
+                    const contents = await fs.readFile(
+                        joinPath(
+                            runfilesPath,
+                            "cyberworlds/server/files/upload/test_fixtures",
+                            path,
+                        ),
+                    );
+
                     // eslint-disable-next-line no-global-fetch
                     const response = await fetch(`http://localhost:${port}/${space.id}/upload`, {
                         method: "POST",
@@ -158,13 +178,7 @@ export function testFileProcessorContentTypes(testCases: {
                             authorization: await authorization(session),
                             "content-type": contentType,
                         },
-                        body: await fs.readFile(
-                            joinPath(
-                                runfilesPath,
-                                "cyberworlds/server/files/upload/test_fixtures",
-                                path,
-                            ),
-                        ),
+                        body: contents,
                     });
                     const responseText = await response.text();
 
@@ -177,6 +191,7 @@ export function testFileProcessorContentTypes(testCases: {
                         "PreviewSize",
                         "PreviewPlaceholder",
                         "PreviewImage",
+                        "PreviewVideoDuration",
                         "PreviewError",
                         "Alternative",
                         "Finish",
@@ -243,6 +258,7 @@ export function testFileProcessorContentTypes(testCases: {
                                                 contentLength: expect.any(Number),
                                             }
                                           : undefined,
+                                      videoDuration: expectedPreviewVideoDuration,
                                   }
                                 : null,
                         }),
@@ -289,6 +305,14 @@ export function testFileProcessorContentTypes(testCases: {
                                   },
                               ]
                             : []),
+                        ...(expectedPreviewVideoDuration !== undefined
+                            ? [
+                                  {
+                                      type: "PreviewVideoDuration",
+                                      videoDuration: expectedPreviewVideoDuration,
+                                  },
+                              ]
+                            : []),
                         ...(expectedPreviewError
                             ? [
                                   {
@@ -330,6 +354,19 @@ export function testFileProcessorContentTypes(testCases: {
                     ]);
                     expect(response.status).toEqual(200);
 
+                    // Test to make sure the object we stored in Cloudflare R2 is exactly equal to
+                    // the input object.
+                    {
+                        const object = await r2Bucket.get(`${space.id}/${fileId}`);
+                        if (!object) throw new NotFoundError("File alternative not found");
+
+                        const actualContents = Buffer.from(
+                            await convertReadableStreamToUint8Array(object.body),
+                        );
+
+                        expect(contents.equals(actualContents)).toEqual(true);
+                    }
+
                     const placeholder = findMapIterable(events, event =>
                         event.type === "PreviewPlaceholder" ? event.placeholder : undefined,
                     );
@@ -346,7 +383,7 @@ export function testFileProcessorContentTypes(testCases: {
                         );
                     }
 
-                    await testFileUploadServiceContentTypeExpectedAlternativeSimilarity({
+                    await testFileUploadServiceContentTypeExpectedAlternativeSimilarity(context, {
                         r2Bucket,
                         contentType,
                         path,
@@ -372,121 +409,397 @@ export function testFileProcessorContentTypes(testCases: {
     }
 }
 
-async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity({
-    r2Bucket,
-    path,
-    space,
-    fileId,
-    contentType,
-    expectedAlternative,
-    looksSameTolerance,
-}: {
-    r2Bucket: R2Bucket;
-    contentType: string;
-    path: string;
-    space: TestSpace;
-    fileId: FileId;
-    expectedAlternative: {contentType: FileContentType; similarPath: string} | undefined;
-    looksSameTolerance: number;
-}) {
+async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
+    context: TestContext,
+    {
+        r2Bucket,
+        path,
+        space,
+        fileId,
+        contentType,
+        expectedAlternative,
+        looksSameTolerance,
+    }: {
+        r2Bucket: R2Bucket;
+        contentType: string;
+        path: string;
+        space: TestSpace;
+        fileId: FileId;
+        expectedAlternative: {contentType: FileContentType; similarPath: string} | undefined;
+        looksSameTolerance: number;
+    },
+) {
     if (!expectedAlternative) return;
+
+    const expectedPath = joinPath(
+        runfilesPath,
+        "cyberworlds/server/files/upload/test_fixtures",
+        expectedAlternative.similarPath,
+    );
 
     const object = await r2Bucket.get(`${space.id}/${fileId}-alternative`);
     if (!object) throw new NotFoundError("File alternative not found");
 
-    const [actualContents, expectedContents] = await runAllPromises([
-        convertReadableStreamToUint8Array(object.body).then(buffer => Buffer.from(buffer)),
-        fs.readFile(
-            joinPath(
-                runfilesPath,
-                "cyberworlds/server/files/upload/test_fixtures",
-                expectedAlternative.similarPath,
-            ),
-        ),
-    ]);
+    const actualContents = Buffer.from(await convertReadableStreamToUint8Array(object.body));
 
-    const name = encodeURIComponent(
-        `${contentType.replaceAll("/", "_")}.${path.slice(0, -extname(path).length)}`,
+    const testlogsOutputDirectoryPath = joinPath(
+        testlogsPath,
+        contentType,
+        removePathExtension(path),
     );
 
-    if (expectedAlternative.contentType === "application/pdf") {
-        const [actualMetadata, expectedMetadata] = await runAllPromises([
-            sharp(actualContents).metadata(),
-            sharp(expectedContents).metadata(),
-        ]);
+    try {
+        switch (expectedAlternative.contentType) {
+            case "application/pdf": {
+                const [actualMetadata, expectedMetadata] = await runAllPromises([
+                    sharp(actualContents).metadata(),
+                    sharp(expectedPath).metadata(),
+                ]);
 
-        if (
-            typeof actualMetadata.pages !== "number" ||
-            actualMetadata.pages !== expectedMetadata.pages
-        ) {
-            await fs.mkdir(testlogsPath, {recursive: true});
+                expect(actualMetadata.pages).toEqual(expectedMetadata.pages);
+                expect(typeof actualMetadata.pages).toEqual("number");
 
-            await runAllPromises([
-                fs.writeFile(joinPath(testlogsPath, `${name}.input.actual.pdf`), actualContents),
-                fs.writeFile(
-                    joinPath(testlogsPath, `${name}.input.expected.pdf`),
-                    expectedContents,
-                ),
-            ]);
+                for (let i = 0; i < actualMetadata.pages!; i++) {
+                    const [actualPageContents, expectedPageContents] = await runAllPromises([
+                        sharp(actualContents, {pages: 1, page: i})
+                            .toFormat("avif", {quality: 90})
+                            .toBuffer(),
+                        sharp(expectedPath, {pages: 1, page: i})
+                            .toFormat("avif", {quality: 90})
+                            .toBuffer(),
+                    ]);
 
-            throw new InternalError(
-                quote`Actual alternative PDF doesn't have the same number of pages as expected alternative PDF (actual page count: ${actualMetadata.pages}, expected page count: ${expectedMetadata.pages}), files saved to \`bazel-testlogs\``,
-            );
-        }
+                    const result = await looksSame(actualPageContents, expectedPageContents, {
+                        tolerance: looksSameTolerance,
+                        createDiffImage: true,
+                    });
 
-        for (let i = 0; i < actualMetadata.pages; i++) {
-            const [actualPageContents, expectedPageContents] = await runAllPromises([
-                sharp(actualContents, {pages: 1, page: i})
-                    .toFormat("avif", {quality: 90})
-                    .toBuffer(),
-                sharp(expectedContents, {pages: 1, page: i})
-                    .toFormat("avif", {quality: 90})
-                    .toBuffer(),
-            ]);
+                    if (!result.equal) {
+                        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "actual"), {
+                            recursive: true,
+                        });
+                        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "expected"), {
+                            recursive: true,
+                        });
 
-            const result = await looksSame(actualPageContents, expectedPageContents, {
-                tolerance: looksSameTolerance,
-                createDiffImage: true,
-            });
+                        await runAllPromises([
+                            fs.writeFile(
+                                joinPath(
+                                    testlogsOutputDirectoryPath,
+                                    "actual",
+                                    `${removePathExtension(expectedAlternative.similarPath)}.page${
+                                        i + 1
+                                    }.avif`,
+                                ),
+                                actualPageContents,
+                            ),
+                            fs.writeFile(
+                                joinPath(
+                                    testlogsOutputDirectoryPath,
+                                    "expected",
+                                    `${removePathExtension(expectedAlternative.similarPath)}.page${
+                                        i + 1
+                                    }.avif`,
+                                ),
+                                expectedPageContents,
+                            ),
+                            result.diffImage?.save(
+                                joinPath(testlogsOutputDirectoryPath, `diff.avif`),
+                            ),
+                        ]);
 
-            if (!result.equal) {
-                await fs.mkdir(testlogsPath, {recursive: true});
+                        throw new InternalError(
+                            quote`Actual alternative PDF page ${
+                                i + 1
+                            } doesn't look the same as expected alternative PDF page ${
+                                i + 1
+                            }, diff image saved to \`bazel-testlogs\``,
+                        );
+                    }
+                }
+            }
+            case "video/webm": {
+                const temporaryVideoSimilarityDirectoryPath = joinPath(
+                    context.getTemporaryDirectoryPath(),
+                    `files_video_similarity/${fileId}`,
+                );
 
-                await runAllPromises([
-                    fs.writeFile(
-                        joinPath(testlogsPath, `${name}.input.actual.pdf`),
-                        actualContents,
+                await fs.mkdir(joinPath(temporaryVideoSimilarityDirectoryPath, "actual"), {
+                    recursive: true,
+                });
+                await fs.mkdir(joinPath(temporaryVideoSimilarityDirectoryPath, "expected"), {
+                    recursive: true,
+                });
+
+                const [actualMetadataString, expectedMetadataString] = await runAllPromises([
+                    runProcess(
+                        ffprobeExecutablePath,
+                        ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                        {
+                            cwd: runfilesPath,
+                            stdin: actualContents,
+                            onStdinError: error => {
+                                // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
+                                // figured out the file's metadata.
+                                if (isObject(error) && error.code === "EPIPE") {
+                                    return {preventDefault: true};
+                                }
+                            },
+                        },
                     ),
-                    fs.writeFile(
-                        joinPath(testlogsPath, `${name}.input.expected.pdf`),
-                        expectedContents,
-                    ),
-                    fs.writeFile(
-                        joinPath(testlogsPath, `${name}.input.page${i + 1}.actual.avif`),
-                        actualPageContents,
-                    ),
-                    fs.writeFile(
-                        joinPath(testlogsPath, `${name}.input.page${i + 1}.expected.avif`),
-                        expectedPageContents,
-                    ),
-                    result.diffImage?.save(
-                        joinPath(testlogsPath, `${name}.diff.page${i + 1}.avif`),
+                    runProcess(
+                        ffprobeExecutablePath,
+                        ["-print_format", "json", "-show_streams", "-show_format", expectedPath],
+                        {cwd: runfilesPath},
                     ),
                 ]);
 
-                throw new InternalError(
-                    quote`Actual alternative PDF page ${
-                        i + 1
-                    } doesn't look the same as expected alternative PDF page ${
-                        i + 1
-                    }, diff image saved to \`bazel-testlogs\``,
-                );
+                let actualMetadata = JSON.parse(actualMetadataString);
+                const expectedMetadata = JSON.parse(expectedMetadataString);
+
+                // If we generated a `.webm` file without metadata (which is the case when
+                // outputting to a stream) then let's repackage the `.webm` file so `ffprobe`
+                // adds duration metadata then compare that against our expected metadata.
+                //
+                // https://stackoverflow.com/a/40117749/1568890
+                if (!actualMetadata.format.duration) {
+                    const actualRepackagedPath = joinPath(
+                        temporaryVideoSimilarityDirectoryPath,
+                        "actual_repackaged.webm",
+                    );
+
+                    await runProcess(
+                        ffmpegExecutablePath,
+                        ["-i", "pipe:0", "-c", "copy", actualRepackagedPath],
+                        {
+                            cwd: runfilesPath,
+                            stdin: actualContents,
+                            onStdinError: error => {
+                                // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
+                                // finished parsing the file.
+                                if (isObject(error) && error.code === "EPIPE") {
+                                    return {preventDefault: true};
+                                }
+                            },
+                        },
+                    );
+
+                    const actualMetadataString = await runProcess(
+                        ffprobeExecutablePath,
+                        [
+                            "-print_format",
+                            "json",
+                            "-show_streams",
+                            "-show_format",
+                            actualRepackagedPath,
+                        ],
+                        {cwd: runfilesPath},
+                    );
+
+                    actualMetadata = JSON.parse(actualMetadataString);
+                }
+
+                // Delete metadata that we don't care if it's equal or not. This metadata could
+                // differ slightly across platforms, differ based on input mechanism (seekable
+                // file vs piped file), or could reasonably differ based on the input format.
+                const cleanMetadata = (metadata: any) => {
+                    delete metadata.format.filename;
+                    delete metadata.format.size;
+                    delete metadata.format.bit_rate;
+                    delete metadata.format.tags.ENCODER;
+
+                    metadata.format.start_time =
+                        // Remove fractional part which may not be precisely equal.
+                        metadata.format.start_time.replace(/^-?0(\.\d+)?/, "0");
+
+                    if (metadata.format.duration) {
+                        metadata.format.duration =
+                            // Remove fractional part which may not be precisely equal.
+                            metadata.format.duration.replace(/\.\d+$/, "");
+                    }
+
+                    for (const metadataStream of metadata.streams) {
+                        delete metadataStream.chroma_location;
+                        delete metadataStream.disposition.default;
+                        delete metadataStream.extradata_size;
+                        delete metadataStream.initial_padding;
+                        delete metadataStream.start_pts;
+                        delete metadataStream.color_space;
+                        delete metadataStream.display_aspect_ratio;
+                        delete metadataStream.tags.language;
+                        delete metadataStream.tags.ENCODER;
+
+                        // Duration should be covered by `metadata.format.duration`. Doesn't need to be
+                        // tested here too.
+                        delete metadataStream.tags.DURATION;
+
+                        if (typeof metadataStream.coded_height === "number") {
+                            metadataStream.coded_height =
+                                // Make sure height is the same to the nearest even number.
+                                Math.floor(metadataStream.coded_height / 2) * 2;
+                        }
+
+                        if (typeof metadataStream.height === "number") {
+                            metadataStream.height =
+                                // Make sure height is the same to the nearest even number.
+                                Math.floor(metadataStream.height / 2) * 2;
+                        }
+
+                        metadataStream.start_time =
+                            // Remove fractional part which may not be precisely equal.
+                            metadataStream.start_time.replace(/^-?0(\.\d+)?/, "0");
+                    }
+                };
+
+                cleanMetadata(actualMetadata);
+                cleanMetadata(expectedMetadata);
+
+                // Make sure metadatas are the same between our actual video and expected
+                // video. If this fails then the actual/expected files are saved to
+                // `bazel-testlogs` for further debugging. (See the try/catch.)
+                expect(actualMetadata).toEqual(expectedMetadata);
+
+                // Take a screenshot every second of the video and we'll compare these
+                // screenshots with the `looks-same` utility.
+                await runAllPromises([
+                    runProcess(
+                        ffmpegExecutablePath,
+                        [
+                            ["-i", "pipe:0"],
+                            ["-r", "1"],
+                            // Controls JPEG image quality.
+                            ["-q:v", "2"],
+                            joinPath(
+                                temporaryVideoSimilarityDirectoryPath,
+                                "actual/frame_%04d.jpeg",
+                            ),
+                        ],
+                        {
+                            cwd: runfilesPath,
+                            stdin: actualContents,
+                            onStdinError: error => {
+                                // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
+                                // finished taking screenshots.
+                                if (isObject(error) && error.code === "EPIPE") {
+                                    return {preventDefault: true};
+                                }
+                            },
+                        },
+                    ),
+                    runProcess(
+                        ffmpegExecutablePath,
+                        [
+                            ["-i", expectedPath],
+                            ["-r", "1"],
+                            // Controls JPEG image quality.
+                            ["-q:v", "2"],
+                            joinPath(
+                                temporaryVideoSimilarityDirectoryPath,
+                                "expected/frame_%04d.jpeg",
+                            ),
+                        ],
+                        {cwd: runfilesPath},
+                    ),
+                ]);
+
+                const [actualNames, expectedNames] = await runAllPromises([
+                    fs.readdir(joinPath(temporaryVideoSimilarityDirectoryPath, "actual")),
+                    fs.readdir(joinPath(temporaryVideoSimilarityDirectoryPath, "expected")),
+                ]);
+
+                expect(actualNames.length).toBeGreaterThan(0);
+                expect(actualNames.length).toEqual(expectedNames.length);
+
+                for (let i = 0; i < actualNames.length; i++) {
+                    const actualName = actualNames[i]!;
+                    const expectedName = expectedNames[i]!;
+
+                    const actualPath = joinPath(
+                        temporaryVideoSimilarityDirectoryPath,
+                        "actual",
+                        actualName,
+                    );
+                    const expectedPath = joinPath(
+                        temporaryVideoSimilarityDirectoryPath,
+                        "expected",
+                        expectedName,
+                    );
+
+                    const result = await looksSame(actualPath, expectedPath, {
+                        tolerance: looksSameTolerance,
+                        createDiffImage: true,
+                    });
+
+                    if (!result.equal) {
+                        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "actual"), {
+                            recursive: true,
+                        });
+                        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "expected"), {
+                            recursive: true,
+                        });
+
+                        await runAllPromises([
+                            fs.copyFile(
+                                actualPath,
+                                joinPath(
+                                    testlogsOutputDirectoryPath,
+                                    "actual",
+                                    `${removePathExtension(expectedAlternative.similarPath)}.frame${
+                                        i + 1
+                                    }.jpeg`,
+                                ),
+                            ),
+                            fs.copyFile(
+                                expectedPath,
+                                joinPath(
+                                    testlogsOutputDirectoryPath,
+                                    "expected",
+                                    `${removePathExtension(expectedAlternative.similarPath)}.frame${
+                                        i + 1
+                                    }.jpeg`,
+                                ),
+                            ),
+                            result.diffImage?.save(
+                                joinPath(testlogsOutputDirectoryPath, `diff.jpeg`),
+                            ),
+                        ]);
+
+                        throw new InternalError(
+                            quote`Actual alternative video frame ${
+                                i + 1
+                            } doesn't look the same as expected alternative video frame ${
+                                i + 1
+                            }, diff image saved to \`bazel-testlogs\``,
+                        );
+                    }
+                }
+                break;
             }
+            default:
+                throw new UnimplementedError(
+                    quote`Similarity test for content type ${expectedAlternative.contentType} hasn't been implemented`,
+                );
         }
-    } else {
-        throw new UnimplementedError(
-            quote`Similarity test for content type ${expectedAlternative.contentType} hasn't been implemented`,
-        );
+    } catch (error) {
+        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "actual"), {
+            recursive: true,
+        });
+        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "expected"), {
+            recursive: true,
+        });
+
+        await runAllPromises([
+            fs.writeFile(
+                joinPath(testlogsOutputDirectoryPath, "actual", expectedAlternative.similarPath),
+                actualContents,
+            ),
+            fs.copyFile(
+                expectedPath,
+                joinPath(testlogsOutputDirectoryPath, "expected", expectedAlternative.similarPath),
+            ),
+        ]);
+
+        throw error;
     }
 }
 
@@ -529,23 +842,34 @@ async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
     });
 
     if (!result.equal) {
-        const name = encodeURIComponent(
-            `${contentType.replaceAll("/", "_")}.${path.slice(0, -extname(path).length)}`,
+        const testlogsOutputDirectoryPath = joinPath(
+            testlogsPath,
+            contentType,
+            removePathExtension(path),
         );
-        const extension = extname(expectedPreviewImage.similarPath);
 
-        await fs.mkdir(testlogsPath, {recursive: true});
+        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "actual"), {
+            recursive: true,
+        });
+        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "expected"), {
+            recursive: true,
+        });
 
         await runAllPromises([
             fs.writeFile(
-                joinPath(testlogsPath, `${name}.input.actual${extension}`),
+                joinPath(testlogsOutputDirectoryPath, "actual", expectedPreviewImage.similarPath),
                 actualImageContents,
             ),
             fs.writeFile(
-                joinPath(testlogsPath, `${name}.input.expected${extension}`),
+                joinPath(testlogsOutputDirectoryPath, "expected", expectedPreviewImage.similarPath),
                 expectedImageContents,
             ),
-            result.diffImage?.save(joinPath(testlogsPath, `${name}.diff${extension}`)),
+            result.diffImage?.save(
+                joinPath(
+                    testlogsOutputDirectoryPath,
+                    `diff${extname(expectedPreviewImage.similarPath)}`,
+                ),
+            ),
         ]);
 
         throw new InternalError(
@@ -646,4 +970,8 @@ async function convertReadableStreamToUint8Array(
     }
 
     return concatUint8Arrays(chunks);
+}
+
+function removePathExtension(path: string): string {
+    return path.slice(0, -extname(path).length);
 }

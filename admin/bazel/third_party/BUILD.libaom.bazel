@@ -1,0 +1,74 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+
+# We copy sources to the build directory so we don't need to perform an
+# out-of-tree build which isn't universally supported by all library build
+# tools.
+copy_to_bin(
+    name = "libaom_srcs",
+    srcs = glob(
+        include = ["**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = [".*"],
+    ),
+)
+
+genrule(
+    name = "libaom",
+    srcs = [
+        "@//:cmake",
+        ":libaom_srcs",
+    ],
+    outs = [
+        "install/include/aom/aomdx.h",
+        "install/include/aom/aom_frame_buffer.h",
+        "install/include/aom/aom_encoder.h",
+        "install/include/aom/aom_integer.h",
+        "install/include/aom/aom.h",
+        "install/include/aom/aom_external_partition.h",
+        "install/include/aom/aom_image.h",
+        "install/include/aom/aom_codec.h",
+        "install/include/aom/aom_decoder.h",
+        "install/include/aom/aomcx.h",
+        "install/lib/pkgconfig/aom.pc",
+        "install/lib/libaom.a",
+    ],
+    cmd = """
+bazel_sandbox=$$(pwd)
+
+cd $(RULEDIR)
+
+mkdir aom_build
+cd aom_build
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                   cmake                                    #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+"$$bazel_sandbox/$(location @//:cmake)" \\
+    -G"Unix Makefiles" \\
+    "-DCMAKE_INSTALL_PREFIX=$$(pwd)/../install" \\
+    -DCMAKE_INSTALL_LIBDIR=lib \\
+    -DBUILD_SHARED_LIBS=FALSE \\
+    -DENABLE_DOCS=0 \\
+    -DENABLE_TESTS=0 \\
+    -DENABLE_TESTDATA=0 \\
+    -DENABLE_TOOLS=0 \\
+    -DENABLE_EXAMPLES=0 \\
+    .. \\
+    >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo "#                             make install/strip                             #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 install/strip >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
+sed -i "" "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" ../install/lib/pkgconfig/aom.pc
+""",
+    tags = ["cpu:6"],
+    visibility = ["//visibility:public"],
+)

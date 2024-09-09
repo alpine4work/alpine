@@ -28,10 +28,6 @@ export class LocalRpcContextModule extends RpcContextModuleBase<
         if (!implementation)
             throw new InternalError("Could not find an implementation for defined RPC");
 
-        // Validate the input in case it is important to the RPCs logic but don't do a
-        // full serialization and deserialization pass.
-        definition.inputSchema.validate?.(input);
-
         const output = await implementation.executeWithoutSerialization(
             await this._context.actor.authenticate(),
             input,

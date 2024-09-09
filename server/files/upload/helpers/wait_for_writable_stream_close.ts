@@ -22,19 +22,30 @@ export function waitForWritableStreamClose(
 
         const handleClose = () => {
             stream.off("close", handleClose);
+            stream.off("error", handleError);
             signal.removeEventListener("abort", handleAbort);
 
             resolve();
         };
 
+        const handleError = (error: unknown) => {
+            stream.off("close", handleClose);
+            stream.off("error", handleError);
+            signal.removeEventListener("abort", handleAbort);
+
+            reject(error);
+        };
+
         const handleAbort = () => {
             stream.off("close", handleClose);
+            stream.off("error", handleError);
             signal.removeEventListener("abort", handleAbort);
 
             reject(signal.reason);
         };
 
         stream.on("close", handleClose);
+        stream.on("error", handleError);
         signal.addEventListener("abort", handleAbort);
     });
 }

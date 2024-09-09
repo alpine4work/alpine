@@ -1,0 +1,109 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+
+# We copy sources to the build directory so we don't need to perform an
+# out-of-tree build which isn't universally supported by all library build
+# tools.
+copy_to_bin(
+    name = "ffmpeg_srcs",
+    srcs = glob(
+        include = ["**"],
+        exclude = [
+            # Exclude dot-files like `.DS_Store` on MacOS.
+            ".*",
+            # Exclude test files.
+            "tests/**",
+            # Exclude documentation files.
+            "doc/**",
+        ],
+    ) + [
+        # Needed for `make install` even though we disabled building documentation.
+        "doc/ffprobe.xsd",
+    ],
+)
+
+genrule(
+    name = "ffmpeg",
+    srcs = [
+        ":ffmpeg_srcs",
+        "@pkg_config",
+        "@libaom",
+        "@libopus",
+        "@libvpx",
+    ],
+    outs = [
+        "install/bin/ffmpeg",
+        "install/bin/ffprobe",
+    ],
+    # Notes:
+    #
+    # - `--disable-autodetect` is passed so we don't build with packages on the
+    #   system which won't create a hermetic build.
+    #
+    # - `--pkg-config=false` is passed so we don't build with packages on the
+    #   system discovered by `pkg-config`. The `false` executable always exits with
+    #   code 1.
+    #
+    # - We set `--prefix` relative to the current directory which is in a sandbox.
+    #   We replace references to the sandbox path with the string
+    #   `${bazel_sandbox}`. Commands that use config files must replace
+    #   `${bazel_sandbox}` with the path to their own Bazel sandbox.
+    #
+    # - We replace the Bazel sandbox path in `config.h` with `${bazel_sandbox}` to
+    #   obfuscate the implementation detail of where FFmpeg was built.
+    cmd = """
+bazel_sandbox=$$(pwd)
+
+cd $(RULEDIR)
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                 configure                                  #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+mkdir pkgconfig
+cp ../libvpx/install/lib/pkgconfig/vpx.pc pkgconfig/vpx.pc
+cp ../libopus/install2/lib/pkgconfig/opus.pc pkgconfig/opus.pc
+cp ../libaom/install/lib/pkgconfig/aom.pc pkgconfig/aom.pc
+
+escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
+sed -i "" "s/\\$${bazel_sandbox}/$$escaped_bazel_sandbox/g" pkgconfig/*
+
+PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
+    ./configure \\
+    "--prefix=$$(pwd)/install" \\
+    "--pkg-config=$$(pwd)/../pkg_config/install2/bin/pkg-config" \\
+    --pkg-config-flags=--static \\
+    --enable-static \\
+    --disable-shared \\
+    --disable-autodetect \\
+    --disable-ffplay \\
+    --disable-doc \\
+    --disable-htmlpages \\
+    --disable-manpages \\
+    --disable-podpages \\
+    --disable-txtpages \\
+    --enable-libaom \\
+    --enable-libopus \\
+    --enable-libvpx \\
+    >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+sed -i "" "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" config.h
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                    make                                    #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                make install                                #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 install >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+""",
+    tags = ["cpu:6"],
+    visibility = ["//visibility:public"],
+)

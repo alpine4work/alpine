@@ -1,7 +1,7 @@
 import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
-import {Readable as ReadableStream} from "stream";
+import {PassThrough as PassThroughStream, Readable as ReadableStream} from "stream";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
 import {processPdfDocumentFile} from "~/server/files/upload/processors/file_pdf_document_processor.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
@@ -14,6 +14,7 @@ import {
     FileMicrosoftOfficeDocumentContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
+import {FilePreviewSize} from "~/shared/files/file_preview.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -81,184 +82,177 @@ export function createFileMicrosoftOfficeDocumentProcessor(
 
     return {
         type: processorType,
+        hasAlternative: true,
         hasPreview: true,
         hasPreviewImage: true,
-        hasAlternative: true,
+        hasPreviewVideoDuration: false,
         process: (
             inputStream,
             signal,
-            {span, fileId, contentLength, temporaryDirectoryPath: temporaryDirectoryParentPath},
+            {span, fileId, contentLength, temporaryDirectoryPath: parentTemporaryDirectoryPath},
         ) => {
             const alternativePromiseResolver = createPromiseResolver<{
                 contentType: FileContentType;
-                stream: ReadableStream;
+                data: ReadableStream;
             }>();
 
-            const previewSizePromiseResolver = createPromiseResolver<{
-                width: number;
-                height: number;
-                scale: number;
-            }>();
+            const previewSizePromiseResolver = createPromiseResolver<FilePreviewSize>();
 
             const previewPlaceholderPromiseResolver =
                 createPromiseResolver<FilePreviewPlaceholder>();
 
-            let pendingChunks: Array<Buffer> = [];
-            const handleDataWhilePending = (chunk: Buffer) => pendingChunks.push(chunk);
-            inputStream.on("data", handleDataWhilePending);
+            // Pause our stream while we wait to create the temporary directory. We use
+            // `.pipe(new PassThroughStream())` to create a new stream with a new internal
+            // buffer instead of pausing the stream we were provided (which is being used
+            // to upload the file to Cloudflare R2).
+            const pausedInputStream = new PassThroughStream();
+            pausedInputStream.pause();
+            inputStream.pipe(pausedInputStream);
 
-            const previewImagePromise: Promise<{contentType: FileContentType; data: Buffer}> =
-                withTemporaryDirectory(
-                    temporaryDirectoryParentPath,
-                    `${fileId}_`,
-                    async temporaryDirectoryPath => {
-                        const userInstallationPath = joinPath(temporaryDirectoryPath, "user");
+            const previewImagePromise: Promise<{
+                contentType: FileContentType;
+                data: Buffer | ReadableStream;
+            }> = withTemporaryDirectory(
+                parentTemporaryDirectoryPath,
+                `${fileId}_`,
+                async temporaryDirectoryPath => {
+                    const userInstallationPath = joinPath(temporaryDirectoryPath, "user");
 
-                        const inputPath = joinPath(
-                            temporaryDirectoryPath,
-                            `file.${getFileContentTypePreferredExtension(contentType)}`,
-                        );
-                        const inputWriteStream = fsSync.createWriteStream(inputPath);
+                    const inputPath = joinPath(
+                        temporaryDirectoryPath,
+                        `file.${getFileContentTypePreferredExtension(contentType)}`,
+                    );
+                    const inputWriteStream = fsSync.createWriteStream(inputPath);
 
-                        // See the LibreOffice documentation for more information on filters:
-                        // https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
-                        let outputFilter: string;
-                        let shouldCropPreviewImage: boolean;
-                        switch (contentType) {
-                            case "application/msword":
-                            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                                outputFilter = "writer_pdf_Export";
-                                shouldCropPreviewImage = false;
-                                break;
-                            case "application/vnd.ms-excel":
-                            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-                                // Output the Excel sheet onto a single page. See:
-                                // https://ask.libreoffice.org/t/libreoffice-xls-to-pdf-conversion-breaks-single-page-content-into-multiple-pages-on-ubuntu-18-04/49104/2
-                                outputFilter =
-                                    'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
+                    // See the LibreOffice documentation for more information on filters:
+                    // https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html
+                    let outputFilter: string;
+                    let shouldCropPreviewImage: boolean;
+                    switch (contentType) {
+                        case "application/msword":
+                        case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                            outputFilter = "writer_pdf_Export";
+                            shouldCropPreviewImage = false;
+                            break;
+                        case "application/vnd.ms-excel":
+                        case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                            // Output the Excel sheet onto a single page. See:
+                            // https://ask.libreoffice.org/t/libreoffice-xls-to-pdf-conversion-breaks-single-page-content-into-multiple-pages-on-ubuntu-18-04/49104/2
+                            outputFilter =
+                                'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
 
-                                // Spreadsheets are an infinite canvas and aren't typically restricted by any
-                                // page size. So we want to crop our preview image to the top-left corner of
-                                // the sheet. Otherwise the preview image could be so large as to not be
-                                // particularly useful.
-                                shouldCropPreviewImage = true;
-                                break;
-                            case "application/vnd.ms-powerpoint":
-                            case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-                                outputFilter = "impress_pdf_Export";
-                                shouldCropPreviewImage = false;
-                                break;
-                            default:
-                                throw exhaustive(contentType);
-                        }
+                            // Spreadsheets are an infinite canvas and aren't typically restricted by any
+                            // page size. So we want to crop our preview image to the top-left corner of
+                            // the sheet. Otherwise the preview image could be so large as to not be
+                            // particularly useful.
+                            shouldCropPreviewImage = true;
+                            break;
+                        case "application/vnd.ms-powerpoint":
+                        case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                            outputFilter = "impress_pdf_Export";
+                            shouldCropPreviewImage = false;
+                            break;
+                        default:
+                            throw exhaustive(contentType);
+                    }
 
-                        try {
-                            await span.withSpan("LibreOffice convert to PDF", async span => {
-                                span.addData({
-                                    file: {contentType, contentLength, processorType},
-                                    libreoffice: {outputFilter},
-                                });
-
-                                // Write any chunks we received while waiting to create our temporary
-                                // directory. Then continue piping
-                                {
-                                    const chunks = pendingChunks;
-                                    pendingChunks = [];
-                                    inputStream.off("data", handleDataWhilePending);
-                                    for (const chunk of chunks) {
-                                        inputWriteStream.write(chunk);
-                                    }
-                                }
-
-                                inputStream.pipe(inputWriteStream);
-
-                                // Wait for us to finish writing to our file. Also listen to the abort
-                                // signal. If we abort before finishing the stream we shouldn't continue.
-                                await waitForWritableStreamClose(inputWriteStream, signal);
-
-                                const executablePath = await libreofficeExecutablePath.get();
-
-                                const startTime = span.clock.now();
-
-                                // Pass all the same flags as `unoserver` and `libreoffice-convert`:
-                                //
-                                // - https://github.com/unoconv/unoserver/blob/dc4c0168d2bfa7b055fd0937071dcab5952da22e/src/unoserver/server.py#L73-L79
-                                // - https://github.com/elwerene/libreoffice-convert/blob/c47f41de41910fcec077dabaae6f8ed7925605b5/index.js#L53-L59
-                                await runProcess(
-                                    executablePath,
-                                    [
-                                        "--headless",
-                                        "--invisible",
-                                        "--nocrashreport",
-                                        "--nodefault",
-                                        "--nologo",
-                                        "--nofirststartwizard",
-                                        "--norestore",
-                                        `-env:UserInstallation=file://${userInstallationPath}`,
-                                        ["--convert-to", `pdf:${outputFilter}`],
-                                        ["--outdir", temporaryDirectoryPath],
-                                        inputPath,
-                                    ],
-                                    {
-                                        cwd: runfilesPath,
-                                        signal,
-                                    },
-                                );
-
-                                const processDurationMs = span.clock.now() - startTime;
-
-                                // Record just the process duration since waiting on the input stream depends
-                                // on client network performance.
-                                span.addData({common: {processDurationMs}});
+                    try {
+                        await span.withSpan("LibreOffice convert to PDF", async span => {
+                            span.addData({
+                                file: {contentType, contentLength, processorType},
+                                libreoffice: {outputFilter},
                             });
-                        } finally {
-                            inputWriteStream.destroy();
-                        }
 
-                        const outputReadStream = fsSync.createReadStream(
-                            joinPath(temporaryDirectoryPath, "file.pdf"),
-                        );
+                            pausedInputStream.pipe(inputWriteStream);
+                            pausedInputStream.resume();
 
-                        alternativePromiseResolver.resolve({
-                            contentType: "application/pdf",
-                            stream: outputReadStream,
+                            // Wait for us to finish writing to our file. Also listen to the abort
+                            // signal. If we abort before finishing the stream we shouldn't continue.
+                            await waitForWritableStreamClose(inputWriteStream, signal);
+
+                            const executablePath = await libreofficeExecutablePath.get();
+
+                            const startTime = span.clock.now();
+
+                            // Pass all the same flags as `unoserver` and `libreoffice-convert`:
+                            //
+                            // - https://github.com/unoconv/unoserver/blob/dc4c0168d2bfa7b055fd0937071dcab5952da22e/src/unoserver/server.py#L73-L79
+                            // - https://github.com/elwerene/libreoffice-convert/blob/c47f41de41910fcec077dabaae6f8ed7925605b5/index.js#L53-L59
+                            await runProcess(
+                                executablePath,
+                                [
+                                    "--headless",
+                                    "--invisible",
+                                    "--nocrashreport",
+                                    "--nodefault",
+                                    "--nologo",
+                                    "--nofirststartwizard",
+                                    "--norestore",
+                                    `-env:UserInstallation=file://${userInstallationPath}`,
+                                    ["--convert-to", `pdf:${outputFilter}`],
+                                    ["--outdir", temporaryDirectoryPath],
+                                    inputPath,
+                                ],
+                                {
+                                    cwd: runfilesPath,
+                                    signal,
+                                },
+                            );
+
+                            const processDurationMs = span.clock.now() - startTime;
+
+                            // Record just the process duration since waiting on the input stream depends
+                            // on client network performance.
+                            span.addData({common: {processDurationMs}});
+                        });
+                    } finally {
+                        inputWriteStream.destroy();
+                    }
+
+                    const outputReadStream = fsSync.createReadStream(
+                        joinPath(temporaryDirectoryPath, "file.pdf"),
+                    );
+
+                    alternativePromiseResolver.resolve({
+                        contentType: "application/pdf",
+                        data: outputReadStream,
+                    });
+
+                    const {previewSizePromise, previewPlaceholderPromise, previewImagePromise} =
+                        processPdfDocumentFile(outputReadStream, signal, {
+                            extractPreview: shouldCropPreviewImage
+                                ? // Extract to the size of a default 4:3 Microsoft PowerPoint slide.
+                                  {left: 0, top: 0, width: 720, height: 540}
+                                : undefined,
                         });
 
-                        const {previewSizePromise, previewPlaceholderPromise, previewImagePromise} =
-                            processPdfDocumentFile(outputReadStream, signal, {
-                                extractPreview: shouldCropPreviewImage
-                                    ? // Extract to the size of a default 4:3 Microsoft PowerPoint slide.
-                                      {left: 0, top: 0, width: 720, height: 540}
-                                    : undefined,
-                            });
+                    previewSizePromise.then(
+                        previewSizePromiseResolver.resolve,
+                        previewSizePromiseResolver.reject,
+                    );
 
-                        previewSizePromise.then(
-                            previewSizePromiseResolver.resolve,
-                            previewSizePromiseResolver.reject,
-                        );
+                    previewPlaceholderPromise.then(
+                        previewPlaceholderPromiseResolver.resolve,
+                        previewPlaceholderPromiseResolver.reject,
+                    );
 
-                        previewPlaceholderPromise.then(
-                            previewPlaceholderPromiseResolver.resolve,
-                            previewPlaceholderPromiseResolver.reject,
-                        );
+                    const [image] = await runAllPromises([
+                        previewImagePromise,
+                        // Wait for these promises before returning even though we don't use their data
+                        // so we only cleanup our temporary directory after all promises have been
+                        // resolved.
+                        previewSizePromise,
+                        previewPlaceholderPromise,
+                    ]);
 
-                        const [image] = await runAllPromises([
-                            previewImagePromise,
-                            // Wait for these promises before returning even though we don't use their data
-                            // so we only cleanup our temporary directory after all promises have been
-                            // resolved.
-                            previewSizePromise,
-                            previewPlaceholderPromise,
-                        ]);
-
-                        return image;
-                    },
-                ).catch(error => {
-                    alternativePromiseResolver.reject(error);
-                    previewSizePromiseResolver.reject(error);
-                    previewPlaceholderPromiseResolver.reject(error);
-                    throw error;
-                });
+                    return image;
+                },
+            ).catch(error => {
+                alternativePromiseResolver.reject(error);
+                previewSizePromiseResolver.reject(error);
+                previewPlaceholderPromiseResolver.reject(error);
+                throw error;
+            });
 
             return {
                 alternativePromise: alternativePromiseResolver.promise,

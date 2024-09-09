@@ -17,6 +17,15 @@ import {quote} from "~/shared/helpers/string/quote.js";
 
 export const sharpTimeoutSeconds = 20;
 
+/**
+ * Generate a placeholder image which we'll render before the browser has
+ * downloaded the full image. The code below is derived from the
+ * [`plaiceholder`][1] project. We don't use `plaiceholder` directly since it's
+ * fundamentally pretty simple and the implementation is inefficient. (It
+ * unconditionally generates a color and `base64` placeholder.)
+ *
+ * [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
+ */
 export async function processFilePreviewPlaceholder(
     input: Buffer | ArrayBuffer | Uint8Array,
     options?: sharp.SharpOptions,
@@ -129,13 +138,6 @@ export function processImageFile(
         };
     })();
 
-    // Generate a placeholder image which we'll render before the browser has
-    // downloaded the full image. The code below is derived from the
-    // [`plaiceholder`][1] project. We don't use `plaiceholder` directly since it's
-    // fundamentally pretty simple and the implementation is inefficient. (It
-    // unconditionally generates a color and `base64` placeholder.)
-    //
-    // [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
     const previewPlaceholderPromise = (async () => {
         const inputData = await dataPromise;
         return processFilePreviewPlaceholder(inputData);

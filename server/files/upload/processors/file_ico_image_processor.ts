@@ -17,12 +17,16 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  * `.ico` container format and creates a preview from that. `.ico` files are a
  * container format that include images in either `png` or `bmp` format.
  */
-export function createFileIcoImageProcessor(): FileProcessor {
+export function createFileIcoImageProcessor(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    contentType: "image/ico",
+): FileProcessor {
     return {
         type: "IcoImage",
+        hasAlternative: "PreviewImage",
         hasPreview: true,
         hasPreviewImage: true,
-        hasAlternative: "PreviewImage",
+        hasPreviewVideoDuration: false,
         process: (stream, signal) => {
             const dataPromise = waitForReadableStreamData(stream, signal);
 

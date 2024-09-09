@@ -1,0 +1,59 @@
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+
+# We copy pkg-config's sources to Bazel's output directory since the
+# `./configure` script will write files that are needed when building. Having
+# both the sources and `./configure` outputs in one place simplifies building
+# for us as we don't need to muck around with source paths.
+copy_to_bin(
+    name = "pkg_config_srcs",
+    srcs = glob(
+        include = ["**"],
+        # Exclude dot-files like `.DS_Store` on MacOS.
+        exclude = [".*"],
+    ),
+)
+
+genrule(
+    name = "pkg_config",
+    srcs = [":pkg_config_srcs"],
+    # Our installation directory is `install2` instead of `install` since there's
+    # an existing `INSTALL` file so Bazel won't create an `install` directory.
+    outs = [
+        "install2/bin/pkg-config",
+        "install2/share/man/man1/pkg-config.1",
+        "install2/share/aclocal/pkg.m4",
+        "install2/share/doc/pkg-config/pkg-config-guide.html",
+    ],
+    cmd = """
+cd $(RULEDIR)
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                 configure                                  #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+./configure \\
+    "--prefix=$$(pwd)/install2" \\
+    --disable-debug \\
+    --disable-host-tool \\
+    --with-internal-glib \\
+    >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                    make                                    #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+
+echo >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo "#                                make install                                #" >> cmd.log
+echo "# ========================================================================== #" >> cmd.log
+echo >> cmd.log
+
+make --jobs=6 install-strip >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
+""",
+    tags = ["cpu:6"],
+    visibility = ["//visibility:public"],
+)

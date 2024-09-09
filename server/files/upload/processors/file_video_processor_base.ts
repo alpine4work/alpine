@@ -1,0 +1,159 @@
+import {join as joinPath} from "path";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FilePreviewSize} from "~/shared/files/file_preview.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+
+export const ffmpegExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffmpeg");
+export const ffprobeExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffprobe");
+
+export const ffmpegPreviewImageOutputExtension = "avif";
+export const ffmpegPreviewImageOutputContentType: FileContentType = "image/avif";
+
+/**
+ * Options to generate a thumbnail. Should go after any inputs. After these
+ * options you need to provide an output path. The output path should use the
+ * file extension `ffmpegThumbnailOutputExtension`.
+ */
+export const ffmpegPreviewImageOutputOptions = [
+    // Take our screenshot at the first second of the video.
+    "-ss",
+    "00:00:01.000",
+    // Only get one frame from the video.
+    "-frames:v",
+    "1",
+    // Output file is in `.avif` format.
+    //
+    // AVIF is our preferred format for generating preview images ([source][1],
+    // [source][2]). AVIF has full browser support, provides better compression
+    // than JPEG and WebP, and has alpha channel support (unlike JPEG).
+    //
+    // [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
+    // [2]: https://jakearchibald.com/2020/avif-has-landed
+    "-f",
+    "avif",
+    // Should control quality. Quality is between 0 and 63 where 0 is the best
+    // quality (lossless). We want relatively high quality preview images while
+    // still getting some compression.
+    //
+    // https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality
+    "-crf",
+    "10",
+];
+
+/**
+ * Parse the duration and width/height of the first input to FFmpeg. A regular
+ * expression does all the heavy lifting for this function.
+ *
+ * An example FFmpeg output looks like the following. We're trying to parse our
+ * metadata from the "Input #0" block. To avoid parsing anything outside of the
+ * "Input #0" block we check that each line in between the "Duration:" and
+ * "Stream" lines starts with at least two spaces.
+ *
+ * ```
+ * ffmpeg version 7.0.git Copyright (c) 2000-2024 the FFmpeg developers
+ *   built with Apple clang version 15.0.0 (clang-1500.1.0.2.5)
+ *   configuration: --prefix=${bazel_sandbox}/bazel-out/darwin_arm64-fastbuild/bin/external/ffmpeg/install --pkg-config=${bazel_sandbox}/bazel-out/darwin_arm64-fastbuild/bin/external/ffmpeg/../pkg_config/install2/bin/pkg-config --pkg-config-flags=--static --enable-static --disable-shared --disable-autodetect --disable-ffplay --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --enable-libaom --enable-libvpx
+ *   libavutil      59. 35.100 / 59. 35.100
+ *   libavcodec     61. 11.100 / 61. 11.100
+ *   libavformat    61.  5.101 / 61.  5.101
+ *   libavdevice    61.  2.100 / 61.  2.100
+ *   libavfilter    10.  2.102 / 10.  2.102
+ *   libswscale      8.  2.100 /  8.  2.100
+ *   libswresample   5.  2.100 /  5.  2.100
+ * Input #0, matroska,webm, from 'pipe:0':
+ *   Metadata:
+ *     ENCODER         : Lavf61.5.101
+ *   Duration: 00:00:07.61, start: 0.000000, bitrate: N/A
+ *   Stream #0:0(eng): Video: vp9 (Profile 0), yuv420p(tv, bt470bg/unknown/unknown, progressive), 240x135, SAR 1:1 DAR 16:9, 23.98 fps, 23.98 tbr, 1k tbn (default)
+ *       Metadata:
+ *         ENCODER         : Lavc61.11.100 libvpx-vp9
+ *         DURATION        : 00:00:07.591000000
+ *   Stream #0:1(eng): Audio: vorbis, 48000 Hz, stereo, fltp (default)
+ *       Metadata:
+ *         DURATION        : 00:00:07.609000000
+ * Stream mapping:
+ *   Stream #0:0 -> #0:0 (vp9 (native) -> av1 (libaom-av1))
+ * [libaom-av1 @ 0x12d806d80] v3.9.1
+ * Output #0, avif, to '...':
+ *   Metadata:
+ *     encoder         : Lavf61.5.101
+ *   Stream #0:0(eng): Video: av1 (av01 / 0x31307661), yuv420p(tv, bt470bg/unknown/unknown, progressive), 240x135 [SAR 1:1 DAR 16:9], q=2-31, 23.98 fps, 24k tbn (default)
+ *       Metadata:
+ *         DURATION        : 00:00:07.591000000
+ *         encoder         : Lavc61.11.100 libaom-av1
+ *       Side data:
+ *         cpb: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+ * [out#0/avif @ 0x600003168000] video:8KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 3.524067%
+ * frame=    1 fps=0.0 q=0.0 Lsize=       8KiB time=00:00:00.04 bitrate=1617.1kbits/s speed=0.135x
+ * ```
+ */
+export function parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
+    stderr: string,
+): (FilePreviewSize & {videoDuration?: number}) | null {
+    const match = stderr.match(
+        // Notes:
+        //
+        // - If there is no duration metadata then we'll see "Duration: N/A". We need
+        //   to parse this as `videoDuration: undefined`.
+        //
+        // - There may be multiple lines between "Input #0", "Duration", and "Stream".
+        //   To make sure "Duration" and "Stream" are under "Input #0" we only skip
+        //   over lines that start with two spaces. So we know we're indented under
+        //   "Input #0". That's what `(?:  .*\n)*?` is doing.
+        //
+        // - Our dimension capture group is written as `([1-9][0-9]*x[1-9][0-9]*)` so
+        //   we don't parse strings that start with "0x" (representing a hex code) as
+        //   dimensions. For example we've seen strings that include
+        //   "Video: mpeg2video (Main) (m2v1 / 0x3176326D), ..." where "0x3176326"
+        //   (without the "D") was being interpreted as dimensions.
+        /(?:^|\n)Input #0\D.*\n(?:  .*\n)*?  Duration: *(N\/A|\d\d:\d\d:\d\d(?:\.\d+)?).*\n(?:  .*\n)*?  Stream #0:.*?: Video: .*?([1-9][0-9]*x[1-9][0-9]*)/,
+    );
+    if (!match) return null;
+
+    const dimensionsString = match[2] ?? "";
+    const [widthString = "", heightString = ""] = dimensionsString.split("x", 2);
+
+    const width = parseInt(widthString, 10);
+    const height = parseInt(heightString, 10);
+
+    assert(!isNaN(width));
+    assert(!isNaN(height));
+    assert(Number.isSafeInteger(width));
+    assert(Number.isSafeInteger(height));
+
+    const durationString = match[1] ?? "";
+    let duration: number | undefined;
+    if (durationString !== "N/A") {
+        duration = parseFfmpegStderrDuration(durationString);
+    }
+
+    return {
+        width,
+        height,
+        scale: 1,
+        videoDuration: duration,
+    };
+}
+
+/**
+ * The duration string must match the regular expression
+ * `\d\d:\d\d:\d\d(?:\.\d+)?` or else you'll get assertion failures.
+ */
+export function parseFfmpegStderrDuration(durationString: string): number {
+    const [durationHoursString = "", durationMinutesString = "", durationSecondsString = ""] =
+        durationString.split(":", 3);
+
+    const durationHours = parseInt(durationHoursString, 10);
+    const durationMinutes = parseInt(durationMinutesString, 10);
+    const durationSeconds = parseFloat(durationSecondsString);
+
+    assert(!isNaN(durationHours));
+    assert(!isNaN(durationMinutes));
+    assert(!isNaN(durationSeconds));
+    assert(Number.isSafeInteger(durationHours));
+    assert(Number.isSafeInteger(durationMinutes));
+    assert(Number.isFinite(durationSeconds));
+
+    return Math.ceil(((durationHours * 60 + durationMinutes) * 60 + durationSeconds) * 1000);
+}

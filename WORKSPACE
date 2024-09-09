@@ -469,3 +469,79 @@ load(
 )
 
 xcodeproj_rules_dependencies()
+
+# =========================================================================== #
+#                                   FFmpeg                                    #
+# =========================================================================== #
+
+# TODO(calebmer): Eventually we will need a software licenses notice that
+# mentions our use of FFmpeg and includes patches we make to FFmpeg and
+# probably the Bazel build files. This is necessary for [compliance with
+# LGPL][1].
+#
+# [1]: https://www.ffmpeg.org/legal.html
+http_archive(
+    name = "ffmpeg",
+    build_file = "@//admin/bazel:third_party/BUILD.ffmpeg.bazel",
+    integrity = "sha256-S2/UvhYJ/LSqiKSafSZaqoGb1CtZCWcwVQcQ8NMeJtg=",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/ffmpeg.patch"],
+    strip_prefix = "FFmpeg-a49188297f1763c4f6188ca8ca7c1a8da6771896",
+    url = "https://github.com/FFmpeg/FFmpeg/archive/a49188297f1763c4f6188ca8ca7c1a8da6771896.tar.gz",
+)
+
+http_archive(
+    name = "libvpx",
+    build_file = "@//admin/bazel:third_party/BUILD.libvpx.bazel",
+    integrity = "sha256-kBdHJU2Ap5N8kz0DvXxdQejmyIPgZl+tyxclQhZ8eXc=",
+    strip_prefix = "libvpx-1.14.1",
+    url = "https://github.com/webmproject/libvpx/archive/refs/tags/v1.14.1.tar.gz",
+)
+
+http_archive(
+    name = "pkg_config",
+    build_file = "@//admin/bazel:third_party/BUILD.pkg_config.bazel",
+    integrity = "sha256-b8acAWiMlFilfrmhZkyaujcszaQgoCv0Qp/mEOfn1ZE=",
+    strip_prefix = "pkg-config-0.29.2",
+    url = "https://pkg-config.freedesktop.org/releases/pkg-config-0.29.2.tar.gz",
+)
+
+http_archive(
+    name = "cmake_macos",
+    build_file = "@//admin/bazel:third_party/BUILD.cmake.bazel",
+    integrity = "sha256-zshzsoIvHDS8Pi/W7J/dHExryFDt/rpHUk8jzf6xyMQ=",
+    strip_prefix = "cmake-3.30.3-macos-universal/CMake.app/Contents",
+    url = "https://github.com/Kitware/CMake/releases/download/v3.30.3/cmake-3.30.3-macos-universal.tar.gz",
+)
+
+http_archive(
+    name = "cmake_linux_x86_64",
+    build_file = "@//admin/bazel:third_party/BUILD.cmake.bazel",
+    integrity = "sha256-Slhk6f8NeUVzH+bRSvthSQvw7BVFJ7w68EVr2PqQ3ss=",
+    strip_prefix = "cmake-3.30.3-linux-x86_64",
+    url = "https://github.com/Kitware/CMake/releases/download/v3.30.3/cmake-3.30.3-linux-x86_64.tar.gz",
+)
+
+http_archive(
+    name = "cmake_linux_aarch64",
+    build_file = "@//admin/bazel:third_party/BUILD.cmake.bazel",
+    integrity = "sha256-Qg8XxY3k7YtTwQVaNDGK7FwG2UsE2sndPHKGHf3JnVI=",
+    strip_prefix = "cmake-3.30.3-linux-aarch64",
+    url = "https://github.com/Kitware/CMake/releases/download/v3.30.3/cmake-3.30.3-linux-aarch64.tar.gz",
+)
+
+http_archive(
+    name = "libaom",
+    build_file = "@//admin/bazel:third_party/BUILD.libaom.bazel",
+    integrity = "sha256-26mfwcKKqt4o3aWYIRZrL6kcBhYtG8mf3g3arXzsxQ4=",
+    strip_prefix = "libaom-3.9.1",
+    url = "https://storage.googleapis.com/aom-releases/libaom-3.9.1.tar.gz",
+)
+
+http_archive(
+    name = "libopus",
+    build_file = "@//admin/bazel:third_party/BUILD.libopus.bazel",
+    integrity = "sha256-ybMrQlO+WuY9H/Fu6ga5S18PKVG3oCrO71jjo85JxR8=",
+    strip_prefix = "opus-1.4",
+    url = "https://github.com/xiph/opus/releases/download/v1.4/opus-1.4.tar.gz",
+)

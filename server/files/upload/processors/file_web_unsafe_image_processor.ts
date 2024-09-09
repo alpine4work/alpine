@@ -13,9 +13,10 @@ export function createFileWebUnsafeImageProcessor(
 ): FileProcessor {
     return {
         type: "WebUnsafeImage",
+        hasAlternative: "PreviewImage",
         hasPreview: true,
         hasPreviewImage: true,
-        hasAlternative: "PreviewImage",
+        hasPreviewVideoDuration: false,
         process: (stream, signal) => {
             const dataPromise = waitForReadableStreamData(stream, signal);
             const {previewSizePromise, previewPlaceholderPromise} = processImageFile(

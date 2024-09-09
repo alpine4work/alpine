@@ -12,7 +12,7 @@ import {
     FileProcessorTemplate,
 } from "~/server/files/upload/processors/file_processor.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType, FilePdfDocumentContentType} from "~/shared/files/file_content_type.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -25,12 +25,16 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * [1]: https://github.com/cyberworlds/sharp-libvips
  * [2]: https://pdfium.googlesource.com/pdfium
  */
-export function createFilePdfDocumentProcessor(): FileProcessor {
+export function createFilePdfDocumentProcessor(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    contentType: FilePdfDocumentContentType,
+): FileProcessor {
     return {
         type: "PdfDocument",
+        hasAlternative: false,
         hasPreview: true,
         hasPreviewImage: true,
-        hasAlternative: false,
+        hasPreviewVideoDuration: false,
 
         // If the PDF is password protected then it's ok to finish the upload. We won't
         // be able to render the PDF but the user should still be able to download it
@@ -45,7 +49,7 @@ export function processPdfDocumentFile(
     stream: ReadableStream,
     signal: AbortSignal,
     {extractPreview}: {extractPreview?: sharp.Region} = {},
-): ReturnType<FileProcessorTemplate<true, false>["process"]> {
+): ReturnType<FileProcessorTemplate<false, true, false>["process"]> {
     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
     // more efficient to await `dataPromise` than to use `stream`. See our comment
     // on `FileProcessor`.

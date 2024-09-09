@@ -34,12 +34,6 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  *   since dimensions don't make sense for files which don't have a preview
  *   image (e.g. audio files or raw bytes).
  *
- *   If our preview image is a scaled version of the original file, we'll include
- *   a `scale` property to record how much the source file was scaled. For
- *   example, PDF preview images are scaled up from the original PDF's dimensions
- *   to preserve detail in a rasterized image format. If the preview image doesn't
- *   really correspond with the source file's dimensions this value will be 1.
- *
  * - `placeholder`: Before the preview image loads, we immediately show a
  *   blurred placeholder representing the preview image. The placeholder is
  *   <700 bytes so it's cheap to send over the network.
@@ -61,6 +55,10 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  *   `image.contentLength` is the size of the preview image in bytes in
  *   Cloudflare R2.
  *
+ * - `videoDuration`: If the file is a video then this is the duration of the
+ *   video in milliseconds. This property is only present on previews for
+ *   videos.
+ *
  * - `error`: If there was an acceptable error while processing the file then
  *   we finished uploading the file to Cloudflare R2 but we weren't able to
  *   generate a preview. So instead there's an error with a human readable
@@ -72,17 +70,32 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  */
 export type FilePreview = SchemaType<typeof FilePreviewSchema>;
 
+export type FilePreviewSize = SchemaType<typeof FilePreviewSizeSchema>;
+
+/**
+ * The size of the preview.
+ *
+ * - `width`: How wide is the preview?
+ *
+ * - `height`: How tall is the preview?
+ *
+ * - `scale`: Represents the scale at which the preview was rendered. Only
+ *   really relevant for vector formats like `.pdf`. For example, we render
+ *   the `.pdf` preview image at 2x the file's dimensions so we don't lose
+ *   detail on retina screens. So `scale` is typically 2 for `.pdf`s. For
+ *   images and other raster formats `scale` is basically always 1.
+ */
+export const FilePreviewSizeSchema = Schema.object({
+    width: Schema.integer,
+    height: Schema.integer,
+    scale: Schema.float.default(1),
+});
+
 export const FilePreviewSchema = Schema.booleanUnion(
     "isProcessing",
     Schema.object({
         isProcessing: Schema.value(true),
-        size: processingSchema(
-            Schema.object({
-                width: Schema.integer,
-                height: Schema.integer,
-                scale: Schema.integer.default(1),
-            }),
-        ),
+        size: processingSchema(FilePreviewSizeSchema),
         placeholder: processingSchema(FilePreviewPlaceholder.schema),
         image: processingSchema(
             Schema.object({
@@ -90,21 +103,19 @@ export const FilePreviewSchema = Schema.booleanUnion(
                 contentLength: Schema.integer,
             }),
         ).optional(),
+        videoDuration: processingSchema(Schema.integer).optional(),
     }),
     Schema.result(
         Schema.object({
             isProcessing: Schema.value(false),
             ok: Schema.value(true),
-            size: Schema.object({
-                width: Schema.integer,
-                height: Schema.integer,
-                scale: Schema.integer.default(1),
-            }),
+            size: FilePreviewSizeSchema,
             placeholder: FilePreviewPlaceholder.schema,
             image: Schema.object({
                 contentType: FileContentTypeSchema,
                 contentLength: Schema.integer,
             }).optional(),
+            videoDuration: Schema.integer.optional(),
         }),
         Schema.object({
             isProcessing: Schema.value(false),
@@ -118,6 +129,14 @@ export const FilePreviewSchema = Schema.booleanUnion(
             }),
         }),
     ),
+).validation(
+    "When `isProcessing` is true some preview data must be processing",
+    preview =>
+        !preview.isProcessing ||
+        preview.size === "Processing" ||
+        preview.placeholder === "Processing" ||
+        preview.image === "Processing" ||
+        preview.videoDuration === "Processing",
 );
 
 /**

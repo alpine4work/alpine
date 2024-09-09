@@ -21,10 +21,11 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
-import {FilePreviewSchema} from "~/shared/files/file_preview.js";
+import {FilePreviewSchema, FilePreviewSize} from "~/shared/files/file_preview.js";
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -221,6 +222,7 @@ export async function startUploadingAndProcessingFile(
         hasPreview,
         hasPreviewImage,
         hasAlternative,
+        hasPreviewVideoDuration,
     }: {
         spaceId: SpaceId;
         contentType: FileContentType;
@@ -228,6 +230,7 @@ export async function startUploadingAndProcessingFile(
         hasAlternative: boolean;
         hasPreview: boolean;
         hasPreviewImage: boolean;
+        hasPreviewVideoDuration: boolean;
     },
 ): Promise<FileUploader> {
     if (!hasPreview && hasPreviewImage) {
@@ -277,6 +280,7 @@ export async function startUploadingAndProcessingFile(
                       size: "Processing",
                       placeholder: "Processing",
                       image: hasPreviewImage ? "Processing" : undefined,
+                      videoDuration: hasPreviewVideoDuration ? "Processing" : undefined,
                   }
                 : null,
         };
@@ -366,10 +370,15 @@ export class FileUploader {
      * preview size to DynamoDB. If we've finished processing all of
      * `preview.size`, `preview.placeholder`, and `preview.image` then we can set
      * `preview.isProcessing` to false.
+     *
+     * May also finish processing the video duration if `alsoPreviewVideoDuration`
+     * is provided as an option.
      */
     public async finishProcessingPreviewSize(
         context: ServerSessionActionContext,
-        size: {width: number; height: number; scale: number},
+        size: FilePreviewSize,
+        // NOCOMMIT: Test
+        {alsoPreviewVideoDuration}: {alsoPreviewVideoDuration?: number} = {},
     ) {
         if (this.uploaderId !== context.actor.getAccountId()) {
             throw new PermissionDeniedError("Account is not the file's uploader account");
@@ -396,24 +405,39 @@ export class FileUploader {
                             "File has already finished processing its preview size",
                         );
                     }
+                    if (alsoPreviewVideoDuration !== undefined) {
+                        if (item.preview.videoDuration === undefined) {
+                            throw new InternalError("File doesn't have a preview video duration");
+                        }
+                        if (item.preview.videoDuration !== "Processing") {
+                            throw new InternalError(
+                                "File has already finished processing its preview video duration",
+                            );
+                        }
+                    }
 
                     return {
                         ...item,
                         preview:
                             item.preview.placeholder !== "Processing" &&
-                            item.preview.image !== "Processing"
+                            item.preview.image !== "Processing" &&
+                            (item.preview.videoDuration !== "Processing" ||
+                                alsoPreviewVideoDuration !== undefined)
                                 ? {
                                       isProcessing: false,
                                       ok: true,
                                       size,
                                       placeholder: item.preview.placeholder,
                                       image: item.preview.image,
+                                      videoDuration: alsoPreviewVideoDuration,
                                   }
                                 : {
                                       isProcessing: true,
                                       size,
                                       placeholder: item.preview.placeholder,
                                       image: item.preview.image,
+                                      videoDuration:
+                                          alsoPreviewVideoDuration ?? item.preview.videoDuration,
                                   },
                     };
                 },
@@ -462,19 +486,22 @@ export class FileUploader {
                         ...item,
                         preview:
                             item.preview.size !== "Processing" &&
-                            item.preview.image !== "Processing"
+                            item.preview.image !== "Processing" &&
+                            item.preview.videoDuration !== "Processing"
                                 ? {
                                       isProcessing: false,
                                       ok: true,
                                       size: item.preview.size,
                                       placeholder,
                                       image: item.preview.image,
+                                      videoDuration: item.preview.videoDuration,
                                   }
                                 : {
                                       isProcessing: true,
                                       size: item.preview.size,
                                       placeholder,
                                       image: item.preview.image,
+                                      videoDuration: item.preview.videoDuration,
                                   },
                     };
                 },
@@ -553,24 +580,100 @@ export class FileUploader {
                             : item.alternative,
                         preview:
                             item.preview.size !== "Processing" &&
-                            item.preview.placeholder !== "Processing"
+                            item.preview.placeholder !== "Processing" &&
+                            item.preview.videoDuration !== "Processing"
                                 ? {
                                       isProcessing: false,
                                       ok: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
                                       image: {contentType, contentLength},
+                                      videoDuration: item.preview.videoDuration,
                                   }
                                 : {
                                       isProcessing: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
                                       image: {contentType, contentLength},
+                                      videoDuration: item.preview.videoDuration,
                                   },
                     };
                 },
                 {initialItem: itemRef.current},
             );
+        });
+    }
+
+    // NOCOMMIT: Documentation and tests!
+    public async finishProcessingPreviewVideoDurationIfNeeded(
+        context: ServerSessionActionContext,
+        videoDuration: number,
+    ): Promise<{wasUpdated: boolean}> {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        return this._item.withLock(async itemRef => {
+            // If we've already updated the item with our expected video duration then we
+            // don't need to update DynamoDB again.
+            if (
+                (itemRef.current.preview?.isProcessing || itemRef.current.preview?.ok) &&
+                itemRef.current.preview.videoDuration === videoDuration
+            ) {
+                return {wasUpdated: false};
+            }
+
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn't have a preview");
+                    }
+                    if (!item.preview.isProcessing) {
+                        throw new InternalError("File has already finished processing its preview");
+                    }
+                    if (item.preview.videoDuration === undefined) {
+                        throw new InternalError("File doesn't have a preview video duration");
+                    }
+                    if (item.preview.videoDuration !== "Processing") {
+                        throw new InternalError(
+                            "File has already finished processing its preview video duration",
+                        );
+                    }
+
+                    return {
+                        ...item,
+                        preview:
+                            item.preview.size !== "Processing" &&
+                            item.preview.placeholder !== "Processing" &&
+                            item.preview.image !== "Processing"
+                                ? {
+                                      isProcessing: false,
+                                      ok: true,
+                                      size: item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      image: item.preview.image,
+                                      videoDuration,
+                                  }
+                                : {
+                                      isProcessing: true,
+                                      size: item.preview.size,
+                                      placeholder: item.preview.placeholder,
+                                      image: item.preview.image,
+                                      videoDuration,
+                                  },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+
+            return {wasUpdated: true};
         });
     }
 

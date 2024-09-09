@@ -626,7 +626,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             validate:
                 validateTrue || validateFalse
                     ? value => {
-                          if ((value as any).ok) {
+                          if ((value as any)[typeKey]) {
                               validateTrue?.(value);
                           } else {
                               validateFalse?.(value);
@@ -783,7 +783,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      * This runs in the opposite order of `transform()`. It runs before all other
      * deserialization and after all other serialization.
      */
-    public migrate({
+    public migration({
         serialize,
         deserialize,
     }: {
@@ -801,6 +801,41 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 return this.deserialize(migratedValue);
             },
             validate: this.validate,
+        });
+    }
+
+    /**
+     * Add a validation to this schema. Validations make sure `Value` is
+     * correct beyond just structural correctness based on the TypeScript type.
+     * For example if you have a `{min: number, max: number}` object and want to
+     * make sure `min` is always less than `max` you'd add a validation to make
+     * sure this is always the case.
+     *
+     * The validation is checked at serialization and deserialization time.
+     */
+    public validation(message: string, validate: (value: Value) => boolean): Schema<Value> {
+        return new Schema<Value>({
+            getDescription: () => this.getDescription(),
+            serialize: value => {
+                if (!validate(value))
+                    throw new InvalidArgumentError(`Validation failed: ${message}`);
+
+                return this.serialize(value);
+            },
+            deserialize: unknownValue => {
+                const value = this.deserialize(unknownValue);
+
+                if (!validate(value))
+                    throw new SchemaDeserializationError(`Validation failed: ${message}`);
+
+                return value;
+            },
+            validate: value => {
+                this.validate?.(value);
+
+                if (!validate(value))
+                    throw new InvalidArgumentError(`Validation failed: ${message}`);
+            },
         });
     }
 
