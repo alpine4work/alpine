@@ -155,21 +155,23 @@ def ts_project(
                     # https://jestjs.io/docs/ecmascript-modules
                     "--experimental-vm-modules",
                 ] + extra_node_options,
-                data = _dedupe_labels(deps + data + test_deps + test_data + extra_data + [
-                                          "//:node_modules/@juggle/resize-observer",
-                                          "//:node_modules/@testing-library/jest-dom",
-                                          "//:node_modules/@types/jest",
-                                          "//:node_modules/@types/testing-library__jest-dom",
-                                          "//:node_modules/chalk",
-                                          "//:node_modules/jest-environment-jsdom",
-                                          "//:jest_config_file",
-                                          "//:package_light_json_file",
-                                          "//admin/jest:jest_config_files",
-                                          "{}_src".format(test_name),
-                                          "{}_transpile".format(name),
-                                      ] +
-                                      # Will include a snapshot file if it exists.
-                                      native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])], allow_empty = True)),
+                data = _dedupe_labels(
+                    deps + data + test_deps + test_data + extra_data + [
+                        "//:node_modules/@juggle/resize-observer",
+                        "//:node_modules/@testing-library/jest-dom",
+                        "//:node_modules/@types/jest",
+                        "//:node_modules/@types/testing-library__jest-dom",
+                        "//:node_modules/chalk",
+                        "//:node_modules/jest-environment-jsdom",
+                        "//:jest_config_file",
+                        "//:package_light_json_file",
+                        "//admin/jest:jest_config_files",
+                        "{}_src".format(test_name),
+                        "{}_transpile".format(name),
+                    ] +
+                    # Will include a snapshot file if it exists.
+                    native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])], allow_empty = True),
+                ),
                 # Don't copy `test_data` to bin. Otherwise we'll have multiple actions
                 # generating conflicting `test_data` copies.
                 no_copy_to_bin = test_data,
