@@ -1,21 +1,13 @@
-load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-
-# We copy pkg-config's sources to Bazel's output directory since the
-# `./configure` script will write files that are needed when building. Having
-# both the sources and `./configure` outputs in one place simplifies building
-# for us as we don't need to muck around with source paths.
-copy_to_bin(
-    name = "pkg_config_srcs",
+genrule(
+    name = "pkg_config",
+    # We don't use `copy_to_bin()` because we want file timestamps to be preserved
+    # so `make` doesn't try to rebuild files that haven't changed. We'll perform an
+    # out-of-tree build of `pkg-config` in Bazel's bin directory.
     srcs = glob(
         include = ["**"],
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = [".*"],
     ),
-)
-
-genrule(
-    name = "pkg_config",
-    srcs = [":pkg_config_srcs"],
     # Our installation directory is `install2` instead of `install` since there's
     # an existing `INSTALL` file so Bazel won't create an `install` directory.
     outs = [
@@ -25,6 +17,8 @@ genrule(
         "install2/share/doc/pkg-config/pkg-config-guide.html",
     ],
     cmd = """
+bazel_sandbox=$$(pwd)
+
 cd $(RULEDIR)
 
 echo "# ========================================================================== #" >> cmd.log
@@ -32,7 +26,7 @@ echo "#                                 configure                               
 echo "# ========================================================================== #" >> cmd.log
 echo >> cmd.log
 
-./configure \\
+"$$bazel_sandbox/$(location configure)" \\
     "--prefix=$$(pwd)/install2" \\
     --disable-debug \\
     --disable-host-tool \\
