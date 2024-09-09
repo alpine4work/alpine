@@ -170,6 +170,9 @@ def ts_project(
                                       ] +
                                       # Will include a snapshot file if it exists.
                                       native.glob(["{}.snap".format(test_src_js[:len(test_src_js) - 3])], allow_empty = True)),
+                # Don't copy `test_data` to bin. Otherwise we'll have multiple actions
+                # generating conflicting `test_data` copies.
+                no_copy_to_bin = test_data,
                 size = extra_kwargs.pop("size", default = "small"),
                 tags = ["jest", "dev-test"] + extra_tags,
                 **extra_kwargs
