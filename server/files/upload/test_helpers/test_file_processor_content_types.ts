@@ -358,7 +358,7 @@ export function testFileProcessorContentTypes(testCases: {
                     // the input object.
                     {
                         const object = await r2Bucket.get(`${space.id}/${fileId}`);
-                        if (!object) throw new NotFoundError("File alternative not found");
+                        if (!object) throw new NotFoundError("File not found");
 
                         const actualContents = Buffer.from(
                             await convertReadableStreamToUint8Array(object.body),
@@ -517,6 +517,7 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                         );
                     }
                 }
+                break;
             }
             case "video/webm": {
                 const temporaryVideoSimilarityDirectoryPath = joinPath(
@@ -570,7 +571,18 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
 
                     await runProcess(
                         ffmpegExecutablePath,
-                        ["-i", "pipe:0", "-c", "copy", actualRepackagedPath],
+                        [
+                            "-i",
+                            "pipe:0",
+                            // Only use up to 2 threads for FFmpeg to avoid resource contention
+                            // in tests.
+                            "-threads",
+                            "2",
+                            // We're repackaging the file so duration metadata is added.
+                            "-c",
+                            "copy",
+                            actualRepackagedPath,
+                        ],
                         {
                             cwd: runfilesPath,
                             stdin: actualContents,
@@ -607,6 +619,9 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                     delete metadata.format.size;
                     delete metadata.format.bit_rate;
                     delete metadata.format.tags.ENCODER;
+                    delete metadata.format.tags.COMPATIBLE_BRANDS;
+                    delete metadata.format.tags.MAJOR_BRAND;
+                    delete metadata.format.tags.MINOR_VERSION;
 
                     metadata.format.start_time =
                         // Remove fractional part which may not be precisely equal.
@@ -628,6 +643,8 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                         delete metadataStream.display_aspect_ratio;
                         delete metadataStream.tags.language;
                         delete metadataStream.tags.ENCODER;
+                        delete metadataStream.tags.HANDLER_NAME;
+                        delete metadataStream.tags.VENDOR_ID;
 
                         // Duration should be covered by `metadata.format.duration`. Doesn't need to be
                         // tested here too.
@@ -669,6 +686,9 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                             ["-r", "1"],
                             // Controls JPEG image quality.
                             ["-q:v", "2"],
+                            // Only use up to 2 threads for FFmpeg to avoid resource contention
+                            // in tests.
+                            ["-threads", "2"],
                             joinPath(
                                 temporaryVideoSimilarityDirectoryPath,
                                 "actual/frame_%04d.jpeg",
@@ -693,6 +713,9 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                             ["-r", "1"],
                             // Controls JPEG image quality.
                             ["-q:v", "2"],
+                            // Only use up to 2 threads for FFmpeg to avoid resource contention
+                            // in tests.
+                            ["-threads", "2"],
                             joinPath(
                                 temporaryVideoSimilarityDirectoryPath,
                                 "expected/frame_%04d.jpeg",

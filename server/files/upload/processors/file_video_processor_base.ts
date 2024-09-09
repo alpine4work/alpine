@@ -157,3 +157,26 @@ export function parseFfmpegStderrDuration(durationString: string): number {
 
     return Math.ceil(((durationHours * 60 + durationMinutes) * 60 + durationSeconds) * 1000);
 }
+
+const ffmpegStderrCodecNameRegExpExpression =
+    "(?:  .*\\n)*?(?:  Stream #.* (?:Video|Audio): +([a-zA-Z0-9-_]+).*\\n)";
+
+// Only parses up to 4 codec names.
+const ffmpegStderrInputCodecNamesRegExp = new RegExp(
+    `(?:^|\\n)Input #.*\\n${ffmpegStderrCodecNameRegExpExpression}(?:${ffmpegStderrCodecNameRegExpExpression})?(?:${ffmpegStderrCodecNameRegExpExpression})?(?:${ffmpegStderrCodecNameRegExpExpression})?`,
+);
+
+/**
+ * Parse codec names included in the first input in the provided FFmpeg stderr
+ * output.
+ */
+export function parseFfmpegStderrInputCodecNames(stderr: string): string | undefined {
+    const match = stderr.match(ffmpegStderrInputCodecNamesRegExp);
+    if (!match) return undefined;
+
+    const codecNames = Array.from(match.slice(1))
+        .filter(codecName => typeof codecName === "string" && codecName.length > 0)
+        .join("/");
+
+    return codecNames;
+}

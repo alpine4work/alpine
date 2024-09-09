@@ -388,6 +388,9 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     libreoffice: {
         outputFilter: Schema.string,
     },
+    ffmpeg: {
+        codecs: Schema.string,
+    },
 };
 
 /**

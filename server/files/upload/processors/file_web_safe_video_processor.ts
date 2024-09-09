@@ -1,7 +1,9 @@
 import {spawn} from "child_process";
+import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
-import {PassThrough as PassThroughStream} from "stream";
+import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
+import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
 import {processFilePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {
@@ -10,6 +12,7 @@ import {
     ffmpegPreviewImageOutputExtension,
     ffmpegPreviewImageOutputOptions,
     parseFfmpegStderrDuration,
+    parseFfmpegStderrInputCodecNames,
     parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
 } from "~/server/files/upload/processors/file_video_processor_base.js";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
@@ -17,7 +20,12 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {InternalError, UnknownError} from "~/shared/error/error.js";
-import {FileContentType, FileWebmVideoContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    FileMp4VideoContentType,
+    FileWebmVideoContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {FilePreviewSize} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -28,10 +36,15 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
  * process a WebM file we only need to take a screenshot. We don't need to
  * transcode the file to a different format.
  *
+ * We consider some MP4 videos to be web safe as well. Depending on what codecs
+ * the MP4 video uses.
+ *
  * [1]: https://caniuse.com/webm
  */
-export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentType): FileProcessor {
-    const processorType = "WebmVideo";
+export function createFileWebSafeVideoProcessor(
+    contentType: FileWebmVideoContentType | FileMp4VideoContentType,
+): FileProcessor {
+    const processorType = "WebSafeVideo";
 
     return {
         type: processorType,
@@ -49,13 +62,10 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
             >();
 
             const previewImagePromise = (() => {
-                // Pause our stream while we wait to create the temporary directory. We use
-                // `.pipe(new PassThroughStream())` to create a new stream with a new internal
-                // buffer instead of pausing the stream we were provided (which is being used
-                // to upload the file to Cloudflare R2).
-                const pausedStream = new PassThroughStream();
-                pausedStream.pause();
-                stream.pipe(pausedStream);
+                // Create a replay stream which will replay any chunks written while we create
+                // our temporary directory. This won't block the Cloudflare R2 upload which is
+                // also consuming the stream in parallel.
+                const replayStream = stream.pipe(new ReplayStream());
 
                 return withTemporaryDirectory(
                     parentTemporaryDirectoryPath,
@@ -71,13 +81,38 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                             `output.${ffmpegPreviewImageOutputExtension}`,
                         );
 
+                        // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
+                        // to provide FFmpeg a file path. For example [MOV must be seekable][1].
+                        //
+                        // [1]: https://ffmpeg.org/ffmpeg-protocols.html#pipe
+                        const inputPath =
+                            contentType === "video/mp4"
+                                ? joinPath(
+                                      temporaryDirectoryPath,
+                                      `input.${getFileContentTypePreferredExtension(contentType)}`,
+                                  )
+                                : null;
+
+                        if (inputPath !== null) {
+                            const writeStream = fsSync.createWriteStream(inputPath);
+
+                            replayStream.ready();
+                            replayStream.pipe(writeStream);
+
+                            await waitForWritableStreamClose(writeStream, signal);
+                        }
+
                         const subprocess = spawn(
                             ffmpegExecutablePath,
                             [
-                                // Input is coming from stdin.
+                                // Input is coming from stdin unless `inputPath` is set.
                                 // https://ffmpeg.org/ffmpeg-protocols.html#pipe
                                 "-i",
-                                "pipe:0",
+                                inputPath ?? "pipe:0",
+                                // Only use up to 2 threads for FFmpeg to avoid resource contention
+                                // in `FileUploadService`.
+                                "-threads",
+                                "2",
                                 // Capture a thumbnail from the first second of the video.
                                 ...ffmpegPreviewImageOutputOptions,
                                 // We must output to a file. We can't output to stdout when taking a screenshot
@@ -93,8 +128,10 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                             },
                         );
 
-                        pausedStream.pipe(subprocess.stdin);
-                        pausedStream.resume();
+                        if (inputPath === null) {
+                            replayStream.ready();
+                            replayStream.pipe(subprocess.stdin);
+                        }
 
                         let stdout = "";
                         let stderr = "";
@@ -130,20 +167,18 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                             attemptResolvePreviewSize();
                         });
 
-                        await span.withSpan("FFmpeg generate preview image", span => {
+                        await span.withSpan("FFmpeg generate preview image", async span => {
                             span.addData({
                                 file: {contentType, contentLength, processorType},
                             });
 
-                            return waitForProcessExit(subprocess, {
+                            await waitForProcessExit(subprocess, {
                                 onStdinError: error => {
                                     // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
-                                    // taken the screenshot. We can destroy `pausedStream` once we get an `EPIPE`
+                                    // taken the screenshot. We can destroy `replayStream` once we get an `EPIPE`
                                     // error as we don't need data from our input anymore.
                                     if (isObject(error) && error.code === "EPIPE") {
-                                        stream.unpipe(pausedStream);
-                                        pausedStream.destroy();
-
+                                        replayStream.destroy();
                                         return {preventDefault: true};
                                     }
                                 },
@@ -165,6 +200,12 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                                         cause: error instanceof Error ? error.cause : undefined,
                                     },
                                 );
+                            });
+
+                            span.addData({
+                                ffmpeg: {
+                                    codecs: parseFfmpegStderrInputCodecNames(stderr),
+                                },
                             });
                         });
 
@@ -199,13 +240,10 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
             // return immediately! If we don't then we use `ffprobe` to parse the video
             // file and figure out the duration.
             const previewVideoDurationPromise = (async () => {
-                // Pause our stream while we wait to create the temporary directory. We use
-                // `.pipe(new PassThroughStream())` to create a new stream with a new internal
-                // buffer instead of pausing the stream we were provided (which is being used
-                // to upload the file to Cloudflare R2).
-                const pausedStream = new PassThroughStream();
-                pausedStream.pause();
-                stream.pipe(pausedStream);
+                // Create a replay stream which will replay any chunks written while we create
+                // our temporary directory. This won't block the Cloudflare R2 upload which is
+                // also consuming the stream in parallel.
+                const replayStream = stream.pipe(new ReplayStream());
 
                 try {
                     const previewSize = await previewSizePromiseResolver.promise;
@@ -215,17 +253,13 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                     // `pausedProbeStream` since we don't need it and return the video duration
                     // immediately.
                     if (previewSize.videoDuration !== undefined) {
-                        stream.unpipe(pausedStream);
-                        pausedStream.destroy();
-
+                        replayStream.destroy();
                         return previewSize.videoDuration;
                     }
                 } catch (error) {
                     // If there was an error parsing the preview size, destroy our probe stream. We
                     // won't be using it.
-                    stream.unpipe(pausedStream);
-                    pausedStream.destroy();
-
+                    replayStream.destroy();
                     throw error;
                 }
 
@@ -238,7 +272,19 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                 // [2]: https://trac.ffmpeg.org/wiki/FFprobeTips#Getdurationbydecoding
                 const subprocess = spawn(
                     ffmpegExecutablePath,
-                    ["-i", "pipe:0", "-f", "null", "pipe:1"],
+                    [
+                        "-i",
+                        "pipe:0",
+                        // Only use up to 2 threads for FFmpeg to avoid resource contention
+                        // in `FileUploadService`.
+                        "-threads",
+                        "2",
+                        // We're only running this to get the `time` output after FFmpeg has
+                        // decoded our file.
+                        "-f",
+                        "null",
+                        "pipe:1",
+                    ],
                     {
                         cwd: runfilesPath,
                         env: getProcessEnvToPropagate(),
@@ -247,8 +293,8 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                     },
                 );
 
-                pausedStream.pipe(subprocess.stdin);
-                pausedStream.resume();
+                replayStream.ready();
+                replayStream.pipe(subprocess.stdin);
 
                 let stdout = "";
                 let stderr = "";
@@ -286,6 +332,12 @@ export function createFileWebmVideoProcessor(contentType: FileWebmVideoContentTy
                                 cause: error instanceof Error ? error.cause : undefined,
                             },
                         );
+                    });
+
+                    span.addData({
+                        ffmpeg: {
+                            codecs: parseFfmpegStderrInputCodecNames(stderr),
+                        },
                     });
 
                     const match = stderr.trimEnd().match(/time=(\d\d:\d\d:\d\d(?:\.\d+)?).*$/);

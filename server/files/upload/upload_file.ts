@@ -12,14 +12,18 @@ import {
     FileUploadServiceActionContext,
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
+import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
 import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
 import {createFilePdfDocumentProcessor} from "~/server/files/upload/processors/file_pdf_document_processor.js";
 import {FileProcessor, fileNoopProcessor} from "~/server/files/upload/processors/file_processor.js";
+import {ffprobeExecutablePath} from "~/server/files/upload/processors/file_video_processor_base.js";
 import {createFileWebSafeImageProcessor} from "~/server/files/upload/processors/file_web_safe_image_processor.js";
+import {createFileWebSafeVideoProcessor} from "~/server/files/upload/processors/file_web_safe_video_processor.js";
 import {createFileWebUnsafeImageProcessor} from "~/server/files/upload/processors/file_web_unsafe_image_processor.js";
 import {createFileWebUnsafeVideoProcessor} from "~/server/files/upload/processors/file_web_unsafe_video_processor.js";
-import {createFileWebmVideoProcessor} from "~/server/files/upload/processors/file_webm_video_processor.js";
+import {runProcess} from "~/server/helpers/node/run_process.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {
     CancelledError,
@@ -34,6 +38,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {
     FileContentType,
     FileContentTypeSchema,
+    FileMp4VideoContentType,
     isFileContentType,
     normalizeContentType,
 } from "~/shared/files/file_content_type.js";
@@ -41,6 +46,7 @@ import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -236,7 +242,32 @@ async function actuallyUploadFile(
         );
     }
 
-    const fileProcessor = fileProcessorByContentType[contentType];
+    let stream: ReadableStream = req;
+    let fileProcessor: FileProcessor;
+
+    // Make sure the stream (request body at this point) hasn't started outputting
+    // data yet. See:
+    // https://nodejs.org/api/stream.html#three-states
+    assert(stream.readableFlowing === null);
+
+    if (contentType !== "video/mp4") {
+        fileProcessor = fileProcessorByContentType[contentType];
+    } else {
+        const replayStream = stream.pipe(new ReplayStream());
+
+        // In order to know what file processor type to use for an MP4 video file we
+        // need to get the codecs from the MP4 file. If the codecs are all web safe
+        // then we can use a web safe processor. If the codecs are web unsafe then we
+        // have to use our web unsafe video processor which is more expensive.
+        fileProcessor = await selectFileMp4VideoProcessor(span, contentType, contentLength, stream);
+
+        replayStream.ready();
+        stream = replayStream;
+    }
+
+    // Make sure the stream hasn't started outputting data yet. See:
+    // https://nodejs.org/api/stream.html#three-states
+    assert(stream.readableFlowing === null);
 
     span.addData({
         file: {
@@ -287,7 +318,7 @@ async function actuallyUploadFile(
             contentLength,
             fileProcessor,
             fileUploader,
-            stream: req,
+            stream,
             sendEvent,
             signal: abortController.signal,
             temporaryDirectoryPath,
@@ -338,6 +369,10 @@ async function uploadAndProcessFile(
         hasPreview: fileProcessor.hasPreview,
         hasPreviewImage: fileProcessor.hasPreviewImage,
     });
+
+    // Make sure the stream hasn't started outputting data yet. See:
+    // https://nodejs.org/api/stream.html#three-states
+    assert(stream.readableFlowing === null);
 
     // NOTE(calebmer, 2024-08-26): May be worth considering multipart uploads
     // someday if we want to support users on spotty internet connections or speed
@@ -736,7 +771,7 @@ async function uploadAndProcessFile(
 }
 
 const createFileProcessorByContentType: {
-    [Key in FileContentType]: (contentType: Key) => FileProcessor;
+    [Key in Exclude<FileContentType, FileMp4VideoContentType>]: (contentType: Key) => FileProcessor;
 } = {
     "application/octet-stream": () => fileNoopProcessor,
     "image/apng": createFileWebSafeImageProcessor,
@@ -761,14 +796,86 @@ const createFileProcessorByContentType: {
         createFileMicrosoftOfficeDocumentProcessor,
     "application/vnd.openxmlformats-officedocument.presentationml.presentation":
         createFileMicrosoftOfficeDocumentProcessor,
-    "video/webm": createFileWebmVideoProcessor,
+    "video/webm": createFileWebSafeVideoProcessor,
     "video/quicktime": createFileWebUnsafeVideoProcessor,
     "video/mpeg": createFileWebUnsafeVideoProcessor,
     "video/x-matroska": createFileWebUnsafeVideoProcessor,
 };
 
 const fileProcessorByContentType: {
-    [Key in FileContentType]: FileProcessor;
+    [Key in Exclude<FileContentType, FileMp4VideoContentType>]: FileProcessor;
 } = mapObjectValues(createFileProcessorByContentType, (createFileProcessor, contentType) =>
     (createFileProcessor as any)(contentType),
 );
+
+const fileWebSafeMp4VideoProcessor = createFileWebSafeVideoProcessor("video/mp4");
+const fileWebUnsafeMp4VideoProcessor = createFileWebUnsafeVideoProcessor("video/mp4");
+
+const ffmpegWebSafeMp4CodecNames = new Set([
+    "av1",
+    "libaom-av1",
+    "h264",
+    "vp9",
+    "libvpx-vp9",
+    "flac",
+    "mp3",
+    "mp3float",
+    "opus",
+    "libopus",
+]);
+
+function selectFileMp4VideoProcessor(
+    span: TracerSpan,
+    contentType: FileContentType,
+    contentLength: number,
+    stream: ReadableStream,
+): Promise<FileProcessor> {
+    // Even though technically we're using the FFprobe executable we still name the
+    // span "FFmpeg ..." which'll make it easier for us to search for spans that
+    // call one of the FFmpeg tools.
+    return span.withSpan("FFmpeg get codecs", async span => {
+        span.addData({
+            file: {contentType, contentLength},
+        });
+
+        const codecNamesString = await runProcess(
+            ffprobeExecutablePath,
+            [
+                ["-v", "error"],
+                ["-show_entries", "stream=codec_name"],
+                ["-of", "default=noprint_wrappers=1:nokey=1"],
+                "-",
+            ],
+            {
+                cwd: runfilesPath,
+                stdin: stream,
+                onStdinError: error => {
+                    // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
+                    // found the video's metadata. We can unpipe `pausedStream` once we get an `EPIPE`
+                    // error as we don't need data from our input anymore.
+                    if (isObject(error) && error.code === "EPIPE") {
+                        return {preventDefault: true};
+                    }
+                },
+            },
+        );
+
+        const codecNames = codecNamesString.trim().split("\n");
+
+        span.addData({
+            ffmpeg: {codecs: codecNames.join("/")},
+        });
+
+        if (codecNames.every(codecName => ffmpegWebSafeMp4CodecNames.has(codecName))) {
+            span.addData({
+                file: {processorType: fileWebSafeMp4VideoProcessor.type},
+            });
+            return fileWebSafeMp4VideoProcessor;
+        } else {
+            span.addData({
+                file: {processorType: fileWebUnsafeMp4VideoProcessor.type},
+            });
+            return fileWebUnsafeMp4VideoProcessor;
+        }
+    });
+}

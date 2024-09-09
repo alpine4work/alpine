@@ -1,7 +1,8 @@
 import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
-import {PassThrough as PassThroughStream, Readable as ReadableStream} from "stream";
+import {Readable as ReadableStream} from "stream";
+import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
 import {processPdfDocumentFile} from "~/server/files/upload/processors/file_pdf_document_processor.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
@@ -101,13 +102,10 @@ export function createFileMicrosoftOfficeDocumentProcessor(
             const previewPlaceholderPromiseResolver =
                 createPromiseResolver<FilePreviewPlaceholder>();
 
-            // Pause our stream while we wait to create the temporary directory. We use
-            // `.pipe(new PassThroughStream())` to create a new stream with a new internal
-            // buffer instead of pausing the stream we were provided (which is being used
-            // to upload the file to Cloudflare R2).
-            const pausedInputStream = new PassThroughStream();
-            pausedInputStream.pause();
-            inputStream.pipe(pausedInputStream);
+            // Create a replay stream which will replay any chunks written while we create
+            // our temporary directory. This won't block the Cloudflare R2 upload which is
+            // also consuming the stream in parallel.
+            const inputReplayStream = inputStream.pipe(new ReplayStream());
 
             const previewImagePromise: Promise<{
                 contentType: FileContentType;
@@ -163,8 +161,8 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                                 libreoffice: {outputFilter},
                             });
 
-                            pausedInputStream.pipe(inputWriteStream);
-                            pausedInputStream.resume();
+                            inputReplayStream.ready();
+                            inputReplayStream.pipe(inputWriteStream);
 
                             // Wait for us to finish writing to our file. Also listen to the abort
                             // signal. If we abort before finishing the stream we shouldn't continue.

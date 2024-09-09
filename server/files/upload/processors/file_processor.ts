@@ -73,7 +73,7 @@ export interface FileProcessorTemplate<
         | "IcoImage"
         | "PdfDocument"
         | "MicrosoftOfficeDocument"
-        | "WebmVideo"
+        | "WebSafeVideo"
         | "WebUnsafeVideo";
     readonly hasAlternative: HasAlternative;
     readonly hasPreview: true;

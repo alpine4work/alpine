@@ -186,6 +186,132 @@ const testCases: {
             },
         },
     ],
+    "video/mp4": [
+        {
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_av1_video_codec_and_opus_audio_codec.mp4",
+            previewVideoDuration: 7610,
+            previewSize: {
+                width: 240,
+                height: 134,
+                scale: 1,
+            },
+            previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+            ]),
+            previewImage: {
+                contentType: "image/avif",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_h264_video_codec_and_flac_audio_codec.mp4",
+            previewVideoDuration: 2010,
+            previewSize: {
+                width: 240,
+                height: 134,
+                scale: 1,
+            },
+            previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+            ]),
+            previewImage: {
+                contentType: "image/avif",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_hevc_video_codec_and_alac_audio_codec.mp4",
+            alternative: {
+                contentType: "video/webm",
+                // Use the `.mov.webm` file as the similar path since its duration was also
+                // shorted to 2 seconds.
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.mov.webm",
+            },
+            previewVideoDuration: 2010,
+            previewSize: {
+                width: 240,
+                height: 134,
+                scale: 1,
+            },
+            previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+            ]),
+            previewImage: {
+                contentType: "image/avif",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_hevc_video_codec_and_mp3_audio_codec.mp4",
+            alternative: {
+                contentType: "video/webm",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.webm",
+            },
+            previewVideoDuration: 7610,
+            previewSize: {
+                width: 240,
+                height: 134,
+                scale: 1,
+            },
+            previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+            ]),
+            previewImage: {
+                contentType: "image/avif",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_vp9_video_codec_and_alac_audio_codec.mp4",
+            alternative: {
+                contentType: "video/webm",
+                // Use the `.mov.webm` file as the similar path since its duration was also
+                // shorted to 2 seconds.
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.mov.webm",
+            },
+            previewVideoDuration: 2010,
+            previewSize: {
+                width: 240,
+                height: 134,
+                scale: 1,
+            },
+            previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+            ]),
+            previewImage: {
+                contentType: "image/avif",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+        {
+            path: "wikimedia_france_vs_czech_republic_2013_09_21_with_vp9_video_codec_and_mp3_audio_codec.mp4",
+            previewVideoDuration: 7610,
+            previewSize: {
+                width: 240,
+                height: 134,
+                scale: 1,
+            },
+            previewPlaceholder: FilePreviewPlaceholder.schema.deserialize([
+                false,
+                5,
+                "aGFgbWJiZWBgamVfcGxhm3x4d6h5fatjg7RwmrRoqllcf2dan3ZheJRceqxM",
+            ]),
+            previewImage: {
+                contentType: "image/avif",
+                similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
+            },
+        },
+    ],
 };
 
 testFileProcessorContentTypes(testCases);

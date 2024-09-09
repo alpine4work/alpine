@@ -219,12 +219,12 @@ export type FileMicrosoftOfficeDocumentContentType =
  */
 export type FileVideoContentType =
     | FileWebmVideoContentType
-    | FileMP4VideoContentType
+    | FileMp4VideoContentType
     | FileWebUnsafeVideoContentType;
 
 export type FileWebmVideoContentType = "video/webm";
 
-export type FileMP4VideoContentType = "video/mp4";
+export type FileMp4VideoContentType = "video/mp4";
 
 export type FileWebUnsafeVideoContentType = "video/quicktime" | "video/mpeg" | "video/x-matroska";
 

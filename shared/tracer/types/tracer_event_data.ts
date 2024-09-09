@@ -1151,6 +1151,17 @@ export type TracerEventData = {
          */
         readonly outputFilter?: string;
     };
+
+    /**
+     * Information regarding an execution of FFmpeg or FFprobe.
+     */
+    readonly ffmpeg?: {
+        /**
+         * The codecs implicated in a call to FFmpeg. In the order provided by the
+         * file. When there are multiple codecs they're separated by a `/`.
+         */
+        readonly codecs?: string;
+    };
 };
 
 /**

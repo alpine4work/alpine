@@ -2,7 +2,8 @@ import {spawn} from "child_process";
 import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
-import {PassThrough as PassThroughStream, Readable as ReadableStream} from "stream";
+import {Readable as ReadableStream} from "stream";
+import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
 import {processFilePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
@@ -12,6 +13,7 @@ import {
     ffmpegPreviewImageOutputExtension,
     ffmpegPreviewImageOutputOptions,
     parseFfmpegStderrDuration,
+    parseFfmpegStderrInputCodecNames,
     parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
 } from "~/server/files/upload/processors/file_video_processor_base.js";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
@@ -21,6 +23,7 @@ import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_direc
 import {InternalError, UnknownError} from "~/shared/error/error.js";
 import {
     FileContentType,
+    FileMp4VideoContentType,
     FileWebUnsafeVideoContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
@@ -39,7 +42,7 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
  * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs#choosing_a_video_codec
  */
 export function createFileWebUnsafeVideoProcessor(
-    contentType: FileWebUnsafeVideoContentType,
+    contentType: FileWebUnsafeVideoContentType | FileMp4VideoContentType,
 ): FileProcessor {
     const processorType = "WebUnsafeVideo";
 
@@ -69,13 +72,10 @@ export function createFileWebUnsafeVideoProcessor(
             const previewVideoDurationPromiseResolver = createPromiseResolver<number>();
 
             const extraPromise = (() => {
-                // Pause our stream while we wait to create the temporary directory. We use
-                // `.pipe(new PassThroughStream())` to create a new stream with a new internal
-                // buffer instead of pausing the stream we were provided (which is being used
-                // to upload the file to Cloudflare R2).
-                const pausedStream = new PassThroughStream();
-                pausedStream.pause();
-                stream.pipe(pausedStream);
+                // Create a replay stream which will replay any chunks written while we create
+                // our temporary directory. This won't block the Cloudflare R2 upload which is
+                // also consuming the stream in parallel.
+                const replayStream = stream.pipe(new ReplayStream());
 
                 return withTemporaryDirectory(
                     parentTemporaryDirectoryPath,
@@ -92,7 +92,9 @@ export function createFileWebUnsafeVideoProcessor(
                         //
                         // [1]: https://ffmpeg.org/ffmpeg-protocols.html#pipe
                         const inputPath =
-                            contentType === "video/quicktime" || contentType === "video/mpeg"
+                            contentType === "video/quicktime" ||
+                            contentType === "video/mpeg" ||
+                            contentType === "video/mp4"
                                 ? joinPath(
                                       temporaryDirectoryPath,
                                       `input.${getFileContentTypePreferredExtension(contentType)}`,
@@ -102,8 +104,8 @@ export function createFileWebUnsafeVideoProcessor(
                         if (inputPath !== null) {
                             const writeStream = fsSync.createWriteStream(inputPath);
 
-                            pausedStream.pipe(writeStream);
-                            pausedStream.resume();
+                            replayStream.ready();
+                            replayStream.pipe(writeStream);
 
                             await waitForWritableStreamClose(writeStream, signal);
                         }
@@ -115,6 +117,10 @@ export function createFileWebUnsafeVideoProcessor(
                                 // https://ffmpeg.org/ffmpeg-protocols.html#pipe
                                 "-i",
                                 inputPath ?? "pipe:0",
+                                // Only use up to 2 threads for FFmpeg to avoid resource contention
+                                // in `FileUploadService`.
+                                "-threads",
+                                "2",
                                 // Capture a thumbnail from the first second of the video.
                                 ...ffmpegPreviewImageOutputOptions,
                                 // We must output to a file. We can't output to stdout when taking a screenshot
@@ -137,6 +143,10 @@ export function createFileWebUnsafeVideoProcessor(
                                 // https://ffmpeg.org/ffmpeg-protocols.html#pipe
                                 "-i",
                                 inputPath ?? "pipe:0",
+                                // Only use up to 2 threads for FFmpeg to avoid resource contention
+                                // in `FileUploadService`.
+                                "-threads",
+                                "2",
                                 // Convert the video file to WebM using the VP9 video codec and Opus audio
                                 // codec. This is what [MDN recommends for a good everyday video codec].
                                 //
@@ -159,9 +169,9 @@ export function createFileWebUnsafeVideoProcessor(
                         );
 
                         if (inputPath === null) {
-                            pausedStream.pipe(previewImageSubprocess.stdin);
-                            pausedStream.pipe(alternativeSubprocess.stdin);
-                            pausedStream.resume();
+                            replayStream.ready();
+                            replayStream.pipe(previewImageSubprocess.stdin);
+                            replayStream.pipe(alternativeSubprocess.stdin);
                         }
 
                         let previewImageStderr = "";
@@ -221,10 +231,9 @@ export function createFileWebUnsafeVideoProcessor(
                                     await waitForProcessExit(previewImageSubprocess, {
                                         onStdinError: error => {
                                             // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
-                                            // taken the screenshot. We can't destroy `pausedStream` once since it'll still
+                                            // taken the screenshot. We can't destroy `replayStream` since it'll still
                                             // be used to pipe data into `alternativeSubprocess`.
                                             if (isObject(error) && error.code === "EPIPE") {
-                                                pausedStream.unpipe(previewImageSubprocess.stdin);
                                                 return {preventDefault: true};
                                             }
                                         },
@@ -251,6 +260,14 @@ export function createFileWebUnsafeVideoProcessor(
                                                         : undefined,
                                             },
                                         );
+                                    });
+
+                                    span.addData({
+                                        ffmpeg: {
+                                            codecs: parseFfmpegStderrInputCodecNames(
+                                                previewImageStderr,
+                                            ),
+                                        },
                                     });
 
                                     attemptResolvePreviewSize();
@@ -297,6 +314,12 @@ export function createFileWebUnsafeVideoProcessor(
                                             cause: error instanceof Error ? error.cause : undefined,
                                         },
                                     );
+                                });
+
+                                span.addData({
+                                    ffmpeg: {
+                                        codecs: parseFfmpegStderrInputCodecNames(alternativeStderr),
+                                    },
                                 });
 
                                 // If the video duration wasn't present in the video's metadata then we wait
