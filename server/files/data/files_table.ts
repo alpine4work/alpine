@@ -25,7 +25,6 @@ import {FilePreviewSchema, FilePreviewSize} from "~/shared/files/file_preview.js
 import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -377,7 +376,6 @@ export class FileUploader {
     public async finishProcessingPreviewSize(
         context: ServerSessionActionContext,
         size: FilePreviewSize,
-        // NOCOMMIT: Test
         {alsoPreviewVideoDuration}: {alsoPreviewVideoDuration?: number} = {},
     ) {
         if (this.uploaderId !== context.actor.getAccountId()) {
@@ -429,7 +427,8 @@ export class FileUploader {
                                       size,
                                       placeholder: item.preview.placeholder,
                                       image: item.preview.image,
-                                      videoDuration: alsoPreviewVideoDuration,
+                                      videoDuration: (alsoPreviewVideoDuration ??
+                                          item.preview.videoDuration) as number | undefined,
                                   }
                                 : {
                                       isProcessing: true,
@@ -604,7 +603,16 @@ export class FileUploader {
         });
     }
 
-    // NOCOMMIT: Documentation and tests!
+    /**
+     * When we're done processing `preview.videoDuration` we call this method to add
+     * the preview video duration to DynamoDB. If we've finished processing all the
+     * data in `preview` then we can set `preview.isProcessing` to false.
+     *
+     * Calling this multiple times with the same `videoDuration` will noop. (Hence
+     * the "if needed" in the name.) This is because sometimes preview video
+     * duration is available at the same time preview size is available and so we
+     * write the video duration with the preview size.
+     */
     public async finishProcessingPreviewVideoDurationIfNeeded(
         context: ServerSessionActionContext,
         videoDuration: number,
@@ -617,7 +625,7 @@ export class FileUploader {
             // If we've already updated the item with our expected video duration then we
             // don't need to update DynamoDB again.
             if (
-                (itemRef.current.preview?.isProcessing || itemRef.current.preview?.ok) &&
+                !(!itemRef.current.preview?.isProcessing && !itemRef.current.preview?.ok) &&
                 itemRef.current.preview.videoDuration === videoDuration
             ) {
                 return {wasUpdated: false};
