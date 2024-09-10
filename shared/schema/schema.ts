@@ -1470,7 +1470,7 @@ export class ValueSchema<Value extends ValueSchemaValueBase> extends Schema<Valu
  * `Config extends UnionSchemaObjectConfigBase<Config>`.
  */
 export type UnionSchemaObjectConfigBase<Config> = {
-    [Key in keyof Config]: ObjectSchema<any> & {
+    [Key in keyof Config]: Schema<any> & {
         // We need to put our `Key` type constraint on `deserialize` instead of the
         // type parameter so the object type can be covariant instead of invariant.
         deserialize: (value: SchemaSerializedValue) => {type: Key};

@@ -13,7 +13,7 @@ export const FileAlternativeSchema = Schema.booleanUnion(
         isProcessing: Schema.value(false),
         contentType: FileContentTypeSchema,
         contentLength: Schema.integer,
-        isPreviewImage: Schema.boolean,
+        isImagePreviewContent: Schema.boolean,
     }),
 );
 

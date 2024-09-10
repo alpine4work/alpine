@@ -3,7 +3,7 @@ import {Readable as ReadableStream} from "stream";
 import {waitForReadableStreamData} from "~/server/files/upload/helpers/wait_for_readable_stream_data.js";
 import {
     pdfPasswordRequiredErrorDisplayMessage,
-    processFilePreviewPlaceholder,
+    processFileImagePreviewPlaceholder,
     rethrowClassifiedSharpError,
     sharpTimeoutSeconds,
 } from "~/server/files/upload/processors/file_image_processor_base.js";
@@ -32,9 +32,11 @@ export function createFilePdfDocumentProcessor(
     return {
         type: "PdfDocument",
         hasAlternative: false,
-        hasPreview: true,
-        hasPreviewImage: true,
-        hasPreviewVideoDuration: false,
+        hasPreview: {
+            type: "Image",
+            hasContent: true,
+            hasVideoDuration: false,
+        },
 
         // If the PDF is password protected then it's ok to finish the upload. We won't
         // be able to render the PDF but the user should still be able to download it
@@ -49,7 +51,12 @@ export function processPdfDocumentFile(
     stream: ReadableStream,
     signal: AbortSignal,
     {extractPreview}: {extractPreview?: sharp.Region} = {},
-): ReturnType<FileProcessorTemplate<false, true, false>["process"]> {
+): ReturnType<
+    FileProcessorTemplate<
+        false,
+        {type: "Image"; hasContent: true; hasVideoDuration: false}
+    >["process"]
+> {
     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
     // more efficient to await `dataPromise` than to use `stream`. See our comment
     // on `FileProcessor`.
@@ -88,7 +95,7 @@ export function processPdfDocumentFile(
         };
     })();
 
-    const previewImagePromise = (async (): Promise<{
+    const previewContentPromise = (async (): Promise<{
         contentType: FileContentType;
         data: Buffer;
     }> => {
@@ -140,11 +147,11 @@ export function processPdfDocumentFile(
 
     const previewPlaceholderPromise = (async () => {
         if (extractPreview) {
-            const {data} = await previewImagePromise;
-            return processFilePreviewPlaceholder(data);
+            const {data} = await previewContentPromise;
+            return processFileImagePreviewPlaceholder(data);
         } else {
             const data = await dataPromise;
-            return processFilePreviewPlaceholder(data);
+            return processFileImagePreviewPlaceholder(data);
         }
     })();
 
@@ -157,8 +164,8 @@ export function processPdfDocumentFile(
         : previewSizeWithoutExtractPromise;
 
     return {
-        previewSizePromise,
-        previewPlaceholderPromise,
-        previewImagePromise,
+        imagePreviewSizePromise: previewSizePromise,
+        imagePreviewPlaceholderPromise: previewPlaceholderPromise,
+        imagePreviewContentPromise: previewContentPromise,
     };
 }

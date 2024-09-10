@@ -21,8 +21,8 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -326,13 +326,13 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
+{"type":"ImagePreviewSize","width":500,"height":375,"scale":1}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewPlaceholder","placeholder":[false,5,"..."]}\n\
+{"type":"ImagePreviewPlaceholder","placeholder":[false,5,"..."]}\n\
 \r\n\
 chunk\r\n\
 {"type":"Finish"}\n\
@@ -352,10 +352,11 @@ chunk\r\n\
             isUploading: false,
             alternative: null,
             preview: {
+                type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 500, height: 375, scale: 1},
-                placeholder: expect.any(FilePreviewPlaceholder),
+                placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
     );
@@ -429,10 +430,10 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
+{"type":"ImagePreviewSize","width":500,"height":375,"scale":1}\n\
 \r\n\
 chunk\r\n\
 {"type":"Error","error":{...}}\n\
@@ -511,6 +512,7 @@ Content-Length: 33102\r\n\
             isUploading: true,
             alternative: null,
             preview: {
+                type: "Image",
                 isProcessing: true,
                 size: "Processing",
                 placeholder: "Processing",
@@ -535,7 +537,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
 \r\n\
 `);
 
@@ -608,6 +610,7 @@ Content-Length: 33102\r\n\
             isUploading: true,
             alternative: null,
             preview: {
+                type: "Image",
                 isProcessing: true,
                 size: "Processing",
                 placeholder: "Processing",
@@ -632,13 +635,13 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":true,"hasPreviewImage":false}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
+{"type":"ImagePreviewSize","width":500,"height":375,"scale":1}\n\
 \r\n\
 chunk\r\n\
-{"type":"PreviewPlaceholder","placeholder":[false,5,"..."]}\n\
+{"type":"ImagePreviewPlaceholder","placeholder":[false,5,"..."]}\n\
 \r\n\
 chunk\r\n\
 {"type":"Finish"}\n\
@@ -655,10 +658,11 @@ chunk\r\n\
             isUploading: false,
             alternative: null,
             preview: {
+                type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 500, height: 375, scale: 1},
-                placeholder: expect.any(FilePreviewPlaceholder),
+                placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
     );
@@ -685,8 +689,11 @@ test("can't upload invalid image data", async () => {
         {
             type: "Start",
             hasAlternative: false,
-            hasPreview: true,
-            hasPreviewImage: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
             fileId: expect.any(String),
         },
         {
@@ -730,8 +737,11 @@ test("can't upload image with the wrong content type", async () => {
         {
             type: "Start",
             hasAlternative: false,
-            hasPreview: true,
-            hasPreviewImage: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
             fileId: expect.any(String),
         },
         {
@@ -772,12 +782,15 @@ test("can upload image", async () => {
         {
             type: "Start",
             hasAlternative: false,
-            hasPreview: true,
-            hasPreviewImage: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
             fileId: expect.any(String),
         },
-        {type: "PreviewSize", width: 500, height: 375, scale: 1},
-        {type: "PreviewPlaceholder", placeholder: expect.any(FilePreviewPlaceholder)},
+        {type: "ImagePreviewSize", width: 500, height: 375, scale: 1},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
         {type: "Finish"},
     ]);
 
@@ -795,10 +808,11 @@ test("can upload image", async () => {
             isUploading: false,
             alternative: null,
             preview: {
+                type: "Image",
                 isProcessing: false,
                 ok: true,
                 size: {width: 500, height: 375, scale: 1},
-                placeholder: expect.any(FilePreviewPlaceholder),
+                placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
     );

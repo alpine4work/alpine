@@ -4,13 +4,13 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
-import {processFilePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
+import {processFileImagePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
-    ffmpegPreviewImageOutputContentType,
-    ffmpegPreviewImageOutputExtension,
-    ffmpegPreviewImageOutputOptions,
+    ffmpegImagePreviewContentOutputContentType,
+    ffmpegImagePreviewContentOutputExtension,
+    ffmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
     parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
@@ -26,7 +26,7 @@ import {
     FileWebmVideoContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
-import {FilePreviewSize} from "~/shared/files/file_preview.js";
+import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 
@@ -49,19 +49,21 @@ export function createFileWebSafeVideoProcessor(
     return {
         type: processorType,
         hasAlternative: false,
-        hasPreview: true,
-        hasPreviewImage: true,
-        hasPreviewVideoDuration: true,
+        hasPreview: {
+            type: "Image",
+            hasContent: true,
+            hasVideoDuration: true,
+        },
         process: (
             stream,
             signal,
             {span, fileId, contentLength, temporaryDirectoryPath: parentTemporaryDirectoryPath},
         ) => {
             const previewSizePromiseResolver = createPromiseResolver<
-                FilePreviewSize & {videoDuration?: number}
+                FileImagePreviewSize & {videoDuration?: number}
             >();
 
-            const previewImagePromise = (() => {
+            const previewContentPromise = (() => {
                 // Create a replay stream which will replay any chunks written while we create
                 // our temporary directory. This won't block the Cloudflare R2 upload which is
                 // also consuming the stream in parallel.
@@ -78,7 +80,7 @@ export function createFileWebSafeVideoProcessor(
                     }> => {
                         const outputPath = joinPath(
                             temporaryDirectoryPath,
-                            `output.${ffmpegPreviewImageOutputExtension}`,
+                            `output.${ffmpegImagePreviewContentOutputExtension}`,
                         );
 
                         // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
@@ -114,7 +116,7 @@ export function createFileWebSafeVideoProcessor(
                                 "-threads",
                                 "2",
                                 // Capture a thumbnail from the first second of the video.
-                                ...ffmpegPreviewImageOutputOptions,
+                                ...ffmpegImagePreviewContentOutputOptions,
                                 // We must output to a file. We can't output to stdout when taking a screenshot
                                 // or else we get the error "[avif] muxer does not support non seekable
                                 // output".
@@ -138,7 +140,7 @@ export function createFileWebSafeVideoProcessor(
 
                         // This function checks to see if the input's duration and width/height have
                         // been written to stderr and if it has then we can resolve
-                        // `previewImagePromise`. This will push an update to the user waiting on their
+                        // `previewContentPromise`. This will push an update to the user waiting on their
                         // file to upload so they can see a preview of the file in the product.
                         const attemptResolvePreviewSize = () => {
                             if (previewSizePromiseResolver.isSettled()) return;
@@ -218,7 +220,7 @@ export function createFileWebSafeVideoProcessor(
                         }
 
                         return {
-                            contentType: ffmpegPreviewImageOutputContentType,
+                            contentType: ffmpegImagePreviewContentOutputContentType,
                             // Unfortunately, `sharp` doesn't support efficient stream processing so it's
                             // more efficient to read the full data buffer into memory than to use
                             // `fs.createReadStream()` and stream that data into `sharp`. See our comment
@@ -352,13 +354,13 @@ export function createFileWebSafeVideoProcessor(
             })();
 
             return {
-                previewSizePromise: previewSizePromiseResolver.promise,
-                previewPlaceholderPromise: (async () => {
-                    const {data} = await previewImagePromise;
-                    return processFilePreviewPlaceholder(data);
+                imagePreviewSizePromise: previewSizePromiseResolver.promise,
+                imagePreviewPlaceholderPromise: (async () => {
+                    const {data} = await previewContentPromise;
+                    return processFileImagePreviewPlaceholder(data);
                 })(),
-                previewImagePromise,
-                previewVideoDurationPromise,
+                imagePreviewContentPromise: previewContentPromise,
+                imagePreviewVideoDurationPromise: previewVideoDurationPromise,
             };
         },
     };

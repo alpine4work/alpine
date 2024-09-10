@@ -11,18 +11,13 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
-import {
-    InternalError,
-    InvalidArgumentError,
-    PermissionDeniedError,
-    UnimplementedError,
-} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
-import {FilePreviewSchema, FilePreviewSize} from "~/shared/files/file_preview.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FileImagePreviewSize, FilePreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -132,19 +127,19 @@ const FilesTable = DynamoTableSchema.new({
                          * render it. This property records whether the file has an alternative.
                          *
                          * If non-null the file has an alternative that'll be rendered instead of the
-                         * main file itself. If `isPreviewImage` is true then the alternative is the
-                         * same as what's in `preview.image`. (`isPreviewImage` being true implies there
-                         * must be a `preview.image`.)
+                         * main file itself. If `isImagePreviewContent` is true then the alternative is
+                         * the same as what's in `preview.content`. (`isImagePreviewContent` being true
+                         * implies there must be a `preview.content`.)
                          *
                          * The alternative is only rendered in the fullscreen file viewer. Though a
                          * preview image may be generated from the alternative file.
                          *
-                         * - If `alternative` has finished uploading and `isPreviewImage` is false then
-                         *   the alternative file is stored in Cloudflare R2 with the key:
+                         * - If `alternative` has finished uploading and `isImagePreviewContent` is false
+                         *   then the alternative file is stored in Cloudflare R2 with the key:
                          *   `${spaceId}/${fileId}-alternative`.
                          *
-                         * - If `alternative` has finished uploading and `isPreviewImage` is true then
-                         *   the alternative file is stored in Cloudflare R2 with the key:
+                         * - If `alternative` has finished uploading and `isImagePreviewContent` is true
+                         *   then the alternative file is stored in Cloudflare R2 with the key:
                          *   `${spaceId}/${fileId}-preview`.
                          */
                         alternative: FileAlternativeSchema.nullable().default(null),
@@ -163,7 +158,7 @@ const FilesTable = DynamoTableSchema.new({
                          *
                          * See the documentation on `FilePreview` for more information.
                          *
-                         * If `preview.image` is available then the preview file is stored in
+                         * If `preview.content` is available then the preview file is stored in
                          * Cloudflare R2 with the key: `${spaceId}/${fileId}-preview`.
                          */
                         preview: FilePreviewSchema.nullable(),
@@ -218,26 +213,20 @@ export async function startUploadingAndProcessingFile(
         spaceId,
         contentType,
         contentLength,
-        hasPreview,
-        hasPreviewImage,
         hasAlternative,
-        hasPreviewVideoDuration,
+        hasPreview,
     }: {
         spaceId: SpaceId;
         contentType: FileContentType;
         contentLength: number;
         hasAlternative: boolean;
-        hasPreview: boolean;
-        hasPreviewImage: boolean;
-        hasPreviewVideoDuration: boolean;
+        hasPreview: {
+            type: "Image";
+            hasContent: boolean;
+            hasVideoDuration: boolean;
+        } | null;
     },
 ): Promise<FileUploader> {
-    if (!hasPreview && hasPreviewImage) {
-        throw new InvalidArgumentError(
-            `"hasPreviewImage" must be false when "hasPreview" is false`,
-        );
-    }
-
     await authorizeSpaceAccess(context, spaceId);
 
     const fileId = generateChronologicalId<FileId>();
@@ -263,6 +252,19 @@ export async function startUploadingAndProcessingFile(
             );
         }
 
+        let preview: FilePreview | null = null;
+
+        if (hasPreview) {
+            preview = {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+                content: hasPreview.hasContent ? "Processing" : undefined,
+                videoDuration: hasPreview.hasVideoDuration ? "Processing" : undefined,
+            };
+        }
+
         const fileItem: FileItem = {
             partitionType: "Space",
             sortRangeType: "File",
@@ -273,15 +275,7 @@ export async function startUploadingAndProcessingFile(
             uploaderId: context.actor.getAccountId(),
             isUploading: true,
             alternative: hasAlternative ? {isProcessing: true} : null,
-            preview: hasPreview
-                ? {
-                      isProcessing: true,
-                      size: "Processing",
-                      placeholder: "Processing",
-                      image: hasPreviewImage ? "Processing" : undefined,
-                      videoDuration: hasPreviewVideoDuration ? "Processing" : undefined,
-                  }
-                : null,
+            preview,
         };
 
         await DynamoTableSchema.executeTransaction(context, [
@@ -355,7 +349,7 @@ export class FileUploader {
                             isProcessing: false,
                             contentType: alternative.contentType,
                             contentLength: alternative.contentLength,
-                            isPreviewImage: false,
+                            isImagePreviewContent: false,
                         },
                     };
                 },
@@ -367,15 +361,15 @@ export class FileUploader {
     /**
      * When we're done processing `preview.size` we call this method to add the
      * preview size to DynamoDB. If we've finished processing all of
-     * `preview.size`, `preview.placeholder`, and `preview.image` then we can set
+     * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      *
      * May also finish processing the video duration if `alsoPreviewVideoDuration`
      * is provided as an option.
      */
-    public async finishProcessingPreviewSize(
+    public async finishProcessingImagePreviewSize(
         context: ServerSessionActionContext,
-        size: FilePreviewSize,
+        size: FileImagePreviewSize,
         {alsoPreviewVideoDuration}: {alsoPreviewVideoDuration?: number} = {},
     ) {
         if (this.uploaderId !== context.actor.getAccountId()) {
@@ -394,6 +388,9 @@ export class FileUploader {
                 item => {
                     if (!item.preview) {
                         throw new InternalError("File doesn't have a preview");
+                    }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn't have an image preview");
                     }
                     if (!item.preview.isProcessing) {
                         throw new InternalError("File has already finished processing its preview");
@@ -418,23 +415,25 @@ export class FileUploader {
                         ...item,
                         preview:
                             item.preview.placeholder !== "Processing" &&
-                            item.preview.image !== "Processing" &&
+                            item.preview.content !== "Processing" &&
                             (item.preview.videoDuration !== "Processing" ||
                                 alsoPreviewVideoDuration !== undefined)
                                 ? {
+                                      type: "Image",
                                       isProcessing: false,
                                       ok: true,
                                       size,
                                       placeholder: item.preview.placeholder,
-                                      image: item.preview.image,
+                                      content: item.preview.content,
                                       videoDuration: (alsoPreviewVideoDuration ??
                                           item.preview.videoDuration) as number | undefined,
                                   }
                                 : {
+                                      type: "Image",
                                       isProcessing: true,
                                       size,
                                       placeholder: item.preview.placeholder,
-                                      image: item.preview.image,
+                                      content: item.preview.content,
                                       videoDuration:
                                           alsoPreviewVideoDuration ?? item.preview.videoDuration,
                                   },
@@ -448,12 +447,12 @@ export class FileUploader {
     /**
      * When we're done processing `preview.placeholder` we call this method to add
      * the preview placeholder to DynamoDB. If we've finished processing all of
-     * `preview.size`, `preview.placeholder`, and `preview.image` then we can set
+     * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      */
-    public async finishProcessingPreviewPlaceholder(
+    public async finishProcessingImagePreviewPlaceholder(
         context: ServerSessionActionContext,
-        placeholder: FilePreviewPlaceholder,
+        placeholder: FileImagePreviewPlaceholder,
     ) {
         if (this.uploaderId !== context.actor.getAccountId()) {
             throw new PermissionDeniedError("Account is not the file's uploader account");
@@ -472,6 +471,9 @@ export class FileUploader {
                     if (!item.preview) {
                         throw new InternalError("File doesn't have a preview");
                     }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn't have an image preview");
+                    }
                     if (!item.preview.isProcessing) {
                         throw new InternalError("File has already finished processing its preview");
                     }
@@ -485,21 +487,23 @@ export class FileUploader {
                         ...item,
                         preview:
                             item.preview.size !== "Processing" &&
-                            item.preview.image !== "Processing" &&
+                            item.preview.content !== "Processing" &&
                             item.preview.videoDuration !== "Processing"
                                 ? {
+                                      type: "Image",
                                       isProcessing: false,
                                       ok: true,
                                       size: item.preview.size,
                                       placeholder,
-                                      image: item.preview.image,
+                                      content: item.preview.content,
                                       videoDuration: item.preview.videoDuration,
                                   }
                                 : {
+                                      type: "Image",
                                       isProcessing: true,
                                       size: item.preview.size,
                                       placeholder,
-                                      image: item.preview.image,
+                                      content: item.preview.content,
                                       videoDuration: item.preview.videoDuration,
                                   },
                     };
@@ -510,12 +514,12 @@ export class FileUploader {
     }
 
     /**
-     * When we're done processing `preview.image` we call this method to add
+     * When we're done processing `preview.content` we call this method to add
      * the preview image to DynamoDB. If we've finished processing all of
-     * `preview.size`, `preview.placeholder`, and `preview.image` then we can set
+     * `preview.size`, `preview.placeholder`, and `preview.content` then we can set
      * `preview.isProcessing` to false.
      */
-    public async finishProcessingPreviewImage(
+    public async finishProcessingImagePreviewContent(
         context: ServerSessionActionContext,
         {
             contentType,
@@ -544,11 +548,14 @@ export class FileUploader {
                     if (!item.preview) {
                         throw new InternalError("File doesn't have a preview");
                     }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn't have an image preview");
+                    }
                     if (!item.preview.isProcessing) {
                         throw new InternalError("File has already finished processing its preview");
                     }
-                    if (item.preview.image !== "Processing") {
-                        if (item.preview.image === undefined) {
+                    if (item.preview.content !== "Processing") {
+                        if (item.preview.content === undefined) {
                             throw new InternalError("File doesn't have a preview image");
                         } else {
                             throw new InternalError(
@@ -574,7 +581,7 @@ export class FileUploader {
                                   isProcessing: false,
                                   contentType,
                                   contentLength,
-                                  isPreviewImage: true,
+                                  isImagePreviewContent: true,
                               }
                             : item.alternative,
                         preview:
@@ -582,18 +589,20 @@ export class FileUploader {
                             item.preview.placeholder !== "Processing" &&
                             item.preview.videoDuration !== "Processing"
                                 ? {
+                                      type: "Image",
                                       isProcessing: false,
                                       ok: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
-                                      image: {contentType, contentLength},
+                                      content: {contentType, contentLength},
                                       videoDuration: item.preview.videoDuration,
                                   }
                                 : {
+                                      type: "Image",
                                       isProcessing: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
-                                      image: {contentType, contentLength},
+                                      content: {contentType, contentLength},
                                       videoDuration: item.preview.videoDuration,
                                   },
                     };
@@ -613,7 +622,7 @@ export class FileUploader {
      * duration is available at the same time preview size is available and so we
      * write the video duration with the preview size.
      */
-    public async finishProcessingPreviewVideoDurationIfNeeded(
+    public async finishProcessingImagePreviewVideoDurationIfNeeded(
         context: ServerSessionActionContext,
         videoDuration: number,
     ): Promise<{wasUpdated: boolean}> {
@@ -622,10 +631,17 @@ export class FileUploader {
         }
 
         return this._item.withLock(async itemRef => {
+            if (!itemRef.current.preview) {
+                throw new InternalError("File doesn't have a preview");
+            }
+            if (itemRef.current.preview.type !== "Image") {
+                throw new InternalError("File doesn't have an image preview");
+            }
+
             // If we've already updated the item with our expected video duration then we
             // don't need to update DynamoDB again.
             if (
-                !(!itemRef.current.preview?.isProcessing && !itemRef.current.preview?.ok) &&
+                !(!itemRef.current.preview.isProcessing && !itemRef.current.preview.ok) &&
                 itemRef.current.preview.videoDuration === videoDuration
             ) {
                 return {wasUpdated: false};
@@ -642,6 +658,9 @@ export class FileUploader {
                 item => {
                     if (!item.preview) {
                         throw new InternalError("File doesn't have a preview");
+                    }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn't have an image preview");
                     }
                     if (!item.preview.isProcessing) {
                         throw new InternalError("File has already finished processing its preview");
@@ -660,20 +679,22 @@ export class FileUploader {
                         preview:
                             item.preview.size !== "Processing" &&
                             item.preview.placeholder !== "Processing" &&
-                            item.preview.image !== "Processing"
+                            item.preview.content !== "Processing"
                                 ? {
+                                      type: "Image",
                                       isProcessing: false,
                                       ok: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
-                                      image: item.preview.image,
+                                      content: item.preview.content,
                                       videoDuration,
                                   }
                                 : {
+                                      type: "Image",
                                       isProcessing: true,
                                       size: item.preview.size,
                                       placeholder: item.preview.placeholder,
-                                      image: item.preview.image,
+                                      content: item.preview.content,
                                       videoDuration,
                                   },
                     };
@@ -712,7 +733,7 @@ export class FileUploader {
      * errors should end up deleting the `FileItem` from DynamoDB altogether with
      * the `cleanupAfterUnacceptableError()` function.
      */
-    public async finishProcessingPreviewAfterAcceptableError(
+    public async finishProcessingImagePreviewAfterAcceptableError(
         context: ServerSessionActionContext,
         error: {code: ErrorCode; displayMessage: ErrorDisplayMessage},
     ) {
@@ -733,6 +754,9 @@ export class FileUploader {
                     if (!item.preview) {
                         throw new InternalError("File doesn't have a preview");
                     }
+                    if (item.preview.type !== "Image") {
+                        throw new InternalError("File doesn't have an image preview");
+                    }
                     if (!item.preview.isProcessing) {
                         throw new InternalError("File has already finished processing its preview");
                     }
@@ -740,6 +764,7 @@ export class FileUploader {
                     return {
                         ...item,
                         preview: {
+                            type: "Image",
                             isProcessing: false,
                             ok: false,
                             error,

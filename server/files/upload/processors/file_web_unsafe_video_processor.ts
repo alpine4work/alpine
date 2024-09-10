@@ -5,13 +5,13 @@ import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
-import {processFilePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
+import {processFileImagePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
-    ffmpegPreviewImageOutputContentType,
-    ffmpegPreviewImageOutputExtension,
-    ffmpegPreviewImageOutputOptions,
+    ffmpegImagePreviewContentOutputContentType,
+    ffmpegImagePreviewContentOutputExtension,
+    ffmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
     parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
@@ -27,7 +27,7 @@ import {
     FileWebUnsafeVideoContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
-import {FilePreviewSize} from "~/shared/files/file_preview.js";
+import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -48,10 +48,12 @@ export function createFileWebUnsafeVideoProcessor(
 
     return {
         type: processorType,
-        hasPreviewImage: true,
         hasAlternative: true,
-        hasPreview: true,
-        hasPreviewVideoDuration: true,
+        hasPreview: {
+            type: "Image",
+            hasContent: true,
+            hasVideoDuration: true,
+        },
         process: (
             stream,
             signal,
@@ -63,9 +65,9 @@ export function createFileWebUnsafeVideoProcessor(
             }>();
 
             const previewSizePromiseResolver = createPromiseResolver<
-                FilePreviewSize & {videoDuration?: number}
+                FileImagePreviewSize & {videoDuration?: number}
             >();
-            const previewImagePromiseResolver = createPromiseResolver<{
+            const previewContentPromiseResolver = createPromiseResolver<{
                 contentType: FileContentType;
                 data: Buffer;
             }>();
@@ -83,7 +85,7 @@ export function createFileWebUnsafeVideoProcessor(
                     async temporaryDirectoryPath => {
                         const outputPath = joinPath(
                             temporaryDirectoryPath,
-                            `output.${ffmpegPreviewImageOutputExtension}`,
+                            `output.${ffmpegImagePreviewContentOutputExtension}`,
                         );
 
                         // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
@@ -110,7 +112,7 @@ export function createFileWebUnsafeVideoProcessor(
                             await waitForWritableStreamClose(writeStream, signal);
                         }
 
-                        const previewImageSubprocess = spawn(
+                        const previewContentSubprocess = spawn(
                             ffmpegExecutablePath,
                             [
                                 // Input is coming from stdin unless `inputPath` is set.
@@ -122,7 +124,7 @@ export function createFileWebUnsafeVideoProcessor(
                                 "-threads",
                                 "2",
                                 // Capture a thumbnail from the first second of the video.
-                                ...ffmpegPreviewImageOutputOptions,
+                                ...ffmpegImagePreviewContentOutputOptions,
                                 // We must output to a file. We can't output to stdout when taking a screenshot
                                 // or else we get the error "[avif] muxer does not support non seekable
                                 // output".
@@ -170,16 +172,16 @@ export function createFileWebUnsafeVideoProcessor(
 
                         if (inputPath === null) {
                             replayStream.ready();
-                            replayStream.pipe(previewImageSubprocess.stdin);
+                            replayStream.pipe(previewContentSubprocess.stdin);
                             replayStream.pipe(alternativeSubprocess.stdin);
                         }
 
-                        let previewImageStderr = "";
+                        let previewContentStderr = "";
                         let alternativeStderr = "";
 
                         // This function checks to see if the input's duration and width/height have
                         // been written to stderr and if it has then we can resolve
-                        // `previewImagePromise`. This will push an update to the user waiting on their
+                        // `previewContentPromise`. This will push an update to the user waiting on their
                         // file to upload so they can see a preview of the file in the product.
                         const attemptResolvePreviewSize = () => {
                             if (previewSizePromiseResolver.isSettled()) return;
@@ -187,7 +189,7 @@ export function createFileWebUnsafeVideoProcessor(
                             try {
                                 const previewSize =
                                     parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
-                                        previewImageStderr,
+                                        previewContentStderr,
                                     );
                                 if (!previewSize) return;
 
@@ -203,9 +205,9 @@ export function createFileWebUnsafeVideoProcessor(
                             }
                         };
 
-                        previewImageSubprocess.stderr.on("data", (chunk: Buffer) => {
+                        previewContentSubprocess.stderr.on("data", (chunk: Buffer) => {
                             const string = chunk.toString("utf8");
-                            previewImageStderr += string;
+                            previewContentStderr += string;
 
                             attemptResolvePreviewSize();
                         });
@@ -228,7 +230,7 @@ export function createFileWebUnsafeVideoProcessor(
                                         file: {contentType, contentLength, processorType},
                                     });
 
-                                    await waitForProcessExit(previewImageSubprocess, {
+                                    await waitForProcessExit(previewContentSubprocess, {
                                         onStdinError: error => {
                                             // `EPIPE` errors are expected. FFmpeg will close its side of stdin once it has
                                             // taken the screenshot. We can't destroy `replayStream` since it'll still
@@ -252,7 +254,7 @@ export function createFileWebUnsafeVideoProcessor(
                                                 error instanceof Error
                                                     ? error.message
                                                     : String(error)
-                                            }\n\nstderr:\n${previewImageStderr.trim()}`,
+                                            }\n\nstderr:\n${previewContentStderr.trim()}`,
                                             {
                                                 cause:
                                                     error instanceof Error
@@ -265,7 +267,7 @@ export function createFileWebUnsafeVideoProcessor(
                                     span.addData({
                                         ffmpeg: {
                                             codecs: parseFfmpegStderrInputCodecNames(
-                                                previewImageStderr,
+                                                previewContentStderr,
                                             ),
                                         },
                                     });
@@ -274,13 +276,13 @@ export function createFileWebUnsafeVideoProcessor(
 
                                     if (!previewSizePromiseResolver.isSettled()) {
                                         throw new InternalError(
-                                            `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${previewImageStderr.trim()}`,
+                                            `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${previewContentStderr.trim()}`,
                                         );
                                     }
                                 });
 
-                                previewImagePromiseResolver.resolve({
-                                    contentType: ffmpegPreviewImageOutputContentType,
+                                previewContentPromiseResolver.resolve({
+                                    contentType: ffmpegImagePreviewContentOutputContentType,
                                     // Unfortunately, `sharp` doesn't support efficient stream processing so it's
                                     // more efficient to read the full data buffer into memory than to use
                                     // `fs.createReadStream()` and stream that data into `sharp`. See our comment
@@ -358,8 +360,8 @@ export function createFileWebUnsafeVideoProcessor(
                             new InternalError("Promise resolver wasn't resolved"),
                         );
                     }
-                    if (!previewImagePromiseResolver.isSettled()) {
-                        previewImagePromiseResolver.reject(
+                    if (!previewContentPromiseResolver.isSettled()) {
+                        previewContentPromiseResolver.reject(
                             new InternalError("Promise resolver wasn't resolved"),
                         );
                     }
@@ -372,7 +374,7 @@ export function createFileWebUnsafeVideoProcessor(
                 error => {
                     alternativePromiseResolver.reject(error);
                     previewSizePromiseResolver.reject(error);
-                    previewImagePromiseResolver.reject(error);
+                    previewContentPromiseResolver.reject(error);
                     previewVideoDurationPromiseResolver.reject(error);
                     throw error;
                 },
@@ -381,13 +383,13 @@ export function createFileWebUnsafeVideoProcessor(
             return {
                 extraPromise,
                 alternativePromise: alternativePromiseResolver.promise,
-                previewSizePromise: previewSizePromiseResolver.promise,
-                previewPlaceholderPromise: (async () => {
-                    const {data} = await previewImagePromiseResolver.promise;
-                    return processFilePreviewPlaceholder(data);
+                imagePreviewSizePromise: previewSizePromiseResolver.promise,
+                imagePreviewPlaceholderPromise: (async () => {
+                    const {data} = await previewContentPromiseResolver.promise;
+                    return processFileImagePreviewPlaceholder(data);
                 })(),
-                previewImagePromise: previewImagePromiseResolver.promise,
-                previewVideoDurationPromise: previewVideoDurationPromiseResolver.promise,
+                imagePreviewContentPromise: previewContentPromiseResolver.promise,
+                imagePreviewVideoDurationPromise: previewVideoDurationPromiseResolver.promise,
             };
         },
     };

@@ -2,14 +2,14 @@ import decodeIco from "decode-ico";
 import sharp from "sharp";
 import {waitForReadableStreamData} from "~/server/files/upload/helpers/wait_for_readable_stream_data.js";
 import {
-    processFilePreviewPlaceholder,
+    processFileImagePreviewPlaceholder,
     rethrowClassifiedSharpError,
     sharpTimeoutSeconds,
 } from "~/server/files/upload/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
@@ -23,10 +23,12 @@ export function createFileIcoImageProcessor(
 ): FileProcessor {
     return {
         type: "IcoImage",
-        hasAlternative: "PreviewImage",
-        hasPreview: true,
-        hasPreviewImage: true,
-        hasPreviewVideoDuration: false,
+        hasAlternative: "ImagePreviewContent",
+        hasPreview: {
+            type: "Image",
+            hasContent: true,
+            hasVideoDuration: false,
+        },
         process: (stream, signal) => {
             const dataPromise = waitForReadableStreamData(stream, signal);
 
@@ -48,28 +50,32 @@ export function createFileIcoImageProcessor(
                     scale: 1,
                 });
 
-                let previewPlaceholderPromise: Promise<FilePreviewPlaceholder>;
-                let previewImagePromise: Promise<{contentType: FileContentType; data: Buffer}>;
+                let previewPlaceholderPromise: Promise<FileImagePreviewPlaceholder>;
+                let previewContentPromise: Promise<{contentType: FileContentType; data: Buffer}>;
                 switch (bestImage.type) {
                     case "png": {
-                        previewPlaceholderPromise = processFilePreviewPlaceholder(bestImageData);
+                        previewPlaceholderPromise =
+                            processFileImagePreviewPlaceholder(bestImageData);
 
-                        previewImagePromise = Promise.resolve({
+                        previewContentPromise = Promise.resolve({
                             contentType: "image/png",
                             data: bestImageData,
                         });
                         break;
                     }
                     case "bmp": {
-                        previewPlaceholderPromise = processFilePreviewPlaceholder(bestImageData, {
-                            raw: {
-                                width: bestImage.width,
-                                height: bestImage.height,
-                                channels: 4,
+                        previewPlaceholderPromise = processFileImagePreviewPlaceholder(
+                            bestImageData,
+                            {
+                                raw: {
+                                    width: bestImage.width,
+                                    height: bestImage.height,
+                                    channels: 4,
+                                },
                             },
-                        });
+                        );
 
-                        previewImagePromise = (async () => {
+                        previewContentPromise = (async () => {
                             const data = await sharp(bestImage.data, {
                                 raw: {
                                     width: bestImage.width,
@@ -90,15 +96,17 @@ export function createFileIcoImageProcessor(
                         throw exhaustive(bestImage);
                 }
 
-                return {previewSizePromise, previewPlaceholderPromise, previewImagePromise};
+                return {previewSizePromise, previewPlaceholderPromise, previewContentPromise};
             })();
 
             return {
-                previewSizePromise: promise.then(({previewSizePromise}) => previewSizePromise),
-                previewPlaceholderPromise: promise.then(
+                imagePreviewSizePromise: promise.then(({previewSizePromise}) => previewSizePromise),
+                imagePreviewPlaceholderPromise: promise.then(
                     ({previewPlaceholderPromise}) => previewPlaceholderPromise,
                 ),
-                previewImagePromise: promise.then(({previewImagePromise}) => previewImagePromise),
+                imagePreviewContentPromise: promise.then(
+                    ({previewContentPromise}) => previewContentPromise,
+                ),
             };
         },
     };

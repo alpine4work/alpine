@@ -1,9 +1,30 @@
 import {getErrorCodes} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessageSchema} from "~/shared/error/error_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+
+export type FileImagePreviewSize = SchemaType<typeof FileImagePreviewSizeSchema>;
+
+/**
+ * The size of the preview.
+ *
+ * - `width`: How wide is the preview?
+ *
+ * - `height`: How tall is the preview?
+ *
+ * - `scale`: Represents the scale at which the preview was rendered. Only
+ *   really relevant for vector formats like `.pdf`. For example, we render
+ *   the `.pdf` preview image at 2x the file's dimensions so we don't lose
+ *   detail on retina screens. So `scale` is typically 2 for `.pdf`s. For
+ *   images and other raster formats `scale` is basically always 1.
+ */
+export const FileImagePreviewSizeSchema = Schema.object({
+    width: Schema.integer,
+    height: Schema.integer,
+    scale: Schema.float.default(1),
+});
 
 /**
  * A visual preview image for the file. Previews are a scaled down, often
@@ -38,21 +59,21 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  *   blurred placeholder representing the preview image. The placeholder is
  *   <700 bytes so it's cheap to send over the network.
  *
- * - `image`: If the file isn't itself a web safe image (one of
+ * - `content`: If the file isn't itself a web safe image (one of
  *   `WebSafeImageFileContentType`) or not an image at all (e.g. a video or
  *   PDF) then we need to generate a preview image. If the file is a web safe
  *   image then we display the image as the image's own preview.
  *
- *   If `image` exists that means the file has a preview image located in
- *   Cloudflare R2 at `${spaceId}/${fileId}.preview`. If `image` is
+ *   If `content` exists that means the file has a preview image located in
+ *   Cloudflare R2 at `${spaceId}/${fileId}-preview`. If `content` is
  *   `"Processing"` that means we will eventually have a preview image file in
  *   Cloudflare R2 eventually but not right now.
  *
- *   If `image` is non-null then `size` and `placeholder` refer to the `image`
- *   property.
+ *   If `content` is non-null then `size` and `placeholder` refer to the
+ *   `content` property.
  *
- *   `image.contentType` is the type of the preview image in Cloudflare R2 and
- *   `image.contentLength` is the size of the preview image in bytes in
+ *   `content.contentType` is the type of the preview image in Cloudflare R2
+ *   and `content.contentLength` is the size of the preview image in bytes in
  *   Cloudflare R2.
  *
  * - `videoDuration`: If the file is a video then this is the duration of the
@@ -68,36 +89,16 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  *   protected PDF file. The PDF file successfully uploads but we can't show a
  *   preview because the file is encrypted.
  */
-export type FilePreview = SchemaType<typeof FilePreviewSchema>;
+export type FileImagePreview = SchemaType<typeof FileImagePreviewSchema>;
 
-export type FilePreviewSize = SchemaType<typeof FilePreviewSizeSchema>;
-
-/**
- * The size of the preview.
- *
- * - `width`: How wide is the preview?
- *
- * - `height`: How tall is the preview?
- *
- * - `scale`: Represents the scale at which the preview was rendered. Only
- *   really relevant for vector formats like `.pdf`. For example, we render
- *   the `.pdf` preview image at 2x the file's dimensions so we don't lose
- *   detail on retina screens. So `scale` is typically 2 for `.pdf`s. For
- *   images and other raster formats `scale` is basically always 1.
- */
-export const FilePreviewSizeSchema = Schema.object({
-    width: Schema.integer,
-    height: Schema.integer,
-    scale: Schema.float.default(1),
-});
-
-export const FilePreviewSchema = Schema.booleanUnion(
+export const FileImagePreviewSchema = Schema.booleanUnion(
     "isProcessing",
     Schema.object({
+        type: Schema.value("Image"),
         isProcessing: Schema.value(true),
-        size: processingSchema(FilePreviewSizeSchema),
-        placeholder: processingSchema(FilePreviewPlaceholder.schema),
-        image: processingSchema(
+        size: processingSchema(FileImagePreviewSizeSchema),
+        placeholder: processingSchema(FileImagePreviewPlaceholder.schema),
+        content: processingSchema(
             Schema.object({
                 contentType: FileContentTypeSchema,
                 contentLength: Schema.integer,
@@ -107,17 +108,19 @@ export const FilePreviewSchema = Schema.booleanUnion(
     }),
     Schema.result(
         Schema.object({
+            type: Schema.value("Image"),
             isProcessing: Schema.value(false),
             ok: Schema.value(true),
-            size: FilePreviewSizeSchema,
-            placeholder: FilePreviewPlaceholder.schema,
-            image: Schema.object({
+            size: FileImagePreviewSizeSchema,
+            placeholder: FileImagePreviewPlaceholder.schema,
+            content: Schema.object({
                 contentType: FileContentTypeSchema,
                 contentLength: Schema.integer,
             }).optional(),
             videoDuration: Schema.integer.optional(),
         }),
         Schema.object({
+            type: Schema.value("Image"),
             isProcessing: Schema.value(false),
             ok: Schema.value(false),
             // Not a full `ErrorSchema` since we store this in the database. Storing
@@ -135,9 +138,41 @@ export const FilePreviewSchema = Schema.booleanUnion(
         !preview.isProcessing ||
         preview.size === "Processing" ||
         preview.placeholder === "Processing" ||
-        preview.image === "Processing" ||
+        preview.content === "Processing" ||
         preview.videoDuration === "Processing",
 );
+
+/**
+ * Preview we display for audio files. For audio all we show is the duration of
+ * the audio in the preview. That's all the relevant information there is to
+ * render visually. This makes audio previews a lot simpler than
+ * `FileImagePreview`. The duration is in milliseconds.
+ */
+export type FileAudioPreview = SchemaType<typeof FileAudioPreviewSchema>;
+
+export const FileAudioPreviewSchema = Schema.booleanUnion(
+    "isProcessing",
+    Schema.object({
+        type: Schema.value("Audio"),
+        isProcessing: Schema.value(true),
+        duration: processingSchema(Schema.integer),
+    }),
+    Schema.object({
+        type: Schema.value("Audio"),
+        isProcessing: Schema.value(false),
+        duration: Schema.integer,
+    }),
+).validation(
+    "When `isProcessing` is true some preview data must be processing",
+    preview => !preview.isProcessing || preview.duration === "Processing",
+);
+
+export type FilePreview = SchemaType<typeof FilePreviewSchema>;
+
+export const FilePreviewSchema = Schema.union({
+    Image: FileImagePreviewSchema,
+    Audio: FileAudioPreviewSchema,
+});
 
 /**
  * Take a schema and give it an explicit `"Processing"` state. Under the hood

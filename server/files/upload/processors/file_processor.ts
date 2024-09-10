@@ -2,8 +2,8 @@ import {Readable as ReadableStream} from "stream";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {FilePreviewSize} from "~/shared/files/file_preview.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {If} from "~/shared/helpers/types/if.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -16,7 +16,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * files have a preview (except audio files or opaque binary data). Any file
  * that's not a web safe image will generate a preview image. If the file has
  * a preview `hasPreview` will be true and if the file generates a preview
- * image then `hasPreviewImage` will be true.
+ * image then `hasPreview.hasContent` will be true.
  *
  * The `process` function actually performs the file processing. It takes
  * `stream` which provides file data. You must synchronously start listening to
@@ -47,27 +47,49 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  */
 export type FileProcessor =
     | NoopFileProcessor
-    | FileProcessorTemplate<false, false, false>
-    | FileProcessorTemplate<false, true, false>
-    | FileProcessorTemplate<true, true, false>
-    | FileProcessorTemplate<false, true, true>
-    | FileProcessorTemplate<true, true, true>
-    | FileProcessorTemplate<"PreviewImage", true, false>;
+    | FileProcessorTemplate<
+          false,
+          {readonly type: "Image"; readonly hasContent: false; readonly hasVideoDuration: false}
+      >
+    | FileProcessorTemplate<
+          false,
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
+      >
+    | FileProcessorTemplate<
+          true,
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
+      >
+    | FileProcessorTemplate<
+          false,
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: true}
+      >
+    | FileProcessorTemplate<
+          true,
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: true}
+      >
+    | FileProcessorTemplate<
+          "ImagePreviewContent",
+          {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
+      >;
 
 export interface NoopFileProcessor {
     readonly type: "Noop";
     readonly hasAlternative: false;
-    readonly hasPreview: false;
-    readonly hasPreviewImage: false;
-    readonly hasPreviewVideoDuration: false;
+    readonly hasPreview: null;
 }
 
+type FileProcessorTemplateHasPreview = {
+    readonly type: "Image";
+    readonly hasContent: boolean;
+    readonly hasVideoDuration: boolean;
+};
+
 export interface FileProcessorTemplate<
-    HasAlternative extends boolean | "PreviewImage",
-    HasPreviewImage extends boolean,
-    HasPreviewVideoDuration extends boolean,
+    HasAlternative extends boolean | "ImagePreviewContent",
+    HasPreview extends FileProcessorTemplateHasPreview | null,
 > {
     readonly type:
+        | "Noop"
         | "WebSafeImage"
         | "WebUnsafeImage"
         | "IcoImage"
@@ -76,9 +98,7 @@ export interface FileProcessorTemplate<
         | "WebSafeVideo"
         | "WebUnsafeVideo";
     readonly hasAlternative: HasAlternative;
-    readonly hasPreview: true;
-    readonly hasPreviewImage: HasPreviewImage;
-    readonly hasPreviewVideoDuration: HasPreviewVideoDuration;
+    readonly hasPreview: HasPreview;
 
     process(
         stream: ReadableStream,
@@ -89,52 +109,7 @@ export interface FileProcessorTemplate<
             contentLength: number;
             temporaryDirectoryPath: string;
         },
-    ): MergeObjectIntersection<
-        {
-            extraPromise?: Promise<void>;
-            previewSizePromise: Promise<
-                FilePreviewSize &
-                    If<
-                        HasPreviewVideoDuration,
-                        {videoDuration?: number},
-                        {videoDuration?: undefined}
-                    >
-            >;
-            previewPlaceholderPromise: Promise<FilePreviewPlaceholder>;
-        } & If<
-            HasPreviewImage,
-            {
-                previewImagePromise: Promise<{
-                    contentType: FileContentType;
-                    data: Buffer | ReadableStream;
-                }>;
-            },
-            {previewImagePromise?: undefined}
-        > &
-            (HasAlternative extends "PreviewImage"
-                ? {
-                      previewImagePromise: Promise<{
-                          contentType: FileContentType;
-                          data: Buffer | ReadableStream;
-                      }>;
-                      alternativePromise?: undefined;
-                  }
-                : If<
-                      HasAlternative & boolean,
-                      {
-                          alternativePromise: Promise<{
-                              contentType: FileContentType;
-                              data: Buffer | ReadableStream;
-                          }>;
-                      },
-                      {alternativePromise?: undefined}
-                  >) &
-            If<
-                HasPreviewVideoDuration,
-                {previewVideoDurationPromise: Promise<number>},
-                {previewVideoDurationPromise?: undefined}
-            >
-    >;
+    ): FileProcessorTemplateResult<HasAlternative, HasPreview>;
 
     /**
      * If `acceptError` is implemented and you return true for an error we won't
@@ -147,10 +122,64 @@ export interface FileProcessorTemplate<
     acceptError?(error: ErrorBase, displayMessage: ErrorDisplayMessage): boolean | undefined;
 }
 
+type FileProcessorTemplateResult<
+    HasAlternative extends boolean | "ImagePreviewContent",
+    HasPreview extends FileProcessorTemplateHasPreview | null,
+> = MergeObjectIntersection<
+    {
+        extraPromise?: Promise<void>;
+    } & (HasAlternative extends "ImagePreviewContent"
+        ? {
+              imagePreviewContentPromise: Promise<{
+                  contentType: FileContentType;
+                  data: Buffer | ReadableStream;
+              }>;
+              alternativePromise?: undefined;
+          }
+        : If<
+              HasAlternative & boolean,
+              {
+                  alternativePromise: Promise<{
+                      contentType: FileContentType;
+                      data: Buffer | ReadableStream;
+                  }>;
+              },
+              {alternativePromise?: undefined}
+          >) &
+        FileProcessorTemplateResult2<HasPreview>
+>;
+
+type FileProcessorTemplateResult2<HasPreview extends FileProcessorTemplateHasPreview | null> =
+    HasPreview extends null ? {} : FileProcessorTemplateResult3<Exclude<HasPreview, null>>;
+
+type FileProcessorTemplateResult3<HasPreview extends FileProcessorTemplateHasPreview> = {
+    imagePreviewSizePromise: Promise<
+        FileImagePreviewSize &
+            If<
+                HasPreview["hasVideoDuration"],
+                {videoDuration?: number},
+                {videoDuration?: undefined}
+            >
+    >;
+    imagePreviewPlaceholderPromise: Promise<FileImagePreviewPlaceholder>;
+} & If<
+    HasPreview["hasContent"],
+    {
+        imagePreviewContentPromise: Promise<{
+            contentType: FileContentType;
+            data: Buffer | ReadableStream;
+        }>;
+    },
+    {imagePreviewContentPromise?: undefined}
+> &
+    If<
+        HasPreview["hasVideoDuration"],
+        {imagePreviewVideoDurationPromise: Promise<number>},
+        {imagePreviewVideoDurationPromise?: undefined}
+    >;
+
 export const fileNoopProcessor: FileProcessor = {
     type: "Noop",
     hasAlternative: false,
-    hasPreview: false,
-    hasPreviewImage: false,
-    hasPreviewVideoDuration: false,
+    hasPreview: null,
 };

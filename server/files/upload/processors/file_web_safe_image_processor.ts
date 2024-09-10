@@ -9,9 +9,11 @@ export function createFileWebSafeImageProcessor(
     return {
         type: "WebSafeImage",
         hasAlternative: false,
-        hasPreview: true,
-        hasPreviewImage: false,
-        hasPreviewVideoDuration: false,
+        hasPreview: {
+            type: "Image",
+            hasContent: false,
+            hasVideoDuration: false,
+        },
         process: (stream, signal) => {
             // Unfortunately, `sharp` doesn't support efficient stream processing so it's
             // more efficient to await `dataPromise` than to use `stream`. See our comment

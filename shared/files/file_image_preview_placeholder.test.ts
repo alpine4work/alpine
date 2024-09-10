@@ -1,4 +1,4 @@
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {JsonStringifiableUint8Array} from "~/shared/schema/schema.js";
 
 test("can serialize/deserialize a file preview placeholder", () => {
@@ -8,7 +8,7 @@ test("can serialize/deserialize a file preview placeholder", () => {
         "xNDUx9HWyNTYytXZy9bay9bYy9bXytTXz9fa0tnc1dze1t3f2N7g2N7g1tze1Nrd4OPi4uPj5ebp6Orr6err6erq6err5+npsq+no56Yraehvbu5zczK0c/KtrKspqKbvr++qq2qtLayxsfGzc7LysnFu7izqqmim62wm62xnLG1n7S3o7S5p7a6rbu+sr3A",
     ];
 
-    const placeholder = FilePreviewPlaceholder.schema.deserialize(serializedPlaceholder);
+    const placeholder = FileImagePreviewPlaceholder.schema.deserialize(serializedPlaceholder);
 
     const deserializedPlaceholder = placeholder.get();
 
@@ -80,8 +80,8 @@ test("can serialize/deserialize a file preview placeholder", () => {
     expect(
         JSON.parse(
             JSON.stringify(
-                FilePreviewPlaceholder.schema.serialize(
-                    new FilePreviewPlaceholder(deserializedPlaceholder),
+                FileImagePreviewPlaceholder.schema.serialize(
+                    new FileImagePreviewPlaceholder(deserializedPlaceholder),
                 ),
             ),
         ),
@@ -89,7 +89,7 @@ test("can serialize/deserialize a file preview placeholder", () => {
 });
 
 test("can go through a serialize, JSON, deserialize, serialize loop", () => {
-    const placeholder1 = FilePreviewPlaceholder.fromSerialized([
+    const placeholder1 = FileImagePreviewPlaceholder.fromSerialized([
         false,
         5,
         new Uint8Array([
@@ -100,7 +100,7 @@ test("can go through a serialize, JSON, deserialize, serialize loop", () => {
         ]),
     ]);
 
-    const placeholder2 = FilePreviewPlaceholder.schema.serialize(placeholder1);
+    const placeholder2 = FileImagePreviewPlaceholder.schema.serialize(placeholder1);
 
     expect(placeholder2).toEqual([
         false,
@@ -129,10 +129,10 @@ test("can go through a serialize, JSON, deserialize, serialize loop", () => {
         "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
     ]);
 
-    const placeholder5 = FilePreviewPlaceholder.schema.deserialize(placeholder4);
+    const placeholder5 = FileImagePreviewPlaceholder.schema.deserialize(placeholder4);
 
     expect(placeholder5).toEqual(
-        FilePreviewPlaceholder.fromSerialized([
+        FileImagePreviewPlaceholder.fromSerialized([
             false,
             5,
             new Uint8Array([
@@ -144,7 +144,7 @@ test("can go through a serialize, JSON, deserialize, serialize loop", () => {
         ]),
     );
 
-    const placeholder6 = FilePreviewPlaceholder.schema.serialize(placeholder5);
+    const placeholder6 = FileImagePreviewPlaceholder.schema.serialize(placeholder5);
 
     expect(placeholder6).toEqual([
         false,

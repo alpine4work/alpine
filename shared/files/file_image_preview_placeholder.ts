@@ -23,9 +23,9 @@ import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
  * [1]: https://css-tricks.com/inline-image-previews-with-sharp-blurhash-and-lambda-functions
  * [2]: https://plaiceholder.co/docs
  */
-export type FilePreviewPlaceholder = InstanceType<typeof FilePreviewPlaceholder>;
+export type FileImagePreviewPlaceholder = InstanceType<typeof FileImagePreviewPlaceholder>;
 
-export const FilePreviewPlaceholder = createSchemaLazyTransformClass<
+export const FileImagePreviewPlaceholder = createSchemaLazyTransformClass<
     readonly [hasAlphaChannel: boolean, width: number, data: Uint8Array],
     NonEmptyReadonlyArray<
         NonEmptyReadonlyArray<{

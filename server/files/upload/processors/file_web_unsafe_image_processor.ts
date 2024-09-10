@@ -13,18 +13,20 @@ export function createFileWebUnsafeImageProcessor(
 ): FileProcessor {
     return {
         type: "WebUnsafeImage",
-        hasAlternative: "PreviewImage",
-        hasPreview: true,
-        hasPreviewImage: true,
-        hasPreviewVideoDuration: false,
+        hasAlternative: "ImagePreviewContent",
+        hasPreview: {
+            type: "Image",
+            hasContent: true,
+            hasVideoDuration: false,
+        },
         process: (stream, signal) => {
             const dataPromise = waitForReadableStreamData(stream, signal);
-            const {previewSizePromise, previewPlaceholderPromise} = processImageFile(
+            const {imagePreviewSizePromise, imagePreviewPlaceholderPromise} = processImageFile(
                 contentType,
                 dataPromise,
             );
 
-            const previewImagePromise = (async (): Promise<{
+            const imagePreviewContentPromise = (async (): Promise<{
                 contentType: FileContentType;
                 data: Buffer;
             }> => {
@@ -64,7 +66,11 @@ export function createFileWebUnsafeImageProcessor(
                 return {contentType: "image/avif", data: outputData};
             })();
 
-            return {previewSizePromise, previewPlaceholderPromise, previewImagePromise};
+            return {
+                imagePreviewSizePromise,
+                imagePreviewPlaceholderPromise,
+                imagePreviewContentPromise,
+            };
         },
     };
 }

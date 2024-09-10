@@ -15,8 +15,8 @@ import {
     FileMicrosoftOfficeDocumentContentType,
     getFileContentTypePreferredExtension,
 } from "~/shared/files/file_content_type.js";
-import {FilePreviewSize} from "~/shared/files/file_preview.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -84,9 +84,11 @@ export function createFileMicrosoftOfficeDocumentProcessor(
     return {
         type: processorType,
         hasAlternative: true,
-        hasPreview: true,
-        hasPreviewImage: true,
-        hasPreviewVideoDuration: false,
+        hasPreview: {
+            type: "Image",
+            hasContent: true,
+            hasVideoDuration: false,
+        },
         process: (
             inputStream,
             signal,
@@ -97,17 +99,17 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                 data: ReadableStream;
             }>();
 
-            const previewSizePromiseResolver = createPromiseResolver<FilePreviewSize>();
+            const previewSizePromiseResolver = createPromiseResolver<FileImagePreviewSize>();
 
             const previewPlaceholderPromiseResolver =
-                createPromiseResolver<FilePreviewPlaceholder>();
+                createPromiseResolver<FileImagePreviewPlaceholder>();
 
             // Create a replay stream which will replay any chunks written while we create
             // our temporary directory. This won't block the Cloudflare R2 upload which is
             // also consuming the stream in parallel.
             const inputReplayStream = inputStream.pipe(new ReplayStream());
 
-            const previewImagePromise: Promise<{
+            const previewContentPromise: Promise<{
                 contentType: FileContentType;
                 data: Buffer | ReadableStream;
             }> = withTemporaryDirectory(
@@ -216,13 +218,16 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                         data: outputReadStream,
                     });
 
-                    const {previewSizePromise, previewPlaceholderPromise, previewImagePromise} =
-                        processPdfDocumentFile(outputReadStream, signal, {
-                            extractPreview: shouldCropPreviewImage
-                                ? // Extract to the size of a default 4:3 Microsoft PowerPoint slide.
-                                  {left: 0, top: 0, width: 720, height: 540}
-                                : undefined,
-                        });
+                    const {
+                        imagePreviewSizePromise: previewSizePromise,
+                        imagePreviewPlaceholderPromise: previewPlaceholderPromise,
+                        imagePreviewContentPromise: previewContentPromise,
+                    } = processPdfDocumentFile(outputReadStream, signal, {
+                        extractPreview: shouldCropPreviewImage
+                            ? // Extract to the size of a default 4:3 Microsoft PowerPoint slide.
+                              {left: 0, top: 0, width: 720, height: 540}
+                            : undefined,
+                    });
 
                     previewSizePromise.then(
                         previewSizePromiseResolver.resolve,
@@ -234,8 +239,8 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                         previewPlaceholderPromiseResolver.reject,
                     );
 
-                    const [image] = await runAllPromises([
-                        previewImagePromise,
+                    const [content] = await runAllPromises([
+                        previewContentPromise,
                         // Wait for these promises before returning even though we don't use their data
                         // so we only cleanup our temporary directory after all promises have been
                         // resolved.
@@ -243,7 +248,7 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                         previewPlaceholderPromise,
                     ]);
 
-                    return image;
+                    return content;
                 },
             ).catch(error => {
                 alternativePromiseResolver.reject(error);
@@ -254,9 +259,9 @@ export function createFileMicrosoftOfficeDocumentProcessor(
 
             return {
                 alternativePromise: alternativePromiseResolver.promise,
-                previewSizePromise: previewSizePromiseResolver.promise,
-                previewPlaceholderPromise: previewPlaceholderPromiseResolver.promise,
-                previewImagePromise,
+                imagePreviewSizePromise: previewSizePromiseResolver.promise,
+                imagePreviewPlaceholderPromise: previewPlaceholderPromiseResolver.promise,
+                imagePreviewContentPromise: previewContentPromise,
             };
         },
     };

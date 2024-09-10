@@ -33,8 +33,8 @@ import {
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -55,15 +55,15 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         contentType: FileContentType;
         similarPath: string;
     };
-    previewVideoDuration?: number;
-    previewSize?: {
+    imagePreviewVideoDuration?: number;
+    imagePreviewSize?: {
         width: number;
         height: number;
         scale?: number;
     };
-    previewPlaceholder?: FilePreviewPlaceholder;
-    isPreviewImageAlternative?: boolean;
-    previewImage?: {
+    imagePreviewPlaceholder?: FileImagePreviewPlaceholder;
+    isImagePreviewContentAlternative?: boolean;
+    imagePreviewContent?: {
         contentType: FileContentType;
         similarPath: string;
     };
@@ -147,11 +147,11 @@ export function testFileProcessorContentTypes(testCases: {
             only,
             path,
             alternative: expectedAlternative,
-            previewVideoDuration: expectedPreviewVideoDuration,
-            previewSize: expectedPreviewSize,
-            previewPlaceholder: expectedPreviewPlaceholder,
-            isPreviewImageAlternative: expectedIsPreviewImageAlternative,
-            previewImage: expectedPreviewImage,
+            imagePreviewVideoDuration: expectedImagePreviewVideoDuration,
+            imagePreviewSize: expectedImagePreviewSize,
+            imagePreviewPlaceholder: expectedImagePreviewPlaceholder,
+            isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
+            imagePreviewContent: expectedImagePreviewContent,
             previewError: expectedPreviewError,
             looksSameTolerance = 35,
         } of contentTypeTestCases) {
@@ -188,10 +188,10 @@ export function testFileProcessorContentTypes(testCases: {
 
                     const eventOrder = [
                         "Start",
-                        "PreviewSize",
-                        "PreviewPlaceholder",
-                        "PreviewImage",
-                        "PreviewVideoDuration",
+                        "ImagePreviewSize",
+                        "ImagePreviewPlaceholder",
+                        "ImagePreviewContent",
+                        "ImagePreviewVideoDuration",
                         "PreviewError",
                         "Alternative",
                         "Finish",
@@ -226,39 +226,43 @@ export function testFileProcessorContentTypes(testCases: {
                                       isProcessing: false,
                                       contentType: expectedAlternative.contentType,
                                       contentLength: expect.any(Number),
-                                      isPreviewImage: false,
+                                      isImagePreviewContent: false,
                                   }
-                                : expectedIsPreviewImageAlternative
+                                : expectedIsImagePreviewContentAlternative
                                 ? {
                                       isProcessing: false,
-                                      contentType: assertExists(expectedPreviewImage).contentType,
+                                      contentType: assertExists(expectedImagePreviewContent)
+                                          .contentType,
                                       contentLength: expect.any(Number),
-                                      isPreviewImage: true,
+                                      isImagePreviewContent: true,
                                   }
                                 : null,
                             preview: expectedPreviewError
                                 ? {
+                                      type: "Image",
                                       isProcessing: false,
                                       ok: false,
                                       error: expectedPreviewError,
                                   }
-                                : expectedPreviewSize
+                                : expectedImagePreviewSize
                                 ? {
+                                      type: "Image",
                                       isProcessing: false,
                                       ok: true,
                                       size: {
-                                          width: expectedPreviewSize.width,
-                                          height: expectedPreviewSize.height,
-                                          scale: expectedPreviewSize.scale ?? 1,
+                                          width: expectedImagePreviewSize.width,
+                                          height: expectedImagePreviewSize.height,
+                                          scale: expectedImagePreviewSize.scale ?? 1,
                                       },
-                                      placeholder: expect.any(FilePreviewPlaceholder),
-                                      image: expectedPreviewImage
+                                      placeholder: expect.any(FileImagePreviewPlaceholder),
+                                      content: expectedImagePreviewContent
                                           ? {
-                                                contentType: expectedPreviewImage.contentType,
+                                                contentType:
+                                                    expectedImagePreviewContent.contentType,
                                                 contentLength: expect.any(Number),
                                             }
                                           : undefined,
-                                      videoDuration: expectedPreviewVideoDuration,
+                                      videoDuration: expectedImagePreviewVideoDuration,
                                   }
                                 : null,
                         }),
@@ -268,48 +272,56 @@ export function testFileProcessorContentTypes(testCases: {
                         {
                             type: "Start",
                             hasAlternative:
-                                !!expectedAlternative || !!expectedIsPreviewImageAlternative,
-                            hasPreview: !!expectedPreviewSize || !!expectedPreviewError,
-                            hasPreviewImage: !!expectedPreviewImage || !!expectedPreviewError,
+                                !!expectedAlternative || !!expectedIsImagePreviewContentAlternative,
+                            hasPreview:
+                                !!expectedImagePreviewSize || !!expectedPreviewError
+                                    ? {
+                                          type: "Image",
+                                          hasContent:
+                                              !!expectedImagePreviewContent ||
+                                              !!expectedPreviewError,
+                                          hasVideoDuration: !!expectedImagePreviewVideoDuration,
+                                      }
+                                    : null,
                             fileId: expect.any(String),
                         },
-                        ...(expectedPreviewSize
+                        ...(expectedImagePreviewSize
                             ? [
                                   {
-                                      type: "PreviewSize",
-                                      width: expectedPreviewSize.width,
-                                      height: expectedPreviewSize.height,
-                                      scale: expectedPreviewSize.scale ?? 1,
+                                      type: "ImagePreviewSize",
+                                      width: expectedImagePreviewSize.width,
+                                      height: expectedImagePreviewSize.height,
+                                      scale: expectedImagePreviewSize.scale ?? 1,
                                   },
                               ]
                             : []),
-                        ...(expectedPreviewPlaceholder
+                        ...(expectedImagePreviewPlaceholder
                             ? [
                                   {
-                                      type: "PreviewPlaceholder",
-                                      placeholder: expect.any(FilePreviewPlaceholder),
+                                      type: "ImagePreviewPlaceholder",
+                                      placeholder: expect.any(FileImagePreviewPlaceholder),
                                   },
                               ]
                             : []),
-                        ...(expectedPreviewImage
+                        ...(expectedImagePreviewContent
                             ? [
                                   {
-                                      type: "PreviewImage",
-                                      contentType: expectedPreviewImage.contentType,
+                                      type: "ImagePreviewContent",
+                                      contentType: expectedImagePreviewContent.contentType,
                                       contentLength:
-                                          file.preview &&
+                                          file.preview?.type === "Image" &&
                                           !file.preview.isProcessing &&
                                           file.preview.ok
-                                              ? file.preview.image?.contentLength
+                                              ? file.preview.content?.contentLength
                                               : null,
                                   },
                               ]
                             : []),
-                        ...(expectedPreviewVideoDuration !== undefined
+                        ...(expectedImagePreviewVideoDuration !== undefined
                             ? [
                                   {
-                                      type: "PreviewVideoDuration",
-                                      videoDuration: expectedPreviewVideoDuration,
+                                      type: "ImagePreviewVideoDuration",
+                                      videoDuration: expectedImagePreviewVideoDuration,
                                   },
                               ]
                             : []),
@@ -330,21 +342,22 @@ export function testFileProcessorContentTypes(testCases: {
                                           file.alternative && !file.alternative.isProcessing
                                               ? file.alternative.contentLength
                                               : null,
-                                      isPreviewImage: false,
+                                      isImagePreviewContent: false,
                                   },
                               ]
-                            : expectedIsPreviewImageAlternative
+                            : expectedIsImagePreviewContentAlternative
                             ? [
                                   {
                                       type: "Alternative",
-                                      contentType: assertExists(expectedPreviewImage).contentType,
+                                      contentType: assertExists(expectedImagePreviewContent)
+                                          .contentType,
                                       contentLength:
-                                          file.preview &&
+                                          file.preview?.type === "Image" &&
                                           !file.preview.isProcessing &&
                                           file.preview.ok
-                                              ? file.preview.image?.contentLength
+                                              ? file.preview.content?.contentLength
                                               : null,
-                                      isPreviewImage: true,
+                                      isImagePreviewContent: true,
                                   },
                               ]
                             : []),
@@ -368,18 +381,18 @@ export function testFileProcessorContentTypes(testCases: {
                     }
 
                     const placeholder = findMapIterable(events, event =>
-                        event.type === "PreviewPlaceholder" ? event.placeholder : undefined,
+                        event.type === "ImagePreviewPlaceholder" ? event.placeholder : undefined,
                     );
 
-                    if (!expectedPreviewPlaceholder) {
+                    if (!expectedImagePreviewPlaceholder) {
                         expect(placeholder).toEqual(undefined);
                     } else {
                         // Compare placeholders. Sharp's placeholder generation isn't deterministic
                         // across platforms. So check that placeholders are close to each other if not
                         // exactly equal.
-                        compareFilePreviewPlaceholders(
+                        compareFileImagePreviewPlaceholders(
                             assertExists(placeholder),
-                            expectedPreviewPlaceholder,
+                            expectedImagePreviewPlaceholder,
                         );
                     }
 
@@ -393,13 +406,13 @@ export function testFileProcessorContentTypes(testCases: {
                         looksSameTolerance,
                     });
 
-                    await testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
+                    await testFileUploadServiceContentTypeExpectedImagePreviewContentSimilarity({
                         r2Bucket,
                         contentType,
                         path,
                         space,
                         fileId,
-                        expectedPreviewImage,
+                        expectedImagePreviewContent,
                         looksSameTolerance,
                     });
                 },
@@ -826,13 +839,13 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
     }
 }
 
-async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
+async function testFileUploadServiceContentTypeExpectedImagePreviewContentSimilarity({
     r2Bucket,
     contentType,
     path,
     space,
     fileId,
-    expectedPreviewImage,
+    expectedImagePreviewContent,
     looksSameTolerance,
 }: {
     r2Bucket: R2Bucket;
@@ -840,10 +853,10 @@ async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
     path: string;
     space: TestSpace;
     fileId: FileId;
-    expectedPreviewImage: {contentType: FileContentType; similarPath: string} | undefined;
+    expectedImagePreviewContent: {contentType: FileContentType; similarPath: string} | undefined;
     looksSameTolerance: number;
 }) {
-    if (!expectedPreviewImage) return expectedPreviewImage;
+    if (!expectedImagePreviewContent) return expectedImagePreviewContent;
 
     const object = await r2Bucket.get(`${space.id}/${fileId}-preview`);
     if (!object) throw new NotFoundError("File preview image file not found");
@@ -854,7 +867,7 @@ async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
             joinPath(
                 runfilesPath,
                 "cyberworlds/server/files/upload/test_fixtures",
-                expectedPreviewImage.similarPath,
+                expectedImagePreviewContent.similarPath,
             ),
         ),
     ]);
@@ -880,17 +893,25 @@ async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
 
         await runAllPromises([
             fs.writeFile(
-                joinPath(testlogsOutputDirectoryPath, "actual", expectedPreviewImage.similarPath),
+                joinPath(
+                    testlogsOutputDirectoryPath,
+                    "actual",
+                    expectedImagePreviewContent.similarPath,
+                ),
                 actualImageContents,
             ),
             fs.writeFile(
-                joinPath(testlogsOutputDirectoryPath, "expected", expectedPreviewImage.similarPath),
+                joinPath(
+                    testlogsOutputDirectoryPath,
+                    "expected",
+                    expectedImagePreviewContent.similarPath,
+                ),
                 expectedImageContents,
             ),
             result.diffImage?.save(
                 joinPath(
                     testlogsOutputDirectoryPath,
-                    `diff${extname(expectedPreviewImage.similarPath)}`,
+                    `diff${extname(expectedImagePreviewContent.similarPath)}`,
                 ),
             ),
         ]);
@@ -901,16 +922,16 @@ async function testFileUploadServiceContentTypeExpectedPreviewImageSimilarity({
     }
 }
 
-function compareFilePreviewPlaceholders(
-    actualPlaceholder: FilePreviewPlaceholder,
-    expectedPlaceholder: FilePreviewPlaceholder,
+function compareFileImagePreviewPlaceholders(
+    actualPlaceholder: FileImagePreviewPlaceholder,
+    expectedPlaceholder: FileImagePreviewPlaceholder,
 ) {
     const actualPixelGrid = actualPlaceholder.get();
     const expectedPixelGrid = expectedPlaceholder.get();
     const actualSerializedPixelGrid = actualPlaceholder.serialize();
     const expectedSerializedPixelGrid = expectedPlaceholder.serialize();
     const actualPlaceholderString = JSON.stringify(
-        FilePreviewPlaceholder.schema.serialize(actualPlaceholder),
+        FileImagePreviewPlaceholder.schema.serialize(actualPlaceholder),
     );
 
     if (actualPixelGrid.length !== expectedPixelGrid.length) {
@@ -945,7 +966,7 @@ function compareFilePreviewPlaceholders(
             const actualPixel = actualPixelRow[x]!;
             const expectedPixel = expectedPixelRow[x]!;
 
-            // Make sure we're not comparing the exact same `FilePreviewPlaceholder`
+            // Make sure we're not comparing the exact same `FileImagePreviewPlaceholder`
             // object.
             assert(actualPixel !== expectedPixel);
 

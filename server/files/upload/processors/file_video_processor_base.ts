@@ -1,21 +1,21 @@
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
-import {FilePreviewSize} from "~/shared/files/file_preview.js";
+import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export const ffmpegExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffmpeg");
 export const ffprobeExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffprobe");
 
-export const ffmpegPreviewImageOutputExtension = "avif";
-export const ffmpegPreviewImageOutputContentType: FileContentType = "image/avif";
+export const ffmpegImagePreviewContentOutputExtension = "avif";
+export const ffmpegImagePreviewContentOutputContentType: FileContentType = "image/avif";
 
 /**
  * Options to generate a thumbnail. Should go after any inputs. After these
  * options you need to provide an output path. The output path should use the
  * file extension `ffmpegThumbnailOutputExtension`.
  */
-export const ffmpegPreviewImageOutputOptions = [
+export const ffmpegImagePreviewContentOutputOptions = [
     // Take our screenshot at the first second of the video.
     "-ss",
     "00:00:01.000",
@@ -90,7 +90,7 @@ export const ffmpegPreviewImageOutputOptions = [
  */
 export function parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
     stderr: string,
-): (FilePreviewSize & {videoDuration?: number}) | null {
+): (FileImagePreviewSize & {videoDuration?: number}) | null {
     const match = stderr.match(
         // Notes:
         //

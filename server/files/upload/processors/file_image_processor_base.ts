@@ -9,7 +9,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileImageContentType} from "~/shared/files/file_content_type.js";
-import {FilePreviewPlaceholder} from "~/shared/files/file_preview_placeholder.js";
+import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -26,10 +26,10 @@ export const sharpTimeoutSeconds = 20;
  *
  * [1]: https://github.com/joe-bell/plaiceholder/blob/36d4518301c6512957c63977133f6224f491c7f2/packages/plaiceholder/src/index.ts#L219-L334
  */
-export async function processFilePreviewPlaceholder(
+export async function processFileImagePreviewPlaceholder(
     input: Buffer | ArrayBuffer | Uint8Array,
     options?: sharp.SharpOptions,
-): Promise<FilePreviewPlaceholder> {
+): Promise<FileImagePreviewPlaceholder> {
     // A placeholder of size 5 generates 25 pixels and is encoded to <700 bytes.
     const placeholderSize = 5;
 
@@ -47,7 +47,7 @@ export async function processFilePreviewPlaceholder(
 
     assert(channels === 3 || channels === 4);
 
-    return FilePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
+    return FileImagePreviewPlaceholder.fromSerialized([channels === 4, width, outputData]);
 }
 
 export function processImageFile(
@@ -140,10 +140,13 @@ export function processImageFile(
 
     const previewPlaceholderPromise = (async () => {
         const inputData = await dataPromise;
-        return processFilePreviewPlaceholder(inputData);
+        return processFileImagePreviewPlaceholder(inputData);
     })();
 
-    return {previewSizePromise, previewPlaceholderPromise};
+    return {
+        imagePreviewSizePromise: previewSizePromise,
+        imagePreviewPlaceholderPromise: previewPlaceholderPromise,
+    };
 }
 
 export function rethrowClassifiedSharpError(error: unknown): never {
