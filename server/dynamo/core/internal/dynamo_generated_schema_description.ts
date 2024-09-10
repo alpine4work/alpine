@@ -3169,7 +3169,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             },
                                                             "optional": true
                                                         },
-                                                        "videoDurationMs": {
+                                                        "videoDuration": {
                                                             "valueSchema": {
                                                                 "type": "Nullable",
                                                                 "schema": {
@@ -3235,7 +3235,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 },
                                                                 "optional": true
                                                             },
-                                                            "videoDurationMs": {
+                                                            "videoDuration": {
                                                                 "valueSchema": {
                                                                     "type": "Float"
                                                                 },
