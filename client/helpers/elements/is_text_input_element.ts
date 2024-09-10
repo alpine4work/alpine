@@ -1,4 +1,4 @@
-const textInputTypes = new Set([
+export const textInputTypes: ReadonlySet<string> = new Set([
     "text",
     "password",
     "number",

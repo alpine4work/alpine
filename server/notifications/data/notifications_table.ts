@@ -1231,6 +1231,9 @@ export async function getInbox(
         const {getRealtimeItem} = await InboxTable.createItem(
             context,
             getInitialInboxItem(spaceId, context.actor.getAccountId()),
+            // By default condition check errors from `createItem()` call won't retry. Make
+            // sure we handle race conditions by retrying on condition check error.
+            {isConditionCheckErrorRetriable: true},
         );
         return getRealtimeItem();
     });

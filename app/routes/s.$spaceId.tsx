@@ -34,7 +34,10 @@ import {
 } from "~/client/dev/dev_console.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {
+    isTextInputElement,
+    textInputTypes,
+} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -680,10 +683,13 @@ function SpaceLayoutRouteInner({
                     // page disruptive navigations. (Which a user may trigger on accident.)
                     case "Home":
                     case "End": {
-                        if (!isTextInputElement(document.activeElement)) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                        }
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        // Manually implement Home/End key presses for text input elements since
+                        // browsers may have inconsistent behaviors. For example Safari will scroll
+                        // instead of moving the text cursor.
+                        handleHomeOrEndKeyDownForTextInputElement(event);
                         break;
                     }
 
@@ -750,6 +756,142 @@ function SpaceLayoutRouteInner({
 // Making sure there's no remount on error requires careful patching to Remix
 // and React Router.
 export const ErrorBoundary = SpaceLayoutRoute;
+
+/**
+ * Handle `Home` or `End` keyboard presses. Moving the cursor to the start or
+ * end of the current line respectively.
+ */
+function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
+    const {activeElement} = document;
+
+    if (
+        activeElement instanceof HTMLInputElement &&
+        textInputTypes.has(activeElement.type) &&
+        !activeElement.readOnly &&
+        !activeElement.disabled
+    ) {
+        if (event.key === "Home") {
+            activeElement.selectionStart = 0;
+            if (!event.shiftKey) activeElement.selectionEnd = 0;
+        } else {
+            activeElement.selectionEnd = activeElement.value.length;
+            if (!event.shiftKey) activeElement.selectionStart = activeElement.value.length;
+        }
+    }
+
+    if (
+        activeElement instanceof HTMLTextAreaElement &&
+        !activeElement.readOnly &&
+        !activeElement.disabled
+    ) {
+        if (event.key === "Home") {
+            const index = activeElement.value.lastIndexOf("\n", activeElement.selectionStart - 1);
+
+            if (index !== -1) {
+                activeElement.selectionStart = index + 1;
+                if (!event.shiftKey) activeElement.selectionEnd = index + 1;
+            } else {
+                activeElement.selectionStart = 0;
+                if (!event.shiftKey) activeElement.selectionEnd = 0;
+            }
+        } else {
+            const index = activeElement.value.indexOf("\n", activeElement.selectionEnd);
+
+            if (index !== -1) {
+                activeElement.selectionEnd = index;
+                if (!event.shiftKey) activeElement.selectionStart = index;
+            } else {
+                activeElement.selectionEnd = activeElement.value.length;
+                if (!event.shiftKey) activeElement.selectionStart = activeElement.value.length;
+            }
+        }
+    }
+
+    if (activeElement instanceof HTMLElement && activeElement.isContentEditable) {
+        const selection = window.getSelection();
+        const range = selection?.getRangeAt(0);
+        let currentNode: Node | null = range?.startContainer ?? null;
+
+        if (selection && range && currentNode instanceof Text) {
+            if (event.key === "Home") {
+                range.setStart(currentNode, 0);
+
+                while (currentNode && currentNode !== activeElement) {
+                    if (currentNode.previousSibling) {
+                        if (isNodeBlockLevel(currentNode.previousSibling)) break;
+                        currentNode = currentNode.previousSibling;
+                    } else {
+                        currentNode = currentNode.parentNode;
+                        if (isNodeBlockLevel(currentNode)) break;
+                    }
+
+                    if (currentNode instanceof Text) {
+                        range.setStart(currentNode, 0);
+                    }
+                }
+
+                if (!event.shiftKey) {
+                    range.collapse(true);
+                }
+
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else {
+                const range = selection.getRangeAt(0);
+                let currentNode: Node | null = range.startContainer;
+
+                range.setEnd(currentNode, currentNode.textContent!.length);
+
+                while (currentNode && currentNode !== activeElement) {
+                    if (currentNode.nextSibling) {
+                        if (isNodeBlockLevel(currentNode.nextSibling)) break;
+                        currentNode = currentNode.nextSibling;
+                    } else {
+                        currentNode = currentNode.parentNode;
+                        if (isNodeBlockLevel(currentNode)) break;
+                    }
+
+                    if (currentNode instanceof Text) {
+                        range.setEnd(currentNode, currentNode.textContent!.length);
+                    }
+                }
+
+                if (!event.shiftKey) {
+                    range.collapse(false);
+                }
+
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    }
+}
+
+/**
+ * Does this element a [block level][1] display type?
+ *
+ * [1]: https://drafts.csswg.org/css-display/#the-display-properties
+ */
+function isNodeBlockLevel(node: Node | null): boolean {
+    return node instanceof HTMLElement && isHtmlElementBlockLevel(node);
+}
+
+/**
+ * Does this element a [block level][1] display type?
+ *
+ * [1]: https://drafts.csswg.org/css-display/#the-display-properties
+ */
+function isHtmlElementBlockLevel(element: HTMLElement): boolean {
+    const {display} = getComputedStyle(element);
+
+    return (
+        display === "block" ||
+        display === "flow-root" ||
+        display === "flex" ||
+        display === "grid" ||
+        display === "table"
+    );
+}
 
 /**
  * Protect against infinite error loops with `<SearchModal>`. If

@@ -43,10 +43,12 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {waitMicrotask} from "~/shared/helpers/async/wait_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Id} from "~/shared/id/id.js";
 
@@ -475,7 +477,12 @@ const fastSetupPromise = runAllPromises([
     bazelDevServerPromise,
     // Cleanup `FileUploadService`'s temporary directory whenever our dev process
     // manager restarts to make sure we start from a clean slate.
-    fs.rm(fileUploadServiceTemporaryDirectoryPath, {recursive: true}),
+    //
+    // Ignore error if the directory doesn't exist.
+    fs.rm(fileUploadServiceTemporaryDirectoryPath, {recursive: true}).catch(error => {
+        if (isObject(error) && error.code === "ENOENT") return;
+        throw error;
+    }),
 ]);
 
 // Don't wait for these promises to resolve before printing that our
@@ -497,6 +504,9 @@ const slowSetupPromise = runAllPromises([
 
 const artifactsPromise = runAllPromises(
     createArtifacts().map(async artifact => {
+        // Allow `fastMainPromise` to initialize.
+        await waitMicrotask();
+
         await runAllPromises([
             rebuildArtifact(artifact),
             updateArtifactDependencyBazelPackagePaths(artifact),

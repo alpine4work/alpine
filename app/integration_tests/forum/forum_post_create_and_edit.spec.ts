@@ -114,6 +114,7 @@ test("can edit a post in a channel", async ({
         .click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
     // On mobile, the selection starts at the beginning of the input not the end.
@@ -137,6 +138,7 @@ test("can edit a post in a channel", async ({
         .click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
 
     // On mobile, the selection starts at the beginning of the input not the end.
@@ -177,6 +179,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await page.getByRole("button", {name: "More"}).click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
     // On mobile, the selection starts at the beginning of the input not the end.
@@ -205,6 +208,7 @@ test("can edit a standalone post", async ({page, context: browserContext, isMobi
     await page.getByRole("button", {name: "More"}).click();
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 2");
 
     // On mobile, the selection starts at the beginning of the input not the end.
@@ -255,6 +259,7 @@ test("asks for confirmation to save edited post", async ({
 
     await page.getByRole("menuitem", {name: "Edit"}).click();
 
+    await expect(page.getByLabel("Post", {exact: true})).toBeFocused();
     await expect(page.getByLabel("Post", {exact: true})).toHaveText("Test post content 1");
 
     // On mobile, the selection starts at the beginning of the input not the end.

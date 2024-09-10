@@ -552,6 +552,7 @@ export class DynamoGeneralRealtimeTableSchema<
     public async createItem<Item extends Types["Item"]>(
         context: ServerActionContextWithBroadcast,
         item: Item,
+        options?: {isConditionCheckErrorRetriable?: boolean},
     ): Promise<{
         getRealtimeItem: () => Promise<
             DynamoGeneralRealtimeItem<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
@@ -572,7 +573,7 @@ export class DynamoGeneralRealtimeTableSchema<
         // the write.
         const readTime = new Date();
 
-        await this._table.createItem(context, item);
+        await this._table.createItem(context, item, options);
 
         const key = this._table.serializeOpaqueItemKey(item);
         const version = item.updateLockVersion ?? 0;

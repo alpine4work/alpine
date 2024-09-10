@@ -66,6 +66,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     await expect(page.getByText("1 comment")).toBeVisible();
     await expect(getAvatarInPileByInitials(page, "LR")).toBeVisible();
 
+    await expect(page.getByLabel("Comment", {exact: true})).toBeFocused();
     if (!isMobile) {
         await page.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     } else {
@@ -204,6 +205,7 @@ test("can see a post comment edited in realtime", async ({
 
     await editTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
+    await expect(page2.getByLabel("Comment", {exact: true})).toBeFocused();
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     } else {
@@ -433,6 +435,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
 
     await editTestId(page2, `MessageView:${post.id}:${comment.index}`);
 
+    await expect(page2.getByLabel("Comment", {exact: true})).toBeFocused();
     if (!isMobile) {
         await page2.getByRole("textbox", {name: "Comment", exact: true}).press("ArrowRight");
     } else {
