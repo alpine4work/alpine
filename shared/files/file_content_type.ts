@@ -24,7 +24,7 @@ export type FileContentType =
 //
 // - [x] Images
 // - [x] Documents
-// - [ ] Videos
+// - [x] Videos
 // - [ ] Code (optional)
 // - [ ] Audio (optional)
 //
