@@ -20,6 +20,7 @@ import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
 import {FileImagePreviewSize, FilePreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -220,11 +221,10 @@ export async function startUploadingAndProcessingFile(
         contentType: FileContentType;
         contentLength: number;
         hasAlternative: boolean;
-        hasPreview: {
-            type: "Image";
-            hasContent: boolean;
-            hasVideoDuration: boolean;
-        } | null;
+        hasPreview:
+            | {type: "Image"; hasContent: boolean; hasVideoDuration: boolean}
+            | {type: "Audio"}
+            | null;
     },
 ): Promise<FileUploader> {
     await authorizeSpaceAccess(context, spaceId);
@@ -255,14 +255,27 @@ export async function startUploadingAndProcessingFile(
         let preview: FilePreview | null = null;
 
         if (hasPreview) {
-            preview = {
-                type: "Image",
-                isProcessing: true,
-                size: "Processing",
-                placeholder: "Processing",
-                content: hasPreview.hasContent ? "Processing" : undefined,
-                videoDuration: hasPreview.hasVideoDuration ? "Processing" : undefined,
-            };
+            switch (hasPreview.type) {
+                case "Image":
+                    preview = {
+                        type: "Image",
+                        isProcessing: true,
+                        size: "Processing",
+                        placeholder: "Processing",
+                        content: hasPreview.hasContent ? "Processing" : undefined,
+                        videoDuration: hasPreview.hasVideoDuration ? "Processing" : undefined,
+                    };
+                    break;
+                case "Audio":
+                    preview = {
+                        type: "Audio",
+                        isProcessing: true,
+                        duration: "Processing",
+                    };
+                    break;
+                default:
+                    throw exhaustive(hasPreview);
+            }
         }
 
         const fileItem: FileItem = {
@@ -393,20 +406,24 @@ export class FileUploader {
                         throw new InternalError("File doesn't have an image preview");
                     }
                     if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
+                        throw new InternalError(
+                            "File has already finished processing its image preview",
+                        );
                     }
                     if (item.preview.size !== "Processing") {
                         throw new InternalError(
-                            "File has already finished processing its preview size",
+                            "File has already finished processing its image preview size",
                         );
                     }
                     if (alsoPreviewVideoDuration !== undefined) {
                         if (item.preview.videoDuration === undefined) {
-                            throw new InternalError("File doesn't have a preview video duration");
+                            throw new InternalError(
+                                "File doesn't have a image preview video duration",
+                            );
                         }
                         if (item.preview.videoDuration !== "Processing") {
                             throw new InternalError(
-                                "File has already finished processing its preview video duration",
+                                "File has already finished processing its image preview video duration",
                             );
                         }
                     }
@@ -475,11 +492,13 @@ export class FileUploader {
                         throw new InternalError("File doesn't have an image preview");
                     }
                     if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
+                        throw new InternalError(
+                            "File has already finished processing its image preview",
+                        );
                     }
                     if (item.preview.placeholder !== "Processing") {
                         throw new InternalError(
-                            "File has already finished processing its preview placeholder",
+                            "File has already finished processing its image preview placeholder",
                         );
                     }
 
@@ -552,14 +571,16 @@ export class FileUploader {
                         throw new InternalError("File doesn't have an image preview");
                     }
                     if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
+                        throw new InternalError(
+                            "File has already finished processing its image preview",
+                        );
                     }
                     if (item.preview.content !== "Processing") {
                         if (item.preview.content === undefined) {
-                            throw new InternalError("File doesn't have a preview image");
+                            throw new InternalError("File doesn't have image preview content");
                         } else {
                             throw new InternalError(
-                                "File has already finished processing its preview image",
+                                "File has already finished processing its image preview content",
                             );
                         }
                     }
@@ -663,14 +684,16 @@ export class FileUploader {
                         throw new InternalError("File doesn't have an image preview");
                     }
                     if (!item.preview.isProcessing) {
-                        throw new InternalError("File has already finished processing its preview");
+                        throw new InternalError(
+                            "File has already finished processing its image preview",
+                        );
                     }
                     if (item.preview.videoDuration === undefined) {
-                        throw new InternalError("File doesn't have a preview video duration");
+                        throw new InternalError("File doesn't have a image preview video duration");
                     }
                     if (item.preview.videoDuration !== "Processing") {
                         throw new InternalError(
-                            "File has already finished processing its preview video duration",
+                            "File has already finished processing its image preview video duration",
                         );
                     }
 
@@ -703,6 +726,58 @@ export class FileUploader {
             );
 
             return {wasUpdated: true};
+        });
+    }
+
+    /**
+     * When we're done processing `preview.duration` for a file with an audio
+     * preview this function is called. Since audio previews only need a duration
+     * the file is immediately considered to have finished processing.
+     */
+    public async finishProcessingAudioPreviewDuration(
+        context: ServerSessionActionContext,
+        duration: number,
+    ): Promise<void> {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        return this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn't have a preview");
+                    }
+                    if (item.preview.type !== "Audio") {
+                        throw new InternalError("File doesn't have an audio preview");
+                    }
+                    if (!item.preview.isProcessing) {
+                        throw new InternalError("File has already finished processing its preview");
+                    }
+                    if (item.preview.duration !== "Processing") {
+                        throw new InternalError(
+                            "File has already finished processing its audio preview duration",
+                        );
+                    }
+
+                    return {
+                        ...item,
+                        preview: {
+                            type: "Audio",
+                            isProcessing: false,
+                            duration,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
         });
     }
 

@@ -13,8 +13,8 @@ import {
     ffmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
-    parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
-} from "~/server/files/upload/processors/file_video_processor_base.js";
+    parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
+} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
@@ -147,7 +147,7 @@ export function createFileWebSafeVideoProcessor(
 
                             try {
                                 const previewSize =
-                                    parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
+                                    parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
                                         stderr,
                                     );
                                 if (!previewSize) return;
@@ -311,7 +311,7 @@ export function createFileWebSafeVideoProcessor(
                     stderr += string;
                 });
 
-                return span.withSpan("FFmpeg decode preview video duration", async span => {
+                return span.withSpan("FFmpeg decode image preview video duration", async span => {
                     span.addData({
                         file: {contentType, contentLength, processorType},
                     });

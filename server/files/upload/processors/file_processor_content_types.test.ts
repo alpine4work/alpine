@@ -5,6 +5,7 @@ import {
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
+    FileAudioContentType,
     FileContentType,
     FileMicrosoftOfficeDocumentContentType,
     FileVideoContentType,
@@ -16,7 +17,7 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 const testCases: {
     [Key in Exclude<
         FileContentType,
-        FileMicrosoftOfficeDocumentContentType | FileVideoContentType
+        FileMicrosoftOfficeDocumentContentType | FileVideoContentType | FileAudioContentType
     >]: FileProcessorContentTypeTestCase;
 } = {
     "application/octet-stream": [

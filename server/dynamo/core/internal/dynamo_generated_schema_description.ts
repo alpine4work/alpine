@@ -3001,7 +3001,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "video/mp4",
                                                 "video/quicktime",
                                                 "video/mpeg",
-                                                "video/x-matroska"
+                                                "video/x-matroska",
+                                                "audio/mp4",
+                                                "audio/mpeg",
+                                                "audio/ogg",
+                                                "audio/wav",
+                                                "audio/webm"
                                             ],
                                             "referenceId": "af264040"
                                         },

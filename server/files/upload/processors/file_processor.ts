@@ -70,7 +70,9 @@ export type FileProcessor =
     | FileProcessorTemplate<
           "ImagePreviewContent",
           {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
-      >;
+      >
+    | FileProcessorTemplate<false, {readonly type: "Audio"}>
+    | FileProcessorTemplate<true, {readonly type: "Audio"}>;
 
 export interface NoopFileProcessor {
     readonly type: "Noop";
@@ -78,25 +80,34 @@ export interface NoopFileProcessor {
     readonly hasPreview: null;
 }
 
-type FileProcessorTemplateHasPreview = {
+type FileProcessorTemplateHasImagePreview = {
     readonly type: "Image";
     readonly hasContent: boolean;
     readonly hasVideoDuration: boolean;
 };
+
+type FileProcessorTemplateHasAudioPreview = {
+    readonly type: "Audio";
+};
+
+type FileProcessorTemplateHasPreview =
+    | FileProcessorTemplateHasImagePreview
+    | FileProcessorTemplateHasAudioPreview;
 
 export interface FileProcessorTemplate<
     HasAlternative extends boolean | "ImagePreviewContent",
     HasPreview extends FileProcessorTemplateHasPreview | null,
 > {
     readonly type:
-        | "Noop"
         | "WebSafeImage"
         | "WebUnsafeImage"
         | "IcoImage"
         | "PdfDocument"
         | "MicrosoftOfficeDocument"
         | "WebSafeVideo"
-        | "WebUnsafeVideo";
+        | "WebUnsafeVideo"
+        | "WebSafeAudio"
+        | "WebUnsafeAudio";
     readonly hasAlternative: HasAlternative;
     readonly hasPreview: HasPreview;
 
@@ -146,13 +157,22 @@ type FileProcessorTemplateResult<
               },
               {alternativePromise?: undefined}
           >) &
-        FileProcessorTemplateResult2<HasPreview>
+        FileProcessorTemplateResultFromHasPreview<HasPreview>
 >;
 
-type FileProcessorTemplateResult2<HasPreview extends FileProcessorTemplateHasPreview | null> =
-    HasPreview extends null ? {} : FileProcessorTemplateResult3<Exclude<HasPreview, null>>;
+type FileProcessorTemplateResultFromHasPreview<
+    HasPreview extends FileProcessorTemplateHasPreview | null,
+> = HasPreview extends null
+    ? {}
+    : HasPreview extends {type: "Image"}
+    ? FileProcessorTemplateResultFromHasImagePreview<Exclude<HasPreview, null>>
+    : HasPreview extends {type: "Audio"}
+    ? FileProcessorTemplateResultFromHasAudioPreview
+    : never;
 
-type FileProcessorTemplateResult3<HasPreview extends FileProcessorTemplateHasPreview> = {
+type FileProcessorTemplateResultFromHasImagePreview<
+    HasPreview extends FileProcessorTemplateHasImagePreview,
+> = {
     imagePreviewSizePromise: Promise<
         FileImagePreviewSize &
             If<
@@ -176,7 +196,17 @@ type FileProcessorTemplateResult3<HasPreview extends FileProcessorTemplateHasPre
         HasPreview["hasVideoDuration"],
         {imagePreviewVideoDurationPromise: Promise<number>},
         {imagePreviewVideoDurationPromise?: undefined}
-    >;
+    > & {
+        audioPreviewDurationPromise?: undefined;
+    };
+
+type FileProcessorTemplateResultFromHasAudioPreview = {
+    audioPreviewDurationPromise: Promise<number>;
+    imagePreviewSizePromise?: undefined;
+    imagePreviewPlaceholderPromise?: undefined;
+    imagePreviewContentPromise?: undefined;
+    imagePreviewVideoDurationPromise?: undefined;
+};
 
 export const fileNoopProcessor: FileProcessor = {
     type: "Noop",

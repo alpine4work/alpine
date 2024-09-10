@@ -88,7 +88,7 @@ export const ffmpegImagePreviewContentOutputOptions = [
  * frame=    1 fps=0.0 q=0.0 Lsize=       8KiB time=00:00:00.04 bitrate=1617.1kbits/s speed=0.135x
  * ```
  */
-export function parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
+export function parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
     stderr: string,
 ): (FileImagePreviewSize & {videoDuration?: number}) | null {
     const match = stderr.match(
@@ -107,6 +107,10 @@ export function parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
         //   dimensions. For example we've seen strings that include
         //   "Video: mpeg2video (Main) (m2v1 / 0x3176326D), ..." where "0x3176326"
         //   (without the "D") was being interpreted as dimensions.
+        //
+        // `parseFileAudioPreviewDurationIfPossibleFromFfmpegStderr()` has a modified
+        // version of this regular expression. If you make an update here you may also
+        // need to make it there.
         /(?:^|\n)Input #0\D.*\n(?:  .*\n)*?  Duration: *(N\/A|\d\d:\d\d:\d\d(?:\.\d+)?).*\n(?:  .*\n)*?  Stream #0:.*?: Video: .*?([1-9][0-9]*x[1-9][0-9]*)/,
     );
     if (!match) return null;
@@ -134,6 +138,36 @@ export function parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
         scale: 1,
         videoDuration: duration,
     };
+}
+
+/**
+ * Parse the duration of the first input to FFmpeg. A regular
+ * expression does all the heavy lifting for this function.
+ *
+ * This is a simpler version of
+ * `parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr()`
+ * since for audio we only need the duration. There aren't dimensions we need
+ * to parse as well.
+ */
+export function parseFileAudioPreviewDurationIfPossibleFromFfmpegStderr(
+    stderr: string,
+): number | null {
+    const match = stderr.match(
+        // A modified version of
+        // `parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr()`'s
+        // regular expression that only looks for duration. If you make a change to
+        // this regular expression you should change that one as well.
+        /(?:^|\n)Input #0\D.*\n(?:  .*\n)*?  Duration: *(N\/A|\d\d:\d\d:\d\d(?:\.\d+)?)/,
+    );
+    if (!match) return null;
+
+    const durationString = match[1] ?? "";
+    let duration: number | null = null;
+    if (durationString !== "N/A") {
+        duration = parseFfmpegStderrDuration(durationString);
+    }
+
+    return duration;
 }
 
 /**

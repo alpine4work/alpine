@@ -18,15 +18,16 @@ export type FileContentType =
     | "application/octet-stream"
     | FileImageContentType
     | FileDocumentContentType
-    | FileVideoContentType;
+    | FileVideoContentType
+    | FileAudioContentType;
 
 // TODO(calebmer, #files): File types to support:
 //
 // - [x] Images
 // - [x] Documents
 // - [x] Videos
+// - [x] Audio (optional)
 // - [ ] Code (optional)
-// - [ ] Audio (optional)
 //
 // A good reference for file types we should support is Canva:
 // https://www.canva.com/help/upload-formats-requirements
@@ -151,15 +152,14 @@ export type FileMicrosoftOfficeDocumentContentType =
  *     - [MP3](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#mp3_mpeg-1_audio_layer_iii)
  *     - [Opus](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#opus)
  *   - Browser compatibility notes:
- *     - AVC (H.264), VP9, FLAC, MP3 (audio codec), and Opus have full browser
- *       compatibility.
+ *     - AAC, AVC (H.264), VP9, FLAC, MP3 (audio codec), and Opus have full
+ *       browser compatibility.
  *     - AV1 is partially supported by all major browsers, Safari requires
  *       specific hardware support.
  *     - HEVC (H.265) is supported by all browsers except Firefox. Firefox won't
  *       add support for patent reasons.
  *     - MP4V-ES is only supported by Firefox.
  *     - MPEG-2 and ALAC are only supported by Safari.
- *     - AAC's compatibility is spotty.
  *
  * - [MPEG/MPEG-2](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#mpegmpeg-2)
  *   - Supported common video codecs:
@@ -228,6 +228,91 @@ export type FileMp4VideoContentType = "video/mp4";
 
 export type FileWebUnsafeVideoContentType = "video/quicktime" | "video/mpeg" | "video/x-matroska";
 
+/**
+ * Audio files we support. We support all the same video types as Canva. See
+ * [Canva's upload formats][1]. Like video, audio container format and codec
+ * support can be spotty across browsers. However, audio codecs have much
+ * better browser compatibility in general than video codecs. The following is
+ * a survey of the audio container files and their codecs's browser
+ * compatibility notes based on MDN's "[Web audio codec guide][2]" and
+ * [caniuse][3] for up-to-date browser compatibility information.
+ *
+ * - MP4 (aka M4A, MP4 is also a video container file format)
+ *   - [AAC (Advanced Audio Coding)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#aac_advanced_audio_coding)
+ *     - Full browser compatibility. Firefox depends on native platform support
+ *       which is fine for us to consider this codec web safe
+ *   - [ALAC (Apple Lossless Audio Codec)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#alac_apple_lossless_audio_codec)
+ *     - Only supported by Safari
+ *   - [FLAC (Free Lossless Audio Codec)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#flac_free_lossless_audio_codec)
+ *     - Full browser compatibility
+ *   - [MP3 (MPEG-1 Audio Layer III)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#mp3_mpeg-1_audio_layer_iii)
+ *     - Full browser compatibility
+ *   - [Opus](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#opus)
+ *     - Partial browser compatibility. [According to caniuse](https://caniuse.com/opus)
+ *       Opus is only supported in `.webm` containers in Safari
+ *
+ * - MP3
+ *   - Technically MP3 is an audio codec not a container format. MP3 audio
+ *     stored in an MPEG container with no video track is referred to as an MP3
+ *     file.
+ *   - Full browser compatibility.
+ *
+ * - [OGG](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#ogg)
+ *   - [FLAC (Free Lossless Audio Codec)](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#flac_free_lossless_audio_codec)
+ *     - Full browser compatibility
+ *   - [Opus](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#opus)
+ *     - Partial browser compatibility. [According to caniuse](https://caniuse.com/opus)
+ *       Opus is only supported in `.webm` containers in Safari
+ *   - [Vorbis](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#vorbis)
+ *     - Partial browser compatibility. [According to caniuse](https://caniuse.com/ogg-vorbis)
+ *       Vorbis is supported but not in an OGG container.
+ *
+ * - [WAV](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers)
+ *   - Uncompressed lossless audio format. While WAV files technically support
+ *     many audio codecs basically all files use linear PCM.
+ *   - Full browser compatibility [according to caniuse](https://caniuse.com/wav).
+ *     Unclear if caniuse is considering all codecs supported by WAV files or
+ *     not. We'll also assume basically all WAV files use PCM.
+ *
+ * - [WebM](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Containers#webm)
+ *   - [Opus](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#opus)
+ *     - Full browser compatibility. [According to caniuse](https://caniuse.com/opus)
+ *       Opus is only supported in `.webm` containers in Safari
+ *   - [Vorbis](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs#vorbis)
+ *     - Full browser compatibility. [According to caniuse](https://caniuse.com/ogg-vorbis)
+ *       Vorbis is supported but not in an OGG container.
+ *
+ * So of the video formats we support, the following are fully unsafe for web
+ * and need to be converted to a web safe format:
+ *
+ * - OGG
+ *
+ * The following are fully safe for web and can be served as-is:
+ *
+ * - MP3
+ * - WAV
+ * - WebM
+ *
+ * ...and the following are sometimes safe for web, sometimes unsafe, depends
+ * on the video and audio codec used:
+ *
+ * - MP4 (aka M4A)
+ *
+ * [1]: https://www.canva.com/help/upload-formats-requirements
+ * [2]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Audio_codecs
+ * [3]: https://caniuse.com
+ */
+export type FileAudioContentType =
+    | FileWebSafeAudioContentType
+    | FileWebUnsafeAudioContentType
+    | FileMp4AudioContentType;
+
+export type FileWebSafeAudioContentType = "audio/mpeg" | "audio/wav" | "audio/webm";
+
+export type FileMp4AudioContentType = "audio/mp4";
+
+export type FileWebUnsafeAudioContentType = "audio/ogg";
+
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
 const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = {
@@ -256,6 +341,11 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "video/quicktime": "mov",
     "video/mpeg": "mpeg",
     "video/x-matroska": "mkv",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "audio/webm": "weba",
+    "audio/ogg": "oga",
+    "audio/mp4": "m4a",
 };
 
 /**

@@ -2,13 +2,13 @@ import {
     FileProcessorContentTypeTestCase,
     testFileProcessorContentTypes,
 } from "~/server/files/upload/test_helpers/test_file_processor_content_types.js";
-import {FileVideoContentType} from "~/shared/files/file_content_type.js";
+import {FileAudioContentType, FileVideoContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 
 // Use TypeScript to make sure we have at least one file as a test case for
 // each of the `FileContentType`s we support.
 const testCases: {
-    [Key in FileVideoContentType]: FileProcessorContentTypeTestCase;
+    [Key in FileVideoContentType | FileAudioContentType]: FileProcessorContentTypeTestCase;
 } = {
     "video/webm": [
         {
@@ -310,6 +310,55 @@ const testCases: {
                 contentType: "image/avif",
                 similarPath: "wikimedia_france_vs_czech_republic_2013_09_21.avif",
             },
+        },
+    ],
+    "audio/mpeg": [
+        {
+            path: "pokemon_regirock_un_un_un_meme.mp3",
+            audioPreviewDuration: 5538,
+        },
+    ],
+    "audio/wav": [
+        {
+            path: "pokemon_regirock_un_un_un_meme.wav",
+            audioPreviewDuration: 5510,
+        },
+    ],
+    "audio/webm": [
+        {
+            path: "pokemon_regirock_un_un_un_meme.weba",
+            audioPreviewDuration: 5519,
+        },
+        {
+            path: "pokemon_regirock_un_un_un_meme_without_metadata.weba",
+            audioPreviewDuration: 5510,
+        },
+    ],
+    "audio/ogg": [
+        {
+            path: "pokemon_regirock_un_un_un_meme.oga",
+            alternative: {contentType: "audio/webm"},
+            audioPreviewDuration: 5510,
+        },
+        {
+            // This is a hack but we want to test the unsafe audio processor with a file
+            // that doesn't have duration metadata. So pretend our WebM file without
+            // metadata is an OGG file. We aren't currently asserting that the container
+            // format matches the content type which is why this works.
+            path: "pokemon_regirock_un_un_un_meme_without_metadata.weba",
+            alternative: {contentType: "audio/webm"},
+            audioPreviewDuration: 5510,
+        },
+    ],
+    "audio/mp4": [
+        {
+            path: "pokemon_regirock_un_un_un_meme_with_aac_audio_codec.m4a",
+            audioPreviewDuration: 5512,
+        },
+        {
+            path: "pokemon_regirock_un_un_un_meme_with_alac_audio_codec.m4a",
+            alternative: {contentType: "audio/webm"},
+            audioPreviewDuration: 5510,
         },
     ],
 };

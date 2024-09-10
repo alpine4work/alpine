@@ -17,9 +17,11 @@ import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
 import {createFilePdfDocumentProcessor} from "~/server/files/upload/processors/file_pdf_document_processor.js";
 import {FileProcessor, fileNoopProcessor} from "~/server/files/upload/processors/file_processor.js";
-import {ffprobeExecutablePath} from "~/server/files/upload/processors/file_video_processor_base.js";
+import {ffprobeExecutablePath} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
+import {createFileWebSafeAudioProcessor} from "~/server/files/upload/processors/file_web_safe_audio_processor.js";
 import {createFileWebSafeImageProcessor} from "~/server/files/upload/processors/file_web_safe_image_processor.js";
 import {createFileWebSafeVideoProcessor} from "~/server/files/upload/processors/file_web_safe_video_processor.js";
+import {createFileWebUnsafeAudioProcessor} from "~/server/files/upload/processors/file_web_unsafe_audio_processor.js";
 import {createFileWebUnsafeImageProcessor} from "~/server/files/upload/processors/file_web_unsafe_image_processor.js";
 import {createFileWebUnsafeVideoProcessor} from "~/server/files/upload/processors/file_web_unsafe_video_processor.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
@@ -38,6 +40,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {
     FileContentType,
     FileContentTypeSchema,
+    FileMp4AudioContentType,
     FileMp4VideoContentType,
     isFileContentType,
     normalizeContentType,
@@ -70,10 +73,15 @@ export const UploadFileEventSchema = Schema.union({
         type: Schema.value("Start"),
         fileId: Schema.id<FileId>(),
         hasAlternative: Schema.boolean,
-        hasPreview: Schema.object({
-            type: Schema.value("Image"),
-            hasContent: Schema.boolean,
-            hasVideoDuration: Schema.boolean,
+        hasPreview: Schema.union({
+            Image: Schema.object({
+                type: Schema.value("Image"),
+                hasContent: Schema.boolean,
+                hasVideoDuration: Schema.boolean,
+            }),
+            Audio: Schema.object({
+                type: Schema.value("Audio"),
+            }),
         }).nullable(),
     }),
     Finish: Schema.object({
@@ -103,6 +111,10 @@ export const UploadFileEventSchema = Schema.union({
     ImagePreviewVideoDuration: Schema.object({
         type: Schema.value("ImagePreviewVideoDuration"),
         videoDuration: Schema.integer,
+    }),
+    AudioPreviewDuration: Schema.object({
+        type: Schema.value("AudioPreviewDuration"),
+        duration: Schema.integer,
     }),
     PreviewError: Schema.object({
         type: Schema.value("PreviewError"),
@@ -253,7 +265,7 @@ async function actuallyUploadFile(
     // https://nodejs.org/api/stream.html#three-states
     assert(stream.readableFlowing === null);
 
-    if (contentType !== "video/mp4") {
+    if (contentType !== "video/mp4" && contentType !== "audio/mp4") {
         fileProcessor = fileProcessorByContentType[contentType];
     } else {
         const replayStream = stream.pipe(new ReplayStream());
@@ -262,7 +274,12 @@ async function actuallyUploadFile(
         // need to get the codecs from the MP4 file. If the codecs are all web safe
         // then we can use a web safe processor. If the codecs are web unsafe then we
         // have to use our web unsafe video processor which is more expensive.
-        fileProcessor = await selectFileMp4VideoProcessor(span, contentType, contentLength, stream);
+        fileProcessor = await selectFileMp4VideoOrAudioProcessor(
+            span,
+            contentType,
+            contentLength,
+            stream,
+        );
 
         replayStream.ready();
         stream = replayStream;
@@ -424,6 +441,7 @@ async function uploadAndProcessFile(
                   imagePreviewPlaceholderPromise,
                   imagePreviewContentPromise,
                   imagePreviewVideoDurationPromise,
+                  audioPreviewDurationPromise,
               } = fileProcessor.process(stream, signal, {
                   span,
                   fileId: fileUploader.fileId,
@@ -439,6 +457,7 @@ async function uploadAndProcessFile(
               imagePreviewPlaceholderPromise?.catch(() => {});
               imagePreviewContentPromise?.catch(() => {});
               imagePreviewVideoDurationPromise?.catch(() => {});
+              audioPreviewDurationPromise?.catch(() => {});
 
               let hasAcceptedPreviewError = false;
 
@@ -549,61 +568,70 @@ async function uploadAndProcessFile(
                     )
                   : null;
 
-              const actualImagePreviewSizePromise = (async () => {
-                  const size = await imagePreviewSizePromise;
-                  if (signal.aborted) throw signal.reason;
-                  if (hasAcceptedPreviewError) return;
+              const actualImagePreviewSizePromise = imagePreviewSizePromise
+                  ? (async () => {
+                        const size = await imagePreviewSizePromise;
+                        if (signal.aborted) throw signal.reason;
+                        if (hasAcceptedPreviewError) return;
 
-                  await fileUploader.finishProcessingImagePreviewSize(
-                      context,
-                      {
-                          width: size.width,
-                          height: size.height,
-                          scale: size.scale,
-                      },
-                      size.videoDuration !== undefined
-                          ? {alsoPreviewVideoDuration: size.videoDuration}
-                          : undefined,
-                  );
+                        await fileUploader.finishProcessingImagePreviewSize(
+                            context,
+                            {
+                                width: size.width,
+                                height: size.height,
+                                scale: size.scale,
+                            },
+                            size.videoDuration !== undefined
+                                ? {alsoPreviewVideoDuration: size.videoDuration}
+                                : undefined,
+                        );
 
-                  sendEvent({
-                      type: "ImagePreviewSize",
-                      width: size.width,
-                      height: size.height,
-                      scale: size.scale,
-                  });
+                        sendEvent({
+                            type: "ImagePreviewSize",
+                            width: size.width,
+                            height: size.height,
+                            scale: size.scale,
+                        });
 
-                  if (size.videoDuration !== undefined) {
-                      sendEvent({
-                          type: "ImagePreviewVideoDuration",
-                          videoDuration: size.videoDuration,
-                      });
-                  }
+                        if (size.videoDuration !== undefined) {
+                            sendEvent({
+                                type: "ImagePreviewVideoDuration",
+                                videoDuration: size.videoDuration,
+                            });
+                        }
 
-                  return {
-                      file: {
-                          preview: {
-                              width: size.width,
-                              height: size.height,
-                              scale: size.scale,
-                              videoDurationMs: size.videoDuration,
-                          },
-                      },
-                  };
-              })().catch(createAbortCatcher("File image preview size processing failed"));
+                        return {
+                            file: {
+                                preview: {
+                                    imageWidth: size.width,
+                                    imageHeight: size.height,
+                                    imageScale: size.scale,
+                                    imageVideoDurationMs: size.videoDuration,
+                                },
+                            },
+                        };
+                    })().catch(createAbortCatcher("File image preview size processing failed"))
+                  : null;
 
-              const actualImagePreviewPlaceholderPromise = (async () => {
-                  const placeholder = await imagePreviewPlaceholderPromise;
-                  if (signal.aborted) throw signal.reason;
-                  if (hasAcceptedPreviewError) return;
+              const actualImagePreviewPlaceholderPromise = imagePreviewPlaceholderPromise
+                  ? (async () => {
+                        const placeholder = await imagePreviewPlaceholderPromise;
+                        if (signal.aborted) throw signal.reason;
+                        if (hasAcceptedPreviewError) return;
 
-                  await fileUploader.finishProcessingImagePreviewPlaceholder(context, placeholder);
+                        await fileUploader.finishProcessingImagePreviewPlaceholder(
+                            context,
+                            placeholder,
+                        );
 
-                  sendEvent({
-                      type: "ImagePreviewPlaceholder",
-                      placeholder,
-                  });
-              })().catch(createAbortCatcher("File image preview placeholder processing failed"));
+                        sendEvent({
+                            type: "ImagePreviewPlaceholder",
+                            placeholder,
+                        });
+                    })().catch(
+                        createAbortCatcher("File image preview placeholder processing failed"),
+                    )
+                  : null;
 
               const actualImagePreviewContentPromise = imagePreviewContentPromise
                   ? (async () => {
@@ -680,25 +708,25 @@ async function uploadAndProcessFile(
 
               const actualImagePreviewVideoDurationPromise = imagePreviewVideoDurationPromise
                   ? (async () => {
-                        const previewVideoDuration = await imagePreviewVideoDurationPromise;
+                        const videoDuration = await imagePreviewVideoDurationPromise;
                         if (signal.aborted) throw signal.reason;
                         if (hasAcceptedPreviewError) return;
 
                         const {wasUpdated} =
                             await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
                                 context,
-                                previewVideoDuration,
+                                videoDuration,
                             );
 
                         if (wasUpdated) {
                             sendEvent({
                                 type: "ImagePreviewVideoDuration",
-                                videoDuration: previewVideoDuration,
+                                videoDuration,
                             });
                         }
 
                         return {
-                            file: {preview: {videoDurationMs: previewVideoDuration}},
+                            file: {preview: {imageVideoDurationMs: videoDuration}},
                             // Record if there was no update (since `imagePreviewSizePromise` saved the video
                             // duration). The `child` key will only be added to `childSpan` and not our
                             // parent processor span.
@@ -707,6 +735,25 @@ async function uploadAndProcessFile(
                     })().catch(
                         createAbortCatcher("File image preview video duration processing failed"),
                     )
+                  : null;
+
+              const actualAudioPreviewDurationPromise = audioPreviewDurationPromise
+                  ? (async () => {
+                        const duration = await audioPreviewDurationPromise;
+                        if (signal.aborted) throw signal.reason;
+                        if (hasAcceptedPreviewError) return;
+
+                        await fileUploader.finishProcessingAudioPreviewDuration(context, duration);
+
+                        sendEvent({
+                            type: "AudioPreviewDuration",
+                            duration,
+                        });
+
+                        return {
+                            file: {preview: {audioDurationMs: duration}},
+                        };
+                    })().catch(createAbortCatcher("File audio preview duration processing failed"))
                   : null;
 
               const sharedChildSpanData = {
@@ -732,18 +779,22 @@ async function uploadAndProcessFile(
                             span.addData(spanData);
                         })
                       : null,
-                  span.withSpan("Process file image preview size", async childSpan => {
-                      childSpan.addData(sharedChildSpanData);
-                      const spanData = await actualImagePreviewSizePromise;
-                      if (spanData) {
-                          childSpan.addData(spanData);
-                          span.addData(spanData);
-                      }
-                  }),
-                  span.withSpan("Process file image preview placeholder", async childSpan => {
-                      childSpan.addData(sharedChildSpanData);
-                      await actualImagePreviewPlaceholderPromise;
-                  }),
+                  actualImagePreviewSizePromise
+                      ? span.withSpan("Process file image preview size", async childSpan => {
+                            childSpan.addData(sharedChildSpanData);
+                            const spanData = await actualImagePreviewSizePromise;
+                            if (spanData) {
+                                childSpan.addData(spanData);
+                                span.addData(spanData);
+                            }
+                        })
+                      : null,
+                  actualImagePreviewPlaceholderPromise
+                      ? span.withSpan("Process file image preview placeholder", async childSpan => {
+                            childSpan.addData(sharedChildSpanData);
+                            await actualImagePreviewPlaceholderPromise;
+                        })
+                      : null,
                   actualImagePreviewContentPromise
                       ? span.withSpan("Process file image preview image", async childSpan => {
                             childSpan.addData(sharedChildSpanData);
@@ -769,6 +820,16 @@ async function uploadAndProcessFile(
                             },
                         )
                       : null,
+                  actualAudioPreviewDurationPromise
+                      ? span.withSpan("Process file audio preview duration", async childSpan => {
+                            childSpan.addData(sharedChildSpanData);
+                            const spanData = await actualAudioPreviewDurationPromise;
+                            if (spanData) {
+                                childSpan.addData(spanData);
+                                span.addData(spanData);
+                            }
+                        })
+                      : null,
               ]).catch(error => {
                   // If we caught the processing error, then don't fail our entire upload job. We
                   // finished processing but stored an error in the database.
@@ -788,7 +849,9 @@ async function uploadAndProcessFile(
 }
 
 const createFileProcessorByContentType: {
-    [Key in Exclude<FileContentType, FileMp4VideoContentType>]: (contentType: Key) => FileProcessor;
+    [Key in Exclude<FileContentType, FileMp4VideoContentType | FileMp4AudioContentType>]: (
+        contentType: Key,
+    ) => FileProcessor;
 } = {
     "application/octet-stream": () => fileNoopProcessor,
     "image/apng": createFileWebSafeImageProcessor,
@@ -817,16 +880,25 @@ const createFileProcessorByContentType: {
     "video/quicktime": createFileWebUnsafeVideoProcessor,
     "video/mpeg": createFileWebUnsafeVideoProcessor,
     "video/x-matroska": createFileWebUnsafeVideoProcessor,
+    "audio/mpeg": createFileWebSafeAudioProcessor,
+    "audio/wav": createFileWebSafeAudioProcessor,
+    "audio/webm": createFileWebSafeAudioProcessor,
+    "audio/ogg": createFileWebUnsafeAudioProcessor,
 };
 
 const fileProcessorByContentType: {
-    [Key in Exclude<FileContentType, FileMp4VideoContentType>]: FileProcessor;
+    [Key in Exclude<
+        FileContentType,
+        FileMp4VideoContentType | FileMp4AudioContentType
+    >]: FileProcessor;
 } = mapObjectValues(createFileProcessorByContentType, (createFileProcessor, contentType) =>
     (createFileProcessor as any)(contentType),
 );
 
 const fileWebSafeMp4VideoProcessor = createFileWebSafeVideoProcessor("video/mp4");
 const fileWebUnsafeMp4VideoProcessor = createFileWebUnsafeVideoProcessor("video/mp4");
+const fileWebSafeMp4AudioProcessor = createFileWebSafeAudioProcessor("audio/mp4");
+const fileWebUnsafeMp4AudioProcessor = createFileWebUnsafeAudioProcessor("audio/mp4");
 
 const ffmpegWebSafeMp4CodecNames = new Set([
     "av1",
@@ -839,11 +911,14 @@ const ffmpegWebSafeMp4CodecNames = new Set([
     "mp3float",
     "opus",
     "libopus",
+    "aac",
+    "aac_fixed",
+    "aac_at",
 ]);
 
-function selectFileMp4VideoProcessor(
+function selectFileMp4VideoOrAudioProcessor(
     span: TracerSpan,
-    contentType: FileContentType,
+    contentType: FileMp4VideoContentType | FileMp4AudioContentType,
     contentLength: number,
     stream: ReadableStream,
 ): Promise<FileProcessor> {
@@ -879,20 +954,24 @@ function selectFileMp4VideoProcessor(
 
         const codecNames = codecNamesString.trim().split("\n");
 
+        let processor: FileProcessor;
+        if (codecNames.every(codecName => ffmpegWebSafeMp4CodecNames.has(codecName))) {
+            processor =
+                contentType === "audio/mp4"
+                    ? fileWebSafeMp4AudioProcessor
+                    : fileWebSafeMp4VideoProcessor;
+        } else {
+            processor =
+                contentType === "audio/mp4"
+                    ? fileWebUnsafeMp4AudioProcessor
+                    : fileWebUnsafeMp4VideoProcessor;
+        }
+
         span.addData({
             ffmpeg: {codecs: codecNames.join("/")},
+            file: {processorType: processor.type},
         });
 
-        if (codecNames.every(codecName => ffmpegWebSafeMp4CodecNames.has(codecName))) {
-            span.addData({
-                file: {processorType: fileWebSafeMp4VideoProcessor.type},
-            });
-            return fileWebSafeMp4VideoProcessor;
-        } else {
-            span.addData({
-                file: {processorType: fileWebUnsafeMp4VideoProcessor.type},
-            });
-            return fileWebUnsafeMp4VideoProcessor;
-        }
+        return processor;
     });
 }

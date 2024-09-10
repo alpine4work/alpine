@@ -17,7 +17,7 @@ import {createFileUploadService} from "~/server/files/upload/file_upload_service
 import {
     ffmpegExecutablePath,
     ffprobeExecutablePath,
-} from "~/server/files/upload/processors/file_video_processor_base.js";
+} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
 import {UploadFileEventSchema} from "~/server/files/upload/upload_file.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -53,7 +53,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
     path: string;
     alternative?: {
         contentType: FileContentType;
-        similarPath: string;
+        similarPath?: string;
     };
     imagePreviewVideoDuration?: number;
     imagePreviewSize?: {
@@ -67,6 +67,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         contentType: FileContentType;
         similarPath: string;
     };
+    audioPreviewDuration?: number;
     previewError?: {
         code: ErrorCode;
         displayMessage: ErrorDisplayMessage;
@@ -152,6 +153,7 @@ export function testFileProcessorContentTypes(testCases: {
             imagePreviewPlaceholder: expectedImagePreviewPlaceholder,
             isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
             imagePreviewContent: expectedImagePreviewContent,
+            audioPreviewDuration: expectedAudioPreviewDuration,
             previewError: expectedPreviewError,
             looksSameTolerance = 35,
         } of contentTypeTestCases) {
@@ -192,6 +194,7 @@ export function testFileProcessorContentTypes(testCases: {
                         "ImagePreviewPlaceholder",
                         "ImagePreviewContent",
                         "ImagePreviewVideoDuration",
+                        "AudioPreviewDuration",
                         "PreviewError",
                         "Alternative",
                         "Finish",
@@ -264,6 +267,12 @@ export function testFileProcessorContentTypes(testCases: {
                                           : undefined,
                                       videoDuration: expectedImagePreviewVideoDuration,
                                   }
+                                : expectedAudioPreviewDuration
+                                ? {
+                                      type: "Audio",
+                                      isProcessing: false,
+                                      duration: expectedAudioPreviewDuration,
+                                  }
                                 : null,
                         }),
                     );
@@ -282,6 +291,8 @@ export function testFileProcessorContentTypes(testCases: {
                                               !!expectedPreviewError,
                                           hasVideoDuration: !!expectedImagePreviewVideoDuration,
                                       }
+                                    : expectedAudioPreviewDuration
+                                    ? {type: "Audio"}
                                     : null,
                             fileId: expect.any(String),
                         },
@@ -322,6 +333,14 @@ export function testFileProcessorContentTypes(testCases: {
                                   {
                                       type: "ImagePreviewVideoDuration",
                                       videoDuration: expectedImagePreviewVideoDuration,
+                                  },
+                              ]
+                            : []),
+                        ...(expectedAudioPreviewDuration !== undefined
+                            ? [
+                                  {
+                                      type: "AudioPreviewDuration",
+                                      duration: expectedAudioPreviewDuration,
                                   },
                               ]
                             : []),
@@ -438,17 +457,11 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
         path: string;
         space: TestSpace;
         fileId: FileId;
-        expectedAlternative: {contentType: FileContentType; similarPath: string} | undefined;
+        expectedAlternative: {contentType: FileContentType; similarPath?: string} | undefined;
         looksSameTolerance: number;
     },
 ) {
     if (!expectedAlternative) return;
-
-    const expectedPath = joinPath(
-        runfilesPath,
-        "cyberworlds/server/files/upload/test_fixtures",
-        expectedAlternative.similarPath,
-    );
 
     const object = await r2Bucket.get(`${space.id}/${fileId}-alternative`);
     if (!object) throw new NotFoundError("File alternative not found");
@@ -464,6 +477,14 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
     try {
         switch (expectedAlternative.contentType) {
             case "application/pdf": {
+                assert(expectedAlternative.similarPath);
+
+                const expectedPath = joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/files/upload/test_fixtures",
+                    expectedAlternative.similarPath,
+                );
+
                 const [actualMetadata, expectedMetadata] = await runAllPromises([
                     sharp(actualContents).metadata(),
                     sharp(expectedPath).metadata(),
@@ -533,6 +554,14 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                 break;
             }
             case "video/webm": {
+                assert(expectedAlternative.similarPath);
+
+                const expectedPath = joinPath(
+                    runfilesPath,
+                    "cyberworlds/server/files/upload/test_fixtures",
+                    expectedAlternative.similarPath,
+                );
+
                 const temporaryVideoSimilarityDirectoryPath = joinPath(
                     context.getTemporaryDirectoryPath(),
                     `files_video_similarity/${fileId}`,
@@ -811,29 +840,52 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                 }
                 break;
             }
+            case "audio/webm": {
+                assert(!expectedAlternative.similarPath);
+
+                // We don't have a readily available audio similarity test so assume the
+                // generated file is good.
+                break;
+            }
             default:
                 throw new UnimplementedError(
                     quote`Similarity test for content type ${expectedAlternative.contentType} hasn't been implemented`,
                 );
         }
     } catch (error) {
-        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "actual"), {
-            recursive: true,
-        });
-        await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "expected"), {
-            recursive: true,
-        });
+        if (expectedAlternative.similarPath) {
+            const expectedPath = joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures",
+                expectedAlternative.similarPath,
+            );
 
-        await runAllPromises([
-            fs.writeFile(
-                joinPath(testlogsOutputDirectoryPath, "actual", expectedAlternative.similarPath),
-                actualContents,
-            ),
-            fs.copyFile(
-                expectedPath,
-                joinPath(testlogsOutputDirectoryPath, "expected", expectedAlternative.similarPath),
-            ),
-        ]);
+            await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "actual"), {
+                recursive: true,
+            });
+            await fs.mkdir(joinPath(testlogsOutputDirectoryPath, "expected"), {
+                recursive: true,
+            });
+
+            await runAllPromises([
+                fs.writeFile(
+                    joinPath(
+                        testlogsOutputDirectoryPath,
+                        "actual",
+                        expectedAlternative.similarPath,
+                    ),
+                    actualContents,
+                ),
+                fs.copyFile(
+                    expectedPath,
+                    joinPath(
+                        testlogsOutputDirectoryPath,
+                        "expected",
+                        expectedAlternative.similarPath,
+                    ),
+                ),
+            ]);
+        }
 
         throw error;
     }

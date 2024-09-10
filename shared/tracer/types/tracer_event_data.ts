@@ -1125,16 +1125,19 @@ export type TracerEventData = {
             readonly contentLengthRatio?: number;
 
             /** The width of the file preview image. */
-            readonly width?: number;
+            readonly imageWidth?: number;
 
             /** The height of the file preview image. */
-            readonly height?: number;
+            readonly imageHeight?: number;
 
             /** The scale of the file preview image. */
-            readonly scale?: number;
+            readonly imageScale?: number;
 
             /** If this is a video, how long is the video in milliseconds? */
-            readonly videoDurationMs?: number;
+            readonly imageVideoDurationMs?: number;
+
+            /** If this is audio, how long is the audio in milliseconds? */
+            readonly audioDurationMs?: number;
         };
     };
 

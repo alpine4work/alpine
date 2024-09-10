@@ -426,14 +426,14 @@ test("can't finish file preview processing for files without a preview", async (
             height: 100,
             scale: 1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
     await expect(
         fileUploader.finishProcessingImagePreviewPlaceholder(
             session.action(),
             fileImagePreviewPlaceholder,
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -495,7 +495,7 @@ test("can't finish file preview processing if file processing has already comple
                 scale: 1,
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError("File has already finished processing its preview"),
+            new InternalError("File has already finished processing its image preview"),
         );
     }
 
@@ -542,7 +542,7 @@ test("can't finish file preview processing if file processing has already comple
                 fileImagePreviewPlaceholder,
             ),
         ).rejects.toThrow(
-            new PermissionDeniedError("File has already finished processing its preview"),
+            new InternalError("File has already finished processing its image preview"),
         );
     }
 });
@@ -573,7 +573,7 @@ test("can't finish file preview processing for the same data twice", async () =>
                 scale: 1,
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError("File has already finished processing its preview size"),
+            new InternalError("File has already finished processing its image preview size"),
         );
     }
 
@@ -597,9 +597,7 @@ test("can't finish file preview processing for the same data twice", async () =>
                 fileImagePreviewPlaceholder,
             ),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "File has already finished processing its preview placeholder",
-            ),
+            new InternalError("File has already finished processing its image preview placeholder"),
         );
     }
 });
@@ -1006,7 +1004,7 @@ test("can't finish file preview image processing for files without a preview", a
             contentLength: 110,
             isAlternative: false,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1054,7 +1052,7 @@ test("can't finish file preview image processing for files without a preview ima
             contentLength: 110,
             isAlternative: false,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview image"));
+    ).rejects.toThrow(new InternalError("File doesn't have image preview content"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1126,9 +1124,7 @@ test("can't finish file preview image processing if file processing has already 
             contentLength: 110,
             isAlternative: false,
         }),
-    ).rejects.toThrow(
-        new PermissionDeniedError("File has already finished processing its preview"),
-    );
+    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
 });
 
 test("can't finish file preview image processing for the same data twice", async () => {
@@ -1156,7 +1152,7 @@ test("can't finish file preview image processing for the same data twice", async
             isAlternative: false,
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError("File has already finished processing its preview image"),
+        new InternalError("File has already finished processing its image preview content"),
     );
 });
 
@@ -1723,7 +1719,7 @@ test("can't finish file preview video duration processing for files without a pr
 
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000),
-    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview"));
+    ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1768,7 +1764,7 @@ test("can't finish file preview video duration processing for files without a pr
 
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5000),
-    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview video duration"));
+    ).rejects.toThrow(new InternalError("File doesn't have a image preview video duration"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1827,7 +1823,7 @@ test("can't finish file preview video duration processing for files without a pr
             },
             {alsoPreviewVideoDuration: 5000},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("File doesn't have a preview video duration"));
+    ).rejects.toThrow(new InternalError("File doesn't have a image preview video duration"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -1978,7 +1974,7 @@ test("can't finish file preview video duration processing if file processing has
 
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5001),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
 
     const {wasUpdated: wasUpdated2} =
         await fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(
@@ -2057,7 +2053,7 @@ test("can't finish file preview video duration processing for the same data twic
             {alsoPreviewVideoDuration: 5000},
         ),
     ).rejects.toThrow(
-        new InternalError("File has already finished processing its preview video duration"),
+        new InternalError("File has already finished processing its image preview video duration"),
     );
 });
 
@@ -2084,7 +2080,7 @@ test("can't finish file preview video duration processing for the same data twic
     await expect(
         fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 5001),
     ).rejects.toThrow(
-        new InternalError("File has already finished processing its preview video duration"),
+        new InternalError("File has already finished processing its image preview video duration"),
     );
 
     const {wasUpdated: wasUpdated2} =
@@ -2286,7 +2282,7 @@ test("can't finish file with processed preview size after processing preview err
             height: 100,
             scale: 1,
         }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -2366,7 +2362,7 @@ test("can't finish file with processed preview placeholder after processing prev
             session.action(),
             fileImagePreviewPlaceholder,
         ),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -2447,7 +2443,7 @@ test("can't finish file with processed preview image after processing preview er
             contentLength: 110,
             isAlternative: false,
         }),
-    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+    ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
 
     expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
         new FileModel({
@@ -4480,6 +4476,450 @@ test("can't finish processing file alternative preview image if alternative is a
                 size: "Processing",
                 placeholder: "Processing",
                 content: "Processing",
+            },
+        }),
+    );
+});
+
+test("can finish processing file audio preview duration", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                duration: 2000,
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview duration with the wrong session", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewDuration(otherSession.action(), 2000),
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview duration twice", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+
+    await fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000);
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                duration: 2000,
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
+    ).rejects.toThrow(new InternalError("File has already finished processing its preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: false,
+                duration: 2000,
+            },
+        }),
+    );
+});
+
+test("can't finish processing file audio preview duration for file without preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
+    ).rejects.toThrow(new InternalError("File doesn't have a preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can't finish processing file audio preview duration for file with an image preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingAudioPreviewDuration(session.action(), 2000),
+    ).rejects.toThrow(new InternalError("File doesn't have an audio preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: true,
+                size: "Processing",
+                placeholder: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file image preview size for file with an audio preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewSize(session.action(), {
+            width: 100,
+            height: 100,
+            scale: 1,
+        }),
+    ).rejects.toThrow(new InternalError("File doesn't have an image preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file image preview placeholder for file with an audio preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewPlaceholder(
+            session.action(),
+            fileImagePreviewPlaceholder,
+        ),
+    ).rejects.toThrow(new InternalError("File doesn't have an image preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file image preview content for file with an audio preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewContent(session.action(), {
+            contentType: "image/webp",
+            contentLength: 200,
+            isAlternative: false,
+        }),
+    ).rejects.toThrow(new InternalError("File doesn't have an image preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+});
+
+test("can't finish processing file image preview video duration for file with an audio preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "audio/mpeg",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: {type: "Audio"},
+    });
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
+            },
+        }),
+    );
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewVideoDurationIfNeeded(session.action(), 3000),
+    ).rejects.toThrow(new InternalError("File doesn't have an image preview"));
+
+    expect(await getFile(space.systemAction(), fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "audio/mpeg",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: {
+                type: "Audio",
+                isProcessing: true,
+                duration: "Processing",
             },
         }),
     );

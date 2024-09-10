@@ -14,8 +14,8 @@ import {
     ffmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
-    parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
-} from "~/server/files/upload/processors/file_video_processor_base.js";
+    parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr,
+} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
@@ -63,7 +63,6 @@ export function createFileWebUnsafeVideoProcessor(
                 contentType: FileContentType;
                 data: ReadableStream;
             }>();
-
             const previewSizePromiseResolver = createPromiseResolver<
                 FileImagePreviewSize & {videoDuration?: number}
             >();
@@ -188,7 +187,7 @@ export function createFileWebUnsafeVideoProcessor(
 
                             try {
                                 const previewSize =
-                                    parseFilePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
+                                    parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
                                         previewContentStderr,
                                     );
                                 if (!previewSize) return;
@@ -293,7 +292,7 @@ export function createFileWebUnsafeVideoProcessor(
                                     data: await fs.readFile(outputPath),
                                 });
                             })(),
-                            span.withSpan("FFmpeg transcode alternative", async span => {
+                            span.withSpan("FFmpeg transcode video alternative", async span => {
                                 span.addData({
                                     file: {contentType, contentLength, processorType},
                                 });
