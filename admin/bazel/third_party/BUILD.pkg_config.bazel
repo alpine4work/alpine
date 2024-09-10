@@ -21,16 +21,6 @@ echo "#                                 configure                               
 echo "# ========================================================================== #" >> cmd.log
 echo >> cmd.log
 
-# Update the modification timestamp of all symlinks to the modification time of the
-# target file. This way `make` won't rebuild targets that haven't changed.
-# Importantly for `pkg-config`, rebuilding `aclocal.m4` requires autoconf to be
-# installed which we don't currently have.
-find "$$(dirname $$bazel_sandbox/$(location configure))" -type l -print0 | while IFS= read -r -d '' symlink; do
-    target=$$(readlink -f "$$symlink")
-    target_mtime=$$(date -r "$$target" "+%Y%m%d%H%M.%S")
-    touch -h -t "$$target_mtime" "$$symlink"
-done
-
 "$$bazel_sandbox/$(location configure)" \\
     "--prefix=$$(pwd)/install" \\
     --disable-debug \\
