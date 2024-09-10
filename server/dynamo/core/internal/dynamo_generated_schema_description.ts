@@ -3173,7 +3173,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "valueSchema": {
                                                                 "type": "Nullable",
                                                                 "schema": {
-                                                                    "type": "Float"
+                                                                    "type": "Integer"
                                                                 }
                                                             },
                                                             "optional": true
@@ -3237,7 +3237,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             },
                                                             "videoDuration": {
                                                                 "valueSchema": {
-                                                                    "type": "Float"
+                                                                    "type": "Integer"
                                                                 },
                                                                 "optional": true
                                                             }
