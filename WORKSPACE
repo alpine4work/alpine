@@ -437,25 +437,25 @@ load(
 apple_rules_dependencies()
 
 load(
+    "@build_bazel_apple_support//lib:repositories.bzl",
+    "apple_support_dependencies",
+)
+
+apple_support_dependencies()
+
+load(
     "@build_bazel_rules_swift//swift:repositories.bzl",
     "swift_rules_dependencies",
 )
 
 swift_rules_dependencies()
 
-load(
-    "@build_bazel_rules_swift//swift:extras.bzl",
-    "swift_rules_extra_dependencies",
-)
-
-swift_rules_extra_dependencies()
-
-load(
-    "@build_bazel_apple_support//lib:repositories.bzl",
-    "apple_support_dependencies",
-)
-
-apple_support_dependencies()
+# NOTE(calebmer): We don't call `swift_rules_extra_dependencies()` since we
+# [already have the dependencies from this call we need][1]
+# (`apple_support_dependencies()` and `bazel_features_deps()`) and we don't
+# want to install `rules_proto` which we don't need.
+#
+# [1]: https://github.com/bazelbuild/rules_swift/blob/86dc0f046269b3001f6f20cec38342c03120a209/swift/extras.bzl#L27-L42
 
 http_archive(
     name = "rules_xcodeproj",
