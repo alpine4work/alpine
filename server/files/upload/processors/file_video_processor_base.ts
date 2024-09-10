@@ -53,7 +53,7 @@ export const ffmpegPreviewImageOutputOptions = [
  * ```
  * ffmpeg version 7.0.git Copyright (c) 2000-2024 the FFmpeg developers
  *   built with Apple clang version 15.0.0 (clang-1500.1.0.2.5)
- *   configuration: --prefix=${bazel_sandbox}/bazel-out/darwin_arm64-fastbuild/bin/external/ffmpeg/install --pkg-config=${bazel_sandbox}/bazel-out/darwin_arm64-fastbuild/bin/external/ffmpeg/../pkg_config/install2/bin/pkg-config --pkg-config-flags=--static --enable-static --disable-shared --disable-autodetect --disable-ffplay --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --enable-libaom --enable-libvpx
+ *   configuration: --prefix=${bazel_sandbox}/bazel-out/darwin_arm64-fastbuild/bin/external/ffmpeg/install --pkg-config=${bazel_sandbox}/bazel-out/darwin_arm64-fastbuild/bin/external/ffmpeg/../pkg_config/install/bin/pkg-config --pkg-config-flags=--static --enable-static --disable-shared --disable-autodetect --disable-ffplay --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --enable-libaom --enable-libvpx
  *   libavutil      59. 35.100 / 59. 35.100
  *   libavcodec     61. 11.100 / 61. 11.100
  *   libavformat    61.  5.101 / 61.  5.101

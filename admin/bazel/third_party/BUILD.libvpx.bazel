@@ -1,20 +1,10 @@
-load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-
-# We copy sources to the build directory so we don't need to perform an
-# out-of-tree build which isn't universally supported by all library build
-# tools.
-copy_to_bin(
-    name = "libvpx_srcs",
+genrule(
+    name = "libvpx",
     srcs = glob(
         include = ["**"],
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = [".*"],
     ),
-)
-
-genrule(
-    name = "libvpx",
-    srcs = [":libvpx_srcs"],
     outs = [
         "install/include/vpx/vpx_image.h",
         "install/include/vpx/vpx_encoder.h",
@@ -40,7 +30,7 @@ echo "#                                 configure                               
 echo "# ========================================================================== #" >> cmd.log
 echo >> cmd.log
 
-./configure \\
+"$$bazel_sandbox/$(location configure)" \\
     "--prefix=$$(pwd)/install" \\
     --disable-examples \\
     --disable-tools \\
@@ -64,7 +54,7 @@ echo >> cmd.log
 make --jobs=6 install >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
 
 escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
-sed -i "" "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" install/lib/pkgconfig/vpx.pc
+sed -i.bak "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" install/lib/pkgconfig/vpx.pc
 """,
     tags = ["cpu:6"],
     visibility = ["//visibility:public"],

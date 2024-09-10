@@ -1,20 +1,15 @@
 genrule(
     name = "pkg_config",
-    # We don't use `copy_to_bin()` because we want file timestamps to be preserved
-    # so `make` doesn't try to rebuild files that haven't changed. We'll perform an
-    # out-of-tree build of `pkg-config` in Bazel's bin directory.
     srcs = glob(
         include = ["**"],
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = [".*"],
     ),
-    # Our installation directory is `install2` instead of `install` since there's
-    # an existing `INSTALL` file so Bazel won't create an `install` directory.
     outs = [
-        "install2/bin/pkg-config",
-        "install2/share/man/man1/pkg-config.1",
-        "install2/share/aclocal/pkg.m4",
-        "install2/share/doc/pkg-config/pkg-config-guide.html",
+        "install/bin/pkg-config",
+        "install/share/man/man1/pkg-config.1",
+        "install/share/aclocal/pkg.m4",
+        "install/share/doc/pkg-config/pkg-config-guide.html",
     ],
     cmd = """
 bazel_sandbox=$$(pwd)
@@ -26,8 +21,18 @@ echo "#                                 configure                               
 echo "# ========================================================================== #" >> cmd.log
 echo >> cmd.log
 
+# Update the modification timestamp of all symlinks to the modification time of the
+# target file. This way `make` won't rebuild targets that haven't changed.
+# Importantly for `pkg-config`, rebuilding `aclocal.m4` requires autoconf to be
+# installed which we don't currently have.
+find "$$(dirname $$bazel_sandbox/$(location configure))" -type l -print0 | while IFS= read -r -d '' symlink; do
+    target=$$(readlink -f "$$symlink")
+    target_mtime=$$(date -r "$$target" "+%Y%m%d%H%M.%S")
+    touch -h -t "$$target_mtime" "$$symlink"
+done
+
 "$$bazel_sandbox/$(location configure)" \\
-    "--prefix=$$(pwd)/install2" \\
+    "--prefix=$$(pwd)/install" \\
     --disable-debug \\
     --disable-host-tool \\
     --with-internal-glib \\
