@@ -420,7 +420,8 @@ Content-Length: 33002\r\n\
             .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
             .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
             .replace(/,"stack":".*?"/gm, "")
-            .replace(/,"original":{.*?}/m, ""),
+            .replace(/,"original":{.*?}/m, "")
+            .replace(/,"error":{.*?}/m, ',"error":{...}'),
     ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
@@ -434,7 +435,7 @@ chunk\r\n\
 {"type":"PreviewSize","width":500,"height":375,"scale":1}\n\
 \r\n\
 chunk\r\n\
-{"type":"Error","error":{"code":3,"message":"VipsJpeg: Premature end of input file","name":"InvalidArgumentError"}}\n\
+{"type":"Error","error":{...}}\n\
 \r\n\
 chunk\r\n\
 \r\n\

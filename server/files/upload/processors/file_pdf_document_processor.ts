@@ -148,14 +148,16 @@ export function processPdfDocumentFile(
         }
     })();
 
+    const previewSizePromise = extractPreview
+        ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => ({
+              width: clamp(0, width, extractPreview.width * scale),
+              height: clamp(0, height, extractPreview.height * scale),
+              scale,
+          }))
+        : previewSizeWithoutExtractPromise;
+
     return {
-        previewSizePromise: extractPreview
-            ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => ({
-                  width: clamp(0, width, extractPreview.width * scale),
-                  height: clamp(0, height, extractPreview.height * scale),
-                  scale,
-              }))
-            : previewSizeWithoutExtractPromise,
+        previewSizePromise,
         previewPlaceholderPromise,
         previewImagePromise,
     };

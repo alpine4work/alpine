@@ -431,6 +431,15 @@ async function uploadAndProcessFile(
                   temporaryDirectoryPath,
               });
 
+              // All errors from these promises will be handled. Add exception handlers so we
+              // don't get unhandled rejection warnings.
+              extraPromise?.catch(() => {});
+              alternativePromise?.catch(() => {});
+              previewSizePromise?.catch(() => {});
+              previewPlaceholderPromise?.catch(() => {});
+              previewImagePromise?.catch(() => {});
+              previewVideoDurationPromise?.catch(() => {});
+
               let hasAcceptedPreviewError = false;
 
               const createAbortCatcherWithoutAcceptError = actualCreateAbortCatcher;
