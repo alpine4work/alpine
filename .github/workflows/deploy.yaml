@@ -50,7 +50,7 @@ jobs:
                   # run on different architectures so we can't share the cache but the cache
                   # invalidation logic should still be the same.
                   key: |
-                      bazel-deploy-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch') }}
+                      bazel-deploy-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bazelversion', 'WORKSPACE', 'pnpm-lock.yaml', 'requirements_lock.txt', 'admin/patches/bazel/*.patch', 'admin/bazel/third_party/*.bazel') }}
                   restore-keys: |
                       bazel-deploy-${{ runner.os }}-${{ runner.arch }}-
 

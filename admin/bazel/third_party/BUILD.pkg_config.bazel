@@ -43,13 +43,6 @@ echo "#                                    make                                 
 echo "# ========================================================================== #" >> cmd.log
 echo >> cmd.log
 
-make --just-print
-
-# NOCOMMIT
-echo $$(pwd)
-echo $$(dirname $$bazel_sandbox/$(location configure))
-exit 1
-
 make --jobs=6 >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
 
 echo >> cmd.log
