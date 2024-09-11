@@ -2,11 +2,6 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "helpers",
-    tests = {
-        "store/internal/flattened_mapped_store_test": {
-            "node_options": ["--expose-gc"],
-        },
-    },
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",
