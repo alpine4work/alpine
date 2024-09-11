@@ -19,7 +19,7 @@ ts_project(
             "size": "medium",
             "tags": ["libreoffice"],
         },
-        "processors/file_processor_content_types_video_test": {
+        "processors/file_processor_content_types_video_and_audio_test": {
             "size": "medium",
             # FFmpeg needs 2 threads.
             "tags": ["cpu:2"],
