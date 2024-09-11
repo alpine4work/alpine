@@ -1,5 +1,6 @@
 import {getErrorCodes} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessageSchema} from "~/shared/error/error_schema.js";
+import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -167,11 +168,35 @@ export const FileAudioPreviewSchema = Schema.booleanUnion(
     preview => !preview.isProcessing || preview.duration === "Processing",
 );
 
+/**
+ * Preview we display for code files. For code files we take the first few
+ * lines, syntax highlight them, and include those in a preview.
+ */
+export type FileCodePreview = SchemaType<typeof FileCodePreviewSchema>;
+
+export const FileCodePreviewSchema = Schema.booleanUnion(
+    "isProcessing",
+    Schema.object({
+        type: Schema.value("Code"),
+        isProcessing: Schema.value(true),
+        content: processingSchema(FileCodePreviewContent.schema),
+    }),
+    Schema.object({
+        type: Schema.value("Code"),
+        isProcessing: Schema.value(false),
+        content: FileCodePreviewContent.schema,
+    }),
+).validation(
+    "When `isProcessing` is true some preview data must be processing",
+    preview => !preview.isProcessing || preview.content === "Processing",
+);
+
 export type FilePreview = SchemaType<typeof FilePreviewSchema>;
 
 export const FilePreviewSchema = Schema.union({
     Image: FileImagePreviewSchema,
     Audio: FileAudioPreviewSchema,
+    Code: FileCodePreviewSchema,
 });
 
 /**

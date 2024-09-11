@@ -6,6 +6,7 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {
     FileAudioContentType,
+    FileCodeContentType,
     FileContentType,
     FileMicrosoftOfficeDocumentContentType,
     FileVideoContentType,
@@ -17,7 +18,10 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 const testCases: {
     [Key in Exclude<
         FileContentType,
-        FileMicrosoftOfficeDocumentContentType | FileVideoContentType | FileAudioContentType
+        | FileMicrosoftOfficeDocumentContentType
+        | FileVideoContentType
+        | FileAudioContentType
+        | Exclude<FileCodeContentType, "text/plain" | "text/x-haskell">
     >]: FileProcessorContentTypeTestCase;
 } = {
     "application/octet-stream": [
@@ -254,8 +258,6 @@ const testCases: {
                 similarPath: "filesampleshub_heif_sample1.avif",
             },
         },
-    ],
-    "image/heic": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.heic",
             imagePreviewSize: {width: 500, height: 375},
@@ -416,6 +418,98 @@ const testCases: {
             // Needs higher tolerance probably because this file is much bigger than others
             // we test so there's more space for there to be mismatches.
             looksSameTolerance: 70,
+        },
+    ],
+    "text/plain": [
+        {
+            path: "haskell_for_all_calendar.txt",
+            codePreviewContentLength: 510,
+            codePreviewContent: `\
+data DayOfWeek
+    = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
+    deriving (Eq, Enum, Bounded)
+
+data Month
+    = January | February | March     | April   | May      | June
+    | July    | August   | September | October | November | December
+    deriving (Enum, Bounded, Show)
+
+next :: (Eq a, Enum a, Bounded a) =&gt; a -&gt; a
+next x | x == maxBound = minBound
+       | otherwise     = succ x
+
+pad :: Int -&gt; String
+pad day = case show day of
+    [c] -&gt; [&#39; &#39;, c]
+`,
+        },
+        {
+            path: "haskell_for_all_calendar_with_longer_line_width.txt",
+            codePreviewContentLength: 767,
+            codePreviewContent: `\
+data DayOfWeek = Sunday | Monday | Tuesday | Wednesday | Thursday | Friday | Sat
+data Month = January | February | March | April | May | June | July | August | S
+
+year = month January   Thursday  31 ++ month February  Sunday    28 ++ month Mar
+    ++ month May       Friday    31 ++ month June      Monday    30 ++ month Jul
+    ++ month September Tuesday   30 ++ month October   Thursday  31 ++ month Nov
+
+month :: Month -&gt; DayOfWeek -&gt; Int -&gt; String
+month m startDay maxDay = show m ++ &quot; 2015\\n&quot; ++ week ++ spaces Sunday
+  where
+    week = &quot;Su Mo Tu We Th Fr Sa\\n&quot;
+
+    spaces currDay | startDay == currDay = days startDay 1
+                   | otherwise           = &quot;   &quot; ++ spaces (next currDay)
+
+    days Sunday    n | n &gt; maxDay = &quot;\\n&quot;
+`,
+        },
+    ],
+    "text/x-haskell": [
+        {
+            path: "haskell_for_all_calendar.hs",
+            codePreviewContentLength: 842,
+            codePreviewContent: `\
+<span class="tok-keyword">data</span> <span class="tok-typeName">DayOfWeek</span>
+    <span class="tok-keyword">=</span> <span class="tok-typeName">Sunday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Monday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Tuesday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Wednesday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Thursday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Friday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Saturday</span>
+    <span class="tok-keyword">deriving</span> (<span class="tok-variableName">Eq</span>, <span class="tok-variableName">Enum</span>, <span class="tok-variableName">Bounded</span>)
+
+<span class="tok-keyword">data</span> <span class="tok-typeName">Month</span>
+    <span class="tok-keyword">=</span> <span class="tok-typeName">January</span> <span class="tok-variableName">|</span> <span class="tok-typeName">February</span> <span class="tok-variableName">|</span> <span class="tok-typeName">March</span>     <span class="tok-variableName">|</span> <span class="tok-typeName">April</span>   <span class="tok-variableName">|</span> <span class="tok-typeName">May</span>      <span class="tok-variableName">|</span> <span class="tok-typeName">June</span>
+    <span class="tok-variableName">|</span> <span class="tok-typeName">July</span>    <span class="tok-variableName">|</span> <span class="tok-typeName">August</span>   <span class="tok-variableName">|</span> <span class="tok-typeName">September</span> <span class="tok-variableName">|</span> <span class="tok-typeName">October</span> <span class="tok-variableName">|</span> <span class="tok-typeName">November</span> <span class="tok-variableName">|</span> <span class="tok-typeName">December</span>
+    <span class="tok-keyword">deriving</span> (<span class="tok-variableName">Enum</span>, <span class="tok-variableName">Bounded</span>, <span class="tok-variableName">Show</span>)
+
+<span class="tok-variableName">next</span> <span class="tok-keyword">::</span> (<span class="tok-variableName">Eq</span> <span class="tok-variableName">a</span>, <span class="tok-variableName">Enum</span> <span class="tok-variableName">a</span>, <span class="tok-variableName">Bounded</span> <span class="tok-variableName">a</span>) <span class="tok-keyword">=&gt;</span> <span class="tok-variableName">a</span> <span class="tok-keyword">-&gt;</span> <span class="tok-variableName">a</span>
+<span class="tok-variableName">next</span> <span class="tok-variableName">x</span> <span class="tok-variableName">|</span> <span class="tok-variableName">x</span> <span class="tok-variableName">==</span> <span class="tok-variableName">maxBound</span> <span class="tok-keyword">=</span> <span class="tok-variableName">minBound</span>
+       <span class="tok-variableName">|</span> <span class="tok-variableName">otherwise</span>     <span class="tok-keyword">=</span> <span class="tok-variableName">succ</span> <span class="tok-variableName">x</span>
+
+<span class="tok-variableName">pad</span> <span class="tok-keyword">::</span> <span class="tok-variableName">Int</span> <span class="tok-keyword">-&gt;</span> <span class="tok-variableName">String</span>
+<span class="tok-variableName">pad</span> <span class="tok-variableName">day</span> <span class="tok-keyword">=</span> <span class="tok-keyword">case</span> <span class="tok-variableName">show</span> <span class="tok-variableName">day</span> <span class="tok-keyword">of</span>
+    [<span class="tok-variableName">c</span>] <span class="tok-keyword">-&gt;</span> [<span class="tok-string">&#39; &#39;</span>, <span class="tok-variableName">c</span>]
+`,
+        },
+        {
+            path: "haskell_for_all_calendar_with_longer_line_width.hs",
+            codePreviewContentLength: 1255,
+            codePreviewContent: `\
+<span class="tok-keyword">data</span> <span class="tok-typeName">DayOfWeek</span> <span class="tok-keyword">=</span> <span class="tok-typeName">Sunday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Monday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Tuesday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Wednesday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Thursday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Friday</span> <span class="tok-variableName">|</span> <span class="tok-typeName">Sat</span>
+<span class="tok-keyword">data</span> <span class="tok-typeName">Month</span> <span class="tok-keyword">=</span> <span class="tok-typeName">January</span> <span class="tok-variableName">|</span> <span class="tok-typeName">February</span> <span class="tok-variableName">|</span> <span class="tok-typeName">March</span> <span class="tok-variableName">|</span> <span class="tok-typeName">April</span> <span class="tok-variableName">|</span> <span class="tok-typeName">May</span> <span class="tok-variableName">|</span> <span class="tok-typeName">June</span> <span class="tok-variableName">|</span> <span class="tok-typeName">July</span> <span class="tok-variableName">|</span> <span class="tok-typeName">August</span> <span class="tok-variableName">|</span> <span class="tok-typeName">S</span>
+
+<span class="tok-variableName">year</span> <span class="tok-keyword">=</span> <span class="tok-variableName">month</span> <span class="tok-typeName">January</span>   <span class="tok-typeName">Thursday</span>  <span class="tok-number">31</span> <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">February</span>  <span class="tok-typeName">Sunday</span>    <span class="tok-number">28</span> <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">Mar</span>
+    <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">May</span>       <span class="tok-typeName">Friday</span>    <span class="tok-number">31</span> <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">June</span>      <span class="tok-typeName">Monday</span>    <span class="tok-number">30</span> <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">Jul</span>
+    <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">September</span> <span class="tok-typeName">Tuesday</span>   <span class="tok-number">30</span> <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">October</span>   <span class="tok-typeName">Thursday</span>  <span class="tok-number">31</span> <span class="tok-variableName">++</span> <span class="tok-variableName">month</span> <span class="tok-typeName">Nov</span>
+
+<span class="tok-variableName">month</span> <span class="tok-keyword">::</span> <span class="tok-typeName">Month</span> <span class="tok-keyword">-&gt;</span> <span class="tok-typeName">DayOfWeek</span> <span class="tok-keyword">-&gt;</span> <span class="tok-variableName">Int</span> <span class="tok-keyword">-&gt;</span> <span class="tok-variableName">String</span>
+<span class="tok-variableName">month</span> <span class="tok-variableName">m</span> <span class="tok-variableName">startDay</span> <span class="tok-variableName">maxDay</span> <span class="tok-keyword">=</span> <span class="tok-variableName">show</span> <span class="tok-variableName">m</span> <span class="tok-variableName">++</span> <span class="tok-string">&quot; 2015\\n&quot;</span> <span class="tok-variableName">++</span> <span class="tok-variableName">week</span> <span class="tok-variableName">++</span> <span class="tok-variableName">spaces</span> <span class="tok-typeName">Sunday</span>
+  <span class="tok-keyword">where</span>
+    <span class="tok-variableName">week</span> <span class="tok-keyword">=</span> <span class="tok-string">&quot;Su Mo Tu We Th Fr Sa\\n&quot;</span>
+
+    <span class="tok-variableName">spaces</span> <span class="tok-variableName">currDay</span> <span class="tok-variableName">|</span> <span class="tok-variableName">startDay</span> <span class="tok-variableName">==</span> <span class="tok-variableName">currDay</span> <span class="tok-keyword">=</span> <span class="tok-variableName">days</span> <span class="tok-variableName">startDay</span> <span class="tok-number">1</span>
+                   <span class="tok-variableName">|</span> <span class="tok-variableName">otherwise</span>           <span class="tok-keyword">=</span> <span class="tok-string">&quot;   &quot;</span> <span class="tok-variableName">++</span> <span class="tok-variableName">spaces</span> (<span class="tok-variableName">next</span> <span class="tok-variableName">currDay</span>)
+
+    <span class="tok-variableName">days</span> <span class="tok-typeName">Sunday</span>    <span class="tok-variableName">n</span> <span class="tok-variableName">|</span> <span class="tok-variableName">n</span> <span class="tok-variableName">&gt;</span> <span class="tok-variableName">maxDay</span> <span class="tok-keyword">=</span> <span class="tok-string">&quot;\\n&quot;</span>
+`,
         },
     ],
 };

@@ -1,5 +1,6 @@
 import {R2Bucket} from "@miniflare/r2";
 import {FileStorage} from "@miniflare/storage-file";
+import escapeHtml from "escape-html";
 import fs from "fs/promises";
 import getPort from "get-port";
 import {Server} from "http";
@@ -32,6 +33,7 @@ import {
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -68,6 +70,8 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         similarPath: string;
     };
     audioPreviewDuration?: number;
+    codePreviewContentLength?: number;
+    codePreviewContent?: string;
     previewError?: {
         code: ErrorCode;
         displayMessage: ErrorDisplayMessage;
@@ -154,6 +158,8 @@ export function testFileProcessorContentTypes(testCases: {
             isImagePreviewContentAlternative: expectedIsImagePreviewContentAlternative,
             imagePreviewContent: expectedImagePreviewContent,
             audioPreviewDuration: expectedAudioPreviewDuration,
+            codePreviewContentLength: expectedCodePreviewContentLength,
+            codePreviewContent: expectedCodePreviewContent,
             previewError: expectedPreviewError,
             looksSameTolerance = 35,
         } of contentTypeTestCases) {
@@ -195,6 +201,7 @@ export function testFileProcessorContentTypes(testCases: {
                         "ImagePreviewContent",
                         "ImagePreviewVideoDuration",
                         "AudioPreviewDuration",
+                        "CodePreviewContent",
                         "PreviewError",
                         "Alternative",
                         "Finish",
@@ -267,11 +274,17 @@ export function testFileProcessorContentTypes(testCases: {
                                           : undefined,
                                       videoDuration: expectedImagePreviewVideoDuration,
                                   }
-                                : expectedAudioPreviewDuration
+                                : expectedAudioPreviewDuration !== undefined
                                 ? {
                                       type: "Audio",
                                       isProcessing: false,
                                       duration: expectedAudioPreviewDuration,
+                                  }
+                                : expectedCodePreviewContent !== undefined
+                                ? {
+                                      type: "Code",
+                                      isProcessing: false,
+                                      content: expect.any(FileCodePreviewContent),
                                   }
                                 : null,
                         }),
@@ -291,8 +304,10 @@ export function testFileProcessorContentTypes(testCases: {
                                               !!expectedPreviewError,
                                           hasVideoDuration: !!expectedImagePreviewVideoDuration,
                                       }
-                                    : expectedAudioPreviewDuration
+                                    : expectedAudioPreviewDuration !== undefined
                                     ? {type: "Audio"}
+                                    : expectedCodePreviewContent !== undefined
+                                    ? {type: "Code"}
                                     : null,
                             fileId: expect.any(String),
                         },
@@ -341,6 +356,14 @@ export function testFileProcessorContentTypes(testCases: {
                                   {
                                       type: "AudioPreviewDuration",
                                       duration: expectedAudioPreviewDuration,
+                                  },
+                              ]
+                            : []),
+                        ...(expectedCodePreviewContent !== undefined
+                            ? [
+                                  {
+                                      type: "CodePreviewContent",
+                                      content: expect.any(FileCodePreviewContent),
                                   },
                               ]
                             : []),
@@ -399,21 +422,42 @@ export function testFileProcessorContentTypes(testCases: {
                         expect(contents.equals(actualContents)).toEqual(true);
                     }
 
-                    const placeholder = findMapIterable(events, event =>
+                    const imagePreviewPlaceholder = findMapIterable(events, event =>
                         event.type === "ImagePreviewPlaceholder" ? event.placeholder : undefined,
                     );
 
                     if (!expectedImagePreviewPlaceholder) {
-                        expect(placeholder).toEqual(undefined);
+                        expect(imagePreviewPlaceholder).toEqual(undefined);
                     } else {
                         // Compare placeholders. Sharp's placeholder generation isn't deterministic
                         // across platforms. So check that placeholders are close to each other if not
                         // exactly equal.
                         compareFileImagePreviewPlaceholders(
-                            assertExists(placeholder),
+                            assertExists(imagePreviewPlaceholder),
                             expectedImagePreviewPlaceholder,
                         );
                     }
+
+                    const codePreviewContent = findMapIterable(events, event =>
+                        event.type === "CodePreviewContent" ? event.content : undefined,
+                    );
+                    expect(
+                        codePreviewContent
+                            ?.get()
+                            .map(item =>
+                                item.type === "Newline"
+                                    ? "\n"
+                                    : item.classes
+                                    ? `<span class="${item.classes}">${escapeHtml(
+                                          item.string,
+                                      )}</span>`
+                                    : escapeHtml(item.string),
+                            )
+                            .join(""),
+                    ).toEqual(expectedCodePreviewContent);
+                    expect(codePreviewContent?.serialize().length).toEqual(
+                        expectedCodePreviewContentLength,
+                    );
 
                     await testFileUploadServiceContentTypeExpectedAlternativeSimilarity(context, {
                         r2Bucket,

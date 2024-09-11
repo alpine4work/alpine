@@ -13,6 +13,7 @@ import {
     FileUploadServiceSessionActionContext,
 } from "~/server/files/upload/file_upload_service_context.js";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
+import {createFileCodeProcessor} from "~/server/files/upload/processors/file_code_processor.js";
 import {createFileIcoImageProcessor} from "~/server/files/upload/processors/file_ico_image_processor.js";
 import {createFileMicrosoftOfficeDocumentProcessor} from "~/server/files/upload/processors/file_microsoft_office_document_file_processor.js";
 import {createFilePdfDocumentProcessor} from "~/server/files/upload/processors/file_pdf_document_processor.js";
@@ -37,13 +38,13 @@ import {
 import {getErrorCodes} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessageSchema, ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {
     FileContentType,
     FileContentTypeSchema,
     FileMp4AudioContentType,
     FileMp4VideoContentType,
-    isFileContentType,
-    normalizeContentType,
+    canonicalizeFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -82,6 +83,9 @@ export const UploadFileEventSchema = Schema.union({
             Audio: Schema.object({
                 type: Schema.value("Audio"),
             }),
+            Code: Schema.object({
+                type: Schema.value("Code"),
+            }),
         }).nullable(),
     }),
     Finish: Schema.object({
@@ -115,6 +119,10 @@ export const UploadFileEventSchema = Schema.union({
     AudioPreviewDuration: Schema.object({
         type: Schema.value("AudioPreviewDuration"),
         duration: Schema.integer,
+    }),
+    CodePreviewContent: Schema.object({
+        type: Schema.value("CodePreviewContent"),
+        content: FileCodePreviewContent.schema,
     }),
     PreviewError: Schema.object({
         type: Schema.value("PreviewError"),
@@ -225,15 +233,13 @@ async function actuallyUploadFile(
     if (originalContentType === null)
         throw new InvalidArgumentError('"Content-Type" header is required');
 
-    const normalizedContentType = normalizeContentType(originalContentType);
+    const contentType = canonicalizeFileContentTypeIfExists(originalContentType);
 
-    if (!isFileContentType(normalizedContentType)) {
+    if (contentType === null) {
         throw new InvalidArgumentError(
             quote`Unsupported "Content-Type" header ${originalContentType}`,
         );
     }
-
-    const contentType = normalizedContentType;
 
     const contentLengthString = headers.get("content-length");
     if (contentLengthString === null) {
@@ -442,6 +448,7 @@ async function uploadAndProcessFile(
                   imagePreviewContentPromise,
                   imagePreviewVideoDurationPromise,
                   audioPreviewDurationPromise,
+                  codePreviewContentPromise,
               } = fileProcessor.process(stream, signal, {
                   span,
                   fileId: fileUploader.fileId,
@@ -458,6 +465,7 @@ async function uploadAndProcessFile(
               imagePreviewContentPromise?.catch(() => {});
               imagePreviewVideoDurationPromise?.catch(() => {});
               audioPreviewDurationPromise?.catch(() => {});
+              codePreviewContentPromise?.catch(() => {});
 
               let hasAcceptedPreviewError = false;
 
@@ -756,6 +764,25 @@ async function uploadAndProcessFile(
                     })().catch(createAbortCatcher("File audio preview duration processing failed"))
                   : null;
 
+              const actualCodePreviewContentPromise = codePreviewContentPromise
+                  ? (async () => {
+                        const content = await codePreviewContentPromise;
+                        if (signal.aborted) throw signal.reason;
+                        if (hasAcceptedPreviewError) return;
+
+                        await fileUploader.finishProcessingCodePreviewContent(context, content);
+
+                        sendEvent({
+                            type: "CodePreviewContent",
+                            content,
+                        });
+
+                        return {
+                            file: {preview: {codeContentLength: content.serialize().length}},
+                        };
+                    })().catch(createAbortCatcher("File code preview content processing failed"))
+                  : null;
+
               const sharedChildSpanData = {
                   file: {
                       contentType,
@@ -830,6 +857,16 @@ async function uploadAndProcessFile(
                             }
                         })
                       : null,
+                  actualCodePreviewContentPromise
+                      ? span.withSpan("Process file code preview content", async childSpan => {
+                            childSpan.addData(sharedChildSpanData);
+                            const spanData = await actualCodePreviewContentPromise;
+                            if (spanData) {
+                                childSpan.addData(spanData);
+                                span.addData(spanData);
+                            }
+                        })
+                      : null,
               ]).catch(error => {
                   // If we caught the processing error, then don't fail our entire upload job. We
                   // finished processing but stored an error in the database.
@@ -865,7 +902,6 @@ const createFileProcessorByContentType: {
     "image/ico": createFileIcoImageProcessor,
     "image/tiff": createFileWebUnsafeImageProcessor,
     "image/heif": createFileWebUnsafeImageProcessor,
-    "image/heic": createFileWebUnsafeImageProcessor,
     "application/pdf": createFilePdfDocumentProcessor,
     "application/msword": createFileMicrosoftOfficeDocumentProcessor,
     "application/vnd.ms-excel": createFileMicrosoftOfficeDocumentProcessor,
@@ -884,6 +920,43 @@ const createFileProcessorByContentType: {
     "audio/wav": createFileWebSafeAudioProcessor,
     "audio/webm": createFileWebSafeAudioProcessor,
     "audio/ogg": createFileWebUnsafeAudioProcessor,
+    "text/plain": createFileCodeProcessor,
+    "text/javascript": createFileCodeProcessor,
+    "text/html": createFileCodeProcessor,
+    "text/css": createFileCodeProcessor,
+    "application/sql": createFileCodeProcessor,
+    "text/x-python": createFileCodeProcessor,
+    "text/x-typescript": createFileCodeProcessor,
+    "application/x-sh": createFileCodeProcessor,
+    "text/x-java": createFileCodeProcessor,
+    "application/json": createFileCodeProcessor,
+    "text/markdown": createFileCodeProcessor,
+    "text/x-csharp": createFileCodeProcessor,
+    "text/x-c++src": createFileCodeProcessor,
+    "text/x-csrc": createFileCodeProcessor,
+    "application/x-httpd-php": createFileCodeProcessor,
+    "text/x-go": createFileCodeProcessor,
+    "application/yaml": createFileCodeProcessor,
+    "application/x-powershell": createFileCodeProcessor,
+    "text/rust": createFileCodeProcessor,
+    "text/x-kotlin": createFileCodeProcessor,
+    "application/x-ruby": createFileCodeProcessor,
+    "text/x-lua": createFileCodeProcessor,
+    "application/xml": createFileCodeProcessor,
+    "application/vnd.dart": createFileCodeProcessor,
+    "text/x-swift": createFileCodeProcessor,
+    "text/x-asm": createFileCodeProcessor,
+    "application/wasm": createFileCodeProcessor,
+    "text/x-scala": createFileCodeProcessor,
+    "text/x-r": createFileCodeProcessor,
+    "text/x-elixir": createFileCodeProcessor,
+    "text/x-objcsrc": createFileCodeProcessor,
+    "text/x-perl": createFileCodeProcessor,
+    "text/x-haskell": createFileCodeProcessor,
+    "text/x-solidity": createFileCodeProcessor,
+    "text/x-clojure": createFileCodeProcessor,
+    "text/x-erlang": createFileCodeProcessor,
+    "text/x-ocaml": createFileCodeProcessor,
 };
 
 const fileProcessorByContentType: {

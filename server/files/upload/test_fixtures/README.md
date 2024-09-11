@@ -10,6 +10,8 @@ Some links to sources we used (not all sources are listed):
     [Microsoft Word sample](https://file-examples.com/index.php/sample-documents-download/sample-doc-download/).
 -   `filesampleshub_*`: Files from [FileSamplesHub](https://filesampleshub.com). e.g. This
     [HEIF sample](https://filesampleshub.com/format/image/heif).
+-   `haskell_for_all_*`: Haskell sample files from the
+    [Haskell for all](https://www.haskellforall.com/2015/10/basic-haskell-examples.html) blog.
 -   `iphone_${photographer}_*`: Photos taken from an iPhone. Includes the name of the photographer
     (e.g. `calebmer` for Caleb Meredith)
 -   `iup_*`: From Indiana University of Pennsylvania. We use their IT department's

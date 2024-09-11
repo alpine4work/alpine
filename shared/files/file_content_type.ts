@@ -1,4 +1,5 @@
 import MIMEType from "whatwg-mimetype";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -19,7 +20,8 @@ export type FileContentType =
     | FileImageContentType
     | FileDocumentContentType
     | FileVideoContentType
-    | FileAudioContentType;
+    | FileAudioContentType
+    | FileCodeContentType;
 
 // TODO(calebmer, #files): File types to support:
 //
@@ -57,16 +59,15 @@ export type FileWebSafeImageContentType =
  *
  * This list is based on MDN's “[Common image file types][1].” We include
  * `.heif` and `.heic` since [`.heic` is Apple's default image file format][2].
+ * We consider `image/heif` and `image/heic` to be the same format. They're
+ * registered with the same specification in the [IANA media types
+ * database][3].
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
  * [2]: https://www.adobe.com/creativecloud/file-types/image/raster/heic-file.html
+ * [3]: https://www.iana.org/assignments/media-types/media-types.xhtml
  */
-export type FileWebUnsafeImageContentType =
-    | "image/bmp"
-    | "image/ico"
-    | "image/tiff"
-    | "image/heif"
-    | "image/heic";
+export type FileWebUnsafeImageContentType = "image/bmp" | "image/ico" | "image/tiff" | "image/heif";
 
 /**
  * Document file types. All documents file types are converted to [PDF
@@ -313,9 +314,88 @@ export type FileMp4AudioContentType = "audio/mp4";
 
 export type FileWebUnsafeAudioContentType = "audio/ogg";
 
+/**
+ * Content types representing code. Code files are considered to be text based
+ * and rendered with a UTF-8 character encoding.
+ */
+export type FileCodeContentType =
+    (typeof fileContentTypeByCodeBlockLanguageId)[keyof typeof fileContentTypeByCodeBlockLanguageId];
+
+/**
+ * Content type for each of the programming languages we support in
+ * `CodeBlockLanguageId`. If you upload a file from one of the programming
+ * languages we support you can view the file with syntax highlighting in
+ * Alpine.
+ *
+ * To find the MIME type for a programming language we go through the following
+ * list. We use the MIME type from the first source to contain a MIME type for
+ * the programming language.
+ *
+ * 1. [MDN's common MIME types documentation][1]
+ * 2. [IANA's media types database][2]
+ * 3. The MIME type database from [Debian's `mime-support` package][3]
+ * 4. The MIME type database from [XDG's `shared-mime-info` package][4]
+ *
+ * We've found `shared-mime-info` (source 4) the most comprehensive source but
+ * consider MDN (source 1) and IANA (source 2) are more authoritative.
+ *
+ * If we can't find a language's mime type in any of these sources then we use
+ * the mime type `text/x-${languageId}`. We can't find a mime type for
+ * `typescript`, `swift`, `r`, `solidity`.
+ *
+ * To prevent a cyclic dependency, `shared/files` doesn't depend on
+ * `shared/content`. Instead `shared/content` depends on `shared/files`
+ * and asserts that every value in the `CodeBlockLanguageId` enum has a
+ * content type.
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+ * [2]: https://www.iana.org/assignments/media-types/media-types.xhtml
+ * [3]: https://sources.debian.org/src/mime-support/3.62/mime.types/
+ * [4]: https://gitlab.freedesktop.org/xdg/shared-mime-info/-/blob/master/data/freedesktop.org.xml.in
+ */
+export const fileContentTypeByCodeBlockLanguageId = {
+    text: "text/plain",
+    javascript: "text/javascript",
+    html: "text/html",
+    css: "text/css",
+    sql: "application/sql",
+    python: "text/x-python",
+    typescript: "text/x-typescript",
+    shell: "application/x-sh",
+    java: "text/x-java",
+    json: "application/json",
+    markdown: "text/markdown",
+    csharp: "text/x-csharp",
+    cpp: "text/x-c++src",
+    c: "text/x-csrc",
+    php: "application/x-httpd-php",
+    go: "text/x-go",
+    yaml: "application/yaml",
+    powershell: "application/x-powershell",
+    rust: "text/rust",
+    kotlin: "text/x-kotlin",
+    ruby: "application/x-ruby",
+    lua: "text/x-lua",
+    xml: "application/xml",
+    dart: "application/vnd.dart",
+    swift: "text/x-swift",
+    assembly: "text/x-asm",
+    webassembly: "application/wasm",
+    scala: "text/x-scala",
+    r: "text/x-r",
+    elixir: "text/x-elixir",
+    objectivec: "text/x-objcsrc",
+    perl: "text/x-perl",
+    haskell: "text/x-haskell",
+    solidity: "text/x-solidity",
+    clojure: "text/x-clojure",
+    erlang: "text/x-erlang",
+    ocaml: "text/x-ocaml",
+} as const;
+
 // Preferred extensions must be unique! So we can map back from the preferred
 // extension to a `FileContentType`.
-const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = {
+const filePreferredExtensionByContentType: {[Key in FileContentType]: string} = {
     "application/octet-stream": "bin",
     "image/apng": "apng",
     "image/avif": "avif",
@@ -328,7 +408,6 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "image/ico": "ico",
     "image/tiff": "tiff",
     "image/heif": "heif",
-    "image/heic": "heic",
     "application/pdf": "pdf",
     "application/msword": "doc",
     "application/vnd.ms-excel": "xls",
@@ -346,13 +425,50 @@ const preferredExtensionByFileContentType: {[Key in FileContentType]: string} = 
     "audio/webm": "weba",
     "audio/ogg": "oga",
     "audio/mp4": "m4a",
+    "text/plain": "txt",
+    "text/javascript": "js",
+    "text/html": "html",
+    "text/css": "css",
+    "application/sql": "sql",
+    "text/x-python": "py",
+    "text/x-typescript": "ts",
+    "application/x-sh": "sh",
+    "text/x-java": "java",
+    "application/json": "json",
+    "text/markdown": "md",
+    "text/x-csharp": "cs",
+    "text/x-c++src": "cpp",
+    "text/x-csrc": "c",
+    "application/x-httpd-php": "php",
+    "text/x-go": "go",
+    "application/yaml": "yaml",
+    "application/x-powershell": "ps1",
+    "text/rust": "rs",
+    "text/x-kotlin": "kt",
+    "application/x-ruby": "rb",
+    "text/x-lua": "lua",
+    "application/xml": "xml",
+    "application/vnd.dart": "dart",
+    "text/x-swift": "swift",
+    "text/x-asm": "asm",
+    "application/wasm": "wasm",
+    "text/x-scala": "scala",
+    "text/x-r": "r",
+    "text/x-elixir": "ex",
+    "text/x-objcsrc": "m",
+    "text/x-perl": "pl",
+    "text/x-haskell": "hs",
+    "text/x-solidity": "sol",
+    "text/x-clojure": "clj",
+    "text/x-erlang": "erl",
+    "text/x-ocaml": "ml",
 };
 
 /**
  * A set of all our `FileContentType`s.
  */
 export const fileContentTypes = new Set(
-    Object.keys(preferredExtensionByFileContentType),
+    Object.keys(filePreferredExtensionByContentType),
 ) as ReadonlySet<FileContentType>;
 
 export const FileContentTypeSchema = Schema.enum(fileContentTypes);
@@ -364,10 +480,7 @@ export function isFileContentType(contentType: string): contentType is FileConte
     return fileContentTypes.has(contentType as any);
 }
 
-/**
- * Normalize content type to a canonical representation.
- */
-export function normalizeContentType(contentType: string): string {
+function normalizeParsedContentType(contentType: string): MIMEType {
     const parsedContentType = new MIMEType(contentType);
 
     // `charset` is case insensitive so normalize it to lower case. Source:
@@ -377,7 +490,55 @@ export function normalizeContentType(contentType: string): string {
         parsedContentType.parameters.set("charset", charsetParameter.toLowerCase());
     }
 
-    return parsedContentType.toString();
+    return parsedContentType;
+}
+
+/**
+ * Normalize content type to a normalized representation. Case insensitive
+ * parts are lowercased and unnecessary spacing is removed.
+ */
+export function normalizeContentType(contentType: string): string {
+    return normalizeParsedContentType(contentType).toString();
+}
+
+/**
+ * Take any mime type and canonicalize it to a `FileContentType` supported by
+ * our application if we have a `FileContentType` that matches the provided
+ * mime type. Removes any letter casing differences, useless parameters, and
+ * maps additional content types to their canonical representation.
+ */
+export function canonicalizeFileContentTypeIfExists(contentType: string): FileContentType | null {
+    const parsedContentType = normalizeParsedContentType(contentType);
+
+    // Try to find the canonical `FileContentType` using parameters.
+    //
+    // First we check if the content type itself is a `FileContentType` and then we
+    // check additional content types for a match.
+    {
+        const normalizedContentType = parsedContentType.toString();
+        if (isFileContentType(normalizedContentType)) return normalizedContentType;
+
+        const canonicalContentType =
+            getFileCanonicalContentTypeByAdditionalContentType().get(normalizedContentType);
+        if (canonicalContentType !== undefined) return canonicalContentType;
+    }
+
+    parsedContentType.parameters.clear();
+
+    // Try to find the canonical `FileContentType` without parameters.
+    //
+    // First we check if the content type itself is a `FileContentType` and then we
+    // check additional content types for a match.
+    {
+        const normalizedContentType = parsedContentType.toString();
+        if (isFileContentType(normalizedContentType)) return normalizedContentType;
+
+        const canonicalContentType =
+            getFileCanonicalContentTypeByAdditionalContentType().get(normalizedContentType);
+        if (canonicalContentType !== undefined) return canonicalContentType;
+    }
+
+    return null;
 }
 
 /**
@@ -388,5 +549,225 @@ export function normalizeContentType(contentType: string): string {
  * render the file correctly.
  */
 export function getFileContentTypePreferredExtension(contentType: FileContentType) {
-    return preferredExtensionByFileContentType[contentType];
+    return filePreferredExtensionByContentType[contentType];
+}
+
+/**
+ * Frequently, there are multiple different MIME types or file extensions that
+ * represent the same underlying file. For example in the [IANA media type
+ * database][1] `image/heif` and `image/heic` correspond to the same
+ * specification. This object defines a mapping between canonical
+ * `FileContentType`s and additional MIME types or file extensions that
+ * represent the file.
+ *
+ * Functions like `canonicalizeFileContentTypeIfExists()` query this database
+ * to determine whether a content type matches our canonical content types.
+ *
+ * This database was constructed from the [Shared MIME Info][2] package. This
+ * package is used by GLib (a core dependency of many C programs) among others.
+ * Shared MIME Info's data lives in [`data/freedesktop.org.xml.in`][3]. We
+ * started by looking up all our content types in this file and added any
+ * aliases or extensions defined in this file.
+ *
+ * We're free to extend this object beyond what's in the Shared MIME Info
+ * package as needed.
+ *
+ * [1]: https://www.iana.org/assignments/media-types/media-types.xhtml
+ * [2]: https://gitlab.freedesktop.org/xdg/shared-mime-info/-/tree/master
+ * [3]: https://gitlab.freedesktop.org/xdg/shared-mime-info/-/blob/815b520eb01992a05d41a5434f1227a8be101e15/data/freedesktop.org.xml.in
+ */
+const fileAdditionalContentTypesAndExtensionsByContentType: {
+    [Key in FileContentType]?: {
+        contentTypes?: Array<string>;
+        extensions?: Array<string>;
+    };
+} = {
+    "image/apng": {
+        contentTypes: ["image/vnd.mozilla.apng"],
+    },
+    "image/avif": {
+        contentTypes: ["image/avif-sequence"],
+        extensions: ["avifs"],
+    },
+    "image/jpeg": {
+        contentTypes: ["image/pjpeg"],
+        extensions: ["jpg", "jpe", "jfif"],
+    },
+    "image/bmp": {
+        contentTypes: ["image/x-bmp", "image/x-ms-bmp"],
+        extensions: ["dib"],
+    },
+    "image/tiff": {
+        extensions: ["tif"],
+    },
+    "image/ico": {
+        contentTypes: [
+            "image/vnd.microsoft.icon",
+            "application/ico",
+            "image/icon",
+            "image/x-ico",
+            "image/x-icon",
+            "text/ico",
+        ],
+    },
+    "image/heif": {
+        contentTypes: ["image/heic", "image/heif-sequence", "image/heic-sequence"],
+        extensions: ["heic", "hif"],
+    },
+    "application/pdf": {
+        contentTypes: [
+            "application/x-pdf",
+            "image/pdf",
+            "application/acrobat",
+            "application/nappdf",
+        ],
+    },
+    "application/msword": {
+        contentTypes: [
+            "application/vnd.ms-word",
+            "application/x-msword",
+            "zz-application/zz-winassoc-doc",
+        ],
+    },
+    "application/vnd.ms-excel": {
+        contentTypes: [
+            "application/msexcel",
+            "application/x-msexcel",
+            "zz-application/zz-winassoc-xls",
+        ],
+        extensions: ["xlc", "xll", "xlm", "xlw", "xla", "xlt", "xld"],
+    },
+    "application/vnd.ms-powerpoint": {
+        contentTypes: [
+            "application/powerpoint",
+            "application/mspowerpoint",
+            "application/x-mspowerpoint",
+        ],
+        extensions: ["ppz", "pps", "pot"],
+    },
+    "video/mp4": {
+        contentTypes: ["video/x-m4v"],
+        extensions: ["m4v", "f4v", "lrv"],
+    },
+    "video/mpeg": {
+        contentTypes: ["video/x-mpeg", "video/mpeg-system", "video/x-mpeg-system", "video/x-mpeg2"],
+        extensions: ["mpg", "mp2", "mpe", "vob"],
+    },
+    "video/quicktime": {
+        extensions: ["qt", "moov", "qtvr"],
+    },
+    "audio/mpeg": {
+        contentTypes: ["audio/x-mp3", "audio/x-mpg", "audio/x-mpeg", "audio/mp3"],
+        extensions: ["mpga"],
+    },
+    "audio/wav": {
+        contentTypes: ["audio/vnd.wave", "audio/x-wav"],
+    },
+    "audio/ogg": {
+        contentTypes: ["audio/x-ogg"],
+        extensions: ["ogg", "opus"],
+    },
+    "audio/mp4": {
+        contentTypes: ["audio/x-m4a", "audio/m4a"],
+        extensions: ["f4a"],
+    },
+    "text/javascript": {
+        contentTypes: [
+            "application/x-javascript",
+            "application/javascript",
+            "text/jscript",
+            "application/ecmascript",
+            "text/ecmascript",
+        ],
+        extensions: ["jsm", "mjs", "cjs", "jsx", "es"],
+    },
+    "text/html": {
+        extensions: ["htm"],
+    },
+    "application/sql": {
+        contentTypes: ["text/x-sql"],
+    },
+    "text/x-python": {
+        extensions: ["wsgi"],
+    },
+    "text/x-typescript": {
+        extensions: ["mts", "cts", "tsx"],
+    },
+    "application/x-sh": {
+        contentTypes: ["application/x-shellscript", "text/x-sh"],
+    },
+    "text/markdown": {
+        contentTypes: ["text/x-markdown"],
+        extensions: ["mkd", "markdown"],
+    },
+    "text/x-c++src": {
+        contentTypes: ["text/x-c++hdr"],
+        extensions: ["cxx", "cc", "c++", "hh", "hp", "hpp", "h++", "hxx"],
+    },
+    "text/x-csrc": {
+        contentTypes: ["text/x-c"],
+        extensions: ["h"],
+    },
+    "application/x-httpd-php": {
+        contentTypes: ["application/php"],
+        extensions: ["php3", "php4", "php5", "phps"],
+    },
+    "application/yaml": {
+        contentTypes: ["text/yaml", "text/x-yaml"],
+        extensions: ["yml"],
+    },
+    "text/rust": {
+        contentTypes: ["text/x-rust"],
+    },
+    "application/xml": {
+        contentTypes: ["text/xml"],
+        extensions: ["xbl", "xsd", "rng"],
+    },
+    "application/vnd.dart": {
+        contentTypes: ["text/x-dart"],
+    },
+    "text/x-asm": {
+        extensions: ["s"],
+    },
+    "text/x-scala": {
+        extensions: ["sc"],
+    },
+    "text/x-elixir": {
+        extensions: ["exs"],
+    },
+    "text/x-objcsrc": {
+        contentTypes: ["text/x-objc++src"],
+        extensions: ["mm"],
+    },
+    "text/x-perl": {
+        contentTypes: ["application/perl"],
+        extensions: ["pm", "al", "perl", "pod", "t"],
+    },
+    "text/x-clojure": {
+        // From: https://en.wikipedia.org/wiki/Clojure
+        extensions: ["cljs", "cljr", "cljc", "cljd", "edn"],
+    },
+    "text/x-ocaml": {
+        extensions: ["mli"],
+    },
+};
+
+export function getFileAdditionalContentTypesAndExtensionsByContentTypeForTest() {
+    assert(import.meta.jest);
+    return fileAdditionalContentTypesAndExtensionsByContentType;
+}
+
+let fileCanonicalContentTypeByAdditionalContentType: Map<string, FileContentType> | null = null;
+
+function getFileCanonicalContentTypeByAdditionalContentType() {
+    fileCanonicalContentTypeByAdditionalContentType ??= new Map(
+        Object.entries(fileAdditionalContentTypesAndExtensionsByContentType).flatMap(
+            ([contentType, {contentTypes: additionalContentTypes = []}]) =>
+                additionalContentTypes.map((additionalContentType): [string, FileContentType] => [
+                    additionalContentType,
+                    contentType as FileContentType,
+                ]),
+        ),
+    );
+    return fileCanonicalContentTypeByAdditionalContentType;
 }

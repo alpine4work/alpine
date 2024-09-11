@@ -2989,7 +2989,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "image/ico",
                                                 "image/tiff",
                                                 "image/heif",
-                                                "image/heic",
                                                 "application/pdf",
                                                 "application/msword",
                                                 "application/vnd.ms-excel",
@@ -3006,7 +3005,44 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "audio/wav",
                                                 "audio/webm",
                                                 "audio/ogg",
-                                                "audio/mp4"
+                                                "audio/mp4",
+                                                "text/plain",
+                                                "text/javascript",
+                                                "text/html",
+                                                "text/css",
+                                                "application/sql",
+                                                "text/x-python",
+                                                "text/x-typescript",
+                                                "application/x-sh",
+                                                "text/x-java",
+                                                "application/json",
+                                                "text/markdown",
+                                                "text/x-csharp",
+                                                "text/x-c++src",
+                                                "text/x-csrc",
+                                                "application/x-httpd-php",
+                                                "text/x-go",
+                                                "application/yaml",
+                                                "application/x-powershell",
+                                                "text/rust",
+                                                "text/x-kotlin",
+                                                "application/x-ruby",
+                                                "text/x-lua",
+                                                "application/xml",
+                                                "application/vnd.dart",
+                                                "text/x-swift",
+                                                "text/x-asm",
+                                                "application/wasm",
+                                                "text/x-scala",
+                                                "text/x-r",
+                                                "text/x-elixir",
+                                                "text/x-objcsrc",
+                                                "text/x-perl",
+                                                "text/x-haskell",
+                                                "text/x-solidity",
+                                                "text/x-clojure",
+                                                "text/x-erlang",
+                                                "text/x-ocaml"
                                             ],
                                             "referenceId": "af264040"
                                         },
@@ -3449,6 +3485,63 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "duration": {
                                                                     "valueSchema": {
                                                                         "type": "Integer"
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "Code": {
+                                                        "type": "BooleanUnion",
+                                                        "typeKey": "isProcessing",
+                                                        "trueSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "type": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": "Code"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "isProcessing": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": true
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "content": {
+                                                                    "valueSchema": {
+                                                                        "type": "Nullable",
+                                                                        "schema": {
+                                                                            "type": "Bytes"
+                                                                        }
+                                                                    },
+                                                                    "optional": false
+                                                                }
+                                                            }
+                                                        },
+                                                        "falseSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "type": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": "Code"
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "isProcessing": {
+                                                                    "valueSchema": {
+                                                                        "type": "Value",
+                                                                        "value": false
+                                                                    },
+                                                                    "optional": false
+                                                                },
+                                                                "content": {
+                                                                    "valueSchema": {
+                                                                        "type": "Bytes"
                                                                     },
                                                                     "optional": false
                                                                 }

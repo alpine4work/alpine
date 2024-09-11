@@ -1138,6 +1138,9 @@ export type TracerEventData = {
 
             /** If this is audio, how long is the audio in milliseconds? */
             readonly audioDurationMs?: number;
+
+            /** If this is code, how long is the `FileCodePreviewContent` binary data? */
+            readonly codeContentLength?: number;
         };
     };
 

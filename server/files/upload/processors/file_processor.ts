@@ -1,6 +1,7 @@
 import {Readable as ReadableStream} from "stream";
 import {ErrorBase} from "~/shared/error/error.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
@@ -72,7 +73,8 @@ export type FileProcessor =
           {readonly type: "Image"; readonly hasContent: true; readonly hasVideoDuration: false}
       >
     | FileProcessorTemplate<false, {readonly type: "Audio"}>
-    | FileProcessorTemplate<true, {readonly type: "Audio"}>;
+    | FileProcessorTemplate<true, {readonly type: "Audio"}>
+    | FileProcessorTemplate<false, {readonly type: "Code"}>;
 
 export interface NoopFileProcessor {
     readonly type: "Noop";
@@ -90,9 +92,14 @@ type FileProcessorTemplateHasAudioPreview = {
     readonly type: "Audio";
 };
 
+type FileProcessorTemplateHasCodePreview = {
+    readonly type: "Code";
+};
+
 type FileProcessorTemplateHasPreview =
     | FileProcessorTemplateHasImagePreview
-    | FileProcessorTemplateHasAudioPreview;
+    | FileProcessorTemplateHasAudioPreview
+    | FileProcessorTemplateHasCodePreview;
 
 export interface FileProcessorTemplate<
     HasAlternative extends boolean | "ImagePreviewContent",
@@ -107,7 +114,8 @@ export interface FileProcessorTemplate<
         | "WebSafeVideo"
         | "WebUnsafeVideo"
         | "WebSafeAudio"
-        | "WebUnsafeAudio";
+        | "WebUnsafeAudio"
+        | "Code";
     readonly hasAlternative: HasAlternative;
     readonly hasPreview: HasPreview;
 
@@ -168,6 +176,8 @@ type FileProcessorTemplateResultFromHasPreview<
     ? FileProcessorTemplateResultFromHasImagePreview<Exclude<HasPreview, null>>
     : HasPreview extends {type: "Audio"}
     ? FileProcessorTemplateResultFromHasAudioPreview
+    : HasPreview extends {type: "Code"}
+    ? FileProcessorTemplateResultFromHasCodePreview
     : never;
 
 type FileProcessorTemplateResultFromHasImagePreview<
@@ -198,6 +208,7 @@ type FileProcessorTemplateResultFromHasImagePreview<
         {imagePreviewVideoDurationPromise?: undefined}
     > & {
         audioPreviewDurationPromise?: undefined;
+        codePreviewContentPromise?: undefined;
     };
 
 type FileProcessorTemplateResultFromHasAudioPreview = {
@@ -206,6 +217,16 @@ type FileProcessorTemplateResultFromHasAudioPreview = {
     imagePreviewPlaceholderPromise?: undefined;
     imagePreviewContentPromise?: undefined;
     imagePreviewVideoDurationPromise?: undefined;
+    codePreviewContentPromise?: undefined;
+};
+
+type FileProcessorTemplateResultFromHasCodePreview = {
+    codePreviewContentPromise?: Promise<FileCodePreviewContent>;
+    imagePreviewSizePromise?: undefined;
+    imagePreviewPlaceholderPromise?: undefined;
+    imagePreviewContentPromise?: undefined;
+    imagePreviewVideoDurationPromise?: undefined;
+    audioPreviewDurationPromise?: undefined;
 };
 
 export const fileNoopProcessor: FileProcessor = {

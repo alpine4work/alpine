@@ -101,10 +101,6 @@ export function processImageFile(
                 expectedFormat = "heif";
                 expectedCompression = "hevc";
                 break;
-            case "image/heic":
-                expectedFormat = "heif";
-                expectedCompression = "hevc";
-                break;
             default:
                 throw exhaustive(contentType);
         }

@@ -14,6 +14,7 @@ import {Context} from "~/shared/context/context.js";
 import {InternalError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
@@ -224,6 +225,7 @@ export async function startUploadingAndProcessingFile(
         hasPreview:
             | {type: "Image"; hasContent: boolean; hasVideoDuration: boolean}
             | {type: "Audio"}
+            | {type: "Code"}
             | null;
     },
 ): Promise<FileUploader> {
@@ -256,7 +258,7 @@ export async function startUploadingAndProcessingFile(
 
         if (hasPreview) {
             switch (hasPreview.type) {
-                case "Image":
+                case "Image": {
                     preview = {
                         type: "Image",
                         isProcessing: true,
@@ -266,13 +268,23 @@ export async function startUploadingAndProcessingFile(
                         videoDuration: hasPreview.hasVideoDuration ? "Processing" : undefined,
                     };
                     break;
-                case "Audio":
+                }
+                case "Audio": {
                     preview = {
                         type: "Audio",
                         isProcessing: true,
                         duration: "Processing",
                     };
                     break;
+                }
+                case "Code": {
+                    preview = {
+                        type: "Code",
+                        isProcessing: true,
+                        content: "Processing",
+                    };
+                    break;
+                }
                 default:
                     throw exhaustive(hasPreview);
             }
@@ -732,7 +744,8 @@ export class FileUploader {
     /**
      * When we're done processing `preview.duration` for a file with an audio
      * preview this function is called. Since audio previews only need a duration
-     * the file is immediately considered to have finished processing.
+     * the file is immediately considered to have finished processing after
+     * this function is called.
      */
     public async finishProcessingAudioPreviewDuration(
         context: ServerSessionActionContext,
@@ -773,6 +786,59 @@ export class FileUploader {
                             type: "Audio",
                             isProcessing: false,
                             duration,
+                        },
+                    };
+                },
+                {initialItem: itemRef.current},
+            );
+        });
+    }
+
+    /**
+     * When we're done processing `preview.content` for a file with a code
+     * preview this function is called. Since code previews only need the preview
+     * content the file is immediately considered to have finished processing after
+     * this function is called.
+     */
+    public async finishProcessingCodePreviewContent(
+        context: ServerSessionActionContext,
+        content: FileCodePreviewContent,
+    ): Promise<void> {
+        if (this.uploaderId !== context.actor.getAccountId()) {
+            throw new PermissionDeniedError("Account is not the file's uploader account");
+        }
+
+        return this._item.withLock(async itemRef => {
+            itemRef.current = await FilesTable.updateItem(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "File",
+                    spaceId: this.spaceId,
+                    fileId: this.fileId,
+                },
+                item => {
+                    if (!item.preview) {
+                        throw new InternalError("File doesn't have a preview");
+                    }
+                    if (item.preview.type !== "Code") {
+                        throw new InternalError("File doesn't have a code preview");
+                    }
+                    if (!item.preview.isProcessing) {
+                        throw new InternalError("File has already finished processing its preview");
+                    }
+                    if (item.preview.content !== "Processing") {
+                        throw new InternalError(
+                            "File has already finished processing its code preview content",
+                        );
+                    }
+
+                    return {
+                        ...item,
+                        preview: {
+                            type: "Code",
+                            isProcessing: false,
+                            content,
                         },
                     };
                 },

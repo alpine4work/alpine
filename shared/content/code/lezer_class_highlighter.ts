@@ -1,12 +1,20 @@
-import {tagHighlighter, tags} from "@lezer/highlight";
+import {Tag, tagHighlighter, tags} from "@lezer/highlight";
+import {LezerClassHighlighterClass} from "~/shared/files/file_code_preview_content.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 // A modified version of [Lezer's own `classHighlighter`][1] which adds a
 // couple class names.
 //
 // [1]: https://github.com/lezer-parser/highlight/blob/33dd3f5d261283cfe7ce83101a6a6e7af010d918/src/highlight.ts#L683-L714
-export const lezerClassHighlighter = new Lazy(() =>
-    tagHighlighter([
+export const lezerClassHighlighter = new Lazy(() => {
+    const ourTags: Array<{
+        tag: Tag | Array<Tag>;
+        class:
+            | LezerClassHighlighterClass
+            // Try to avoid more than two highlighter classes! `FileCodePreviewContent`'s
+            // binary encoding assumes no more than 2 classes per highlight.
+            | `${LezerClassHighlighterClass} ${LezerClassHighlighterClass}`;
+    }> = [
         {tag: tags.link, class: "tok-link"},
         {tag: tags.heading, class: "tok-heading"},
         {tag: tags.emphasis, class: "tok-emphasis"},
@@ -44,5 +52,7 @@ export const lezerClassHighlighter = new Lazy(() =>
         {tag: tags.controlKeyword, class: "tok-keyword tok-controlKeyword"},
         {tag: tags.moduleKeyword, class: "tok-keyword tok-moduleKeyword"},
         {tag: tags.definition(tags.className), class: "tok-className tok-definition"},
-    ]),
-);
+    ];
+
+    return tagHighlighter(ourTags);
+});

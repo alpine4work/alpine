@@ -27,6 +27,7 @@ ts_project(
     },
     visibility = ["//server/files/upload/test_helpers:__pkg__"],
     deps = [
+        "//:node_modules/@lezer/highlight",
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
         "//:node_modules/@types/node",
@@ -40,6 +41,8 @@ ts_project(
         "//server/node",
         "//server/spaces",
         "//server/tracer",
+        "//shared/content",
+        "//shared/content/code",
         "//shared/error",
         "//shared/files",
         "//shared/helpers",
