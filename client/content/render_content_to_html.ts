@@ -2,11 +2,9 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -25,6 +23,8 @@ import {
     serializeProsemirrorFragmentToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 /**

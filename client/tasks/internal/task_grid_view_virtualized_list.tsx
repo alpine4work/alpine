@@ -36,11 +36,8 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {undefinedStore} from "~/client/helpers/store/const_store.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -121,6 +118,9 @@ import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/or
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id, generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {undefinedStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {
     taskGridViewColumnHeaderExtraPaddingBottomPx,

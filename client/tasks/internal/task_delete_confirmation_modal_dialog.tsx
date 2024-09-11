@@ -1,7 +1,7 @@
 import {useMemo} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {
     TaskClientStore,

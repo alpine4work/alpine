@@ -17,7 +17,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";

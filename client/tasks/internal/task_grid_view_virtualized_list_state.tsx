@@ -3,9 +3,6 @@ import createTree, {
     Iterator as TreeIterator,
     Node as TreeNode,
 } from "functional-red-black-tree";
-import {ConstStore, nullStore} from "~/client/helpers/store/const_store.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -17,6 +14,9 @@ import {symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {ConstStore, nullStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
+import {flatMapTreeStoreValues} from "~/shared/store/tree_store.js";
 import {
     TaskQuerySortCursor,
     compareTaskQuerySortCursors,

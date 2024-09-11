@@ -1,6 +1,6 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {Store} from "~/client/helpers/store/internal/store.js";
-import {StoreWeakImmediateListeners} from "~/client/helpers/store/internal/store_weak_immediate_listeners.js";
+import {Store} from "~/shared/store/internal/store.js";
+import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
 import {InternalError} from "~/shared/error/error.js";
 import {captureResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

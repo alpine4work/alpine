@@ -2,8 +2,6 @@ import {ReactNode} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
 import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
 import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
@@ -24,6 +22,8 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 /**

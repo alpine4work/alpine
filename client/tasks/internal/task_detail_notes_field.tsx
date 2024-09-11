@@ -4,7 +4,7 @@ import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.j
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";

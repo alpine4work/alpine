@@ -1,4 +1,3 @@
-import {Store} from "~/client/helpers/store/store.js";
 import {
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
@@ -9,6 +8,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {Store} from "~/shared/store/store.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 

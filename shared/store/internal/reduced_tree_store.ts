@@ -1,5 +1,5 @@
 import {Tree} from "functional-red-black-tree";
-import {Store} from "~/client/helpers/store/internal/store.js";
+import {Store} from "~/shared/store/internal/store.js";
 import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
 
 /**

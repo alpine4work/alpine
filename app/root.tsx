@@ -19,7 +19,6 @@ import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display
 import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
-import {contentCodeBlockLanguages} from "~/client/content/code/content_code_block_language.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -47,6 +46,7 @@ import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_tit
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {FailedPreconditionError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";

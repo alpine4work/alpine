@@ -1,8 +1,4 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
-import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -10,6 +6,10 @@ import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_sea
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult} from "~/shared/search/search_result.js";
+import {ConstStore} from "~/shared/store/const_store.js";
+import {createPromiseStore} from "~/shared/store/promise_store.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
  * The maximum number of keyword search results we look for. These search

@@ -4,8 +4,7 @@ import {memo, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {mobileNavigationBarHeight} from "~/client/design/navigation_bar.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -30,6 +29,7 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {Store} from "~/shared/store/store.js";
 import {
     colorSchemeVars,
     fontSizes,

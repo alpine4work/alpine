@@ -9,8 +9,6 @@ import {
     reduceContentReferences,
 } from "~/client/content/content_editor_state.js";
 import {AppContext} from "~/client/context/app_context.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {
     WebSocketClient,
@@ -25,6 +23,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";

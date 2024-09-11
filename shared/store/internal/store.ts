@@ -2,9 +2,9 @@ import {cast} from "~/shared/helpers/control/cast.js";
 
 // To defend against cyclic import issues we initialize these variables in
 // their respective modules instead of importing them here.
-let FlattenedMappedStore: typeof import("~/client/helpers/store/internal/flattened_mapped_store.js").FlattenedMappedStore;
-let MappedStore: typeof import("~/client/helpers/store/internal/mapped_store.js").MappedStore;
-let MappedManyStore: typeof import("~/client/helpers/store/internal/mapped_many_store.js").MappedManyStore;
+let FlattenedMappedStore: typeof import("~/shared/store/internal/flattened_mapped_store.js").FlattenedMappedStore;
+let MappedStore: typeof import("~/shared/store/internal/mapped_store.js").MappedStore;
+let MappedManyStore: typeof import("~/shared/store/internal/mapped_many_store.js").MappedManyStore;
 
 export function setFlattenedMappedStore(value: typeof FlattenedMappedStore) {
     FlattenedMappedStore = value;

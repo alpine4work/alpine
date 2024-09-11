@@ -7,8 +7,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {unwrapLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
@@ -32,6 +31,7 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 
 const taskRealtimeClientBySpaceIdForClient =
     typeof window !== "undefined"

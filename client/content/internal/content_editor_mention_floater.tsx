@@ -35,8 +35,7 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js"
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
@@ -47,6 +46,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {Store} from "~/shared/store/store.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,

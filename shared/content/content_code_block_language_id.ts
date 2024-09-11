@@ -1,4 +1,6 @@
+import {fileContentTypeByCodeBlockLanguageId} from "~/shared/files/file_content_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export type ContentCodeBlockLanguageId = (typeof contentCodeBlockLanguageIds)[number];
@@ -64,3 +66,7 @@ export function isContentCodeBlockLanguageId(string: string): string is ContentC
 assert(contentCodeBlockLanguageIds.length === contentCodeBlockLanguageIdSet.size);
 
 export const ContentCodeBlockLanguageIdSchema = Schema.enum(contentCodeBlockLanguageIdSet);
+
+// Make sure we have a `FileContentType` for all of our supported
+// `ContentCodeBlockLanguageId`s.
+assertEqualTypes<ContentCodeBlockLanguageId, keyof typeof fileContentTypeByCodeBlockLanguageId>();

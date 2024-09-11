@@ -4,7 +4,6 @@ import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
-import {ContentCodeBlockIncrementalParser} from "~/client/content/code/content_code_block_incremental_parser.js";
 import {
     buildContentEditorInputRulesPlugin,
     openMentionFloaterMetaKey,
@@ -20,7 +19,7 @@ import {
     initialContentEditorFloaterState,
 } from "~/client/content/internal/content_editor_floater.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
-import {Store} from "~/client/helpers/store/store.js";
+import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
     ContentReferences,
     ContentWithReferences,
@@ -39,6 +38,7 @@ import {Id, generateId, isId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {Store} from "~/shared/store/store.js";
 
 export const createCommentThreadMetaKey = "createCommentThread";
 

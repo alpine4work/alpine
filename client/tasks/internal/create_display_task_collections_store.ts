@@ -1,10 +1,10 @@
-import {computeStore} from "~/client/helpers/store/compute_store.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 

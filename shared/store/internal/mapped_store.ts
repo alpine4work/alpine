@@ -1,4 +1,4 @@
-import {Store} from "~/client/helpers/store/internal/store.js";
+import {Store} from "~/shared/store/internal/store.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 

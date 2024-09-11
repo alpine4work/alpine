@@ -1,10 +1,10 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {ConstStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * Get the text to display for a content mention.

@@ -10,8 +10,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
@@ -26,6 +25,7 @@ import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 import {fontSizes, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 import {
     TaskCollectionModelSearchResult,

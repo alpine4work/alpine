@@ -1,12 +1,12 @@
-import {FlattenedMappedStore} from "~/client/helpers/store/internal/flattened_mapped_store.js";
-import {MappedManyStore} from "~/client/helpers/store/internal/mapped_many_store.js";
-import {MappedStore} from "~/client/helpers/store/internal/mapped_store.js";
+import {FlattenedMappedStore} from "~/shared/store/internal/flattened_mapped_store.js";
+import {MappedManyStore} from "~/shared/store/internal/mapped_many_store.js";
+import {MappedStore} from "~/shared/store/internal/mapped_store.js";
 import {
     Store,
     setFlattenedMappedStore,
     setMappedManyStore,
     setMappedStore,
-} from "~/client/helpers/store/internal/store.js";
+} from "~/shared/store/internal/store.js";
 
 // Our `internal/store.ts` module doesn't import dependencies that would create
 // a cycle. Instead we import those dependencies here and tell our

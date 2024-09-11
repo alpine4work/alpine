@@ -3,9 +3,7 @@ import {Fragment, ReactNode, Ref, useEffect, useMemo, useRef, useState} from "re
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
-import {nullStore} from "~/client/helpers/store/const_store.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientStore,
@@ -24,6 +22,8 @@ import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.j
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {nullStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
 import {inputPlaceholderStyles} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";

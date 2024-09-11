@@ -1,10 +1,10 @@
 import {highlightTree} from "@lezer/highlight";
 import {Node} from "prosemirror-model";
-import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
-import {createContentCodeBlockNodeInput} from "~/client/content/code/create_content_code_block_node_input.js";
-import {lezerClassHighlighter} from "~/client/content/code/lezer_class_highlighter.js";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
-import {Store} from "~/client/helpers/store/store.js";
+import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
+import {createContentCodeBlockNodeInput} from "~/shared/content/code/create_content_code_block_node_input.js";
+import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 
 export type ContentCodeBlockHtmlSerializationDecoration = {

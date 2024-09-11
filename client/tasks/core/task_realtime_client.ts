@@ -1,7 +1,5 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AppContext} from "~/client/context/app_context.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -24,6 +22,8 @@ import {
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
 } from "~/shared/id/types/id_types.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {Store} from "~/shared/store/store.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 

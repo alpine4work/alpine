@@ -26,8 +26,7 @@ import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_n
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -52,6 +51,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {Store} from "~/shared/store/store.js";
 import {
     backgroundColorVar,
     colorSchemeVars,

@@ -1,5 +1,5 @@
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseState, pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 

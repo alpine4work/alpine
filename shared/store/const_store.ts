@@ -1,4 +1,4 @@
-import {Store} from "~/client/helpers/store/store.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * A store with a value that never changes. Adding/removing listeners from this

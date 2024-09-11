@@ -1,6 +1,5 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeViewConstructor, serializeForClipboard} from "prosemirror-view";
-import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
@@ -14,6 +13,7 @@ import {
 import {Reporter} from "~/client/design/reporter.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

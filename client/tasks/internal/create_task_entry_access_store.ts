@@ -1,6 +1,4 @@
 import jsonStableStringify from "json-stable-stringify";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreCollectionEntry,
@@ -10,6 +8,8 @@ import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_s
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {Store} from "~/shared/store/store.js";
 import {
     TaskCollectionAccessLevel,
     maxTaskCollectionAccessLevel,

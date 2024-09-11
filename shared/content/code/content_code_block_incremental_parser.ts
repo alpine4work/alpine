@@ -3,15 +3,15 @@ import {highlightTree} from "@lezer/highlight";
 import {Node} from "prosemirror-model";
 import {Mapping} from "prosemirror-transform";
 import {Decoration, DecorationSet} from "prosemirror-view";
-import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
-import {ContentCodeBlockHtmlSerializationDecoration} from "~/client/content/code/create_content_code_block_html_serialization_decorations_store.js";
-import {createContentCodeBlockNodeInput} from "~/client/content/code/create_content_code_block_node_input.js";
-import {lezerClassHighlighter} from "~/client/content/code/lezer_class_highlighter.js";
+import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
+import {ContentCodeBlockHtmlSerializationDecoration} from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
+import {createContentCodeBlockNodeInput} from "~/shared/content/code/create_content_code_block_node_input.js";
+import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     IterableChange,
     actuallySymmetricDiffIterable,
-} from "~/client/content/code/symmetric_diff_iterable.js";
-import {Store} from "~/client/helpers/store/store.js";
+} from "~/shared/content/code/symmetric_diff_iterable.js";
+import {Store} from "~/shared/store/store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";

@@ -1,4 +1,4 @@
-import {symmetricDiffIterable} from "~/client/content/code/symmetric_diff_iterable.js";
+import {symmetricDiffIterable} from "~/shared/content/code/symmetric_diff_iterable.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";
 

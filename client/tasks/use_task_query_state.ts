@@ -1,6 +1,5 @@
 import {startTransition, useEffect, useMemo, useState} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
@@ -14,6 +13,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";

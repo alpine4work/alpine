@@ -14,10 +14,8 @@ import {
 } from "~/client/documents/internal/document_content_editor_web_socket_client.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {nullStore} from "~/client/helpers/store/const_store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
@@ -41,6 +39,8 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {nullStore} from "~/shared/store/const_store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 type DocumentContentEditorWebSocketClientState =
     | {

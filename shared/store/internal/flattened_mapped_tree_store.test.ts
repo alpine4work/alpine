@@ -1,6 +1,6 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {FlattenedMappedTreeStore} from "~/client/helpers/store/internal/flattened_mapped_tree_store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {FlattenedMappedTreeStore} from "~/shared/store/internal/flattened_mapped_tree_store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 function intoMap<Key, Value>(tree: Tree<Key, Value>): Map<Key, Value> {
     const map = new Map<Key, Value>();

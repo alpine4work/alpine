@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/unicode-default-word-boundary",
         "//shared/accounts",
         "//shared/design",
+        "//shared/files",
         "//shared/helpers",
         "//shared/prosemirror",
         "//shared/schema",

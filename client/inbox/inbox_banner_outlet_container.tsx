@@ -8,8 +8,8 @@ import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useDynamoGeneralRealtimeItemBase} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {InboxContextProvider} from "~/client/inbox/inbox_context.js";
 import {
     getInboxEntryDisplay,

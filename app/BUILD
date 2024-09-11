@@ -14,6 +14,8 @@ load("//app:app_wrapper_srcs.bzl", "APP_WRAPPER_SRCS")
 ts_project(
     name = "app_wrapper_lib",
     srcs = APP_WRAPPER_SRCS,
+    # We lint and format everything in `app_lib`.
+    lint_and_format_srcs = [],
     test_srcs = [],
     deps = [
         "//:node_modules/@types/serve-static",

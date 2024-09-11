@@ -1,6 +1,6 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createGlobalContext, useGlobalContext} from "~/client/helpers/global_context.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";

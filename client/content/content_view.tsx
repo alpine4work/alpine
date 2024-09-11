@@ -3,12 +3,6 @@ import {Node} from "prosemirror-model";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
-import {ContentCodeBlockIncrementalParser} from "~/client/content/code/content_code_block_incremental_parser.js";
-import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
-import {
-    ContentCodeBlockHtmlSerializationDecoration,
-    createContentCodeBlockHtmlSerializationDecorationsStore,
-} from "~/client/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
@@ -22,12 +16,17 @@ import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointe
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
+import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
+import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
+import {
+    ContentCodeBlockHtmlSerializationDecoration,
+    createContentCodeBlockHtmlSerializationDecorationsStore,
+} from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
@@ -41,6 +40,7 @@ import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {Store} from "~/shared/store/store.js";
 import {contentSchemaStyles, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 const ContentViewCodeBlockDecorationsSchema = Schema.array(

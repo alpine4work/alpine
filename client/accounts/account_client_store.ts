@@ -1,12 +1,12 @@
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
  * Normalized store of account model data for the client. When we load data

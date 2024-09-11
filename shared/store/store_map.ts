@@ -1,5 +1,5 @@
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 

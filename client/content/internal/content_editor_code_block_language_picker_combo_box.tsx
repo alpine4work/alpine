@@ -5,10 +5,6 @@ import {Check, MagnifyingGlass} from "phosphor-react";
 import {Memo, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
 import {ComboBoxState, Item, ListState, useListState} from "react-stately";
-import {
-    ContentCodeBlockLanguage,
-    contentCodeBlockLanguages,
-} from "~/client/content/code/content_code_block_language.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
@@ -18,6 +14,10 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    ContentCodeBlockLanguage,
+    contentCodeBlockLanguages,
+} from "~/shared/content/code/content_code_block_language.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

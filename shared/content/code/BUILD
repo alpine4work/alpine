@@ -9,10 +9,7 @@ ts_project(
         "//:node_modules/prettier",
         "//shared/documents",
     ],
-    visibility = [
-        "//app:__subpackages__",
-        "//client:__subpackages__",
-    ],
+    visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@codemirror/lang-sql",
         "//:node_modules/@codemirror/lang-wast",
@@ -41,10 +38,10 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
         "//:node_modules/prosemirror-view",
-        "//client/helpers",
         "//shared/content",
         "//shared/error",
         "//shared/helpers",
+        "//shared/store",
         "//shared/tracer",
     ],
 )

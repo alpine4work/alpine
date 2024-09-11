@@ -1,4 +1,4 @@
-import {Store} from "~/client/helpers/store/internal/store.js";
+import {Store} from "~/shared/store/internal/store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";

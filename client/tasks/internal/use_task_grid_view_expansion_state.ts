@@ -5,10 +5,6 @@ import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {undefinedStore} from "~/client/helpers/store/const_store.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {getClientInfoWithoutListening, useBrowserId} from "~/client/remix/client_info_context.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -28,6 +24,10 @@ import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {BrowserId, TaskId} from "~/shared/id/types/id_types.js";
 import {updateTaskGridViewExpansionState} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {undefinedStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
+import {StoreMap} from "~/shared/store/store_map.js";
 import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionTaskState,

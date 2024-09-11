@@ -1,5 +1,4 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
-import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskGridViewVirtualizedListState,
@@ -15,6 +14,7 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {StoreMap} from "~/shared/store/store_map.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

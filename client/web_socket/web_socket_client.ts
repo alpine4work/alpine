@@ -1,5 +1,4 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {WebSocketClientConnection} from "~/client/web_socket/web_socket_client_connection.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -8,6 +7,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {
     WebSocketProtocolBase,

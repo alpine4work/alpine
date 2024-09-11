@@ -1,7 +1,7 @@
 import {StreamLanguage} from "@codemirror/language";
 import {Parser} from "@lezer/common";
-import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
-import {Store} from "~/client/helpers/store/store.js";
+import {createPromiseStore} from "~/shared/store/promise_store.js";
+import {Store} from "~/shared/store/store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ErrorBase, FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";

@@ -1,11 +1,7 @@
 import {Memo, useCallback, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {useStore} from "~/client/helpers/store/use_store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
@@ -28,6 +24,10 @@ import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchCommandId, searchCommandIndex} from "~/shared/search/search_commands.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {ConstStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
  * The maximum number of affinity search results we look for. When the user has

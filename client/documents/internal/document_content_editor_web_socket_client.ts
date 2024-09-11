@@ -6,8 +6,6 @@ import {
     DocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_state.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     WebSocketClient,
     WebSocketClientProcedures,
@@ -28,6 +26,8 @@ import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
 export type DocumentContentEditorWebSocketClientProcedures = Pick<

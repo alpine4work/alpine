@@ -8,8 +8,8 @@ import {EditorView} from "prosemirror-view";
 import {
     ContentCodeBlockIncrementalParser,
     setMockedHighlightTreeForTest,
-} from "~/client/content/code/content_code_block_incremental_parser.js";
-import {contentCodeBlockLanguageById} from "~/client/content/code/content_code_block_language.js";
+} from "~/shared/content/code/content_code_block_incremental_parser.js";
+import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {
     DocumentContentProsemirrorSchema as schema,
     DocumentContentStepSchema as stepSchema,

@@ -1,8 +1,4 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {StoreMap} from "~/client/helpers/store/store_map.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {
     TaskUndoActions,
@@ -46,6 +42,10 @@ import {
     deleteTaskAndAllChildren,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {Store} from "~/shared/store/store.js";
+import {StoreMap} from "~/shared/store/store_map.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 import {
     TaskAction,
     TaskUpdateAccountNameAction,

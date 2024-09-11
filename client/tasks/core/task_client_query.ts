@@ -1,7 +1,4 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     TaskClientStore,
     TaskClientStoreCollectionEntry,
@@ -15,6 +12,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 import {evaluateTaskQueryNormalizedFiltersForModel} from "~/shared/tasks/model/evaluate_task_query_normalized_filters_for_model.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";

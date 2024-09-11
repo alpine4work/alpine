@@ -1,5 +1,3 @@
-import {Store} from "~/client/helpers/store/store.js";
-import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     TaskClientStore,
     TaskClientStoreCollectionEntry,
@@ -7,6 +5,8 @@ import {
 } from "~/client/tasks/core/task_client_store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
  * Maintains a subscription to a single collection outside of a query. Useful
