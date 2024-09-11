@@ -1,4 +1,8 @@
-import {fileContentTypeByCodeBlockLanguageId} from "~/shared/files/file_content_type.js";
+import {
+    FileCodeContentType,
+    FileContentType,
+    fileContentTypeByCodeBlockLanguageId,
+} from "~/shared/files/file_content_type.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -70,3 +74,26 @@ export const ContentCodeBlockLanguageIdSchema = Schema.enum(contentCodeBlockLang
 // Make sure we have a `FileContentType` for all of our supported
 // `ContentCodeBlockLanguageId`s.
 assertEqualTypes<ContentCodeBlockLanguageId, keyof typeof fileContentTypeByCodeBlockLanguageId>();
+
+let codeBlockLanguageIdByFileContentType: Map<FileContentType, ContentCodeBlockLanguageId> | null =
+    null;
+
+export function getFileContentTypeContentCodeBlockLanguageId(
+    contentType: FileCodeContentType,
+): ContentCodeBlockLanguageId {
+    codeBlockLanguageIdByFileContentType ??= new Map(
+        Object.entries(fileContentTypeByCodeBlockLanguageId).map(
+            ([languageId, contentType]): [FileContentType, ContentCodeBlockLanguageId] => [
+                contentType,
+                languageId as ContentCodeBlockLanguageId,
+            ],
+        ),
+    );
+    return codeBlockLanguageIdByFileContentType.get(contentType)!;
+}
+
+export function getContentCodeBlockLanguageIdFileContentType(
+    languageId: ContentCodeBlockLanguageId,
+): FileCodeContentType {
+    return fileContentTypeByCodeBlockLanguageId[languageId];
+}

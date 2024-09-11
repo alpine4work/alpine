@@ -1,9 +1,9 @@
 import createTree from "functional-red-black-tree";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {Store} from "~/shared/store/store.js";
 import {flatMapTreeStoreValues} from "~/shared/store/tree_store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
-import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 
 test("weak immediate listeners are garbage collected", async () => {
     const store1 = new ValueStore(true);

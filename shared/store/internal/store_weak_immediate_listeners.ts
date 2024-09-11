@@ -1,7 +1,7 @@
-import {Store} from "~/shared/store/internal/store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {Store} from "~/shared/store/internal/store.js";
 
 /**
  * A set of weakly referenced listeners you can call. Weak listeners are added

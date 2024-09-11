@@ -1,12 +1,12 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {Store} from "~/shared/store/internal/store.js";
-import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
 import {InternalError} from "~/shared/error/error.js";
 import {captureResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {thenResult} from "~/shared/helpers/control/then_result.js";
 import {symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
+import {Store} from "~/shared/store/internal/store.js";
+import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
 
 /**
  * A combinator for flattening `Store<Tree<Key, Store<Value>>>` stores into

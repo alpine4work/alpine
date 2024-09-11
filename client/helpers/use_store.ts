@@ -1,6 +1,6 @@
 import {Memo, useSyncExternalStore} from "react";
-import {Store} from "~/shared/store/store.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * Convenience hook that directly calls [`useSyncExternalStore()`][1] for using

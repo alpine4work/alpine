@@ -1,12 +1,12 @@
 import {StreamLanguage} from "@codemirror/language";
 import {Parser} from "@lezer/common";
-import {createPromiseStore} from "~/shared/store/promise_store.js";
-import {Store} from "~/shared/store/store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ErrorBase, FailedPreconditionError, UnavailableError} from "~/shared/error/error.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {createPromiseStore} from "~/shared/store/promise_store.js";
+import {Store} from "~/shared/store/store.js";
 import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
 
 type ContentCodeBlockLanguageDefinition = {

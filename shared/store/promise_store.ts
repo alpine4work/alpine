@@ -1,7 +1,7 @@
-import {Store} from "~/shared/store/store.js";
-import {ValueStore} from "~/shared/store/value_store.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseState, pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
  * Create a store which updates with a promise's state. Starts as pending when

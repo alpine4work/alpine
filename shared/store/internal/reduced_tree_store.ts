@@ -1,6 +1,6 @@
 import {Tree} from "functional-red-black-tree";
-import {Store} from "~/shared/store/internal/store.js";
 import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
+import {Store} from "~/shared/store/internal/store.js";
 
 /**
  * A combinator for `Store<Tree<TreeKey, TreeValue>>` that lets you reduce into

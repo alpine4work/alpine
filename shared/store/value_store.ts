@@ -1,9 +1,9 @@
-import {storeUpdatesBatch} from "~/shared/store/batch_store_updates.js";
-import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
-import {Store} from "~/shared/store/store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {storeUpdatesBatch} from "~/shared/store/batch_store_updates.js";
+import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * A simple immutable value store object designed for use with React's

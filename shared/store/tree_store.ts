@@ -1,10 +1,10 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {FlattenedMappedTreeStore} from "~/shared/store/internal/flattened_mapped_tree_store.js";
-import {ReducedTreeStore} from "~/shared/store/internal/reduced_tree_store.js";
-import {Store} from "~/shared/store/store.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TreeChange} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
+import {FlattenedMappedTreeStore} from "~/shared/store/internal/flattened_mapped_tree_store.js";
+import {ReducedTreeStore} from "~/shared/store/internal/reduced_tree_store.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * Reduces a `Store<Tree<Key, Value>>` into some value efficiently. Since

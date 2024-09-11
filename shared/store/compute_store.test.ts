@@ -1,6 +1,6 @@
+import {cast} from "~/shared/helpers/control/cast.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 
 test("properly computes and caches values", () => {
     const store1 = new ValueStore(true);

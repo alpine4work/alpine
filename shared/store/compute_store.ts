@@ -1,9 +1,9 @@
-import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
-import {Store} from "~/shared/store/store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * Creates a store that let's you run an arbitrary synchronous computation with

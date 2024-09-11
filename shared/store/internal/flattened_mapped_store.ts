@@ -1,8 +1,8 @@
-import {Store} from "~/shared/store/internal/store.js";
-import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
 import {InternalError} from "~/shared/error/error.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {Store} from "~/shared/store/internal/store.js";
+import {StoreWeakImmediateListeners} from "~/shared/store/internal/store_weak_immediate_listeners.js";
 
 /**
  * A combinator for `Store` which turns `Store<Store<Value>>` into
