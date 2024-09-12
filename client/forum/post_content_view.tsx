@@ -25,23 +25,6 @@ import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/clien
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
-import {
-    PostCommentModel,
-    PostModel,
-    maxPostPreviewCommentAuthorCount,
-} from "~/shared/forum/post_model.js";
-import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
     desktopPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
@@ -61,8 +44,25 @@ import {
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
     postContentViewOuterOpenCommentSectionMarginBottom,
-} from "~/shared/styles/forum_shared_styles.js";
-import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+} from "~/client/styles/forum_shared_styles.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
+import {
+    PostCommentModel,
+    PostModel,
+    maxPostPreviewCommentAuthorCount,
+} from "~/shared/forum/post_model.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function PostContentView({
     withMobileLayout,
@@ -212,7 +212,7 @@ export function PostContentView({
                 </Box>
             )}
             <Box
-                paddingX={contentSchemaStyles.screenPaddingXWithoutBlockPaddingX}
+                paddingX={contentStyles.screenPaddingXWithoutBlockPaddingX}
                 style={{
                     paddingTop: postContentViewInnerMarginYWithoutContentEditorPaddingY,
                     paddingBottom: postContentViewInnerMarginYWithoutContentEditorPaddingY,

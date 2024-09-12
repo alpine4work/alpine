@@ -31,6 +31,8 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -40,14 +42,13 @@ import {
     TaskClientStoreUndoManager,
 } from "~/client/tasks/core/task_client_store.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
+import {fontSizesByPlatform} from "~/shared/design/fonts.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles.js";
-import {taskRowViewMinHeight} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
@@ -631,7 +632,7 @@ function TaskRowViewDragOverlay({
                             <Box
                                 fontStyle="truncate"
                                 style={{
-                                    ...contentSchemaStyles.paragraphFontSize,
+                                    ...contentStyles.paragraphFontSize,
                                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                                     // for consistency if the user types anything like 2x2 or an @ mention.
                                     fontFeatureSettings: '"calt" on',

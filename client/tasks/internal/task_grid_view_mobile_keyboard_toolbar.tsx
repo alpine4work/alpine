@@ -30,6 +30,7 @@ import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskRowTitleInputRef} from "~/client/tasks/internal/task_row_title_input.js";
@@ -38,7 +39,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 

@@ -7,6 +7,12 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
+import {
+    invertSelectionColorsClassName,
+    pressOpacityOverlayClassName,
+} from "~/client/styles/styles.js";
+import {fontSizesByPlatform} from "~/shared/design/fonts.js";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {
     DocumentContentReferences,
@@ -17,12 +23,6 @@ import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_documen
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {documentCommentThreadPreviewHeight} from "~/shared/styles/document_shared_styles.js";
-import {
-    fontSizesByPlatform,
-    invertSelectionColorsClassName,
-    pressOpacityOverlayClassName,
-} from "~/shared/styles/styles.js";
 
 const documentCommentThreadPreviewScale =
     fontSizesByPlatform["75"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;

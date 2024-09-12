@@ -23,6 +23,12 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {borderRadius, pressOpacityOverlayClassName} from "~/client/styles/styles.js";
+import {
+    taskCardViewMaxWidth,
+    taskCardViewMinHeight,
+    taskNotepadViewActiveSectionCardGap,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
@@ -38,12 +44,6 @@ import {spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {borderRadius, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
-import {
-    taskCardViewMaxWidth,
-    taskCardViewMinHeight,
-    taskNotepadViewActiveSectionCardGap,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";

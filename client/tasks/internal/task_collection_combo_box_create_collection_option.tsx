@@ -8,9 +8,9 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {buttonStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {buttonStyles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskCollectionComboBoxCreateCollectionOption<T>({
     comboBoxState,

@@ -13,7 +13,7 @@ ts_project(
         "//client/design",
         "//client/helpers",
         "//client/remix",
+        "//client/styles",
         "//shared/remix",
-        "//shared/styles",
     ],
 )

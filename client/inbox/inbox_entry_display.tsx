@@ -6,6 +6,7 @@ import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
 import {DocumentBrandIcon} from "~/client/icons/brand/document_brand_icon.js";
 import {PostBrandIcon} from "~/client/icons/brand/post_brand_icon.js";
 import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
@@ -24,7 +25,6 @@ import {truncateDocumentTitleForNotification} from "~/shared/notifications/trunc
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * We create display objects for `InboxEntryModel`s which contains the shared

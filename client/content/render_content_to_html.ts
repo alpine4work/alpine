@@ -4,6 +4,7 @@ import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
@@ -25,7 +26,6 @@ import {
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Renders content from `content_schema.tsx` into HTML. Contains all the same
@@ -41,7 +41,7 @@ export function renderContentToHtmlStore(
     },
 ): Store<string> {
     return renderContentFragmentToHtmlStore(content, options).map(fragmentHtml => {
-        return `<div class="${contentSchemaStyles.docClassName}">${fragmentHtml}</div>`;
+        return `<div class="${contentStyles.docClassName}">${fragmentHtml}</div>`;
     });
 }
 
@@ -127,19 +127,19 @@ export function renderContentFragmentToHtmlStore(
                     html.appendChild(checkboxContainerHtml);
                     checkboxContainerHtml.setAttribute(
                         "class",
-                        contentSchemaStyles.checkListItemCheckboxContainerClassName,
+                        contentStyles.checkListItemCheckboxContainerClassName,
                     );
 
                     const checkboxHtml = new HtmlElementGenerator("div");
                     checkboxContainerHtml.appendChild(checkboxHtml);
                     checkboxHtml.setAttribute(
                         "class",
-                        contentSchemaStyles.checkListItemCheckboxClassName,
+                        contentStyles.checkListItemCheckboxClassName,
                     );
                     checkboxHtml.appendChild({
                         generateHtml: () =>
                             checkIconSvg({
-                                className: contentSchemaStyles.checkListItemCheckboxIconClassName,
+                                className: contentStyles.checkListItemCheckboxIconClassName,
                             }),
                         generateNode: () => {
                             throw new UnimplementedError(
@@ -150,10 +150,7 @@ export function renderContentFragmentToHtmlStore(
 
                     const contentHtml = new HtmlElementGenerator("div");
                     html.appendChild(contentHtml);
-                    contentHtml.setAttribute(
-                        "class",
-                        contentSchemaStyles.checkListItemContentClassName,
-                    );
+                    contentHtml.setAttribute("class", contentStyles.checkListItemContentClassName);
 
                     return {html, contentHtml};
                 },
@@ -178,23 +175,20 @@ export function renderContentFragmentToHtmlStore(
 
                     const toolbarHtml = new HtmlElementGenerator("div");
                     html.insertBefore(toolbarHtml, contentHtml);
-                    toolbarHtml.setAttribute(
-                        "class",
-                        contentSchemaStyles.codeBlockToolbarClassName,
-                    );
+                    toolbarHtml.setAttribute("class", contentStyles.codeBlockToolbarClassName);
 
                     const toolbarFlexHtml = new HtmlElementGenerator("div");
                     toolbarHtml.appendChild(toolbarFlexHtml);
                     toolbarFlexHtml.setAttribute(
                         "class",
-                        contentSchemaStyles.codeBlockToolbarFlexClassName,
+                        contentStyles.codeBlockToolbarFlexClassName,
                     );
 
                     const toolbarOverflowGradientHtml = new HtmlElementGenerator("div");
                     toolbarFlexHtml.appendChild(toolbarOverflowGradientHtml);
                     toolbarOverflowGradientHtml.setAttribute(
                         "class",
-                        contentSchemaStyles.codeBlockToolbarOverflowGradientClassName,
+                        contentStyles.codeBlockToolbarOverflowGradientClassName,
                     );
 
                     {
@@ -202,14 +196,14 @@ export function renderContentFragmentToHtmlStore(
                         toolbarFlexHtml.appendChild(languagePickerHtml);
                         languagePickerHtml.setAttribute(
                             "class",
-                            contentSchemaStyles.codeBlockLanguagePickerClassName,
+                            contentStyles.codeBlockLanguagePickerClassName,
                         );
 
                         const languagePickerTextHtml = new HtmlElementGenerator("div");
                         languagePickerHtml.appendChild(languagePickerTextHtml);
                         languagePickerTextHtml.setAttribute(
                             "class",
-                            contentSchemaStyles.codeBlockLanguagePickerTextClassName,
+                            contentStyles.codeBlockLanguagePickerTextClassName,
                         );
 
                         languagePickerTextHtml.appendChild(new HtmlTextGenerator(language.name));
@@ -221,7 +215,7 @@ export function renderContentFragmentToHtmlStore(
                         copyButtonHtml.setAttribute(
                             "class",
                             classNames(
-                                contentSchemaStyles.codeBlockCopyButtonClassName,
+                                contentStyles.codeBlockCopyButtonClassName,
                                 // This class will be removed when the copy button is pressed and replaced
                                 // with a `grey-100` class. We need to add the class here for server rendering.
                                 sprinkles({color: "grey-60"}),
@@ -230,7 +224,7 @@ export function renderContentFragmentToHtmlStore(
                         copyButtonHtml.appendChild({
                             generateHtml: () =>
                                 clipboardTextIconSvg({
-                                    className: contentSchemaStyles.codeBlockCopyButtonIconClassName,
+                                    className: contentStyles.codeBlockCopyButtonIconClassName,
                                 }),
                             generateNode: () => {
                                 throw new UnimplementedError(
@@ -263,20 +257,19 @@ export function renderContentFragmentToHtmlStore(
                     element.setAttribute(
                         "class",
                         classNames(
-                            contentSchemaStyles.mentionClassName,
-                            isCurrentAccountMention &&
-                                contentSchemaStyles.currentAccountMentionClassName,
+                            contentStyles.mentionClassName,
+                            isCurrentAccountMention && contentStyles.currentAccountMentionClassName,
                         ),
                     );
 
                     const atElement = new HtmlElementGenerator("span");
                     element.appendChild(atElement);
-                    atElement.setAttribute("class", contentSchemaStyles.mentionAtClassName);
+                    atElement.setAttribute("class", contentStyles.mentionAtClassName);
                     atElement.appendChild(new HtmlTextGenerator("@"));
 
                     const textElement = new HtmlElementGenerator("span");
                     element.appendChild(textElement);
-                    textElement.setAttribute("class", contentSchemaStyles.mentionTextClassName);
+                    textElement.setAttribute("class", contentStyles.mentionTextClassName);
                     textElement.appendChild(
                         new HtmlTextGenerator(
                             get(

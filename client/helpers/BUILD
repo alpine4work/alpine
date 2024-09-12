@@ -22,10 +22,10 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/react-router-dom",
         "//:node_modules/scheduler",
+        "//client/styles",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
         "//shared/store",
-        "//shared/styles",
     ],
 )

@@ -19,6 +19,7 @@ ts_project(
         "//client/helpers",
         "//client/messaging",
         "//client/remix",
+        "//client/styles",
         "//client/virtualized",
         "//client/web_socket",
         "//shared/design",
@@ -26,6 +27,5 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/prosemirror",
-        "//shared/styles",
     ],
 )

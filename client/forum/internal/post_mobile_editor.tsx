@@ -21,6 +21,13 @@ import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_h
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
+    postContentViewInnerMarginY,
+    postViewMaxWidth,
+} from "~/client/styles/forum_shared_styles.js";
+import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -29,13 +36,6 @@ import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions.js";
-import {
-    mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
-    postContentViewInnerMarginY,
-    postViewMaxWidth,
-} from "~/shared/styles/forum_shared_styles.js";
-import {contentSchemaStyles, forumStyles, sprinkles} from "~/shared/styles/styles.js";
 
 const postContentEditorBlockMaxWidth = mapObjectValues(screenPaddingX, paddingX =>
     subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
@@ -174,7 +174,7 @@ export function PostMobileEditor({
                         paddingTop="safe-area-inset"
                         style={{
                             ...assignInlineVars({
-                                [contentSchemaStyles.blockMaxWidthVar]:
+                                [contentStyles.blockMaxWidthVar]:
                                     postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],
                             }),
                         }}
@@ -213,8 +213,7 @@ export function PostMobileEditor({
                             className={classNames(
                                 forumStyles.fullScreenContentEditorClassName,
                                 sprinkles({
-                                    paddingX:
-                                        contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
+                                    paddingX: contentStyles.screenPaddingXWithoutBlockPaddingX,
                                 }),
                             )}
                             onModEnter={() => {

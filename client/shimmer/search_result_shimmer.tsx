@@ -1,14 +1,14 @@
 import {Box} from "~/client/design/box.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
-import {Spacing} from "~/shared/design/spacing.js";
 import {
     searchResultViewBodyTextSnippetFontSize,
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
     searchResultViewTitleMarginBottom,
-} from "~/shared/styles/search_shared_styles.js";
-import {Sprinkles, colorSchemeVars} from "~/shared/styles/styles.js";
+} from "~/client/styles/search_shared_styles.js";
+import {Sprinkles, colorSchemeVars} from "~/client/styles/styles.js";
+import {Spacing} from "~/shared/design/spacing.js";
 
 export function SearchResultShimmer({
     marginX = "1",

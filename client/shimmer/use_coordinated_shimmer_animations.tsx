@@ -1,8 +1,8 @@
 import {useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {pulseAnimationClassName} from "~/client/styles/styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {pulseAnimationClassName} from "~/shared/styles/styles.js";
 
 export function useCoordinatedShimmerAnimations({isDisabled = false}: {isDisabled?: boolean} = {}) {
     const isMobile = useIsMobile();

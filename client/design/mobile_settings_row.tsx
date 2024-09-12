@@ -4,8 +4,8 @@ import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
+import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function MobileSettingsRow({
     isSelected = false,

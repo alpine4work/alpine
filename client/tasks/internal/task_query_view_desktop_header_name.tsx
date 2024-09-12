@@ -9,8 +9,8 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const defaultTaskQueryViewName = "New view";
 

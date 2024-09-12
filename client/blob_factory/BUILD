@@ -18,11 +18,11 @@ ts_project(
         "//client/design",
         "//client/dev",
         "//client/helpers",
+        "//client/styles",
         "//shared/design",
         "//shared/documents",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
-        "//shared/styles",
     ],
 )

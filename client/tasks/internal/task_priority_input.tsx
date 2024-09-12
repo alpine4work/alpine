@@ -19,6 +19,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {
@@ -27,7 +28,6 @@ import {
 } from "~/client/tasks/internal/task_priority_input_list_box.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 // Node.js ESM interop (#node-esm-migration)

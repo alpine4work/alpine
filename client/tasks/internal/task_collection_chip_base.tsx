@@ -3,12 +3,12 @@ import {ReactNode, Ref, forwardRef} from "react";
 import {usePress} from "react-aria";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
+import {Sprinkles, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
-import {Sprinkles, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const taskCollectionChipHeight: {desktop: Spacing; mobile: Spacing} = {
     desktop: "5",

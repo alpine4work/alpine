@@ -2,7 +2,6 @@ import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
-import {screenPaddingX} from "~/shared/design/spacing.js";
 import {
     postContentViewFooterHeight,
     postContentViewHeaderHeight,
@@ -10,8 +9,9 @@ import {
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
-} from "~/shared/styles/forum_shared_styles.js";
-import {colorSchemeVars, pulseAnimationClassName} from "~/shared/styles/styles.js";
+} from "~/client/styles/forum_shared_styles.js";
+import {colorSchemeVars, pulseAnimationClassName} from "~/client/styles/styles.js";
+import {screenPaddingX} from "~/shared/design/spacing.js";
 
 export function PostShimmer({
     children,

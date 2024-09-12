@@ -8,9 +8,10 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {paragraphClassName} from "~/shared/content/content_styles.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: `Home${metaTitlePostfix}`}];
@@ -59,16 +60,13 @@ export default function HomeRoute() {
             withoutMobileBackButton={true}
         >
             <Box width="full" maxWidth={maxWidth} marginX="center">
-                <Box
-                    paddingX={contentSchemaStyles.screenPaddingXWithoutBlockPaddingX}
-                    userSelect="text"
-                >
-                    <p className={contentSchemaStyles.paragraphClassName}>
+                <Box paddingX={contentStyles.screenPaddingXWithoutBlockPaddingX} userSelect="text">
+                    <p className={paragraphClassName}>
                         Eventually, we’ll have something smart for you here in the home tab but
                         nothing’s been implemented yet. All the other tabs work. Try creating
                         something from the create tab or searching for content from the search tab.
                     </p>
-                    <p className={contentSchemaStyles.paragraphClassName}>
+                    <p className={paragraphClassName}>
                         Thanks for being an alpha user! We appreciate you.
                     </p>
                 </Box>

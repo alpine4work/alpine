@@ -1,7 +1,7 @@
 import {useId, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {sprinkles} from "~/client/styles/styles.js";
 
 export type MultilineTextInputProps = {
     /**

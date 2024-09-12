@@ -4,15 +4,15 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {ChannelModel} from "~/shared/forum/channel_model.js";
-import {generateId} from "~/shared/id/id.js";
-import {postFauxInputCreateButtonHeight} from "~/shared/styles/forum_shared_styles.js";
+import {postFauxInputCreateButtonHeight} from "~/client/styles/forum_shared_styles.js";
 import {
     accentThemeBackgroundColor,
     accentThemeForegroundColor,
     inputPlaceholderStyles,
     pressOpacityOverlayClassName,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {generateId} from "~/shared/id/id.js";
 
 export function PostFauxInputCreateButton({
     withMobileLayout,

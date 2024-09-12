@@ -1,7 +1,7 @@
+import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
-import {taskRowViewMinHeight} from "~/shared/styles/tasks_shared_styles.js";
 
 /**
  * Get the number of tasks to load when fetching a query.

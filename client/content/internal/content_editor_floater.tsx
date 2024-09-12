@@ -19,12 +19,12 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.j
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
-import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
 export type ContentEditorPointerToolbarFloaterState = {
     readonly type: "PointerToolbar";

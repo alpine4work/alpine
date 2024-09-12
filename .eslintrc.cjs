@@ -475,7 +475,7 @@ module.exports = {
             },
         },
         {
-            files: ["shared/styles/internal/**/*"],
+            files: ["client/styles/internal/**/*"],
             rules: {
                 "no-restricted-imports": [
                     "error",
@@ -484,11 +484,11 @@ module.exports = {
                         paths: [
                             ...baseNoRestrictedImports.paths,
                             {
-                                name: "~/shared/styles/internal/styles.js",
+                                name: "~/client/styles/internal/styles.js",
                                 message: "Can't import style bundle from `.css.ts` file",
                             },
                             {
-                                name: "~/shared/styles/styles.js",
+                                name: "~/client/styles/styles.js",
                                 message: "Can't import style bundle from `.css.ts` file",
                             },
                         ],

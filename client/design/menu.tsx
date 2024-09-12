@@ -30,6 +30,12 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    colorSchemeVars,
+    greyElevated2ClassName,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -39,12 +45,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {
-    colorSchemeVars,
-    greyElevated2ClassName,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 /**
  * A single action in a menu.

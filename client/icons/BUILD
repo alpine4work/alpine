@@ -7,8 +7,8 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
+        "//client/styles",
         "//shared/design",
         "//shared/helpers",
-        "//shared/styles",
     ],
 )

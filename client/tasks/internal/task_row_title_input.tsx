@@ -31,6 +31,14 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    contentStyles,
+    inputPlaceholderStyles,
+    pointerEventsNoneNotInheritedClassName,
+    sprinkles,
+    tasksStyles,
+} from "~/client/styles/styles.js";
+import {taskRowViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
@@ -49,14 +57,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    contentSchemaStyles,
-    inputPlaceholderStyles,
-    pointerEventsNoneNotInheritedClassName,
-    sprinkles,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
-import {taskRowViewMinHeight} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {
@@ -72,7 +72,7 @@ const taskRowTitleInputSingleLineHeightRem = parseRemLengthNumber(
 
 export const taskRowTitleInputPaddingY: RemLength = `${
     (parseRemLengthNumber(spacing[taskRowViewMinHeight]) -
-        parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight)) /
+        parseRemLengthNumber(contentStyles.paragraphFontSize.lineHeight)) /
     2
 }rem`;
 
@@ -102,7 +102,7 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
 })}`;
 
 const taskRowTitleInputSingleLineStyle: CSSProperties = {
-    ...contentSchemaStyles.paragraphFontSize,
+    ...contentStyles.paragraphFontSize,
     paddingTop: taskRowTitleInputPaddingY,
     paddingBottom: taskRowTitleInputPaddingY,
     // Make sure we have room to render the cursor.
@@ -129,7 +129,7 @@ const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
 })}`;
 
 const taskRowTitleInputMultilineStyle: CSSProperties = {
-    ...contentSchemaStyles.paragraphFontSize,
+    ...contentStyles.paragraphFontSize,
     paddingTop: taskRowTitleInputPaddingY,
     paddingBottom: taskRowTitleInputPaddingY,
     // Make sure we have room to render the cursor.

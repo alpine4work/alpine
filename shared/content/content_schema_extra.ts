@@ -1,10 +1,12 @@
 import {NodeSpec} from "prosemirror-model";
+import {
+    dividerClassName,
+    headingLevel1ClassName,
+    headingLevel2ClassName,
+    headingLevel3ClassName,
+} from "~/shared/content/content_styles.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
-
-const {dividerClassName, headingLevel1ClassName, headingLevel2ClassName, headingLevel3ClassName} =
-    contentSchemaStyles;
 
 /**
  * TypeScript convenience function for creating a `NodeSpec`. Forces us to

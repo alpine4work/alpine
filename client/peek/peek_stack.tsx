@@ -72,6 +72,11 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    greyElevated1ClassName,
+    wiggleAnimation,
+    wiggleAnimationDuration,
+} from "~/client/styles/styles.js";
+import {
     addRemLengths,
     convertRemLengthToPx,
     parseRemLengthNumber,
@@ -91,11 +96,6 @@ import {
     convertSpacePathToPeekPath,
 } from "~/shared/remix/peek_path_helpers.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {
-    greyElevated1ClassName,
-    wiggleAnimation,
-    wiggleAnimationDuration,
-} from "~/shared/styles/styles.js";
 
 const peekWidth = spacing["128"];
 const peekHeight = spacing["160"];

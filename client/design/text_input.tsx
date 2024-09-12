@@ -7,8 +7,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 export type TextInputProps = {
     /**

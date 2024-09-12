@@ -36,6 +36,7 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
+import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
 import {
     RemLength,
     Spacing,
@@ -47,7 +48,6 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
-import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Where should the overlay content be placed relative to the target element?

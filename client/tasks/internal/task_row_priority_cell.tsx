@@ -13,6 +13,12 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {sprinkles, tasksStyles} from "~/client/styles/styles.js";
+import {
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
@@ -24,12 +30,6 @@ import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-import {
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewMinHeight,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";

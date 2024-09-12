@@ -28,12 +28,12 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 const taskDateInputCalendarDaySize = "8";
 const taskDateInputCalendarDaySizeRem = parseRemLengthNumber(spacing[taskDateInputCalendarDaySize]);

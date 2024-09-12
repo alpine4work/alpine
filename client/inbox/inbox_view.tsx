@@ -24,6 +24,8 @@ import {
     PeekSwitcherStatePeekBase,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
+import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -39,8 +41,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function InboxView({
     filter,

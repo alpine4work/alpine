@@ -120,10 +120,10 @@ import {
     InboxTaskEntryModel,
     getInboxEntryKeyPath,
 } from "~/shared/notifications/inbox_model.js";
+import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 import {MyAccountBroadcastInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_protocol.js";
 import {truncateDocumentTitleForNotification} from "~/shared/notifications/truncate_document_title_for_notification.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type InboxActionExtraBroadcastContextModules = {

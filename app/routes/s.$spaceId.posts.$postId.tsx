@@ -6,6 +6,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {postViewMaxWidth} from "~/client/styles/forum_shared_styles.js";
 import {getPostAndInitialComments} from "~/server/forum/data/forum_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -17,7 +18,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {postViewMaxWidth} from "~/shared/styles/forum_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

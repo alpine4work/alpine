@@ -8,14 +8,14 @@ import {useReporter} from "~/client/design/reporter.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {
+    documentCommentThreadActionsHeight,
+    documentCommentThreadHeaderPaddingY,
+} from "~/client/styles/document_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
-import {
-    documentCommentThreadActionsHeight,
-    documentCommentThreadHeaderPaddingY,
-} from "~/shared/styles/document_shared_styles.js";
 
 export function DocumentCommentThreadHeader({
     withMobileLayout,

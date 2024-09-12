@@ -38,6 +38,11 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {
+    greyElevated2ClassName,
+    overlayFadeOutAnimationDurationMs,
+    spinAnimationClassName,
+} from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -47,11 +52,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    greyElevated2ClassName,
-    overlayFadeOutAnimationDurationMs,
-    spinAnimationClassName,
-} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;

@@ -13,6 +13,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
+import {taskDetailViewCommentSidebarWidth} from "~/client/styles/tasks_shared_styles.js";
 import {useTaskStoreLoaderDataWithoutRetaining} from "~/client/tasks/core/task_realtime_client_context_provider.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
@@ -38,7 +39,6 @@ import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_prot
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
-import {taskDetailViewCommentSidebarWidth} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";

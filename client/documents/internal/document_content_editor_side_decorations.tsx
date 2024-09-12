@@ -4,12 +4,12 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export type DocumentContentEditorSideDecoration = {
     readonly markTop: number;
@@ -36,7 +36,7 @@ export function DocumentContentEditorSideDecorations({
     const remPx = useRemPx();
     const commentCountMinMargin = convertRemLengthToPx("2.75rem", remPx);
     const commentAvatarsMinMargin = convertRemLengthToPx("6.75rem", remPx);
-    const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.defaultBlockMaxWidth, remPx);
+    const blockMaxWidth = convertRemLengthToPx(contentStyles.defaultBlockMaxWidth, remPx);
 
     const shouldRenderCommentCount =
         Math.max(0, (editorContainerWidth ?? screenWidth) - blockMaxWidth) / 2 >=
@@ -134,7 +134,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
             borderRadius="1.5"
             style={{
                 top: markTop,
-                right: `calc(50% + ${contentSchemaStyles.defaultBlockMaxWidth} / 2)`,
+                right: `calc(50% + ${contentStyles.defaultBlockMaxWidth} / 2)`,
                 height: markHeight,
                 opacity: isPressed ? 0.75 : undefined,
             }}

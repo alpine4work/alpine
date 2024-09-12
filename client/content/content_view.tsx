@@ -21,6 +21,7 @@ import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
+import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {
@@ -29,6 +30,7 @@ import {
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -41,7 +43,6 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {Store} from "~/shared/store/store.js";
-import {contentSchemaStyles, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 const ContentViewCodeBlockDecorationsSchema = Schema.array(
     Schema.object({
@@ -287,10 +288,7 @@ export function ContentView({
                 html = updatedNoteHtml;
             } else {
                 const updatedNoteContainerHtml = new HtmlElementGenerator("p");
-                updatedNoteContainerHtml.setAttribute(
-                    "class",
-                    contentSchemaStyles.paragraphClassName,
-                );
+                updatedNoteContainerHtml.setAttribute("class", paragraphClassName);
 
                 const updatedNoteHtml = new HtmlElementGenerator("span");
                 updatedNoteContainerHtml.appendChild(updatedNoteHtml);
@@ -354,10 +352,7 @@ export function ContentView({
                 html = seeButtonContainerHtml;
             } else {
                 const seeButtonContainerHtml = new HtmlElementGenerator("p");
-                seeButtonContainerHtml.setAttribute(
-                    "class",
-                    contentSchemaStyles.paragraphClassName,
-                );
+                seeButtonContainerHtml.setAttribute("class", paragraphClassName);
 
                 const seeButtonHtml = new HtmlElementGenerator("span");
                 seeButtonContainerHtml.appendChild(seeButtonHtml);
@@ -385,7 +380,7 @@ export function ContentView({
                     to: pos + index + emoji.length,
                     attrs: {
                         nodeName: "span",
-                        class: contentSchemaStyles.emojiClassName,
+                        class: contentStyles.emojiClassName,
                     },
                 });
             }
@@ -519,21 +514,18 @@ export function ContentView({
         const cleanupFunctions: Array<() => void> = [];
 
         for (const element of parentElement.querySelectorAll(
-            `.${contentSchemaStyles.linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentSchemaStyles.codeBlockCopyButtonClassName}`,
+            `.${linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentStyles.codeBlockCopyButtonClassName}`,
         )) {
             if (!(element instanceof HTMLElement)) continue;
 
-            if (
-                element.classList.contains(contentSchemaStyles.linkClassName) &&
-                element instanceof HTMLAnchorElement
-            ) {
+            if (element.classList.contains(linkClassName) && element instanceof HTMLAnchorElement) {
                 let isPointerDownAndOver = false;
 
                 const maybeUpdateStyle = () => {
                     if (isPointerDownAndOver) {
-                        element.classList.add(contentSchemaStyles.linkPressedClassName);
+                        element.classList.add(contentStyles.linkPressedClassName);
                     } else {
-                        element.classList.remove(contentSchemaStyles.linkPressedClassName);
+                        element.classList.remove(contentStyles.linkPressedClassName);
                     }
                 };
 
@@ -703,7 +695,7 @@ export function ContentView({
                 });
             }
 
-            if (element.classList.contains(contentSchemaStyles.codeBlockCopyButtonClassName)) {
+            if (element.classList.contains(contentStyles.codeBlockCopyButtonClassName)) {
                 let isCodeBlockCopyButtonHovered = false;
 
                 // We don't need to cleanup event listeners on DOM nodes created for this
@@ -799,7 +791,7 @@ export function ContentView({
             flushSync(() => {
                 if (
                     focusedElement instanceof HTMLAnchorElement &&
-                    focusedElement?.classList.contains(contentSchemaStyles.linkClassName)
+                    focusedElement?.classList.contains(linkClassName)
                 ) {
                     setFocusedLinkElement(focusedElement);
                 } else {
@@ -828,15 +820,13 @@ export function ContentView({
             <div
                 ref={ref}
                 className={classNames(
-                    contentSchemaStyles.docClassName,
-                    withMobileLayout ? contentSchemaStyles.withMobileLayoutDocClassName : undefined,
-                    isCompact || isExtraCompact
-                        ? contentSchemaStyles.compactDocClassName
-                        : undefined,
-                    isExtraCompact ? contentSchemaStyles.extraCompactDocClassName : undefined,
+                    contentStyles.docClassName,
+                    withMobileLayout ? contentStyles.withMobileLayoutDocClassName : undefined,
+                    isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
+                    isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
                     className,
-                    isTitleEmpty && contentSchemaStyles.emptyTitleClassName,
-                    isBodyEmpty && contentSchemaStyles.emptyBodyClassName,
+                    isTitleEmpty && contentStyles.emptyTitleClassName,
+                    isBodyEmpty && contentStyles.emptyBodyClassName,
                     isTruncated && contentViewStyles.truncatedClassName,
                 )}
                 style={

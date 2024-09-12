@@ -7,12 +7,12 @@ import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
+import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskCollectionMobileEditor({
     title,

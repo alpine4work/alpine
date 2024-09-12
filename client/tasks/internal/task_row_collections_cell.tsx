@@ -20,6 +20,14 @@ import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overla
 import {useStore} from "~/client/helpers/use_store.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/client/styles/styles.js";
+import {
+    maxTaskRowViewCollectionsColumnWidth,
+    taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewLastColumnPaddingRight,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -35,14 +43,6 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-import {
-    maxTaskRowViewCollectionsColumnWidth,
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewLastColumnPaddingRight,
-    taskRowViewMinHeight,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

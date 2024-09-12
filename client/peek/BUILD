@@ -20,10 +20,10 @@ ts_project(
         "//client/helpers",
         "//client/remix",
         "//client/spaces",
+        "//client/styles",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
-        "//shared/styles",
     ],
 )

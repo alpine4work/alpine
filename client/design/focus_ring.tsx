@@ -18,10 +18,10 @@ import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};

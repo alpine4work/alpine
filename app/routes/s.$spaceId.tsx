@@ -58,6 +58,7 @@ import {
 } from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/layout/space_route_error_renderer.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {
     TaskRealtimeClientContextProvider,
     clientLoaderTaskStoreLoaderData,
@@ -94,7 +95,6 @@ import {
 } from "~/shared/search/search_options.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.object({

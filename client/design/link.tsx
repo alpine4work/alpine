@@ -5,9 +5,10 @@ import {MouseEvent, ReactNode} from "react";
 import {mergeProps, usePress} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {linkClassName} from "~/shared/content/content_styles.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export function Link({
     url,
@@ -35,8 +36,8 @@ export function Link({
                     {...mergeProps(pressProps, {onClick})}
                     href={url}
                     className={classNames(
-                        contentSchemaStyles.linkClassName,
-                        isPressed ? contentSchemaStyles.linkPressedClassName : undefined,
+                        linkClassName,
+                        isPressed ? contentStyles.linkPressedClassName : undefined,
                     )}
                     // We don't support arbitrary navigation in the native mobile app. Since not
                     // all URLs are openable in the native mobile app.
@@ -50,8 +51,8 @@ export function Link({
                     {...mergeProps(pressProps, {onClick})}
                     to={url}
                     className={classNames(
-                        contentSchemaStyles.linkClassName,
-                        isPressed ? contentSchemaStyles.linkPressedClassName : undefined,
+                        linkClassName,
+                        isPressed ? contentStyles.linkPressedClassName : undefined,
                     )}
                     // We don't support arbitrary navigation in the native mobile app. Since not
                     // all URLs are openable in the native mobile app.

@@ -20,6 +20,15 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    inputPlaceholderStyles,
+    invertSelectionColorsClassName,
+    tasksStyles,
+} from "~/client/styles/styles.js";
+import {
+    taskQueryViewCustomizationMobileLayoutMarginTop,
+    taskQueryViewCustomizationMobileSectionMarginBottom,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
@@ -65,15 +74,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    inputPlaceholderStyles,
-    invertSelectionColorsClassName,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
-import {
-    taskQueryViewCustomizationMobileLayoutMarginTop,
-    taskQueryViewCustomizationMobileSectionMarginBottom,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {

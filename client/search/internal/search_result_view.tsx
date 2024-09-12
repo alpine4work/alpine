@@ -16,15 +16,7 @@ import {TaskBrandIcon} from "~/client/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/icons/brand/task_collection_brand_icon.js";
 import {TaskCommentBrandIcon} from "~/client/icons/brand/task_comment_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/icons/brand/task_query_brand_icon.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
-import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
-import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
+import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
     minSearchResultViewBodyTextSnippetHeight,
     minSearchResultViewBodyTextSnippetHeightWithTitle,
@@ -35,7 +27,7 @@ import {
     searchResultViewPaddingY,
     searchResultViewTitleFontSize,
     searchResultViewTitleMarginBottom,
-} from "~/shared/styles/search_shared_styles.js";
+} from "~/client/styles/search_shared_styles.js";
 import {
     Sprinkles,
     backgroundColorVar,
@@ -44,7 +36,15 @@ import {
     greyElevated2ClassName,
     searchStyles,
     sprinkles,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchResult, SearchResultId, SearchResultMedia} from "~/shared/search/search_result.js";
 
 export function SearchResultView({
     result,

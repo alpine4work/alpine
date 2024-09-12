@@ -58,19 +58,20 @@ import {useOverlayRootPortalElement} from "~/client/design/overlay.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {buttonStyles, colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {
+    codeClassName,
+    italicClassName,
+    linkClassName,
+    strikeClassName,
+} from "~/shared/content/content_styles.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {
-    buttonStyles,
-    colorSchemeVars,
-    contentSchemaStyles,
-    greyElevated2ClassName,
-} from "~/shared/styles/styles.js";
 
 export type ContentEditorMobileKeyboardSubstituteRef = {
     closeWithAnimation(): void;
@@ -420,7 +421,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<TextItalic />}
                 label="Italic"
-                labelProps={{className: contentSchemaStyles.italicClassName}}
+                labelProps={{className: italicClassName}}
                 isActive={isItalicActive}
                 onPress={fromCommand(viewRef, createToggleMarkCommand(schema.mark("italic")))}
             />
@@ -428,7 +429,7 @@ function ContentEditorMobileKeyboardSubstituteMain({
                 icon={<LinkIcon />}
                 label="Link"
                 labelProps={{
-                    className: contentSchemaStyles.linkClassName,
+                    className: linkClassName,
                     style: {color: colorSchemeVars["grey-100"]},
                 }}
                 isActive={!!linkSelection}
@@ -490,14 +491,14 @@ function ContentEditorMobileKeyboardSubstituteMain({
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<TextStrikethrough />}
                 label="Strikethrough"
-                labelProps={{className: contentSchemaStyles.strikeClassName}}
+                labelProps={{className: strikeClassName}}
                 isActive={isStrikeActive}
                 onPress={fromCommand(viewRef, createToggleMarkCommand(schema.mark("strike")))}
             />
             <ContentEditorMobileKeyboardSubstituteButton
                 icon={<Code />}
                 label="Code"
-                labelProps={{className: contentSchemaStyles.codeClassName}}
+                labelProps={{className: codeClassName}}
                 isActive={isCodeActive}
                 onPress={fromCommand(viewRef, createToggleMarkCommand(schema.mark("code")))}
             />

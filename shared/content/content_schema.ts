@@ -16,6 +16,23 @@ import {
     isContentCodeBlockLanguageId,
 } from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
+import {
+    boldClassName,
+    bulletListItemClassName,
+    codeBlockClassName,
+    codeBlockLineClassName,
+    codeBlockLineContentClassName,
+    codeBlockWrapperClassName,
+    codeClassName,
+    italicClassName,
+    linkClassName,
+    listItemClassName,
+    listItemIndentationVar,
+    orderedListItemClassName,
+    paragraphClassName,
+    quoteBlockClassName,
+    strikeClassName,
+} from "~/shared/content/content_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
@@ -25,7 +42,6 @@ import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_saf
 import {isId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
@@ -39,24 +55,6 @@ declare module "prosemirror-model" {
         schema: Schema<any>;
     }
 }
-
-const {
-    boldClassName,
-    bulletListItemClassName,
-    codeClassName,
-    italicClassName,
-    linkClassName,
-    listItemClassName,
-    listItemIndentationVar,
-    orderedListItemClassName,
-    paragraphClassName,
-    quoteBlockClassName,
-    strikeClassName,
-    codeBlockWrapperClassName,
-    codeBlockClassName,
-    codeBlockLineClassName,
-    codeBlockLineContentClassName,
-} = contentSchemaStyles;
 
 /**
  * The maximum level of indentation for a list item.

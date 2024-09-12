@@ -11,9 +11,9 @@ import {MessageViewMenuCreatedTime} from "~/client/messaging/internal/message_vi
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MessageContentPayloadModel, MessageModel} from "~/shared/messaging/message_model.js";
-import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
 export function MessageViewActions<RoomKey extends string>({
     messageNoun,

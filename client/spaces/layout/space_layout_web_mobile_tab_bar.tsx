@@ -16,6 +16,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {inboxSubtleNotificationBadgePeaceMinutes} from "~/client/spaces/layout/internal/inbox_subtle_notification_badge_peace_minutes.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {backgroundColorVar, colorSchemeVars, spaceLayoutStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -30,7 +31,6 @@ import {
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {backgroundColorVar, colorSchemeVars, spaceLayoutStyles} from "~/shared/styles/styles.js";
 
 // A little bigger than the native iOS toolbar which is around height spacing
 // `10`. Spacing `10` just looks squished. In native iOS there's safe area at

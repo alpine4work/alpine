@@ -11,6 +11,7 @@ import {Tooltip} from "~/client/design/tooltip.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -19,7 +20,6 @@ import {spacing} from "~/shared/design/spacing.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {captureResult} from "~/shared/helpers/control/capture_result.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: `Email Playground${metaTitlePostfix}`}];

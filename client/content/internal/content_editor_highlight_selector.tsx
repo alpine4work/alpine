@@ -18,10 +18,10 @@ import {FocusRing, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {greyElevated2ClassName} from "~/client/styles/styles.js";
 import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 
 export type ContentEditorHighlightSelectorRef = {
     focus(options?: FocusOptions): void;

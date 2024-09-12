@@ -18,6 +18,12 @@ import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overla
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {sprinkles, tasksStyles} from "~/client/styles/styles.js";
+import {
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskAssigneeInput,
@@ -28,12 +34,6 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-import {
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewMinHeight,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";

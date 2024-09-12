@@ -9,6 +9,24 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    colorSchemeVars,
+    fontSizes,
+    pressOpacityOverlayClassName,
+    pulseAnimationClassName,
+} from "~/client/styles/styles.js";
+import {
+    desktopTaskNotepadViewActiveSectionMarginBottom,
+    mobileTaskNotepadViewActiveSectionMarginBottom,
+    taskCardViewMaxWidth,
+    taskCardViewMinHeight,
+    taskNotepadViewActiveSectionCardGap,
+    taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
+    taskNotepadViewActiveSectionMarginBottom,
+    taskNotepadViewActiveSectionMarginTop,
+    taskNotepadViewActiveSectionPaddingY,
+    taskNotepadViewActiveSectionTitleFontSize,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientStoreSearchAffinityManager} from "~/client/tasks/core/task_client_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -30,24 +48,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    colorSchemeVars,
-    fontSizes,
-    pressOpacityOverlayClassName,
-    pulseAnimationClassName,
-} from "~/shared/styles/styles.js";
-import {
-    desktopTaskNotepadViewActiveSectionMarginBottom,
-    mobileTaskNotepadViewActiveSectionMarginBottom,
-    taskCardViewMaxWidth,
-    taskCardViewMinHeight,
-    taskNotepadViewActiveSectionCardGap,
-    taskNotepadViewActiveSectionInstructionalPlaceholderCardHeight,
-    taskNotepadViewActiveSectionMarginBottom,
-    taskNotepadViewActiveSectionMarginTop,
-    taskNotepadViewActiveSectionPaddingY,
-    taskNotepadViewActiveSectionTitleFontSize,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";

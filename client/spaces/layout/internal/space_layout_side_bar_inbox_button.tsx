@@ -23,6 +23,12 @@ import {
     spaceLayoutSideBarInboxOverlayHeight,
 } from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_overlay.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
+import {
+    backgroundColorVar,
+    greyElevated1ClassName,
+    overlayFadeOutAnimationDurationMs,
+} from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {
@@ -38,12 +44,6 @@ import {
     getInboxEntries,
     getInboxWithStrongReadConsistency,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {
-    backgroundColorVar,
-    greyElevated1ClassName,
-    overlayFadeOutAnimationDurationMs,
-} from "~/shared/styles/styles.js";
 
 export function SpaceLayoutSideBarInboxButton({
     initialInbox,

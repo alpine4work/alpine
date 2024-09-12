@@ -4,6 +4,8 @@ import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
+import {inputPlaceholderStyles} from "~/client/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientStore,
@@ -24,8 +26,6 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {nullStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
-import {inputPlaceholderStyles} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
 import {

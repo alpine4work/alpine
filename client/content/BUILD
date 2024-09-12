@@ -32,6 +32,7 @@ ts_project(
         "//client/dev",
         "//client/helpers",
         "//client/spaces",
+        "//client/styles",
         "//shared/content",
         "//shared/content/code",
         "//shared/design",
@@ -39,6 +40,5 @@ ts_project(
         "//shared/id",
         "//shared/messaging",
         "//shared/prosemirror",
-        "//shared/styles",
     ],
 )

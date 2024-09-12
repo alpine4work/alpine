@@ -42,6 +42,7 @@ import {
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollViewState,
     VirtualizedScrollViewStateRenderItemProps,
@@ -61,7 +62,6 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 // NOTE(calebmer, 2023-02-17): An observation I've had after working on
 // scrolling for a while is it is better to have a scroll animation that drops

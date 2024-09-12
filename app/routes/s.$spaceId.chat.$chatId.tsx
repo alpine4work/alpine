@@ -10,6 +10,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {messageViewMaxWidth} from "~/client/styles/messaging_shared_styles.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/chat_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -23,7 +24,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {messageViewMaxWidth} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

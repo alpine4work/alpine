@@ -33,6 +33,16 @@ import {
     useExpensivelyLoadAllSpaceAccounts,
     useExpensivelyPreloadAllSpaceAccounts,
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {
+    backgroundColorVar,
+    colorSchemeVars,
+    fontSizes,
+    greyElevated2ClassName,
+    overlayFadeInAnimationDurationMs,
+    overlayFadeOutAnimationDurationMs,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
@@ -52,16 +62,6 @@ import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    backgroundColorVar,
-    colorSchemeVars,
-    fontSizes,
-    greyElevated2ClassName,
-    overlayFadeInAnimationDurationMs,
-    overlayFadeOutAnimationDurationMs,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;

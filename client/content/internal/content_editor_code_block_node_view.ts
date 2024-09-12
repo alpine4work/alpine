@@ -13,11 +13,11 @@ import {
 import {Reporter} from "~/client/design/reporter.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 // IMPORTANT: Any change you make to this function also likely must be made to
 // the `codeBlock` node renderer in `renderContentInHtml()`.
@@ -57,26 +57,26 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         const toolbarElement = document.createElement("div");
         element.insertBefore(toolbarElement, contentElement);
         toolbarElement.contentEditable = "false";
-        toolbarElement.className = contentSchemaStyles.codeBlockToolbarClassName;
+        toolbarElement.className = contentStyles.codeBlockToolbarClassName;
 
         const toolbarFlexElement = document.createElement("div");
         toolbarElement.appendChild(toolbarFlexElement);
-        toolbarFlexElement.className = contentSchemaStyles.codeBlockToolbarFlexClassName;
+        toolbarFlexElement.className = contentStyles.codeBlockToolbarFlexClassName;
 
         const toolbarOverflowGradientElement = document.createElement("div");
         toolbarFlexElement.appendChild(toolbarOverflowGradientElement);
         toolbarOverflowGradientElement.className =
-            contentSchemaStyles.codeBlockToolbarOverflowGradientClassName;
+            contentStyles.codeBlockToolbarOverflowGradientClassName;
 
         {
             const languagePickerElement = document.createElement("div");
             toolbarFlexElement.appendChild(languagePickerElement);
-            languagePickerElement.className = contentSchemaStyles.codeBlockLanguagePickerClassName;
+            languagePickerElement.className = contentStyles.codeBlockLanguagePickerClassName;
 
             const languagePickerTextElement = document.createElement("div");
             languagePickerElement.appendChild(languagePickerTextElement);
             languagePickerTextElement.className =
-                contentSchemaStyles.codeBlockLanguagePickerTextClassName;
+                contentStyles.codeBlockLanguagePickerTextClassName;
 
             languagePickerTextElement.appendChild(document.createTextNode(language.name));
 
@@ -107,9 +107,9 @@ export function createContentEditorCodeBlockNodeViewConstructor({
         {
             const copyButtonElement = document.createElement("div");
             toolbarFlexElement.appendChild(copyButtonElement);
-            copyButtonElement.className = contentSchemaStyles.codeBlockCopyButtonClassName;
+            copyButtonElement.className = contentStyles.codeBlockCopyButtonClassName;
             copyButtonElement.innerHTML = clipboardTextIconSvg({
-                className: contentSchemaStyles.codeBlockCopyButtonIconClassName,
+                className: contentStyles.codeBlockCopyButtonIconClassName,
             });
 
             let isCodeBlockCopyButtonHovered = false;
@@ -214,7 +214,7 @@ export function addUnfocusableButtonBehaviorToElement(
     const pressClassList = pressClassName.length > 0 ? pressClassName.split(" ") : [];
 
     element.classList.add(
-        contentSchemaStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
+        contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
         ...defaultClassList,
     );
 
@@ -342,7 +342,7 @@ export function addUnfocusableButtonBehaviorToElement(
 
     return () => {
         element.classList.remove(
-            contentSchemaStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
+            contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
             ...defaultClassList,
             ...hoverClassList,
             ...pressClassList,

@@ -28,6 +28,8 @@ import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
+import {colorSchemeVars, inboxStyles, spinAnimationClassName} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -44,8 +46,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {colorSchemeVars, inboxStyles, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 const spaceLayoutSideBarInboxOverlayHeaderHeight: Spacing = "9";
 

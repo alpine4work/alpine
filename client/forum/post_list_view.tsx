@@ -64,6 +64,21 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
+import {
+    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
+    postCommentSectionGuidelineOffset,
+    postContentViewMinHeightWithClosedCommentSection,
+    postContentViewMinHeightWithOpenCommentSection,
+    postViewMaxWidth,
+} from "~/client/styles/forum_shared_styles.js";
+import {
+    messageInputMinHeight,
+    messageViewMinHeight,
+    messageViewTimestampDividerMarginTop,
+} from "~/client/styles/messaging_shared_styles.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
     VirtualizedScrollView,
@@ -93,21 +108,6 @@ import {
     getPostCommentsFromStart,
     updatePostContent,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-import {
-    desktopPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobileLayoutPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    mobilePlatformPostContentViewMinHeightWithNavigationBarAndSingleLayoutPinnedCommentInput,
-    postCommentSectionGuidelineOffset,
-    postContentViewMinHeightWithClosedCommentSection,
-    postContentViewMinHeightWithOpenCommentSection,
-    postViewMaxWidth,
-} from "~/shared/styles/forum_shared_styles.js";
-import {
-    messageInputMinHeight,
-    messageViewMinHeight,
-    messageViewTimestampDividerMarginTop,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export const postListViewAsideMaxWidth: Spacing = "96";
 

@@ -1,5 +1,5 @@
 import {DetailedHTMLProps, HTMLAttributes, Ref, createElement, forwardRef} from "react";
-import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
+import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
 
 export type BoxProps = Sprinkles & Omit<HTMLAttributes<HTMLDivElement>, keyof Sprinkles>;
 

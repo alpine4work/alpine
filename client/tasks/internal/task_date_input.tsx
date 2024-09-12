@@ -21,6 +21,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_calendar.js";
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
@@ -28,7 +29,6 @@ import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders

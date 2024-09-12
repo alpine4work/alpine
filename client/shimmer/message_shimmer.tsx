@@ -2,13 +2,6 @@ import classNames from "classnames";
 import {Ref, forwardRef} from "react";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/spacing.js";
-import {
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
     messageViewActionsWidthWithoutHoveringPrimaryInput,
@@ -19,13 +12,20 @@ import {
     messageViewMarginY,
     messageViewMaxWidth,
     messageViewMergedMarginY,
-} from "~/shared/styles/messaging_shared_styles.js";
+} from "~/client/styles/messaging_shared_styles.js";
 import {
-    contentSchemaStyles,
+    contentStyles,
     fontSizes,
     pulseAnimationClassName,
     sprinkles,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -171,9 +171,8 @@ function MessageShimmer(
                                     heightLines *
                                     parseRemLengthNumber(
                                         isMobile
-                                            ? contentSchemaStyles.extraCompactParagraphFontSize
-                                                  .lineHeight
-                                            : contentSchemaStyles.paragraphFontSize.lineHeight,
+                                            ? contentStyles.extraCompactParagraphFontSize.lineHeight
+                                            : contentStyles.paragraphFontSize.lineHeight,
                                     )
                                 }rem`,
                             }}

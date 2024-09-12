@@ -1,5 +1,5 @@
 import {Triangle, Warning} from "phosphor-react";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 
 /**
  * The error icon is a red warning triangle. The warning triangle always has a

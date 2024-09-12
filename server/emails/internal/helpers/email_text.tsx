@@ -1,8 +1,13 @@
 import {MjmlText} from "mjml-react";
 import {ReactNode} from "react";
 import {Color, colors} from "~/shared/design/colors.js";
+import {FontSize, createFontStyles, fontSizesByPlatform} from "~/shared/design/fonts.js";
 import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/spacing.js";
-import {fontSizes, fontSizesByPlatform, fontStyles} from "~/shared/styles/styles.js";
+
+export const emailFontStyles = createFontStyles({
+    interFontFamily: "Inter, Arial, sans-serif",
+    commitMonoFontFamily: "monospace",
+});
 
 export function EmailText({
     children,
@@ -13,7 +18,7 @@ export function EmailText({
 }: {
     children?: ReactNode;
     color?: Color;
-    fontSize?: keyof typeof fontSizes;
+    fontSize?: FontSize;
     fontStyle?: "normal" | "semi-bold" | "bold";
     letterSpacingOverride?: string;
 }) {
@@ -29,8 +34,8 @@ export function EmailText({
                 fontSizesByPlatform[fontSize].desktop.lineHeight,
                 remPxByPlatform.desktop,
             )}px`}
-            fontStyle={fontStyles[style].fontStyle}
-            fontWeight={fontStyles[style].fontWeight}
+            fontStyle={emailFontStyles[style].fontStyle}
+            fontWeight={emailFontStyles[style].fontWeight}
         >
             {children}
         </MjmlText>

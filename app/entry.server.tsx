@@ -3,13 +3,13 @@ import {renderToString} from "react-dom/server";
 import {AppRemixServer} from "~/app/router/app_remix_server.js";
 import {AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
+import stylesHref from "~/client/styles/styles.css?url";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isErrorCode} from "~/shared/error/error_code.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import stylesHref from "~/shared/styles/styles.css?url";
 
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.

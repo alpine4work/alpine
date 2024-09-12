@@ -39,6 +39,19 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {contentStyles, invertSelectionColorsClassName, sprinkles} from "~/client/styles/styles.js";
+import {
+    desktopTaskDetailViewNavigationBarSpacerMarginBottom,
+    desktopTaskDetailViewStatusButtonSize,
+    mobileTaskDetailViewStatusButtonPaddingBottom,
+    mobileTaskDetailViewStatusButtonPaddingTop,
+    mobileTaskDetailViewStatusButtonSize,
+    taskDetailViewDenseFieldGap,
+    taskDetailViewFieldLabelFontSize,
+    taskDetailViewMaxWidth,
+    taskDetailViewSectionGap,
+    taskDetailViewSubtasksFieldLabelPaddingBottom,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -93,23 +106,6 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {computeStore} from "~/shared/store/compute_store.js";
-import {
-    contentSchemaStyles,
-    invertSelectionColorsClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
-import {
-    desktopTaskDetailViewNavigationBarSpacerMarginBottom,
-    desktopTaskDetailViewStatusButtonSize,
-    mobileTaskDetailViewStatusButtonPaddingBottom,
-    mobileTaskDetailViewStatusButtonPaddingTop,
-    mobileTaskDetailViewStatusButtonSize,
-    taskDetailViewDenseFieldGap,
-    taskDetailViewFieldLabelFontSize,
-    taskDetailViewMaxWidth,
-    taskDetailViewSectionGap,
-    taskDetailViewSubtasksFieldLabelPaddingBottom,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {
     addFallbackToTaskTitle,
@@ -435,7 +431,7 @@ export function TaskDetailView({
             const coords = editor.coordsAtPos(editorState.getSelection().from);
 
             const paragraphLineHeight = convertRemLengthToPx(
-                contentSchemaStyles.paragraphFontSize.lineHeight,
+                contentStyles.paragraphFontSize.lineHeight,
                 getRemPxWithoutListening(),
             );
 

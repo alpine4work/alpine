@@ -21,6 +21,12 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    messageViewMarginY,
+    messageViewMaxWidth,
+    messageViewTimestampDividerMarginTop,
+} from "~/client/styles/messaging_shared_styles.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
@@ -39,12 +45,6 @@ import {
     getChatMessagesFromStart,
 } from "~/shared/rpc/chat_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {
-    messageViewMarginY,
-    messageViewMaxWidth,
-    messageViewTimestampDividerMarginTop,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ChatView({
     withMobileLayout,

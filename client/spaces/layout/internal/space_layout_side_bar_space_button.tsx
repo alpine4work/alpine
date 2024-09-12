@@ -9,9 +9,9 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {SpaceAvatar, spaceAvatarBorderRadius} from "~/client/spaces/space_avatar.js";
+import {buttonStyles, sprinkles} from "~/client/styles/styles.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-import {buttonStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
     const context = useAppContext();

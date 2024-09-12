@@ -3,19 +3,19 @@ import {Ref, forwardRef, useRef, useState} from "react";
 import {Overlay, OverlayProps, OverlayRef} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
-import {parseCubicBezier} from "~/shared/design/easing.js";
-import {spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeInOutTimingFunction,
     overlayFadeOutAnimationDurationMs,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {parseCubicBezier} from "~/shared/design/easing.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 const OverlayAnimatedForwardRef = forwardRef(OverlayAnimated);
 export {OverlayAnimatedForwardRef as OverlayAnimated};

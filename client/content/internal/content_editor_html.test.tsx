@@ -9,13 +9,13 @@ import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -135,7 +135,7 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
     // Remove code block toolbars from the DOM since they contribute the text of
     // their language picker button label.
     for (const childElement of element.getElementsByClassName(
-        contentSchemaStyles.codeBlockToolbarClassName,
+        contentStyles.codeBlockToolbarClassName,
     )) {
         childElement.remove();
     }

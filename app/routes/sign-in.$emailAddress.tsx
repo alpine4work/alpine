@@ -15,6 +15,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {
     appleReviewerAccountEmailAddress,
     attemptOneTimePasswordSignIn,
@@ -28,7 +29,6 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [

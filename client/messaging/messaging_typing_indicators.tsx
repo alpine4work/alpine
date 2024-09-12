@@ -6,6 +6,12 @@ import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {messagingViewMarginBottom} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    getMessageBubbleMarginLeft,
+    messageViewBubbleBorderRadius,
+    messageViewMarginY,
+    messageViewMaxWidth,
+} from "~/client/styles/messaging_shared_styles.js";
 import {easeInOutSin} from "~/shared/design/easing.js";
 import {
     Spacing,
@@ -19,12 +25,6 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-import {
-    getMessageBubbleMarginLeft,
-    messageViewBubbleBorderRadius,
-    messageViewMarginY,
-    messageViewMaxWidth,
-} from "~/shared/styles/messaging_shared_styles.js";
 
 export const messagingTypingIndicatorsMinHeight = "3.875rem";
 

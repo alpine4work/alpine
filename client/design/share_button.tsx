@@ -3,10 +3,10 @@ import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {Reporter, useReporter} from "~/client/design/reporter.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
+import {elevation} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {elevation} from "~/shared/styles/styles.js";
 
 export function createShareMenuItem(reporter: Reporter): MenuAction {
     return {

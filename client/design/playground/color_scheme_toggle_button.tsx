@@ -1,11 +1,11 @@
 import {Moon, Sun} from "phosphor-react";
 import {IconButton} from "~/client/design/icon_button.js";
 import {toggleColorScheme, useColorScheme} from "~/client/helpers/color_scheme.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     hiddenIfDarkColorSchemeClassName,
     hiddenIfLightColorSchemeClassName,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export function ColorSchemeToggleButton() {
     const colorScheme = useColorScheme();

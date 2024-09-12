@@ -13,6 +13,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {fontSizes, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {TaskCollectionComboBoxCreateCollectionOption} from "~/client/tasks/internal/task_collection_combo_box_create_collection_option.js";
 import {TaskCollectionComboBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collection_combo_box_instructional_placeholder.js";
@@ -26,7 +27,6 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {computeStore} from "~/shared/store/compute_store.js";
-import {fontSizes, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 import {
     TaskCollectionModelSearchResult,
     taskCollectionSearchResultLimit,

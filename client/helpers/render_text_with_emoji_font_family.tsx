@@ -1,6 +1,6 @@
 import {ReactNode} from "react";
+import {emojiFontFamily} from "~/client/styles/styles.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {emojiFontFamily} from "~/shared/styles/styles.js";
 
 /**
  * Render some text to React but make sure any emojis are wrapped in `<span>`s

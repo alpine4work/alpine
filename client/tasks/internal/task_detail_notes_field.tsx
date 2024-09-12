@@ -6,6 +6,11 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {contentStyles, sprinkles, tasksStyles} from "~/client/styles/styles.js";
+import {
+    taskDetailNotesFieldLabelPaddingBottom,
+    taskDetailViewFieldLabelFontSize,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
@@ -13,11 +18,6 @@ import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-import {
-    taskDetailNotesFieldLabelPaddingBottom,
-    taskDetailViewFieldLabelFontSize,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 export type TaskDetailNotesFieldRef = {
@@ -104,7 +104,7 @@ function TaskDetailNotesField(
                             content={state.editorState.getContent()}
                             placeholder="Add more details…"
                             className={sprinkles({
-                                paddingX: contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
+                                paddingX: contentStyles.screenPaddingXWithoutBlockPaddingX,
                             })}
                         />
                     </Box>
@@ -120,8 +120,7 @@ function TaskDetailNotesField(
                             className={classNames(
                                 tasksStyles.detailNotesContentEditorClassName,
                                 sprinkles({
-                                    paddingX:
-                                        contentSchemaStyles.screenPaddingXWithoutBlockPaddingX,
+                                    paddingX: contentStyles.screenPaddingXWithoutBlockPaddingX,
                                 }),
                             )}
                             onUndoStackEntryPushed={() => {

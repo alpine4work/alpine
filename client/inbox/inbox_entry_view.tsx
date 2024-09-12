@@ -25,6 +25,13 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useCanPrimaryInputHover} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
+import {
+    backgroundColorVar,
+    colorSchemeVars,
+    overlayFadeOutAnimationDurationMs,
+    searchStyles,
+} from "~/client/styles/styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -33,13 +40,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {
-    backgroundColorVar,
-    colorSchemeVars,
-    overlayFadeOutAnimationDurationMs,
-    searchStyles,
-} from "~/shared/styles/styles.js";
 
 export const inboxEntryWidth = "96";
 

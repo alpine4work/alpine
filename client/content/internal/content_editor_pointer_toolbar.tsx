@@ -42,12 +42,6 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
     greyElevated2ClassName,
     overlayAnimateContainerClassName,
@@ -56,7 +50,13 @@ import {
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
     sprinkles,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export function ContentEditorPointerToolbar({
     state,

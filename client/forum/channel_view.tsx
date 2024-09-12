@@ -19,6 +19,10 @@ import {PostListView, postListViewAsideMaxWidth} from "~/client/forum/post_list_
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    postContentViewMinHeightWithClosedCommentSection,
+    postViewMaxWidth,
+} from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -38,10 +42,6 @@ import {
     updateChannelName,
     updateChannelNameAndDescription,
 } from "~/shared/rpc/forum_rpc_definitions.js";
-import {
-    postContentViewMinHeightWithClosedCommentSection,
-    postViewMaxWidth,
-} from "~/shared/styles/forum_shared_styles.js";
 
 export {newChannelNamePlaceholder} from "~/client/forum/internal/channel_view_name_editor.js";
 

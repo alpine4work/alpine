@@ -26,6 +26,8 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
+import {invertSelectionColorsClassName, tasksStyles} from "~/client/styles/styles.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
@@ -73,8 +75,6 @@ import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {ConstStore, falseStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
-import {invertSelectionColorsClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";

@@ -4,9 +4,9 @@ import {
     brandIconSplashColorOpacity,
     brandIconSplashColorShade,
 } from "~/client/icons/brand/internal/brand_icon_splash_color.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 const TaskQueryBrandIconMemo = memo(TaskQueryBrandIcon);
 export {TaskQueryBrandIconMemo as TaskQueryBrandIcon};

@@ -79,9 +79,11 @@ import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {commentClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {
     addRemLengths,
@@ -104,30 +106,7 @@ import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {colorSchemeVars, contentEditorStyles, contentSchemaStyles} from "~/shared/styles/styles.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-
-const {
-    docClassName,
-    emptyBodyClassName,
-    emptyTitleClassName,
-    linkClassName,
-    commentClassName,
-    phantomSelectionClassName,
-    emojiClassName,
-    withMobileLayoutDocClassName,
-    compactDocClassName,
-    extraCompactDocClassName,
-    parentScrollWhenPointerDownAndOverReceiverClassName,
-    codeBlockToolbarClassName,
-} = contentSchemaStyles;
-
-const {
-    containerClassName,
-    shiftKeyOrAltKeyDownClassName,
-    inlineMentionInputClassName,
-    canNotPrimaryInputHoverContainerClassName,
-} = contentEditorStyles;
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -513,7 +492,9 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     );
 
     return (
-        <div className={classNames(containerClassName, customContainerClassName)}>
+        <div
+            className={classNames(contentEditorStyles.containerClassName, customContainerClassName)}
+        >
             <ContentView
                 isEditorInitialAppRender={true}
                 withMobileLayout={withMobileLayout}
@@ -783,11 +764,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     convertRemLengthToPx(
                         subtractRemLengths(
                             addRemLengths(
-                                spacing[contentSchemaStyles.listItemIndentation],
-                                spacing[contentSchemaStyles.blockPaddingX],
+                                spacing[contentStyles.listItemIndentation],
+                                spacing[contentStyles.blockPaddingX],
                             ),
                             propsRef.current.isCompact || propsRef.current.isExtraCompact
-                                ? spacing[contentSchemaStyles.compactListItemOffset]
+                                ? spacing[contentStyles.compactListItemOffset]
                                 : spacing["0"],
                         ),
                         remPx,
@@ -1226,7 +1207,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         element.classList.contains(linkClassName) ||
                         element.classList.contains(commentClassName) ||
                         // Includes the language picker button and the copy code button.
-                        element.classList.contains(codeBlockToolbarClassName)
+                        element.classList.contains(contentStyles.codeBlockToolbarClassName)
                     ) {
                         isTargetInteractive = true;
                         break;
@@ -1404,10 +1385,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         const viewElement = view.dom;
 
         const classList = classNames(
-            docClassName,
-            withMobileLayout ? withMobileLayoutDocClassName : undefined,
-            isCompact || isExtraCompact ? compactDocClassName : undefined,
-            isExtraCompact ? extraCompactDocClassName : undefined,
+            contentStyles.docClassName,
+            withMobileLayout ? contentStyles.withMobileLayoutDocClassName : undefined,
+            isCompact || isExtraCompact ? contentStyles.compactDocClassName : undefined,
+            isExtraCompact ? contentStyles.extraCompactDocClassName : undefined,
             className,
         ).split(" ");
         viewElement.classList.add(...classList);
@@ -1424,19 +1405,31 @@ function ContentEditor<Content extends ContentWithReferences>(
         const viewElement = viewRef.current.dom;
 
         const addEmptyTitleClassName = isContentTitleEmpty(state.doc);
-        if (addEmptyTitleClassName && !viewElement.classList.contains(emptyTitleClassName)) {
-            viewElement.classList.add(emptyTitleClassName);
+        if (
+            addEmptyTitleClassName &&
+            !viewElement.classList.contains(contentStyles.emptyTitleClassName)
+        ) {
+            viewElement.classList.add(contentStyles.emptyTitleClassName);
         }
-        if (!addEmptyTitleClassName && viewElement.classList.contains(emptyTitleClassName)) {
-            viewElement.classList.remove(emptyTitleClassName);
+        if (
+            !addEmptyTitleClassName &&
+            viewElement.classList.contains(contentStyles.emptyTitleClassName)
+        ) {
+            viewElement.classList.remove(contentStyles.emptyTitleClassName);
         }
 
         const addEmptyBodyClassName = isContentBodyEmpty(state.doc);
-        if (addEmptyBodyClassName && !viewElement.classList.contains(emptyBodyClassName)) {
-            viewElement.classList.add(emptyBodyClassName);
+        if (
+            addEmptyBodyClassName &&
+            !viewElement.classList.contains(contentStyles.emptyBodyClassName)
+        ) {
+            viewElement.classList.add(contentStyles.emptyBodyClassName);
         }
-        if (!addEmptyBodyClassName && viewElement.classList.contains(emptyBodyClassName)) {
-            viewElement.classList.remove(emptyBodyClassName);
+        if (
+            !addEmptyBodyClassName &&
+            viewElement.classList.contains(contentStyles.emptyBodyClassName)
+        ) {
+            viewElement.classList.remove(contentStyles.emptyBodyClassName);
         }
     }
 
@@ -1452,12 +1445,12 @@ function ContentEditor<Content extends ContentWithReferences>(
             if (event.shiftKey || event.altKey) {
                 if (!isShiftKeyOrAltKeyDown) {
                     isShiftKeyOrAltKeyDown = true;
-                    viewElement.classList.add(shiftKeyOrAltKeyDownClassName);
+                    viewElement.classList.add(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
                 }
             } else {
                 if (isShiftKeyOrAltKeyDown) {
                     isShiftKeyOrAltKeyDown = false;
-                    viewElement.classList.remove(shiftKeyOrAltKeyDownClassName);
+                    viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
                 }
             }
         };
@@ -1584,7 +1577,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 case "CommentInput": {
                     return decorationSet.add(state.doc, [
                         Decoration.inline(state.selection.from, state.selection.to, {
-                            class: contentSchemaStyles.commentClassName,
+                            class: commentClassName,
                         }),
                     ]);
                 }
@@ -1594,7 +1587,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 case "PointerLink": {
                     return decorationSet.add(state.doc, [
                         Decoration.inline(state.selection.from, state.selection.to, {
-                            class: contentSchemaStyles.linkClassName,
+                            class: linkClassName,
                         }),
                     ]);
                 }
@@ -1746,7 +1739,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
             return decorationSet.add(state.doc, [
                 Decoration.inline(floaterState.range.from, floaterState.range.to, {
-                    class: inlineMentionInputClassName,
+                    class: contentEditorStyles.inlineMentionInputClassName,
                 }),
             ]);
         };
@@ -1793,7 +1786,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 while (parentElement) {
                     if (
                         parentElement.classList.contains(
-                            parentScrollWhenPointerDownAndOverReceiverClassName,
+                            contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
                         ) ||
                         parentElement.classList.contains(linkClassName) ||
                         parentElement.classList.contains(commentClassName)
@@ -1837,7 +1830,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             for (const element of view.dom.querySelectorAll(
                 // `linkClassName` and `commentClassName` are inherently receivers of this
                 // event.
-                `.${parentScrollWhenPointerDownAndOverReceiverClassName}, .${linkClassName}, .${commentClassName}`,
+                `.${contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName}, .${linkClassName}, .${commentClassName}`,
             )) {
                 dispatchParentScrollWhenPointerDownAndOverEvent(element);
             }
@@ -1916,7 +1909,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
             return decorationSet.add(state.doc, [
                 Decoration.inline(state.selection.from, state.selection.to, {
-                    class: contentSchemaStyles.commentClassName,
+                    class: commentClassName,
                 }),
             ]);
         };
@@ -1999,8 +1992,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     return (
         <div
             className={classNames(
-                containerClassName,
-                !canPrimaryInputHover ? canNotPrimaryInputHoverContainerClassName : undefined,
+                contentEditorStyles.containerClassName,
+                !canPrimaryInputHover
+                    ? contentEditorStyles.canNotPrimaryInputHoverContainerClassName
+                    : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}
@@ -2294,7 +2289,7 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
 
     const decorations = [
         Decoration.inline(selection.from, selection.to, {
-            class: phantomSelectionClassName,
+            class: contentStyles.phantomSelectionClassName,
             style: `background-color:${color}`,
         }),
     ];
@@ -2313,7 +2308,7 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
             Decoration.widget(newlineIndicatorPos, () => {
                 const newlineIndicatorElement = document.createElement("span");
                 newlineIndicatorElement.textContent = " ";
-                newlineIndicatorElement.className = phantomSelectionClassName;
+                newlineIndicatorElement.className = contentStyles.phantomSelectionClassName;
                 newlineIndicatorElement.style.backgroundColor = color;
                 newlineIndicatorElement.style.userSelect = "none";
                 newlineIndicatorElement.ariaHidden = "true";
@@ -2349,7 +2344,7 @@ const addEmojiDecorations = createProsemirrorIncrementalReducer<DecorationSet>(n
             emojis.map(({index, emoji}) =>
                 Decoration.inline(offset + index, offset + index + emoji.length, {
                     nodeName: "span",
-                    class: emojiClassName,
+                    class: contentStyles.emojiClassName,
                 }),
             ),
         );

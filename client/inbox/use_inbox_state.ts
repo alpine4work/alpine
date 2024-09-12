@@ -19,6 +19,7 @@ import {
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {
@@ -33,7 +34,6 @@ import {
     getInboxEntries,
     observeInbox,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 
 type InboxState = {
     readonly query: StateWithOptimisticUpdates<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>>;

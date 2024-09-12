@@ -20,12 +20,12 @@ ts_project(
         "//client/search",
         "//client/shimmer",
         "//client/spaces",
+        "//client/styles",
         "//shared/design",
         "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
         "//shared/rpc",
-        "//shared/styles",
     ],
 )

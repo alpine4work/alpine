@@ -35,6 +35,18 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    documentCommentThreadActionsHeight,
+    documentCommentThreadHeaderMinHeightWithoutPaddingTop,
+    documentCommentThreadHeaderPaddingY,
+    documentCommentThreadListViewMaxWidth,
+} from "~/client/styles/document_shared_styles.js";
+import {messageInputMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {
+    documentCommentThreadsStyles,
+    inputPlaceholderStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
 import {
     VirtualizedScrollView,
@@ -67,18 +79,6 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {
-    documentCommentThreadActionsHeight,
-    documentCommentThreadHeaderMinHeightWithoutPaddingTop,
-    documentCommentThreadHeaderPaddingY,
-    documentCommentThreadListViewMaxWidth,
-} from "~/shared/styles/document_shared_styles.js";
-import {messageInputMinHeight} from "~/shared/styles/messaging_shared_styles.js";
-import {
-    documentCommentThreadsStyles,
-    inputPlaceholderStyles,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 const documentCommentThreadListViewMarginY: Spacing = "24";
 

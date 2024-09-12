@@ -20,19 +20,11 @@ import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {useCoordinatedShimmerAnimations} from "~/client/shimmer/use_coordinated_shimmer_animations.js";
 import {
-    RemLength,
-    Spacing,
-    parseRemLengthNumber,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderPaddingY,
     documentCommentThreadListViewMaxWidth,
     documentCommentThreadPreviewHeight,
-} from "~/shared/styles/document_shared_styles.js";
+} from "~/client/styles/document_shared_styles.js";
 import {
     channelViewAsidePaddingY,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
@@ -44,8 +36,8 @@ import {
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
     postViewMaxWidth,
-} from "~/shared/styles/forum_shared_styles.js";
-import {inboxBannerHeight} from "~/shared/styles/inbox_shared_styles.js";
+} from "~/client/styles/forum_shared_styles.js";
+import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
     messageInputAccountAvatarSize,
     messageInputMinHeight,
@@ -54,21 +46,21 @@ import {
     messageViewMaxWidth,
     messageViewTimestampDividerMarginBottom,
     messageViewTimestampDividerMarginTop,
-} from "~/shared/styles/messaging_shared_styles.js";
+} from "~/client/styles/messaging_shared_styles.js";
 import {
     minSearchMobileInputHeight,
     searchMobileInputBorderRadius,
     searchMobileInputMarginBottom,
     searchMobileInputMarginTop,
-} from "~/shared/styles/search_shared_styles.js";
+} from "~/client/styles/search_shared_styles.js";
 import {
     colorSchemeVars,
-    contentSchemaStyles,
+    contentStyles,
     fontSizes,
     pulseAnimationClassName,
     spinAnimationClassName,
     tasksStyles,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
 import {
     desktopTaskDetailViewNavigationBarSpacerMarginBottom,
     desktopTaskDetailViewStatusButtonSize,
@@ -108,7 +100,15 @@ import {
     taskRowViewFirstColumnWidth,
     taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
-} from "~/shared/styles/tasks_shared_styles.js";
+} from "~/client/styles/tasks_shared_styles.js";
+import {
+    RemLength,
+    Spacing,
+    parseRemLengthNumber,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Shimmer component for each space route. The test
@@ -662,8 +662,8 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
     const isMobile = useIsMobile();
 
     const titleFontSize = withMobileLayout
-        ? contentSchemaStyles.mobileTitleFontSize
-        : contentSchemaStyles.desktopTitleFontSize;
+        ? contentStyles.mobileTitleFontSize
+        : contentStyles.desktopTitleFontSize;
 
     return (
         <Box position="relative" paddingX={screenPaddingX}>
@@ -683,78 +683,78 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
             <Box
                 marginX="center"
                 width="full"
-                maxWidth={contentSchemaStyles.defaultBlockMaxWidthWithoutPadding}
+                maxWidth={contentStyles.defaultBlockMaxWidthWithoutPadding}
                 paddingRight={withMobileLayout ? "8" : "12"}
             >
                 <Box height="safe-area-inset-top" />
                 <Box
                     style={{
                         height: isMobile
-                            ? contentSchemaStyles.mobilePlatformTitlePaddingTop
+                            ? contentStyles.mobilePlatformTitlePaddingTop
                             : withMobileLayout
-                            ? contentSchemaStyles.mobileLayoutTitlePaddingTop
-                            : contentSchemaStyles.desktopTitlePaddingTop,
+                            ? contentStyles.mobileLayoutTitlePaddingTop
+                            : contentStyles.desktopTitlePaddingTop,
                     }}
                 />
                 <TextShimmer width="96" ragRight="8" fontSize={titleFontSize} />
-                <Box height={contentSchemaStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.defaultParagraphMargin} />
                 <ContentParagraphShimmer1 />
                 <Box
                     height={
                         isMobile
-                            ? contentSchemaStyles.mobileHeading1TopMargin
-                            : contentSchemaStyles.desktopHeading1TopMargin
+                            ? contentStyles.mobileHeading1TopMargin
+                            : contentStyles.desktopHeading1TopMargin
                     }
                 />
                 <TextShimmer
                     width="48"
                     fontSize={
                         isMobile
-                            ? contentSchemaStyles.mobileHeadingLevel1FontSize
-                            : contentSchemaStyles.desktopHeadingLevel1FontSize
+                            ? contentStyles.mobileHeadingLevel1FontSize
+                            : contentStyles.desktopHeadingLevel1FontSize
                     }
                 />
-                <Box height={contentSchemaStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.defaultParagraphMargin} />
                 <ContentParagraphShimmer2 />
-                <Box height={contentSchemaStyles.defaultParagraphMargin} />
+                <Box height={contentStyles.defaultParagraphMargin} />
                 <ContentParagraphShimmer3 />
                 {!withMobileLayout && (
                     <>
                         <Box
                             height={
                                 isMobile
-                                    ? contentSchemaStyles.mobileHeading1TopMargin
-                                    : contentSchemaStyles.desktopHeading1TopMargin
+                                    ? contentStyles.mobileHeading1TopMargin
+                                    : contentStyles.desktopHeading1TopMargin
                             }
                         />
                         <TextShimmer
                             width="64"
                             fontSize={
                                 isMobile
-                                    ? contentSchemaStyles.mobileHeadingLevel1FontSize
-                                    : contentSchemaStyles.desktopHeadingLevel1FontSize
+                                    ? contentStyles.mobileHeadingLevel1FontSize
+                                    : contentStyles.desktopHeadingLevel1FontSize
                             }
                         />
-                        <Box height={contentSchemaStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.defaultParagraphMargin} />
                         <ContentParagraphShimmer1 />
                         <Box
                             height={
                                 isMobile
-                                    ? contentSchemaStyles.mobileHeading2TopMargin
-                                    : contentSchemaStyles.desktopHeading2TopMargin
+                                    ? contentStyles.mobileHeading2TopMargin
+                                    : contentStyles.desktopHeading2TopMargin
                             }
                         />
                         <TextShimmer
                             width="96"
                             fontSize={
                                 isMobile
-                                    ? contentSchemaStyles.mobileHeadingLevel2FontSize
-                                    : contentSchemaStyles.desktopHeadingLevel2FontSize
+                                    ? contentStyles.mobileHeadingLevel2FontSize
+                                    : contentStyles.desktopHeadingLevel2FontSize
                             }
                         />
-                        <Box height={contentSchemaStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.defaultParagraphMargin} />
                         <ContentParagraphShimmer3 />
-                        <Box height={contentSchemaStyles.defaultParagraphMargin} />
+                        <Box height={contentStyles.defaultParagraphMargin} />
                         <ContentParagraphShimmer2 />
                     </>
                 )}

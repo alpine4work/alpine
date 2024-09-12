@@ -7,6 +7,8 @@ import {Box} from "~/client/design/box.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {taskCardViewMaxWidth, taskCardViewMinHeight} from "~/client/styles/tasks_shared_styles.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
@@ -16,8 +18,6 @@ import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
-import {taskCardViewMaxWidth, taskCardViewMinHeight} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
@@ -235,7 +235,7 @@ function TaskCardViewContent(
                     flexShrink="0"
                     display="flex"
                     alignItems="center"
-                    style={{height: contentSchemaStyles.paragraphFontSize.lineHeight}}
+                    style={{height: contentStyles.paragraphFontSize.lineHeight}}
                     // Render status button on top of the press overlay to try and communicate that
                     // it is independently clickable from the rest of the card.
                     position="relative"
@@ -251,10 +251,9 @@ function TaskCardViewContent(
                     color="grey-100"
                     style={{
                         overflow: "hidden",
-                        ...contentSchemaStyles.paragraphFontSize,
+                        ...contentStyles.paragraphFontSize,
                         maxHeight: `${
-                            parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight) *
-                            3
+                            parseRemLengthNumber(contentStyles.paragraphFontSize.lineHeight) * 3
                         }rem`,
                         // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                         // except IE.

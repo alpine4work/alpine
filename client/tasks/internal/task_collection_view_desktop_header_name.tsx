@@ -25,6 +25,8 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
+import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     TaskClientStore,
     TaskClientStoreSearchAffinityManager,
@@ -33,8 +35,6 @@ import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {getTaskCollectionColor} from "~/shared/styles/get_task_collection_color.js";
-import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 
 export const newTaskCollectionNamePlaceholder = "New collection";

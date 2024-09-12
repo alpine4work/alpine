@@ -42,6 +42,18 @@ import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/clien
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/client/styles/styles.js";
+import {
+    taskGridViewColumnHeaderExtraPaddingBottomPx,
+    taskGridViewColumnHeaderHeight,
+    taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewFirstColumnPaddingLeft,
+    taskRowViewFirstColumnWidth,
+    taskRowViewLastColumnPaddingRight,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {
     disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint,
     isDisablingTaskGridViewAnimationsForTaskId,
@@ -121,18 +133,6 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
-import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
-import {
-    taskGridViewColumnHeaderExtraPaddingBottomPx,
-    taskGridViewColumnHeaderHeight,
-    taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewFirstColumnPaddingLeft,
-    taskRowViewFirstColumnWidth,
-    taskRowViewLastColumnPaddingRight,
-    taskRowViewMinHeight,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";

@@ -27,9 +27,6 @@ import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
     accentThemeBackgroundColor,
@@ -38,7 +35,10 @@ import {
     colorSchemeVars,
     spinAnimationClassName,
     sprinkles,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};

@@ -806,7 +806,7 @@ function getBazelPackageByRelativeDirectoryPathWithoutTraversing(
 
 /**
  * Get the Bazel package for a Bazel target path like
- * `//shared/styles:styles_bundle_file`.
+ * `//client/styles:styles_bundle_file`.
  */
 function getBazelPackageByBazelTarget(bazelTarget: string): BazelPackage {
     assert(bazelTarget.startsWith("//"));

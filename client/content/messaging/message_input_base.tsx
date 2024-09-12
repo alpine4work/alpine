@@ -52,6 +52,22 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    getMessageBubbleMarginLeft,
+    messageInputAccountAvatarPaddingY,
+    messageInputAccountAvatarSize,
+    messageInputMinHeight,
+    messageInputPaddingY,
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMinHeight,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+    messageViewMaxWidth,
+    messageViewReplyPreviewBubbleOpacity,
+    messageViewReplyPreviewOpacity,
+    messageViewReplyPreviewScale,
+} from "~/client/styles/messaging_shared_styles.js";
+import {borderRadius, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     Spacing,
@@ -69,22 +85,6 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
-import {
-    getMessageBubbleMarginLeft,
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
-    messageInputMinHeight,
-    messageInputPaddingY,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-    messageViewMaxWidth,
-    messageViewReplyPreviewBubbleOpacity,
-    messageViewReplyPreviewOpacity,
-    messageViewReplyPreviewScale,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {borderRadius, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export type MessageInputRef = {
     isFocused(): boolean;

@@ -21,6 +21,11 @@ import {
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {
+    documentCommentThreadCountAgainstLimit,
+    documentCommentThreadListViewMaxWidth,
+} from "~/client/styles/document_shared_styles.js";
+import {messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {
     getInboxDocumentNewCommentThreadsEntryCommentThreads,
@@ -44,11 +49,6 @@ import {generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {
-    documentCommentThreadCountAgainstLimit,
-    documentCommentThreadListViewMaxWidth,
-} from "~/shared/styles/document_shared_styles.js";
-import {messageViewMinHeight} from "~/shared/styles/messaging_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

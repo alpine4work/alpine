@@ -13,6 +13,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {
     authorizeChannelAccess,
@@ -38,7 +39,6 @@ import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {createChannel as createChannelRpc} from "~/shared/rpc/forum_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {postContentViewMinHeightWithClosedCommentSection} from "~/shared/styles/forum_shared_styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

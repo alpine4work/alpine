@@ -6,12 +6,12 @@ import {PostListView} from "~/client/forum/post_list_view.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {postViewMaxWidth} from "~/client/styles/forum_shared_styles.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
-import {postViewMaxWidth} from "~/shared/styles/forum_shared_styles.js";
 
 export function ChannelDesktopCreator({
     withMobileLayout,

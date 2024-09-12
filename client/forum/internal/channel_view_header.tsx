@@ -12,6 +12,12 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {
+    channelViewAsidePaddingY,
+    postContentViewOuterMarginY,
+    postFauxInputCreateButtonHeight,
+} from "~/client/styles/forum_shared_styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
@@ -20,12 +26,6 @@ import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
-import {
-    channelViewAsidePaddingY,
-    postContentViewOuterMarginY,
-    postFauxInputCreateButtonHeight,
-} from "~/shared/styles/forum_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const channelViewHeaderMinHeight = addRemLengths(
     spacing[channelViewAsidePaddingY],

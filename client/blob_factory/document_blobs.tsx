@@ -11,6 +11,8 @@ import {useColorScheme} from "~/client/helpers/color_scheme.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {documentBlobsStyles, sprinkles} from "~/client/styles/styles.js";
+import {titleClassName} from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/colors.js";
 import {easeInOutSin} from "~/shared/design/easing.js";
 import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient.js";
@@ -19,7 +21,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {contentSchemaStyles, documentBlobsStyles, sprinkles} from "~/shared/styles/styles.js";
 
 // TODO: responsive blobs
 const DefaultContentWidthPx = 768;
@@ -305,7 +306,7 @@ function DocumentBlobFactoryCanvas({
             />
             {settings.textFillEnabled && textFill && (
                 <style>{`
-                    #${containerId} .${contentSchemaStyles.titleClassName} {
+                    #${containerId} .${titleClassName} {
                         background-image: url(${textFill.url});
                         background-size: ${textFill.size.x}px ${textFill.size.y}px;
                         background-position: ${textFill.offsetX}px 0;

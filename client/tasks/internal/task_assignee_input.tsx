@@ -27,6 +27,7 @@ import {
     useExpensivelyLoadAllSpaceAccounts,
     useExpensivelyPreloadAllSpaceAccounts,
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {
     TaskAssigneeInputListBox,
     TaskAssigneeInputListBoxOptionItem,
@@ -40,7 +41,6 @@ import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;

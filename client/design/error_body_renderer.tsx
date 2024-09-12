@@ -1,9 +1,9 @@
 import {Box} from "~/client/design/box.js";
 import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer.js";
 import {ErrorIcon} from "~/client/design/error_icon.js";
+import {fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {fontSizes, sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Renders an error with a title at body content size.

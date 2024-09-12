@@ -39,6 +39,13 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    greyElevated2ClassName,
+    inputPlaceholderStyles,
+    spinAnimationClassName,
+    sprinkles,
+    tasksStyles,
+} from "~/client/styles/styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -74,13 +81,6 @@ import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {
-    greyElevated2ClassName,
-    inputPlaceholderStyles,
-    spinAnimationClassName,
-    sprinkles,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

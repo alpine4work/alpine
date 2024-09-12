@@ -13,6 +13,8 @@ import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
+import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -27,8 +29,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function InboxMobileView({
     filter,

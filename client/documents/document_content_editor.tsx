@@ -78,6 +78,25 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
+    messageInputAccountAvatarPaddingY,
+    messageInputAccountAvatarSize,
+    messageInputMinHeight,
+    messageInputPaddingY,
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMinHeight,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/client/styles/messaging_shared_styles.js";
+import {
+    colorSchemeVars,
+    contentEditorStyles,
+    contentStyles,
+    documentContentStyles,
+    inputPlaceholderStyles,
+    spinAnimationClassName,
+} from "~/client/styles/styles.js";
+import {paragraphClassName, titleClassName} from "~/shared/content/content_styles.js";
+import {
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
@@ -110,29 +129,11 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
-import {
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
-    messageInputMinHeight,
-    messageInputPaddingY,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {
-    colorSchemeVars,
-    contentEditorStyles,
-    contentSchemaStyles,
-    documentContentStyles,
-    inputPlaceholderStyles,
-    spinAnimationClassName,
-} from "~/shared/styles/styles.js";
 
 export const documentContentEditorSidebarWidth = spacing["96"];
 const documentContentEditorMobileSidebarInsetTop = "48";
 
-const {screenPaddingXWithoutBlockPaddingX} = contentSchemaStyles;
+const {screenPaddingXWithoutBlockPaddingX} = contentStyles;
 const {documentContentClassName} = documentContentStyles;
 
 export type DocumentContentEditorInitialScroll = {
@@ -378,10 +379,7 @@ export function DocumentContentEditor({
                 },
             );
         } else {
-            const blockMaxWidth = convertRemLengthToPx(
-                contentSchemaStyles.defaultBlockMaxWidth,
-                remPx,
-            );
+            const blockMaxWidth = convertRemLengthToPx(contentStyles.defaultBlockMaxWidth, remPx);
             const paddingXPx =
                 convertRemLengthToPx(
                     spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
@@ -530,10 +528,7 @@ export function DocumentContentEditor({
                 },
             );
         } else {
-            const blockMaxWidth = convertRemLengthToPx(
-                contentSchemaStyles.defaultBlockMaxWidth,
-                remPx,
-            );
+            const blockMaxWidth = convertRemLengthToPx(contentStyles.defaultBlockMaxWidth, remPx);
             const paddingXPx =
                 convertRemLengthToPx(
                     spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
@@ -1495,7 +1490,7 @@ export function DocumentContentEditor({
         const editorContainerElement = assertExists(editorContainerRef.current);
 
         const titleBoundaryElement = assertExists(
-            editorContainerElement.querySelector(`.${contentSchemaStyles.titleClassName}`),
+            editorContainerElement.querySelector(`.${titleClassName}`),
         );
         assert(titleBoundaryElement instanceof HTMLElement);
 
@@ -1534,7 +1529,7 @@ export function DocumentContentEditor({
         shareButton: {},
         desktopTitleMaxWidth: addRemLengths(
             spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
-            contentSchemaStyles.defaultBlockMaxWidth,
+            contentStyles.defaultBlockMaxWidth,
             spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
         ),
         desktopTitleFontSize: "400",
@@ -1797,9 +1792,9 @@ export function DocumentContentEditor({
                                             <Box
                                                 ref={mobileFakeCommentInputEditorRef}
                                                 className={classNames(
-                                                    contentSchemaStyles.docClassName,
+                                                    contentStyles.docClassName,
                                                     isMobile &&
-                                                        contentSchemaStyles.extraCompactDocClassName,
+                                                        contentStyles.extraCompactDocClassName,
                                                 )}
                                                 flexGrow="1"
                                                 borderRadius={messageViewBubbleBorderRadius}
@@ -1822,9 +1817,7 @@ export function DocumentContentEditor({
                                                 }}
                                             >
                                                 <Box
-                                                    className={
-                                                        contentSchemaStyles.paragraphClassName
-                                                    }
+                                                    className={paragraphClassName}
                                                     userSelect="none"
                                                     style={inputPlaceholderStyles}
                                                 >
@@ -1938,7 +1931,7 @@ export function DocumentContentEditor({
                             <style
                                 key={activeCommentThreadId}
                                 dangerouslySetInnerHTML={{
-                                    __html: contentSchemaStyles.commentActiveDynamicCssTemplate
+                                    __html: contentStyles.commentActiveDynamicCssTemplate
                                         .replaceAll(
                                             "$containerId",
                                             editorContainerId.replaceAll(":", "\\:"),

@@ -1,8 +1,8 @@
 import {Box} from "~/client/design/box.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
+import {Sprinkles, colorSchemeVars, pulseAnimationClassName} from "~/client/styles/styles.js";
 import {Spacing} from "~/shared/design/spacing.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {Sprinkles, colorSchemeVars, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
 export function InboxEntryShimmer({
     marginX = "1",

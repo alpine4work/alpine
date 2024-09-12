@@ -18,6 +18,7 @@ ts_project(
         "//client/messaging",
         "//client/rpc",
         "//client/spaces",
+        "//client/styles",
         "//client/virtualized",
         "//client/web_socket",
         "//shared/chat",
@@ -25,6 +26,5 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/messaging",
-        "//shared/styles",
     ],
 )

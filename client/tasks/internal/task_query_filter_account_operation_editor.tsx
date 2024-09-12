@@ -13,6 +13,7 @@ import {
     useExpensivelyLoadAllSpaceAccounts,
     useExpensivelyPreloadAllSpaceAccounts,
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCurrentAccountAvatar} from "~/client/tasks/internal/task_current_account_avatar.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
@@ -28,7 +29,6 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,

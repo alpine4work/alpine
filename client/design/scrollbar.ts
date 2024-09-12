@@ -10,10 +10,10 @@ import {
     removeResizeListenerForElement,
     removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {scrollbarStyles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {scrollbarStyles, sprinkles} from "~/shared/styles/styles.js";
 
 const {
     nativeScrollbarClassName,

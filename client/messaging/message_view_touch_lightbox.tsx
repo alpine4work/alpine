@@ -26,6 +26,27 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    getMessageBubbleMarginLeft,
+    messageViewActionsWidthWithoutHoveringPrimaryInput,
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMergedBorderRadius,
+    messageViewBubbleMinWidth,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+    messageViewReplyPreviewBubbleOpacity,
+    messageViewReplyPreviewOpacity,
+    messageViewReplyPreviewScale,
+} from "~/client/styles/messaging_shared_styles.js";
+import {
+    contentViewStyles,
+    emojiFontFamily,
+    messagingStyles,
+    overlayAnimateFadeInFromBottomSlowedAnimation,
+    overlayAnimateFadeOutFromBottomAnimation,
+    pointerEventsNoneNotInheritedClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
+import {
     addRemLengths,
     convertRemLengthToPx,
     parseRemLengthNumber,
@@ -39,27 +60,6 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/shared/messaging/get_truncated_message_content_for_reply_preview.js";
 import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
-import {
-    getMessageBubbleMarginLeft,
-    messageViewActionsWidthWithoutHoveringPrimaryInput,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMergedBorderRadius,
-    messageViewBubbleMinWidth,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-    messageViewReplyPreviewBubbleOpacity,
-    messageViewReplyPreviewOpacity,
-    messageViewReplyPreviewScale,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {
-    contentViewStyles,
-    emojiFontFamily,
-    messagingStyles,
-    overlayAnimateFadeInFromBottomSlowedAnimation,
-    overlayAnimateFadeOutFromBottomAnimation,
-    pointerEventsNoneNotInheritedClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 export function MessageViewTouchLightbox<
     RoomKey extends string,

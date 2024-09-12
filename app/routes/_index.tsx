@@ -14,6 +14,7 @@ import {MultilineTextInput} from "~/client/design/multiline_text_input.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -26,7 +27,6 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {randomArrayItem} from "~/shared/helpers/array/random_array_item.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 // TODO(calebmer): Lint rule that in JSX and error display messages you use a
 // curly quote (`’`) over single quotes (`'`) for apostrophes. Double

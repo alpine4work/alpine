@@ -27,12 +27,12 @@ import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {generateId} from "~/shared/id/id.js";
-import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 const contextMenuEventActionsSymbol = Symbol("actions");
 

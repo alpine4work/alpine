@@ -26,9 +26,9 @@ ts_project(
         "//client/helpers",
         "//client/icons",
         "//client/remix",
+        "//client/styles",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
-        "//shared/styles",
     ],
 )

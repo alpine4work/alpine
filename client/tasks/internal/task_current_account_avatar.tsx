@@ -1,7 +1,7 @@
 import {User} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskCurrentAccountAvatar() {
     return (

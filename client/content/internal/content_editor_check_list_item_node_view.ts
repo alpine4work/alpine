@@ -1,7 +1,7 @@
 import {DOMSerializer, Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 
 const {
     checkListItemCheckboxClassName,
@@ -9,7 +9,7 @@ const {
     checkListItemCheckboxPressedClassName,
     checkListItemCheckboxIconClassName,
     checkListItemContentClassName,
-} = contentSchemaStyles;
+} = contentStyles;
 
 export function createContentEditorCheckListItemNodeView(
     node: Node,

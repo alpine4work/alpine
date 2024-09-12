@@ -10,6 +10,7 @@ import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getInboxEntries} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -24,7 +25,6 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {inboxEntryViewMinHeight} from "~/shared/styles/inbox_shared_styles.js";
 
 const LoaderSchema = Schema.object({
     filter: Schema.enum(["New", "Archive"]),

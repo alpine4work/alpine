@@ -21,6 +21,19 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    messageInputAccountAvatarPaddingY,
+    messageInputAccountAvatarSize,
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMinHeight,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/client/styles/messaging_shared_styles.js";
+import {
+    greyElevated2ClassName,
+    overlayFadeOutAnimationDurationMs,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -32,19 +45,6 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {
-    messageInputAccountAvatarPaddingY,
-    messageInputAccountAvatarSize,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMinHeight,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {
-    greyElevated2ClassName,
-    overlayFadeOutAnimationDurationMs,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 const contentEditorCommentInputFloaterPaddingY = "2.5";
 

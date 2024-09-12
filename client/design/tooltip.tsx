@@ -31,10 +31,6 @@ import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
-import {Spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     greyElevated2ClassName,
     overlayAnimateContainerClassName,
@@ -42,7 +38,11 @@ import {
     overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Time it takes before we present a tooltip to the user if the user has

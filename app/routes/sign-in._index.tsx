@@ -9,6 +9,7 @@ import {Link} from "~/client/design/link.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -17,7 +18,6 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: "Sign in to Cyberworlds"}];

@@ -37,6 +37,11 @@ import {useSearchState} from "~/client/search/use_search_state.js";
 import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    minSearchResultViewHeight,
+    searchResultViewPaddingY,
+} from "~/client/styles/search_shared_styles.js";
+import {contentStyles, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
@@ -50,11 +55,6 @@ import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions
 import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
-import {
-    minSearchResultViewHeight,
-    searchResultViewPaddingY,
-} from "~/shared/styles/search_shared_styles.js";
-import {contentSchemaStyles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
@@ -370,7 +370,7 @@ export function SearchModal({
                                 <Box
                                     color="grey-50"
                                     padding={searchResultViewPaddingY}
-                                    style={contentSchemaStyles.paragraphFontSize}
+                                    style={contentStyles.paragraphFontSize}
                                 >
                                     {queryText.trim().length === 0 ? (
                                         <>

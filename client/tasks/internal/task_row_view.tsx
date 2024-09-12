@@ -38,6 +38,18 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    colorSchemeVars,
+    pointerEventsNoneNotInheritedClassName,
+    sprinkles,
+    tasksStyles,
+} from "~/client/styles/styles.js";
+import {
+    desktopTaskRowViewIndentationRem,
+    mobileTaskRowViewIndentationRem,
+    taskRowViewFirstColumnExtraPaddingLeft,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
@@ -96,18 +108,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {Store} from "~/shared/store/store.js";
-import {
-    colorSchemeVars,
-    pointerEventsNoneNotInheritedClassName,
-    sprinkles,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
-import {
-    desktopTaskRowViewIndentationRem,
-    mobileTaskRowViewIndentationRem,
-    taskRowViewFirstColumnExtraPaddingLeft,
-    taskRowViewMinHeight,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

@@ -2,11 +2,12 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
-import {contentSchemaStyles, fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
+import {contentStyles, fontSizes, pulseAnimationClassName} from "~/client/styles/styles.js";
+import {listItemIndentationVar} from "~/shared/content/content_styles.js";
 
 export const contentParagraphShimmerFontSize = {
     ...fontSizes["50"],
-    lineHeight: contentSchemaStyles.paragraphFontSize.lineHeight,
+    lineHeight: contentStyles.paragraphFontSize.lineHeight,
 } as const;
 
 export function ContentParagraphShimmer1() {
@@ -61,20 +62,20 @@ export function ContentListItemShimmer({children}: {children?: ReactNode}) {
     return (
         <Box
             position="relative"
-            paddingLeft={contentSchemaStyles.listItemIndentation}
-            style={assignInlineVars({[contentSchemaStyles.listItemIndentationVar]: "0"})}
+            paddingLeft={contentStyles.listItemIndentation}
+            style={assignInlineVars({[listItemIndentationVar]: "0"})}
         >
-            <Box position="absolute" inset="0" left={`-${contentSchemaStyles.blockPaddingX}`}>
+            <Box position="absolute" inset="0" left={`-${contentStyles.blockPaddingX}`}>
                 <Box
                     className={pulseAnimationClassName}
                     position="absolute"
                     backgroundColor="grey-5"
-                    width={contentSchemaStyles.bulletListItemBulletSize}
-                    height={contentSchemaStyles.bulletListItemBulletSize}
+                    width={contentStyles.bulletListItemBulletSize}
+                    height={contentStyles.bulletListItemBulletSize}
                     borderRadius="full"
                     style={{
-                        top: contentSchemaStyles.bulletListItemBulletTop,
-                        left: contentSchemaStyles.bulletListItemBulletLeft,
+                        top: contentStyles.bulletListItemBulletTop,
+                        left: contentStyles.bulletListItemBulletLeft,
                         // Make bullets a little bigger so they look natural next to shimmer text.
                         transform: "scale(1.375)",
                     }}

@@ -1,5 +1,5 @@
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {colorSchemeVars} from "~/client/styles/styles.js";
 
 /**
  * Send our current theme colors to our native mobile wrapper up. Call this

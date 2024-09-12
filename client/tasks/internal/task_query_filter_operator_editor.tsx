@@ -2,7 +2,7 @@ import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {sprinkles} from "~/client/styles/styles.js";
 
 export function TaskQueryFilterOperatorEditor({
     withMobileLayout,

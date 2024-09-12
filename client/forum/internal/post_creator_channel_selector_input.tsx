@@ -33,6 +33,14 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    colorSchemeVars,
+    fontSizes,
+    greyElevated2ClassName,
+    pointerEventsNoneNotInheritedClassName,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -44,14 +52,6 @@ import {
     searchChannelsByAffinity,
     searchChannelsByKeywords,
 } from "~/shared/rpc/search_rpc_definitions.js";
-import {
-    colorSchemeVars,
-    fontSizes,
-    greyElevated2ClassName,
-    pointerEventsNoneNotInheritedClassName,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 /**
  * Limit of search results we'll fetch on the client. We don't lazy load more

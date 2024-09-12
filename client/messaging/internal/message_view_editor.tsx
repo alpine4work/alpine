@@ -9,9 +9,6 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {
     messageViewActionsWidth,
     messageViewBubbleBorderRadius,
@@ -20,8 +17,11 @@ import {
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
     messageViewMaxWidth,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+} from "~/client/styles/messaging_shared_styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 
 export type MessageViewEditorRef = {
     focus(): void;

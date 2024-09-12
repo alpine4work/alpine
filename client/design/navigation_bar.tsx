@@ -41,6 +41,12 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {getIsMobileWithoutListening, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
+    navigationBarStyles,
+    pointerEventsNoneNotInheritedClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
+import {FontSize} from "~/shared/design/fonts.js";
+import {
     RemLength,
     Spacing,
     addRemLengths,
@@ -57,12 +63,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {
-    FontSize,
-    navigationBarStyles,
-    pointerEventsNoneNotInheritedClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 const {
     desktopNavigationBarHeight,

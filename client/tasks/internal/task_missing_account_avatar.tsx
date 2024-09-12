@@ -1,7 +1,7 @@
 import {User} from "phosphor-react";
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
+import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskMissingAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
     return (

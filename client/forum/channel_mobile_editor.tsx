@@ -18,6 +18,7 @@ import {TextInput} from "~/client/design/text_input.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -25,7 +26,6 @@ import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ChannelMobileEditor({
     title,

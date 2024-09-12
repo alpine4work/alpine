@@ -13,15 +13,6 @@ import {SearchResultView} from "~/client/search/internal/search_result_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    VirtualizedScrollView,
-    VirtualizedScrollViewItem,
-    VirtualizedScrollViewRef,
-} from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchResult} from "~/shared/search/search_result.js";
-import {
     minSearchMobileInputHeight,
     minSearchResultViewHeight,
     searchMobileInputBorderRadius,
@@ -30,13 +21,22 @@ import {
     searchMobileInputMarginTop,
     searchMobileInputPaddingX,
     searchMobileInputPaddingY,
-} from "~/shared/styles/search_shared_styles.js";
+} from "~/client/styles/search_shared_styles.js";
 import {
     colorSchemeVars,
-    contentSchemaStyles,
+    contentStyles,
     spinAnimationClassName,
     sprinkles,
-} from "~/shared/styles/styles.js";
+} from "~/client/styles/styles.js";
+import {
+    VirtualizedScrollView,
+    VirtualizedScrollViewItem,
+    VirtualizedScrollViewRef,
+} from "~/client/virtualized/virtualized_scroll_view.js";
+import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchResult} from "~/shared/search/search_result.js";
 
 export function SearchMobileView({
     affinityResults,
@@ -155,7 +155,7 @@ export function SearchMobileView({
                                     color="grey-50"
                                     paddingX={screenPaddingX}
                                     paddingTop="1"
-                                    style={contentSchemaStyles.paragraphFontSize}
+                                    style={contentStyles.paragraphFontSize}
                                 >
                                     {queryText.trim().length === 0 ? (
                                         <>

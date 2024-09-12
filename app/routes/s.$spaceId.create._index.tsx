@@ -14,9 +14,9 @@ import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
+import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {generateId} from "~/shared/id/id.js";
-import {borderRadius, colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];

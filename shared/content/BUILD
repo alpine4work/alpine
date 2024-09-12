@@ -19,6 +19,5 @@ ts_project(
         "//shared/prosemirror",
         "//shared/schema",
         "//shared/spaces",
-        "//shared/styles",
     ],
 )

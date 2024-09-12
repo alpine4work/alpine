@@ -25,6 +25,9 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
+import {colorSchemeVars} from "~/client/styles/styles.js";
+import {taskDetailViewMaxWidth} from "~/client/styles/tasks_shared_styles.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
@@ -32,9 +35,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
-import {inboxBannerHeight} from "~/shared/styles/inbox_shared_styles.js";
-import {colorSchemeVars} from "~/shared/styles/styles.js";
-import {taskDetailViewMaxWidth} from "~/shared/styles/tasks_shared_styles.js";
 
 export function InboxBannerOutletContainer({
     initialEntry,

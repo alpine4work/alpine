@@ -44,6 +44,8 @@ import {useIsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {NavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {useRouteErrorTitle} from "~/client/spaces/route_error_title.js";
+import stylesHref from "~/client/styles/styles.css?url";
+import {sprinkles} from "~/client/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {contentCodeBlockLanguages} from "~/shared/content/code/content_code_block_language.js";
@@ -62,8 +64,6 @@ import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema} from "~/shared/schema/schema.js";
-import stylesHref from "~/shared/styles/styles.css?url";
-import {sprinkles} from "~/shared/styles/styles.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 

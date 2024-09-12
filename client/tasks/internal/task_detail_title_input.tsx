@@ -18,13 +18,13 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {fontSizes, sprinkles, tasksStyles} from "~/client/styles/styles.js";
+import {taskDetailViewTitleFontSize} from "~/client/styles/tasks_shared_styles.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/tasks/internal/build_task_title_input_keymap_plugin.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
-import {taskDetailViewTitleFontSize} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskTitleProsemirrorSchema, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 

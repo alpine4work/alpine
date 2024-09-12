@@ -4,9 +4,9 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryTitleFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryTitleFilterOperationEditor({

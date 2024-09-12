@@ -34,6 +34,8 @@ import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {getInitialAppRenderIsMobile, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {messageViewMarginY, messageViewMinHeight} from "~/client/styles/messaging_shared_styles.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -59,8 +61,6 @@ import {
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
-import {messageViewMarginY, messageViewMinHeight} from "~/shared/styles/messaging_shared_styles.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 export const messagingViewMarginBottomCalcExpression =
     "var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px)";

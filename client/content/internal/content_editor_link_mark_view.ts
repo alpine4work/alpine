@@ -7,11 +7,11 @@ import {tooltipDelayMs} from "~/client/design/tooltip.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
-const {linkPressedClassName} = contentSchemaStyles;
+const {linkPressedClassName} = contentStyles;
 
 /**
  * Opens the link when the node is clicked instead of selecting text. We're

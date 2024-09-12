@@ -23,6 +23,7 @@ import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {greyElevated2ClassName, toastStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {ErrorBase, InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
@@ -32,7 +33,6 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {greyElevated2ClassName, toastStyles} from "~/shared/styles/styles.js";
 
 /**
  * Error toasts should be visible long enough for the user to read but short

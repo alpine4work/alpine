@@ -29,6 +29,35 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {
+    getMessageBubbleMarginLeft,
+    messageViewActionsWidth,
+    messageViewActionsWidthWithoutHoveringPrimaryInput,
+    messageViewBubbleBorderRadius,
+    messageViewBubbleMergedBorderRadius,
+    messageViewBubbleMinWidth,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+    messageViewMarginY,
+    messageViewMaxWidth,
+    messageViewMergedMarginY,
+    messageViewReplyPreviewBubbleOpacity,
+    messageViewReplyPreviewOpacity,
+    messageViewReplyPreviewScale,
+    messageViewTimestampDividerMarginBottom,
+    messageViewTimestampDividerMarginTop,
+} from "~/client/styles/messaging_shared_styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    contentViewStyles,
+    emojiFontFamily,
+    spinAnimationClassName,
+    sprinkles,
+    wiggleAnimation,
+    wiggleAnimationDuration,
+} from "~/client/styles/styles.js";
+import {linkClassName} from "~/shared/content/content_styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/easing.js";
 import {
     RemLength,
@@ -47,35 +76,7 @@ import {
     MessageModelBase,
     OptimisticMessageModel,
 } from "~/shared/messaging/message_model.js";
-import {
-    getMessageBubbleMarginLeft,
-    messageViewActionsWidth,
-    messageViewActionsWidthWithoutHoveringPrimaryInput,
-    messageViewBubbleBorderRadius,
-    messageViewBubbleMergedBorderRadius,
-    messageViewBubbleMinWidth,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-    messageViewMarginY,
-    messageViewMaxWidth,
-    messageViewMergedMarginY,
-    messageViewReplyPreviewBubbleOpacity,
-    messageViewReplyPreviewOpacity,
-    messageViewReplyPreviewScale,
-    messageViewTimestampDividerMarginBottom,
-    messageViewTimestampDividerMarginTop,
-    minMessageViewTimestampDividerElapsedMinutes,
-} from "~/shared/styles/messaging_shared_styles.js";
-import {
-    colorSchemeVars,
-    contentSchemaStyles,
-    contentViewStyles,
-    emojiFontFamily,
-    spinAnimationClassName,
-    sprinkles,
-    wiggleAnimation,
-    wiggleAnimationDuration,
-} from "~/shared/styles/styles.js";
+import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 
 /**
  * The buffered height we use for virtualized message views.
@@ -439,7 +440,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 while (element && messageElement.contains(element)) {
                     // If the user is touching a link, then a long press won't open the lightbox.
                     // Instead it will open the link.
-                    if (element.classList.contains(contentSchemaStyles.linkClassName)) {
+                    if (element.classList.contains(linkClassName)) {
                         return;
                     }
 
@@ -856,8 +857,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     })}
                     style={{
                         lineHeight: isMobile
-                            ? contentSchemaStyles.extraCompactParagraphFontSize.lineHeight
-                            : contentSchemaStyles.paragraphFontSize.lineHeight,
+                            ? contentStyles.extraCompactParagraphFontSize.lineHeight
+                            : contentStyles.paragraphFontSize.lineHeight,
                     }}
                 >
                     {`${messageStartOfSentenceNoun} deleted`}

@@ -80,6 +80,7 @@ ts_project(
         "//client/shimmer",
         "//client/spaces",
         "//client/spaces/layout",
+        "//client/styles",
         "//client/tasks",
         "//client/tracer",
         "//client/virtualized",
@@ -110,7 +111,6 @@ ts_project(
         "//shared/rpc",
         "//shared/schema",
         "//shared/spaces",
-        "//shared/styles",
         "//shared/tracer",
     ],
 )

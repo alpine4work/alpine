@@ -12,6 +12,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     TaskAssigneeInputItem,
     nullTaskAssigneeInputLabel,
@@ -20,7 +21,6 @@ import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_acc
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskAssigneeInputListBox({
     comboBoxState,

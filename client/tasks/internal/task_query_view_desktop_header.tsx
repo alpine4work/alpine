@@ -6,6 +6,7 @@ import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {backgroundFontSizePercentage} from "~/client/styles/styles.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskQueryViewCustomizationBar,
@@ -17,9 +18,9 @@ import {
     TaskQueryViewDesktopHeaderNameRef,
 } from "~/client/tasks/internal/task_query_view_desktop_header_name.js";
 import {interFontAscender, interFontDescender} from "~/shared/design/font_metrics.js";
+import {fontSizesByPlatform} from "~/shared/design/fonts.js";
 import {screenPaddingX} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {backgroundFontSizePercentage, fontSizesByPlatform} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";

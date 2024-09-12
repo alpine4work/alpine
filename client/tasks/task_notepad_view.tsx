@@ -10,6 +10,7 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {tasksStyles} from "~/client/styles/styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStore,
@@ -48,7 +49,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {tasksStyles} from "~/shared/styles/styles.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotepadPageId,

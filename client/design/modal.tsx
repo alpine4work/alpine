@@ -11,10 +11,10 @@ import {
     GlobalKeyDownEventModal,
 } from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {greyElevated1ClassName, modalStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export const defaultModalMaxWidth: Spacing = "128";
 

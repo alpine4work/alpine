@@ -2,8 +2,13 @@ import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Sparkle} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
+import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    bulletListItemClassName,
+    listItemClassName,
+    listItemIndentationVar,
+} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {contentSchemaStyles, inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function SearchInstructionalPlaceholder() {
     return (
@@ -33,13 +38,10 @@ export function SearchInstructionalPlaceholder() {
                 ].map((example, i) => (
                     <Box
                         key={i}
-                        className={classNames(
-                            contentSchemaStyles.listItemClassName,
-                            contentSchemaStyles.bulletListItemClassName,
-                        )}
+                        className={classNames(listItemClassName, bulletListItemClassName)}
                         style={{
                             ...assignInlineVars({
-                                [contentSchemaStyles.listItemIndentationVar]: "0",
+                                [listItemIndentationVar]: "0",
                             }),
                         }}
                         paddingBottom="1.5"

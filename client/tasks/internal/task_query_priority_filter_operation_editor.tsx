@@ -3,11 +3,11 @@ import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
-import {colorSchemeVars, inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryPriorityFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryPriorityFilterOperationEditor({

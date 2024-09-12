@@ -9,6 +9,7 @@ import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -16,7 +17,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Present information to the user, blocking their experience, and ask them to

@@ -1,9 +1,9 @@
 import {useCallback} from "react";
 import {Box} from "~/client/design/box.js";
 import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 const stableRandom = new StableRandom("test");
 

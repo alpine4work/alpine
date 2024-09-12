@@ -4,6 +4,11 @@ import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {colorSchemeVars} from "~/client/styles/styles.js";
+import {
+    taskRowViewCollectionsColumnCellOverlayWidth,
+    taskRowViewMinHeight,
+} from "~/client/styles/tasks_shared_styles.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {
     TaskClientStoreSearchAffinityManager,
@@ -13,11 +18,6 @@ import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_inp
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {colorSchemeVars} from "~/shared/styles/styles.js";
-import {
-    taskRowViewCollectionsColumnCellOverlayWidth,
-    taskRowViewMinHeight,
-} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

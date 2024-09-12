@@ -1,6 +1,6 @@
 import {ContentView} from "~/client/content/content_view.js";
+import {documentContentStyles} from "~/client/styles/styles.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
-import {documentContentStyles} from "~/shared/styles/styles.js";
 
 // TODO(calebmer): Get side decorations for comments working here.
 

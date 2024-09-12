@@ -11,6 +11,8 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {channelViewAsidePaddingY} from "~/client/styles/forum_shared_styles.js";
+import {colorSchemeVars, contentStyles, fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {
     addRemLengths,
     parseRemLengthNumber,
@@ -24,13 +26,6 @@ import {
     MessageContent,
     MessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
-import {channelViewAsidePaddingY} from "~/shared/styles/forum_shared_styles.js";
-import {
-    colorSchemeVars,
-    contentSchemaStyles,
-    fontSizes,
-    sprinkles,
-} from "~/shared/styles/styles.js";
 
 const channelViewAsideSectionTitleFontSize = "75";
 
@@ -69,7 +64,7 @@ export function ChannelViewAside({
             >
                 <h3
                     className={sprinkles({
-                        paddingLeft: contentSchemaStyles.blockPaddingX,
+                        paddingLeft: contentStyles.blockPaddingX,
                         color: "grey-50",
                         fontSize: channelViewAsideSectionTitleFontSize,
                     })}

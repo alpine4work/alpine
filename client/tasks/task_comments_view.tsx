@@ -11,6 +11,7 @@ import {
 } from "~/client/messaging/messaging_view.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
+import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shared_styles.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -21,7 +22,6 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
-import {taskCommentsHeaderNavigationBarSpacing} from "~/shared/styles/tasks_shared_styles.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 
 type TaskCommentsViewInitialComments = {

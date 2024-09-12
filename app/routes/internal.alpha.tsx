@@ -7,6 +7,7 @@ import {TextInput} from "~/client/design/text_input.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,
@@ -24,7 +25,6 @@ import {
     saveAlphaConfiguration,
 } from "~/shared/rpc/alpha_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: `Closed Alpha Management${metaTitlePostfix}`}];

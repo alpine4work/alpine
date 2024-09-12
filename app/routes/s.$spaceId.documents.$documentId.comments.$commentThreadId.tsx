@@ -12,6 +12,10 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {
+    documentCommentThreadCountAgainstLimit,
+    documentCommentThreadListViewMaxWidth,
+} from "~/client/styles/document_shared_styles.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -29,10 +33,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {
-    documentCommentThreadCountAgainstLimit,
-    documentCommentThreadListViewMaxWidth,
-} from "~/shared/styles/document_shared_styles.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),
