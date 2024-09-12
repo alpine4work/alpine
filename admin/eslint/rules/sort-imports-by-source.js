@@ -3,6 +3,7 @@
 module.exports = {
     meta: {
         schema: [],
+        fixable: "code",
         messages: {
             sortImports: 'Imports should be sorted alphabetically with "~/" imports at the end.',
             absoluteImport: 'Instead of a relative imports use an absolute import with "~/".',
@@ -89,10 +90,81 @@ module.exports = {
                 const ordering = compareImportDeclarations(node, previousDeclaration);
 
                 if (ordering < 0) {
-                    context.report({
-                        node: node.source,
-                        messageId: "sortImports",
-                    });
+                    const adjacentDeclarations = [node];
+
+                    if (node.parent && node.parent.type === "Program") {
+                        const nodeIndex = node.parent.body.indexOf(node);
+                        if (nodeIndex !== -1) {
+                            for (let i = nodeIndex - 1; i >= 0; i--) {
+                                const adjacentDeclaration = node.parent.body[i];
+                                if (adjacentDeclaration.type === "ImportDeclaration") {
+                                    adjacentDeclarations.push(adjacentDeclaration);
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            adjacentDeclarations.reverse();
+
+                            for (let i = nodeIndex + 1; i < node.parent.body.length; i++) {
+                                const adjacentDeclaration = node.parent.body[i];
+                                if (adjacentDeclaration.type === "ImportDeclaration") {
+                                    adjacentDeclarations.push(adjacentDeclaration);
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (adjacentDeclarations.length === 1) {
+                        context.report({
+                            node: node.source,
+                            messageId: "sortImports",
+                        });
+                    } else {
+                        context.report({
+                            node: node.source,
+                            messageId: "sortImports",
+                            fix: fixer => {
+                                const fullText = context.sourceCode.getText();
+
+                                const initialComments = context.sourceCode.getCommentsBefore(
+                                    adjacentDeclarations[0],
+                                );
+
+                                let lastIndex =
+                                    initialComments.length > 0
+                                        ? initialComments[0].range[0]
+                                        : adjacentDeclarations[0].range[0];
+
+                                const adjacentDeclarationsWithActualRanges =
+                                    adjacentDeclarations.map(declaration => {
+                                        const actualRange = [lastIndex, declaration.range[1]];
+                                        lastIndex = actualRange[1];
+                                        return {actualRange, declaration};
+                                    });
+
+                                const range = [
+                                    adjacentDeclarationsWithActualRanges[0].actualRange[0],
+                                    adjacentDeclarationsWithActualRanges[
+                                        adjacentDeclarationsWithActualRanges.length - 1
+                                    ].actualRange[1],
+                                ];
+
+                                const newText = adjacentDeclarationsWithActualRanges
+                                    .sort((a, b) =>
+                                        compareImportDeclarations(a.declaration, b.declaration),
+                                    )
+                                    .map(({actualRange: [startIndex, endIndex]}) =>
+                                        fullText.slice(startIndex, endIndex).replace(/^\n/, ""),
+                                    )
+                                    .join("\n");
+
+                                return fixer.replaceTextRange(range, newText);
+                            },
+                        });
+                    }
                 }
 
                 previousDeclaration = node;
