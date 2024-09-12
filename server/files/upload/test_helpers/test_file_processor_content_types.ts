@@ -640,8 +640,24 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
                     ),
                 ]);
 
-                let actualMetadata = JSON.parse(actualMetadataString);
-                const expectedMetadata = JSON.parse(expectedMetadataString);
+                let actualMetadata;
+                let expectedMetadata;
+
+                try {
+                    actualMetadata = JSON.parse(actualMetadataString);
+                } catch (error) {
+                    throw new InternalError(
+                        quote`JSON parsing failed for: ${actualMetadataString}`,
+                    );
+                }
+
+                try {
+                    expectedMetadata = JSON.parse(expectedMetadataString);
+                } catch (error) {
+                    throw new InternalError(
+                        quote`JSON parsing failed for: ${expectedMetadataString}`,
+                    );
+                }
 
                 // If we generated a `.webm` file without metadata (which is the case when
                 // outputting to a stream) then let's repackage the `.webm` file so `ffprobe`
