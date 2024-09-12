@@ -41,7 +41,7 @@ export const FileImagePreviewPlaceholder = createSchemaLazyTransformClass<
         const width = pixelGrid[0].length;
         const channelCount = hasAlphaChannel ? 4 : 3;
 
-        const data = new Uint8Array(width * pixelGrid.length * channelCount);
+        const data = new JsonStringifiableUint8Array(width * pixelGrid.length * channelCount);
 
         for (let y = 0; y < pixelGrid.length; y++) {
             const pixelRow = pixelGrid[y]!;
@@ -64,7 +64,7 @@ export const FileImagePreviewPlaceholder = createSchemaLazyTransformClass<
             }
         }
 
-        return [hasAlphaChannel, width, new JsonStringifiableUint8Array(data)];
+        return [hasAlphaChannel, width, data];
     },
     deserialize: ([hasAlphaChannel, width, data]) => {
         const channelCount = hasAlphaChannel ? 4 : 3;

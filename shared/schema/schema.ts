@@ -905,12 +905,6 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
  * a base64 string.
  */
 export class JsonStringifiableUint8Array extends Uint8Array {
-    constructor(array: Uint8Array) {
-        // Important that we don't copy the array and instead reference the same
-        // underlying buffer as the array we are provided.
-        super(array.buffer, array.byteOffset, array.length);
-    }
-
     public toJSON(): string {
         return encodeBase64(this);
     }
@@ -2212,7 +2206,11 @@ export class BytesSchema extends Schema<Uint8Array> {
         getDescription: () => ({type: "Bytes"}),
         serialize: value => {
             if (value instanceof JsonStringifiableUint8Array) return value;
-            return new JsonStringifiableUint8Array(value);
+            return new JsonStringifiableUint8Array(
+                value.buffer,
+                value.byteOffset,
+                value.byteLength,
+            );
         },
         deserialize: value => {
             if (value instanceof Uint8Array) return value;

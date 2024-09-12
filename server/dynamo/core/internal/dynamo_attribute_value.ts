@@ -77,9 +77,8 @@ export function fromDynamoAttributeValue(value: types.AttributeValue): SchemaSer
     // NOTE(calebmer, 2023-07-27): Since right now we use `awsfetch` directly
     // instead of the AWS SDK, `B` is a base64 encoded string not a `Uint8Array`.
     if (value.B !== undefined) {
-        return new JsonStringifiableUint8Array(
-            typeof value.B === "string" ? decodeBase64((value as any).B) : value.B,
-        );
+        const array = typeof value.B === "string" ? decodeBase64((value as any).B) : value.B;
+        return new JsonStringifiableUint8Array(array.buffer, array.byteOffset, array.byteLength);
     }
 
     if (value.M !== undefined) return fromDynamoAttributeValueObject(value.M);

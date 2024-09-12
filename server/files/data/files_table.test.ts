@@ -4995,8 +4995,8 @@ test("can finish processing file code preview content", async () => {
             alternative: null,
             preview: {
                 type: "Code",
-                isProcessing: true,
-                content: "Processing",
+                isProcessing: false,
+                content: fileCodePreviewContent,
             },
         }),
     );
@@ -5091,8 +5091,8 @@ test("can't finish processing code preview content duration twice", async () => 
             alternative: null,
             preview: {
                 type: "Code",
-                isProcessing: true,
-                content: "Processing",
+                isProcessing: false,
+                content: fileCodePreviewContent,
             },
         }),
     );
@@ -5110,8 +5110,8 @@ test("can't finish processing code preview content duration twice", async () => 
             alternative: null,
             preview: {
                 type: "Code",
-                isProcessing: true,
-                content: "Processing",
+                isProcessing: false,
+                content: fileCodePreviewContent,
             },
         }),
     );

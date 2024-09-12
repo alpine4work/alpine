@@ -219,7 +219,7 @@ test("must provide a valid Content-Type header to upload route", async () => {
         method: "POST",
         headers: {
             authorization: await authorization(session),
-            "content-type": "text/html",
+            "content-type": "application/example",
         },
     });
     const responseText = await response.text();
@@ -229,7 +229,9 @@ test("must provide a valid Content-Type header to upload route", async () => {
     expect(parseJsonEvents(responseText)).toEqual([
         {
             type: "Error",
-            error: new InvalidArgumentError('Unsupported "Content-Type" header "text/html"'),
+            error: new InvalidArgumentError(
+                'Unsupported "Content-Type" header "application/example"',
+            ),
         },
     ]);
 });

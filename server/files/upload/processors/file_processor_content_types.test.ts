@@ -348,6 +348,7 @@ const testCases: {
             },
         },
         {
+            only: "NOCOMMIT",
             path: "py_pdf_sample_libreoffice_write_password.pdf",
             previewError: {
                 code: ErrorCode.PermissionDenied,

@@ -2,7 +2,11 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {
+    JsonStringifiableUint8Array,
+    Schema,
+    SchemaDeserializationError,
+} from "~/shared/schema/schema.js";
 
 /**
  * Preview content for a code file. To preview a code file we take the first
@@ -286,7 +290,7 @@ export const FileCodePreviewContent = createSchemaLazyTransformClass<
         // @ts-expect-error: This function works but it's not in the TypeScript types.
         buffer.resize(byteOffset);
 
-        return new Uint8Array(buffer);
+        return new JsonStringifiableUint8Array(buffer);
     },
     deserialize: data => {
         let byteOffset = 0;

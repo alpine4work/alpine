@@ -211,12 +211,11 @@ export function testFileProcessorContentTypes(testCases: {
                             eventOrder.indexOf(event1.type) - eventOrder.indexOf(event2.type),
                     );
 
-                    const error = findMapIterable(events, event =>
-                        event.type === "Error" ? event.error : undefined,
-                    );
-                    if (error !== undefined) {
-                        throw error;
-                    }
+                    expect(
+                        findMapIterable(events, event =>
+                            event.type === "Error" ? event.error : undefined,
+                        ),
+                    ).toEqual(undefined);
 
                     const fileId = assertExists(
                         findMapIterable(events, event =>
