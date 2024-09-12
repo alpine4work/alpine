@@ -50,6 +50,8 @@ ts_project(
             "internal/**/*.test.tsx",
         ],
     ),
+    # Linting will be run by the `styles` project above.
+    lint_and_format_srcs = [],
     test_srcs = [],
     deps = [
         "//:node_modules/@types/color",
