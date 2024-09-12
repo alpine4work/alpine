@@ -306,9 +306,6 @@ dependencies:
   '@octokit/types':
     specifier: ^13.5.0
     version: 13.5.0
-  '@opensearch-project/opensearch':
-    specifier: ^2.3.1
-    version: 2.3.1
   '@playwright/test':
     specifier: 1.46.0
     version: 1.46.0
@@ -4586,19 +4583,6 @@ packages:
       '@octokit/openapi-types': 22.2.0
     dev: false
 
-  /@opensearch-project/opensearch@2.3.1:
-    resolution: {integrity: sha512-Kg8tddAx6sinStnNi6IeGilfvLWlonIxaRdVNiJcNPr1yMqd0c9TSegn18zKr0Pb0IM9xBIGBSkRPuh67ZN6Hw==}
-    engines: {node: '>=10', yarn: ^1.22.10}
-    dependencies:
-      aws4: 1.12.0
-      debug: 4.3.4
-      hpagent: 1.2.0
-      ms: 2.1.3
-      secure-json-parse: 2.7.0
-    transitivePeerDependencies:
-      - supports-color
-    dev: false
-
   /@pkgjs/parseargs@0.11.0:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
@@ -8213,10 +8197,6 @@ packages:
       xml2js: 0.6.2
     dev: false
 
-  /aws4@1.12.0:
-    resolution: {integrity: sha512-NmWvPnx0F1SfrQbYwOi7OeaNGokp9XhzNioJ/CSBs8Qa4vxug81mhJEAVZwxXuBmYB5KDRfMq/F3RR0BIU7sWg==}
-    dev: false
-
   /aws4fetch@1.0.17(patch_hash=brhmadvobndkkryeoeeq5ezl4u):
     resolution: {integrity: sha512-4IbOvsxqxeOSxI4oA+8xEO8SzBMVlzbSTgGy/EF83rHnQ/aKtP6Sc6YV/k0oiW0mqrcxuThlbDosnvetGOuO+g==}
     dev: false
@@ -11088,11 +11068,6 @@ packages:
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
     dependencies:
       lru-cache: 7.18.3
-    dev: false
-
-  /hpagent@1.2.0:
-    resolution: {integrity: sha512-A91dYTeIB6NoXG+PxTQpCCDDnfHsW9kc06Lvpu1TEe9gnd6ZFeiBoRO9JvzEv6xK7EX97/dUE8g/vBMTqTS3CA==}
-    engines: {node: '>=14'}
     dev: false
 
   /html-encoding-sniffer@3.0.0:
@@ -15655,10 +15630,6 @@ packages:
     resolution: {integrity: sha512-CtuThmgHNg7zIZWAXi3AsyIzA3n4xx7aNyjwC2VJldO2LMVDhFK+63xGqq6CsJH4rTAt6/M+N4GhZiDYPx9eUw==}
     dependencies:
       loose-envify: 1.4.0
-    dev: false
-
-  /secure-json-parse@2.7.0:
-    resolution: {integrity: sha512-6aU+Rwsezw7VR8/nyvKTx8QpWH9FrcYiXXlqC4z5d5XQBDRqtbfsRjnwGyqbi3gddNtWHuEk9OANUotL26qKUw==}
     dev: false
 
   /selfsigned@2.1.1:

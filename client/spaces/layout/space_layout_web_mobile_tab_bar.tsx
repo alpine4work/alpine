@@ -1,4 +1,4 @@
-import {differenceInMinutes} from "date-fns";
+import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
 import {Bell, House, IconContext, List, MagnifyingGlass, Plus} from "phosphor-react";
 import {ReactNode, useCallback, useContext, useMemo} from "react";
 import {usePress} from "react-aria";

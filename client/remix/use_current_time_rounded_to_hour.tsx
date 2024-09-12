@@ -1,5 +1,5 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {roundToNearestMinutes} from "date-fns";
+import roundToNearestMinutes from "date-fns/roundToNearestMinutes/index.js";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {InternalError} from "~/shared/error/error.js";

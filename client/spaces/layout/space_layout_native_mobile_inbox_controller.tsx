@@ -1,4 +1,4 @@
-import {differenceInMinutes} from "date-fns";
+import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
 import {useCallback, useEffect} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";

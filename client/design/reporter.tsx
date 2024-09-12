@@ -1,4 +1,4 @@
-import {addSeconds} from "date-fns";
+import addSeconds from "date-fns/addSeconds/index.js";
 import {Info, X} from "phosphor-react";
 import {
     Memo,

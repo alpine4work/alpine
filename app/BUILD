@@ -6,6 +6,7 @@ load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//admin/esbuild:esbuild_runfiles_aspect.bzl", "esbuild_runfiles_without_sources")
 load("//app:app_wrapper_srcs.bzl", "APP_WRAPPER_SRCS")
+load("//app:app_client_node_modules.bzl", "app_client_node_modules")
 
 # `app_wrapper` is a slim binary that runs `AppService` in development. We run
 # the Vite dev server inside `app_wrapper` and that's what serves our Remix
@@ -112,6 +113,12 @@ ts_project(
         "//shared/styles",
         "//shared/tracer",
     ],
+)
+
+app_client_node_modules(
+    name = "app_client_node_modules",
+    target = "//app:app_lib",
+    visibility = ["//:__pkg__"],
 )
 
 # Files the Vite dev server watches. Our dev process manager will keep this

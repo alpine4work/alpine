@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {differenceInMinutes} from "date-fns";
+import differenceInMinutes from "date-fns/differenceInMinutes/index.js";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";

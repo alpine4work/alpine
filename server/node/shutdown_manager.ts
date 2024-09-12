@@ -10,12 +10,12 @@ import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_s
 export interface ShutdownManagerBase {
     registerListenerForIngressTraffic(
         name: string,
-        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
     ): () => void;
 
     registerListener(
         name: string,
-        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
     ): () => void;
 
     registerWaitUntilPromise(promise: Promise<unknown>): void;
@@ -26,10 +26,10 @@ export class ShutdownManager implements ShutdownManagerBase {
     private readonly _isClusterPrimary: boolean;
     private _isShuttingDown = false;
     private _ingressTrafficListeners = new Set<
-        (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>
+        (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>
     >();
     private _listeners = new Set<
-        (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>
+        (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>
     >();
     private readonly _waitUntilPromises = new Set<Promise<unknown>>();
 
@@ -53,7 +53,7 @@ export class ShutdownManager implements ShutdownManagerBase {
     }): {
         shutdownManager: ShutdownManager;
         shutdown: (
-            signal: "SIGINT" | "SIGTERM" | ErrorBase,
+            reason: "SIGINT" | "SIGTERM" | ErrorBase,
             propagationContext: TracerSpanPropagationContext | null,
         ) => void;
     } {
@@ -61,8 +61,8 @@ export class ShutdownManager implements ShutdownManagerBase {
 
         return {
             shutdownManager,
-            shutdown: (signal, propagationContext) =>
-                shutdownManager._handleShutdown(signal, propagationContext),
+            shutdown: (reason, propagationContext) =>
+                shutdownManager._handleShutdown(reason, propagationContext),
         };
     }
 
@@ -71,7 +71,7 @@ export class ShutdownManager implements ShutdownManagerBase {
     }
 
     private _handleShutdown(
-        signal: "SIGINT" | "SIGTERM" | ErrorBase,
+        reason: "SIGINT" | "SIGTERM" | ErrorBase,
         propagationContext: TracerSpanPropagationContext | null,
     ) {
         if (this._isShuttingDown) return;
@@ -95,16 +95,16 @@ export class ShutdownManager implements ShutdownManagerBase {
 
         let hasAddedExceptionToSpan = false;
 
-        if (!hasAddedExceptionToSpan && signal instanceof ErrorBase) {
+        if (!hasAddedExceptionToSpan && reason instanceof ErrorBase) {
             hasAddedExceptionToSpan = true;
-            span.addException(signal);
+            span.addException(reason);
         }
 
-        if (signal instanceof ErrorBase) {
+        if (reason instanceof ErrorBase) {
             // eslint-disable-next-line no-console
             console.error("Shutdown started by exception:");
             // eslint-disable-next-line no-console
-            console.error(signal);
+            console.error(reason);
         }
 
         // It's helpful to see service lifecycle events in production logs. All logging
@@ -127,10 +127,10 @@ export class ShutdownManager implements ShutdownManagerBase {
             }
 
             finishSpan();
-            process.exit(signal instanceof ErrorBase ? 1 : 0);
+            process.exit(reason instanceof ErrorBase ? 1 : 0);
         } else {
             const ingressTrafficShutdownPromise = runAllPromises(
-                Array.from(this._ingressTrafficListeners, listener => listener(signal, span)),
+                Array.from(this._ingressTrafficListeners, listener => listener(reason, span)),
             );
 
             const shutdownPromise = ingressTrafficShutdownPromise
@@ -143,7 +143,7 @@ export class ShutdownManager implements ShutdownManagerBase {
                     }
                 })
                 .then(() =>
-                    runAllPromises(Array.from(this._listeners, listener => listener(signal, span))),
+                    runAllPromises(Array.from(this._listeners, listener => listener(reason, span))),
                 );
 
             const waitUntilShutdownPromise = shutdownPromise
@@ -223,7 +223,7 @@ export class ShutdownManager implements ShutdownManagerBase {
                         console.log(`Shutdown finished (pid: ${process.pid})`);
                     }
 
-                    process.exit(signal instanceof ErrorBase ? 1 : 0);
+                    process.exit(reason instanceof ErrorBase ? 1 : 0);
                 },
                 error => {
                     // It's helpful to see service lifecycle events in production logs. All logging
@@ -257,12 +257,12 @@ export class ShutdownManager implements ShutdownManagerBase {
      */
     public registerListenerForIngressTraffic(
         name: string,
-        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
     ): () => void {
         assert(!this._isShuttingDown);
 
-        const actualListener: typeof listener = (signal, parentSpan) => {
-            return parentSpan.withSpan(name, span => listener(signal, span));
+        const actualListener: typeof listener = (reason, parentSpan) => {
+            return parentSpan.withSpan(name, span => listener(reason, span));
         };
 
         this._ingressTrafficListeners.add(actualListener);
@@ -282,12 +282,12 @@ export class ShutdownManager implements ShutdownManagerBase {
      */
     public registerListener(
         name: string,
-        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
     ): () => void {
         assert(!this._isShuttingDown);
 
-        const actualListener: typeof listener = (signal, parentSpan) => {
-            return parentSpan.withSpan(name, span => listener(signal, span));
+        const actualListener: typeof listener = (reason, parentSpan) => {
+            return parentSpan.withSpan(name, span => listener(reason, span));
         };
 
         this._listeners.add(actualListener);

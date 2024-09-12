@@ -1,4 +1,4 @@
-import {compareAsc as compareDatesAsc} from "date-fns";
+import compareDatesAsc from "date-fns/compareAsc/index.js";
 import {Easing, timeline} from "motion";
 import {Memo, useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";

@@ -85,6 +85,7 @@ filegroup(
         "//:env_files",
         "//:package_light_json_file",
         "//:remix_config_files_copy_to_bin",
+        "//app:app_client_node_modules",
     ],
     visibility = ["//visibility:public"],
 )

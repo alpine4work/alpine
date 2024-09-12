@@ -235,7 +235,10 @@ export function runService<Options extends ParseArgsConfig["options"]>({
             }
 
             shutdown(actualError, null);
-            throw actualError;
+
+            // We don't need to `throw actualError` since calling `shutdown()` will make
+            // sure the process exits with exit code 1 once all shutdown listeners have
+            // been run.
         }
     }
 

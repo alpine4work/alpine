@@ -7,7 +7,6 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@opensearch-project/opensearch",
         "//:node_modules/@types/json-bigint",
         "//:node_modules/@types/json-stable-stringify",
         "//:node_modules/json-bigint",
