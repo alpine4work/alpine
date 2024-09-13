@@ -10,6 +10,7 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -41,6 +42,7 @@ function getTextbox(): HTMLElement {
 
 // Get the ProseMirror `EditorView`.
 function getEditor(): EditorView {
+    assert(getEditorViewForTest);
     return getEditorViewForTest(getTextbox().parentNode);
 }
 

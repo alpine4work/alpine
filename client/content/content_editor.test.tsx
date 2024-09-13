@@ -13,6 +13,7 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
@@ -38,6 +39,7 @@ function getTextbox(): HTMLElement {
 
 // Get the ProseMirror `EditorView`.
 function getEditor(): EditorView {
+    assert(getEditorViewForTest);
     return getEditorViewForTest(getTextbox().parentNode);
 }
 
@@ -146,6 +148,7 @@ test("can change content", () => {
 test("will optimistically update the DOM synchronously", () => {
     render(<TestContentEditor />);
 
+    assert(getEditorViewForTest);
     const editor = getEditorViewForTest(getTextbox().parentNode);
     const transaction = editor.state.tr;
     transaction.insertText("Hello world!");
@@ -181,6 +184,7 @@ test("will revert optimistic update if it doesn't match props", () => {
 
     render(<NoopContentEditor />);
 
+    assert(getEditorViewForTest);
     const editor = getEditorViewForTest(getTextbox().parentNode);
     const transaction = editor.state.tr;
     transaction.insertText("Hello world!");

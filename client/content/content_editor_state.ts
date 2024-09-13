@@ -17,7 +17,7 @@ import {
 import {
     ContentEditorFloaterState,
     initialContentEditorFloaterState,
-} from "~/client/content/internal/content_editor_floater.js";
+} from "~/client/content/internal/content_editor_floater_state.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {

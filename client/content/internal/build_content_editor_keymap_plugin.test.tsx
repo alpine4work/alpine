@@ -78,6 +78,7 @@ function getTextbox(): HTMLElement {
 
 // Get the ProseMirror `EditorView`.
 function getEditor(): EditorView {
+    assert(getEditorViewForTest);
     return getEditorViewForTest(getTextbox().parentNode);
 }
 

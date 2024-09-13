@@ -283,6 +283,7 @@ for (const inlineTestCase of inlineTestCases) {
 }
 
 function expectClipboardRoundtripToWork() {
+    assert(getEditorViewForTest);
     // eslint-disable-next-line testing-library/no-node-access
     const editor = getEditorViewForTest(screen.getByRole("textbox").parentNode);
 

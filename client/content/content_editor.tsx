@@ -2161,17 +2161,21 @@ function ContentEditor<Content extends ContentWithReferences>(
 // [1]: https://github.com/facebook/react/blob/80c4dea0d1da0012977c6c4b2ac7a8bd37154d50/packages/react-dom/src/client/ReactDOMComponentTree.js#L34-L41
 const internalEditorViewKey = `__prosemirrorEditorView$${Math.random().toString(36).slice(2)}`;
 
-export function getEditorViewForTest(element: unknown): EditorView {
-    assert(import.meta.jest);
-    assert(typeof element === "object" && element !== null);
+// We export null outside of Jest to avoid breaking fast refresh for
+// `<ContentEditor>`.
+export const getEditorViewForTest = import.meta.jest
+    ? (element: unknown): EditorView => {
+          assert(import.meta.jest);
+          assert(typeof element === "object" && element !== null);
 
-    const editorView =
-        (element as any)[internalEditorViewKey] ??
-        (element as any).parentNode?.[internalEditorViewKey];
+          const editorView =
+              (element as any)[internalEditorViewKey] ??
+              (element as any).parentNode?.[internalEditorViewKey];
 
-    assert(editorView instanceof EditorView);
-    return editorView;
-}
+          assert(editorView instanceof EditorView);
+          return editorView;
+      }
+    : null;
 
 function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boolean {
     if (handleLinkPasteWithSelection(view, event)) return true;
