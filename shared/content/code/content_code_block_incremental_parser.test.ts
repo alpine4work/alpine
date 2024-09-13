@@ -10,6 +10,7 @@ import {
     setMockedHighlightTreeForTest,
 } from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
+import {listItemIndentationVar} from "~/shared/content/content_styles.js";
 import {
     DocumentContentProsemirrorSchema as schema,
     DocumentContentStepSchema as stepSchema,
@@ -441,7 +442,7 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
 
         for (let i = 0; i < childElement.style.length; i++) {
             const property = childElement.style[i]!;
-            if (!property.startsWith("--list-item-indent__")) continue;
+            if (`var(${property})` !== listItemIndentationVar) continue;
 
             const propertyValue = childElement.style.getPropertyValue(property);
             childElement.style.removeProperty(property);

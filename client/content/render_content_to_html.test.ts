@@ -1,6 +1,7 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {listItemIndentationVar} from "~/shared/content/content_styles.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
@@ -21,7 +22,7 @@ function stripHtml(html: string): string {
 
         for (let i = 0; i < childElement.style.length; i++) {
             const property = childElement.style[i]!;
-            if (!property.startsWith("--list-item-indent__")) continue;
+            if (`var(${property})` !== listItemIndentationVar) continue;
 
             const propertyValue = childElement.style.getPropertyValue(property);
             childElement.style.removeProperty(property);
