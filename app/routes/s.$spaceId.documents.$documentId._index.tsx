@@ -193,22 +193,19 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
                 );
             }}
             onCommentThreadChange={commentThreadId => {
-                const url = new URL(window.location.href);
+                const newSearchParams = new URLSearchParams(searchParams);
                 if (commentThreadId) {
-                    url.searchParams.set("comments", commentThreadId);
-                    url.searchParams.delete("comment");
+                    newSearchParams.set("comments", commentThreadId);
+                    newSearchParams.delete("comment");
                 } else {
-                    url.searchParams.delete("comments");
-                    url.searchParams.delete("comment");
+                    newSearchParams.delete("comments");
+                    newSearchParams.delete("comment");
                 }
 
-                // Silently update the URL without telling Remix so our component doesn't
-                // re-render unnecessarily.
-                //
-                // TODO(calebmer): Globally replacing the URL doesn't work in peeks! Eventually
-                // migrate this to `useSearchParams()` + `shouldRevalidate` to avoid a server
-                // fetch.
-                window.history.replaceState(window.history.state, "", url);
+                setSearchParams(newSearchParams, {
+                    replace: true,
+                    unstable_shouldRevalidate: false,
+                });
             }}
         />
     );
