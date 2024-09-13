@@ -9,77 +9,54 @@
 
 import {HighlightColor} from "~/shared/design/highlight_color.js";
 
-export const boldClassName = process.env.NODE_ENV !== "production" ? "content_bold" : "c_b";
+export const boldClassName = "content_bold";
 
-export const codeClassName = process.env.NODE_ENV !== "production" ? "content_code" : "c_c";
+export const codeClassName = "content_code";
 
-export const italicClassName = process.env.NODE_ENV !== "production" ? "content_italic" : "c_i";
+export const italicClassName = "content_italic";
 
-export const linkClassName = process.env.NODE_ENV !== "production" ? "content_link" : "c_l";
+export const linkClassName = "content_link";
 
-export const strikeClassName = process.env.NODE_ENV !== "production" ? "content_strike" : "c_s";
+export const strikeClassName = "content_strike";
 
-export const commentClassName = process.env.NODE_ENV !== "production" ? "content_comment" : "c_c2";
+export const commentClassName = "content_comment";
 
-export const highlightClassNameByColor: {[Key in HighlightColor]: string} =
-    process.env.NODE_ENV !== "production"
-        ? {
-              red: "content_highlightRed",
-              orange: "content_highlightOrange",
-              green: "content_highlightGreen",
-              blue: "content_highlightBlue",
-              purple: "content_highlightPurple",
-          }
-        : {
-              red: "c_hr",
-              orange: "c_ho",
-              green: "c_hg",
-              blue: "c_hb",
-              purple: "c_hp",
-          };
+export const highlightClassNameByColor: {[Key in HighlightColor]: string} = {
+    red: "content_highlightRed",
+    orange: "content_highlightOrange",
+    green: "content_highlightGreen",
+    blue: "content_highlightBlue",
+    purple: "content_highlightPurple",
+};
 
-export const paragraphClassName =
-    process.env.NODE_ENV !== "production" ? "content_paragraph" : "c_p";
+export const paragraphClassName = "content_paragraph";
 
-export const listItemClassName =
-    process.env.NODE_ENV !== "production" ? "content_listItem" : "c_li";
+export const listItemClassName = "content_listItem";
 
-export const listItemIndentationVar =
-    process.env.NODE_ENV !== "production" ? "var(--content_listItemIndentation)" : "var(--c_lii)";
+export const listItemIndentationVar = "var(--content_listItemIndentation)";
 
-export const bulletListItemClassName =
-    process.env.NODE_ENV !== "production" ? "content_bulletListItem" : "c_bli";
+export const bulletListItemClassName = "content_bulletListItem";
 
-export const orderedListItemClassName =
-    process.env.NODE_ENV !== "production" ? "content_orderedListItem" : "c_oli";
+export const orderedListItemClassName = "content_orderedListItem";
 
-export const checkListItemCheckedClassName =
-    process.env.NODE_ENV !== "production" ? "content_checkListItemChecked" : "c_clic";
+export const checkListItemCheckedClassName = "content_checkListItemChecked";
 
-export const quoteBlockClassName =
-    process.env.NODE_ENV !== "production" ? "content_quoteBlock" : "c_qb";
+export const quoteBlockClassName = "content_quoteBlock";
 
-export const codeBlockWrapperClassName =
-    process.env.NODE_ENV !== "production" ? "content_codeBlockWrapper" : "c_cbw";
+export const codeBlockWrapperClassName = "content_codeBlockWrapper";
 
-export const codeBlockClassName =
-    process.env.NODE_ENV !== "production" ? "content_codeBlock" : "c_cb";
+export const codeBlockClassName = "content_codeBlock";
 
-export const codeBlockLineClassName =
-    process.env.NODE_ENV !== "production" ? "content_codeBlockLine" : "c_cbl";
+export const codeBlockLineClassName = "content_codeBlockLine";
 
-export const codeBlockLineContentClassName =
-    process.env.NODE_ENV !== "production" ? "content_codeBlockLineContent" : "c_cblc";
+export const codeBlockLineContentClassName = "content_codeBlockLineContent";
 
-export const dividerClassName = process.env.NODE_ENV !== "production" ? "content_divider" : "c_d";
+export const dividerClassName = "content_divider";
 
-export const titleClassName = process.env.NODE_ENV !== "production" ? "content_title" : "c_t";
+export const titleClassName = "content_title";
 
-export const headingLevel1ClassName =
-    process.env.NODE_ENV !== "production" ? "content_headingLevel1" : "c_h1";
+export const headingLevel1ClassName = "content_headingLevel1";
 
-export const headingLevel2ClassName =
-    process.env.NODE_ENV !== "production" ? "content_headingLevel2" : "c_h2";
+export const headingLevel2ClassName = "content_headingLevel2";
 
-export const headingLevel3ClassName =
-    process.env.NODE_ENV !== "production" ? "content_headingLevel3" : "c_h3";
+export const headingLevel3ClassName = "content_headingLevel3";
