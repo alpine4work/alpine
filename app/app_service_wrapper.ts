@@ -228,7 +228,16 @@ export async function run({
                 // While building Bazel will frequently remove a file then add it back.
                 // `atomic` makes sure `chokidar` treats this as one `change` update instead of
                 // an `unlink` update then an `add` update.
-                watch: {atomic: 500},
+                //
+                // Bazel also appears to make multiple writes to a file causing multiple `add`
+                // and `change` events for one file update. `awaitWriteFinish` will wait for a
+                // file to be stable before emitting a change event. If you see two
+                // "hmr update" events after a file changes it's probably from Bazel writing to
+                // a file in chunks.
+                watch: {
+                    atomic: 500,
+                    awaitWriteFinish: {stabilityThreshold: 100, pollInterval: 10},
+                },
             },
             waitForBazelBuild: async () => {
                 if (bazelBuildPromiseResolver !== null) {
