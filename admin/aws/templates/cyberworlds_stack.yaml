@@ -1899,7 +1899,7 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:TaskRealtimeServiceSecrets:honeycombApiKey::"
-                  StopTimeout: 300
+                  StopTimeout: 120
                   User: www-data
                 - Command:
                       - /var/www/server/tasks/realtime/gateway/gateway
@@ -2610,7 +2610,7 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:AppServiceSecrets:apnsCertificatePrivateKey::"
-                  StopTimeout: 300
+                  StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:
                 Fn::GetAtt:
@@ -2722,13 +2722,6 @@ Resources:
             LoadBalancerAttributes:
                 - Key: deletion_protection.enabled
                   Value: "false"
-                - Key: access_logs.s3.enabled
-                  Value: "true"
-                - Key: access_logs.s3.bucket
-                  Value:
-                      Ref: AppServiceLoadBalancerAccessLogsBucket436D3AAA
-                - Key: access_logs.s3.prefix
-                  Value: ""
             Scheme: internet-facing
             SecurityGroups:
                 - Fn::GetAtt:
@@ -2739,7 +2732,6 @@ Resources:
                 - Ref: VpcPublicSubnet2Subnet691E08A3
             Type: application
         DependsOn:
-            - AppServiceLoadBalancerAccessLogsBucketPolicy0A44413B
             - VpcPublicSubnet1DefaultRoute3DA9E72A
             - VpcPublicSubnet1RouteTableAssociation97140677
             - VpcPublicSubnet2DefaultRoute97F91067
@@ -2798,11 +2790,14 @@ Resources:
     AppServiceLoadBalancerListenerTargetGroupGroup02B0400B:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
+            HealthCheckIntervalSeconds: 5
             HealthCheckPath: /api/internal/healthcheck
             HealthyThresholdCount: 3
             Port: 4000
             Protocol: HTTP
             TargetGroupAttributes:
+                - Key: deregistration_delay.timeout_seconds
+                  Value: "10"
                 - Key: stickiness.enabled
                   Value: "true"
                 - Key: stickiness.type
@@ -2814,64 +2809,6 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/AppService/LoadBalancer/Listener/TargetGroupGroup/Resource
-    AppServiceLoadBalancerAccessLogsBucket436D3AAA:
-        Type: AWS::S3::Bucket
-        Properties:
-            BucketEncryption:
-                ServerSideEncryptionConfiguration:
-                    - ServerSideEncryptionByDefault:
-                          SSEAlgorithm: AES256
-        UpdateReplacePolicy: Retain
-        DeletionPolicy: Retain
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancerAccessLogsBucket/Resource
-    AppServiceLoadBalancerAccessLogsBucketPolicy0A44413B:
-        Type: AWS::S3::BucketPolicy
-        Properties:
-            Bucket:
-                Ref: AppServiceLoadBalancerAccessLogsBucket436D3AAA
-            PolicyDocument:
-                Statement:
-                    - Action: s3:PutObject
-                      Effect: Allow
-                      Principal:
-                          AWS: arn:aws:iam::127311923021:root
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - AppServiceLoadBalancerAccessLogsBucket436D3AAA
-                                      - Arn
-                                - /AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
-                    - Action: s3:PutObject
-                      Condition:
-                          StringEquals:
-                              s3:x-amz-acl: bucket-owner-full-control
-                      Effect: Allow
-                      Principal:
-                          Service: delivery.logs.amazonaws.com
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - AppServiceLoadBalancerAccessLogsBucket436D3AAA
-                                      - Arn
-                                - /AWSLogs/
-                                - Ref: AWS::AccountId
-                                - /*
-                    - Action: s3:GetBucketAcl
-                      Effect: Allow
-                      Principal:
-                          Service: delivery.logs.amazonaws.com
-                      Resource:
-                          Fn::GetAtt:
-                              - AppServiceLoadBalancerAccessLogsBucket436D3AAA
-                              - Arn
-                Version: 2012-10-17
-        Metadata:
-            aws:cdk:path: CyberworldsStack/AppService/LoadBalancerAccessLogsBucket/Policy/Resource
     AppServiceCertificate7B1FA47C:
         Type: AWS::CertificateManager::Certificate
         Properties:
@@ -3454,7 +3391,7 @@ Resources:
                                 - - "arn:aws:secretsmanager:us-east-1:"
                                   - Ref: AWS::AccountId
                                   - ":secret:JobQueueServiceSecrets:githubAppInstallationId::"
-                  StopTimeout: 300
+                  StopTimeout: 120
                   User: www-data
             ExecutionRoleArn:
                 Fn::GetAtt:
@@ -3938,7 +3875,7 @@ Resources:
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            Analytics: v2:deflate64:H4sIAAAAAAAA/31UyW7bMBD9lt4ZNnV76VFxFhgIUFcOcg3G1FhmTJEqh3RgCPr3jqi1DtCL+GYjOY9vtJLffvyUt1/gg25Ucboxei+bXQB1Eux6a1CtZPNaK7E+2NftWmzj3mi1i3uLofPNKHcx4AvsDc7+2ZcROaUhaGenZLH1+gwB5z02NqBn/MTeD7gMhw5WFvhaxwptEDtU0etwefIu1um4/zo2tvRI9Mn/kNytQEWyWZtIfHqX9BmuoQbFZVvvzrpAv2iHREbldTyVXvse1OoF6HSPB231yMS1x9kA2qJf+Lhuh/6sVc/sAB/Bl9Cxu6xvhavREoJXR+oTZXPvKt6yq+1RK4wrueNnV058TZhBjoFJTrsZqPYFsCK0LQ0GZx+jVelSE+DiEbdCQyWbrWOJpMcbUO56UYzrxlIAq5CZOWiDraDvb0CEgWTWLWzL5i6qE4Y7IBQ97CoH1C/zOUubd/vDzf2OGNNhPUjfuWBh8vOfuV0uyeNwzdjdqbhYqFzB4zCJOoFWQAyOFBjmRDYZG7vemMkEJuTIT3nQZfST6K9TO+H5sfEX8HswZlNBiT0JHJQ51o50cP6SiEADFLQyDgpOZgp5qzMPaFbX3Eo66JljdynWq/Afe5mnWdd2yBnxIs73KXkQx5YWZit4q6APXSJWYPnCnsdn9iXxz2bbihzJRd/r91cMdQxC8Vy56s0PEaY/+6B1ck7Z4+S04irQPdKIE1n8xyqZi6Q58FCxgrnKugLlO309r25l95N7J61vfGRtVyjzfv0LfdxebgEFAAA=
+            Analytics: v2:deflate64:H4sIAAAAAAAA/31UTW/bMAz9LburWpftsqObfiBAgWVO0WvByIyjRpY8UUoRGP7vo+XPpcAu1uMjKYrUk1fy24+f8vYLfNCNKk43Ru9lswugToKptwbVSjavtRLrg33drsU27o1Wu7i3GDpuRrmLAV9gb3DmZy4jckpD0M5OwWLr9RkCzntsbEDP+InZD7gMRQcrC3ysY4U2iB2q6HW4PHkX61Tuv8TGlh6JPvEPiW4FKpLN2kTi6l3QZ7iGGhSnbb076wL9oh0SGZXX/pR6zT2o1QvQ6R4P2upxEteMswG0Rb/gOG+H/qxVP9kBPoIvoZvuMr8VrkZLCF4dqQ+Uzb2reMsut0etMK7kjp9dOc1rwgxyDDzktJuBal8AK0Lb0mBw9jFalQ41AU4ecSs0VLLZOpZIurwB5a4XxbhuLAWwCnkyB22wFfT9DYgwkMy6hW15F9UJwx0QCvrDh/0dMabkHqTvXGhh8nWe+ficksehbOxqFBcLlStY3pNIE2gFxOBIgeEeZZOxseuNeTjADR75ag66jH4S8XVoJyQ/NvICfg/GbCoosW+KnTLH2pEOzl9SZ2iAglbGQcHBPBLe6swPLqtrbiUVembfXfL1qvrHXsZp1qkdYka88PN5Sn5YY0sLsxW8VdCHLhArsHxgz89h5pKYZ7NtRY7kou/1+CuGOgah+J246s0PHh5/9kHrRE7R40toxZWju6QRp2HxH6jkWSQNgYeKFclZ1hUo3+nreXUru5/WO2l94yNrtUKZ9+tfGSTT1dEEAAA=
         Metadata:
             aws:cdk:path: CyberworldsStack/CDKMetadata/Default
 Outputs:

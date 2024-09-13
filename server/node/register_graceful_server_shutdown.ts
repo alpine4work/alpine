@@ -35,14 +35,18 @@ const forcedStopTimeoutMs = 1000 * 120;
 // internally with `server.keepAliveTimeout` but the normal runtime value might
 // be different for what we'd like here
 //
-// NOTE(calebmer): Wait at least 60s before trying to end idle connections.
-// [ALB's idle timeout is 60s][1]. Increased the timeout since we were
-// experiencing 502 errors during a deploy. [This blog post][2] claims the fix
-// is to wait for ALB to close keep alive connections instead of us prematurely
-// closing the connection.
+// NOTE(calebmer, 2023-11-07): Wait at least 60s before trying to end idle
+// connections. [ALB's idle timeout is 60s][1]. Increased the timeout since we
+// were experiencing 502 errors during a deploy. [This blog post][2] claims the
+// fix is to wait for ALB to close keep alive connections instead of us
+// prematurely closing the connection.
+//
+// NOTE(calebmer, 2024-09-13): Making this 65 seconds instead of 60 seconds did
+// not fix the 502 errors during a deploy. Can change this without fear of
+// breaking things.
 //
 // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout
-// [2]:  https://www.tessian.com/blog/how-to-fix-http-502-errors/#:~:text=The%20502%20Bad%20Gateway%20error,segment%20to%20the%20ALB%20socket.
+// [2]: https://www.tessian.com/blog/how-to-fix-http-502-errors/#:~:text=The%20502%20Bad%20Gateway%20error,segment%20to%20the%20ALB%20socket.
 const timeoutToTryEndIdleMs = 1000 * 65;
 
 /**

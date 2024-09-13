@@ -13,7 +13,6 @@ import {
 } from "aws-cdk-lib/aws-ecs";
 import {ApplicationLoadBalancer, ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
-import {Bucket, BucketEncryption} from "aws-cdk-lib/aws-s3";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -157,10 +156,10 @@ export class AwsAppService extends Construct {
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // Increase stop timeout to five minutes so essential background processes have
-            // ample time to finish. For example, task action indexing which is done in the
-            // background with `context.process.waitUntil()`.
-            stopTimeout: Duration.minutes(5),
+            // Increase stop timeout to two minutes so essential background processes
+            // have ample time to finish. For example, task action indexing which is done
+            // in the background with `context.process.waitUntil()`.
+            stopTimeout: Duration.minutes(2),
             // For security, use the `www-data` user which exists on our Linux image. It
             // only has read access and execute access to files on our system.
             user: "www-data",
@@ -288,14 +287,6 @@ export class AwsAppService extends Construct {
             internetFacing: true,
         });
 
-        // TODO(calebmer): Enabling access logs to debug 502s when we deploy. I don't
-        // think we need this logging long term. We receive some traces from Cloudflare
-        // every request. Once we've fixed the 502s we can remove this logging.
-        const loadBalancerAccessLogsBucket = new Bucket(this, "LoadBalancerAccessLogsBucket", {
-            encryption: BucketEncryption.S3_MANAGED,
-        });
-        loadBalancer.logAccessLogs(loadBalancerAccessLogsBucket);
-
         const listener = loadBalancer.addListener("Listener", {
             protocol: ApplicationProtocol.HTTPS,
             port: 443,
@@ -314,10 +305,16 @@ export class AwsAppService extends Construct {
             healthCheck: {
                 path: "/api/internal/healthcheck",
                 // Speed up deployment by requiring fewer healthy checks. Should only take
-                // ~1:30min to consider the service healthy.
+                // ~15 seconds to consider the service healthy.
                 // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
+                interval: Duration.seconds(5),
                 healthyThresholdCount: 3,
             },
+            // Break connections after 10 seconds when EC2 instances are being
+            // deregistered. Any long lived connections longer than 10 seconds will be
+            // aborted.
+            // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-connection-draining.html
+            deregistrationDelay: Duration.seconds(10),
             // Attempt to route sessions to the same EC2 instance for a day. This is an
             // optimization that increases in-memory cache hits and not required for
             // successful operation of the product.

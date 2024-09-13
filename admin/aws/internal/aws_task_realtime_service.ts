@@ -191,10 +191,10 @@ export class AwsTaskRealtimeService extends Construct {
             // Send logs to AWS. Container logs are short-lived and used for debugging
             // obscure machine-level issues. Our long-lived logs are in Honeycomb.
             logging: ecsCluster.shortLivedLogDriver,
-            // Increase stop timeout to five minutes so essential background processes have
-            // ample time to finish. For example, task action indexing which is done in the
-            // background with `context.process.waitUntil()`.
-            stopTimeout: Duration.minutes(5),
+            // Increase stop timeout to two minutes so essential background processes
+            // have ample time to finish. For example, task action indexing which is done
+            // in the background with `context.process.waitUntil()`.
+            stopTimeout: Duration.minutes(2),
             // For security, use the `www-data` user which exists on our Linux image. It
             // only has read access and execute access to files on our system.
             user: "www-data",
