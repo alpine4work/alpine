@@ -1,3 +1,28 @@
+diff --git a/esbuild/private/esbuild.bzl b/esbuild/private/esbuild.bzl
+index 10d6616..32db947 100644
+--- a/esbuild/private/esbuild.bzl
++++ b/esbuild/private/esbuild.bzl
+@@ -209,6 +209,11 @@ See https://esbuild.github.io/api/#target for more details
+         for more information.
+         """,
+     ),
++    # NOTE(calebmer): Added so we can configure the environment when esbuild runs.
++    # Notably we want to be able to set `NODE_ENV`.
++    "env": attr.string_dict(
++        doc = """Environment variables of the action.""",
++    ),
+ }
+ 
+ def _bin_relative_path(ctx, file):
+@@ -308,7 +313,7 @@ def _esbuild_impl(ctx):
+ 
+         args.update({"outfile": _bin_relative_path(ctx, js_out)})
+ 
+-    env = {
++    env = ctx.attr.env | {
+         "BAZEL_BINDIR": ctx.bin_dir.path,
+         "ESBUILD_BINARY_PATH": "../../../" + esbuild_toolinfo.target_tool_path,
+     }
 diff --git a/esbuild/private/versions.bzl b/esbuild/private/versions.bzl
 index 7d2250f..281884e 100644
 --- a/esbuild/private/versions.bzl

@@ -78,6 +78,11 @@ esbuild(
     bazel_sandbox_plugin = False,
     config = "internal/styles_esbuild_config.cjs",
     entry_point = "internal/styles.js",
+    env = select({
+        "//admin/bazel:compilation_mode_fastbuild": {"NODE_ENV": "development"},
+        "//admin/bazel:compilation_mode_dbg": {"NODE_ENV": "development"},
+        "//admin/bazel:compilation_mode_opt": {"NODE_ENV": "production"},
+    }),
     # Can't set `external` in the ESBuild config file.
     # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L54
     external = [
