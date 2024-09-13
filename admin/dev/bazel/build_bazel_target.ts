@@ -11,6 +11,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {Id, generateId} from "~/shared/id/id.js";
+import {BazelBuildEvent} from "~/shared/schema/helpers/bazel_build_event_schema.js";
 
 /**
  * The target CPU used by `bazel build`.
@@ -193,18 +194,6 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
 
     return {messageByTarget};
 }
-
-export type BazelBuildEvent =
-    | {
-          readonly type: "BuildStart";
-          readonly targets: ReadonlyArray<string>;
-      }
-    | {
-          readonly type: "BuildFinish";
-          readonly targets: ReadonlyArray<string>;
-          readonly durationMs: number;
-          readonly hasFailed: boolean;
-      };
 
 const bazelBuildEvents = new EventEmitter<BazelBuildEvent>();
 

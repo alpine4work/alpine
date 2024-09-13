@@ -10,14 +10,20 @@ import {serverProcessContextOptions} from "~/server/node/create_server_process_c
 import {serviceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
-import {ShutdownManager, ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
+import {
+    ShutdownManager,
+    ShutdownManagerBase,
+    ShutdownReason,
+} from "~/server/node/shutdown_manager.js";
 import {serviceOpensearchOptions} from "~/server/opensearch/create_service_opensearch_context_module.js";
-import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {BazelBuildEvent} from "~/shared/schema/helpers/bazel_build_event_schema.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -201,6 +207,8 @@ export async function run({
             assertExists(process.env.JS_BINARY__BINDIR),
         );
 
+        let bazelBuildPromiseResolver: PromiseResolver<void> | null = null;
+
         const viteDevServer = await vite.createServer({
             root: rootPath,
             cacheDir: assertExists(
@@ -221,6 +229,11 @@ export async function run({
                 // `atomic` makes sure `chokidar` treats this as one `change` update instead of
                 // an `unlink` update then an `add` update.
                 watch: {atomic: 500},
+            },
+            waitForBazelBuild: async () => {
+                if (bazelBuildPromiseResolver !== null) {
+                    await bazelBuildPromiseResolver.promise;
+                }
             },
         });
 
@@ -263,38 +276,55 @@ export async function run({
         });
 
         bazelDevSocket.on("error", error => {
+            if (isShuttingDown) return;
+
             tracer.logUncaughtException(
                 "Uncaught exception from Bazel dev server WebSocket",
                 error,
             );
+
+            bazelBuildPromiseResolver?.reject(error);
+            bazelBuildPromiseResolver = null;
         });
 
         bazelDevSocket.on("close", (code, reason) => {
             if (isShuttingDown) return;
 
+            const error = new InternalError(
+                `WebSocket closed unexpectedly with code ${code}${
+                    reason.length > 0 ? quote`and reason ${reason.toString("utf8")}` : ""
+                }`,
+            );
+
             tracer.logUncaughtException(
                 "Uncaught exception from Bazel dev server WebSocket",
-                new InternalError(
-                    `WebSocket closed unexpectedly with code ${code}${
-                        reason.length > 0 ? quote`and reason ${reason.toString("utf8")}` : ""
-                    }`,
-                ),
+                error,
             );
+
+            bazelBuildPromiseResolver?.reject(error);
+            bazelBuildPromiseResolver = null;
         });
 
         bazelDevSocket.on("message", rawMessage => {
             if (isShuttingDown) return;
 
-            const message: {type: "Log"; message: string} | {type: "Reload"} = JSON.parse(
+            const message: {type: "Bazel"; event: BazelBuildEvent} | {type: "Reload"} = JSON.parse(
                 rawMessage.toString("utf8"),
             );
 
             switch (message.type) {
-                case "Log": {
+                case "Bazel": {
+                    if (message.event.type === "BuildStart") {
+                        bazelBuildPromiseResolver ??= createPromiseResolver();
+                    } else if (message.event.type === "BuildFinish") {
+                        bazelBuildPromiseResolver?.resolve();
+                        bazelBuildPromiseResolver = null;
+                    }
+
                     viteDevServer.hot.send({
                         type: "custom",
-                        event: "cyberworlds:bazel:log",
-                        data: {message: message.message},
+                        event: "cyberworlds:bazel",
+                        data: message.event,
                     });
                     break;
                 }
@@ -356,11 +386,11 @@ class HotShutdownManager implements ShutdownManagerBase {
     private readonly _tracer: TracerRoot;
     private readonly _shutdownManager: ShutdownManager;
     private _ingressTrafficListeners = new Map<
-        (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
         () => void
     >();
     private _listeners = new Map<
-        (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
         () => void
     >();
 
@@ -370,7 +400,7 @@ class HotShutdownManager implements ShutdownManagerBase {
     }
 
     public clear() {
-        const signal = "SIGINT";
+        const reason: ShutdownReason = {type: "Signal", signal: "SIGINT"};
 
         const handleSpanName = `Shutdown ${this._tracer.serviceName} (hot clear)`;
         const spanName = `Handle: ${handleSpanName}`;
@@ -404,7 +434,7 @@ class HotShutdownManager implements ShutdownManagerBase {
             this._listeners.clear();
 
             const ingressTrafficShutdownPromise = runAllPromises(
-                Array.from(ingressTrafficListeners, listener => listener(signal, span)),
+                Array.from(ingressTrafficListeners, listener => listener(reason, span)),
             );
 
             const shutdownPromise = ingressTrafficShutdownPromise
@@ -417,7 +447,7 @@ class HotShutdownManager implements ShutdownManagerBase {
                     }
                 })
                 .then(() =>
-                    runAllPromises(Array.from(listeners, listener => listener(signal, span))),
+                    runAllPromises(Array.from(listeners, listener => listener(reason, span))),
                 );
 
             const fullShutdownPromise = runAllPromises([
@@ -451,7 +481,7 @@ class HotShutdownManager implements ShutdownManagerBase {
 
     public registerListenerForIngressTraffic(
         name: string,
-        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void {
         const unregister = this._shutdownManager.registerListenerForIngressTraffic(name, listener);
         this._ingressTrafficListeners.set(listener, unregister);
@@ -463,7 +493,7 @@ class HotShutdownManager implements ShutdownManagerBase {
 
     public registerListener(
         name: string,
-        listener: (signal: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void {
         const unregister = this._shutdownManager.registerListener(name, listener);
         this._listeners.set(listener, unregister);

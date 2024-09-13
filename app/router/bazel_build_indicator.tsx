@@ -1,4 +1,5 @@
 import {animate} from "motion";
+import prettyMs from "pretty-ms";
 import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -6,6 +7,8 @@ import {navigationBarStyles} from "~/client/styles/styles.js";
 import {spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {BazelBuildEvent} from "~/shared/schema/helpers/bazel_build_event_schema.js";
 
 let BazelBuildIndicator;
 
@@ -31,35 +34,49 @@ if (process.env.NODE_ENV !== "development") {
                 });
             };
 
-            const handleLog = ({message}: {message: string}) => {
+            const handleBazelBuild = (event: BazelBuildEvent) => {
+                let message: string;
+                switch (event.type) {
+                    case "BuildStart": {
+                        message = `Building ${event.targets.join(" ")}`;
+                        break;
+                    }
+                    case "BuildFinish": {
+                        if (event.hasFailed) {
+                            message = `Failed to build ${event.targets.join(" ")} (${prettyMs(
+                                event.durationMs,
+                            )})`;
+                        } else {
+                            message = `Built ${event.targets.join(" ")} (${prettyMs(
+                                event.durationMs,
+                            )})`;
+                        }
+                        break;
+                    }
+                    default:
+                        throw exhaustive(event);
+                }
+
                 // eslint-disable-next-line no-console
                 console.debug(`[bazel] ${message}`);
 
                 setMessageState(previousMessageState => ({
                     message,
-                    // If we see a message that starts with "Building" then we expect a "Built" (or
-                    // "Failed to build") message next. So extend the expiration time so the
-                    // developer is waiting for the "Built" message.
-                    //
                     // If the message is "Built" (and not "Failed to build") expire the banner
                     // quickly since it might be from a hot reload. When there's a full reload we
                     // get `event.type === "RELOAD"` which removes the expiration time.
                     expirationTime:
                         Date.now() +
-                        (message.startsWith("Building ")
-                            ? 20_000
-                            : message.startsWith("Built ")
-                            ? 250
-                            : 1_500),
+                        (event.type === "BuildStart" ? 20_000 : !event.hasFailed ? 250 : 1_500),
                     animation: !previousMessageState ? "In" : null,
                 }));
             };
 
             import.meta.hot?.on("vite:beforeFullReload", handleBeforeFullReload);
-            import.meta.hot?.on("cyberworlds:bazel:log", handleLog);
+            import.meta.hot?.on("cyberworlds:bazel", handleBazelBuild);
             return () => {
                 import.meta.hot?.off("vite:beforeFullReload", handleBeforeFullReload);
-                import.meta.hot?.off("cyberworlds:bazel:log", handleLog);
+                import.meta.hot?.off("cyberworlds:bazel", handleBazelBuild);
             };
         }, []);
 

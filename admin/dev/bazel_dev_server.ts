@@ -1,7 +1,5 @@
-import prettyMs from "pretty-ms";
 import {WebSocket, WebSocketServer} from "ws";
 import {subscribeToBazelBuildEvents} from "~/admin/dev/bazel/build_bazel_target.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * We run a WebSocket dev server which reports Bazel build status so we can
@@ -24,35 +22,8 @@ export async function startBazelDevServer({
         });
     }
 
-    function log(message: string) {
-        broadcast({type: "Log", message});
-    }
-
-    function reload() {
-        broadcast({type: "Reload"});
-    }
-
     const unsubscribe = subscribeToBazelBuildEvents(event => {
-        switch (event.type) {
-            case "BuildStart": {
-                log(`Building ${event.targets.join(" ")}`);
-                break;
-            }
-            case "BuildFinish": {
-                if (event.hasFailed) {
-                    log(
-                        `Failed to build ${event.targets.join(" ")} (${prettyMs(
-                            event.durationMs,
-                        )})`,
-                    );
-                } else {
-                    log(`Built ${event.targets.join(" ")} (${prettyMs(event.durationMs)})`);
-                }
-                break;
-            }
-            default:
-                throw exhaustive(event);
-        }
+        broadcast({type: "Bazel", event});
     });
 
     bazelDevServer.on("error", error => {
@@ -75,8 +46,7 @@ export async function startBazelDevServer({
     }
 
     return {
-        log,
-        reload,
+        reload: () => broadcast({type: "Reload"}),
         close,
     };
 }

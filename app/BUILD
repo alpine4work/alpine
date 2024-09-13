@@ -29,6 +29,7 @@ ts_project(
         "//server/node",
         "//shared/error",
         "//shared/helpers",
+        "//shared/schema",
         "//shared/tracer",
     ],
 )
@@ -62,6 +63,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//:node_modules/immer",
         "//:node_modules/mjml-react",
+        "//:node_modules/pretty-ms",
         "//:node_modules/react",
         "//:node_modules/react-router",
         "//client/blob_factory",

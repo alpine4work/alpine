@@ -6,7 +6,7 @@ import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
-import {ErrorBase, InternalError, UnknownError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
@@ -114,8 +114,12 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         // schedule a callback for graceful shutdown with
         // `shutdownManager.registerListener()`.
         let shutdownTracerPropagationContext: TracerSpanPropagationContext | null = null;
-        process.on("SIGINT", () => shutdown("SIGINT", shutdownTracerPropagationContext));
-        process.on("SIGTERM", () => shutdown("SIGTERM", shutdownTracerPropagationContext));
+        process.on("SIGINT", () =>
+            shutdown({type: "Signal", signal: "SIGINT"}, shutdownTracerPropagationContext),
+        );
+        process.on("SIGTERM", () =>
+            shutdown({type: "Signal", signal: "SIGTERM"}, shutdownTracerPropagationContext),
+        );
 
         // In production, run our service across all available CPUs so we get full
         // CPU utilization.
@@ -133,7 +137,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                     quote`Worker exited with code ${exitCode} by signal ${signal}, killing cluster`,
                 );
 
-                shutdown(error, null);
+                shutdown({type: "Error", error}, null);
             });
 
             for (let workerIndex = 0; workerIndex < workerCount; workerIndex++) {
@@ -226,15 +230,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
                 workerIndex,
             });
         } catch (error) {
-            let actualError: ErrorBase;
-
-            if (error instanceof ErrorBase) {
-                actualError = error;
-            } else {
-                actualError = UnknownError.from(error);
-            }
-
-            shutdown(actualError, null);
+            shutdown({type: "Error", error}, null);
 
             // We don't need to `throw actualError` since calling `shutdown()` will make
             // sure the process exits with exit code 1 once all shutdown listeners have

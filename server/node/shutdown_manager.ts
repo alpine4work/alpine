@@ -1,4 +1,3 @@
-import {ErrorBase} from "~/shared/error/error.js";
 import {
     getAggregateErrorPriority,
     runAllPromises,
@@ -7,15 +6,25 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
+export type ShutdownReason =
+    | {
+          readonly type: "Signal";
+          readonly signal: "SIGINT" | "SIGTERM";
+      }
+    | {
+          readonly type: "Error";
+          readonly error: unknown;
+      };
+
 export interface ShutdownManagerBase {
     registerListenerForIngressTraffic(
         name: string,
-        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void;
 
     registerListener(
         name: string,
-        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void;
 
     registerWaitUntilPromise(promise: Promise<unknown>): void;
@@ -26,11 +35,9 @@ export class ShutdownManager implements ShutdownManagerBase {
     private readonly _isClusterPrimary: boolean;
     private _isShuttingDown = false;
     private _ingressTrafficListeners = new Set<
-        (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>
+        (reason: ShutdownReason, span: TracerSpan) => Promise<void>
     >();
-    private _listeners = new Set<
-        (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>
-    >();
+    private _listeners = new Set<(reason: ShutdownReason, span: TracerSpan) => Promise<void>>();
     private readonly _waitUntilPromises = new Set<Promise<unknown>>();
 
     private constructor({
@@ -53,7 +60,7 @@ export class ShutdownManager implements ShutdownManagerBase {
     }): {
         shutdownManager: ShutdownManager;
         shutdown: (
-            reason: "SIGINT" | "SIGTERM" | ErrorBase,
+            reason: ShutdownReason,
             propagationContext: TracerSpanPropagationContext | null,
         ) => void;
     } {
@@ -71,7 +78,7 @@ export class ShutdownManager implements ShutdownManagerBase {
     }
 
     private _handleShutdown(
-        reason: "SIGINT" | "SIGTERM" | ErrorBase,
+        reason: ShutdownReason,
         propagationContext: TracerSpanPropagationContext | null,
     ) {
         if (this._isShuttingDown) return;
@@ -95,16 +102,16 @@ export class ShutdownManager implements ShutdownManagerBase {
 
         let hasAddedExceptionToSpan = false;
 
-        if (!hasAddedExceptionToSpan && reason instanceof ErrorBase) {
+        if (!hasAddedExceptionToSpan && reason.type === "Error") {
             hasAddedExceptionToSpan = true;
-            span.addException(reason);
+            span.addException(reason.error);
         }
 
-        if (reason instanceof ErrorBase) {
+        if (reason.type === "Error") {
             // eslint-disable-next-line no-console
             console.error("Shutdown started by exception:");
             // eslint-disable-next-line no-console
-            console.error(reason);
+            console.error(reason.error);
         }
 
         // It's helpful to see service lifecycle events in production logs. All logging
@@ -127,7 +134,7 @@ export class ShutdownManager implements ShutdownManagerBase {
             }
 
             finishSpan();
-            process.exit(reason instanceof ErrorBase ? 1 : 0);
+            process.exit(reason.type === "Error" ? 1 : 0);
         } else {
             const ingressTrafficShutdownPromise = runAllPromises(
                 Array.from(this._ingressTrafficListeners, listener => listener(reason, span)),
@@ -223,7 +230,7 @@ export class ShutdownManager implements ShutdownManagerBase {
                         console.log(`Shutdown finished (pid: ${process.pid})`);
                     }
 
-                    process.exit(reason instanceof ErrorBase ? 1 : 0);
+                    process.exit(reason.type === "Error" ? 1 : 0);
                 },
                 error => {
                     // It's helpful to see service lifecycle events in production logs. All logging
@@ -257,7 +264,7 @@ export class ShutdownManager implements ShutdownManagerBase {
      */
     public registerListenerForIngressTraffic(
         name: string,
-        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void {
         assert(!this._isShuttingDown);
 
@@ -282,7 +289,7 @@ export class ShutdownManager implements ShutdownManagerBase {
      */
     public registerListener(
         name: string,
-        listener: (reason: "SIGINT" | "SIGTERM" | ErrorBase, span: TracerSpan) => Promise<void>,
+        listener: (reason: ShutdownReason, span: TracerSpan) => Promise<void>,
     ): () => void {
         assert(!this._isShuttingDown);
 

@@ -82,6 +82,11 @@ export default defineConfig(({mode}) => {
         return [name];
     });
 
+    // Dependency used on the client from `//app`. We don't include node modules
+    // from `//app` in `app_client_node_modules.json` since `//app` has both client
+    // and server code mixed together.
+    optimizeDepsInclude.push("pretty-ms");
+
     return {
         publicDir: "./app/static/files",
         resolve: {

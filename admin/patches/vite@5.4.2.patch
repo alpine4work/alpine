@@ -1,0 +1,144 @@
+diff --git a/dist/node/chunks/dep-BzOvws4Y.js b/dist/node/chunks/dep-BzOvws4Y.js
+index 184597a2d7b1acc23556e16264e6677457023e81..598bdd1b51af43f3d2a0a04049f9eeaa2ce535dc 100644
+--- a/dist/node/chunks/dep-BzOvws4Y.js
++++ b/dist/node/chunks/dep-BzOvws4Y.js
+@@ -51766,6 +51766,14 @@ async function loadAndTransform(id, url, server, options, timestamp, mod, resolv
+     }
+     if (options.ssr || isFileServingAllowed(file, server)) {
+       try {
++        // NOTE(calebmer): While Bazel is actively building it removes and adds files
++        // at will. Vite shouldn't observe this since it may read the file system after
++        // Bazel has removed a file but before Bazel has added it back. So wait for
++        // Bazel builds to finish before reading from the file system.
++        if (server.config.waitForBazelBuild) {
++          await server.config.waitForBazelBuild();
++        }
++
+         code = await fsp.readFile(file, "utf-8");
+         debugLoad?.(`${timeFrom(loadStart)} [fs] ${prettyUrl}`);
+       } catch (e) {
+@@ -62687,7 +62695,7 @@ async function _createServer(inlineConfig = {}, options) {
+     setClientErrorHandler(httpServer, config.logger);
+   }
+   const watchEnabled = serverConfig.watch !== null;
+-  const watcher = watchEnabled ? chokidar.watch(
++  let watcher = watchEnabled ? chokidar.watch(
+     // config file dependencies and env file might be outside of root
+     [
+       root,
+@@ -62699,6 +62707,99 @@ async function _createServer(inlineConfig = {}, options) {
+     ],
+     resolvedWatchOptions
+   ) : createNoopWatcher(resolvedWatchOptions);
++  // NOTE(calebmer): While Bazel is actively building it removes and adds files
++  // at will. Vite shouldn't observe this since it may read the file system after
++  // Bazel has removed a file but before Bazel has added it back. So wait for
++  // Bazel builds to finish before reading from the file system.
++  if (config.waitForBazelBuild) {
++    const originalWatcher = watcher;
++    const emitter = new EventEmitter$4();
++
++    originalWatcher.on("ready", (...args) => {
++      emitter.emit("ready", ...args);
++    });
++
++    originalWatcher.on("raw", (...args) => {
++      emitter.emit("raw", ...args);
++    });
++
++    originalWatcher.on("error", (...args) => {
++      emitter.emit("error", ...args);
++    });
++
++    let pendingEvents = null;
++
++    function preparePendingEvents() {
++      if (pendingEvents !== null) return;
++      pendingEvents = [];
++
++      config.waitForBazelBuild().then(
++        () => {
++          const events = pendingEvents;
++          pendingEvents = null;
++          for (const event of events) {
++            emitter.emit(event[0], ...event[1]);
++            emitter.emit("all", event[0], ...event[1]);
++          }
++        },
++        error => {
++          pendingEvents = null;
++          emitter.emit("error", error);
++        },
++      );
++    }
++
++    originalWatcher.on("add", (...args) => {
++      preparePendingEvents();
++
++      let eventName = "add";
++
++      // If there was an unlink event for the same file then remove the unlink event
++      // and push a `change` event (instead of an `add` event). This way we treat
++      // `unlink`/`add` events while waiting for the Bazel lock as a single
++      // `change` event.
++      for (let i = pendingEvents.length - 1; i >= 0; i--) {
++        const pendingEvent = pendingEvents[i];
++        if (pendingEvent[0] === "unlink" && pendingEvent[1][0] === args[0]) {
++            eventName = "change";
++            pendingEvents.splice(i, 1);
++            break;
++        }
++      }
++
++      pendingEvents.push([eventName, args]);
++    });
++
++    originalWatcher.on("addDir", (...args) => {
++      preparePendingEvents();
++      pendingEvents.push(["addDir", args]);
++    });
++
++    originalWatcher.on("change", (...args) => {
++      preparePendingEvents();
++      pendingEvents.push(["change", args]);
++    });
++
++    originalWatcher.on("unlink", (...args) => {
++      preparePendingEvents();
++      pendingEvents.push(["unlink", args]);
++    });
++
++    originalWatcher.on("unlinkDir", (...args) => {
++      preparePendingEvents();
++      pendingEvents.push(["unlinkDir", args]);
++    });
++
++    watcher = {
++      add: (...args) => originalWatcher.add(...args),
++      unwatch: (...args) => originalWatcher.unwatch(...args),
++      getWatched: (...args) => originalWatcher.getWatched(...args),
++      close: (...args) => originalWatcher.close(...args),
++      ref: (...args) => originalWatcher.ref(...args),
++      unref: (...args) => originalWatcher.unref(...args),
++      on: (...args) => { emitter.on(...args); return watcher },
++    };
++  }
+   const moduleGraph = new ModuleGraph(
+     (url, ssr) => container.resolveId(url, void 0, { ssr })
+   );
+diff --git a/dist/node/index.d.ts b/dist/node/index.d.ts
+index 8592398c31e06c937468f1458650bf1194e18f8e..58e3338eede019880eb6521811d3bfd61d7e1643 100644
+--- a/dist/node/index.d.ts
++++ b/dist/node/index.d.ts
+@@ -3411,6 +3411,11 @@ interface ResolvedWorkerOptions {
+ interface InlineConfig extends UserConfig {
+     configFile?: string | false;
+     envFile?: false;
++    // NOTE(calebmer): While Bazel is actively building it removes and adds files
++    // at will. Vite shouldn't observe this since it may read the file system after
++    // Bazel has removed a file but before Bazel has added it back. So wait for
++    // Bazel builds to finish before reading from the file system.
++    waitForBazelBuild?: () => Promise<void>;
+ }
+ type ResolvedConfig = Readonly<Omit<UserConfig, 'plugins' | 'css' | 'assetsInclude' | 'optimizeDeps' | 'worker' | 'build'> & {
+     configFile: string | undefined;
