@@ -34,6 +34,7 @@ import {
     mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
     postCommentSectionGuidelineOffset,
     postCommentSectionGuidelineStartHeight,
+    postContentEditorPaddingX,
     postContentEditorPaddingY,
     postContentViewFooterButtonHeight,
     postContentViewFooterButtonIconSize,
@@ -44,6 +45,7 @@ import {
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
     postContentViewOuterOpenCommentSectionMarginBottom,
+    screenPaddingXWithoutPostContentEditorPadding,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -212,7 +214,7 @@ export function PostContentView({
                 </Box>
             )}
             <Box
-                paddingX={screenPaddingX}
+                paddingX={screenPaddingXWithoutPostContentEditorPadding}
                 style={{
                     paddingTop: postContentViewInnerMarginYWithoutContentEditorPaddingY,
                     paddingBottom: postContentViewInnerMarginYWithoutContentEditorPaddingY,
@@ -224,13 +226,19 @@ export function PostContentView({
                             withMobileLayout={withMobileLayout}
                             content={post.content}
                             contentUpdatedTime={post.contentUpdatedTime}
-                            className={sprinkles({paddingY: postContentEditorPaddingY})}
+                            className={sprinkles({
+                                paddingX: postContentEditorPaddingX,
+                                paddingY: postContentEditorPaddingY,
+                            })}
                         />
                     ) : (
                         <ContentView
                             withMobileLayout={withMobileLayout}
                             contentUpdatedTime={post.contentUpdatedTime}
-                            className={sprinkles({paddingY: postContentEditorPaddingY})}
+                            className={sprinkles({
+                                paddingX: postContentEditorPaddingX,
+                                paddingY: postContentEditorPaddingY,
+                            })}
                             content={
                                 isPostSnippetTruncated && !isShowingAllContent && postSnippet
                                     ? postSnippet
@@ -608,7 +616,10 @@ function PostContentViewEditor({
                     // editing modality.
                     withoutMobileDualModality={true}
                     placeholder="Share your ideas…"
-                    className={sprinkles({paddingY: postContentEditorPaddingY})}
+                    className={sprinkles({
+                        paddingX: postContentEditorPaddingX,
+                        paddingY: postContentEditorPaddingY,
+                    })}
                     onModEnter={event => {
                         event.preventDefault();
                         event.stopPropagation();

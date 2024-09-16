@@ -3,6 +3,7 @@ import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/sty
 import {
     RemLength,
     addRemLengths,
+    assertSpacing,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
@@ -23,7 +24,14 @@ export const postContentViewHeaderHeight = "8";
 export const postContentViewFooterHeight = "8";
 export const postContentViewFooterButtonHeight = "7";
 
+export const postContentEditorPaddingX = "2";
 export const postContentEditorPaddingY = "1.5";
+
+export const screenPaddingXWithoutPostContentEditorPadding = mapObjectValues(
+    screenPaddingX,
+    screenPaddingX =>
+        assertSpacing(`${parseInt(screenPaddingX, 10) - parseInt(postContentEditorPaddingX, 10)}`),
+);
 
 export const postContentViewInnerMarginYWithoutContentEditorPaddingY = subtractRemLengths(
     spacing[postContentViewInnerMarginY],
