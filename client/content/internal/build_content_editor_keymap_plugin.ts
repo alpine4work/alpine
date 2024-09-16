@@ -31,7 +31,7 @@ import {
 } from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
 import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentProsemirrorSchema,
@@ -1300,7 +1300,7 @@ export function buildContentEditorKeymapPlugin(
     //
     // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/3126d5c625953ba590c5d3a0db7f1009f46f1571/src/commands.js#L588
     // [2]: https://support.apple.com/en-us/HT201236
-    if (typeof window !== "undefined" && getClientInfoWithoutListening().isAppleDevice) {
+    if (typeof window !== "undefined" && getClientInfo().isAppleDevice) {
         keys.set("Alt-Backspace", wordBackspaceCommand);
         keys.set("Alt-Delete", deleteCommand);
         keys.set("Ctrl-h", wordBackspaceCommand);

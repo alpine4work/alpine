@@ -8,7 +8,7 @@ ts_project(
     ],
     visibility = [
         "//admin/dynamo:__pkg__",
-        "//server/files:__subpackages__",
+        "//server:__subpackages__",
     ],
     deps = [
         "//:node_modules/pretty-bytes",

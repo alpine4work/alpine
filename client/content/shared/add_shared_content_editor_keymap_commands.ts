@@ -5,7 +5,7 @@ import {
     isTrackingSomeSelectionWithinSharedContentEditor,
     trackSelectionWithinSharedContentEditor,
 } from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 type Command = (
@@ -226,7 +226,7 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
     // bracket character if they want to delete the extra inserted bracket.
     keys.set("Backspace", backspaceCommand);
 
-    if (typeof window !== "undefined" && getClientInfoWithoutListening().isAppleDevice) {
+    if (typeof window !== "undefined" && getClientInfo().isAppleDevice) {
         keys.set("Alt-Backspace", backspaceCommand);
     }
 }

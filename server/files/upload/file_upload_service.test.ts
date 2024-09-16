@@ -13,7 +13,6 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {getFile} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
-import {UploadFileEventSchema} from "~/server/files/upload/upload_file.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -23,6 +22,7 @@ import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shar
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -331,7 +331,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewSize","width":500,"height":375,"scale":1}\n\
+{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
 \r\n\
 chunk\r\n\
 {"type":"ImagePreviewPlaceholder","placeholder":[false,5,"..."]}\n\
@@ -346,7 +346,7 @@ chunk\r\n\
     const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
     const fileId = assertId<FileId>(match[1]!);
 
-    expect(await getFile(space.systemAction(), fileId)).toEqual(
+    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -435,7 +435,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewSize","width":500,"height":375,"scale":1}\n\
+{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
 \r\n\
 chunk\r\n\
 {"type":"Error","error":{...}}\n\
@@ -447,7 +447,7 @@ chunk\r\n\
     const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
     const fileId = assertId<FileId>(match[1]!);
 
-    await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
+    await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(NotFoundError);
 });
 
 test("request can be ended before completion", async () => {
@@ -506,7 +506,7 @@ Content-Length: 33102\r\n\
         return assertId<FileId>(match[1]!);
     });
 
-    expect(await getFile(space.systemAction(), fileId)).toEqual(
+    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -544,7 +544,9 @@ chunk\r\n\
 `);
 
     await waitForExpect(async () => {
-        await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
+        await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(
+            NotFoundError,
+        );
     });
 });
 
@@ -604,7 +606,7 @@ Content-Length: 33102\r\n\
         return assertId<FileId>(match[1]!);
     });
 
-    expect(await getFile(space.systemAction(), fileId)).toEqual(
+    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -640,7 +642,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewSize","width":500,"height":375,"scale":1}\n\
+{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
 \r\n\
 chunk\r\n\
 {"type":"ImagePreviewPlaceholder","placeholder":[false,5,"..."]}\n\
@@ -652,7 +654,7 @@ chunk\r\n\
 \r\n\
 `);
 
-    expect(await getFile(space.systemAction(), fileId)).toEqual(
+    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -715,7 +717,7 @@ test("can't upload invalid image data", async () => {
         ),
     );
 
-    await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
+    await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(NotFoundError);
 });
 
 test("can't upload image with the wrong content type", async () => {
@@ -760,7 +762,7 @@ test("can't upload image with the wrong content type", async () => {
         ),
     );
 
-    await expect(getFile(space.systemAction(), fileId)).rejects.toThrow(NotFoundError);
+    await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(NotFoundError);
 });
 
 test("can upload image", async () => {
@@ -791,7 +793,7 @@ test("can upload image", async () => {
             },
             fileId: expect.any(String),
         },
-        {type: "ImagePreviewSize", width: 500, height: 375, scale: 1},
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
         {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
         {type: "Finish"},
     ]);
@@ -802,7 +804,7 @@ test("can upload image", async () => {
         ),
     );
 
-    expect(await getFile(space.systemAction(), fileId)).toEqual(
+    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",

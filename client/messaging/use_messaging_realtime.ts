@@ -3,7 +3,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
@@ -155,7 +155,7 @@ export function useMessagingRealtime<
         const backfillPromise = backfillMessages({
             clientMessageCount: messagesRef.current.getMessageCountExcludingOptimisticMessages(),
             clientLastMessageChangeTime: messagesRef.current.getLastMessageChangeTime(),
-            newMessageLimit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
+            newMessageLimit: getInitialLoadMessageCount(getClientInfo()),
         }).then(
             output => {
                 if (backfillPromiseRef.current !== backfillPromise) return;

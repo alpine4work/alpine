@@ -35,26 +35,21 @@ import {
     InvalidArgumentError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
-import {getErrorCodes} from "~/shared/error/error_code.js";
-import {ErrorDisplayMessageSchema, ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {
     FileContentType,
-    FileContentTypeSchema,
     FileMp4AudioContentType,
     FileMp4VideoContentType,
     canonicalizeFileContentTypeIfExists,
 } from "~/shared/files/file_content_type.js";
-import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {UploadFileEvent, UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // Make sure we're using our custom `sharp` `libvips` build built from
@@ -66,76 +61,6 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 assert((sharp.versions as any).de265 === "1.0.15");
 assert((sharp.versions as any).graphicsmagick === "1.3.45");
 assert((sharp.versions as any).pdfium === "chromium/6679");
-
-type UploadFileEvent = SchemaType<typeof UploadFileEventSchema>;
-
-export const UploadFileEventSchema = Schema.union({
-    Start: Schema.object({
-        type: Schema.value("Start"),
-        fileId: Schema.id<FileId>(),
-        hasAlternative: Schema.boolean,
-        hasPreview: Schema.union({
-            Image: Schema.object({
-                type: Schema.value("Image"),
-                hasContent: Schema.boolean,
-                hasVideoDuration: Schema.boolean,
-            }),
-            Audio: Schema.object({
-                type: Schema.value("Audio"),
-            }),
-            Code: Schema.object({
-                type: Schema.value("Code"),
-            }),
-        }).nullable(),
-    }),
-    Finish: Schema.object({
-        type: Schema.value("Finish"),
-    }),
-    Alternative: Schema.object({
-        type: Schema.value("Alternative"),
-        contentType: FileContentTypeSchema,
-        contentLength: Schema.integer,
-        isImagePreviewContent: Schema.boolean,
-    }),
-    ImagePreviewSize: Schema.object({
-        type: Schema.value("ImagePreviewSize"),
-        width: Schema.integer,
-        height: Schema.integer,
-        scale: Schema.float,
-    }),
-    ImagePreviewPlaceholder: Schema.object({
-        type: Schema.value("ImagePreviewPlaceholder"),
-        placeholder: FileImagePreviewPlaceholder.schema,
-    }),
-    ImagePreviewContent: Schema.object({
-        type: Schema.value("ImagePreviewContent"),
-        contentType: FileContentTypeSchema,
-        contentLength: Schema.integer,
-    }),
-    ImagePreviewVideoDuration: Schema.object({
-        type: Schema.value("ImagePreviewVideoDuration"),
-        videoDuration: Schema.integer,
-    }),
-    AudioPreviewDuration: Schema.object({
-        type: Schema.value("AudioPreviewDuration"),
-        duration: Schema.integer,
-    }),
-    CodePreviewContent: Schema.object({
-        type: Schema.value("CodePreviewContent"),
-        content: FileCodePreviewContent.schema,
-    }),
-    PreviewError: Schema.object({
-        type: Schema.value("PreviewError"),
-        error: Schema.object({
-            code: Schema.enum(getErrorCodes()),
-            displayMessage: ErrorDisplayMessageSchema,
-        }),
-    }),
-    Error: Schema.object({
-        type: Schema.value("Error"),
-        error: ErrorSchema,
-    }),
-});
 
 export async function uploadFile(
     context: FileUploadServiceActionContext,
@@ -567,33 +492,27 @@ async function uploadAndProcessFile(
 
               const actualImagePreviewSizePromise = imagePreviewSizePromise
                   ? (async () => {
-                        const size = await imagePreviewSizePromise;
+                        const {videoDuration, ...size} = await imagePreviewSizePromise;
                         if (signal.aborted) throw signal.reason;
                         if (hasAcceptedPreviewError) return;
 
                         await fileUploader.finishProcessingImagePreviewSize(
                             context,
-                            {
-                                width: size.width,
-                                height: size.height,
-                                scale: size.scale,
-                            },
-                            size.videoDuration !== undefined
-                                ? {alsoPreviewVideoDuration: size.videoDuration}
+                            size,
+                            videoDuration !== undefined
+                                ? {alsoPreviewVideoDuration: videoDuration}
                                 : undefined,
                         );
 
                         sendEvent({
                             type: "ImagePreviewSize",
-                            width: size.width,
-                            height: size.height,
-                            scale: size.scale,
+                            size,
                         });
 
-                        if (size.videoDuration !== undefined) {
+                        if (videoDuration !== undefined) {
                             sendEvent({
                                 type: "ImagePreviewVideoDuration",
-                                videoDuration: size.videoDuration,
+                                videoDuration,
                             });
                         }
 
@@ -603,7 +522,7 @@ async function uploadAndProcessFile(
                                     imageWidth: size.width,
                                     imageHeight: size.height,
                                     imageScale: size.scale,
-                                    imageVideoDurationMs: size.videoDuration,
+                                    imageVideoDurationMs: videoDuration,
                                 },
                             },
                         };

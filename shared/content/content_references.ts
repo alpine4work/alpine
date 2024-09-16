@@ -1,7 +1,8 @@
 import {Node} from "prosemirror-model";
+import {FileModel} from "~/shared/files/file_model.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -20,6 +21,14 @@ export const ContentReferencesSchema = Schema.object({
      * Accounts referenced in mentions.
      */
     accountById: Schema.map(Schema.id<ContentMentionAccountId>(), AccountModel.schema),
+
+    /**
+     * Files attached to the content.
+     */
+    // TODO(calebmer, #files): Right now files are only allowed in document content
+    // but eventually all content will need to support files. Which is why we have
+    // it here even if that's a little premature.
+    fileById: Schema.map(Schema.id<FileId>(), FileModel.schema()),
 });
 
 /**
@@ -34,6 +43,7 @@ export type ContentWithReferences = {
 
 export const emptyContentReferences: ContentReferences = {
     accountById: new Map(),
+    fileById: new Map(),
 };
 
 /**
@@ -42,9 +52,9 @@ export const emptyContentReferences: ContentReferences = {
 export function isEmptyContentReferences(references: ContentReferences): boolean {
     // If you add more data to `ContentReferences` in the future, you'll
     // need to come back and update this function.
-    assertEqualTypes<keyof ContentReferences, "accountById">();
+    assertEqualTypes<keyof ContentReferences, "accountById" | "fileById">();
 
-    return references.accountById.size === 0;
+    return references.accountById.size === 0 && references.fileById.size === 0;
 }
 
 /**
@@ -62,5 +72,6 @@ export function mergeContentReferences(
 
     return {
         accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
+        fileById: new Map(concatIterables(references1.fileById, references2.fileById)),
     };
 }

@@ -9,6 +9,7 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@lume/kiwi",
         "//:node_modules/@react-aria/interactions",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",

@@ -21,7 +21,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -386,7 +386,7 @@ function PostContentViewFooter({
                             }
 
                             const initialLoadMessageCount = getInitialLoadMessageCount(
-                                getClientInfoWithoutListening(),
+                                getClientInfo(),
                             );
 
                             let areAllInitialMessagesLoaded = true;

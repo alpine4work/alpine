@@ -17,7 +17,7 @@ import {
 } from "~/client/forum/post_list.js";
 import {PostListView, postListViewAsideMaxWidth} from "~/client/forum/post_list_view.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -123,7 +123,7 @@ export function ChannelView({
                 const {postsResult} = await getChannelPosts(context, {
                     channelId,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                        getClientInfoWithoutListening(),
+                        getClientInfo(),
                         postContentViewMinHeightWithClosedCommentSection,
                     ),
                     beforeCursor: null,

@@ -288,6 +288,9 @@ dependencies:
   '@lezer/yaml':
     specifier: ^1.0.3
     version: 1.0.3
+  '@lume/kiwi':
+    specifier: ^0.4.3
+    version: 0.4.3
   '@miniflare/r2':
     specifier: 2.14.2
     version: 2.14.2
@@ -4123,6 +4126,10 @@ packages:
       '@lezer/common': 1.2.1
       '@lezer/highlight': 1.2.0
       '@lezer/lr': 1.4.1
+    dev: false
+
+  /@lume/kiwi@0.4.3:
+    resolution: {integrity: sha512-+D9x9lwfYOpUVUc5GW8FBuU9X+PKaHzhBKBx/LyzO9onvr1izwIzFcn4SgQR71R66HT3ohT+5ky4aHZeQ5MhNQ==}
     dev: false
 
   /@mdx-js/mdx@2.3.0:

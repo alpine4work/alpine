@@ -1,7 +1,7 @@
 import {To} from "react-router-dom";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 const pendingUrlByElement = new Map<HTMLAnchorElement, URL>();
@@ -19,7 +19,7 @@ export function handleContentLinkClick(
 
     const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
         event,
-        getClientInfoWithoutListening(),
+        getClientInfo(),
     );
 
     // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard

@@ -94,6 +94,7 @@ export function mergeDocumentContentReferences(
 
     return {
         accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
+        fileById: new Map(concatIterables(references1.fileById, references2.fileById)),
         commentThreadById,
     };
 }

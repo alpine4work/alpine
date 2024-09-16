@@ -30,9 +30,16 @@ const clientInfo = new Lazy(
 );
 
 /**
- * Get the current client info without listening for changes.
+ * Get the current client info without listening for changes. Can only be
+ * called on the client otherwise will throw an error. Prefer
+ * `useClientInfo()` which works on both the client and server.
+ *
+ * `ClientInfo` never changes after the page's initial load. All data in
+ * `ClientInfo` should be immutable facts about the current device. Which is
+ * why we don't have a `WithoutListening` suffix like other functions such as
+ * `getIsMobileWithoutListening()`.
  */
-export function getClientInfoWithoutListening(): ClientInfo {
+export function getClientInfo(): ClientInfo {
     assert(typeof window !== "undefined");
     return clientInfo.get();
 }
@@ -100,7 +107,7 @@ export function useClientInfoContextProvider(
     const [clientInfo, setClientInfo] = useState(initialClientInfo);
 
     useEffect(() => {
-        const actualClientInfo = getClientInfoWithoutListening();
+        const actualClientInfo = getClientInfo();
 
         setClientInfo(clientInfo => {
             if (isDeepEqual(clientInfo, actualClientInfo)) return clientInfo;

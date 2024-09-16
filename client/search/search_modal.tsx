@@ -28,7 +28,7 @@ import {
     PeekSwitcherStatePeekBase,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
@@ -823,12 +823,7 @@ function SearchModalPeekContent({
                             });
                             if (!spacePath) throw new InternalError("Can only expand peek routes");
 
-                            if (
-                                isOpenLinkInSeparateTabPointerEvent(
-                                    event,
-                                    getClientInfoWithoutListening(),
-                                )
-                            ) {
+                            if (isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())) {
                                 window.open(
                                     createPath(spacePath),
                                     "_blank",

@@ -54,6 +54,7 @@
         "@lezer/rust": "^1.0.2",
         "@lezer/xml": "^1.0.5",
         "@lezer/yaml": "^1.0.3",
+        "@lume/kiwi": "^0.4.3",
         "@miniflare/r2": "2.14.2",
         "@miniflare/storage-file": "2.14.2",
         "@nextjournal/lezer-clojure": "^1.0.0",

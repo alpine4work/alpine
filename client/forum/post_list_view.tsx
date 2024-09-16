@@ -61,7 +61,7 @@ import {
     messagingViewMarginBottom,
 } from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
@@ -536,7 +536,7 @@ function PostListView(
             isLoadingRef.current = true;
 
             try {
-                const limit = getInitialLoadMessageCount(getClientInfoWithoutListening());
+                const limit = getInitialLoadMessageCount(getClientInfo());
 
                 // If we already have some loaded messages then we are trying to finish the
                 // initial loaded message list by starting at our last loaded message.

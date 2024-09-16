@@ -542,6 +542,17 @@ export function canonicalizeFileContentTypeIfExists(contentType: string): FileCo
 }
 
 /**
+ * Get the `FileContentType` for the provided path just based on the file's
+ * extension.
+ */
+export function getPathFileContentTypeIfExists(path: string): FileContentType | null {
+    const extensionMatch = path.match(/\.([a-zA-Z0-9]+)$/);
+    const extension = extensionMatch?.[1]?.toLowerCase();
+    if (!extension) return null;
+    return getFileContentTypeByExtension().get(extension) ?? null;
+}
+
+/**
  * Get the preferred file extension for some `FileContentType`. We'll save
  * files of this type with that extension. Web browsers use MIME types to
  * determine the type of a file but OSes use file extensions to determine the
@@ -770,4 +781,25 @@ function getFileCanonicalContentTypeByAdditionalContentType() {
         ),
     );
     return fileCanonicalContentTypeByAdditionalContentType;
+}
+
+let fileContentTypeByExtension: Map<string, FileContentType> | null = null;
+
+function getFileContentTypeByExtension() {
+    fileContentTypeByExtension ??= new Map([
+        ...Object.entries(filePreferredExtensionByContentType).map(
+            ([contentType, extension]): [string, FileContentType] => [
+                extension,
+                contentType as FileContentType,
+            ],
+        ),
+        ...Object.entries(fileAdditionalContentTypesAndExtensionsByContentType).flatMap(
+            ([contentType, {extensions = []}]) =>
+                extensions.map((extension): [string, FileContentType] => [
+                    extension,
+                    contentType as FileContentType,
+                ]),
+        ),
+    ]);
+    return fileContentTypeByExtension;
 }

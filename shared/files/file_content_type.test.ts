@@ -4,6 +4,7 @@ import {
     fileContentTypes,
     getFileAdditionalContentTypesAndExtensionsByContentTypeForTest,
     getFileContentTypePreferredExtension,
+    getPathFileContentTypeIfExists,
     normalizeContentType,
 } from "~/shared/files/file_content_type.js";
 
@@ -136,4 +137,16 @@ test("file code block language content types are unique", () => {
     }
 
     expect(Array.from(new Set(contentTypes))).toEqual(contentTypes);
+});
+
+test("can get content type based on a file extension", () => {
+    expect(getPathFileContentTypeIfExists("test.jpeg")).toEqual("image/jpeg");
+    expect(getPathFileContentTypeIfExists("test.jpg")).toEqual("image/jpeg");
+    expect(getPathFileContentTypeIfExists("test.JPEG")).toEqual("image/jpeg");
+    expect(getPathFileContentTypeIfExists("test.JPG")).toEqual("image/jpeg");
+    expect(getPathFileContentTypeIfExists("test.Jpeg")).toEqual("image/jpeg");
+    expect(getPathFileContentTypeIfExists("test.Jpg")).toEqual("image/jpeg");
+    expect(getPathFileContentTypeIfExists("test.ts")).toEqual("text/x-typescript");
+    expect(getPathFileContentTypeIfExists("test.tsx")).toEqual("text/x-typescript");
+    expect(getPathFileContentTypeIfExists("entry.client.tsx")).toEqual("text/x-typescript");
 });

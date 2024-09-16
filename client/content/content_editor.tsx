@@ -39,6 +39,8 @@ import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
+import {createContentEditorFileNodeView} from "~/client/content/internal/content_editor_file_node_view.js";
+import {createContentEditorFileRowNodeView} from "~/client/content/internal/content_editor_file_row_node_view.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
@@ -52,6 +54,7 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {uploadFileFromContentEditor} from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -72,7 +75,7 @@ import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -88,7 +91,7 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -101,7 +104,6 @@ import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -867,6 +869,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     getCurrentAccountIfExists: () =>
                         spaceContextRef.current?.currentAccount ?? null,
                 }),
+                fileRow: createContentEditorFileRowNodeView,
+                file: createContentEditorFileNodeView,
             },
 
             // IMPORTANT: If you have a custom view in `markViews` here you should also
@@ -945,7 +949,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             handlePaste,
 
             handleKeyDown: (_view, event) => {
-                const {isAppleDevice} = getClientInfoWithoutListening();
+                const {isAppleDevice} = getClientInfo();
 
                 // Implement keyboard shortcuts when the mention floater is open:
                 const floaterState = getContentEditorFloaterState(view.state);
@@ -1003,6 +1007,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // Handle the user dropping files from their operating system. Not dragging
                 // some slice of ProseMirror content around.
                 if (
+                    schema.nodes.file &&
+                    schema.nodes.fileRow &&
                     context !== null &&
                     spaceContext !== null &&
                     slice.size === 0 &&
@@ -1017,32 +1023,27 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 Array.from(event.dataTransfer.items, async item => {
                                     if (item.kind !== "file") return;
 
-                                    const file = assertExists(item.getAsFile());
-
-                                    await fetchWithTracer(
-                                        context.tracer.getTracer(),
-                                        `/api/files/${spaceContext.space.id}/upload`,
+                                    await uploadFileFromContentEditor(
+                                        context,
+                                        spaceContext.space.id,
+                                        assertExists(item.getAsFile()),
                                         {
-                                            serviceName: "FileUploadService",
-                                            method: "POST",
-                                            route: "/api/files/:spaceId/upload",
-                                            headers: {
-                                                // TODO(calebmer, #files): Validate content type. If
-                                                // content type is unsupported we shouldn't prevent
-                                                // default.
-                                                "content-type": item.type,
-                                                "content-length": String(file.size),
-                                            },
-                                            body: file,
-                                        },
-                                        async response => {
-                                            // TODO(calebmer, #files): Parse incoming events.
-                                            // eslint-disable-next-line no-console
-                                            console.log(await response.text());
+                                            onAttach: fileStore => {
+                                                // NOCOMMIT: We need proper drag/drop target support.
 
-                                            if (!response.ok) {
-                                                throw new InternalError("Upload failed");
-                                            }
+                                                console.log("ATTACH!!!");
+
+                                                view.dispatch(
+                                                    view.state.tr.insert(
+                                                        view.state.doc.nodeSize - 2,
+                                                        schema.nodes.fileRow!.create(null, [
+                                                            schema.nodes.file!.create({
+                                                                id: fileStore.getSnapshot().id,
+                                                            }),
+                                                        ]),
+                                                    ),
+                                                );
+                                            },
                                         },
                                     );
                                 }),

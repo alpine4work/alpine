@@ -3,13 +3,13 @@ import {
     darkColorSchemeSelector,
     lightColorSchemeSelector,
 } from "~/client/styles/internal/color_scheme.css.js";
-import {convertSvgToCssDataUrl} from "~/client/styles/internal/helpers/convert_svg_to_css_data_url.js";
 import {
     desktopPlatformSelector,
     mobilePlatformSelector,
 } from "~/client/styles/internal/platform.css.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
 import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
+import {convertSvgToCssDataUrl} from "~/shared/helpers/html/convert_svg_to_css_data_url.js";
 
 export const sawtoothSize = "4";
 export const sawtoothSizeRem = parseRemLengthNumber(spacing[sawtoothSize]);

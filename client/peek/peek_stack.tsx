@@ -67,7 +67,7 @@ import {
     PeekRemixEmbedRouter,
     usePeekRemixEmbedRouter,
 } from "~/client/peek/peek_remix_embed.js";
-import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -1591,12 +1591,7 @@ const PeekStackOverlayContent = forwardRef(function PeekOverlayContent(
                                 if (!spacePath)
                                     throw new InternalError("Can only expand peek routes");
 
-                                if (
-                                    isOpenLinkInSeparateTabPointerEvent(
-                                        event,
-                                        getClientInfoWithoutListening(),
-                                    )
-                                ) {
+                                if (isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())) {
                                     window.open(
                                         createPath(spacePath),
                                         "_blank",

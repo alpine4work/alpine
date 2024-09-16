@@ -1,6 +1,6 @@
 import {startTransition, useEffect, useMemo, useState} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
@@ -207,7 +207,7 @@ export function useTaskQueryState({
             const newPendingQuery = store.createAndRetainQuery({
                 filters: expectedQuery.query.filters,
                 sorts: expectedQuery.query.sorts,
-                limit: getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                limit: getTaskGridViewLoadQueryLimit(getClientInfo()),
             });
 
             // This needs to be called in `batchStoreUpdates()` since it delays our

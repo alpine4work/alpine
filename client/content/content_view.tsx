@@ -17,7 +17,7 @@ import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_op
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
@@ -192,6 +192,7 @@ export function ContentView({
      */
     onSeeLessContent?: () => void;
 }) {
+    const clientInfo = useClientInfo();
     const isMobile = useIsMobile();
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
@@ -403,6 +404,8 @@ export function ContentView({
                 renderContentFragmentToHtmlStore(content, {
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
+                    screenWidth: clientInfo.screenWidth,
+                    isMobile,
                     placeholder,
                     isInert,
                     decorations: [decorations, codeBlockDecorations],
@@ -428,6 +431,8 @@ export function ContentView({
             htmlStore = renderContentFragmentToHtmlStore(content, {
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
+                screenWidth: clientInfo.screenWidth,
+                isMobile,
                 placeholder,
                 isInert,
                 decorations: [decorations, initialCodeBlockDecorations],
@@ -449,12 +454,14 @@ export function ContentView({
         shouldShowSeeLessContentButton,
         content,
         initialCodeBlockDecorations,
+        id,
         accountStore,
         spaceContext?.currentAccount,
+        clientInfo.screenWidth,
+        isMobile,
         placeholder,
         isInert,
         shouldHighlightComment,
-        id,
     ]);
 
     const {html, codeBlockDecorations} = useStore(htmlStore);
@@ -532,7 +539,7 @@ export function ContentView({
                 const handleClick = (event: MouseEvent) => {
                     const isOpenLinkInSeparateTabEvent = isOpenLinkInSeparateTabPointerEvent(
                         event,
-                        getClientInfoWithoutListening(),
+                        getClientInfo(),
                     );
 
                     // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
@@ -554,10 +561,7 @@ export function ContentView({
                     isPointerDownAndOver =
                         event.button === 0 &&
                         (!isModifiedPointerEvent(event) ||
-                            isOpenLinkInSeparateTabPointerEvent(
-                                event,
-                                getClientInfoWithoutListening(),
-                            ));
+                            isOpenLinkInSeparateTabPointerEvent(event, getClientInfo()));
 
                     maybeUpdateStyle();
 
@@ -566,7 +570,7 @@ export function ContentView({
                     // need to implement that manually here given the text is editable.
                     if (
                         (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                        !isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
+                        !isOpenLinkInSeparateTabPointerEvent(event, getClientInfo())
                     ) {
                         return;
                     }

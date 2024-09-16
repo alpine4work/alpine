@@ -163,11 +163,6 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          * code block may not have inline formatting since in the future we'll want
          * to add syntax highlighting.
          */
-        // TODO(calebmer): Implement styling for code blocks.
-
-        // TODO(calebmer): Syntax highlighting for code. Allow user to pick the
-        // language.
-
         // TODO(calebmer): A couple keyboard shortcuts I think could still be useful
         // for code blocks:
         //

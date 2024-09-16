@@ -67,6 +67,8 @@ test("will properly number list items", () => {
                 {
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
+                    screenWidth: 1920,
+                    isMobile: false,
                 },
             ).getSnapshot(),
         ),
@@ -153,6 +155,8 @@ test("will properly number list items with indentation", () => {
                 {
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
+                    screenWidth: 1920,
+                    isMobile: false,
                 },
             ).getSnapshot(),
         ),
@@ -197,6 +201,8 @@ test("will properly number list items in quote blocks", () => {
                 {
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
+                    screenWidth: 1920,
+                    isMobile: false,
                 },
             ).getSnapshot(),
         ),
@@ -246,6 +252,8 @@ test("will render code block", () => {
                 {
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
+                    screenWidth: 1920,
+                    isMobile: false,
                 },
             ).getSnapshot(),
         ),

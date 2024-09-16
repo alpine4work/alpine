@@ -13,6 +13,8 @@ import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_sc
 import {
     checkListItemCheckedClassName,
     commentClassName,
+    fileClassName,
+    fileRowClassName,
     highlightClassNameByColor,
     listItemClassName,
     listItemIndentationVar,
@@ -21,7 +23,7 @@ import {
 import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -99,6 +101,32 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 })(),
             ],
             toDebugString: toDebugStringWithIndent,
+        },
+
+        // NOCOMMIT: Document
+        fileRow: {
+            group: "block",
+            content: "file{1,3}",
+            defining: true,
+            isolating: true,
+            toDOM: () => ["div", {class: fileRowClassName}, 0],
+        },
+
+        // NOCOMMIT: Document
+        file: {
+            defining: true,
+            isolating: true,
+            attrs: {
+                // `id` is nullable so the `file` node is generatable. Otherwise ProseMirror
+                // complains that `fileRow` can't be generated because it requires at least one
+                // file node. `id: null` files will always render with an error. You should
+                // always provide a `FileId`.
+                id: {
+                    schema: Schema.id<FileId>().nullable(),
+                    default: null,
+                },
+            },
+            toDOM: () => ["div", {class: fileClassName}],
         },
     },
     marks: {

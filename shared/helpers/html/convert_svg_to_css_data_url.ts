@@ -1,5 +1,10 @@
-// Based on code from:
-// https://www.svgbackgrounds.com/tools/svg-to-css/
+/**
+ * Convert an SVG HTML string to a CSS data URL. Produces a more readable data
+ * URL string than `encodeURIComponent()`.
+ *
+ * Based on code from:
+ * https://www.svgbackgrounds.com/tools/svg-to-css/
+ */
 export function convertSvgToCssDataUrl(svg: string): string {
     const safeSvg = svg
         .replace(/#/g, "%23")

@@ -61,6 +61,26 @@ export function getIsMobileWithoutListening(): boolean {
 }
 
 /**
+ * Subscribe to changes that might update `isMobile`. To know for sure whether
+ * `isMobile` changed you must call `getIsMobileWithoutListening()`. Generally
+ * you should prefer using `useIsMobile()` since it adds one window size
+ * listener for the entire React component tree. But this function can be
+ * useful if you can't use React for some reason.
+ */
+export function subscribeToIsMobileChange(listener: () => void): () => void {
+    const mediaQuery = window.matchMedia(`screen and (max-width: ${mobileMaxScreenWidth}px)`);
+
+    const update = () => {
+        flushSync(listener);
+    };
+
+    mediaQuery.addEventListener("change", update);
+    return () => {
+        mediaQuery.removeEventListener("change", update);
+    };
+}
+
+/**
  * Does this `ClientInfo` mean the initial app render will be considered to be
  * a mobile render? Whether we render in mobile mode is ultimately determined
  * by the window size but during a server render we only have the device's

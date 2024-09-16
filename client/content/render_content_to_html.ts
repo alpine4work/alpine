@@ -2,6 +2,8 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {layoutContentFileRow} from "~/client/content/internal/layout_content_file_row.js";
+import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
@@ -16,7 +18,7 @@ import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
     RecursiveReadonlyArray,
@@ -37,6 +39,8 @@ export function renderContentToHtmlStore(
     options: {
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
+        screenWidth: number;
+        isMobile: boolean;
         placeholder?: string;
     },
 ): Store<string> {
@@ -62,6 +66,8 @@ export function renderContentFragmentToHtmlStore(
     {
         accountStore,
         currentAccount,
+        screenWidth,
+        isMobile,
         placeholder,
         isInert,
         decorations,
@@ -69,6 +75,8 @@ export function renderContentFragmentToHtmlStore(
     }: {
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
+        screenWidth: number;
+        isMobile: boolean;
         placeholder?: string;
         isInert?: boolean;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
@@ -283,6 +291,45 @@ export function renderContentFragmentToHtmlStore(
                     );
 
                     return {html: containerElement};
+                },
+                fileRow: node => {
+                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                        node.type.spec.toDOM!(node),
+                    );
+
+                    assert(html instanceof HtmlElementGenerator);
+
+                    const layout = layoutContentFileRow(
+                        node.content.content.map(childNode => {
+                            assert(childNode.type.name === "file");
+                            const fileId: FileId | null = childNode.attrs.id;
+                            if (!fileId) return null;
+                            return content.references.fileById.get(fileId) ?? null;
+                        }),
+                        {
+                            screenWidth,
+                            isMobile,
+                        },
+                    );
+
+                    html.setAttribute(
+                        "style",
+                        [
+                            `height: ${Math.max(...layout.map(({height}) => height))}px`,
+                            `grid-template-columns: ${layout
+                                .map(({widthFr}) => `${widthFr}fr`)
+                                .join(" ")}`,
+                        ].join("; "),
+                    );
+
+                    return {
+                        html,
+                        contentHtml,
+                    };
+                },
+                file: node => {
+                    const html = renderContentFilePreview(node, content.references);
+                    return {html};
                 },
 
                 // Add custom renderers which add the `data-placeholder` attribute when our

@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/prosemirror-transform",
         "//server/accounts",
         "//server/context",
+        "//server/files/data",
         "//server/spaces",
         "//shared/content",
         "//shared/context",

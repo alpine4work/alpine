@@ -73,6 +73,8 @@ const paragraphClassName = `.${sharedClassNames.paragraphClassName}`;
 const quoteBlockClassName = `.${sharedClassNames.quoteBlockClassName}`;
 const strikeClassName = `.${sharedClassNames.strikeClassName}`;
 const titleClassName = `.${sharedClassNames.titleClassName}`;
+const fileRowClassName = `.${sharedClassNames.fileRowClassName}`;
+const fileClassName = `.${sharedClassNames.fileClassName}`;
 
 const highlightClassNameByColor = mapObjectValues(
     sharedClassNames.highlightClassNameByColor,
@@ -106,6 +108,9 @@ const contentMaxWidth = spacing[contentMaxWidthSpacing];
 export const blockMaxWidth = mapObjectValues(screenPaddingX, screenPaddingX =>
     subtractRemLengths(contentMaxWidth, spacing[screenPaddingX], spacing[screenPaddingX]),
 );
+export const blockMaxWidthRem = mapObjectValues(blockMaxWidth, blockMaxWidth =>
+    parseRemLengthNumber(blockMaxWidth),
+);
 
 const defaultParagraphMarginSpacing = "2";
 const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
@@ -113,14 +118,14 @@ export {defaultParagraphMarginSpacing as defaultParagraphMargin};
 
 const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
-const codeBlockMarginVar = createVar("code-block-margin");
+const standaloneBlockMarginVar = createVar("standalone-block-margin");
 const listItemOffsetVar = createVar("list-item-offset");
 
 globalStyle(":root", {
     vars: {
         [blockMaxWidthVar]: blockMaxWidth.desktop,
         [paragraphMarginVar]: defaultParagraphMargin,
-        [codeBlockMarginVar]: spacing["4"],
+        [standaloneBlockMarginVar]: spacing["4"],
         [listItemOffsetVar]: spacing["0"],
     },
 });
@@ -163,7 +168,7 @@ export const compactDocClassName = style({
         // Slightly smaller paragraph margins in messages. This makes bullet points in
         // a message bubble look better.
         [paragraphMarginVar]: spacing["1.5"],
-        [codeBlockMarginVar]: spacing["3"],
+        [standaloneBlockMarginVar]: spacing["3"],
         // Pull in list items so they're not so far from the edge of the message
         // bubble.
         [listItemOffsetVar]: `-${compactListItemOffset}`,
@@ -404,6 +409,8 @@ globalStyle(quoteBlockClassName, {
     ...blockStyles,
     position: "relative",
     paddingLeft: quoteBlockIndentation,
+    marginTop: standaloneBlockMarginVar,
+    marginBottom: standaloneBlockMarginVar,
     color: colorSchemeVars["grey-60"],
     caretColor: colorSchemeVars["grey-60"],
 });
@@ -641,8 +648,8 @@ globalStyle(codeBlockWrapperClassName, {
     zIndex: "0",
     overflowX: "auto",
     overscrollBehaviorX: "contain",
-    marginTop: codeBlockMarginVar,
-    marginBottom: codeBlockMarginVar,
+    marginTop: standaloneBlockMarginVar,
+    marginBottom: standaloneBlockMarginVar,
     counterReset: "code-block-line-number",
     ...paragraphFontSize,
     // `fontStyles.code` needs to be second to override `letter-spacing`.
@@ -888,6 +895,7 @@ globalStyle(dividerClassName, {
     marginTop: spacing[desktopHeading1TopMargin],
     marginBottom: spacing[desktopHeading1TopMargin],
     borderColor: colorSchemeVars["grey-10"],
+    userSelect: "none",
 });
 
 globalStyle(
@@ -900,6 +908,49 @@ globalStyle(
         marginBottom: spacing[mobileHeading1TopMargin],
     },
 );
+
+const fileMinSize = spacing["20"];
+export const fileMinSizeRem = parseRemLengthNumber(fileMinSize);
+
+const fileMaxHeight = spacing["128"];
+export const fileMaxHeightRem = parseRemLengthNumber(fileMaxHeight);
+
+const fileRowGapWidth = spacing["2.5"];
+export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
+
+globalStyle(fileRowClassName, {
+    ...blockStyles,
+    marginTop: standaloneBlockMarginVar,
+    marginBottom: standaloneBlockMarginVar,
+    display: "grid",
+    gap: fileRowGapWidth,
+    minHeight: fileMinSize,
+    maxHeight: fileMaxHeight,
+});
+
+globalStyle(`${fileRowClassName}:has(+ ${fileRowClassName})`, {
+    marginBottom: fileRowGapWidth,
+});
+
+globalStyle(`${fileRowClassName} + ${fileRowClassName}`, {
+    marginTop: fileRowGapWidth,
+});
+
+globalStyle(fileClassName, {
+    zIndex: "10",
+    position: "relative",
+    overflow: "hidden",
+    minWidth: fileMinSize,
+    minHeight: fileMinSize,
+    maxHeight: fileMaxHeight,
+    cursor: "default",
+    userSelect: "none",
+});
+
+export const fileImagePreviewPlaceholderClassName = style({
+    position: "absolute",
+    inset: "0",
+});
 
 // Our code doesn't have a background color! This is an intentional design
 // decision but also has some technical justification.

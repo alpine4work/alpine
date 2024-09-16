@@ -2,16 +2,22 @@ import prettyBytes from "pretty-bytes";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
+    ServerActionContext,
     ServerActionContextModules,
     ServerSessionActionContext,
     ServerSessionActionContextModules,
-    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
@@ -1029,21 +1035,47 @@ async function actuallyCleanupFileItem(
 }
 
 /**
- * Get a file. Can only be called by system action contexts. In order for an
- * account to load a file they must be granted access to the file.
+ * Get a file if the file exists. Can only be called by system action contexts.
+ * In order for an account to load a file they must be granted access to the
+ * file. Throws a `PermissionDeniedError` if you don't have access to the file.
  */
-export async function getFile(
-    context: ServerSystemActionContext,
+export async function getFileIfExists(
+    context: ServerActionContext,
+    spaceId: SpaceId,
     fileId: FileId,
-): Promise<FileModel> {
-    context.actor.authorizeSystem();
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<FileModel | null> {
+    await authorizeSpaceAccess(context, spaceId);
 
-    const item = await FilesTable.getItem(context, {
-        partitionType: "Space",
-        sortRangeType: "File",
-        spaceId: context.actor.getSpaceId(),
-        fileId,
-    });
+    const item = await FilesTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Space",
+            sortRangeType: "File",
+            spaceId,
+            fileId,
+        },
+        {consistency},
+    );
+    if (!item) return null;
+
+    switch (context.actor.type) {
+        case "System": {
+            // System actors have access to all files in the space.
+            break;
+        }
+        // NOCOMMIT: Test!
+        case "Session": {
+            // TODO(calebmer, #files): We need some grant system that enables accounts
+            // other than the uploader to read a file.
+            if (item.uploaderId !== context.actor.getAccountId()) {
+                throw new PermissionDeniedError("Account doesn't have access to file");
+            }
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 
     return new FileModel({
         id: item.fileId,
@@ -1053,4 +1085,23 @@ export async function getFile(
         alternative: item.alternative,
         preview: item.preview,
     });
+}
+
+/**
+ * Get a file. If the file doesn't exist, throws an error. See
+ * `getFileIfExists()` for more information.
+ */
+export async function getFile(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<FileModel> {
+    const file = await getFileIfExists(context, spaceId, fileId, options);
+
+    if (!file) {
+        throw new NotFoundError("File not found");
+    }
+
+    return file;
 }

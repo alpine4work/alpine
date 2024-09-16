@@ -16,7 +16,7 @@ import {
     subscribeToArchiveInboxEntryOptimistically,
     subscribeToUnarchiveInboxEntryOptimistically,
 } from "~/client/inbox/use_archive_inbox_entry.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
@@ -211,7 +211,7 @@ export function useInboxState(props: {
                     spaceId: space.id,
                     filter,
                     limit: getInitialVirtualizedScrollViewRenderedItemCount(
-                        getClientInfoWithoutListening(),
+                        getClientInfo(),
                         inboxEntryViewMinHeight,
                     ),
                     afterCursor: null,

@@ -38,7 +38,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -659,9 +659,7 @@ export function useTaskGridViewVirtualizedList({
                         renderedRange.startIndex <= moreUnloadedTasksIndex &&
                         moreUnloadedTasksIndex <= renderedRange.endIndex
                     ) {
-                        rootQuery.loadMoreTasks(
-                            getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
-                        );
+                        rootQuery.loadMoreTasks(getTaskGridViewLoadQueryLimit(getClientInfo()));
                     }
                 }
 
@@ -704,12 +702,12 @@ export function useTaskGridViewVirtualizedList({
                     for (const taskId of parentTaskIdsToLoad) {
                         const childrenQuery = rootQuery.store.ensureAndRetainTaskChildrenQuery(
                             taskId,
-                            {limit: getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening())},
+                            {limit: getTaskGridViewLoadQueryLimit(getClientInfo())},
                         );
                         retainedChildrenQueries.push(childrenQuery);
 
                         childrenQuery?.loadMoreTasks(
-                            getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                            getTaskGridViewLoadQueryLimit(getClientInfo()),
                         );
 
                         // In addition to loading the root task query, children queries for any of its
@@ -720,15 +718,13 @@ export function useTaskGridViewVirtualizedList({
                             const childrenQuery = rootQuery.store.ensureAndRetainTaskChildrenQuery(
                                 expandedChildTaskId,
                                 {
-                                    limit: getTaskGridViewLoadQueryLimit(
-                                        getClientInfoWithoutListening(),
-                                    ),
+                                    limit: getTaskGridViewLoadQueryLimit(getClientInfo()),
                                 },
                             );
                             retainedChildrenQueries.push(childrenQuery);
 
                             childrenQuery?.loadMoreTasks(
-                                getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                                getTaskGridViewLoadQueryLimit(getClientInfo()),
                             );
                         }
                     }

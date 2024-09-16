@@ -7,7 +7,7 @@ import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {installScrollbarAuditorInDev} from "~/client/design/scrollbar.js";
 import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console.js";
 import {subscribeToColorSchemeChange} from "~/client/helpers/color_scheme.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {updateNativeMobileThemeColors} from "~/client/remix/update_native_mobile_theme_colors.js";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module.js";
 import {createClientTracer} from "~/client/tracer/client_tracer.js";
@@ -64,8 +64,7 @@ async function main() {
     // Don't block the browser's main thread with the initial render.
     startTransition(() => {
         // `isNativeMobile` is a constant throughout our application's lifetime.
-        const isNativeMobile =
-            typeof window !== "undefined" && getClientInfoWithoutListening().isNativeMobile;
+        const isNativeMobile = typeof window !== "undefined" && getClientInfo().isNativeMobile;
 
         hydrateRoot(
             document,

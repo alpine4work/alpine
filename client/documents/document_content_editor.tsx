@@ -74,7 +74,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -861,7 +861,7 @@ export function DocumentContentEditor({
         const dataPromise = procedures
             .getCommentThreadAndInitialCommentsIfExists({
                 commentThreadId,
-                limit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
+                limit: getInitialLoadMessageCount(getClientInfo()),
             })
             .then((data): DocumentContentEditorSidebarData | null => {
                 if (data.commentThread === null) return null;

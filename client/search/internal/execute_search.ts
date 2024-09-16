@@ -1,5 +1,5 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
@@ -119,7 +119,7 @@ export function executeSearch(
 
     const options = debugOptions ?? standardSearchOptions;
 
-    const timeZone = getClientInfoWithoutListening().timeZone;
+    const timeZone = getClientInfo().timeZone;
     const currentTime = new Date();
 
     const keywordSearchPromise = searchByKeywords(context, {

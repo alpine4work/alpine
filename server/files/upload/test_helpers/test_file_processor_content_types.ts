@@ -19,7 +19,6 @@ import {
     ffmpegExecutablePath,
     ffprobeExecutablePath,
 } from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
-import {UploadFileEventSchema} from "~/server/files/upload/upload_file.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -37,6 +36,7 @@ import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.j
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -223,7 +223,7 @@ export function testFileProcessorContentTypes(testCases: {
                         ),
                     );
 
-                    const file = await getFile(space.systemAction(), fileId);
+                    const file = await getFile(space.systemAction(), space.id, fileId);
                     expect(file).toEqual(
                         new FileModel({
                             id: fileId,
@@ -314,9 +314,11 @@ export function testFileProcessorContentTypes(testCases: {
                             ? [
                                   {
                                       type: "ImagePreviewSize",
-                                      width: expectedImagePreviewSize.width,
-                                      height: expectedImagePreviewSize.height,
-                                      scale: expectedImagePreviewSize.scale ?? 1,
+                                      size: {
+                                          width: expectedImagePreviewSize.width,
+                                          height: expectedImagePreviewSize.height,
+                                          scale: expectedImagePreviewSize.scale ?? 1,
+                                      },
                                   },
                               ]
                             : []),

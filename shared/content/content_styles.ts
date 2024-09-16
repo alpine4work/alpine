@@ -83,3 +83,7 @@ export const headingLevel2ClassName =
 
 export const headingLevel3ClassName =
     process.env.NODE_ENV !== "production" ? "content_headingLevel3" : "c_h3";
+
+export const fileRowClassName = process.env.NODE_ENV !== "production" ? "content_fileRow" : "c_fr";
+
+export const fileClassName = process.env.NODE_ENV !== "production" ? "content_file" : "c_f";
