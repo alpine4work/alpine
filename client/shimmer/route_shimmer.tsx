@@ -682,7 +682,7 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                 marginX="center"
                 width="full"
                 paddingRight={withMobileLayout ? "8" : "12"}
-                style={{maxWidth: contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"]}}
+                style={{maxWidth: contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"]}}
             >
                 <Box height="safe-area-inset-top" />
                 <Box

@@ -379,7 +379,7 @@ export function DocumentContentEditor({
             );
         } else {
             const blockMaxWidth = convertRemLengthToPx(
-                contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+                contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
             const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;
@@ -531,7 +531,7 @@ export function DocumentContentEditor({
             );
         } else {
             const blockMaxWidth = convertRemLengthToPx(
-                contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+                contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
             const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;

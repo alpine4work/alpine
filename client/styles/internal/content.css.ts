@@ -103,7 +103,7 @@ const contentMaxWidthSpacing = "160";
 export {contentMaxWidthSpacing as contentMaxWidth};
 const contentMaxWidth = spacing[contentMaxWidthSpacing];
 
-export const blockMaxWidth2 = mapObjectValues(screenPaddingX, screenPaddingX =>
+export const blockMaxWidth = mapObjectValues(screenPaddingX, screenPaddingX =>
     subtractRemLengths(contentMaxWidth, spacing[screenPaddingX], spacing[screenPaddingX]),
 );
 
@@ -118,7 +118,7 @@ const listItemOffsetVar = createVar("list-item-offset");
 
 globalStyle(":root", {
     vars: {
-        [blockMaxWidthVar]: blockMaxWidth2.desktop,
+        [blockMaxWidthVar]: blockMaxWidth.desktop,
         [paragraphMarginVar]: defaultParagraphMargin,
         [codeBlockMarginVar]: spacing["4"],
         [listItemOffsetVar]: spacing["0"],
@@ -127,7 +127,7 @@ globalStyle(":root", {
 
 globalStyle(mobilePlatformSelector, {
     vars: {
-        [blockMaxWidthVar]: blockMaxWidth2.mobile,
+        [blockMaxWidthVar]: blockMaxWidth.mobile,
     },
 });
 

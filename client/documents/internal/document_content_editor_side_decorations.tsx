@@ -39,7 +39,7 @@ export function DocumentContentEditorSideDecorations({
     const commentCountMinMargin = convertRemLengthToPx("2.25rem", remPx);
     const commentAvatarsMinMargin = convertRemLengthToPx("6.25rem", remPx);
     const blockMaxWidth = convertRemLengthToPx(
-        contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+        contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
         remPx,
     );
 
@@ -142,7 +142,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
             style={{
                 top: markTop,
                 right: `calc(50% + ${addRemLengths(
-                    contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+                    contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                     spacing["4"],
                 )} / 2)`,
                 height: markHeight,
