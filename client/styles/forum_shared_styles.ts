@@ -17,8 +17,6 @@ export const postFauxInputCreateButtonHeight = "12";
 export const postContentViewOuterMarginY = "6";
 export const postContentViewInnerMarginY = "4";
 
-export const postViewMaxWidth = "160";
-
 export const postContentViewHeaderAvatarSize = "8";
 export const postContentViewHeaderHeight = "8";
 

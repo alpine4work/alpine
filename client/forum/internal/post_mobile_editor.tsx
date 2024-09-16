@@ -1,4 +1,3 @@
-import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -25,21 +24,15 @@ import {
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     postContentViewInnerMarginY,
-    postViewMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {screenPaddingX} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions.js";
-
-const postContentEditorBlockMaxWidth = mapObjectValues(screenPaddingX, paddingX =>
-    subtractRemLengths(spacing[postViewMaxWidth], spacing[paddingX]),
-);
 
 export function PostMobileEditor({
     post: postFromProps,
@@ -172,19 +165,13 @@ export function PostMobileEditor({
                         display="flex"
                         flexDirection="column"
                         paddingTop="safe-area-inset"
-                        style={{
-                            ...assignInlineVars({
-                                [contentStyles.blockMaxWidthVar]:
-                                    postContentEditorBlockMaxWidth[isMobile ? "mobile" : "desktop"],
-                            }),
-                        }}
                     >
                         {navigationBar}
                         {isMobile && <Box height={navigationBarHeight} />}
                         <Box
                             flexShrink="0"
                             width="full"
-                            maxWidth={postViewMaxWidth}
+                            maxWidth={contentStyles.contentMaxWidth}
                             marginX="center"
                             paddingX={screenPaddingX}
                             paddingBottom={postContentViewInnerMarginY}
@@ -212,9 +199,7 @@ export function PostMobileEditor({
                             })}
                             className={classNames(
                                 forumStyles.fullScreenContentEditorClassName,
-                                sprinkles({
-                                    paddingX: contentStyles.screenPaddingXWithoutBlockPaddingX,
-                                }),
+                                sprinkles({paddingX: screenPaddingX}),
                             )}
                             onModEnter={() => {
                                 // Programmatically press the button instead of calling `createPost()`

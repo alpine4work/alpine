@@ -13,7 +13,14 @@ import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keydownHandler} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
-import {EditorState, Plugin, Selection, TextSelection, Transaction} from "prosemirror-state";
+import {
+    EditorState,
+    NodeSelection,
+    Plugin,
+    Selection,
+    TextSelection,
+    Transaction,
+} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
@@ -1048,8 +1055,12 @@ export function buildContentEditorKeymapPlugin(
         const parentNode = $from.node($from.depth - 1);
         const currentNode = $from.node();
 
-        // 2. Check if the selection is a codeBlockLine and within codeBlock
-        if (currentNode.type.name === "codeBlockLine" && parentNode.type.name === "codeBlock") {
+        // 2. Check if the selection is a `codeBlockLine` within `codeBlock` or a
+        //    `divider`
+        if (
+            (currentNode.type.name === "codeBlockLine" && parentNode.type.name === "codeBlock") ||
+            (selection instanceof NodeSelection && selection.node.type.name === "divider")
+        ) {
             const paragraphNode = schema.nodes.paragraph;
             if (!paragraphNode) {
                 return false;

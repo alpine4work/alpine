@@ -85,12 +85,7 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {
-    addRemLengths,
-    convertRemLengthToPx,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/spacing.js";
+import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
@@ -763,10 +758,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // cover up content.
                     convertRemLengthToPx(
                         subtractRemLengths(
-                            addRemLengths(
-                                spacing[contentStyles.listItemIndentation],
-                                spacing[contentStyles.blockPaddingX],
-                            ),
+                            spacing[contentStyles.listItemIndentation],
                             propsRef.current.isCompact || propsRef.current.isExtraCompact
                                 ? spacing[contentStyles.compactListItemOffset]
                                 : spacing["0"],

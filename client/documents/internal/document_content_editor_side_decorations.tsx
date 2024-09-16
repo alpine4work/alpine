@@ -4,8 +4,9 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -33,10 +34,14 @@ export function DocumentContentEditorSideDecorations({
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
     const {screenWidth} = useClientInfo();
+    const isMobile = useIsMobile();
     const remPx = useRemPx();
-    const commentCountMinMargin = convertRemLengthToPx("2.75rem", remPx);
-    const commentAvatarsMinMargin = convertRemLengthToPx("6.75rem", remPx);
-    const blockMaxWidth = convertRemLengthToPx(contentStyles.defaultBlockMaxWidth, remPx);
+    const commentCountMinMargin = convertRemLengthToPx("2.25rem", remPx);
+    const commentAvatarsMinMargin = convertRemLengthToPx("6.25rem", remPx);
+    const blockMaxWidth = convertRemLengthToPx(
+        contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+        remPx,
+    );
 
     const shouldRenderCommentCount =
         Math.max(0, (editorContainerWidth ?? screenWidth) - blockMaxWidth) / 2 >=
@@ -91,6 +96,8 @@ function DocumentContentEditorCommentThreadSideDecoration({
     shouldRenderCommentAvatars: boolean;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
+    const isMobile = useIsMobile();
+
     const {commentCount, commentAuthors} = useMemo(() => {
         let commentCount = 0;
         const commentAuthorById = new Map<AccountId, AccountModel>();
@@ -134,7 +141,10 @@ function DocumentContentEditorCommentThreadSideDecoration({
             borderRadius="1.5"
             style={{
                 top: markTop,
-                right: `calc(50% + ${contentStyles.defaultBlockMaxWidth} / 2)`,
+                right: `calc(50% + ${addRemLengths(
+                    contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+                    spacing["4"],
+                )} / 2)`,
                 height: markHeight,
                 opacity: isPressed ? 0.75 : undefined,
             }}

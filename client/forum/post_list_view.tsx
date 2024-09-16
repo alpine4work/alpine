@@ -71,14 +71,18 @@ import {
     postCommentSectionGuidelineOffset,
     postContentViewMinHeightWithClosedCommentSection,
     postContentViewMinHeightWithOpenCommentSection,
-    postViewMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {
     messageInputMinHeight,
     messageViewMinHeight,
     messageViewTimestampDividerMarginTop,
 } from "~/client/styles/messaging_shared_styles.js";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
     VirtualizedScrollView,
@@ -752,7 +756,7 @@ function PostListView(
                                     className={sprinkles({
                                         width: "full",
                                         overflow: "hidden",
-                                        maxWidth: postViewMaxWidth,
+                                        maxWidth: contentStyles.contentMaxWidth,
                                         paddingTop: "safe-area-inset",
                                     })}
                                     style={{
@@ -817,7 +821,7 @@ function PostListView(
                                     className={sprinkles({
                                         position: "relative",
                                         width: "full",
-                                        maxWidth: postViewMaxWidth,
+                                        maxWidth: contentStyles.contentMaxWidth,
                                     })}
                                     style={{
                                         flex: postViewFlex,
@@ -1047,7 +1051,7 @@ function PostListView(
                                                 position: "relative",
                                                 zIndex: "0",
                                                 width: "full",
-                                                maxWidth: postViewMaxWidth,
+                                                maxWidth: contentStyles.contentMaxWidth,
                                                 overflow: "hidden",
                                                 paddingLeft: !isSingleLayoutWithPinnedCommentInput
                                                     ? postCommentSectionGuidelineSpace
@@ -1131,7 +1135,7 @@ function PostListView(
                                         position: "relative",
                                         zIndex: "0",
                                         width: "full",
-                                        maxWidth: postViewMaxWidth,
+                                        maxWidth: contentStyles.contentMaxWidth,
                                         overflow: "hidden",
                                         paddingLeft: !isSingleLayoutWithPinnedCommentInput
                                             ? postCommentSectionGuidelineSpace
@@ -1339,7 +1343,7 @@ function PostListView(
                                                 position: "relative",
                                                 zIndex: "0",
                                                 width: "full",
-                                                maxWidth: postViewMaxWidth,
+                                                maxWidth: contentStyles.contentMaxWidth,
                                                 pointerEvents: "auto",
                                                 paddingLeft: postCommentSectionGuidelineSpace,
                                                 backgroundColor: "grey-0",
@@ -1443,7 +1447,7 @@ function PostListView(
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        maxWidth: postViewMaxWidth,
+                                        maxWidth: contentStyles.contentMaxWidth,
                                         overflow: "hidden",
                                     })}
                                     style={{
@@ -1726,7 +1730,7 @@ function PostListView(
                                         <div
                                             className={sprinkles({
                                                 width: "full",
-                                                maxWidth: postViewMaxWidth,
+                                                maxWidth: contentStyles.contentMaxWidth,
                                                 overflow: "hidden",
                                             })}
                                             style={{

@@ -6,7 +6,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
-import {postViewMaxWidth} from "~/client/styles/forum_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {getPostAndInitialComments} from "~/server/forum/data/forum_table.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -117,7 +117,7 @@ export default function PostRoute({withMobileLayout = false}: {withMobileLayout?
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
                 withMobileLayout={withMobileLayout}
-                maxWidth={postViewMaxWidth}
+                maxWidth={contentStyles.contentMaxWidth}
                 borderBottom="grey-10"
             >
                 {node}

@@ -12,10 +12,8 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    postContentViewMinHeightWithClosedCommentSection,
-    postViewMaxWidth,
-} from "~/client/styles/forum_shared_styles.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {getChannel} from "~/server/forum/data/forum_table.js";
@@ -176,7 +174,7 @@ export default function ChannelPostsRouteWrapper({
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
                 withMobileLayout={withMobileLayout}
-                maxWidth={postViewMaxWidth}
+                maxWidth={contentStyles.contentMaxWidth}
                 borderBottom="grey-10"
             >
                 {node}

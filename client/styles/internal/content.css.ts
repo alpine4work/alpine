@@ -3,7 +3,6 @@ import Color from "color";
 import {borderRadius} from "~/client/styles/internal/border_radius.css.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/internal/button.css.js";
 import {
-    CssVarFunction,
     accentThemeBackgroundColor,
     accentThemeForegroundColor,
     colorSchemeVars,
@@ -42,7 +41,6 @@ import {invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
 import {
     RemLength,
     addRemLengths,
-    assertSpacing,
     parseRemLengthNumber,
     screenPaddingX,
     spacing,
@@ -101,39 +99,35 @@ const highlightClassNameByColor = mapObjectValues(
 //   writing:
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
-const blockPaddingXSpacing = "2";
-export {blockPaddingXSpacing as blockPaddingX};
-const blockPaddingX = spacing[blockPaddingXSpacing];
+const contentMaxWidthSpacing = "160";
+export {contentMaxWidthSpacing as contentMaxWidth};
+const contentMaxWidth = spacing[contentMaxWidthSpacing];
 
-export const screenPaddingXWithoutBlockPaddingX = mapObjectValues(screenPaddingX, paddingX =>
-    assertSpacing(`${parseInt(paddingX, 10) - parseInt(blockPaddingXSpacing, 10)}`),
+export const blockMaxWidth2 = mapObjectValues(screenPaddingX, screenPaddingX =>
+    subtractRemLengths(contentMaxWidth, spacing[screenPaddingX], spacing[screenPaddingX]),
 );
 
 const defaultParagraphMarginSpacing = "2";
 const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
 export {defaultParagraphMarginSpacing as defaultParagraphMargin};
 
-const defaultBlockMaxWidthWithoutPaddingSpacing = "160";
-const defaultBlockMaxWidthWithoutPadding = spacing[defaultBlockMaxWidthWithoutPaddingSpacing];
-export {defaultBlockMaxWidthWithoutPaddingSpacing as defaultBlockMaxWidthWithoutPadding};
-
-export const defaultBlockMaxWidth = addRemLengths(
-    blockPaddingX,
-    defaultBlockMaxWidthWithoutPadding,
-    blockPaddingX,
-);
-
-export const blockMaxWidthVar: CssVarFunction = createVar("block-max-width");
+const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
 const codeBlockMarginVar = createVar("code-block-margin");
 const listItemOffsetVar = createVar("list-item-offset");
 
 globalStyle(":root", {
     vars: {
-        [blockMaxWidthVar]: defaultBlockMaxWidth,
+        [blockMaxWidthVar]: blockMaxWidth2.desktop,
         [paragraphMarginVar]: defaultParagraphMargin,
         [codeBlockMarginVar]: spacing["4"],
         [listItemOffsetVar]: spacing["0"],
+    },
+});
+
+globalStyle(mobilePlatformSelector, {
+    vars: {
+        [blockMaxWidthVar]: blockMaxWidth2.mobile,
     },
 });
 
@@ -194,8 +188,6 @@ export const parentScrollWhenPointerDownAndOverReceiverClassName = style({});
 const blockStyles = {
     width: "100%",
     maxWidth: blockMaxWidthVar,
-    paddingLeft: blockPaddingX,
-    paddingRight: blockPaddingX,
     marginLeft: "auto",
     marginRight: "auto",
 };
@@ -406,6 +398,8 @@ globalStyle(`${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
 const quoteBlockIndentation = spacing["4"];
 const quoteBlockBorderWidth = "0.1875rem";
 
+// TODO(calebmer, #files): Consider giving quote block the same vertical margin
+// as files and code block.
 globalStyle(quoteBlockClassName, {
     ...blockStyles,
     position: "relative",
@@ -419,7 +413,7 @@ globalStyle(`${quoteBlockClassName}::before`, {
     position: "absolute",
     top: "0",
     bottom: "0",
-    left: blockPaddingX,
+    left: "0",
     width: quoteBlockBorderWidth,
     backgroundColor: colorSchemeVars["grey-10"],
     pointerEvents: "none",
@@ -463,7 +457,7 @@ const extraCompactBulletListItemBulletTop: RemLength = `${
     ) / 2
 }rem`;
 
-export const bulletListItemBulletLeft = `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
+export const bulletListItemBulletLeft = `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
     parseRemLengthNumber(listItemIndentation) / 2 -
     parseRemLengthNumber(bulletListItemBulletSize) / 2
 }rem + ${listItemOffsetVar})`;
@@ -489,7 +483,7 @@ globalStyle(`${orderedListItemClassName}::before`, {
     position: "absolute",
     pointerEvents: "none",
     top: 0,
-    left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]} + ${listItemOffsetVar})`,
+    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]} + ${listItemOffsetVar})`,
     textAlign: "right",
     transform: "translateX(-100%)",
     ...paragraphFontSize,
@@ -519,7 +513,7 @@ export const checkListItemCheckboxContainerClassName = style({
             parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
         2
     }rem`,
-    left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
+    left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLengthNumber(listItemIndentation) / 2 -
         (parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize]) +
             parseRemLengthNumber(spacing["1"]) * 2) /
@@ -537,7 +531,7 @@ export const checkListItemCheckboxContainerClassName = style({
                     parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
                 2
             }rem`,
-            left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
+            left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
                 (parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize]) +
                     parseRemLengthNumber(spacing["1"]) * 2) /
@@ -642,7 +636,7 @@ const codeBlockPaddingRight = spacing[codeBlockPaddingRightSpacing];
 export {codeBlockPaddingRightSpacing as codeBlockPaddingRight};
 
 globalStyle(codeBlockWrapperClassName, {
-    ...omitObject(blockStyles, ["paddingLeft", "paddingRight"]),
+    ...blockStyles,
     position: "relative",
     zIndex: "0",
     overflowX: "auto",
@@ -743,12 +737,9 @@ globalStyle(`${codeBlockLineClassName}::before`, {
     position: "sticky",
     left: "0",
     marginLeft: `-${codeBlockLineOverscrollSlopX}`,
-    width: `calc(${addRemLengths(listItemIndentation, blockPaddingX)} + ${listItemOffsetVar})`,
-    paddingRight: addRemLengths(
-        blockPaddingX,
-        // Optically align code block numbers with ordered list item numbers.
-        "0.25rem",
-    ),
+    width: `calc(${listItemIndentation} + ${listItemOffsetVar})`,
+    // Optically align code block numbers with ordered list item numbers.
+    paddingRight: "0.75rem",
     textAlign: "right",
     color: colorSchemeVars["grey-30"],
     // No gradient for the line number. We have a hard border to create the
@@ -822,7 +813,6 @@ export const codeBlockToolbarFlexClassName = style({
     right: "0",
     height: codeBlockToolbarHeight,
     paddingLeft: spacing["1.5"],
-    paddingRight: blockPaddingX,
     display: "flex",
     alignItems: "center",
     backgroundColor: backgroundColorVar,
@@ -894,9 +884,7 @@ export const codeBlockCopyButtonIconClassName = style({
 });
 
 globalStyle(dividerClassName, {
-    ...omitObject(blockStyles, ["paddingLeft", "paddingRight"]),
-    width: `calc(100% - ${blockPaddingX} * 2)`,
-    maxWidth: `calc(${blockMaxWidthVar} - ${blockPaddingX} * 2)`,
+    ...blockStyles,
     marginTop: spacing[desktopHeading1TopMargin],
     marginBottom: spacing[desktopHeading1TopMargin],
     borderColor: colorSchemeVars["grey-10"],

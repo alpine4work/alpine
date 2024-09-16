@@ -12,7 +12,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {channelViewAsidePaddingY} from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, contentStyles, fontSizes, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {
     addRemLengths,
     parseRemLengthNumber,
@@ -60,11 +60,11 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 paddingY={channelViewAsidePaddingY}
+                paddingLeft="1"
                 paddingRight={screenPaddingX}
             >
                 <h3
                     className={sprinkles({
-                        paddingLeft: contentStyles.blockPaddingX,
                         color: "grey-50",
                         fontSize: channelViewAsideSectionTitleFontSize,
                     })}

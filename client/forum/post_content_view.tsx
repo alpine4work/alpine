@@ -45,7 +45,7 @@ import {
     postContentViewOuterMarginY,
     postContentViewOuterOpenCommentSectionMarginBottom,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -212,7 +212,7 @@ export function PostContentView({
                 </Box>
             )}
             <Box
-                paddingX={contentStyles.screenPaddingXWithoutBlockPaddingX}
+                paddingX={screenPaddingX}
                 style={{
                     paddingTop: postContentViewInnerMarginYWithoutContentEditorPaddingY,
                     paddingBottom: postContentViewInnerMarginYWithoutContentEditorPaddingY,

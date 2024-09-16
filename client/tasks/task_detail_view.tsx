@@ -48,7 +48,6 @@ import {
     mobileTaskDetailViewStatusButtonSize,
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
-    taskDetailViewMaxWidth,
     taskDetailViewSectionGap,
     taskDetailViewSubtasksFieldLabelPaddingBottom,
 } from "~/client/styles/tasks_shared_styles.js";
@@ -299,7 +298,7 @@ export function TaskDetailView({
             initialGridViewExpansionState: initialChildrenGridViewExpansionState,
         },
         affinityManager,
-        rowMaxWidth: taskDetailViewMaxWidth,
+        rowMaxWidth: contentStyles.contentMaxWidth,
         viewRef: childrenGridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time1 = store.clock.now();
@@ -717,7 +716,7 @@ export function TaskDetailView({
         titleBoundaryRef: titleInputElementRef,
         menuActions: contextMenuActions,
         extraIconButton: openTaskCommentsExtraAction,
-        desktopMaxWidth: taskDetailViewMaxWidth,
+        desktopMaxWidth: contentStyles.contentMaxWidth,
         desktopControls: (
             <TaskDetailViewStatusButton
                 elementRef={statusButtonRef}
@@ -1106,7 +1105,7 @@ function TaskDetailViewMain(
                 data-testid="TaskDetailViewMain"
                 overflow="hidden"
                 width="full"
-                maxWidth={taskDetailViewMaxWidth}
+                maxWidth={contentStyles.contentMaxWidth}
                 marginX="center"
                 display="flex"
                 flexDirection="column"

@@ -6,7 +6,7 @@ import {PostListView} from "~/client/forum/post_list_view.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {postViewMaxWidth} from "~/client/styles/forum_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -58,7 +58,7 @@ export function ChannelDesktopCreator({
         // Create a bit of space to the left so we don't cut off the channel name
         // editor border.
         desktopTitleLeftSlop: "1",
-        desktopTitleMaxWidth: postViewMaxWidth,
+        desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
         // We want to render the "more" actions button but the user shouldn't be able

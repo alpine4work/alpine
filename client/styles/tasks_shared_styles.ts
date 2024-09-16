@@ -8,7 +8,6 @@ import {
     subtractRemLengths,
 } from "~/shared/design/spacing.js";
 
-export const taskDetailViewMaxWidth = "160";
 export const taskDetailViewSectionGap = "10";
 export const taskDetailViewDenseFieldGap = "5";
 export const taskDetailViewTitleFontSize = "300";

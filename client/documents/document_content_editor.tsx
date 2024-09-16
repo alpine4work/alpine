@@ -22,6 +22,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
@@ -100,6 +101,7 @@ import {
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
+    screenPaddingXRem,
     spacing,
 } from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -132,9 +134,6 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 
 export const documentContentEditorSidebarWidth = spacing["96"];
 const documentContentEditorMobileSidebarInsetTop = "48";
-
-const {screenPaddingXWithoutBlockPaddingX} = contentStyles;
-const {documentContentClassName} = documentContentStyles;
 
 export type DocumentContentEditorInitialScroll = {
     readonly type: "CommentThread";
@@ -379,12 +378,11 @@ export function DocumentContentEditor({
                 },
             );
         } else {
-            const blockMaxWidth = convertRemLengthToPx(contentStyles.defaultBlockMaxWidth, remPx);
-            const paddingXPx =
-                convertRemLengthToPx(
-                    spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
-                    remPx,
-                ) * 2;
+            const blockMaxWidth = convertRemLengthToPx(
+                contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+                remPx,
+            );
+            const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
@@ -440,11 +438,15 @@ export function DocumentContentEditor({
             // view translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
-            setSidebarState(sidebarState => {
-                if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
-                    return sidebarState;
+            // Since we have the style updates above, make sure we synchronously flush this
+            // update so we paint any React changes at the same time.
+            flushSync(() => {
+                setSidebarState(sidebarState => {
+                    if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
+                        return sidebarState;
 
-                return {...sidebarState, animationState: null};
+                    return {...sidebarState, animationState: null};
+                });
             });
         });
 
@@ -528,12 +530,11 @@ export function DocumentContentEditor({
                 },
             );
         } else {
-            const blockMaxWidth = convertRemLengthToPx(contentStyles.defaultBlockMaxWidth, remPx);
-            const paddingXPx =
-                convertRemLengthToPx(
-                    spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
-                    remPx,
-                ) * 2;
+            const blockMaxWidth = convertRemLengthToPx(
+                contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"],
+                remPx,
+            );
+            const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
@@ -552,7 +553,7 @@ export function DocumentContentEditor({
                     [sidebarElement, {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]}],
                     [
                         editorContainerElement,
-                        {x: [oldContentOffset - newContentOffset, 0]},
+                        {x: [0, -(oldContentOffset - newContentOffset)]},
                         {at: 0},
                     ],
                 ],
@@ -589,11 +590,20 @@ export function DocumentContentEditor({
             // view translates (since this is rare) so manually update all insets.
             NativeMobileBridge?.scrollbar.updateAllInsets();
 
-            setSidebarState(sidebarState => {
-                if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
-                    return sidebarState;
+            // When we switch to `isOpen: false` the width of the document editor container
+            // will change. We don't want to keep the `translateX()` we added during the
+            // animation since it'll push the editor container offscreen.
+            editorContainerElement.style.transform = "translateX(0px)";
 
-                return {isOpen: false, transition: null};
+            // Since we have the style updates above, make sure we synchronously flush this
+            // update so we paint any React changes at the same time.
+            flushSync(() => {
+                setSidebarState(sidebarState => {
+                    if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
+                        return sidebarState;
+
+                    return {isOpen: false, transition: null};
+                });
             });
         });
 
@@ -1527,11 +1537,7 @@ export function DocumentContentEditor({
             ...contextMenuActions,
         ],
         shareButton: {},
-        desktopTitleMaxWidth: addRemLengths(
-            spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
-            contentStyles.defaultBlockMaxWidth,
-            spacing[screenPaddingXWithoutBlockPaddingX[isMobile ? "mobile" : "desktop"]],
-        ),
+        desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
     });
@@ -1563,9 +1569,7 @@ export function DocumentContentEditor({
                     overflowY="auto"
                     style={{
                         width:
-                            !withMobileLayout &&
-                            sidebarState.isOpen &&
-                            sidebarState.animationState !== "Closing"
+                            !withMobileLayout && sidebarState.isOpen
                                 ? `calc(100% - ${documentContentEditorSidebarWidth})`
                                 : "100%",
                     }}
@@ -1611,7 +1615,7 @@ export function DocumentContentEditor({
                                 // While the sidebar is open, don't render our document toolbar. It would be
                                 // weird for it to pop up when writing a comment.
                                 withoutMobileKeyboardToolbar={sidebarState.isOpen}
-                                className={documentContentClassName}
+                                className={documentContentStyles.documentContentClassName}
                                 phantomSelections={phantomSelections}
                                 openCommentThread={openCommentThread}
                                 onCommentThreadPressedChange={(commentThreadId, isHovered) => {

@@ -10,8 +10,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
-import {sprinkles} from "~/client/styles/styles.js";
-import {taskDetailViewMaxWidth} from "~/client/styles/tasks_shared_styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
@@ -213,7 +212,7 @@ export default function TaskCommentsRoute({
             <InboxBannerOutletContainer
                 initialEntry={inboxEntry}
                 withMobileLayout={withMobileLayout}
-                maxWidth={taskDetailViewMaxWidth}
+                maxWidth={contentStyles.contentMaxWidth}
                 borderBottom="grey-5"
             >
                 {node}

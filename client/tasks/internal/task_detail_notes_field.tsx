@@ -6,7 +6,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {contentStyles, sprinkles, tasksStyles} from "~/client/styles/styles.js";
+import {sprinkles, tasksStyles} from "~/client/styles/styles.js";
 import {
     taskDetailNotesFieldLabelPaddingBottom,
     taskDetailViewFieldLabelFontSize,
@@ -103,9 +103,7 @@ function TaskDetailNotesField(
                             withMobileLayout={withMobileLayout}
                             content={state.editorState.getContent()}
                             placeholder="Add more details…"
-                            className={sprinkles({
-                                paddingX: contentStyles.screenPaddingXWithoutBlockPaddingX,
-                            })}
+                            className={sprinkles({paddingX: screenPaddingX})}
                         />
                     </Box>
                 ) : (
@@ -119,9 +117,7 @@ function TaskDetailNotesField(
                             placeholder="Add more details…"
                             className={classNames(
                                 tasksStyles.detailNotesContentEditorClassName,
-                                sprinkles({
-                                    paddingX: contentStyles.screenPaddingXWithoutBlockPaddingX,
-                                }),
+                                sprinkles({paddingX: screenPaddingX}),
                             )}
                             onUndoStackEntryPushed={() => {
                                 pushUndoStackEntry({

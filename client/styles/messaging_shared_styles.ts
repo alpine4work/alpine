@@ -18,8 +18,8 @@ export const messageViewBubbleBorderRadius = {desktop: "4", mobile: "3.5"} as co
 export const messageViewBubbleMergedBorderRadius = "1";
 
 export const messageViewBubblePaddingX: {desktop: Spacing; mobile: Spacing} = {
-    desktop: "1",
-    mobile: "0.5",
+    desktop: "3",
+    mobile: "2.5",
 };
 
 export const messageViewBubblePaddingY: {desktop: Spacing; mobile: Spacing} = {

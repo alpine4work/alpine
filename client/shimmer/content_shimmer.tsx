@@ -1,9 +1,5 @@
-import {assignInlineVars} from "@vanilla-extract/dynamic";
-import {ReactNode} from "react";
-import {Box} from "~/client/design/box.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
-import {contentStyles, fontSizes, pulseAnimationClassName} from "~/client/styles/styles.js";
-import {listItemIndentationVar} from "~/shared/content/content_styles.js";
+import {contentStyles, fontSizes} from "~/client/styles/styles.js";
 
 export const contentParagraphShimmerFontSize = {
     ...fontSizes["50"],
@@ -55,33 +51,5 @@ export function ContentParagraphShimmer3() {
                 ragRight="20"
             />
         </>
-    );
-}
-
-export function ContentListItemShimmer({children}: {children?: ReactNode}) {
-    return (
-        <Box
-            position="relative"
-            paddingLeft={contentStyles.listItemIndentation}
-            style={assignInlineVars({[listItemIndentationVar]: "0"})}
-        >
-            <Box position="absolute" inset="0" left={`-${contentStyles.blockPaddingX}`}>
-                <Box
-                    className={pulseAnimationClassName}
-                    position="absolute"
-                    backgroundColor="grey-5"
-                    width={contentStyles.bulletListItemBulletSize}
-                    height={contentStyles.bulletListItemBulletSize}
-                    borderRadius="full"
-                    style={{
-                        top: contentStyles.bulletListItemBulletTop,
-                        left: contentStyles.bulletListItemBulletLeft,
-                        // Make bullets a little bigger so they look natural next to shimmer text.
-                        transform: "scale(1.375)",
-                    }}
-                />
-            </Box>
-            {children}
-        </Box>
     );
 }

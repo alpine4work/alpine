@@ -19,10 +19,8 @@ import {PostListView, postListViewAsideMaxWidth} from "~/client/forum/post_list_
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {
-    postContentViewMinHeightWithClosedCommentSection,
-    postViewMaxWidth,
-} from "~/client/styles/forum_shared_styles.js";
+import {postContentViewMinHeightWithClosedCommentSection} from "~/client/styles/forum_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -206,8 +204,11 @@ export function ChannelView({
             </Box>
         ),
         desktopMaxWidth: hasAside
-            ? addRemLengths(spacing[postViewMaxWidth], spacing[postListViewAsideMaxWidth])
-            : postViewMaxWidth,
+            ? addRemLengths(
+                  spacing[contentStyles.contentMaxWidth],
+                  spacing[postListViewAsideMaxWidth],
+              )
+            : contentStyles.contentMaxWidth,
         // Create a bit of space to the left so we don't cut off the channel name
         // editor border.
         desktopTitleLeftSlop: "1",

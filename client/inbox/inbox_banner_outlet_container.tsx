@@ -26,8 +26,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
-import {colorSchemeVars} from "~/client/styles/styles.js";
-import {taskDetailViewMaxWidth} from "~/client/styles/tasks_shared_styles.js";
+import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
@@ -196,7 +195,7 @@ export function InboxBannerOutletContainer({
                             paddingLeft="3"
                             paddingRight="1.5"
                             alignItems="center"
-                            width={isInboxEntryTask ? taskDetailViewMaxWidth : "full"}
+                            width={isInboxEntryTask ? contentStyles.contentMaxWidth : "full"}
                         >
                             <Box
                                 color="grey-50"

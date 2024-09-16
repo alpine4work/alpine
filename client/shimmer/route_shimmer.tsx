@@ -35,7 +35,6 @@ import {
     mobilePostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
-    postViewMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
@@ -75,7 +74,6 @@ import {
     taskDetailViewCommentSidebarWidth,
     taskDetailViewDenseFieldGap,
     taskDetailViewFieldLabelFontSize,
-    taskDetailViewMaxWidth,
     taskDetailViewSectionGap,
     taskDetailViewSubtasksFieldLabelPaddingBottom,
     taskDetailViewTitleFontSize,
@@ -298,7 +296,7 @@ function ChannelRouteShimmer() {
     const isMobile = useIsMobile();
 
     return (
-        <Box width="full" maxWidth={postViewMaxWidth} marginX="center">
+        <Box width="full" maxWidth={contentStyles.contentMaxWidth} marginX="center">
             <Box paddingX={screenPaddingX}>
                 <Box height="safe-area-inset-top" />
                 <Box
@@ -683,8 +681,8 @@ function DocumentRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
             <Box
                 marginX="center"
                 width="full"
-                maxWidth={contentStyles.defaultBlockMaxWidthWithoutPadding}
                 paddingRight={withMobileLayout ? "8" : "12"}
+                style={{maxWidth: contentStyles.blockMaxWidth2[isMobile ? "mobile" : "desktop"]}}
             >
                 <Box height="safe-area-inset-top" />
                 <Box
@@ -1062,7 +1060,12 @@ function ChannelPostsNotificationRouteShimmer() {
                     <MobileBackButtonSpacer />
                 </Box>
             )}
-            <Box position="relative" width="full" maxWidth={postViewMaxWidth} marginX="center">
+            <Box
+                position="relative"
+                width="full"
+                maxWidth={contentStyles.contentMaxWidth}
+                marginX="center"
+            >
                 {isMobile && (
                     <Box
                         position="absolute"
@@ -1109,7 +1112,7 @@ function PostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
                 <Box
                     flexShrink="0"
                     width="full"
-                    maxWidth={postViewMaxWidth}
+                    maxWidth={contentStyles.contentMaxWidth}
                     marginX="center"
                     style={{
                         marginTop:
@@ -1141,7 +1144,12 @@ function NewPostRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
 
     return (
         <Box width="full" height="full" overflow="hidden">
-            <Box flexShrink="0" width="full" maxWidth={postViewMaxWidth} marginX="center">
+            <Box
+                flexShrink="0"
+                width="full"
+                maxWidth={contentStyles.contentMaxWidth}
+                marginX="center"
+            >
                 <Box height="safe-area-inset-top" />
                 {isMobile && (
                     <Box
@@ -1246,7 +1254,7 @@ function TaskDetailRouteShimmer({withMobileLayout}: {withMobileLayout: boolean})
                     paddingX={screenPaddingX}
                     overflow="hidden"
                     width="full"
-                    maxWidth={taskDetailViewMaxWidth}
+                    maxWidth={contentStyles.contentMaxWidth}
                     marginX="center"
                     display="flex"
                     flexDirection="column"
@@ -1362,7 +1370,7 @@ export function TaskCommentsViewShimmer({
                         position="relative"
                         height={navigationBarHeight}
                         borderBottom="grey-10"
-                        maxWidth={taskDetailViewMaxWidth}
+                        maxWidth={contentStyles.contentMaxWidth}
                     >
                         <Box
                             display="flex"
