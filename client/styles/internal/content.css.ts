@@ -923,6 +923,7 @@ globalStyle(fileRowClassName, {
     marginTop: standaloneBlockMarginVar,
     marginBottom: standaloneBlockMarginVar,
     display: "grid",
+    justifyContent: "center",
     gap: fileRowGapWidth,
     minHeight: fileMinSize,
     maxHeight: fileMaxHeight,

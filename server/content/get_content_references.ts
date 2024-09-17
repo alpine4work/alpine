@@ -52,14 +52,30 @@ export async function getContentReferences(
             }),
         ),
         runAllPromises(
-            mapIterable(referencedIds.fileIds, accountId => {
+            mapIterable(referencedIds.fileIds, async accountId => {
                 // TODO(calebmer, #files): This will break if you copy some content from a
                 // different space then paste. Ideally we'd allow copying a file from a
                 // different space. How do we make this work? Should we reference the file in
                 // its "home" space? Should we copy the file into the new space? I kinda like
                 // referencing the file in the home space? The home space could delete the file
                 // but that's the risk you run.
-                return getFile(context, spaceId, accountId);
+                const file = await getFile(context, spaceId, accountId, {consistency: "Eventual"});
+
+                // The client (in `uploadFileFromContentEditor()`) will not attach a file to
+                // content until the preview is at least partially available. So if we see an
+                // unavailable preview here that's probably an eventual consistency lag. Try
+                // reading again with strong consistency and returning that.
+                //
+                // We don't want to show a file with an unavailable preview to the user since
+                // it'll have the incorrect size then after a bit will flash in with the
+                // correct size changing the document's layout. We're ok with showing a
+                // partially available preview since at least the layout will be stable even if
+                // we don't have e.g. the image preview's placeholder.
+                if (file.getAttachReadiness() !== "PreviewUnavailable") {
+                    return getFile(context, spaceId, accountId, {consistency: "Strong"});
+                }
+
+                return file;
             }),
         ),
     ]);

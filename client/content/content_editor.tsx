@@ -31,7 +31,9 @@ import {flushSync} from "react-dom";
 import {
     ContentEditorState,
     getContentEditorFloaterState,
+    getContentEditorReferences,
     setContentEditorFloaterState,
+    updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
@@ -41,7 +43,7 @@ import {createContentEditorCommentMarkViewConstructor} from "~/client/content/in
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {createContentEditorFileNodeView} from "~/client/content/internal/content_editor_file_node_view.js";
-import {createContentEditorFileRowNodeView} from "~/client/content/internal/content_editor_file_row_node_view.js";
+import {createContentEditorFileRowNodeViewConstructor} from "~/client/content/internal/content_editor_file_row_node_view.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
@@ -70,6 +72,7 @@ import {
     dispatchTriggeredOverlayOpenEvent,
 } from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
@@ -92,12 +95,15 @@ import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {Id, generateId} from "~/shared/id/id.js";
@@ -610,6 +616,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     const viewRef = useRef<EditorView | null>(null);
     const lastTransactionRef = useRef<Transaction | null>(null);
+    const referencesUpdateEmitterRef = useRef<EventEmitter | null>(null);
 
     useImperativeHandle(
         editorRef,
@@ -824,7 +831,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     getCurrentAccountIfExists: () =>
                         spaceContextRef.current?.currentAccount ?? null,
                 }),
-                fileRow: createContentEditorFileRowNodeView,
+                fileRow: createContentEditorFileRowNodeViewConstructor({
+                    subscribeToReferencesUpdate: listener => {
+                        referencesUpdateEmitterRef.current ??= new EventEmitter();
+                        return referencesUpdateEmitterRef.current.subscribe(listener);
+                    },
+                }),
                 file: createContentEditorFileNodeView,
             },
 
@@ -968,42 +980,86 @@ function ContentEditor<Content extends ContentWithReferences>(
                     spaceContext !== null &&
                     slice.size === 0 &&
                     event.dataTransfer &&
-                    event.dataTransfer.files.length > 0
+                    iterableSome(event.dataTransfer.items, item => item.kind === "file")
                 ) {
-                    // TODO(calebmer, #files): Proper implementation. This is a quick and dirty
-                    // implementation for testing.
-                    if (process.env.NODE_ENV === "development") {
-                        runPromiseWithoutAwaiting(
-                            runAllPromises(
-                                Array.from(event.dataTransfer.items, async item => {
-                                    if (item.kind !== "file") return;
+                    const dropTarget = getMouseEventFileDropTarget(event);
 
-                                    await uploadFileFromContentEditor(
-                                        context,
-                                        spaceContext.space.id,
-                                        assertExists(item.getAsFile()),
-                                        {
-                                            onAttach: fileStore => {
-                                                // NOCOMMIT: We need proper drag/drop target support.
+                    // TODO(calebmer, #files): Support dropping multiple files at once.
+                    const fileItem = iterableFind(
+                        event.dataTransfer.items,
+                        item => item.kind === "file",
+                    );
 
-                                                console.log("ATTACH!!!");
+                    if (
+                        dropTarget &&
+                        fileItem &&
+                        // TODO(calebmer, #files): Remove this when ready to deploy to production.
+                        process.env.NODE_ENV === "development"
+                    ) {
+                        runPromiseWithoutAwaiting(async () => {
+                            let unsubscribeFromFileStore: (() => void) | undefined;
 
+                            try {
+                                await uploadFileFromContentEditor(
+                                    context,
+                                    spaceContext.space.id,
+                                    assertExists(fileItem.getAsFile()),
+                                    {
+                                        onAttach: fileStore => {
+                                            // Whenever the file changes during the upload, make sure to update it in
+                                            // our content references. We unsubscribe once the upload has finished since
+                                            // after that the file should be immutable.
+                                            unsubscribeFromFileStore = fileStore.subscribe(() => {
                                                 view.dispatch(
-                                                    view.state.tr.insert(
-                                                        view.state.doc.nodeSize - 2,
+                                                    updateContentEditorReferences(view.state.tr, {
+                                                        type: "SetFile",
+                                                        file: fileStore.getSnapshot(),
+                                                    }),
+                                                );
+                                            });
+
+                                            const initialFile = fileStore.getSnapshot();
+
+                                            const transaction = view.state.tr;
+
+                                            switch (dropTarget.action.type) {
+                                                case "InsertFileRow": {
+                                                    transaction.insert(
+                                                        dropTarget.action.pos,
                                                         schema.nodes.fileRow!.create(null, [
                                                             schema.nodes.file!.create({
-                                                                id: fileStore.getSnapshot().id,
+                                                                id: initialFile.id,
                                                             }),
                                                         ]),
-                                                    ),
-                                                );
-                                            },
+                                                    );
+                                                    break;
+                                                }
+                                                case "InsertFileIntoRow": {
+                                                    transaction.insert(
+                                                        dropTarget.action.pos,
+                                                        schema.nodes.file!.create({
+                                                            id: initialFile.id,
+                                                        }),
+                                                    );
+                                                    break;
+                                                }
+                                                default:
+                                                    throw exhaustive(dropTarget.action);
+                                            }
+
+                                            updateContentEditorReferences(transaction, {
+                                                type: "SetFile",
+                                                file: initialFile,
+                                            });
+
+                                            view.dispatch(transaction);
                                         },
-                                    );
-                                }),
-                            ),
-                        );
+                                    },
+                                );
+                            } finally {
+                                unsubscribeFromFileStore?.();
+                            }
+                        });
                     }
 
                     return true;
@@ -1096,138 +1152,350 @@ function ContentEditor<Content extends ContentWithReferences>(
             view.dom.style.caretColor = NativeMobileBridge ? "initial" : "-apple-system-blue";
         }
 
-        let touchState: {
-            finish: (event: TouchEvent) => void;
-            cancel: () => void;
-        } | null = null;
-
+        // Manage content editor's dual input modality on mobile devices. Content
+        // editor starts in a read only state where elements are interactive and after
+        // a tap becomes editable.
+        //
         // NOTE(calebmer): The logic here also exists in a nearly identical form in
         // `<TaskRowTitleInput>` since that component supports dual modality on mobile
         // too. If you make a change here you probably also want to make a change
         // there and vice versa.
-        view.dom.addEventListener("touchstart", event => {
-            touchState?.cancel();
-            touchState = null;
+        let handleDocumentSelectionChange: () => void;
+        {
+            let touchState: {
+                finish: (event: TouchEvent) => void;
+                cancel: () => void;
+            } | null = null;
 
-            // If we're not on mobile the document is always editable.
-            if (!isDualModalityRef.current) return;
+            view.dom.addEventListener(
+                "touchstart",
+                event => {
+                    touchState?.cancel();
+                    touchState = null;
 
-            // If our view already has focus, we don't need a tap to give it focus.
-            if (view.hasFocus()) return;
+                    // If we're not on mobile the document is always editable.
+                    if (!isDualModalityRef.current) return;
 
-            // Only support a single touch.
-            if (event.touches.length !== 1) return;
-            const touch = event.touches[0]!;
+                    // If our view already has focus, we don't need a tap to give it focus.
+                    if (view.hasFocus()) return;
 
-            // If there's a focused element this tap dismisses the focus. It doesn't make
-            // the editor editable.
-            if (document.activeElement && document.activeElement !== document.body) return;
+                    // Only support a single touch.
+                    if (event.touches.length !== 1) return;
+                    const touch = event.touches[0]!;
 
-            let isTargetInteractive = false;
-            if (event.target instanceof HTMLElement && view.dom.contains(event.target)) {
-                let element: HTMLElement | null = event.target;
+                    // If there's a focused element this tap dismisses the focus. It doesn't make
+                    // the editor editable.
+                    if (document.activeElement && document.activeElement !== document.body) return;
 
-                while (element !== null && element !== view.dom) {
-                    if (
-                        element.classList.contains(linkClassName) ||
-                        element.classList.contains(commentClassName) ||
-                        // Includes the language picker button and the copy code button.
-                        element.classList.contains(contentStyles.codeBlockToolbarClassName)
-                    ) {
-                        isTargetInteractive = true;
-                        break;
+                    let isTargetInteractive = false;
+                    if (event.target instanceof HTMLElement && view.dom.contains(event.target)) {
+                        let element: HTMLElement | null = event.target;
+
+                        while (element !== null && element !== view.dom) {
+                            if (
+                                element.classList.contains(linkClassName) ||
+                                element.classList.contains(commentClassName) ||
+                                // Includes the language picker button and the copy code button.
+                                element.classList.contains(contentStyles.codeBlockToolbarClassName)
+                            ) {
+                                isTargetInteractive = true;
+                                break;
+                            }
+
+                            element = element.parentElement;
+                        }
                     }
 
-                    element = element.parentElement;
-                }
-            }
+                    // If the touch target is a link or image or comment or some other interactive
+                    // element, then they handle the touch event. The touch will not give our
+                    // editor focus.
+                    if (isTargetInteractive) return;
 
-            // If the touch target is a link or image or comment or some other interactive
-            // element, then they handle the touch event. The touch will not give our
-            // editor focus.
-            if (isTargetInteractive) return;
+                    // If there's a selection this tap dismisses the selection. It doesn't make the
+                    // editor editable.
+                    const selection = window.getSelection();
+                    const hasSelection =
+                        selection &&
+                        (selection.anchorNode !== selection.focusNode ||
+                            selection.anchorOffset !== selection.focusOffset);
+                    if (hasSelection) return;
 
-            // If there's a selection this tap dismisses the selection. It doesn't make the
-            // editor editable.
-            const selection = window.getSelection();
-            const hasSelection =
-                selection &&
-                (selection.anchorNode !== selection.focusNode ||
-                    selection.anchorOffset !== selection.focusOffset);
-            if (hasSelection) return;
+                    // Long press touch selects text instead of starts editing. 0.5 seconds is the
+                    // default press duration used by iOS's long press gesture recognizer.
+                    // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+                    const longPressTimeout = createTimeout(() => {
+                        touchState?.cancel();
+                        touchState = null;
+                    }, 500);
 
-            // Long press touch selects text instead of starts editing. 0.5 seconds is the
-            // default press duration used by iOS's long press gesture recognizer.
-            // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
-            const longPressTimeout = createTimeout(() => {
+                    touchState = {
+                        finish: event => {
+                            longPressTimeout.clear();
+
+                            const posResult = view.posAtCoords({
+                                left: touch.clientX,
+                                top: touch.clientY,
+                            });
+                            if (!posResult) return;
+
+                            // By default, iOS will move the selection to the end of the word you touched.
+                            // We instead want focus moved to the selection specified in our
+                            // `setSelection()` call.
+                            event.preventDefault();
+
+                            // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
+                            // handler after `focus()` is called? Well in this case our editor is not
+                            // editable if we are in dual modality state and `isFocused` is false. When our
+                            // editor is not editable it's also not focusable. So we need to set `isFocused`
+                            // to true to be able to focus!
+                            //
+                            // We must call `focus()` during the `touchend` event since iOS won't open the
+                            // software keyboard unless focus happens in a user-initiated event. So we call
+                            // `flushSync()` to make sure `isFocused` is updated synchronously so we can
+                            // call `focus()` synchronously.
+                            flushSync(() => setIsFocused(true));
+                            view.focus();
+
+                            view.dispatch(
+                                view.state.tr.setSelection(
+                                    new TextSelection(view.state.doc.resolve(posResult.pos)),
+                                ),
+                            );
+                        },
+                        cancel: () => {
+                            longPressTimeout.clear();
+                        },
+                    };
+                },
+                {passive: true},
+            );
+
+            view.dom.addEventListener(
+                "touchmove",
+                () => {
+                    // Touch move turns into a scroll or drag gesture.
+                    touchState?.cancel();
+                    touchState = null;
+                },
+                {passive: true},
+            );
+
+            view.dom.addEventListener("touchend", event => {
+                // If our tap state hasn't been cancelled we actually successfully received
+                // a tap!
+                touchState?.finish(event);
+                touchState = null;
+            });
+
+            view.dom.addEventListener("touchcancel", () => {
                 touchState?.cancel();
                 touchState = null;
-            }, 500);
+            });
 
-            touchState = {
-                finish: event => {
-                    longPressTimeout.clear();
-
-                    const posResult = view.posAtCoords({left: touch.clientX, top: touch.clientY});
-                    if (!posResult) return;
-
-                    // By default, iOS will move the selection to the end of the word you touched.
-                    // We instead want focus moved to the selection specified in our
-                    // `setSelection()` call.
-                    event.preventDefault();
-
-                    // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
-                    // handler after `focus()` is called? Well in this case our editor is not
-                    // editable if we are in dual modality state and `isFocused` is false. When our
-                    // editor is not editable it's also not focusable. So we need to set `isFocused`
-                    // to true to be able to focus!
-                    //
-                    // We must call `focus()` during the `touchend` event since iOS won't open the
-                    // software keyboard unless focus happens in a user-initiated event. So we call
-                    // `flushSync()` to make sure `isFocused` is updated synchronously so we can
-                    // call `focus()` synchronously.
-                    flushSync(() => setIsFocused(true));
-                    view.focus();
-
-                    view.dispatch(
-                        view.state.tr.setSelection(
-                            new TextSelection(view.state.doc.resolve(posResult.pos)),
-                        ),
-                    );
-                },
-                cancel: () => {
-                    longPressTimeout.clear();
-                },
+            handleDocumentSelectionChange = () => {
+                // After a long press, iOS selects text. If we see the selection change during
+                // a tap we no longer have a tap gesture and instead we have a long press
+                // gesture.
+                touchState?.cancel();
+                touchState = null;
             };
-        });
 
-        view.dom.addEventListener("touchmove", () => {
-            // Touch move turns into a scroll or drag gesture.
-            touchState?.cancel();
-            touchState = null;
-        });
+            document.addEventListener("selectionchange", handleDocumentSelectionChange);
+        }
 
-        view.dom.addEventListener("touchend", event => {
-            // If our tap state hasn't been cancelled we actually successfully received
-            // a tap!
-            touchState?.finish(event);
-            touchState = null;
-        });
+        // Manage the file drag interaction. While the user is dragging we'll update
+        // our `fileDropTarget` state with the rendered drop target. When the user
+        // drops we process the drop in `handleDrop` above.
+        let getMouseEventFileDropTarget: (event: MouseEvent) => ContentEditorFileDropTarget | null;
+        {
+            let isDragging = false;
 
-        view.dom.addEventListener("touchcancel", () => {
-            touchState?.cancel();
-            touchState = null;
-        });
+            let lastDropTargets: {
+                viewWidth: number;
+                viewHeight: number;
+                state: EditorState;
+                topBlockIndex: number;
+                dropTargets: Array<ContentEditorFileDropTarget>;
+            } | null = null;
 
-        const handleSelectionChange = () => {
-            // After a long press, iOS selects text. If we see the selection change during
-            // a tap we no longer have a tap gesture and instead we have a long press
-            // gesture.
-            touchState?.cancel();
-            touchState = null;
-        };
+            let lastDropTarget: {
+                viewWidth: number;
+                viewHeight: number;
+                state: EditorState;
+                time: number;
+                dropTarget: ContentEditorFileDropTarget;
+            } | null = null;
 
-        document.addEventListener("selectionchange", handleSelectionChange);
+            getMouseEventFileDropTarget = (event: MouseEvent) => {
+                // TODO(calebmer, #files): Remove this when ready to deploy to production.
+                if (process.env.NODE_ENV !== "development") return null;
+
+                const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+                if (!posResult) return null;
+
+                const {width: viewWidth, height: viewHeight} = view.dom.getBoundingClientRect();
+                const $pos = view.state.doc.resolve(posResult.pos);
+                const topBlockIndex = $pos.index(0);
+                const remPx = getRemPxWithoutListening();
+
+                // Recompute drop targets if the mouse moved over a new top block or anything
+                // changed that may have updated the layout of our content (e.g. `viewWidth`
+                // resizing changes how text flows).
+                if (
+                    viewWidth !== lastDropTargets?.viewWidth ||
+                    viewHeight !== lastDropTargets.viewHeight ||
+                    view.state !== lastDropTargets?.state ||
+                    topBlockIndex !== lastDropTargets?.topBlockIndex
+                ) {
+                    lastDropTargets = {
+                        viewWidth,
+                        viewHeight,
+                        state: view.state,
+                        topBlockIndex,
+                        dropTargets: getContentEditorFileDropTargets(view, topBlockIndex),
+                    };
+                }
+
+                // User experience win: Wait 100ms to update the drop target we display. That
+                // way if the user is quickly moving their cursor over the document they don't
+                // see drop indicators flashing in and out everywhere. This is especially
+                // distracting when dragging horizontally across a file row with 2 items since
+                // a drop indicator between the two images flashes in and in doing so hides the
+                // vertical drop indicator that used to be there. This is distracting but by
+                // reusing the last drop target for 100ms we improve the UX in this case.
+                //
+                // This function is called continuously during a drag by the `dragover` event
+                // so we don't need to schedule a timeout to call `setFileDropTarget()` after
+                // 100ms.
+                if (
+                    viewWidth === lastDropTarget?.viewWidth &&
+                    viewHeight === lastDropTarget.viewHeight &&
+                    view.state === lastDropTarget.state &&
+                    Date.now() - lastDropTarget.time < perceivedAsInstantLimitMs
+                ) {
+                    return lastDropTarget.dropTarget;
+                }
+
+                let lastOffsetParent: Element | null = null;
+                let lastOffsetParentRect: DOMRect | null = null;
+                let nearestCollision: {
+                    distance: number;
+                    dropTarget: ContentEditorFileDropTarget;
+                } | null = null;
+
+                for (const dropTarget of lastDropTargets.dropTargets) {
+                    // If all our drop targets have the same `offsetParent` then we only need to
+                    // call `getBoundingClientRect()` once.
+                    const offsetParentRect: DOMRect | null =
+                        lastOffsetParent !== dropTarget.offsetParent
+                            ? dropTarget.offsetParent?.getBoundingClientRect() ?? null
+                            : lastOffsetParentRect;
+                    lastOffsetParent = dropTarget.offsetParent;
+                    lastOffsetParentRect = offsetParentRect;
+
+                    const mouseX = event.clientX - (offsetParentRect?.left ?? 0);
+                    const mouseY = event.clientY - (offsetParentRect?.top ?? 0);
+
+                    // Calculate the distance between the pointer and the droppable bounding box.
+                    // https://stackoverflow.com/a/18157551/1568890
+                    let dx = Math.max(
+                        dropTarget.rect.left - mouseX,
+                        0,
+                        mouseX - dropTarget.rect.right,
+                    );
+
+                    // We want our chosen drop target to be the nearest target vertically unless
+                    // we're right on top of a horizontal target. This creates the effect of as
+                    // you're dragging a file into a document you're only seeing the vertical drop
+                    // indicators flash in/out. However, if you drag to the left or right edge of an
+                    // existing file (or into the document margins) then you'll see horizontal drop
+                    // indicators which will let you create a gallery.
+                    //
+                    // What this code is doing is it penalizes horizontal distance (compared to
+                    // vertical distance) when you're out of a narrow range right on top of the drop
+                    // target.
+                    if (dx > contentStyles.fileRowGapWidthRem * remPx) {
+                        dx += viewWidth;
+                    }
+
+                    const dy = Math.max(
+                        dropTarget.rect.top - mouseY,
+                        0,
+                        mouseY - dropTarget.rect.bottom,
+                    );
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (!nearestCollision || nearestCollision.distance > distance) {
+                        nearestCollision = {distance, dropTarget};
+                    }
+                }
+
+                const dropTarget = nearestCollision?.dropTarget ?? null;
+
+                if (!dropTarget) {
+                    lastDropTarget = null;
+                } else {
+                    lastDropTarget = {
+                        viewWidth,
+                        viewHeight,
+                        state: view.state,
+                        time: Date.now(),
+                        dropTarget,
+                    };
+                }
+
+                return dropTarget;
+            };
+
+            view.dom.addEventListener("dragenter", event => {
+                if (isDragging) return;
+                const wasDragging = isDragging;
+                isDragging = event.target instanceof Element && view.dom.contains(event.target);
+                if (wasDragging === isDragging) return;
+
+                if (
+                    event.dataTransfer &&
+                    iterableSome(event.dataTransfer.items, item => item.kind === "file")
+                ) {
+                    setFileDropTarget(getMouseEventFileDropTarget(event));
+                } else {
+                    setFileDropTarget(null);
+                }
+            });
+
+            view.dom.addEventListener("dragleave", event => {
+                if (!isDragging) return;
+                const wasDragging = isDragging;
+                isDragging =
+                    event.relatedTarget instanceof Element &&
+                    view.dom.contains(event.relatedTarget);
+                if (wasDragging === isDragging) return;
+
+                setFileDropTarget(null);
+            });
+
+            // Processing the drop happens in `handleDrop` above so we don't conflict with
+            // ProseMirror's drop handling. Only clear drop state here.
+            view.dom.addEventListener("drop", () => {
+                if (!isDragging) return;
+                isDragging = false;
+
+                setFileDropTarget(null);
+            });
+
+            view.dom.addEventListener("dragover", event => {
+                if (!isDragging) return;
+
+                if (
+                    event.dataTransfer &&
+                    iterableSome(event.dataTransfer.items, item => item.kind === "file")
+                ) {
+                    setFileDropTarget(getMouseEventFileDropTarget(event));
+                } else {
+                    setFileDropTarget(null);
+                }
+            });
+        }
 
         // Stash the editor view instance on the DOM node for debugging and tests.
         (rootElement as any)[internalEditorViewKey] = view;
@@ -1235,7 +1503,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         viewRef.current = view;
 
         return () => {
-            document.removeEventListener("selectionchange", handleSelectionChange);
+            document.removeEventListener("selectionchange", handleDocumentSelectionChange);
             view.destroy();
         };
 
@@ -1265,9 +1533,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         // Adds the `emptyTitleClassName` class if the editor document is empty and
         // removes the class when the editor document is not empty.
         {
-            assert(viewRef.current);
-            const viewElement = viewRef.current.dom;
-
             const addEmptyTitleClassName = isContentTitleEmpty(newState.doc);
             if (
                 addEmptyTitleClassName &&
@@ -1300,7 +1565,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         // Keep track of the element ProseMirror marks as selected with the
         // `ProseMirror-selectednode` CSS class so that we can render our own custom
         // ring around it.
-        if (newState.selection instanceof NodeSelection) {
+        if (!(state.getSelection() instanceof NodeSelection)) {
+            setSelectedNodeElement(null);
+        } else {
             const selectedNodeElement = viewElement.getElementsByClassName(
                 "ProseMirror-selectednode",
             )[0];
@@ -1309,6 +1576,16 @@ function ContentEditor<Content extends ContentWithReferences>(
             } else {
                 setSelectedNodeElement(null);
             }
+        }
+
+        // Emit a content references change for any subscribers (typically node views
+        // which depend on content references).
+        if (
+            referencesUpdateEmitterRef.current &&
+            getContentEditorReferences(oldState).references !==
+                getContentEditorReferences(newState).references
+        ) {
+            referencesUpdateEmitterRef.current.emit();
         }
 
         // Report any added undo/redo stack entries...
@@ -1921,6 +2198,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         setCodeBlockCopyButtonTooltipState(null);
     }
 
+    const [fileDropTarget, setFileDropTarget] = useState<ContentEditorFileDropTarget | null>(null);
+
     return (
         <div
             className={classNames(
@@ -2083,6 +2362,39 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }}
                 />
             )}
+            {fileDropTarget &&
+                (fileDropTarget.indicator === "Top" ? (
+                    <Box
+                        position="absolute"
+                        left="0"
+                        right="0"
+                        pointerEvents="none"
+                        backgroundColor="theme-40-const"
+                        borderRadius="full"
+                        style={{
+                            left: fileDropTarget.rect.left,
+                            right: `calc(100% - ${fileDropTarget.rect.right}px)`,
+                            top: fileDropTarget.rect.top - 1,
+                            height: 2,
+                        }}
+                    />
+                ) : (
+                    <Box
+                        position="absolute"
+                        pointerEvents="none"
+                        backgroundColor="theme-40-const"
+                        borderRadius="full"
+                        style={{
+                            top: fileDropTarget.rect.top,
+                            bottom: `calc(100% - ${fileDropTarget.rect.bottom}px)`,
+                            left:
+                                fileDropTarget.indicator === "Left"
+                                    ? fileDropTarget.rect.left - 1
+                                    : fileDropTarget.rect.right - 1,
+                            width: 2,
+                        }}
+                    />
+                ))}
         </div>
     );
 }
@@ -2363,4 +2675,286 @@ function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
             {key: "sentenceBreak"},
         ),
     ]);
+}
+
+type ContentEditorFileDropTarget = {
+    readonly offsetParent: Element | null;
+    readonly indicator: "Top" | "Left" | "Right";
+    readonly rect: {
+        readonly left: number;
+        readonly right: number;
+        readonly top: number;
+        readonly bottom: number;
+    };
+    readonly action:
+        | {
+              readonly type: "InsertFileRow";
+              readonly pos: number;
+          }
+        | {
+              readonly type: "InsertFileIntoRow";
+              readonly pos: number;
+          };
+};
+
+// TODO(calebmer, #files): Keyboard interactions for files.
+//
+// - Arrow keys to navigate files
+// - Arrow keys to navigate into files
+// - Arrow keys to navigate out of files
+// - Insert text between two files? Probably pressing enter should create a new
+//   line of text below and shift enter creates a new line of text above?
+//   Without deleting the file though
+// - Arrow key down adds empty paragraph at tend of document
+
+// TODO(calebmer, #files): Implement scroll while dragging.
+
+// TODO(calebmer, #files): Poll while file isn't fully available.
+
+// TODO(calebmer, #files): Better drop targets for narrow vertically centered file.
+
+/**
+ * Get the targets for dropping a file into our document around some top block
+ * index. For performance, we only generate drop targets immediately around the
+ * provided top block index. That way there's fewer drop targets to rank when
+ * deciding collision.
+ *
+ * ## Design notes
+ *
+ * When the user is hovering over a drop target, we should a line between the
+ * margins of where the file will go. We do not shift the layout of the
+ * document around. Shifting the layout of the document around can be very
+ * disruptive while the user is moving their mouse a long distance. It also
+ * breaks the user's understanding of where to move their mouse to put the file
+ * in a certain position since as the layout changes based on their mouse
+ * movement they need to either understand (based on technical implementation)
+ * either: 1) the position BEFORE layout shift they need to go to or 2)
+ * remember the position AFTER the layout shift since when they move their
+ * mouse everything shifts to a new state.
+ *
+ * A layout shifting design implementation is also challenging to build
+ * technically.
+ *
+ * I (@calebmer) worked on [Airtable's Interface Designer][1] product where we
+ * built a layout shifting drop target implementation. It felt wonderful when
+ * it worked but there were certainly common annoyances where you'd be dragging
+ * to add a small element to a page and you had a difficult time getting it to
+ * the right position while the entire page was shifting around you.
+ *
+ * [1]: https://www.airtable.com/platform/interface-designer
+ */
+function getContentEditorFileDropTargets(
+    view: EditorView,
+    aroundTopBlockIndex: number,
+): Array<ContentEditorFileDropTarget> {
+    const dropTargets: Array<ContentEditorFileDropTarget> = [];
+
+    const {doc} = view.state;
+    const {schema} = doc.type;
+    if (!schema.nodes.fileRow) return dropTargets;
+
+    const remPx = getRemPxWithoutListening();
+    const topBlockIndexSeekBackwardsCount = 1;
+    const topBlockIndexSeekForwardsCount = 2;
+    let nextTopBlockPos = 0;
+
+    const defaultDropTargetCenterY =
+        convertRemLengthToPx(spacing[contentStyles.defaultParagraphMargin], remPx) / 2;
+    let lastDropTargetOffsetY = defaultDropTargetCenterY;
+
+    let topBlockElement: HTMLElement | null = null;
+    const topBlockIndexIterationCount = Math.min(
+        doc.content.content.length,
+        aroundTopBlockIndex + topBlockIndexSeekForwardsCount + 1,
+    );
+    for (let topBlockIndex = 0; topBlockIndex < topBlockIndexIterationCount; topBlockIndex++) {
+        const topBlockNode = doc.content.content[topBlockIndex]!;
+
+        const topBlockPos = nextTopBlockPos;
+        nextTopBlockPos += topBlockNode.nodeSize;
+
+        // We need to set `topBlock` a node before the first top block index we
+        // actually add drop targets for. Which is why we add +1 to
+        // `topBlockIndexSeekBackwardsCount`. We'll `continue` out of the loop
+        // iteration later.
+        if (topBlockIndex < aroundTopBlockIndex - (topBlockIndexSeekBackwardsCount + 1)) continue;
+
+        const topBlockPosElement = view.nodeDOM(topBlockPos);
+        if (!(topBlockPosElement instanceof HTMLElement)) continue;
+        const lastTopBlockElement = topBlockElement;
+        topBlockElement = topBlockPosElement;
+
+        if (topBlockIndex < aroundTopBlockIndex - topBlockIndexSeekBackwardsCount) continue;
+
+        if (doc.canReplaceWith(topBlockIndex, topBlockIndex, schema.nodes.fileRow)) {
+            lastDropTargetOffsetY = lastTopBlockElement
+                ? (topBlockElement.offsetTop -
+                      (lastTopBlockElement.offsetTop + lastTopBlockElement.offsetHeight)) /
+                  2
+                : defaultDropTargetCenterY;
+
+            if (topBlockNode.type.name === "heading") {
+                lastDropTargetOffsetY = Math.min(
+                    lastDropTargetOffsetY,
+                    convertRemLengthToPx(spacing[contentStyles.defaultParagraphMargin], remPx) / 2,
+                );
+            }
+
+            const dropTargetY =
+                // If we are dropping above a `fileRow` then always use the file row gap to
+                // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
+                // since this adjustment may not make sense for the last block in our doc.
+                topBlockNode.type.name === "fileRow"
+                    ? topBlockElement.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2
+                    : lastTopBlockElement &&
+                      doc.content.content[topBlockIndex - 1]!.type.name === "fileRow"
+                    ? // If we are dropping below a `fileRow` then always use the file row gap to
+                      // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
+                      // since this adjustment may not make sense for the last block in our doc.
+                      lastTopBlockElement.offsetTop +
+                      lastTopBlockElement.offsetHeight +
+                      (contentStyles.fileRowGapWidthRem * remPx) / 2
+                    : // If we are dropping above a `heading` then add `lastDropTargetOffsetY` to the
+                    // last top block element's bottom instead of subtracting it from this top block
+                    // element's top. Since the heading creates a new section the dropped file would
+                    // be a part of the previous section.
+                    lastTopBlockElement && topBlockNode.type.name === "heading"
+                    ? lastTopBlockElement.offsetTop +
+                      lastTopBlockElement.offsetHeight +
+                      lastDropTargetOffsetY
+                    : topBlockElement.offsetTop - lastDropTargetOffsetY;
+
+            dropTargets.push({
+                offsetParent: topBlockElement.offsetParent,
+                indicator: "Top",
+                rect: {
+                    left: topBlockElement.offsetLeft,
+                    right: topBlockElement.offsetLeft + topBlockElement.offsetWidth,
+                    top: dropTargetY,
+                    bottom: dropTargetY,
+                },
+                action: {
+                    type: "InsertFileRow",
+                    pos: topBlockPos,
+                },
+            });
+        }
+
+        if (topBlockNode.type.name === "fileRow" && topBlockNode.childCount < 3) {
+            {
+                const topBlockLeftElement =
+                    topBlockElement.firstElementChild instanceof HTMLElement
+                        ? topBlockElement.firstElementChild
+                        : topBlockElement;
+
+                const dropTargetX =
+                    topBlockLeftElement.offsetLeft - (contentStyles.fileRowGapWidthRem * remPx) / 2;
+
+                dropTargets.push({
+                    offsetParent: topBlockElement.offsetParent,
+                    indicator: "Right",
+                    rect: {
+                        left: 0,
+                        right: dropTargetX,
+                        top: topBlockElement.offsetTop,
+                        bottom: topBlockElement.offsetTop + topBlockElement.offsetHeight,
+                    },
+
+                    action: {
+                        type: "InsertFileIntoRow",
+                        pos: topBlockPos + 1,
+                    },
+                });
+            }
+
+            if (topBlockNode.type.name === "fileRow" && topBlockNode.childCount === 2) {
+                const topBlockFirstChildElement = topBlockElement.firstElementChild;
+
+                if (topBlockFirstChildElement instanceof HTMLElement) {
+                    const dropTargetX =
+                        topBlockFirstChildElement.offsetLeft +
+                        topBlockFirstChildElement.offsetWidth +
+                        (contentStyles.fileRowGapWidthRem * remPx) / 2;
+
+                    dropTargets.push({
+                        offsetParent: topBlockElement.offsetParent,
+                        indicator: "Right",
+                        rect: {
+                            left: dropTargetX,
+                            right: dropTargetX,
+                            top: topBlockElement.offsetTop,
+                            bottom: topBlockElement.offsetTop + topBlockElement.offsetHeight,
+                        },
+                        action: {
+                            type: "InsertFileIntoRow",
+                            pos: topBlockPos + 2,
+                        },
+                    });
+                }
+            }
+
+            {
+                const topBlockRightElement =
+                    topBlockElement.lastElementChild instanceof HTMLElement
+                        ? topBlockElement.lastElementChild
+                        : topBlockElement;
+
+                const dropTargetX =
+                    topBlockRightElement.offsetLeft +
+                    topBlockRightElement.offsetWidth +
+                    (contentStyles.fileRowGapWidthRem * remPx) / 2;
+
+                dropTargets.push({
+                    offsetParent: topBlockElement.offsetParent,
+                    indicator: "Left",
+                    rect: {
+                        left: dropTargetX,
+                        right: topBlockElement.offsetParent?.clientWidth ?? dropTargetX,
+                        top: topBlockElement.offsetTop,
+                        bottom: topBlockElement.offsetTop + topBlockElement.offsetHeight,
+                    },
+                    action: {
+                        type: "InsertFileIntoRow",
+                        pos: topBlockPos + topBlockNode.nodeSize - 1,
+                    },
+                });
+            }
+        }
+    }
+
+    if (
+        doc.content.content.length < aroundTopBlockIndex + topBlockIndexSeekForwardsCount + 1 &&
+        topBlockElement &&
+        doc.canReplaceWith(
+            doc.content.content.length,
+            doc.content.content.length,
+            schema.nodes.fileRow,
+        )
+    ) {
+        const dropTargetY =
+            topBlockElement.offsetTop +
+            topBlockElement.offsetHeight +
+            // Reuse the offset between the last two blocks we've seen for the last drop
+            // target. e.g. If the last block was a paragraph then we may be using the
+            // paragraph's margins. Otherwise the rect (and so droppable indicator) touch
+            // the end of the last block which looks weird.
+            lastDropTargetOffsetY;
+
+        dropTargets.push({
+            offsetParent: topBlockElement.offsetParent,
+            indicator: "Top",
+            rect: {
+                left: topBlockElement.offsetLeft,
+                right: topBlockElement.offsetLeft + topBlockElement.offsetWidth,
+                top: dropTargetY,
+                bottom: dropTargetY,
+            },
+            action: {
+                type: "InsertFileRow",
+                pos: nextTopBlockPos,
+            },
+        });
+    }
+
+    return dropTargets;
 }

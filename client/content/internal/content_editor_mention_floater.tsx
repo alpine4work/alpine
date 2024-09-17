@@ -208,7 +208,7 @@ export function ContentEditorMentionFloater({
                 view.state.schema.node("mention", {mention}),
             ),
             {
-                type: "AddAccount",
+                type: "SetAccount",
                 account: new AccountModel(accountData),
             },
         );

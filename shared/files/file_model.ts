@@ -1,5 +1,6 @@
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FilePreviewSchema} from "~/shared/files/file_preview.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {Model} from "~/shared/schema/model/model.js";
@@ -37,6 +38,122 @@ export class FileModel extends Model(
         preview: FilePreviewSchema.nullable(),
     }),
 ) {
+    /**
+     * Get the file with the smaller number of loading components. If both files
+     * have the same number of loading components then we return `file1`.
+     *
+     * Because files are immutable after upload this function also assumes the
+     * `contentType` doesn't change, the `preview` type doesn't change, and that
+     * components that were previously loading won't enter a loading state at any
+     * point in the future.
+     *
+     * This is similar in purpose to `AccountModel.merge()` or `TaskModel.merge()`
+     * (which is powered by CRDTs). If we have two `FileModel`s representing the
+     * same file we need to merge their data together with whatever the latest data
+     * is. However, this function doesn't transpose like our other `merge()`
+     * functions (since we prefer `file1` in case of conflict). It also doesn't
+     * merge data we assume to be immutable (e.g. `contentType`). So this function
+     * doesn't work as a mathematically sound merge function but it doesn't have
+     * to. Assuming files are immutable after all components are loaded this
+     * function gets the job done.
+     */
+    public static minLoadingCount(file1: FileModel, file2: FileModel): FileModel {
+        const loadingCount1 = file1._getLoadingCount();
+        const loadingCount2 = file2._getLoadingCount();
+
+        if (loadingCount1 < loadingCount2) return file1;
+        if (loadingCount1 > loadingCount2) return file2;
+        return file1;
+    }
+
+    /**
+     * Count the number of components in the `FileModel` that are currently
+     * loading. Given `FileModel`s are immutable we use this to determine which of
+     * two `FileModel`s is "newer". The number of loading components should always
+     * decrease monotonically and never increase.
+     */
+    private _getLoadingCount(): number {
+        let loadingCount = 0;
+
+        if (this.isUploading) {
+            loadingCount++;
+        }
+
+        if (this.alternative?.isProcessing) {
+            loadingCount++;
+        }
+
+        if (this.preview) {
+            switch (this.preview.type) {
+                case "Audio": {
+                    // TypeScript will error here if any keys are added to `preview`. If you add
+                    // any keys that could be processing that probably means you want to update
+                    // the loading count calculation.
+                    assertEqualTypes<
+                        keyof typeof this.preview,
+                        "type" | "isProcessing" | "duration"
+                    >();
+
+                    if (this.preview.duration === "Processing") {
+                        loadingCount++;
+                    }
+                    break;
+                }
+                case "Code": {
+                    // TypeScript will error here if any keys are added to `preview`. If you add
+                    // any keys that could be processing that probably means you want to update
+                    // the loading count calculation.
+                    assertEqualTypes<
+                        keyof typeof this.preview,
+                        "type" | "isProcessing" | "content"
+                    >();
+
+                    if (this.preview.content === "Processing") {
+                        loadingCount++;
+                    }
+                    break;
+                }
+                case "Image": {
+                    if (this.preview.isProcessing) {
+                        // TypeScript will error here if any keys are added to `preview`. If you add
+                        // any keys that could be processing that probably means you want to update
+                        // the loading count calculation.
+                        assertEqualTypes<
+                            keyof typeof this.preview,
+                            | "type"
+                            | "isProcessing"
+                            | "size"
+                            | "placeholder"
+                            | "content"
+                            | "videoDuration"
+                        >();
+
+                        if (this.preview.size === "Processing") {
+                            loadingCount++;
+                        }
+
+                        if (this.preview.placeholder === "Processing") {
+                            loadingCount++;
+                        }
+
+                        if (this.preview.content === "Processing") {
+                            loadingCount++;
+                        }
+
+                        if (this.preview.videoDuration === "Processing") {
+                            loadingCount++;
+                        }
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(this.preview);
+            }
+        }
+
+        return loadingCount;
+    }
+
     /**
      * Get whether the file is ready to be attached to whatever content the user
      * is editing.

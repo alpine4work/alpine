@@ -58,8 +58,9 @@ export function isEmptyContentReferences(references: ContentReferences): boolean
 }
 
 /**
- * Merge two `ContentReferences` into one. References in the second object will
- * override references in the first.
+ * Merge two `ContentReferences` into one. References in the second object are
+ * considered newer than references in the first and will usually override
+ * them.
  */
 export function mergeContentReferences(
     references1: ContentReferences,
@@ -70,8 +71,29 @@ export function mergeContentReferences(
     if (isEmptyContentReferences(references1)) return references2;
     if (isEmptyContentReferences(references2)) return references1;
 
+    const accountById = new Map<ContentMentionAccountId, AccountModel>();
+    const fileById = new Map<FileId, FileModel>();
+
+    // Merge accounts together...
+    for (const [accountId, account] of concatIterables(
+        references1.accountById,
+        references2.accountById,
+    )) {
+        const existingAccount = accountById.get(accountId);
+        accountById.set(accountId, existingAccount ? existingAccount.merge(account) : account);
+    }
+
+    // Merge files together...
+    //
+    // Prefer `existingFile` in `FileModel.minLoadingCount()` to avoid unnecessary
+    // re-renders.
+    for (const [fileId, file] of concatIterables(references1.fileById, references2.fileById)) {
+        const existingFile = fileById.get(fileId);
+        fileById.set(fileId, existingFile ? FileModel.minLoadingCount(existingFile, file) : file);
+    }
+
     return {
-        accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
-        fileById: new Map(concatIterables(references1.fileById, references2.fileById)),
+        accountById,
+        fileById,
     };
 }

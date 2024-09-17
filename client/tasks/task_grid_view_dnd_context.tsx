@@ -457,8 +457,8 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
     const activeData = assertExists(active.data.current) as TaskGridViewDraggableData;
     assert(typeof activeData.type === "string");
 
-    const collisions: Array<CollisionDescriptor> = [];
-    let nearestFallbackCollision: CollisionDescriptor | null = null;
+    const intersectingCollisions: Array<CollisionDescriptor> = [];
+    let nearestNonIntersectingCollision: CollisionDescriptor | null = null;
 
     for (const droppableContainer of droppableContainers) {
         const droppableData = assertExists(
@@ -483,9 +483,10 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
 
         if (
             distance > 0 &&
-            (!nearestFallbackCollision || nearestFallbackCollision.data.value > distance)
+            (!nearestNonIntersectingCollision ||
+                nearestNonIntersectingCollision.data.value > distance)
         ) {
-            nearestFallbackCollision = {id, data: {droppableContainer, value: distance}};
+            nearestNonIntersectingCollision = {id, data: {droppableContainer, value: distance}};
         } else if (distance === 0) {
             // There may be more than a single rectangle intersecting with the pointer
             // coordinates. In order to sort the colliding rectangles, we measure the
@@ -509,17 +510,17 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
                     ),
                 0,
             );
-            const effectiveDistance = Number((distances / 4).toFixed(4));
+            const effectiveDistance = distances / 4;
 
-            collisions.push({id, data: {droppableContainer, value: effectiveDistance}});
+            intersectingCollisions.push({id, data: {droppableContainer, value: effectiveDistance}});
         }
     }
 
-    if (collisions.length > 0) {
-        return collisions.sort((a, b) => a.data.value - b.data.value);
+    if (intersectingCollisions.length > 0) {
+        return intersectingCollisions.sort((a, b) => a.data.value - b.data.value);
     }
 
-    return nearestFallbackCollision ? [nearestFallbackCollision] : [];
+    return nearestNonIntersectingCollision ? [nearestNonIntersectingCollision] : [];
 };
 
 function TaskRowViewDragPortals() {

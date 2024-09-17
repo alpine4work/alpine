@@ -50,6 +50,7 @@ const highlightClassNameByColor = mapObjectValues(
 // necessary. Useful if you need another wrapper element for some reason (like
 // in `<DocumentContentEditor>` which needs a `position: relative` wrapper).
 export const containerClassName = style({
+    position: "relative",
     minHeight: "100%",
     display: "flex",
     flexDirection: "column",

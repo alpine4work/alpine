@@ -24,6 +24,7 @@ import {
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -31,6 +32,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -730,9 +732,14 @@ export function updateContentEditorReferences<References extends ContentReferenc
     return transaction.setMeta(contentEditorReferencesPluginKey, action);
 }
 
+export function hasContentEditorReferencesUpdate(transaction: Transaction): boolean {
+    return !!transaction.getMeta(contentEditorReferencesPluginKey);
+}
+
 export type ContentEditorReferencesAction<References extends ContentReferences> =
     | ContentEditorReferencesMergeAction<References>
-    | ContentEditorReferencesAddAccountAction
+    | ContentEditorReferencesSetAccountAction
+    | ContentEditorReferencesSetFileAction
     | ContentEditorReferencesUpdateDocumentCommentThreadAction;
 
 export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
@@ -740,9 +747,14 @@ export type ContentEditorReferencesMergeAction<References extends ContentReferen
     readonly references: References;
 };
 
-export type ContentEditorReferencesAddAccountAction = {
-    readonly type: "AddAccount";
+export type ContentEditorReferencesSetAccountAction = {
+    readonly type: "SetAccount";
     readonly account: AccountModel;
+};
+
+export type ContentEditorReferencesSetFileAction = {
+    readonly type: "SetFile";
+    readonly file: FileModel;
 };
 
 /**
@@ -765,18 +777,39 @@ export function reduceContentReferences(
     switch (action.type) {
         case "Merge":
             return mergeContentReferences(references, action.references);
-        case "AddAccount": {
-            return {
-                ...references,
-                accountById: new Map([
-                    ...references.accountById,
-                    [action.account.id, action.account],
-                ]),
-            };
-        }
         // These actions are only used with `DocumentContentReferences`.
         case "UpdateDocumentCommentThread":
             return references;
+        default:
+            return reduceContentReferencesShared(references, action);
+    }
+}
+
+export function reduceContentReferencesShared<References extends ContentReferences>(
+    references: References,
+    action: ContentEditorReferencesSetAccountAction | ContentEditorReferencesSetFileAction,
+): Replace<References, ContentReferences> {
+    switch (action.type) {
+        case "SetAccount": {
+            const oldAccount = references.accountById.get(action.account.id);
+            const newAccount = oldAccount ? oldAccount.merge(action.account) : action.account;
+            if (oldAccount === newAccount) return references;
+
+            const newAccountById = new Map(references.accountById);
+            newAccountById.set(newAccount.id, newAccount);
+            return {...references, accountById: newAccountById};
+        }
+        case "SetFile": {
+            const oldFile = references.fileById.get(action.file.id);
+            // Prefer `oldFile` in `FileModel.minLoadingCount()` to avoid unnecessary
+            // re-renders.
+            const newFile = oldFile ? FileModel.minLoadingCount(oldFile, action.file) : action.file;
+            if (oldFile === newFile) return references;
+
+            const newFileById = new Map(references.fileById);
+            newFileById.set(newFile.id, newFile);
+            return {...references, fileById: newFileById};
+        }
         default:
             throw exhaustive(action);
     }
