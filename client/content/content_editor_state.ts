@@ -14,10 +14,7 @@ import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/build_content_editor_keymap_plugin.js";
-import {
-    ContentEditorFloaterState,
-    initialContentEditorFloaterState,
-} from "~/client/content/internal/content_editor_floater_state.js";
+import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {
@@ -524,7 +521,7 @@ function contentEditorFloaterStatePlugin() {
     return new Plugin<ContentEditorFloaterState>({
         key: contentEditorFloaterStatePluginKey,
         state: {
-            init: () => initialContentEditorFloaterState,
+            init: () => ({type: "PointerToolbar", previousState: null}),
             apply: (transaction, floaterState, oldState, newState) => {
                 const transactionFloaterState: ContentEditorFloaterState | undefined =
                     transaction.getMeta(contentEditorFloaterStatePluginKey);
@@ -577,7 +574,7 @@ function contentEditorFloaterStatePlugin() {
                 // If the range collapsed into a single position (maybe the content was
                 // deleted?) reset to the initial state.
                 if (newRangeFrom === newRangeTo) {
-                    floaterState = initialContentEditorFloaterState;
+                    floaterState = {type: "PointerToolbar", previousState: floaterState};
                 } else if (
                     floaterState.range.from !== newRangeFrom ||
                     floaterState.range.to !== newRangeTo

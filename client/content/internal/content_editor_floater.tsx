@@ -6,10 +6,7 @@ import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "reac
 import {FocusScope} from "react-aria";
 import {ContentEditorCommentInputFloater} from "~/client/content/internal/content_editor_comment_input_floater.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
-import {
-    ContentEditorFloaterState,
-    initialContentEditorFloaterState,
-} from "~/client/content/internal/content_editor_floater_state.js";
+import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
 import {
     ContentEditorHighlightSelector,
     ContentEditorHighlightSelectorRef,
@@ -37,7 +34,6 @@ export function ContentEditorFloater({
     floaterState,
     setFloaterState,
     isFocused,
-    lastSelectionChangeTransactionTime,
 }: {
     isMobile: boolean;
     withMobileLayout: boolean;
@@ -46,7 +42,6 @@ export function ContentEditorFloater({
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
     isFocused: boolean;
-    lastSelectionChangeTransactionTime: number | null;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -57,8 +52,8 @@ export function ContentEditorFloater({
                 <ContentEditorPointerToolbar
                     state={state}
                     viewRef={viewRef}
+                    previousState={floaterState.previousState}
                     isFocused={isFocused}
-                    lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
                 />
             );
         }
@@ -68,7 +63,9 @@ export function ContentEditorFloater({
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}
-                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
+                    onClose={() =>
+                        setFloaterState({type: "PointerToolbar", previousState: floaterState})
+                    }
                 />
             );
         }
@@ -78,7 +75,9 @@ export function ContentEditorFloater({
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}
-                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
+                    onClose={() =>
+                        setFloaterState({type: "PointerToolbar", previousState: floaterState})
+                    }
                 />
             );
         }
@@ -92,7 +91,9 @@ export function ContentEditorFloater({
                     mark={floaterState.mark}
                     range={floaterState.range}
                     hasPointerLeftMark={floaterState.hasPointerLeftMark}
-                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
+                    onClose={() =>
+                        setFloaterState({type: "PointerToolbar", previousState: floaterState})
+                    }
                 />
             );
         }
@@ -107,7 +108,7 @@ export function ContentEditorFloater({
                     isFocused={isFocused}
                     isClosing={floaterState.isClosing}
                     onCloseWithoutAnimation={() =>
-                        setFloaterState(initialContentEditorFloaterState)
+                        setFloaterState({type: "PointerToolbar", previousState: floaterState})
                     }
                     onCloseWithAnimation={() => setFloaterState({...floaterState, isClosing: true})}
                 />
@@ -120,7 +121,9 @@ export function ContentEditorFloater({
                     state={state}
                     viewRef={viewRef}
                     range={floaterState.range}
-                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
+                    onClose={() =>
+                        setFloaterState({type: "PointerToolbar", previousState: floaterState})
+                    }
                 />
             );
         }
