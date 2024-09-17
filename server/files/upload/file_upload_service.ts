@@ -119,9 +119,6 @@ export function createFileUploadService(
             },
         });
 
-        // TODO(calebmer, #files): `http.request.uncompressedContentLength` and
-        // `http.response.uncompressedContentLength` span data.
-
         void (async () => {
             try {
                 addRequestTracerSpanData({

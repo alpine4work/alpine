@@ -23,17 +23,6 @@ export type FileContentType =
     | FileAudioContentType
     | FileCodeContentType;
 
-// TODO(calebmer, #files): File types to support:
-//
-// - [x] Images
-// - [x] Documents
-// - [x] Videos
-// - [x] Audio (optional)
-// - [ ] Code (optional)
-//
-// A good reference for file types we should support is Canva:
-// https://www.canva.com/help/upload-formats-requirements
-
 export type FileImageContentType = FileWebSafeImageContentType | FileWebUnsafeImageContentType;
 
 /**

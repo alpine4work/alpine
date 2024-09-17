@@ -403,8 +403,6 @@ globalStyle(`${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
 const quoteBlockIndentation = spacing["4"];
 const quoteBlockBorderWidth = "0.1875rem";
 
-// TODO(calebmer, #files): Consider giving quote block the same vertical margin
-// as files and code block.
 globalStyle(quoteBlockClassName, {
     ...blockStyles,
     position: "relative",

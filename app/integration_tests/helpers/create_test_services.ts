@@ -279,7 +279,6 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
-                // TODO(calebmer, #files): Run the file upload service in tests.
                 `--fileUploadServiceHostname=localhost:${fileUploadServicePort}`,
             ],
             {
