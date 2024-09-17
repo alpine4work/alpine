@@ -6,12 +6,17 @@ ts_playwright_tests(
         "//app:app_test",
         "//server/apns:apns_development_certificates",
         "//server/edge",
+        "//server/files/upload",
+        "//server/files/upload:test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
+        "//server/files/upload:test_fixtures/wikimedia_france_vs_czech_republic_2013_09_21.avif",
+        "//server/files/upload:test_fixtures/wikimedia_png_transparency_demonstration.png",
         "//server/jobs/queue",
         "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
         "//server/tasks/realtime",
     ],
     skip_projects_by_src = {
         # Explicitly desktop only tests.
+        "documents/document_files_desktop.spec.ts": ["webkit_mobile"],
         "inbox/inbox_chat_desktop.spec.ts": ["webkit_mobile"],
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],

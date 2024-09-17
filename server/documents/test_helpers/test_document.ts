@@ -79,7 +79,14 @@ export class TestDocument {
             : assertDocumentContent(
                   schema.node("doc", {}, [
                       schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
-                      schema.node("paragraph", {}, options.body ? [schema.text(options.body)] : []),
+                      ...(options.body
+                          ? options.body
+                                .trimEnd()
+                                .split("\n")
+                                .map(bodyLine =>
+                                    schema.node("paragraph", {}, [schema.text(bodyLine)]),
+                                )
+                          : [schema.node("paragraph", {}, [])]),
                   ]),
               );
 

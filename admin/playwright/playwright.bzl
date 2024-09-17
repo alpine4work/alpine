@@ -125,6 +125,9 @@ def playwright_test(
             "//admin/jest:jest_config_files",
             "//admin/playwright:playwright_setup_file",
         ] + deps + data,
+        # Don't copy `data` to bin. It's only used at runtime in runfiles which combine
+        # the build tree and source tree anyways.
+        no_copy_to_bin = data,
         node_options = node_options + [
             # Use the same Jest setup scripts to setup our environment for Playwright tests.
             "--require=./admin/jest/jest_setup_shared.cjs",

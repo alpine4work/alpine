@@ -999,6 +999,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         runPromiseWithoutAwaiting(async () => {
                             let unsubscribeFromFileStore: (() => void) | undefined;
 
+                            // TODO(calebmer, #files): Error handling
                             try {
                                 await uploadFileFromContentEditor(
                                     context,
@@ -1459,6 +1460,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ) {
                     setFileDropTarget(getMouseEventFileDropTarget(event));
                 } else {
+                    lastDropTargets = null;
+                    lastDropTarget = null;
                     setFileDropTarget(null);
                 }
             });
@@ -1471,6 +1474,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     view.dom.contains(event.relatedTarget);
                 if (wasDragging === isDragging) return;
 
+                lastDropTargets = null;
+                lastDropTarget = null;
                 setFileDropTarget(null);
             });
 
@@ -1480,6 +1485,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 if (!isDragging) return;
                 isDragging = false;
 
+                lastDropTargets = null;
+                lastDropTarget = null;
                 setFileDropTarget(null);
             });
 
@@ -1492,6 +1499,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ) {
                     setFileDropTarget(getMouseEventFileDropTarget(event));
                 } else {
+                    lastDropTargets = null;
+                    lastDropTarget = null;
                     setFileDropTarget(null);
                 }
             });
@@ -2365,6 +2374,11 @@ function ContentEditor<Content extends ContentWithReferences>(
             {fileDropTarget &&
                 (fileDropTarget.indicator === "Top" ? (
                     <Box
+                        data-testid={
+                            process.env.NODE_ENV !== "production"
+                                ? `ContentEditorFileDropTargetIndicator:${fileDropTarget.action.type}:${fileDropTarget.action.pos}`
+                                : undefined
+                        }
                         position="absolute"
                         left="0"
                         right="0"
@@ -2380,6 +2394,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     />
                 ) : (
                     <Box
+                        data-testid={
+                            process.env.NODE_ENV !== "production"
+                                ? `ContentEditorFileDropTargetIndicator:${fileDropTarget.action.type}:${fileDropTarget.action.pos}`
+                                : undefined
+                        }
                         position="absolute"
                         pointerEvents="none"
                         backgroundColor="theme-40-const"

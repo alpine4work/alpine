@@ -27,6 +27,10 @@ export function renderContentFilePreview(
     const fileId: FileId | null = node.attrs.id;
     const file = fileId ? contentReferences.fileById.get(fileId) : undefined;
 
+    if (process.env.NODE_ENV !== "production" && file) {
+        html.setAttribute("data-testid", `ContentFile:${file.contentType}`);
+    }
+
     if (!file) {
         // NOCOMMIT: Implement
     } else if (!file.preview) {
@@ -103,8 +107,7 @@ function renderFileImagePreviewPlaceholder(
                 "#" +
                 pixel.r.toString(16).padStart(2, "0") +
                 pixel.g.toString(16).padStart(2, "0") +
-                pixel.b.toString(16).padStart(2, "0") +
-                (pixel.alpha !== undefined ? pixel.alpha.toString(16).padStart(2, "0") : "");
+                pixel.b.toString(16).padStart(2, "0");
 
             svg +=
                 `<rect ` +
@@ -114,7 +117,9 @@ function renderFileImagePreviewPlaceholder(
                 // any gaps between `<rect>`s from rounding errors when rendering the SVG.
                 `width="${(size.width - x * pixelWidth) * scaleX}" ` +
                 `height="${(size.height - y * pixelHeight) * scaleY}" ` +
-                `fill="${color}" />`;
+                `fill="${color}"${
+                    pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
+                } />`;
         }
     }
 

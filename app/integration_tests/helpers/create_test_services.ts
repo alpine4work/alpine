@@ -89,15 +89,18 @@ export function createTestServices(): {context: TestContext; services: TestServi
         const result2 = await captureResultPromise(async () => {
             appServiceSubprocess?.kill("SIGINT");
             taskRealtimeServiceSubprocess?.kill("SIGINT");
+            fileUploadServiceSubprocess?.kill("SIGINT");
 
             await runAllPromises([
                 appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
                 taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
+                fileUploadServiceSubprocess && waitForProcessExit(fileUploadServiceSubprocess),
             ]);
         });
 
         appServiceSubprocess = undefined;
         taskRealtimeServiceSubprocess = undefined;
+        fileUploadServiceSubprocess = undefined;
 
         unwrapResult(result1);
         unwrapResult(result2);
@@ -131,6 +134,9 @@ export function createTestServices(): {context: TestContext; services: TestServi
     let jobQueueServiceSubprocess:
         | ChildProcessByStdio<null, ReadableStream, ReadableStream>
         | undefined;
+    let fileUploadServiceSubprocess:
+        | ChildProcessByStdio<null, ReadableStream, ReadableStream>
+        | undefined;
 
     let oneTimePasswords: Array<{emailAddress: string; oneTimePassword: string}> = [];
 
@@ -142,6 +148,11 @@ export function createTestServices(): {context: TestContext; services: TestServi
     test.beforeAll(async () => {
         const keysDirectoryPath = joinPath(context.getTemporaryDirectoryPath(), "keys");
         const ensureLocalCachePath = joinPath(context.getTemporaryDirectoryPath(), "ensure");
+        const cloudflareR2LocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "r2");
+        const fileUploadServiceTemporaryDirectoryPath = joinPath(
+            context.getTemporaryDirectoryPath(),
+            "files",
+        );
 
         const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
         const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
@@ -170,6 +181,10 @@ export function createTestServices(): {context: TestContext; services: TestServi
             "job_queue_service_rsa.pub",
         );
 
+        const fileUploadServicePrivateKeyPath = joinPath(
+            keysDirectoryPath,
+            "file_upload_service_rsa",
+        );
         const fileUploadServicePublicKeyPath = joinPath(
             keysDirectoryPath,
             "file_upload_service_rsa.pub",
@@ -334,16 +349,45 @@ export function createTestServices(): {context: TestContext; services: TestServi
         jobQueueServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
         jobQueueServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
+        fileUploadServiceSubprocess = spawn(
+            joinPath(runfilesPath, "cyberworlds/server/files/upload/upload.sh"),
+            [
+                `--port=${fileUploadServicePort}`,
+                `--appServicePublicKey=${appServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${taskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
+                `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
+                `--servicePrivateKey=${fileUploadServicePrivateKeyPath}`,
+                `--ensureLocalCachePath=${ensureLocalCachePath}`,
+                `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
+                `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--cloudflareR2LocalPath=${cloudflareR2LocalDataPath}`,
+                `--temporaryDirectoryPath=${fileUploadServiceTemporaryDirectoryPath}`,
+            ],
+            {
+                env: process.env,
+                stdio: ["ignore", "pipe", "pipe"],
+            },
+        );
+
+        // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
+        // write data to stdout/stderr.
+        fileUploadServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
+        fileUploadServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+
         await runAllPromises([
             waitForProcessSpawn(appServiceSubprocess),
             waitForProcessSpawn(edgeServiceSubprocess),
             waitForProcessSpawn(taskRealtimeServiceSubprocess),
             waitForProcessSpawn(jobQueueServiceSubprocess),
+            waitForProcessSpawn(fileUploadServiceSubprocess),
         ]);
 
         await runAllPromises([
             waitForHttpServer(appServicePort),
             waitForHttpServer(taskRealtimeServicePort),
+            waitForHttpServer(fileUploadServicePort),
         ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
