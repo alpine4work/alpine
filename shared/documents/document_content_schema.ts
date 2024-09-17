@@ -103,7 +103,17 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             toDebugString: toDebugStringWithIndent,
         },
 
-        // NOCOMMIT: Document
+        /**
+         * Renders one or more files in content in a horizontal row. When the user
+         * first adds a file to a document it'll be in a `fileRow`. A single, centered,
+         * file is a `fileRow`.
+         *
+         * Up to three files may be rendered horizontally next to each other. File rows
+         * may be stacked vertically to create an image gallery. All images in a file
+         * row have the same height and we try our best to fill the entire width of the
+         * document with each file row. See `layoutContentFileRow()` for more
+         * information on how we layout a file row.
+         */
         fileRow: {
             group: "block",
             content: "file{1,3}",
@@ -113,7 +123,17 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             toDOM: () => ["div", {class: fileRowClassName}, 0],
         },
 
-        // NOCOMMIT: Document
+        /**
+         * A file attached to our content. Files can be images, videos, documents
+         * (e.g. PDFs or Microsoft Word docs), audio, code, and more.
+         *
+         * Files are never directly embedded in content. Instead they must be wrapped
+         * in some container. For example, `fileRow`. The `file` node is responsible
+         * for rendering file content whereas the container is responsible for figuring
+         * out how to lay out the file.
+         */
+        // TODO(calebmer, #files): Files that float to the left and right. This will be
+        // another example of a `file` container.
         file: {
             defining: true,
             isolating: true,
