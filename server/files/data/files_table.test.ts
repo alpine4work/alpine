@@ -5204,3 +5204,87 @@ test("can't finish processing file code preview content for file with an image p
         }),
     );
 });
+
+test("system action from the wrong space can't access file", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    expect(await getFile(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await fileUploader.finishUploading(session.action());
+
+    expect(await getFile(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(getFile(otherSpace.systemAction(), space.id, fileUploader.fileId)).rejects.toThrow(
+        new PermissionDeniedError("System action doesn't have access to space"),
+    );
+});
+
+test("only the uploader account can access their file", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSession = await space.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    expect(await getFile(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: true,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await fileUploader.finishUploading(session.action());
+
+    expect(await getFile(session.action(), space.id, fileUploader.fileId)).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(getFile(otherSession.action(), space.id, fileUploader.fileId)).rejects.toThrow(
+        new PermissionDeniedError("Account doesn't have access to file"),
+    );
+});

@@ -1064,7 +1064,6 @@ export async function getFileIfExists(
             // System actors have access to all files in the space.
             break;
         }
-        // NOCOMMIT: Test!
         case "Session": {
             // TODO(calebmer, #files): We need some grant system that enables accounts
             // other than the uploader to read a file.

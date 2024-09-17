@@ -1091,7 +1091,7 @@ export async function authorizeSpaceAccess(
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
-                throw new PermissionDeniedError("System doesn't have access to space");
+                throw new PermissionDeniedError("System action doesn't have access to space");
             }
             break;
         }
