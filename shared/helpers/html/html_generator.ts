@@ -4,8 +4,31 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 export interface HtmlGenerator {
+    /**
+     * Generate an HTML string. Can be provided to a web browser for parsing and
+     * rendering. Useful for rendering ProseMirror content outside of React in a
+     * server context.
+     */
     generateHtml(): string;
+
+    /**
+     * Generate a DOM node in the browser which is identical to if the browser
+     * parsed the result of `generateHtml()`.
+     */
     generateNode(): Node;
+
+    /**
+     * Patch a DOM node (ideally from `generateNode()`) to be the same as our HTML
+     * generator. Leaving in place as much of the tree as we can. This function is
+     * not as smart as React's diff/patch algorithm. For instance, it doesn't
+     * understand when you reorder children. But it's useful for implementing
+     * interactive content in `<ContentEditor>` that uses `HtmlGenerator` so it can
+     * also be rendered by `<ContentView>`.
+     *
+     * Returns false if we can't patch the provided node. For example HTML elements
+     * can only patch other HTML elements with the same tag name.
+     */
+    patchNode(node: Node): boolean;
 }
 
 export class HtmlTextGenerator implements HtmlGenerator {
@@ -21,6 +44,16 @@ export class HtmlTextGenerator implements HtmlGenerator {
 
     public generateNode() {
         return document.createTextNode(this._text);
+    }
+
+    public patchNode(node: Node) {
+        if (!(node instanceof Text)) return false;
+
+        if (node.data !== this._text) {
+            node.data = this._text;
+        }
+
+        return true;
     }
 }
 
@@ -79,8 +112,50 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
         }
     }
 
+    protected _patchChildNodes(parentNode: Node) {
+        const endChildNodeIndex = this._actuallyPatchChildNodes(parentNode, 0);
+
+        while (parentNode.childNodes.length > endChildNodeIndex) {
+            parentNode.lastChild!.remove();
+        }
+    }
+
+    private _actuallyPatchChildNodes(parentNode: Node, startChildNodeIndex: number): number {
+        let childNodeIndex = startChildNodeIndex;
+
+        for (let childIndex = 0; childIndex < this._children.length; childIndex++) {
+            const child = this._children[childIndex]!;
+
+            // When a `DocumentFragment` (created by `HtmlFragmentGenerator`) is appended
+            // to an `HTMLElement` its child contents are inlined directly in the
+            // `HTMLElement`. So when patching a `HtmlFragmentGenerator` we need to unwrap
+            // its children.
+            if (child instanceof HtmlFragmentGenerator) {
+                childNodeIndex = child._actuallyPatchChildNodes(parentNode, childNodeIndex);
+                continue;
+            }
+
+            if (childNodeIndex < parentNode.childNodes.length) {
+                const childNode = parentNode.childNodes[childNodeIndex]!;
+
+                // If we can't patch the child node, then replace it.
+                if (!child.patchNode(childNode)) {
+                    const newChildNode = child.generateNode();
+                    parentNode.replaceChild(newChildNode, childNode);
+                }
+            } else {
+                parentNode.appendChild(child.generateNode());
+            }
+
+            childNodeIndex++;
+        }
+
+        return childNodeIndex;
+    }
+
     public abstract generateHtml(): string;
     public abstract generateNode(): Node;
+    public abstract patchNode(node: Node): boolean;
 }
 
 export class HtmlElementGenerator extends HtmlContainerGenerator {
@@ -138,6 +213,32 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
 
         return element;
     }
+
+    public patchNode(node: Node) {
+        if (!(node instanceof HTMLElement)) return false;
+        if (node.tagName.toLowerCase() !== this.tagName) return false;
+
+        for (const attributeName of node.getAttributeNames()) {
+            const oldAttributeValue = node.getAttribute(attributeName)!;
+            const newAttributeValue = this._attributes.get(attributeName);
+
+            if (newAttributeValue === undefined) {
+                node.removeAttribute(attributeName);
+            } else if (oldAttributeValue !== newAttributeValue) {
+                node.setAttribute(attributeName, newAttributeValue);
+            }
+        }
+
+        for (const [attributeName, attributeValue] of this._attributes) {
+            if (!node.hasAttribute(attributeName)) {
+                node.setAttribute(attributeName, attributeValue);
+            }
+        }
+
+        this._patchChildNodes(node);
+
+        return true;
+    }
 }
 
 export class HtmlFragmentGenerator extends HtmlContainerGenerator {
@@ -151,5 +252,13 @@ export class HtmlFragmentGenerator extends HtmlContainerGenerator {
         this._appendChildNodes(fragment);
 
         return fragment;
+    }
+
+    public patchNode(node: Node) {
+        if (!(node instanceof DocumentFragment)) return false;
+
+        this._patchChildNodes(node);
+
+        return true;
     }
 }

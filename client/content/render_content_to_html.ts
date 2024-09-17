@@ -154,6 +154,11 @@ export function renderContentFragmentToHtmlStore(
                                 "DOM node generation unimplemented for icon SVG",
                             );
                         },
+                        patchNode: () => {
+                            throw new UnimplementedError(
+                                "DOM node generation unimplemented for icon SVG",
+                            );
+                        },
                     });
 
                     const contentHtml = new HtmlElementGenerator("div");
@@ -235,6 +240,11 @@ export function renderContentFragmentToHtmlStore(
                                     className: contentStyles.codeBlockCopyButtonIconClassName,
                                 }),
                             generateNode: () => {
+                                throw new UnimplementedError(
+                                    "DOM node generation unimplemented for icon SVG",
+                                );
+                            },
+                            patchNode: () => {
                                 throw new UnimplementedError(
                                     "DOM node generation unimplemented for icon SVG",
                                 );
@@ -328,7 +338,10 @@ export function renderContentFragmentToHtmlStore(
                     };
                 },
                 file: node => {
-                    const html = renderContentFilePreview(node, content.references);
+                    const fileId: FileId | null = node.attrs.id;
+                    const file = fileId ? content.references.fileById.get(fileId) : undefined;
+
+                    const html = renderContentFilePreview(node, file);
                     return {html};
                 },
 

@@ -42,7 +42,7 @@ import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
-import {createContentEditorFileNodeView} from "~/client/content/internal/content_editor_file_node_view.js";
+import {createContentEditorFileNodeViewConstructor} from "~/client/content/internal/content_editor_file_node_view.js";
 import {createContentEditorFileRowNodeViewConstructor} from "~/client/content/internal/content_editor_file_row_node_view.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
@@ -837,7 +837,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                         return referencesUpdateEmitterRef.current.subscribe(listener);
                     },
                 }),
-                file: createContentEditorFileNodeView,
+                file: createContentEditorFileNodeViewConstructor({
+                    subscribeToReferencesUpdate: listener => {
+                        referencesUpdateEmitterRef.current ??= new EventEmitter();
+                        return referencesUpdateEmitterRef.current.subscribe(listener);
+                    },
+                }),
             },
 
             // IMPORTANT: If you have a custom view in `markViews` here you should also
@@ -2728,9 +2733,14 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Implement scroll while dragging.
 
-// TODO(calebmer, #files): Poll while file isn't fully available.
+// TODO(calebmer, #files): Poll while file isn't fully available. In both
+// `<ContentEditor>` and `<ContentView>`!
 
 // TODO(calebmer, #files): Better drop targets for narrow vertically centered file.
+
+// TODO(calebmer, #files): Drag to move files.
+
+// TODO(calebmer, #files): Copy/paste files.
 
 /**
  * Get the targets for dropping a file into our document around some top block

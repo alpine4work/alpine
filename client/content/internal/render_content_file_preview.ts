@@ -1,12 +1,11 @@
 import {Node} from "prosemirror-model";
-import {ContentReferences} from "~/shared/content/content_references.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToCssDataUrl} from "~/shared/helpers/html/convert_svg_to_css_data_url.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {FileId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
 /**
@@ -16,16 +15,13 @@ import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_pro
  */
 export function renderContentFilePreview(
     node: Node,
-    contentReferences: ContentReferences,
+    file: FileModel | undefined,
 ): HtmlElementGenerator {
     assert(node.type.name === "file");
 
     const {html} = renderProsemirrorDomOutputSpec(node.type.spec.toDOM!(node));
 
     assert(html instanceof HtmlElementGenerator);
-
-    const fileId: FileId | null = node.attrs.id;
-    const file = fileId ? contentReferences.fileById.get(fileId) : undefined;
 
     if (process.env.NODE_ENV !== "production" && file) {
         html.setAttribute("data-testid", `ContentFile:${file.contentType}`);

@@ -56,10 +56,10 @@ export function createContentEditorFileRowNodeViewConstructor({
             dom.style.gridTemplateColumns = layout.map(({widthFr}) => `${widthFr}fr`).join(" ");
         };
 
+        update();
+
         const unsubscribeFromIsMobileChange = subscribeToIsMobileChange(update);
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(update);
-
-        update();
 
         return {
             dom,
