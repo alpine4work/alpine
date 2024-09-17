@@ -28,17 +28,17 @@ export function renderContentFilePreview(
     }
 
     if (!file) {
-        // NOCOMMIT: Implement
+        // TODO(calebmer, #files): Implement
     } else if (!file.preview) {
-        // NOCOMMIT: Implement
+        // TODO(calebmer, #files): Implement
     } else {
         switch (file.preview.type) {
             case "Audio": {
-                // NOCOMMIT: Implement
+                // TODO(calebmer, #files): Implement
                 break;
             }
             case "Code": {
-                // NOCOMMIT: Implement
+                // TODO(calebmer, #files): Implement
                 break;
             }
             case "Image": {
@@ -47,7 +47,7 @@ export function renderContentFilePreview(
                     file.preview.placeholder === "Processing" ||
                     file.preview.size === "Processing"
                 ) {
-                    // NOCOMMIT: Implement
+                    // TODO(calebmer, #files): Implement
                     break;
                 }
 
@@ -66,7 +66,7 @@ export function renderContentFilePreview(
                 );
 
                 if (typeof file.preview.videoDuration === "number") {
-                    // NOCOMMIT: Implement
+                    // TODO(calebmer, #files): Implement
                 }
                 break;
             }
