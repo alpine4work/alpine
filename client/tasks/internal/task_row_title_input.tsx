@@ -629,7 +629,6 @@ function TaskRowTitleInput(
     // [2]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
     // [3]: https://www.npmjs.com/package/fastdom
     // [4]: https://react.dev/reference/react/useLayoutEffect#measuring-layout-before-the-browser-repaints-the-screen
-
     useInsertionEffect(
         (rootElement?: HTMLDivElement) => {
             // Wait for the client-side rerender before mounting our editor.

@@ -5,6 +5,7 @@ import {
     AllSelection,
     Command,
     EditorState,
+    NodeSelection,
     PluginKey,
     Selection,
     TextSelection,
@@ -74,7 +75,6 @@ import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
@@ -609,6 +609,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     });
 
     const viewRef = useRef<EditorView | null>(null);
+    const lastTransactionRef = useRef<Transaction | null>(null);
 
     useImperativeHandle(
         editorRef,
@@ -672,52 +673,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     );
 
     const [isFocused, setIsFocused] = useState(false);
-
-    const [
-        {lastOptimisticTransactionTime, lastSelectionChangeTransactionTime},
-        setTransactionTimes,
-    ] = useState<{
-        lastOptimisticTransactionTime: number | null;
-        lastSelectionChangeTransactionTime: number | null;
-    }>({
-        lastOptimisticTransactionTime: null,
-        lastSelectionChangeTransactionTime: null,
-    });
-
-    const onStateChange = (
-        oldState: EditorState,
-        newState: EditorState,
-        transaction: Transaction | null,
-    ) => {
-        // Report any added undo/redo stack entries...
-        if (propsRef.current.onUndoStackEntryPushed || propsRef.current.onRedoStackEntryPushed) {
-            // Deriving this logic from here:
-            // https://github.com/ProseMirror/prosemirror-history/blob/40d274a74d0fc0787aeca03634a64d0c78f18a50/src/history.ts#L270-L276
-            const isRedo = transaction?.getMeta(historyPluginKey.get())?.redo;
-
-            const oldUndoDepth = undoDepth(oldState);
-            const newUndoDepth = undoDepth(newState);
-
-            const oldRedoDepth = redoDepth(oldState);
-            const newRedoDepth = redoDepth(newState);
-
-            if (oldUndoDepth < newUndoDepth) {
-                for (let i = oldUndoDepth; i < newUndoDepth; i++) {
-                    if (isRedo) {
-                        propsRef.current.onUndoStackEntryPushedFromRedo?.();
-                    } else {
-                        propsRef.current.onUndoStackEntryPushed?.();
-                    }
-                }
-            }
-
-            if (oldRedoDepth < newRedoDepth) {
-                for (let i = oldRedoDepth; i < newRedoDepth; i++) {
-                    propsRef.current.onRedoStackEntryPushed?.();
-                }
-            }
-        }
-    };
 
     // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
     // docs say only CSS-in-JS libraries should use it.
@@ -1086,24 +1041,13 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 const newState = oldState.apply(transaction);
 
-                const shouldRunWithImmediatePriority =
-                    // Run the update immediately if the content is going into an empty state so we
-                    // can render the placeholders in the same frame.
-                    isContentTitleEmpty(newState.doc) || isContentBodyEmpty(newState.doc);
+                lastTransactionRef.current = transaction;
 
                 // Always call the change handler through a ref. By using a ref we can avoid
                 // destroying and recreating an editor when the function changes.
-                if (!shouldRunWithImmediatePriority) {
-                    propsRef.current.onChange(wrap(newState), transaction);
-                } else {
-                    runWithImmediatePriority(() => {
-                        propsRef.current.onChange(wrap(newState), transaction);
-                    });
-                }
-
-                // Optimistically apply the next transaction to our editor view.
-                // ProseMirror preserves local DOM state when we call `updateState()`
-                // synchronously.
+                //
+                // We also must flush synchronously. Since ProseMirror preserves local DOM
+                // state when we call `updateState()` synchronously but won't otherwise.
                 //
                 // See the "Efficient updating" section in the [editor view guide][1].
                 // If we don't synchronously apply the transaction it is considered
@@ -1112,22 +1056,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // > When such a transaction is canceled or modified somehow, the view
                 // > will undo the DOM change...
                 //
-                // We update the `lastOptimisticTransactionTime` state to re-run an effect
-                // below which reconciles the editor view state with the state we get from
-                // props. That way if our optimistic update is wrong we'll fix it when
-                // React commits.
-                //
                 // [1]: https://prosemirror.net/docs/guide/#view
-                view.updateState(newState);
-                updateEditorEmptyClass(newState);
-                onStateChange(oldState, newState, transaction);
-
-                setTransactionTimes(transactionTimes => ({
-                    lastOptimisticTransactionTime: transaction.time,
-                    lastSelectionChangeTransactionTime: !oldState.selection.eq(newState.selection)
-                        ? transaction.time
-                        : transactionTimes.lastSelectionChangeTransactionTime,
-                }));
+                flushSync(() => {
+                    propsRef.current.onChange(wrap(newState), transaction);
+                });
             },
         });
 
@@ -1313,32 +1245,101 @@ function ContentEditor<Content extends ContentWithReferences>(
         // dependency array.
     }, []);
 
-    // Effect which reconciles our editor state prop with the imperative editor
-    // view state.
-    //
-    // Layout effect because the visual layout depends on the editor state prop
-    // which we need to set imperatively.
+    // Reconcile our imperative `EditorView` state with state from React. If this
+    // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
+    // then this should be flushed synchronously given this is a layout effect.
     useLayoutEffect(() => {
-        // We don't do anything with `lastOptimisticTransactionTime` in this effect,
-        // but we want the effect to re-run whenever it changes. We optimistically
-        // update our `EditorView` state as an optimization. When React finishes
-        // committing we reconcile the prop state with the `EditorView` state in
-        // this effect.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        lastOptimisticTransactionTime;
-
         const newState = unwrap(state);
 
         const view = assertExists(viewRef.current);
+        const viewElement = view.dom;
         const oldState = view.state;
-        if (oldState !== newState) {
-            view.updateState(newState);
-            onStateChange(oldState, newState, null);
+
+        // Get the transaction that produced `newState`.
+        let transaction = lastTransactionRef.current;
+        lastTransactionRef.current = null;
+        if (transaction?.doc !== newState.doc) transaction = null;
+
+        view.updateState(newState);
+
+        // Adds the `emptyTitleClassName` class if the editor document is empty and
+        // removes the class when the editor document is not empty.
+        {
+            assert(viewRef.current);
+            const viewElement = viewRef.current.dom;
+
+            const addEmptyTitleClassName = isContentTitleEmpty(newState.doc);
+            if (
+                addEmptyTitleClassName &&
+                !viewElement.classList.contains(contentStyles.emptyTitleClassName)
+            ) {
+                viewElement.classList.add(contentStyles.emptyTitleClassName);
+            }
+            if (
+                !addEmptyTitleClassName &&
+                viewElement.classList.contains(contentStyles.emptyTitleClassName)
+            ) {
+                viewElement.classList.remove(contentStyles.emptyTitleClassName);
+            }
+
+            const addEmptyBodyClassName = isContentBodyEmpty(newState.doc);
+            if (
+                addEmptyBodyClassName &&
+                !viewElement.classList.contains(contentStyles.emptyBodyClassName)
+            ) {
+                viewElement.classList.add(contentStyles.emptyBodyClassName);
+            }
+            if (
+                !addEmptyBodyClassName &&
+                viewElement.classList.contains(contentStyles.emptyBodyClassName)
+            ) {
+                viewElement.classList.remove(contentStyles.emptyBodyClassName);
+            }
         }
 
-        updateEditorEmptyClass(newState);
-    }, [lastOptimisticTransactionTime, state]);
+        // Keep track of the element ProseMirror marks as selected with the
+        // `ProseMirror-selectednode` CSS class so that we can render our own custom
+        // ring around it.
+        if (newState.selection instanceof NodeSelection) {
+            const selectedNodeElement = viewElement.getElementsByClassName(
+                "ProseMirror-selectednode",
+            )[0];
+            if (selectedNodeElement instanceof HTMLElement) {
+                setSelectedNodeElement(selectedNodeElement);
+            } else {
+                setSelectedNodeElement(null);
+            }
+        }
+
+        // Report any added undo/redo stack entries...
+        if (propsRef.current.onUndoStackEntryPushed || propsRef.current.onRedoStackEntryPushed) {
+            // Deriving this logic from here:
+            // https://github.com/ProseMirror/prosemirror-history/blob/40d274a74d0fc0787aeca03634a64d0c78f18a50/src/history.ts#L270-L276
+            const isRedo = transaction?.getMeta(historyPluginKey.get())?.redo;
+
+            const oldUndoDepth = undoDepth(oldState);
+            const newUndoDepth = undoDepth(newState);
+
+            const oldRedoDepth = redoDepth(oldState);
+            const newRedoDepth = redoDepth(newState);
+
+            if (oldUndoDepth < newUndoDepth) {
+                for (let i = oldUndoDepth; i < newUndoDepth; i++) {
+                    if (isRedo) {
+                        propsRef.current.onUndoStackEntryPushedFromRedo?.();
+                    } else {
+                        propsRef.current.onUndoStackEntryPushed?.();
+                    }
+                }
+            }
+
+            if (oldRedoDepth < newRedoDepth) {
+                for (let i = oldRedoDepth; i < newRedoDepth; i++) {
+                    propsRef.current.onRedoStackEntryPushed?.();
+                }
+            }
+        }
+    }, [state]);
 
     const [decorationCallbacks, setDecorationCallbacks] = useState<
         ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
@@ -1390,41 +1391,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             viewElement.classList.remove(...classList);
         };
     }, [className, isCompact, isExtraCompact, withMobileLayout]);
-
-    // Adds the `emptyTitleClassName` class if the editor document is empty and
-    // removes the class when the editor document is not empty.
-    function updateEditorEmptyClass(state: EditorState) {
-        assert(viewRef.current);
-        const viewElement = viewRef.current.dom;
-
-        const addEmptyTitleClassName = isContentTitleEmpty(state.doc);
-        if (
-            addEmptyTitleClassName &&
-            !viewElement.classList.contains(contentStyles.emptyTitleClassName)
-        ) {
-            viewElement.classList.add(contentStyles.emptyTitleClassName);
-        }
-        if (
-            !addEmptyTitleClassName &&
-            viewElement.classList.contains(contentStyles.emptyTitleClassName)
-        ) {
-            viewElement.classList.remove(contentStyles.emptyTitleClassName);
-        }
-
-        const addEmptyBodyClassName = isContentBodyEmpty(state.doc);
-        if (
-            addEmptyBodyClassName &&
-            !viewElement.classList.contains(contentStyles.emptyBodyClassName)
-        ) {
-            viewElement.classList.add(contentStyles.emptyBodyClassName);
-        }
-        if (
-            !addEmptyBodyClassName &&
-            viewElement.classList.contains(contentStyles.emptyBodyClassName)
-        ) {
-            viewElement.classList.remove(contentStyles.emptyBodyClassName);
-        }
-    }
 
     // Apply a class to the view element depending on whether the shift key is
     // down or not.
@@ -1631,33 +1597,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     }, []);
 
     const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
-
-    useEffect(() => {
-        // Rerun this effect whenever anything in the content editor changes. We depend
-        // on `state` since that represents the latest official state and we depend on
-        // `lastOptimisticTransactionTime` since that represents when content changes
-        // optimistically.
-        //
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        state;
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        lastOptimisticTransactionTime;
-
-        const view = assertExists(viewRef.current);
-        const viewElement = view.dom;
-
-        // Keep track of the element ProseMirror marks as selected with the
-        // `ProseMirror-selectednode` CSS class so that we can render our own custom
-        // ring around it.
-        const selectedNodeElement = viewElement.getElementsByClassName(
-            "ProseMirror-selectednode",
-        )[0];
-        if (selectedNodeElement instanceof HTMLElement) {
-            setSelectedNodeElement(selectedNodeElement);
-        } else {
-            setSelectedNodeElement(null);
-        }
-    }, [lastOptimisticTransactionTime, state]);
 
     // Highlights the selection of all our phantom text selections using the
     // ProseMirror decoration feature. We render `phantomSelections` in two
@@ -2006,7 +1945,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                     view.dispatch(setContentEditorFloaterState(view.state.tr, floaterState));
                 }}
                 isFocused={isFocused}
-                lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
             />
             {selectedNodeElement && (
                 // TODO(calebmer): If you type "foo" in the title, then "bar" in the body, then

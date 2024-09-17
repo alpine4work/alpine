@@ -23,6 +23,10 @@ import {mergeProps} from "react-aria";
 import {flushSync} from "react-dom";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/build_content_editor_keymap_plugin.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+import {
+    ContentEditorFloaterState,
+    ContentEditorPointerToolbarFloaterState,
+} from "~/client/content/internal/content_editor_floater_state.js";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
@@ -48,7 +52,6 @@ import {
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
-    overlayFadeOutAnimationDurationMs,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -61,13 +64,16 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 export function ContentEditorPointerToolbar({
     state,
     viewRef,
+    previousState,
     isFocused,
-    lastSelectionChangeTransactionTime,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
+    previousState: Exclude<
+        ContentEditorFloaterState,
+        ContentEditorPointerToolbarFloaterState
+    > | null;
     isFocused: boolean;
-    lastSelectionChangeTransactionTime: number | null;
 }) {
     // We keep track of our own `localInteractionModality` separate from
     // `react-aria`'s `interactionModality`. A user is still considered to have a
@@ -274,18 +280,19 @@ export function ContentEditorPointerToolbar({
     const initialSelection = useConstant(() => state.selection);
 
     const [hasSelectionChangedSinceMount, setHasSelectionChangedSinceMount] = useState(() => {
-        // If the selection changed right before our component mounted then treat it as
-        // if the selection changed after our component mounted.
-        //
-        // Specifically, if the selection changed but we were waiting on an
-        // `<OverlayAnimated>` animation to finish, we want our toolbar to open.
+        // If the initial selection is different from the previous floater's range then
+        // open the pointer toolbar.
         //
         // For example, say you hover over a link. When you double click on a word to
         // select it then after the link's floater closes (because it uses
         // `useOutsidePress(onClose)`) we want the toolbar to open.
+        //
+        // However, if you open the highlight selector then close it we don't want to
+        // show the pointer toolbar until your selection moves.
         if (
-            lastSelectionChangeTransactionTime !== null &&
-            lastSelectionChangeTransactionTime > Date.now() - overlayFadeOutAnimationDurationMs * 2
+            previousState !== null &&
+            (previousState.range.from !== initialSelection.from ||
+                previousState.range.to !== initialSelection.to)
         ) {
             return true;
         }
@@ -437,8 +444,8 @@ export function ContentEditorPointerToolbar({
         <ContentEditorPointerToolbarOverlay
             state={state}
             viewRef={viewRef}
-            selectionFrom={Math.min(state.doc.nodeSize, showState.selectionFrom)}
-            selectionTo={Math.min(state.doc.nodeSize, showState.selectionTo)}
+            selectionFrom={Math.min(state.doc.nodeSize - 2, showState.selectionFrom)}
+            selectionTo={Math.min(state.doc.nodeSize - 2, showState.selectionTo)}
             animation={showState.animation}
             isLinkInputOpen={showState.extraOverlay === "LinkInput"}
             onLinkInputOpen={() =>

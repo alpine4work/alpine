@@ -4,6 +4,10 @@ import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 
 export type ContentEditorPointerToolbarFloaterState = {
     readonly type: "PointerToolbar";
+    readonly previousState: Exclude<
+        ContentEditorFloaterState,
+        ContentEditorPointerToolbarFloaterState
+    > | null;
 };
 
 export type ContentEditorKeyboardHighlightFloaterState = {
@@ -35,6 +39,7 @@ export type ContentEditorPointerLinkFloaterState = {
 
 export type ContentEditorMentionFloaterState = {
     readonly type: "Mention";
+
     /**
      * `from` should always be an `@` character. If it's not we should clear the
      * floater. `to` should be the end of the mention search query. The user can
@@ -44,10 +49,12 @@ export type ContentEditorMentionFloaterState = {
         readonly from: number;
         readonly to: number;
     };
+
     /**
      * The search query we will look for to pick a mention.
      */
     readonly searchQuery: string;
+
     /**
      * The `<ContentEditorMentionFloater>` component will `useImperativeHandle()`
      * to provide an implementation of this function which the content editor
@@ -55,6 +62,7 @@ export type ContentEditorMentionFloaterState = {
      * handled the event.
      */
     readonly handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
+
     /**
      * Is the mention floater in the closing animation? Other floaters manage their
      * closing animation state locally but we do it here since we close the floater
@@ -78,7 +86,3 @@ export type ContentEditorFloaterState =
     | ContentEditorPointerLinkFloaterState
     | ContentEditorMentionFloaterState
     | ContentEditorCommentInputFloaterState;
-
-// We always revert back to the pointer toolbar floater since it controls when
-// it is visible and when it is not visible. (Much of the time it's not.)
-export const initialContentEditorFloaterState: ContentEditorFloaterState = {type: "PointerToolbar"};
