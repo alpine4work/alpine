@@ -1042,6 +1042,14 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 lastTransactionRef.current = transaction;
 
+                // eslint-disable-next-line no-commit-blockers
+                // NOCOMMIT: Adding this to help debug a failing test in CI.
+                // eslint-disable-next-line no-console
+                console.trace("dispatchTransaction", {
+                    before: transaction.before.toJSON(),
+                    after: transaction.doc.toJSON(),
+                });
+
                 // Always call the change handler through a ref. By using a ref we can avoid
                 // destroying and recreating an editor when the function changes.
                 //
