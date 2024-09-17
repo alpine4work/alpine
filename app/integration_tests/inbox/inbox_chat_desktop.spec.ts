@@ -50,7 +50,7 @@ test("can see new chat notifications on inbox button and preview", async ({
     await page3.click("body");
     await expect(page3.getByText("No new notifications")).toBeHidden();
 
-    await page1.getByRole("textbox", {name: "New message"}).type("test1");
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("test1");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
@@ -68,7 +68,7 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
 
-    await page1.getByRole("textbox", {name: "New message"}).type("test2");
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("test2");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
@@ -86,7 +86,7 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
 
-    await page2.getByRole("textbox", {name: "New message"}).type("test3");
+    await page2.getByRole("textbox", {name: "New message"}).pressSequentially("test3");
     await page2.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("2")).toBeVisible();
@@ -120,7 +120,7 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("2")).toBeVisible();
 
-    await page3.getByRole("textbox", {name: "New message"}).type("test4");
+    await page3.getByRole("textbox", {name: "New message"}).pressSequentially("test4");
     await page3.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByText("test1")).toBeVisible();
@@ -148,7 +148,7 @@ test("can see new chat notifications on inbox button and preview", async ({
 
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
 
-    await page3.getByRole("textbox", {name: "New message"}).type("test5");
+    await page3.getByRole("textbox", {name: "New message"}).pressSequentially("test5");
     await page3.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByText("test3")).toBeVisible();
@@ -203,7 +203,7 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByText("Siobahn sent you a message")).toBeHidden();
     await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
 
-    await page1.getByRole("textbox", {name: "New message"}).type("test6");
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("test6");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByText("No new notifications")).toBeVisible();
@@ -220,7 +220,7 @@ test("can see new chat notifications from inbox", async ({
     await expect(page3.getByText("Siobahn sent you a message")).toBeVisible();
     await expect(page3.getByText("Kendall sent you a message")).toBeHidden();
 
-    await page2.getByRole("textbox", {name: "New message"}).type("test7");
+    await page2.getByRole("textbox", {name: "New message"}).pressSequentially("test7");
     await page2.getByRole("button", {name: "Send message"}).click();
 
     await expect(page3.getByText("Kendall sent you a message")).toBeVisible();
@@ -348,10 +348,13 @@ test("can go offline then when reconnecting notifications catch up", async ({
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeHidden();
     await expect(page3.getByRole("listbox", {name: "Inbox"}).getByText("test8")).toBeHidden();
 
-    await page1.getByRole("textbox", {name: "New message"}).type("@Logan");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("@");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeVisible();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("Logan");
     await page1.getByRole("textbox", {name: "New message"}).press("ArrowDown");
     await page1.getByRole("textbox", {name: "New message"}).press("Enter");
-    await page1.getByRole("textbox", {name: "New message"}).type(" test8");
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially(" test8");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page2.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
@@ -361,20 +364,26 @@ test("can go offline then when reconnecting notifications catch up", async ({
     await page2.evaluate("dev.myAccount.toggleShouldConnect()");
     await page3.evaluate("dev.myAccount.toggleShouldConnect()");
 
-    await page1.getByRole("textbox", {name: "New message"}).type("@Logan");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("@");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeVisible();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("Logan");
     await page1.getByRole("textbox", {name: "New message"}).press("ArrowDown");
     await page1.getByRole("textbox", {name: "New message"}).press("Enter");
-    await page1.getByRole("textbox", {name: "New message"}).type(" test9");
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially(" test9");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page2.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
     await expect(page3.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
     await expect(page3.getByRole("listbox", {name: "Inbox"}).getByText("test8")).toBeVisible();
 
-    await page1.getByRole("textbox", {name: "New message"}).type("@Logan");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("@");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeVisible();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("Logan");
     await page1.getByRole("textbox", {name: "New message"}).press("ArrowDown");
     await page1.getByRole("textbox", {name: "New message"}).press("Enter");
-    await page1.getByRole("textbox", {name: "New message"}).type(" test10");
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially(" test10");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page2.getByRole("button", {name: "Inbox"}).getByText("1")).toBeVisible();
@@ -396,10 +405,13 @@ test("can go offline then when reconnecting notifications catch up", async ({
     await expect(page3.getByRole("listbox", {name: "Inbox"}).getByText("test8")).toBeHidden();
     await expect(page3.getByRole("listbox", {name: "Inbox"}).getByText("test10")).toBeVisible();
 
-    await page1.getByRole("textbox", {name: "New message"}).type("@Logan");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeHidden();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("@");
+    await expect(page1.getByTestId("ContentEditorMentionFloater")).toBeVisible();
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially("Logan");
     await page1.getByRole("textbox", {name: "New message"}).press("ArrowDown");
     await page1.getByRole("textbox", {name: "New message"}).press("Enter");
-    await page1.getByRole("textbox", {name: "New message"}).type(" test11");
+    await page1.getByRole("textbox", {name: "New message"}).pressSequentially(" test11");
     await page1.getByRole("button", {name: "Send message"}).click();
 
     await expect(page2.getByRole("button", {name: "Inbox"}).getByText("4")).toBeVisible();
