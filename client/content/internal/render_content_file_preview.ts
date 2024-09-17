@@ -83,7 +83,7 @@ function renderFileImagePreviewPlaceholder(
 ) {
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size.width} ${size.height}">`;
 
-    const blurStdDeviation = size.width / 8;
+    const blurStdDeviation = size.width / 7;
     const translateX = -blurStdDeviation * 2;
     const translateY = -blurStdDeviation * 2;
     const scaleX = (size.width + -translateX * 2) / size.width;
@@ -111,8 +111,8 @@ function renderFileImagePreviewPlaceholder(
                 `y="${y * pixelHeight * scaleY + translateY}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get
                 // any gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${(size.width - x * pixelWidth) * scaleX}" ` +
-                `height="${(size.height - y * pixelHeight) * scaleY}" ` +
+                `width="${pixelWidth * scaleX}" ` +
+                `height="${pixelHeight * scaleY}" ` +
                 `fill="${color}"${
                     pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
                 } />`;
