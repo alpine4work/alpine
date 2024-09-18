@@ -2913,12 +2913,12 @@ type ContentEditorFileDropTarget = {
           };
 };
 
+// TODO(calebmer, #files): Keyboard shortcut tests?
+
 // TODO(calebmer, #files): Implement scroll while dragging.
 
 // TODO(calebmer, #files): Poll while file isn't fully available. In both
 // `<ContentEditor>` and `<ContentView>`!
-
-// TODO(calebmer, #files): Better drop targets for narrow vertically centered file.
 
 // TODO(calebmer, #files): Drag to move files.
 
