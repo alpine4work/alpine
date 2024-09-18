@@ -221,13 +221,31 @@ export function buildContentEditorKeymapPlugin(
         },
 
         // If you're at the last line in a code block that has more than 1 line and the
-        // code block line is only spaces then we want to deleted the last line and
+        // code block line is only spaces then we want to delete the last line and
         // instead create a paragraph beneath the code block. This allows the user to
         // easily escape the code block and continue typing prose when they're done
         // editing.
         //
         // To intentionally create many empty lines at the end of a code block the user
         // needs to put content in the lines then delete that content.
+        //
+        // For example if your cursor is at `|` (and the numbers represent code block
+        // line numbers):
+        //
+        // ```
+        // 1 foo
+        // 2 bar
+        // 3 |
+        // ```
+        //
+        // Then you press enter:
+        //
+        // ```
+        // 1 foo
+        // 2 bar
+        //
+        // |
+        // ```
         (state, dispatch) => {
             const {$from, $to} = state.selection;
             if ($from.pos !== $to.pos) return false;
@@ -257,6 +275,37 @@ export function buildContentEditorKeymapPlugin(
                     ),
                 );
             }
+            return true;
+        },
+
+        // If the user presses enter while a file is selected we create a new paragraph
+        // underneath the file so the user can continue typing. This is different from
+        // the usual behavior of enter deleting the selection and replacing it with a
+        // paragraph. Since files are large and generally added pretty intentionally we
+        // decide to create a new paragraph instead of replacing the file.
+        (state, dispatch) => {
+            // 1. If we've selected a file.
+            if (!(state.selection instanceof NodeSelection)) return false;
+            if (state.selection.node.type.name !== "file") return false;
+            if (state.selection.$anchor.parent.type.name !== "fileRow") return false;
+
+            if (dispatch) {
+                const transaction = state.tr.insert(
+                    state.selection.$anchor.after(),
+                    schema.node("paragraph"),
+                );
+
+                dispatch(
+                    transaction
+                        .setSelection(
+                            TextSelection.near(
+                                transaction.doc.resolve(state.selection.$anchor.after() + 1),
+                            ),
+                        )
+                        .scrollIntoView(),
+                );
+            }
+
             return true;
         },
 
@@ -300,23 +349,59 @@ export function buildContentEditorKeymapPlugin(
     keys.set("Enter", enterCommand);
     keys.set("Shift-Enter", enterCommand);
 
-    // Pressing alt+enter creates a hard break (aka a new line). You can use
-    // alt+enter to create a list item with multiple lines, for instance.
-    const altEnterCommand: Command = (state, dispatch) => {
-        const {$from} = state.selection;
-        const fromNode = $from.node();
-        const isSelectionInCodeBlockLine = fromNode.type.name === "codeBlockLine";
+    const altEnterCommand: Command = chainCommands(
+        // If the user presses alt+enter while a file is selected we create a new
+        // paragraph above the file so the user can continue typing. This is different
+        // from the usual behavior of enter deleting the selection and replacing it
+        // with a paragraph. Since files are large and generally added pretty
+        // intentionally we decide to create a new paragraph instead of replacing the
+        // file.
+        (state, dispatch) => {
+            // 1. If we've selected a file.
+            if (!(state.selection instanceof NodeSelection)) return false;
+            if (state.selection.node.type.name !== "file") return false;
+            if (state.selection.$anchor.parent.type.name !== "fileRow") return false;
 
-        if (!isSelectionInCodeBlockLine) {
-            dispatch?.(state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView());
+            if (dispatch) {
+                const transaction = state.tr.insert(
+                    state.selection.$anchor.before(),
+                    schema.node("paragraph"),
+                );
+
+                dispatch(
+                    transaction
+                        .setSelection(
+                            TextSelection.near(
+                                transaction.doc.resolve(state.selection.$anchor.before() + 1),
+                            ),
+                        )
+                        .scrollIntoView(),
+                );
+            }
+
             return true;
-        } else {
-            // In a code block, alt+enter always creates a new code block line. Unlike
-            // `Enter` which will stop creating newlines at the end of a code block and
-            // will convert to a paragraph.
-            return splitBlockWithCodeBlockLineLeadingIndentation(state, dispatch);
-        }
-    };
+        },
+
+        // Pressing alt+enter creates a hard break (aka a new line). You can use
+        // alt+enter to create a list item with multiple lines, for instance.
+        (state, dispatch) => {
+            const {$from} = state.selection;
+            const fromNode = $from.node();
+            const isSelectionInCodeBlockLine = fromNode.type.name === "codeBlockLine";
+
+            if (!isSelectionInCodeBlockLine) {
+                dispatch?.(
+                    state.tr.replaceSelectionWith(schema.nodes.break.create()).scrollIntoView(),
+                );
+                return true;
+            } else {
+                // In a code block, alt+enter always creates a new code block line. Unlike
+                // `Enter` which will stop creating newlines at the end of a code block and
+                // will convert to a paragraph.
+                return splitBlockWithCodeBlockLineLeadingIndentation(state, dispatch);
+            }
+        },
+    );
 
     keys.set("Alt-Enter", altEnterCommand);
     keys.set("Ctrl-Enter", altEnterCommand);
@@ -630,6 +715,17 @@ export function buildContentEditorKeymapPlugin(
 
             assert($previousFile.parent.type.name === "fileRow");
             assert($previousFile.nodeAfter?.type.name === "file");
+
+            // If the textblock is empty then hitting backspace should delete the
+            // textblock. Not delete the file.
+            if ($from.parent.nodeSize <= 2) {
+                dispatch?.(
+                    setSelectionToPreviousFileIfExists(
+                        state.tr.replaceRange($from.before(), $from.after(), Slice.empty),
+                    ).scrollIntoView(),
+                );
+                return true;
+            }
 
             // If there's only one file we want to delete the entire file row. If there's
             // multiple files then we want to delete the last file in the row.
@@ -958,6 +1054,17 @@ export function buildContentEditorKeymapPlugin(
 
             assert($nextFile.parent.type.name === "fileRow");
             assert($nextFile.nodeAfter?.type.name === "file");
+
+            // If the textblock is empty then hitting backspace should delete the
+            // textblock. Not delete the file.
+            if ($from.parent.nodeSize <= 2) {
+                dispatch?.(
+                    setSelectionToNextFileIfExists(
+                        state.tr.replaceRange($from.before(), $from.after(), Slice.empty),
+                    ).scrollIntoView(),
+                );
+                return true;
+            }
 
             // If there's only one file we want to delete the entire file row. If there's
             // multiple files then we want to delete the last file in the row.
