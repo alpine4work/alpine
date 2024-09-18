@@ -1846,23 +1846,39 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
         };
 
-        const handleFocus = () => {
-            flushSync(() => setIsFocused(true));
+        // Don't use `flushSync()` within our effect since it won't have any effect and
+        // React will log a warning.
+        let withoutFlushSync = true;
 
-            setDecorationCallbacks(decorationCallbacks => {
-                const newDecorationCallbacks = new Set(decorationCallbacks);
-                newDecorationCallbacks.delete(blurDecorationCallback);
-                return newDecorationCallbacks;
+        const handleFocus = () => {
+            const run: (action: () => void) => void = withoutFlushSync
+                ? action => action()
+                : flushSync;
+
+            run(() => {
+                setIsFocused(true);
+
+                setDecorationCallbacks(decorationCallbacks => {
+                    const newDecorationCallbacks = new Set(decorationCallbacks);
+                    newDecorationCallbacks.delete(blurDecorationCallback);
+                    return newDecorationCallbacks;
+                });
             });
         };
 
         const handleBlur = () => {
-            flushSync(() => setIsFocused(false));
+            const run: (action: () => void) => void = withoutFlushSync
+                ? action => action()
+                : flushSync;
 
-            setDecorationCallbacks(decorationCallbacks => {
-                const newDecorationCallbacks = new Set(decorationCallbacks);
-                newDecorationCallbacks.add(blurDecorationCallback);
-                return newDecorationCallbacks;
+            run(() => {
+                setIsFocused(false);
+
+                setDecorationCallbacks(decorationCallbacks => {
+                    const newDecorationCallbacks = new Set(decorationCallbacks);
+                    newDecorationCallbacks.add(blurDecorationCallback);
+                    return newDecorationCallbacks;
+                });
             });
         };
 
@@ -1871,6 +1887,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         } else {
             handleBlur();
         }
+
+        withoutFlushSync = false;
 
         viewElement.addEventListener("focus", handleFocus);
         viewElement.addEventListener("blur", handleBlur);
@@ -2126,7 +2144,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (setSelectionAfterCommentInputOpenRef.current) {
             const selection = setSelectionAfterCommentInputOpenRef.current;
             setSelectionAfterCommentInputOpenRef.current = null;
-            view.dispatch(view.state.tr.setSelection(selection));
+
+            // Can't call `view.dispatch()` in an effect since it'll call `flushSync()`. So
+            // schedule a microtask.
+            scheduleMicrotask(() => {
+                view.dispatch(view.state.tr.setSelection(selection));
+            });
         }
 
         const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
