@@ -9,7 +9,6 @@ import {
 import {
     ContentEditorReferencesAction,
     createCommentThreadMetaKey,
-    reduceContentReferences,
     reduceContentReferencesShared,
 } from "~/client/content/content_editor_state.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
