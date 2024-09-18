@@ -25,6 +25,10 @@ export function createContentEditorFileRowNodeViewConstructor({
 
         assert(dom instanceof HTMLElement);
 
+        // Make sure the browser doesn't think it's allowed to select or edit inside a
+        // file row.
+        dom.contentEditable = "false";
+
         let isDestroyed = false;
         let lastIsMobile: boolean | null = null;
         let lastFiles: Array<FileModel | null> | null = null;

@@ -715,7 +715,26 @@ function ContentEditor<Content extends ContentWithReferences>(
             lastRemPx = remPx;
 
             lastScrollMargin = {
-                top: scrollMarginPx,
+                // If our schema has a title then use the title's padding top as our top
+                // margin. This has two important effects:
+                //
+                // 1. Content with titles (documents) also typically have a navigation bar.
+                //    Since the title padding is larger than our navigation bar height while
+                //    moving up with arrow keys the selection won't be covered by the
+                //    navigation bar.
+                //
+                // 2. Moving up through content with arrow keys and arriving at the title will
+                //    have fully scrolled the editor to the top of the view.
+                top: schema.nodes.title
+                    ? convertRemLengthToPx(
+                          isMobileRef.current
+                              ? contentStyles.mobilePlatformTitlePaddingTop
+                              : withMobileLayoutRef.current
+                              ? contentStyles.mobileLayoutTitlePaddingTop
+                              : contentStyles.desktopTitlePaddingTop,
+                          remPx,
+                      ) + 1
+                    : scrollMarginPx,
                 left:
                     scrollMarginPx +
                     // This is the base width of code block line numbers. When scrolling left, to
@@ -2891,9 +2910,10 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Keyboard interactions for files.
 //
-// - [ ] Arrow keys to navigate files
-// - [ ] Arrow keys to navigate into files
-// - [ ] Arrow keys to navigate out of files
+// - [x] Arrow keys to navigate files
+// - [x] Arrow keys to navigate into files
+// - [x] Arrow keys to navigate out of files
+// - [ ] Delete key to delete files
 // - [ ] Insert text between two files? Probably pressing enter should create a new
 //       line of text below and shift enter creates a new line of text above?
 //       Without deleting the file though

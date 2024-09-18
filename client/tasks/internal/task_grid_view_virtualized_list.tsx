@@ -578,7 +578,7 @@ export function useTaskGridViewVirtualizedList({
                 lastArrowNavigationCoordRef.current &&
                 // If we just set this ref, don't clear it. We're processing browser events
                 // that happened because of the arrow navigation.
-                new Date().getTime() - lastArrowNavigationCoordRef.current.setTime.getTime() > 10
+                new Date().getTime() - lastArrowNavigationCoordRef.current.setTime.getTime() > 100
             ) {
                 lastArrowNavigationCoordRef.current = null;
             }
