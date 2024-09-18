@@ -43,6 +43,10 @@ export const contentStructuralProsemirrorNodeSpecs = createProsemirrorNodesSpec(
     heading: {
         group: "block",
         content: "inline*",
+        // Don't allow selecting with a `NodeSelection`. The default is `true` but
+        // there's only a small number of nodes (e.g. `divider`) we actually want to
+        // let be selectable.
+        selectable: false,
         attrs: {
             level: {
                 schema: Schema.integer.min(1).max(3),
@@ -82,6 +86,7 @@ export const contentStructuralProsemirrorNodeSpecs = createProsemirrorNodesSpec(
      */
     divider: {
         group: "block",
+        selectable: true,
         toDOM: () => ["hr", {class: dividerClassName}],
         parseDOM: [{tag: "hr"}],
     },

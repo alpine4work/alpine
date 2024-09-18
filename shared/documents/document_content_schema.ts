@@ -44,6 +44,11 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         checkListItem: {
             group: "block listItem",
             content: "paragraph+",
+            defining: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             attrs: {
                 indent: {
                     schema: ContentSchemaListItemIndentSchema,
@@ -54,7 +59,6 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                     default: false,
                 },
             },
-            defining: true,
             // TODO(calebmer): Test that copying a check list from a document and pasting
             // it into a post styles the list as an unordered list.
             toDOM: node => {
@@ -119,6 +123,10 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             content: "file{1,3}",
             defining: true,
             isolating: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             toDOM: () => ["div", {class: fileRowClassName}, 0],
         },
 
@@ -136,6 +144,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         file: {
             defining: true,
             isolating: true,
+            selectable: true,
             attrs: {
                 // `id` is nullable so the `file` node is generatable. Otherwise ProseMirror
                 // complains that `fileRow` can't be generated because it requires at least one

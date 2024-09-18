@@ -40,7 +40,6 @@ import {
     contentCodeBlockIndentationSpaceCount,
 } from "~/shared/content/content_schema.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
-import {DeadlineExceededError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Command = (
@@ -1072,12 +1071,14 @@ export function buildContentEditorKeymapPlugin(
                 const parentNode = $from.node($from.depth - 1);
                 const currentNode = $from.node();
 
-                // 2. Check if the selection is a `codeBlockLine` within `codeBlock` or a
-                //    `divider`
+                // 2. Check if the selection is a `codeBlockLine` within `codeBlock`, a
+                //    `divider`, or a `file`
                 if (
                     (currentNode.type.name === "codeBlockLine" &&
                         parentNode.type.name === "codeBlock") ||
-                    (selection instanceof NodeSelection && selection.node.type.name === "divider")
+                    (selection instanceof NodeSelection &&
+                        (selection.node.type.name === "divider" ||
+                            selection.node.type.name === "file"))
                 ) {
                     const paragraphNode = schema.nodes.paragraph;
                     if (!paragraphNode) {
@@ -1406,14 +1407,19 @@ export function buildContentEditorKeymapPlugin(
                     });
 
                     if (posResult !== null) {
-                        // Preserve the last arrow navigation coord if we used it.
-                        if (lastArrowNavigationCoordState)
-                            lastArrowNavigationCoordState.setTime = new Date();
-
                         const nextSelection = Selection.near(state.doc.resolve(posResult.pos), -1);
 
-                        view.dispatch(state.tr.setSelection(nextSelection).scrollIntoView());
-                        return true;
+                        if (
+                            !(nextSelection instanceof NodeSelection) ||
+                            nextSelection.node !== selection.node
+                        ) {
+                            // Preserve the last arrow navigation coord if we used it.
+                            if (lastArrowNavigationCoordState)
+                                lastArrowNavigationCoordState.setTime = new Date();
+
+                            view.dispatch(state.tr.setSelection(nextSelection).scrollIntoView());
+                            return true;
+                        }
                     }
                 }
             }

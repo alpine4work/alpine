@@ -2930,6 +2930,9 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Copy/paste files.
 
+// TODO(calebmer, #files): Dragging into an empty paragraph maybe should
+// replace the paragraph? Useful in an empty document for example.
+
 /**
  * Get the targets for dropping a file into our document around some top block
  * index. For performance, we only generate drop targets immediately around the

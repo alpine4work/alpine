@@ -232,7 +232,7 @@
         "prosemirror-keymap": "^1.2.0",
         "prosemirror-model": "^1.18.1",
         "prosemirror-schema-basic": "^1.2.0",
-        "prosemirror-state": "^1.4.2",
+        "prosemirror-state": "1.4.2",
         "prosemirror-transform": "^1.7.0",
         "prosemirror-view": "1.27.2",
         "punycode": "^2.3.1",
@@ -350,7 +350,8 @@
             "eslint@8.57.0": "admin/patches/eslint@8.57.0.patch",
             "@cloudsnorkel/cdk-github-runners@0.14.1": "admin/patches/@cloudsnorkel__cdk-github-runners@0.14.1.patch",
             "playwright@1.46.0": "admin/patches/playwright@1.46.0.patch",
-            "vite@5.4.2": "admin/patches/vite@5.4.2.patch"
+            "vite@5.4.2": "admin/patches/vite@5.4.2.patch",
+            "prosemirror-state@1.4.2": "admin/patches/prosemirror-state@1.4.2.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

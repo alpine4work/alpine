@@ -123,6 +123,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
          */
         doc: {
             content: "block+",
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
         },
 
         /**
@@ -139,6 +143,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         paragraph: {
             group: "block",
             content: "inline*",
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             toDOM: () => ["p", {class: paragraphClassName}, 0],
             parseDOM: paragraphParseRules,
         },
@@ -152,6 +160,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         quoteBlock: {
             group: "block",
             content: "(paragraph | simpleListItem)+",
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             toDOM: () => [`blockquote`, {class: quoteBlockClassName}, 0],
             parseDOM: [{tag: "blockquote"}],
         },
@@ -217,6 +229,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             group: "block",
             content: "codeBlockLine+",
             defining: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             attrs: {
                 language: {
                     schema: ContentCodeBlockLanguageIdSchema,
@@ -249,6 +265,10 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             content: "text*",
             marks: "allowedInCodeBlock",
             defining: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             toDOM: () => [
                 "div",
                 {class: codeBlockLineClassName},
@@ -312,13 +332,17 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         unorderedListItem: {
             group: "block listItem simpleListItem",
             content: "paragraph+",
+            defining: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             attrs: {
                 indent: {
                     schema: ContentSchemaListItemIndentSchema,
                     default: 0,
                 },
             },
-            defining: true,
             toDOM: node => {
                 const indent = clampListItemIndentation(node.attrs.indent);
                 return [
@@ -341,13 +365,17 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         orderedListItem: {
             group: "block listItem simpleListItem",
             content: "paragraph+",
+            defining: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
             attrs: {
                 indent: {
                     schema: ContentSchemaListItemIndentSchema,
                     default: 0,
                 },
             },
-            defining: true,
             toDOM: node => {
                 const indent = clampListItemIndentation(node.attrs.indent);
                 return [
@@ -375,6 +403,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         break: {
             inline: true,
             group: "inline",
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
             selectable: false,
             toDOM: () => ["br"],
             parseDOM: [{tag: "br"}],
@@ -391,6 +422,9 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         mention: {
             inline: true,
             group: "inline",
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
             selectable: false,
             attrs: {
                 mention: {
