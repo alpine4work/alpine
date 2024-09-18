@@ -650,6 +650,7 @@ export function buildContentEditorKeymapPlugin(
         // We only want to delete the code block if the code block is empty,
         // has only one code block line, and if the selection is at
         // the beginning of the code block.
+        //
         // Also handles the case when deleting the code block at the top
         // of the document, below the title.
         (state, dispatch) => {
@@ -683,12 +684,12 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If the selection is at the beginning of a textblock and there's a `fileRow`
-        // right before the selection then we want backspace to delete the last file in
-        // the `fileRow`.
-        //
-        // If there are more files then we also move selection into the file gallery to
-        // help the user navigate across the gallery.
+        // If the selection is at the beginning of a text block and there's a `fileRow`
+        // right before the selection then we want backspace to select the previous
+        // file but not delete it! We select the previous file as a way to confirm with
+        // the user "are you sure you want to delete this?" Files are added with a lot
+        // of intention from the user so we want to help protect the user from
+        // accidentally deleting their attached files.
         (state, dispatch) => {
             const {$from, $to} = state.selection;
 
@@ -719,7 +720,7 @@ export function buildContentEditorKeymapPlugin(
             assert($previousFile.nodeAfter?.type.name === "file");
 
             // If the textblock is empty then hitting backspace should delete the
-            // textblock. Not delete the file.
+            // textblock select the previous file.
             if ($from.parent.nodeSize <= 2) {
                 dispatch?.(
                     setSelectionToPreviousFileIfExists(
@@ -729,30 +730,7 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             }
 
-            // If there's only one file we want to delete the entire file row. If there's
-            // multiple files then we want to delete the last file in the row.
-            if ($previousFile.parent.childCount === 1) {
-                dispatch?.(
-                    setSelectionToPreviousFileIfExists(
-                        state.tr.replaceRange(
-                            $previousFile.before(),
-                            $previousFile.after(),
-                            Slice.empty,
-                        ),
-                    ).scrollIntoView(),
-                );
-            } else {
-                dispatch?.(
-                    setSelectionToPreviousFileIfExists(
-                        state.tr.replaceRange(
-                            $previousFile.pos,
-                            $previousFile.pos + 1,
-                            Slice.empty,
-                        ),
-                    ).scrollIntoView(),
-                );
-            }
-
+            dispatch?.(setSelectionToPreviousFileIfExists(state.tr).scrollIntoView());
             return true;
         },
 
@@ -1019,12 +997,12 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
-        // If the selection is at the end of a textblock and there's a `fileRow`
-        // right after the selection then we want delete to remove the last first in
-        // the `fileRow`.
-        //
-        // If there are more files then we also move selection into the file gallery to
-        // help the user navigate across the gallery.
+        // If the selection is at the end of a text block and there's a `fileRow`
+        // right after the selection then we want delete to select the next
+        // file but not delete it! We select the next file as a way to confirm with
+        // the user "are you sure you want to delete this?" Files are added with a lot
+        // of intention from the user so we want to help protect the user from
+        // accidentally deleting their attached files.
         (state, dispatch) => {
             const {$from, $to} = state.selection;
 
@@ -1068,22 +1046,7 @@ export function buildContentEditorKeymapPlugin(
                 return true;
             }
 
-            // If there's only one file we want to delete the entire file row. If there's
-            // multiple files then we want to delete the last file in the row.
-            if ($nextFile.parent.childCount === 1) {
-                dispatch?.(
-                    setSelectionToNextFileIfExists(
-                        state.tr.replaceRange($nextFile.before(), $nextFile.after(), Slice.empty),
-                    ).scrollIntoView(),
-                );
-            } else {
-                dispatch?.(
-                    setSelectionToNextFileIfExists(
-                        state.tr.replaceRange($nextFile.pos, $nextFile.pos + 1, Slice.empty),
-                    ).scrollIntoView(),
-                );
-            }
-
+            dispatch?.(setSelectionToNextFileIfExists(state.tr).scrollIntoView());
             return true;
         },
 
