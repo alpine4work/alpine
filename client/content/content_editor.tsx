@@ -77,6 +77,7 @@ import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
+import {flushSyncIfNotRendering} from "~/client/helpers/flush_sync_if_not_rendering.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -1912,7 +1913,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         const handleFocus = () => {
             const run: (action: () => void) => void = withoutFlushSync
                 ? action => action()
-                : flushSync;
+                : // We frequently call `focus()` in a `useEffect()`. It's fine if we don't
+                  // immediately flush our `isFocused` update in this context.
+                  flushSyncIfNotRendering;
 
             run(() => {
                 setIsFocused(true);
@@ -1928,7 +1931,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         const handleBlur = () => {
             const run: (action: () => void) => void = withoutFlushSync
                 ? action => action()
-                : flushSync;
+                : // We frequently call `focus()` in a `useEffect()`. It's fine if we don't
+                  // immediately flush our `isFocused` update in this context.
+                  flushSyncIfNotRendering;
 
             run(() => {
                 setIsFocused(false);

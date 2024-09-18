@@ -175,10 +175,7 @@ function ContentEditorKeyboardHighlightFloater({
     }, [isClosing, onActuallyClose]);
 
     useEffect(() => {
-        // Focus in a microtask so React `flushSync()` warning isn't logged.
-        scheduleMicrotask(() => {
-            selectorRef.current?.focus({preventScroll: true});
-        });
+        selectorRef.current?.focus({preventScroll: true});
     }, []);
 
     return (

@@ -8,7 +8,6 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -35,10 +34,7 @@ export function ContentEditorLinkInput({
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
         if (autoFocus) {
-            // Focus in a microtask so React `flushSync()` warning isn't logged.
-            scheduleMicrotask(() => {
-                inputRef.current?.focus({preventScroll: true});
-            });
+            inputRef.current?.focus({preventScroll: true});
         }
     }, [autoFocus]);
 
