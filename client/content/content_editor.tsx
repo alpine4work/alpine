@@ -2918,11 +2918,11 @@ type ContentEditorFileDropTarget = {
 // - [x] Arrow keys to navigate files
 // - [x] Arrow keys to navigate into files
 // - [x] Arrow keys to navigate out of files
-// - [ ] Delete key to delete files
+// - [x] Delete key to delete files
 // - [ ] Insert text between two files? Probably pressing enter should create a new
 //       line of text below and shift enter creates a new line of text above?
 //       Without deleting the file though
-// - [ ] Arrow key down adds empty paragraph at tend of document
+// - [x] Arrow key down adds empty paragraph at end of document
 
 // TODO(calebmer, #files): Implement scroll while dragging.
 

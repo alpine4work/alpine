@@ -12,7 +12,7 @@ import {
 import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keydownHandler} from "prosemirror-keymap";
-import {Node} from "prosemirror-model";
+import {Node, ResolvedPos, Slice} from "prosemirror-model";
 import {
     EditorState,
     NodeSelection,
@@ -321,10 +321,84 @@ export function buildContentEditorKeymapPlugin(
     keys.set("Alt-Enter", altEnterCommand);
     keys.set("Ctrl-Enter", altEnterCommand);
 
+    const setSelectionToPreviousFileIfExists = (transaction: Transaction) => {
+        for (let depth = transaction.selection.$from.depth; depth >= 0; depth--) {
+            const node = transaction.selection.$from.node(depth);
+            const index = transaction.selection.$from.index(depth);
+            if (!(index - 1 >= 0)) continue;
+
+            const siblingNode = node.child(index - 1);
+            if (siblingNode.type.name !== "fileRow") continue;
+
+            transaction.setSelection(
+                new NodeSelection(
+                    transaction.doc.resolve(transaction.selection.$from.before(depth + 1) - 2),
+                ),
+            );
+            break;
+        }
+
+        return transaction;
+    };
+
+    const setSelectionToNextFileIfExists = (transaction: Transaction) => {
+        for (let depth = transaction.selection.$from.depth; depth >= 0; depth--) {
+            const node = transaction.selection.$from.node(depth);
+            const index = transaction.selection.$from.index(depth);
+            if (!(index + 1 < node.childCount)) continue;
+
+            const siblingNode = node.child(index + 1);
+            if (siblingNode.type.name !== "fileRow") continue;
+
+            transaction.setSelection(
+                new NodeSelection(
+                    transaction.doc.resolve(transaction.selection.$from.after(depth + 1) + 1),
+                ),
+            );
+            break;
+        }
+
+        return transaction;
+    };
+
+    const actuallyDeleteSelection: Command = (state, dispatch, view) => {
+        if (dispatch) {
+            const originalDispatch = dispatch;
+
+            dispatch = transaction => {
+                // If we had a `file` `NodeSelection` when backspace was pressed and we don't
+                // have a `file` `NodeSelection` anymore because we deleted the last file in a
+                // gallery so the next position is in a paragraph or whatever's next then we
+                // want to search backwards for the last file in the gallery and put our
+                // selection there.
+                //
+                // The user expects their selection to stay in the gallery while issuing
+                // keyboard commands. So it's weird if hitting delete causes their selection
+                // to leave the gallery.
+                if (
+                    state.selection instanceof NodeSelection &&
+                    state.selection.node.type.name === "file" &&
+                    state.selection.$anchor.parent.type.name === "fileRow" &&
+                    !(
+                        transaction.selection instanceof NodeSelection &&
+                        transaction.selection.node.type.name === "file" &&
+                        transaction.selection.$anchor.parent.type.name === "fileRow"
+                    )
+                ) {
+                    setSelectionToPreviousFileIfExists(transaction);
+                }
+
+                originalDispatch(transaction);
+            };
+        }
+
+        return deleteSelection(state, dispatch, view);
+    };
+
     const backspaceCommand: Command = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
-        deleteSelection,
+        actuallyDeleteSelection,
 
         // Run quick undos triggered with `Backspace`.
         contentEditorQuickUndoCommand("Backspace"),
@@ -522,6 +596,68 @@ export function buildContentEditorKeymapPlugin(
             return true;
         },
 
+        // If the selection is at the beginning of a textblock and there's a `fileRow`
+        // right before the selection then we want backspace to delete the last file in
+        // the `fileRow`.
+        //
+        // If there are more files then we also move selection into the file gallery to
+        // help the user navigate across the gallery.
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+
+            // 1. Cursor should be at the beginning of a textblock.
+            const isSelectionAtFirstOffsetOfTextblock =
+                $from.pos === $to.pos && $from.parentOffset === 0 && $from.parent.isTextblock;
+
+            if (!isSelectionAtFirstOffsetOfTextblock) return false;
+
+            let $previousFile: ResolvedPos | null = null;
+
+            for (let depth = state.selection.$from.depth; depth >= 0; depth--) {
+                const node = state.selection.$from.node(depth);
+                const index = state.selection.$from.index(depth);
+                if (!(index - 1 >= 0)) continue;
+
+                const siblingNode = node.child(index - 1);
+                if (siblingNode.type.name !== "fileRow") continue;
+
+                $previousFile = state.doc.resolve(state.selection.$from.before(depth + 1) - 2);
+                break;
+            }
+
+            // 2. If there's a file before our selection in the textblock.
+            if (!$previousFile) return false;
+
+            assert($previousFile.parent.type.name === "fileRow");
+            assert($previousFile.nodeAfter?.type.name === "file");
+
+            // If there's only one file we want to delete the entire file row. If there's
+            // multiple files then we want to delete the last file in the row.
+            if ($previousFile.parent.childCount === 1) {
+                dispatch?.(
+                    setSelectionToPreviousFileIfExists(
+                        state.tr.replaceRange(
+                            $previousFile.before(),
+                            $previousFile.after(),
+                            Slice.empty,
+                        ),
+                    ).scrollIntoView(),
+                );
+            } else {
+                dispatch?.(
+                    setSelectionToPreviousFileIfExists(
+                        state.tr.replaceRange(
+                            $previousFile.pos,
+                            $previousFile.pos + 1,
+                            Slice.empty,
+                        ),
+                    ).scrollIntoView(),
+                );
+            }
+
+            return true;
+        },
+
         // If the cursor is at the beginning of a block and the user presses
         // backspace then join with the prior block.
         joinBackward,
@@ -691,7 +827,7 @@ export function buildContentEditorKeymapPlugin(
     const deleteCommand = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
-        deleteSelection,
+        actuallyDeleteSelection,
 
         // If delete is pressed in an empty paragraph, remove the paragraph.
         //
@@ -782,6 +918,63 @@ export function buildContentEditorKeymapPlugin(
                     ),
                 );
             }
+            return true;
+        },
+
+        // If the selection is at the end of a textblock and there's a `fileRow`
+        // right after the selection then we want delete to remove the last first in
+        // the `fileRow`.
+        //
+        // If there are more files then we also move selection into the file gallery to
+        // help the user navigate across the gallery.
+        (state, dispatch) => {
+            const {$from, $to} = state.selection;
+
+            // 1. Cursor should be at the end of a textblock.
+            const isSelectionAtLastOffsetOfTextblock =
+                $from.pos === $to.pos &&
+                $from.parent.isTextblock &&
+                $from.parent.nodeSize > 2 &&
+                $from.parentOffset === $from.parent.nodeSize - 2;
+
+            if (!isSelectionAtLastOffsetOfTextblock) return false;
+
+            let $nextFile: ResolvedPos | null = null;
+
+            for (let depth = state.selection.$from.depth; depth >= 0; depth--) {
+                const node = state.selection.$from.node(depth);
+                const index = state.selection.$from.index(depth);
+                if (!(index + 1 < node.childCount)) continue;
+
+                const siblingNode = node.child(index + 1);
+                if (siblingNode.type.name !== "fileRow") continue;
+
+                $nextFile = state.doc.resolve(state.selection.$from.after(depth + 1) + 1);
+                break;
+            }
+
+            // 2. If there's a file after our selection in the textblock.
+            if (!$nextFile) return false;
+
+            assert($nextFile.parent.type.name === "fileRow");
+            assert($nextFile.nodeAfter?.type.name === "file");
+
+            // If there's only one file we want to delete the entire file row. If there's
+            // multiple files then we want to delete the last file in the row.
+            if ($nextFile.parent.childCount === 1) {
+                dispatch?.(
+                    setSelectionToNextFileIfExists(
+                        state.tr.replaceRange($nextFile.before(), $nextFile.after(), Slice.empty),
+                    ).scrollIntoView(),
+                );
+            } else {
+                dispatch?.(
+                    setSelectionToNextFileIfExists(
+                        state.tr.replaceRange($nextFile.pos, $nextFile.pos + 1, Slice.empty),
+                    ).scrollIntoView(),
+                );
+            }
+
             return true;
         },
 
@@ -1407,7 +1600,34 @@ export function buildContentEditorKeymapPlugin(
                     });
 
                     if (posResult !== null) {
-                        const nextSelection = Selection.near(state.doc.resolve(posResult.pos), -1);
+                        let nextSelection = Selection.near(state.doc.resolve(posResult.pos), -1);
+
+                        // If moving vertically kept us in the same `fileRow` then try searching for a
+                        // selection with a bias in the other direction. This is needed when you have
+                        // images in a T shape like this:
+                        //
+                        // ```
+                        //     ┌────────┐┌────────────┐
+                        //     │        ││            │
+                        //     │  1     ││  2         │
+                        //     │        ││            │
+                        //     │        ││            │
+                        //     └────────┘└────────────┘
+                        //            ┌────────┐
+                        //            │        │
+                        //            │  3     │
+                        //            │        │
+                        //            │        │
+                        //            │        │
+                        //            │        │
+                        //            └────────┘
+                        // ```
+                        //
+                        // If your selection is in 1 then the coordinate below 1 will be between 2 and
+                        // 3. So a bias of -1 selects 2.
+                        if (nextSelection.$anchor.parent === selection.$anchor.parent) {
+                            nextSelection = Selection.near(state.doc.resolve(posResult.pos), 1);
+                        }
 
                         if (
                             !(nextSelection instanceof NodeSelection) ||
