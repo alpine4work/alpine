@@ -110,7 +110,7 @@ export function buildContentEditorKeymapPlugin(
             // want to use `splitBlock`. `LiftEmptyBlock` behavior splits the
             // `codeBlock` into two separate codeBlocks.
             //
-            // For example (behavior we do not want): if the cursor is at `|`:
+            // For example (behavior we do NOT want): if the cursor is at `|`:
             //
             // ```
             //  1
@@ -281,8 +281,11 @@ export function buildContentEditorKeymapPlugin(
         // If the user presses enter while a file is selected we create a new paragraph
         // underneath the file so the user can continue typing. This is different from
         // the usual behavior of enter deleting the selection and replacing it with a
-        // paragraph. Since files are large and generally added pretty intentionally we
-        // decide to create a new paragraph instead of replacing the file.
+        // paragraph. Files are typically added with a lot of intention from the user
+        // so protect them from accidentally deleting their file by typing over it.
+        //
+        // We have similar logic in `handleTextInput` below when we create our keymap
+        // plugin.
         (state, dispatch) => {
             // 1. If we've selected a file.
             if (!(state.selection instanceof NodeSelection)) return false;
@@ -353,9 +356,8 @@ export function buildContentEditorKeymapPlugin(
         // If the user presses alt+enter while a file is selected we create a new
         // paragraph above the file so the user can continue typing. This is different
         // from the usual behavior of enter deleting the selection and replacing it
-        // with a paragraph. Since files are large and generally added pretty
-        // intentionally we decide to create a new paragraph instead of replacing the
-        // file.
+        // with a paragraph. Files are typically added with a lot of intention from the user
+        // so protect them from accidentally deleting their file by typing over it.
         (state, dispatch) => {
             // 1. If we've selected a file.
             if (!(state.selection instanceof NodeSelection)) return false;
@@ -1965,6 +1967,44 @@ export function buildContentEditorKeymapPlugin(
                     event.stopPropagation();
                 }
                 return result;
+            },
+
+            handleTextInput: (view, from, to, text) => {
+                const {state} = view;
+
+                // If the user tries to type text while a `file` is selected then instead of
+                // replacing the file selection with the text let's create a new paragraph
+                // below the file and let the user continue typing there. Files are typically
+                // added with a lot of intention from the user so protect them from
+                // accidentally deleting their file by typing over it.
+                //
+                // We have similar logic for the "Enter" keyboard shortcut. We create a
+                // paragraph below the file instead of replacing the file.
+                if (
+                    state.selection instanceof NodeSelection &&
+                    state.selection.node.type.name === "file" &&
+                    state.selection.$anchor.parent.type.name === "fileRow"
+                ) {
+                    const transaction = state.tr.insert(
+                        state.selection.$anchor.after(),
+                        schema.node("paragraph", {}, [schema.text(text)]),
+                    );
+
+                    view.dispatch(
+                        transaction
+                            .setSelection(
+                                TextSelection.near(
+                                    transaction.doc.resolve(
+                                        state.selection.$anchor.after() + 1 + text.length,
+                                    ),
+                                ),
+                            )
+                            .scrollIntoView(),
+                    );
+                    return true;
+                }
+
+                return false;
             },
         },
     });

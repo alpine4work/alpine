@@ -2913,18 +2913,6 @@ type ContentEditorFileDropTarget = {
           };
 };
 
-// TODO(calebmer, #files): Keyboard interactions for files.
-//
-// - [x] Arrow keys to navigate files
-// - [x] Arrow keys to navigate into files
-// - [x] Arrow keys to navigate out of files
-// - [x] Delete key to delete files
-// - [x] Insert text between two files? Probably pressing enter should create a new
-//       line of text below and shift enter creates a new line of text above?
-//       Without deleting the file though
-// - [x] Arrow key down adds empty paragraph at end of document
-// - [ ] Typing on a file is doing some stuff
-
 // TODO(calebmer, #files): Implement scroll while dragging.
 
 // TODO(calebmer, #files): Poll while file isn't fully available. In both
