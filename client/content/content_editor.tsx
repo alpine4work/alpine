@@ -1042,18 +1042,20 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 lastTransactionRef.current = transaction;
 
-                // eslint-disable-next-line no-commit-blockers
-                // NOCOMMIT: Adding this to help debug a failing test in CI.
-                // eslint-disable-next-line no-console
-                console.log(
-                    "dispatchTransaction",
-                    // eslint-disable-next-line no-global-error
-                    new Error().stack,
-                    JSON.stringify({
-                        before: transaction.before.toJSON(),
-                        after: transaction.doc.toJSON(),
-                    }),
-                );
+                if (process.env.NODE_ENV !== "production") {
+                    // eslint-disable-next-line no-commit-blockers
+                    // NOCOMMIT: Adding this to help debug a failing test in CI.
+                    // eslint-disable-next-line no-console
+                    console.log(
+                        "dispatchTransaction",
+                        // eslint-disable-next-line no-global-error
+                        new Error().stack,
+                        JSON.stringify({
+                            before: transaction.before.toJSON(),
+                            after: transaction.doc.toJSON(),
+                        }),
+                    );
+                }
 
                 // Always call the change handler through a ref. By using a ref we can avoid
                 // destroying and recreating an editor when the function changes.
@@ -1568,7 +1570,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         const handleFocus = () => {
-            setIsFocused(true);
+            flushSync(() => setIsFocused(true));
 
             setDecorationCallbacks(decorationCallbacks => {
                 const newDecorationCallbacks = new Set(decorationCallbacks);
@@ -1578,7 +1580,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
 
         const handleBlur = () => {
-            setIsFocused(false);
+            flushSync(() => setIsFocused(false));
 
             setDecorationCallbacks(decorationCallbacks => {
                 const newDecorationCallbacks = new Set(decorationCallbacks);
