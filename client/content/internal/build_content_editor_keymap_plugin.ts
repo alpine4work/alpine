@@ -1042,43 +1042,60 @@ export function buildContentEditorKeymapPlugin(
         ),
     );
 
-    keys.set("ArrowDown", (state, dispatch) => {
-        const {selection, schema} = state;
-        const {$from} = selection;
-        const isSelectionAtEndOfDoc = selection.eq(Selection.atEnd(state.doc));
+    keys.set(
+        "ArrowDown",
+        chainCommands(
+            // For some elements with unique editing modalities pressing down at the end of
+            // a document should create a new empty paragraph and move the cursor there.
+            // That way the user doesn't get stuck editing the element.
+            //
+            // For example, consider a `divider` element. If a `divider` is the last
+            // element in the document how would you write some text beneath it? Without
+            // this shortcut there's no keyboard accessible way to do so. With this
+            // shortcut if you hit the down arrow we create an empty paragraph where you
+            // can continue typing.
+            (state, dispatch) => {
+                const {selection, schema} = state;
+                const {$from} = selection;
+                const isSelectionAtEndOfDoc = selection.eq(Selection.atEnd(state.doc));
 
-        // 1. Check if the selection is the last object in the entire doc
-        if (!isSelectionAtEndOfDoc) {
-            return false;
-        }
+                // 1. Check if the selection is the last object in the entire doc
+                if (!isSelectionAtEndOfDoc) {
+                    return false;
+                }
 
-        const parentNode = $from.node($from.depth - 1);
-        const currentNode = $from.node();
+                const parentNode = $from.node($from.depth - 1);
+                const currentNode = $from.node();
 
-        // 2. Check if the selection is a `codeBlockLine` within `codeBlock` or a
-        //    `divider`
-        if (
-            (currentNode.type.name === "codeBlockLine" && parentNode.type.name === "codeBlock") ||
-            (selection instanceof NodeSelection && selection.node.type.name === "divider")
-        ) {
-            const paragraphNode = schema.nodes.paragraph;
-            if (!paragraphNode) {
+                // 2. Check if the selection is a `codeBlockLine` within `codeBlock` or a
+                //    `divider`
+                if (
+                    (currentNode.type.name === "codeBlockLine" &&
+                        parentNode.type.name === "codeBlock") ||
+                    (selection instanceof NodeSelection && selection.node.type.name === "divider")
+                ) {
+                    const paragraphNode = schema.nodes.paragraph;
+                    if (!paragraphNode) {
+                        return false;
+                    }
+
+                    if (dispatch) {
+                        const insertPosition = state.doc.content.size;
+                        const transaction = state.tr;
+                        transaction.insert(insertPosition, paragraphNode.create());
+                        transaction.setSelection(
+                            TextSelection.create(transaction.doc, insertPosition + 1),
+                        );
+                        dispatch(transaction);
+                    }
+
+                    return true;
+                }
+
                 return false;
-            }
-
-            if (dispatch) {
-                const insertPosition = state.doc.content.size;
-                const transaction = state.tr;
-                transaction.insert(insertPosition, paragraphNode.create());
-                transaction.setSelection(TextSelection.create(transaction.doc, insertPosition + 1));
-                dispatch(transaction);
-            }
-
-            return true;
-        }
-
-        return false;
-    });
+            },
+        ),
+    );
 
     // In a code block, if you hit the line start shortcut, it should go to the
     // start of the line excluding indentation spaces. For example if this is a

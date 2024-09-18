@@ -175,8 +175,10 @@ function ContentEditorKeyboardHighlightFloater({
     }, [isClosing, onActuallyClose]);
 
     useEffect(() => {
-        assert(selectorRef.current);
-        selectorRef.current.focus({preventScroll: true});
+        // Focus in a microtask so React `flushSync()` warning isn't logged.
+        scheduleMicrotask(() => {
+            selectorRef.current?.focus({preventScroll: true});
+        });
     }, []);
 
     return (
@@ -328,11 +330,12 @@ function ContentEditorKeyboardLinkFloater({
                             onClose={onClose}
                         />
                     ) : (
-                        <FocusScope contain restoreFocus autoFocus>
+                        <FocusScope contain restoreFocus>
                             <ContentEditorLinkInput
                                 viewRef={viewRef}
                                 range={range}
                                 mark={mark}
+                                autoFocus={true}
                                 onClose={onClose}
                             />
                         </FocusScope>

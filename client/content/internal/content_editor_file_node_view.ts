@@ -11,7 +11,7 @@ export function createContentEditorFileNodeViewConstructor({
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
     return (node, view) => {
-        let dom: HTMLElement | null = null;
+        let dom = null as HTMLElement | null;
 
         let isDestroyed = false;
         let lastFile: FileModel | undefined | null = null;
@@ -35,16 +35,29 @@ export function createContentEditorFileNodeViewConstructor({
         };
 
         update();
+        assert(dom);
+
+        const handlePointerDown = (event: PointerEvent) => {
+            // The browser default behavior when clicking on a file is to move focus to the
+            // nearest position in the document's text. Don't do this.
+            //
+            // TODO(calebmer, #files): Should either select or open file viewer.
+            event.preventDefault();
+        };
 
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(update);
 
+        dom.addEventListener("pointerdown", handlePointerDown);
+
         return {
-            dom: dom!,
+            dom,
             destroy: () => {
                 if (isDestroyed) return;
                 isDestroyed = true;
 
                 unsubscribeFromReferencesUpdate();
+
+                dom!.removeEventListener("pointerdown", handlePointerDown);
             },
         };
     };

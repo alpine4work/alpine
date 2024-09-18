@@ -46,8 +46,10 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/spacing.js";
+import {themeColors} from "~/shared/design/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
@@ -158,6 +160,8 @@ export const docClassName = style({
 });
 
 export const withMobileLayoutDocClassName = style({});
+
+export const selectionChangeDraggingClassName = style({});
 
 const compactListItemOffsetSpacing = "2";
 const compactListItemOffset = spacing[compactListItemOffsetSpacing];
@@ -918,13 +922,14 @@ export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
 
 globalStyle(fileRowClassName, {
     ...blockStyles,
-    marginTop: standaloneBlockMarginVar,
-    marginBottom: standaloneBlockMarginVar,
+    marginTop: paragraphMarginVar,
+    marginBottom: paragraphMarginVar,
     display: "grid",
     justifyContent: "center",
     gap: fileRowGapWidth,
     minHeight: fileMinSize,
     maxHeight: fileMaxHeight,
+    userSelect: "none",
 });
 
 globalStyle(`${fileRowClassName}:has(+ ${fileRowClassName})`, {
@@ -942,14 +947,42 @@ globalStyle(fileClassName, {
     minWidth: fileMinSize,
     minHeight: fileMinSize,
     maxHeight: fileMaxHeight,
-    cursor: "default",
     userSelect: "none",
+    // Files have an interactive pointer cursor as a hint that when you click on a
+    // file it opens up the file viewer. The file alone is not obviously
+    // interactive.
+    cursor: "pointer",
 });
 
-export const fileImagePreviewPlaceholderClassName = style({
-    position: "absolute",
-    inset: "0",
-});
+// If the user's pointer is down and they're dragging to change the selection
+// then we don't want our files to have an interactive pointer cursor.
+//
+// We repeat the selection change pointer down class twice so it has a higher
+// precedence than our CSS selector in `content_editor.css.ts` that changes the
+// cursor to `default` while the shift or alt key is pressed.
+globalStyle(
+    `${selectionChangeDraggingClassName}${selectionChangeDraggingClassName} ${fileClassName}`,
+    {
+        cursor: "inherit",
+    },
+);
+
+export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, color =>
+    style({
+        selectors: {
+            "&::after": {
+                content: '""',
+                position: "absolute",
+                top: "0",
+                bottom: "0",
+                left: "0",
+                right: "0",
+                backgroundColor: colorSchemeVars[`${color}-selection`],
+                opacity: 0.8,
+            },
+        },
+    }),
+);
 
 // Our code doesn't have a background color! This is an intentional design
 // decision but also has some technical justification.

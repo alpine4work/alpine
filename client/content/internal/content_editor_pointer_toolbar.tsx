@@ -18,7 +18,17 @@ import {
 import {Mark, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {
+    Memo,
+    ReactNode,
+    RefObject,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {mergeProps} from "react-aria";
 import {flushSync} from "react-dom";
 import {openCommentInputFloaterMetaKey} from "~/client/content/internal/build_content_editor_keymap_plugin.js";
@@ -56,6 +66,7 @@ import {
 } from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -88,7 +99,7 @@ export function ContentEditorPointerToolbar({
     const [localInteractionModality, setLocalInteractionModality] =
         useState<Modality>(getInteractionModality);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
         const viewElement = view.dom;
 
@@ -214,7 +225,7 @@ export function ContentEditorPointerToolbar({
         // shortcuts to accomplish everything in the toolbar.
         localInteractionModality === "pointer";
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         let isPointerDown = false;
 
         let lastMouseDownTime1: number | null = null;
@@ -265,15 +276,22 @@ export function ContentEditorPointerToolbar({
             setHasPointerMovedWhileDown(false);
         };
 
+        const handleDragStart = () => {
+            isPointerDown = false;
+            setHasPointerMovedWhileDown(false);
+        };
+
         document.addEventListener("pointerdown", handlePointerDown, true);
         document.addEventListener("pointermove", handlePointerMove, true);
         document.addEventListener("pointerup", handlePointerUp, true);
         document.addEventListener("pointercancel", handlePointerCancel, true);
+        document.addEventListener("dragstart", handleDragStart, true);
         return () => {
             document.removeEventListener("pointerdown", handlePointerDown, true);
             document.removeEventListener("pointermove", handlePointerMove, true);
             document.removeEventListener("pointerup", handlePointerUp, true);
             document.removeEventListener("pointercancel", handlePointerCancel, true);
+            document.removeEventListener("dragstart", handleDragStart, true);
         };
     }, []);
 
@@ -515,12 +533,11 @@ function ContentEditorPointerToolbarOverlay({
             ref={overlayRef}
             isVisible={true}
             placement="top-start"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             offset="3"
             offsetAlong="-4"
             overlay={

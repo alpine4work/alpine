@@ -10,6 +10,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 const linkClassName = `.${sharedClassNames.linkClassName}`;
 const commentClassName = `.${sharedClassNames.commentClassName}`;
+const fileClassName = `.${sharedClassNames.fileClassName}`;
 
 const highlightClassNameByColor = mapObjectValues(
     sharedClassNames.highlightClassNameByColor,
@@ -96,6 +97,15 @@ globalStyle(
         cursor: "inherit",
     },
 );
+
+// While pressing shift clicking on a file selects it instead of opening the
+// file viewer.
+//
+// TODO(calebmer, #files): Implement file viewer. Also shift key doesn't seem
+// to be working? Alt key does.
+globalStyle(`${shiftKeyOrAltKeyDownClassName} ${fileClassName}`, {
+    cursor: "default",
+});
 
 // TODO(calebmer): I feel like we should have some kind of style here to make
 // it clear where the end of the mention is? Or modify the mention logic so we

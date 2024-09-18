@@ -117,7 +117,6 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         fileRow: {
             group: "block",
             content: "file{1,3}",
-            atom: true,
             defining: true,
             isolating: true,
             toDOM: () => ["div", {class: fileRowClassName}, 0],

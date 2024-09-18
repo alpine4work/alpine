@@ -134,8 +134,18 @@ export function useDocumentContentEditorPhantomSelections({
 
         const filteredThemeColors = themeColors.filter(
             // TODO(calebmer): When the theme color is configurable, we should use that
-            // instead of the default theme color.
-            themeColor => themeColor !== defaultThemeColor && themeColor !== "yellow",
+            // instead of `defaultThemeColor`.
+            themeColor =>
+                themeColor !== defaultThemeColor &&
+                themeColor !== "yellow" &&
+                // If our theme color is a shade of blue then don't allow selecting a color for
+                // phantom cursors that's also a shade of blue.
+                !(
+                    (defaultThemeColor === "cyan" ||
+                        defaultThemeColor === "blue" ||
+                        defaultThemeColor === "indigo") &&
+                    (themeColor === "cyan" || themeColor === "blue" || themeColor === "indigo")
+                ),
         );
 
         for (const presenceState of presenceStates) {

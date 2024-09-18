@@ -92,10 +92,11 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
-import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {ThemeColor, defaultThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -1654,6 +1655,30 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 decorationSet = addEmojiDecorations(decorationSet, state.doc);
 
+                // Highlight any selected files.
+                //
+                // TODO(calebmer, #files): `<ContentView>` should have something like this too?
+                // So there's a text cursor over images while selecting them.
+                if (!(state.selection instanceof NodeSelection)) {
+                    state.doc.nodesBetween(
+                        state.selection.from,
+                        state.selection.to,
+                        (node, pos) => {
+                            if (node.type.name === "file") {
+                                decorationSet = decorationSet.add(state.doc, [
+                                    Decoration.node(pos, pos + 1, {
+                                        // TODO(calebmer): When theme is configurable we should use the configured
+                                        // theme here instead of `defaultThemeColor`.
+                                        class: contentStyles.selectionFileClassNameByColor[
+                                            defaultThemeColor
+                                        ],
+                                    }),
+                                ]);
+                            }
+                        },
+                    );
+                }
+
                 for (const decorationCallback of decorationCallbacks) {
                     decorationSet = decorationCallback(decorationSet, state);
                 }
@@ -1685,32 +1710,47 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     // Apply a class to the view element depending on whether the shift key is
     // down or not.
-    useEffect(() => {
+    useLayoutEffect(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
 
+        let isShiftKeyDown = false;
+        let isAltKeyDown = false;
         let isShiftKeyOrAltKeyDown = false;
 
-        const handleKeyDownOrUp = (event: KeyboardEvent) => {
-            if (event.shiftKey || event.altKey) {
-                if (!isShiftKeyOrAltKeyDown) {
-                    isShiftKeyOrAltKeyDown = true;
-                    viewElement.classList.add(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
-                }
-            } else {
-                if (isShiftKeyOrAltKeyDown) {
-                    isShiftKeyOrAltKeyDown = false;
-                    viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
-                }
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Shift") {
+                isShiftKeyDown = true;
+            }
+            if (event.key === "Alt") {
+                isAltKeyDown = true;
+            }
+
+            if ((isShiftKeyDown || isAltKeyDown) && !isShiftKeyOrAltKeyDown) {
+                isShiftKeyOrAltKeyDown = true;
+                viewElement.classList.add(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
             }
         };
 
-        document.addEventListener("keydown", handleKeyDownOrUp, true);
-        document.addEventListener("keyup", handleKeyDownOrUp, true);
+        const handleKeyUp = (event: KeyboardEvent) => {
+            if (event.key === "Shift") {
+                isShiftKeyDown = false;
+            }
+            if (event.key === "Alt") {
+                isAltKeyDown = false;
+            }
 
+            if (!isShiftKeyDown && !isAltKeyDown && isShiftKeyOrAltKeyDown) {
+                isShiftKeyOrAltKeyDown = false;
+                viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown, true);
+        window.addEventListener("keyup", handleKeyUp, true);
         return () => {
-            document.removeEventListener("keydown", handleKeyDownOrUp, true);
-            document.removeEventListener("keyup", handleKeyDownOrUp, true);
+            window.removeEventListener("keydown", handleKeyDown, true);
+            window.removeEventListener("keyup", handleKeyUp, true);
         };
     }, []);
 
@@ -1935,10 +1975,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                         state.doc.nodeSize - 2,
                     );
 
-                    return createSelectionDecorations(
+                    return createPhantomSelectionDecorations(
                         state.doc,
                         TextSelection.between(state.doc.resolve(from), state.doc.resolve(to)),
-                        colorSchemeVars[`${phantomSelection.color}-selection`],
+                        phantomSelection.color,
                     );
                 });
             }
@@ -2013,7 +2053,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     //
     // We can't add listeners to parent scroll elements in our link/mark view code
     // because ProseMirror does not offer us a cleanup hook for mark views! So we
-    // add listeners at this level and call into `onParentScrollSymbol`.
+    // add listeners at this level and call
+    // `dispatchParentScrollWhenPointerDownAndOverEvent()`.
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
 
@@ -2059,10 +2100,15 @@ function ContentEditor<Content extends ContentWithReferences>(
             isPointerDownAndOverParentScrollReceiver = false;
         };
 
+        const handleDragStart = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
         view.dom.addEventListener("pointerdown", handlePointerDown);
         view.dom.addEventListener("pointerup", handlePointerUp);
         view.dom.addEventListener("pointerleave", handlePointerLeave);
         view.dom.addEventListener("pointercancel", handlePointerCancel);
+        view.dom.addEventListener("dragstart", handleDragStart);
 
         const handleScroll = () => {
             if (!isPointerDownAndOverParentScrollReceiver) return;
@@ -2109,10 +2155,97 @@ function ContentEditor<Content extends ContentWithReferences>(
             view.dom.removeEventListener("pointerup", handlePointerUp);
             view.dom.removeEventListener("pointerleave", handlePointerLeave);
             view.dom.removeEventListener("pointercancel", handlePointerCancel);
+            view.dom.removeEventListener("dragstart", handleDragStart);
 
             for (const scrollEventTarget of scrollEventTargets) {
                 scrollEventTarget.removeEventListener("scroll", handleScroll, true);
             }
+        };
+    }, []);
+
+    // Apply a class to the content editor while the user is dragging from a text
+    // element. This way we can change cursor styles like a file's cursor. Normally
+    // files have a pointer cursor but while dragging to select text we want files
+    // elements in the editor to inherit the text cursor. Otherwise a user may be
+    // confused as to why while they're dragging the file appears to be clickable.
+    //
+    // TODO(calebmer, #files): `<ContentView>` should have something like this too?
+    // So there's a text cursor over images while selecting them.
+    useLayoutEffect(() => {
+        const view = assertExists(viewRef.current);
+
+        let isPointerDownFromSelectableElement = false;
+        let isPointerDownFromSelectableElementAndMoved = false;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement =
+                event.target instanceof Element &&
+                getComputedStyle(event.target).userSelect !== "none";
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handlePointerMove = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElementAndMoved = isPointerDownFromSelectableElement;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handleResetState = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement = false;
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("pointermove", handlePointerMove, true);
+        document.addEventListener("pointerup", handleResetState, true);
+        document.addEventListener("pointercancel", handleResetState, true);
+        document.addEventListener("dragstart", handleResetState, true);
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("pointermove", handlePointerMove, true);
+            document.removeEventListener("pointerup", handleResetState, true);
+            document.removeEventListener("pointercancel", handleResetState, true);
+            document.removeEventListener("dragstart", handleResetState, true);
         };
     }, []);
 
@@ -2574,7 +2707,7 @@ function handleLinkPasteWithoutSelection(view: EditorView, event: ClipboardEvent
  * - Selection adds some extra space at the end of selected paragraphs to show
  *   that you are selecting a newline.
  */
-function createSelectionDecorations(doc: Node, selection: Selection, color: string) {
+function createPhantomSelectionDecorations(doc: Node, selection: Selection, color: ThemeColor) {
     // Convert non-text selections into text selections. So the `from` and `to`
     // point to positions in text.
     if (!(selection instanceof TextSelection)) {
@@ -2584,7 +2717,7 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
     const decorations = [
         Decoration.inline(selection.from, selection.to, {
             class: contentStyles.phantomSelectionClassName,
-            style: `background-color:${color}`,
+            style: `background-color:${colorSchemeVars[`${color}-selection`]}`,
         }),
     ];
 
@@ -2592,7 +2725,18 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
     // browser selection styles.
     //
     // Particularly important to show we've selected an empty paragraph or header.
+    //
+    // Also give selected files a tint so other users know when they're selected.
     doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+        if (node.type.name === "file") {
+            decorations.push(
+                Decoration.node(pos, pos + 1, {
+                    class: contentStyles.selectionFileClassNameByColor[color],
+                }),
+            );
+            return;
+        }
+
         if (!node.inlineContent) return;
 
         const newlineIndicatorPos = pos + node.content.size + 1;
@@ -2603,7 +2747,8 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
                 const newlineIndicatorElement = document.createElement("span");
                 newlineIndicatorElement.textContent = " ";
                 newlineIndicatorElement.className = contentStyles.phantomSelectionClassName;
-                newlineIndicatorElement.style.backgroundColor = color;
+                newlineIndicatorElement.style.backgroundColor =
+                    colorSchemeVars[`${color}-selection`];
                 newlineIndicatorElement.style.userSelect = "none";
                 newlineIndicatorElement.ariaHidden = "true";
                 return newlineIndicatorElement;
@@ -2746,13 +2891,13 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Keyboard interactions for files.
 //
-// - Arrow keys to navigate files
-// - Arrow keys to navigate into files
-// - Arrow keys to navigate out of files
-// - Insert text between two files? Probably pressing enter should create a new
-//   line of text below and shift enter creates a new line of text above?
-//   Without deleting the file though
-// - Arrow key down adds empty paragraph at tend of document
+// - [ ] Arrow keys to navigate files
+// - [ ] Arrow keys to navigate into files
+// - [ ] Arrow keys to navigate out of files
+// - [ ] Insert text between two files? Probably pressing enter should create a new
+//       line of text below and shift enter creates a new line of text above?
+//       Without deleting the file though
+// - [ ] Arrow key down adds empty paragraph at tend of document
 
 // TODO(calebmer, #files): Implement scroll while dragging.
 

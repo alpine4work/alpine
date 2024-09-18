@@ -204,7 +204,6 @@ export function createContentEditorCommentMarkViewConstructor({
 
         dom.addEventListener("pointerleave", () => {
             isPointerDownAndOver = false;
-
             maybeUpdatePressed();
         });
 

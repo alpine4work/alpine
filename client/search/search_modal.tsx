@@ -48,6 +48,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
@@ -95,8 +96,12 @@ export function SearchModal({
 
         const inputElement = assertExists(inputRef.current);
 
-        inputElement.select();
-        inputElement.focus();
+        // In case this blurs a `<ContentEditor>` we can't call `flushSync()` directly
+        // in an effect or else React complains.
+        scheduleMicrotask(() => {
+            inputElement.select();
+            inputElement.focus();
+        });
     }, []);
 
     const {output, queryText, onQueryTextChange} = useSearchState({
