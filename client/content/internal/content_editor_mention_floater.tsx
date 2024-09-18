@@ -89,7 +89,14 @@ export function ContentEditorMentionFloater({
     });
 
     useLayoutEffect(() => {
-        if (!isFocused) onCloseWithAnimation();
+        if (!isFocused) {
+            // `onCloseWithAnimation` ends up calling `view.dispatch()` which runs
+            // `flushSync()`. Since `flushSync()` can't be run in an effect we schedule
+            // a microtask.
+            scheduleMicrotask(() => {
+                onCloseWithAnimation();
+            });
+        }
     }, [isFocused, onCloseWithAnimation]);
 
     useEffect(() => {
