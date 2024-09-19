@@ -516,6 +516,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return this._name;
     }
 
+    public isInitialized() {
+        return this._initializationState.isInitialized;
+    }
+
     /**
      * Returns the schema description. Will throw if the schema has not
      * finished initializing. Wait a microtask for it to finish.

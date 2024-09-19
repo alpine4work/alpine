@@ -413,6 +413,14 @@ export class DynamoGeneralRealtimeTableSchema<
         this._isTableRealtimeQueryDisabled = isTableRealtimeQueryDisabled;
     }
 
+    public getName() {
+        return this._table.getName();
+    }
+
+    public isInitialized() {
+        return this._table.isInitialized();
+    }
+
     private _buildModel<Item extends Types["Item"]>(
         context: ServerActionContext,
         item: Item,

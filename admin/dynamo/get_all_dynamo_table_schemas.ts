@@ -1,6 +1,7 @@
 import glob from "fast-glob";
 import {join as joinPath, relative} from "path";
 import {dynamoCoreVisibilityBazelPackagePaths} from "~/admin/dynamo/dynamo_core_visibility.js";
+import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -48,7 +49,10 @@ const importAllDynamoTableSchemasPromise = new Lazy(async () => {
                 // Verify that a module object does not export a `DynamoTableSchema`. We expect
                 // `DynamoTableSchema`s to be private to the module where it was defined.
                 for (const [moduleExportName, moduleExportValue] of Object.entries(module)) {
-                    if (moduleExportValue instanceof DynamoTableSchema) {
+                    if (
+                        moduleExportValue instanceof DynamoTableSchema ||
+                        moduleExportValue instanceof DynamoGeneralRealtimeTableSchema
+                    ) {
                         throw new InternalError(
                             quote`Module ${relative(
                                 runfilesRepoPath,
