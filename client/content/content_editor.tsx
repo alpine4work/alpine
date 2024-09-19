@@ -91,6 +91,7 @@ import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
