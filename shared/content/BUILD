@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/prosemirror-transform",
         "//:node_modules/unicode-default-word-boundary",
         "//shared/accounts",
+        "//shared/context",
         "//shared/design",
         "//shared/files",
         "//shared/helpers",
