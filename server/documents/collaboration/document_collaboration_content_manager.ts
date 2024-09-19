@@ -812,6 +812,10 @@ export class DocumentCollaborationContentManager {
         return {
             optimisticCommentThreadIds,
             getOptimisticCommentThreadById: async () => {
+                // Optimization: Don't make a network request if there are no optimistic
+                // comment threads.
+                if (optimisticCommentThreadAuthorIds.size === 0) return new Map();
+
                 const {accounts} = await getAccounts(context, {
                     spaceId: this.spaceId,
                     accountIds: optimisticCommentThreadAuthorIds,
