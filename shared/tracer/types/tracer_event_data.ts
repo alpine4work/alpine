@@ -412,6 +412,11 @@ export type TracerEventData = {
          * instead of creating another span to track just the process duration.
          */
         readonly processDurationMs?: number;
+
+        /**
+         * Was the data we're loading in this span cached? True if so false if not.
+         */
+        readonly wasCached?: boolean;
     };
 
     /**
