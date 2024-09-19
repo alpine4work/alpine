@@ -1642,74 +1642,57 @@ export class DocumentContentCacheForUpdate {
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
-        let wasEntryCached = true;
+        return context.tracer.withSpan("Get and cache document", async (context, span) => {
+            let wasEntryCached = true;
 
-        const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
-            wasEntryCached = false;
+            const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
+                wasEntryCached = false;
 
-            const internalDocument = await getInternalDocumentIfExists(context, id);
-            if (!internalDocument) return null;
+                const internalDocument = await getInternalDocumentIfExists(context, id);
+                if (!internalDocument) return null;
 
-            return {
-                createdTime: internalDocument.attributes.createdTime,
-                spaceId: internalDocument.attributes.spaceId,
-                creatorId: internalDocument.attributes.creatorId,
-                lastIndexSearchEntityJob: internalDocument.attributes.lastIndexSearchEntityJob,
-                stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
-                version: internalDocument.version,
-                content: internalDocument.content,
-                stepsAfterInitialSnapshot: new PushOnlyArray(
-                    flatMapIterable(
-                        internalDocument.stepTransactionsAfterSnapshot,
-                        ({steps, invertedSteps, clientId}) => {
-                            return mapIterable(steps, (step, i) => {
-                                const invertedStep = invertedSteps[i];
-                                if (!invertedStep)
-                                    throw new DataLossError("Missing inverted document step");
+                return {
+                    createdTime: internalDocument.attributes.createdTime,
+                    spaceId: internalDocument.attributes.spaceId,
+                    creatorId: internalDocument.attributes.creatorId,
+                    lastIndexSearchEntityJob: internalDocument.attributes.lastIndexSearchEntityJob,
+                    stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
+                    version: internalDocument.version,
+                    content: internalDocument.content,
+                    stepsAfterInitialSnapshot: new PushOnlyArray(
+                        flatMapIterable(
+                            internalDocument.stepTransactionsAfterSnapshot,
+                            ({steps, invertedSteps, clientId}) => {
+                                return mapIterable(steps, (step, i) => {
+                                    const invertedStep = invertedSteps[i];
+                                    if (!invertedStep)
+                                        throw new DataLossError("Missing inverted document step");
 
-                                return {step, invertedStep, clientId};
-                            });
-                        },
+                                    return {step, invertedStep, clientId};
+                                });
+                            },
+                        ),
                     ),
-                ),
-            };
-        });
-
-        if (!nullableEntry) return null;
-        let entry = nullableEntry;
-
-        // If our content was already cached, then we want to verify that the cached
-        // content version is the same as the content version in the database.
-        //
-        // Another process may have written to the database in which case the cache in
-        // this process wouldn't know. If another process wrote to the database we
-        // can't use our cached entry so should update our cache appropriately.
-        if (wasEntryCached) {
-            let _attributes = await DocumentsTable.getItemIfExists(context, {
-                partitionType: "Document",
-                documentId: id,
-                sortRangeType: "Attributes",
+                };
             });
 
-            // The document was deleted from the database but not our cache.
-            if (!_attributes) {
-                this._entries.evictEntry(id);
-                return null;
-            }
+            span.addData({common: {wasCached: wasEntryCached}});
 
-            if (entry.version > _attributes.version) {
-                // If we read a past version of the document that might be because we're using
-                // DynamoDB eventual consistency and we can't yet read the latest write. So try
-                // to load the document one more time but with strong consistency instead.
-                _attributes = await DocumentsTable.getItemIfExists(
-                    context,
-                    {
-                        partitionType: "Document",
-                        documentId: id,
-                        sortRangeType: "Attributes",
-                    },
-                    {consistency: "Strong"},
-                );
+            if (!nullableEntry) return null;
+            let entry = nullableEntry;
+
+            // If our content was already cached, then we want to verify that the cached
+            // content version is the same as the content version in the database.
+            //
+            // Another process may have written to the database in which case the cache in
+            // this process wouldn't know. If another process wrote to the database we
+            // can't use our cached entry so should update our cache appropriately.
+            if (wasEntryCached) {
+                let _attributes = await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "Document",
+                    documentId: id,
+                    sortRangeType: "Attributes",
+                });
 
                 // The document was deleted from the database but not our cache.
                 if (!_attributes) {
@@ -1718,111 +1701,132 @@ export class DocumentContentCacheForUpdate {
                 }
 
                 if (entry.version > _attributes.version) {
-                    throw new InternalError(
-                        "We've cached document content that has a version number ahead of what's in the database",
+                    // If we read a past version of the document that might be because we're using
+                    // DynamoDB eventual consistency and we can't yet read the latest write. So try
+                    // to load the document one more time but with strong consistency instead.
+                    _attributes = await DocumentsTable.getItemIfExists(
+                        context,
+                        {
+                            partitionType: "Document",
+                            documentId: id,
+                            sortRangeType: "Attributes",
+                        },
+                        {consistency: "Strong"},
                     );
+
+                    // The document was deleted from the database but not our cache.
+                    if (!_attributes) {
+                        this._entries.evictEntry(id);
+                        return null;
+                    }
+
+                    if (entry.version > _attributes.version) {
+                        throw new InternalError(
+                            "We've cached document content that has a version number ahead of what's in the database",
+                        );
+                    }
+                }
+
+                // `const` reference so TypeScript doesn't think this is nullable.
+                const attributes = _attributes;
+
+                // If the version in our cache is less than what's in the database, then let's
+                // load the steps we are missing and apply them to our content.
+                if (entry.version < attributes.version) {
+                    const nullableEntry = await this._entries.updateEntry(id, async entry => {
+                        if (!entry) return null;
+
+                        // A concurrent updater may have moved our entry version all the way
+                        // forward already.
+                        if (entry.version >= attributes.version) return entry;
+
+                        const steps = await getDocumentStepsBetweenValidatedVersionRange(context, {
+                            id,
+                            startVersion: entry.version,
+                            endVersion: attributes.version,
+                        });
+
+                        let content = entry.content;
+
+                        for (const step of steps) {
+                            const stepResult = step.step.apply(content);
+                            if (!stepResult.doc)
+                                throw new DataLossError(
+                                    `Step after document snapshot could not be applied: ${stepResult.failed!}`,
+                                );
+
+                            assert(isDocumentContent(stepResult.doc));
+                            content = stepResult.doc;
+
+                            entry.stepsAfterInitialSnapshot.push(step);
+                        }
+
+                        return {
+                            createdTime: entry.createdTime,
+                            spaceId: entry.spaceId,
+                            creatorId: entry.creatorId,
+                            lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
+                            stepCountByAccountId: attributes.stepCountByAccountId,
+                            version: attributes.version,
+                            content,
+                            stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
+                        };
+                    });
+
+                    if (!nullableEntry) return null;
+                    entry = nullableEntry;
                 }
             }
 
-            // `const` reference so TypeScript doesn't think this is nullable.
-            const attributes = _attributes;
+            return {
+                createdTime: entry.createdTime,
+                spaceId: entry.spaceId,
+                creatorId: entry.creatorId,
+                lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
+                stepCountByAccountId: entry.stepCountByAccountId,
+                version: entry.version,
+                content: entry.content,
+                // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
+                // array from within this function, other code with a reference to the array
+                // won't see the new values.
+                stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
 
-            // If the version in our cache is less than what's in the database, then let's
-            // load the steps we are missing and apply them to our content.
-            if (entry.version < attributes.version) {
-                const nullableEntry = await this._entries.updateEntry(id, async entry => {
-                    if (!entry) return null;
+                updateCache: async ({
+                    newContent,
+                    newSteps,
+                    newInvertedSteps,
+                    newLastIndexSearchEntityJob,
+                    newStepCountByAccountId,
+                    clientId,
+                }) => {
+                    const updatedEntry = entry;
 
-                    // A concurrent updater may have moved our entry version all the way
-                    // forward already.
-                    if (entry.version >= attributes.version) return entry;
+                    await this._entries.updateEntry(id, async entry => {
+                        if (!entry) return null;
 
-                    const steps = await getDocumentStepsBetweenValidatedVersionRange(context, {
-                        id,
-                        startVersion: entry.version,
-                        endVersion: attributes.version,
+                        if (entry.version !== updatedEntry.version) return entry;
+
+                        for (let i = 0; i < newSteps.length; i++) {
+                            const step = newSteps[i]!;
+                            const invertedStep = newInvertedSteps[i];
+                            assert(invertedStep);
+                            entry.stepsAfterInitialSnapshot.push({step, invertedStep, clientId});
+                        }
+
+                        return {
+                            createdTime: entry.createdTime,
+                            spaceId: entry.spaceId,
+                            creatorId: entry.creatorId,
+                            lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
+                            stepCountByAccountId: newStepCountByAccountId,
+                            version: entry.version + newSteps.length,
+                            content: newContent,
+                            stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
+                        };
                     });
-
-                    let content = entry.content;
-
-                    for (const step of steps) {
-                        const stepResult = step.step.apply(content);
-                        if (!stepResult.doc)
-                            throw new DataLossError(
-                                `Step after document snapshot could not be applied: ${stepResult.failed!}`,
-                            );
-
-                        assert(isDocumentContent(stepResult.doc));
-                        content = stepResult.doc;
-
-                        entry.stepsAfterInitialSnapshot.push(step);
-                    }
-
-                    return {
-                        createdTime: entry.createdTime,
-                        spaceId: entry.spaceId,
-                        creatorId: entry.creatorId,
-                        lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
-                        stepCountByAccountId: attributes.stepCountByAccountId,
-                        version: attributes.version,
-                        content,
-                        stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
-                    };
-                });
-
-                if (!nullableEntry) return null;
-                entry = nullableEntry;
-            }
-        }
-
-        return {
-            createdTime: entry.createdTime,
-            spaceId: entry.spaceId,
-            creatorId: entry.creatorId,
-            lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
-            stepCountByAccountId: entry.stepCountByAccountId,
-            version: entry.version,
-            content: entry.content,
-            // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
-            // array from within this function, other code with a reference to the array
-            // won't see the new values.
-            stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
-
-            updateCache: async ({
-                newContent,
-                newSteps,
-                newInvertedSteps,
-                newLastIndexSearchEntityJob,
-                newStepCountByAccountId,
-                clientId,
-            }) => {
-                const updatedEntry = entry;
-
-                await this._entries.updateEntry(id, async entry => {
-                    if (!entry) return null;
-
-                    if (entry.version !== updatedEntry.version) return entry;
-
-                    for (let i = 0; i < newSteps.length; i++) {
-                        const step = newSteps[i]!;
-                        const invertedStep = newInvertedSteps[i];
-                        assert(invertedStep);
-                        entry.stepsAfterInitialSnapshot.push({step, invertedStep, clientId});
-                    }
-
-                    return {
-                        createdTime: entry.createdTime,
-                        spaceId: entry.spaceId,
-                        creatorId: entry.creatorId,
-                        lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
-                        stepCountByAccountId: newStepCountByAccountId,
-                        version: entry.version + newSteps.length,
-                        content: newContent,
-                        stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
-                    };
-                });
-            },
-        };
+                },
+            };
+        });
     }
 
     public evictAllDocumentsForTest() {
@@ -2194,13 +2198,23 @@ export async function updateDocumentContent(
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
 
-        // NOTE(calebmer): Do we really need the cache anymore now that we're using
-        // Durable Objects for updating documents? For now, probably yes? The Durable
-        // Object sends updates to `AppService` so in theory the cache helps persist
-        // updates faster. The problem is `AppService` is behind a load balancer so
-        // Durable Objects would need [sticky sessions][1] to make sure it goes to the
-        // same `AppService` with the right cache. Though who knows, maybe the cache
-        // only helps a marginal amount even when configured properly.
+        // NOTE(calebmer, 2023-09-19): Do we really need the cache anymore now that
+        // we're using Durable Objects for updating documents? For now, probably yes?
+        // The Durable Object sends updates to `AppService` so in theory the cache
+        // helps persist updates faster. The problem is `AppService` is behind a load
+        // balancer so Durable Objects would need [sticky sessions][1] to make sure it
+        // goes to the same `AppService` with the right cache. Though who knows, maybe
+        // the cache only helps a marginal amount even when configured properly.
+        //
+        // NOTE(calebmer, 2024-09-19): Added the span "Get and cache document" to help
+        // make this decision. Check how many cache hits we have and what performance
+        // difference it makes. To determine if the cache is a good idea I want to know
+        // the performance difference between cache hits and misses. Then if there's a
+        // low cache hit rate I suspect that's because of a sticky session bug where
+        // AWS ALB routes sticky sessions to the same `AppService` but within the
+        // Node.js server we don't route sticky sessions to the same Node.js process.
+        // Also, ideally I'd like members of the same space to route to the same
+        // Node.js process in AWS.
         //
         // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
         const cache = cacheOverrideForTest ?? globalDocumentContentCacheForUpdate;
