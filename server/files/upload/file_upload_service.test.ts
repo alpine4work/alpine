@@ -11,7 +11,7 @@ import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
-import {getFile} from "~/server/files/data/files_table.js";
+import {getFileAsUploader} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
@@ -346,7 +346,7 @@ chunk\r\n\
     const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
     const fileId = assertId<FileId>(match[1]!);
 
-    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -447,7 +447,9 @@ chunk\r\n\
     const match = assertExists(socketText.match(/,"fileId":"([^"]*)"/m));
     const fileId = assertId<FileId>(match[1]!);
 
-    await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(NotFoundError);
+    await expect(getFileAsUploader(space.systemAction(), space.id, fileId)).rejects.toThrow(
+        NotFoundError,
+    );
 });
 
 test("request can be ended before completion", async () => {
@@ -506,7 +508,7 @@ Content-Length: 33102\r\n\
         return assertId<FileId>(match[1]!);
     });
 
-    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -544,7 +546,7 @@ chunk\r\n\
 `);
 
     await waitForExpect(async () => {
-        await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(
+        await expect(getFileAsUploader(space.systemAction(), space.id, fileId)).rejects.toThrow(
             NotFoundError,
         );
     });
@@ -606,7 +608,7 @@ Content-Length: 33102\r\n\
         return assertId<FileId>(match[1]!);
     });
 
-    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -654,7 +656,7 @@ chunk\r\n\
 \r\n\
 `);
 
-    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",
@@ -717,7 +719,9 @@ test("can't upload invalid image data", async () => {
         ),
     );
 
-    await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(NotFoundError);
+    await expect(getFileAsUploader(space.systemAction(), space.id, fileId)).rejects.toThrow(
+        NotFoundError,
+    );
 });
 
 test("can't upload image with the wrong content type", async () => {
@@ -762,7 +766,9 @@ test("can't upload image with the wrong content type", async () => {
         ),
     );
 
-    await expect(getFile(space.systemAction(), space.id, fileId)).rejects.toThrow(NotFoundError);
+    await expect(getFileAsUploader(space.systemAction(), space.id, fileId)).rejects.toThrow(
+        NotFoundError,
+    );
 });
 
 test("can upload image", async () => {
@@ -804,7 +810,7 @@ test("can upload image", async () => {
         ),
     );
 
-    expect(await getFile(space.systemAction(), space.id, fileId)).toEqual(
+    expect(await getFileAsUploader(space.systemAction(), space.id, fileId)).toEqual(
         new FileModel({
             id: fileId,
             contentType: "image/jpeg",

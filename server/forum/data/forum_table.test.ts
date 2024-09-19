@@ -1,10 +1,12 @@
 import {addMinutes} from "date-fns";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {
+    authorizePostAccess,
     backfillChannelPosts,
     createAlphaSpaceAsAdmin,
     createChannel,
@@ -47,7 +49,7 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -3298,6 +3300,95 @@ test("can add accounts to spaces as admin", async () => {
     expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(
         new Set([space1.id]),
     );
+});
+
+test("can authorize post access at different levels", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await space.createSessions(3);
+    const otherSession = await otherSpace.createSession();
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post1 = await createPost(session1.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post content 1"),
+    });
+
+    const post2 = await createPost(session2.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post content 2"),
+    });
+
+    const post3 = await createPost(session3.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post content 3"),
+    });
+
+    const authorize = async (
+        context: ServerActionContext,
+        id: PostId,
+        expectedAccessLevel: "View" | "Edit",
+    ): Promise<boolean> => {
+        try {
+            await authorizePostAccess(context, id, expectedAccessLevel);
+            return true;
+        } catch (error) {
+            if (error instanceof PermissionDeniedError) {
+                return false;
+            } else {
+                throw error;
+            }
+        }
+    };
+
+    expect(await authorize(space.systemAction(), post1.id, "View")).toEqual(true);
+    expect(await authorize(otherSpace.systemAction(), post1.id, "View")).toEqual(false);
+    expect(await authorize(session1.action(), post1.id, "View")).toEqual(true);
+    expect(await authorize(session2.action(), post1.id, "View")).toEqual(true);
+    expect(await authorize(session3.action(), post1.id, "View")).toEqual(true);
+    console.log("testing 1");
+    expect(await authorize(otherSession.action(), post1.id, "View")).toEqual(false);
+    console.log("testing 2");
+
+    expect(await authorize(space.systemAction(), post1.id, "Edit")).toEqual(true);
+    expect(await authorize(otherSpace.systemAction(), post1.id, "Edit")).toEqual(false);
+    expect(await authorize(session1.action(), post1.id, "Edit")).toEqual(true);
+    expect(await authorize(session2.action(), post1.id, "Edit")).toEqual(false);
+    expect(await authorize(session3.action(), post1.id, "Edit")).toEqual(false);
+    expect(await authorize(otherSession.action(), post1.id, "Edit")).toEqual(false);
+
+    expect(await authorize(space.systemAction(), post2.id, "View")).toEqual(true);
+    expect(await authorize(otherSpace.systemAction(), post2.id, "View")).toEqual(false);
+    expect(await authorize(session1.action(), post2.id, "View")).toEqual(true);
+    expect(await authorize(session2.action(), post2.id, "View")).toEqual(true);
+    expect(await authorize(session3.action(), post2.id, "View")).toEqual(true);
+    expect(await authorize(otherSession.action(), post2.id, "View")).toEqual(false);
+
+    expect(await authorize(space.systemAction(), post2.id, "Edit")).toEqual(true);
+    expect(await authorize(otherSpace.systemAction(), post2.id, "Edit")).toEqual(false);
+    expect(await authorize(session1.action(), post2.id, "Edit")).toEqual(false);
+    expect(await authorize(session2.action(), post2.id, "Edit")).toEqual(true);
+    expect(await authorize(session3.action(), post2.id, "Edit")).toEqual(false);
+    expect(await authorize(otherSession.action(), post2.id, "Edit")).toEqual(false);
+
+    expect(await authorize(space.systemAction(), post3.id, "View")).toEqual(true);
+    expect(await authorize(otherSpace.systemAction(), post3.id, "View")).toEqual(false);
+    expect(await authorize(session1.action(), post3.id, "View")).toEqual(true);
+    expect(await authorize(session2.action(), post3.id, "View")).toEqual(true);
+    expect(await authorize(session3.action(), post3.id, "View")).toEqual(true);
+    expect(await authorize(otherSession.action(), post3.id, "View")).toEqual(false);
+
+    expect(await authorize(space.systemAction(), post3.id, "Edit")).toEqual(true);
+    expect(await authorize(otherSpace.systemAction(), post3.id, "Edit")).toEqual(false);
+    expect(await authorize(session1.action(), post3.id, "Edit")).toEqual(false);
+    expect(await authorize(session2.action(), post3.id, "Edit")).toEqual(false);
+    expect(await authorize(session3.action(), post3.id, "Edit")).toEqual(true);
+    expect(await authorize(otherSession.action(), post3.id, "Edit")).toEqual(false);
 });
 
 describe("Notification subscribers", () => {

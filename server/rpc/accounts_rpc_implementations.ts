@@ -6,6 +6,7 @@ import {
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definitions from "~/shared/rpc/accounts_rpc_definitions.js";
 
@@ -21,11 +22,16 @@ export default implementRpcs(definitions, {
     getAccounts: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
+            if (input.accountIds.size === 0) {
+                throw new InvalidArgumentError('Must call "getAccounts" with at least one account');
+            }
+
             const accounts = await runAllPromises(
                 Array.from(input.accountIds, accountId =>
                     getAccount(context, input.spaceId, accountId),
                 ),
             );
+
             return {accounts};
         },
     },

@@ -13,7 +13,7 @@ import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
-import {getFile} from "~/server/files/data/files_table.js";
+import {getFileAsUploader} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
 import {
     ffmpegExecutablePath,
@@ -223,7 +223,7 @@ export function testFileProcessorContentTypes(testCases: {
                         ),
                     );
 
-                    const file = await getFile(space.systemAction(), space.id, fileId);
+                    const file = await getFileAsUploader(space.systemAction(), space.id, fileId);
                     expect(file).toEqual(
                         new FileModel({
                             id: fileId,

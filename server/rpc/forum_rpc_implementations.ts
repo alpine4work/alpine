@@ -159,7 +159,7 @@ export default implementRpcs(definitions, {
     authorizePostAccess: {
         visibility: ["PostRealtimeService"],
         execute: async (context, input) => {
-            return authorizePostAccess(context, input.postId);
+            return authorizePostAccess(context, input.postId, "View");
         },
     },
 

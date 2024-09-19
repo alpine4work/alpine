@@ -1035,37 +1035,36 @@ async function actuallyCleanupFileItem(
 }
 
 /**
- * Get a file if the file exists. Can only be called by system action contexts.
- * In order for an account to load a file they must be granted access to the
- * file. Throws a `PermissionDeniedError` if you don't have access to the file.
+ * Get a file as the file's uploader. Returns null if the file doesn't exist.
+ * Throws an error if you're not the account that upload the file. If we have
+ * a system actor then the system actor may read all files.
+ *
+ * Prefer calling `getFileIfExistsWithGrant()` which will work for all
+ * accounts, not just the uploader.
  */
-export async function getFileIfExists(
+export async function getFileIfExistsAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<FileModel | null> {
-    await authorizeSpaceAccess(context, spaceId);
-
-    const item = await FilesTable.getItemIfExists(
-        context,
-        {
-            partitionType: "Space",
-            sortRangeType: "File",
-            spaceId,
-            fileId,
-        },
-        {consistency},
-    );
+    const [, item] = await runAllPromises([
+        authorizeSpaceAccess(context, spaceId),
+        FilesTable.getItemIfExists(
+            context,
+            {partitionType: "Space", sortRangeType: "File", spaceId, fileId},
+            {consistency},
+        ),
+    ]);
     if (!item) return null;
 
     switch (context.actor.type) {
         case "System": {
-            // System actors have access to all files in the space.
+            // System actors have access to all files in the space. We already validated
+            // above that we have access to the space.
             break;
         }
         case "Session": {
-            // TODO(calebmer, #files): We need some grant system that enables accounts
             // other than the uploader to read a file.
             if (item.uploaderId !== context.actor.getAccountId()) {
                 throw new PermissionDeniedError("Account doesn't have access to file");
@@ -1087,20 +1086,20 @@ export async function getFileIfExists(
 }
 
 /**
- * Get a file. If the file doesn't exist, throws an error. See
- * `getFileIfExists()` for more information.
+ * Get a file as the file's uploader. Throws an error if the file doesn't
+ * exist. Throws an error if you're not the account that upload the file. If we
+ * have a system actor then the system actor may read all files.
+ *
+ * Prefer calling `getFileWithGrant()` which will work for all accounts, not
+ * just the uploader.
  */
-export async function getFile(
+export async function getFileAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoReadConsistency},
-): Promise<FileModel> {
-    const file = await getFileIfExists(context, spaceId, fileId, options);
-
-    if (!file) {
-        throw new NotFoundError("File not found");
-    }
-
+): Promise<FileModel | null> {
+    const file = await getFileIfExistsAsUploader(context, spaceId, fileId, options);
+    if (!file) throw new NotFoundError("File not found");
     return file;
 }

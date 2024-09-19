@@ -1823,6 +1823,7 @@ export async function getPostCommentAuthors(
 export async function authorizePostAccess(
     context: ServerActionContext,
     id: PostId,
+    expectedAccessLevel: "View" | "Edit",
 ): Promise<{spaceId: SpaceId}> {
     let postItem = await ForumRealtimeTable.getPartialItemIfExists(
         context,
@@ -1832,7 +1833,7 @@ export async function authorizePostAccess(
             postId: id,
         },
         {
-            attributes: ["spaceId", "channelId"],
+            attributes: ["spaceId", "channelId", "authorId"],
             // It's ok to call this function when expecting strong read consistency.
             // Authorization is mostly strongly consistent since we retry with strong
             // consistency if our eventually consistent read fails.
@@ -1849,7 +1850,7 @@ export async function authorizePostAccess(
                 postId: id,
             },
             {
-                attributes: ["spaceId", "channelId"],
+                attributes: ["spaceId", "channelId", "authorId"],
                 consistency: "Strong",
             },
         );
@@ -1858,6 +1859,32 @@ export async function authorizePostAccess(
     if (!postItem) throw new NotFoundError("Post not found");
 
     await authorizeChannelAccess(context, postItem.channelId);
+
+    switch (expectedAccessLevel) {
+        case "View": {
+            // If you can view the channel, you can view the post.
+            break;
+        }
+        case "Edit": {
+            switch (context.actor.type) {
+                case "System": {
+                    // System actor can edit any post.
+                    break;
+                }
+                case "Session": {
+                    if (postItem.authorId !== context.actor.getAccountId()) {
+                        throw new PermissionDeniedError("Account doesn't have edit access to post");
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(context.actor);
+            }
+            break;
+        }
+        default:
+            throw exhaustive(expectedAccessLevel);
+    }
 
     return {spaceId: postItem.spaceId};
 }
@@ -2053,7 +2080,7 @@ export async function getPostComment(
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
-        authorizePostAccess(context, postId),
+        authorizePostAccess(context, postId, "View"),
         ForumTable.getItem(context, {
             partitionType: "Post",
             sortRangeType: "Comments",
@@ -2085,7 +2112,7 @@ export async function getPostCommentPayload(
     payload: MessagePayload;
 }> {
     const [, item] = await runAllPromises([
-        authorizePostAccess(context, postId),
+        authorizePostAccess(context, postId, "View"),
         ForumTable.getItem(
             context,
             {
