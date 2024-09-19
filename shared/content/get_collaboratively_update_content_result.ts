@@ -1,5 +1,7 @@
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -32,22 +34,27 @@ declare module "prosemirror-transform" {
  * array of steps in that range. You can assume the range passed into this
  * function is a valid range of steps.
  */
-export async function getCollaborativelyUpdateContentResult({
-    currentVersion,
-    currentContent,
-    clientVersion,
-    clientSteps,
-    getSteps,
-}: {
-    currentVersion: number;
-    currentContent: Node;
-    clientVersion: number;
-    clientSteps: ReadonlyArray<Step>;
-    getSteps: (
-        startVersion: number,
-        endVersion: number,
-    ) => Promise<ReadonlyArray<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>>;
-}): Promise<{
+export function getCollaborativelyUpdateContentResult(
+    context: Context<{tracer: TracerContextModule}>,
+    {
+        currentVersion,
+        currentContent,
+        clientVersion,
+        clientSteps,
+        getSteps,
+    }: {
+        currentVersion: number;
+        currentContent: Node;
+        clientVersion: number;
+        clientSteps: ReadonlyArray<Step>;
+        getSteps: (
+            startVersion: number,
+            endVersion: number,
+        ) => Promise<
+            ReadonlyArray<{step: Step; invertedStep: Step; clientId: ContentEditorClientId}>
+        >;
+    },
+): Promise<{
     newContent: Node;
     steps: ReadonlyArray<Step>;
     invertedSteps: ReadonlyArray<Step>;
@@ -61,252 +68,275 @@ export async function getCollaborativelyUpdateContentResult({
     // not map anything if there were no conflicting steps.
     mapping: Mapping;
 }> {
-    assert(clientVersion >= 0);
+    return context.tracer.withSpan(
+        "Get collaboratively update content result",
+        async (context, span) => {
+            assert(clientVersion >= 0);
 
-    if (clientVersion > currentVersion)
-        throw new FailedPreconditionError(
-            "Can not update content with steps at version ahead of the content's current version",
-        );
+            span.addData({
+                content: {
+                    collaborative: {
+                        clientVersion,
+                        clientStepCount: clientSteps.length,
+                        version: currentVersion,
+                    },
+                },
+            });
 
-    let content = currentContent;
-    let steps: ReadonlyArray<Step>;
-    let invertedSteps: Array<Step>;
-    let conflictingSteps: ReadonlyArray<{
-        step: Step;
-        invertedStep: Step;
-        clientId: ContentEditorClientId;
-    }>;
-    let clientContent: Node;
-
-    const mapping = new Mapping();
-
-    // If the client's version is the same as our server version then we can
-    // directly apply the client's steps to the content.
-    if (clientVersion === currentVersion) {
-        invertedSteps = [];
-
-        for (const step of clientSteps) {
-            const stepResult = step.apply(content);
-            if (!stepResult.doc) {
+            if (clientVersion > currentVersion)
                 throw new FailedPreconditionError(
-                    `Could not apply step to content: ${stepResult.failed!}`,
+                    "Can not update content with steps at version ahead of the content's current version",
                 );
-            }
 
-            invertedSteps.push(step.invert(content));
+            let content = currentContent;
+            let steps: ReadonlyArray<Step>;
+            let invertedSteps: Array<Step>;
+            let conflictingSteps: ReadonlyArray<{
+                step: Step;
+                invertedStep: Step;
+                clientId: ContentEditorClientId;
+            }>;
+            let clientContent: Node;
 
-            content = stepResult.doc;
-        }
+            const mapping = new Mapping();
 
-        steps = clientSteps;
-        conflictingSteps = [];
-        clientContent = content;
-    }
+            // If the client's version is the same as our server version then we can
+            // directly apply the client's steps to the content.
+            if (clientVersion === currentVersion) {
+                invertedSteps = [];
 
-    // If the client is trying to update an older content version then we need to
-    // rebase the client steps against steps which were applied before it.
-    else {
-        assert(clientVersion < currentVersion);
-
-        conflictingSteps = await getSteps(clientVersion, currentVersion);
-        assert(conflictingSteps.length === currentVersion - clientVersion);
-
-        const invertedClientSteps: Array<Step> = [];
-
-        // Make sure all steps from the client were valid against the content at
-        // `clientVersion`. So revert back to to that version and try applying our
-        // client steps.
-        //
-        // We will drop any steps we can't rebase. But we still want to validate that
-        // the original steps were ok.
-        {
-            clientContent = content;
-
-            for (let i = conflictingSteps.length - 1; i >= 0; i--) {
-                const {invertedStep} = conflictingSteps[i]!;
-                const invertedStepResult = invertedStep.apply(clientContent);
-                if (!invertedStepResult.doc)
-                    throw new DataLossError(
-                        `Could not apply inverse of saved content step: ${invertedStepResult.failed!}`,
-                    );
-
-                clientContent = invertedStepResult.doc;
-            }
-
-            for (const step of clientSteps) {
-                const stepResult = step.apply(clientContent);
-                if (!stepResult.doc) {
-                    throw new FailedPreconditionError(
-                        `Could not apply step to content: ${stepResult.failed!}`,
-                    );
-                }
-
-                invertedClientSteps.push(step.invert(clientContent));
-
-                clientContent = stepResult.doc;
-            }
-        }
-
-        // See the guide for information on how to rebase a chain of steps against
-        // another chain of steps:
-        // https://prosemirror.net/docs/guide/#transform.rebasing
-        //
-        // Also see the client-side rebasing implementation:
-        // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
-
-        for (let i = invertedClientSteps.length - 1; i >= 0; i--)
-            mapping.appendMap(invertedClientSteps[i]!.getMap());
-        for (let i = 0; i < conflictingSteps.length; i++)
-            mapping.appendMap(conflictingSteps[i]!.step.getMap());
-
-        const rebasedSteps = [];
-        invertedSteps = [];
-        let mapFrom = clientSteps.length;
-
-        for (let i = 0; i < clientSteps.length; i++) {
-            const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
-            mapFrom--;
-
-            // Silently ignore steps we can't rebase. That's what the client
-            // implementation does:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-            if (!rebasedStep) continue;
-
-            const rebasedStepResult = rebasedStep.apply(content);
-
-            // Silently ignore steps we can't rebase. That's what the client
-            // implementation does:
-            // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
-            if (!rebasedStepResult.doc) continue;
-
-            invertedSteps.push(rebasedStep.invert(content));
-
-            content = rebasedStepResult.doc;
-            rebasedSteps.push(rebasedStep);
-            mapping.appendMap(rebasedStep.getMap());
-            mapping.setMirror(mapFrom, mapping.maps.length - 1);
-        }
-
-        steps = rebasedSteps;
-    }
-
-    // Validate that our steps left the content in a good state.
-    //
-    // We collect all ranges touched by a step and we validate the content of
-    // the nodes in those ranges.
-    {
-        const rangesToValidate: Array<{start: number; end: number}> = [];
-        const mapping = new Mapping(steps.map(step => step.getMap()));
-
-        for (const [stepIndex, _step] of steps.entries()) {
-            const step = _step as ExhaustiveStep;
-            const remainingMapping = mapping.slice(stepIndex);
-
-            const addRangeToValidate = (start: number, end: number) => {
-                // Make sure start/end represent positions in our new content.
-                start = remainingMapping.map(start, -1);
-                end = remainingMapping.map(end, 1);
-                assert(start <= end);
-
-                let hasInsertedRange = false;
-
-                for (const [rangeIndex, range] of rangesToValidate.entries()) {
-                    assert(range.start <= range.end);
-
-                    if (areRangesOverlapping(range.start, range.end, start, end)) {
-                        range.start = Math.min(range.start, start);
-                        range.end = Math.min(range.end, end);
-                        hasInsertedRange = true;
-                        break;
-                    }
-
-                    if (end < range.start) {
-                        rangesToValidate.splice(rangeIndex, 0, {start, end: end});
-                        hasInsertedRange = true;
-                        break;
-                    }
-                }
-
-                if (!hasInsertedRange) rangesToValidate.push({start, end});
-            };
-
-            switch (step.jsonID) {
-                case "attr":
-                case "addNodeMark":
-                case "removeNodeMark": {
-                    addRangeToValidate(step.pos, step.pos);
-                    break;
-                }
-                case "addMark":
-                case "removeMark":
-                case "replace":
-                case "replaceAround": {
-                    addRangeToValidate(step.from, step.to);
-                    break;
-                }
-                case "removeAllMarks": {
-                    // Remove valid marks does not affect the validity of the content's structure.
-                    break;
-                }
-                case "addMarksAfterRemoveAll": {
-                    for (const range of step.ranges) {
-                        addRangeToValidate(range.from, range.to);
-                    }
-                    break;
-                }
-                default:
-                    throw exhaustive(step);
-            }
-        }
-
-        const validatedNodes = new Set<Node>();
-        for (const range of rangesToValidate) {
-            content.nodesBetween(range.start, range.end, (node, pos, parentNode) => {
-                // Make sure we validate the parent nodes of any updated nodes as well. In case
-                // changing the type of our node made it unacceptable for its parent's content.
-                if (parentNode && !validatedNodes.has(parentNode)) {
-                    validatedNodes.add(parentNode);
-
-                    if (!parentNode.type.validContent(parentNode.content)) {
+                for (const step of clientSteps) {
+                    const stepResult = step.apply(content);
+                    if (!stepResult.doc) {
                         throw new FailedPreconditionError(
-                            `Updated content for "${parentNode.type.name}" node is not valid`,
+                            `Could not apply step to content: ${stepResult.failed!}`,
                         );
                     }
+
+                    invertedSteps.push(step.invert(content));
+
+                    content = stepResult.doc;
                 }
 
-                // If we have already validated this node in a different range, don't validate again.
-                if (validatedNodes.has(node)) return false;
-                validatedNodes.add(node);
+                steps = clientSteps;
+                conflictingSteps = [];
+                clientContent = content;
+            }
 
-                if (!node.type.validContent(node.content)) {
-                    throw new FailedPreconditionError(
-                        `Updated content for "${node.type.name}" node is not valid`,
-                    );
+            // If the client is trying to update an older content version then we need to
+            // rebase the client steps against steps which were applied before it.
+            else {
+                assert(clientVersion < currentVersion);
+
+                conflictingSteps = await getSteps(clientVersion, currentVersion);
+                assert(conflictingSteps.length === currentVersion - clientVersion);
+
+                const invertedClientSteps: Array<Step> = [];
+
+                // Make sure all steps from the client were valid against the content at
+                // `clientVersion`. So revert back to to that version and try applying our
+                // client steps.
+                //
+                // We will drop any steps we can't rebase. But we still want to validate that
+                // the original steps were ok.
+                {
+                    clientContent = content;
+
+                    for (let i = conflictingSteps.length - 1; i >= 0; i--) {
+                        const {invertedStep} = conflictingSteps[i]!;
+                        const invertedStepResult = invertedStep.apply(clientContent);
+                        if (!invertedStepResult.doc)
+                            throw new DataLossError(
+                                `Could not apply inverse of saved content step: ${invertedStepResult.failed!}`,
+                            );
+
+                        clientContent = invertedStepResult.doc;
+                    }
+
+                    for (const step of clientSteps) {
+                        const stepResult = step.apply(clientContent);
+                        if (!stepResult.doc) {
+                            throw new FailedPreconditionError(
+                                `Could not apply step to content: ${stepResult.failed!}`,
+                            );
+                        }
+
+                        invertedClientSteps.push(step.invert(clientContent));
+
+                        clientContent = stepResult.doc;
+                    }
                 }
 
-                // For code blocks, new lines should be created by adding new `codeBlockLine`s.
-                // Not by adding a `\n` character! Reject any updates that try to add a new line
-                // character to a code block line.
-                if (
-                    node.isText &&
-                    // `text` nodes must have a parent node. Error if they don't.
-                    parentNode!.type.name === "codeBlockLine" &&
-                    node.text!.includes("\n")
-                ) {
-                    throw new FailedPreconditionError(
-                        `Can't add "\\n" character to "codeBlockLine" node`,
-                    );
+                // See the guide for information on how to rebase a chain of steps against
+                // another chain of steps:
+                // https://prosemirror.net/docs/guide/#transform.rebasing
+                //
+                // Also see the client-side rebasing implementation:
+                // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L14-L27
+
+                for (let i = invertedClientSteps.length - 1; i >= 0; i--)
+                    mapping.appendMap(invertedClientSteps[i]!.getMap());
+                for (let i = 0; i < conflictingSteps.length; i++)
+                    mapping.appendMap(conflictingSteps[i]!.step.getMap());
+
+                const rebasedSteps = [];
+                invertedSteps = [];
+                let mapFrom = clientSteps.length;
+
+                for (let i = 0; i < clientSteps.length; i++) {
+                    const rebasedStep = clientSteps[i]!.map(mapping.slice(mapFrom));
+                    mapFrom--;
+
+                    // Silently ignore steps we can't rebase. That's what the client
+                    // implementation does:
+                    // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
+                    if (!rebasedStep) continue;
+
+                    const rebasedStepResult = rebasedStep.apply(content);
+
+                    // Silently ignore steps we can't rebase. That's what the client
+                    // implementation does:
+                    // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
+                    if (!rebasedStepResult.doc) continue;
+
+                    invertedSteps.push(rebasedStep.invert(content));
+
+                    content = rebasedStepResult.doc;
+                    rebasedSteps.push(rebasedStep);
+                    mapping.appendMap(rebasedStep.getMap());
+                    mapping.setMirror(mapFrom, mapping.maps.length - 1);
                 }
+
+                steps = rebasedSteps;
+            }
+
+            // Validate that our steps left the content in a good state.
+            //
+            // We collect all ranges touched by a step and we validate the content of
+            // the nodes in those ranges.
+            {
+                const rangesToValidate: Array<{start: number; end: number}> = [];
+                const mapping = new Mapping(steps.map(step => step.getMap()));
+
+                for (const [stepIndex, _step] of steps.entries()) {
+                    const step = _step as ExhaustiveStep;
+                    const remainingMapping = mapping.slice(stepIndex);
+
+                    const addRangeToValidate = (start: number, end: number) => {
+                        // Make sure start/end represent positions in our new content.
+                        start = remainingMapping.map(start, -1);
+                        end = remainingMapping.map(end, 1);
+                        assert(start <= end);
+
+                        let hasInsertedRange = false;
+
+                        for (const [rangeIndex, range] of rangesToValidate.entries()) {
+                            assert(range.start <= range.end);
+
+                            if (areRangesOverlapping(range.start, range.end, start, end)) {
+                                range.start = Math.min(range.start, start);
+                                range.end = Math.min(range.end, end);
+                                hasInsertedRange = true;
+                                break;
+                            }
+
+                            if (end < range.start) {
+                                rangesToValidate.splice(rangeIndex, 0, {start, end: end});
+                                hasInsertedRange = true;
+                                break;
+                            }
+                        }
+
+                        if (!hasInsertedRange) rangesToValidate.push({start, end});
+                    };
+
+                    switch (step.jsonID) {
+                        case "attr":
+                        case "addNodeMark":
+                        case "removeNodeMark": {
+                            addRangeToValidate(step.pos, step.pos);
+                            break;
+                        }
+                        case "addMark":
+                        case "removeMark":
+                        case "replace":
+                        case "replaceAround": {
+                            addRangeToValidate(step.from, step.to);
+                            break;
+                        }
+                        case "removeAllMarks": {
+                            // Remove valid marks does not affect the validity of the content's structure.
+                            break;
+                        }
+                        case "addMarksAfterRemoveAll": {
+                            for (const range of step.ranges) {
+                                addRangeToValidate(range.from, range.to);
+                            }
+                            break;
+                        }
+                        default:
+                            throw exhaustive(step);
+                    }
+                }
+
+                const validatedNodes = new Set<Node>();
+                for (const range of rangesToValidate) {
+                    content.nodesBetween(range.start, range.end, (node, pos, parentNode) => {
+                        // Make sure we validate the parent nodes of any updated nodes as well. In case
+                        // changing the type of our node made it unacceptable for its parent's content.
+                        if (parentNode && !validatedNodes.has(parentNode)) {
+                            validatedNodes.add(parentNode);
+
+                            if (!parentNode.type.validContent(parentNode.content)) {
+                                throw new FailedPreconditionError(
+                                    `Updated content for "${parentNode.type.name}" node is not valid`,
+                                );
+                            }
+                        }
+
+                        // If we have already validated this node in a different range, don't validate again.
+                        if (validatedNodes.has(node)) return false;
+                        validatedNodes.add(node);
+
+                        if (!node.type.validContent(node.content)) {
+                            throw new FailedPreconditionError(
+                                `Updated content for "${node.type.name}" node is not valid`,
+                            );
+                        }
+
+                        // For code blocks, new lines should be created by adding new `codeBlockLine`s.
+                        // Not by adding a `\n` character! Reject any updates that try to add a new line
+                        // character to a code block line.
+                        if (
+                            node.isText &&
+                            // `text` nodes must have a parent node. Error if they don't.
+                            parentNode!.type.name === "codeBlockLine" &&
+                            node.text!.includes("\n")
+                        ) {
+                            throw new FailedPreconditionError(
+                                `Can't add "\\n" character to "codeBlockLine" node`,
+                            );
+                        }
+                    });
+                }
+            }
+
+            span.addData({
+                content: {
+                    collaborative: {
+                        stepCount: steps.length,
+                    },
+                },
             });
-        }
-    }
 
-    return {
-        newContent: content,
-        steps,
-        invertedSteps,
-        conflictingSteps,
-        clientContent,
-        mapping,
-    };
+            return {
+                newContent: content,
+                steps,
+                invertedSteps,
+                conflictingSteps,
+                clientContent,
+                mapping,
+            };
+        },
+    );
 }

@@ -137,22 +137,25 @@ export class TaskNotesCollaborationContentManager {
         const {oldVersion, steps} = await this._state.withLock(async stateRef => {
             const oldVersion = stateRef.current.version;
 
-            const {newContent, steps, invertedSteps} = await getCollaborativelyUpdateContentResult({
-                currentVersion: stateRef.current.version,
-                currentContent: stateRef.current.content,
-                clientVersion: update.version,
-                clientSteps: update.steps,
-                getSteps: async (startVersion, endVersion) => {
-                    const result = this.getSteps(startVersion, endVersion);
+            const {newContent, steps, invertedSteps} = await getCollaborativelyUpdateContentResult(
+                context,
+                {
+                    currentVersion: stateRef.current.version,
+                    currentContent: stateRef.current.content,
+                    clientVersion: update.version,
+                    clientSteps: update.steps,
+                    getSteps: async (startVersion, endVersion) => {
+                        const result = this.getSteps(startVersion, endVersion);
 
-                    if (result.type === "Unavailable")
-                        throw new FailedPreconditionError(
-                            "Client task notes version is too far behind",
-                        );
+                        if (result.type === "Unavailable")
+                            throw new FailedPreconditionError(
+                                "Client task notes version is too far behind",
+                            );
 
-                    return result.steps;
+                        return result.steps;
+                    },
                 },
-            });
+            );
 
             assert(isTaskNotesContent(newContent));
 

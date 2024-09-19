@@ -2296,7 +2296,7 @@ export async function updateDocumentContent(
         await authorizeSpaceAccess(context, internalDocument.spaceId);
 
         const {newContent, steps, invertedSteps, conflictingSteps} =
-            await getCollaborativelyUpdateContentResult({
+            await getCollaborativelyUpdateContentResult(context, {
                 currentVersion: internalDocument.version,
                 currentContent: internalDocument.content,
                 clientVersion,

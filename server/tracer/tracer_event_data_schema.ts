@@ -165,6 +165,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         isBlocking: Schema.boolean,
         didNothing: Schema.boolean,
         processDurationMs: Schema.float,
+        wasCached: Schema.boolean,
     },
     context: {
         handler: Schema.string,
@@ -300,6 +301,14 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     webSocket: {
         connectionId: Schema.id(),
         messageType: Schema.string,
+    },
+    content: {
+        collaborative: {
+            version: Schema.integer,
+            stepCount: Schema.integer,
+            clientVersion: Schema.integer,
+            clientStepCount: Schema.integer,
+        },
     },
     notifications: {
         eventType: IdentifierStringSchema,
