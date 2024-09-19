@@ -877,6 +877,24 @@ export type TracerEventData = {
         readonly messageType?: string;
     };
 
+    /** Information regarding the processing of our generic content data type. */
+    readonly content?: {
+        /** Information regarding collaborative content editing. */
+        readonly collaborative?: {
+            /** The actual version of the collaborative content. */
+            readonly version?: number;
+
+            /** The number of steps added in an update. */
+            readonly stepCount?: number;
+
+            /** The version of the collaborative content according to the client. */
+            readonly clientVersion?: number;
+
+            /** The number of steps the client tries to add in an update. */
+            readonly clientStepCount?: number;
+        };
+    };
+
     /** Information regarding the event being processed. */
     readonly notifications?: {
         /** What is the notification event we are describing? */

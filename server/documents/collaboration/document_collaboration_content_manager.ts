@@ -304,7 +304,7 @@ export class DocumentCollaborationContentManager {
             const oldVersion = stateRef.current.version;
 
             const {newContent, steps, invertedSteps, clientContent, mapping} =
-                await getCollaborativelyUpdateContentResult({
+                await getCollaborativelyUpdateContentResult(context, {
                     currentVersion: stateRef.current.version,
                     currentContent: stateRef.current.content,
                     clientVersion: update.version,
