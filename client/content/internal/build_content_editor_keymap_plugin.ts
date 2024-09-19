@@ -1641,76 +1641,91 @@ export function buildContentEditorKeymapPlugin(
                 const fileElement = view.nodeDOM(selection.$anchor.pos);
 
                 if (fileElement instanceof Element) {
-                    const nextElement =
-                        dir > 0
-                            ? fileElement?.parentElement?.nextElementSibling
-                            : fileElement?.parentElement?.previousElementSibling;
-
                     const fileRect = fileElement.getBoundingClientRect();
-                    const nextRect = nextElement?.getBoundingClientRect();
 
-                    const posResult = view.posAtCoords({
-                        left:
-                            lastArrowNavigationCoordState?.coord ??
-                            fileRect.left + (fileRect.right - fileRect.left) / 2,
-                        top:
+                    // Elements that aren't attached to the DOM (so aren't laid out) have a zeroed
+                    // out bounding client rect. Ignore these elements.
+                    if (
+                        fileRect.left !== 0 ||
+                        fileRect.right !== 0 ||
+                        fileRect.top !== 0 ||
+                        fileRect.bottom !== 0
+                    ) {
+                        const nextElement =
                             dir > 0
-                                ? nextRect
-                                    ? nextRect.top + 1
-                                    : fileRect.bottom +
+                                ? fileElement?.parentElement?.nextElementSibling
+                                : fileElement?.parentElement?.previousElementSibling;
+
+                        const nextRect = nextElement?.getBoundingClientRect();
+
+                        const posResult = view.posAtCoords({
+                            left:
+                                lastArrowNavigationCoordState?.coord ??
+                                fileRect.left + (fileRect.right - fileRect.left) / 2,
+                            top:
+                                dir > 0
+                                    ? nextRect
+                                        ? nextRect.top + 1
+                                        : fileRect.bottom +
+                                          convertRemLengthToPx(
+                                              spacing[contentStyles.defaultParagraphMargin],
+                                              getRemPxWithoutListening(),
+                                          )
+                                    : nextRect
+                                    ? nextRect.bottom - 1
+                                    : fileRect.top -
                                       convertRemLengthToPx(
                                           spacing[contentStyles.defaultParagraphMargin],
                                           getRemPxWithoutListening(),
-                                      )
-                                : nextRect
-                                ? nextRect.bottom - 1
-                                : fileRect.top -
-                                  convertRemLengthToPx(
-                                      spacing[contentStyles.defaultParagraphMargin],
-                                      getRemPxWithoutListening(),
-                                  ),
-                    });
+                                      ),
+                        });
 
-                    if (posResult !== null) {
-                        let nextSelection = Selection.near(state.doc.resolve(posResult.pos), -1);
+                        if (posResult !== null) {
+                            let nextSelection = Selection.near(
+                                state.doc.resolve(posResult.pos),
+                                -1,
+                            );
 
-                        // If moving vertically kept us in the same `fileRow` then try searching for a
-                        // selection with a bias in the other direction. This is needed when you have
-                        // images in a T shape like this:
-                        //
-                        // ```
-                        //     ┌────────┐┌────────────┐
-                        //     │        ││            │
-                        //     │  1     ││  2         │
-                        //     │        ││            │
-                        //     │        ││            │
-                        //     └────────┘└────────────┘
-                        //            ┌────────┐
-                        //            │        │
-                        //            │  3     │
-                        //            │        │
-                        //            │        │
-                        //            │        │
-                        //            │        │
-                        //            └────────┘
-                        // ```
-                        //
-                        // If your selection is in 1 then the coordinate below 1 will be between 2 and
-                        // 3. So a bias of -1 selects 2.
-                        if (nextSelection.$anchor.parent === selection.$anchor.parent) {
-                            nextSelection = Selection.near(state.doc.resolve(posResult.pos), 1);
-                        }
+                            // If moving vertically kept us in the same `fileRow` then try searching for a
+                            // selection with a bias in the other direction. This is needed when you have
+                            // images in a T shape like this:
+                            //
+                            // ```
+                            //     ┌────────┐┌────────────┐
+                            //     │        ││            │
+                            //     │  1     ││  2         │
+                            //     │        ││            │
+                            //     │        ││            │
+                            //     └────────┘└────────────┘
+                            //            ┌────────┐
+                            //            │        │
+                            //            │  3     │
+                            //            │        │
+                            //            │        │
+                            //            │        │
+                            //            │        │
+                            //            └────────┘
+                            // ```
+                            //
+                            // If your selection is in 1 then the coordinate below 1 will be between 2 and
+                            // 3. So a bias of -1 selects 2.
+                            if (nextSelection.$anchor.parent === selection.$anchor.parent) {
+                                nextSelection = Selection.near(state.doc.resolve(posResult.pos), 1);
+                            }
 
-                        if (
-                            !(nextSelection instanceof NodeSelection) ||
-                            nextSelection.node !== selection.node
-                        ) {
-                            // Preserve the last arrow navigation coord if we used it.
-                            if (lastArrowNavigationCoordState)
-                                lastArrowNavigationCoordState.setTime = new Date();
+                            if (
+                                !(nextSelection instanceof NodeSelection) ||
+                                nextSelection.node !== selection.node
+                            ) {
+                                // Preserve the last arrow navigation coord if we used it.
+                                if (lastArrowNavigationCoordState)
+                                    lastArrowNavigationCoordState.setTime = new Date();
 
-                            view.dispatch(state.tr.setSelection(nextSelection).scrollIntoView());
-                            return true;
+                                view.dispatch(
+                                    state.tr.setSelection(nextSelection).scrollIntoView(),
+                                );
+                                return true;
+                            }
                         }
                     }
                 }
@@ -1740,7 +1755,15 @@ export function buildContentEditorKeymapPlugin(
                 ) {
                     const coords = view.coordsAtPos($side.pos, -1);
 
-                    if (coords) {
+                    // Make sure coords exist and isn't entirely zeroed out which ProseMirror may
+                    // return when it doesn't have layout information.
+                    if (
+                        coords &&
+                        (coords.top !== 0 ||
+                            coords.bottom !== 0 ||
+                            coords.left !== 0 ||
+                            coords.right !== 0)
+                    ) {
                         const coordX = coords.left + (coords.right - coords.left) / 2;
 
                         const fileRowElement = view.nodeDOM(nextSelection.$anchor.before());

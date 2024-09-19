@@ -18,7 +18,9 @@ import {
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
+import {FileId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -87,6 +89,11 @@ function getDoc() {
     return getEditor().state.doc;
 }
 
+// Get the ProseMirror selection.
+function getSelection() {
+    return getEditor().state.selection.toJSON();
+}
+
 // Dispatch a ProseMirror transaction. Use this to simulate a code powered
 // transformation of the document.
 function dispatch(buildTransaction: (state: EditorState) => Transaction) {
@@ -107,10 +114,12 @@ function charKeyboardEvent({
     key,
     metaKey = false,
     shiftKey = false,
+    withCharCode = false,
 }: {
     key: string;
     metaKey?: boolean;
     shiftKey?: boolean;
+    withCharCode?: boolean;
 }) {
     assert(key.length === 1 && key === key.toLowerCase());
 
@@ -155,12 +164,15 @@ function charKeyboardEvent({
         throw new InternalError(quote`Unsupported key ${key}`);
     }
 
+    const actualKey = shiftKey ? key.toUpperCase() : key;
+
     return {
         code,
-        key: shiftKey ? key.toUpperCase() : key,
+        key: actualKey,
         keyCode,
         metaKey,
         shiftKey,
+        charCode: withCharCode ? actualKey.charCodeAt(0) : 0,
     };
 }
 
@@ -242,6 +254,87 @@ function arrowLeftKeyboardEvent({
         code: "ArrowLeft",
         key: "ArrowLeft",
         keyCode: 37,
+        metaKey,
+        shiftKey,
+    };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function arrowUpKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "ArrowUp",
+        key: "ArrowUp",
+        keyCode: 38,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function arrowRightKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "ArrowRight",
+        key: "ArrowRight",
+        keyCode: 39,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function arrowDownKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "ArrowDown",
+        key: "ArrowDown",
+        keyCode: 40,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function endKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "End",
+        key: "End",
+        keyCode: 35,
+        metaKey,
+        shiftKey,
+    };
+}
+
+function homeKeyboardEvent({
+    metaKey = false,
+    shiftKey = false,
+}: {
+    metaKey?: boolean;
+    shiftKey?: boolean;
+} = {}) {
+    return {
+        code: "Home",
+        key: "Home",
+        keyCode: 36,
         metaKey,
         shiftKey,
     };
@@ -4847,4 +4940,1946 @@ test("enter in code block uses adjacent indentation level if there is no indenta
     expect(getDoc().toString()).toEqual(
         'doc(codeBlock(codeBlockLine("  test 1"), codeBlockLine, codeBlockLine, codeBlockLine("  ")))',
     );
+});
+
+test("pressing arrow down above a file selects the file", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+});
+
+test("pressing enter when a file is selected creates a paragraph below", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+});
+
+test("pressing enter when a file is selected in a multi-file row creates a paragraph below (first selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file), paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+});
+
+test("pressing enter when a file is selected in a multi-file row creates a paragraph below (second selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 2});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file), paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+});
+
+test("pressing enter when a file is selected in a multi-file row creates a paragraph below (third selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 2});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file), paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+});
+
+test("pressing enter when a file is selected creates a paragraph between two file rows", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+});
+
+test("pressing alt-enter when a file is selected creates a paragraph above", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing alt-enter when a file is selected in a multi-file row creates a paragraph above (first selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing alt-enter when a file is selected in a multi-file row creates a paragraph above (second selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 2});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing alt-enter when a file is selected in a multi-file row creates a paragraph above (third selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 2});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing alt-enter when a file is selected creates a paragraph between two file rows", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 4});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+});
+
+test("backspace from first to last in a gallery maintains file selection", () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file3Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file6Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+});
+
+test("backspace from last to first in a gallery maintains file selection", () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 12});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file5Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 11});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 8});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 4});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file1Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+});
+
+test("backspace from first to last in a gallery maintains file selection when surrounded by list items", () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 2, head: 2});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file3Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file6Id})]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+});
+
+test("backspace from last to first in a gallery maintains file selection when surrounded by list items", () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 2, head: 2});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 14});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file5Id})]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 13});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 10});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 7});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                ]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 6});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file1Id})]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+});
+
+test("delete from first to last in a gallery maintains file selection", () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file3Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file6Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+});
+
+test("delete from last to first in a gallery maintains file selection", () => {
+    const file1Id = generateChronologicalId<FileId>();
+    const file2Id = generateChronologicalId<FileId>();
+    const file3Id = generateChronologicalId<FileId>();
+    const file4Id = generateChronologicalId<FileId>();
+    const file5Id = generateChronologicalId<FileId>();
+    const file6Id = generateChronologicalId<FileId>();
+
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file5Id}),
+                    schema.node("file", {id: file6Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 12});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file5Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 11});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 8});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {id: file3Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: file1Id}),
+                    schema.node("file", {id: file2Id}),
+                ]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 4});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema
+            .node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [schema.node("file", {id: file1Id})]),
+                schema.node("paragraph"),
+            ])
+            .toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toJSON()).toEqual(
+        schema.node("doc", {}, [schema.node("paragraph"), schema.node("paragraph")]).toJSON(),
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+});
+
+test("backspace at the start of a paragraph selects the previous file", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("test")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(7))));
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
+
+    // Backspace in text is normally implemented by the browser but JSDOM doesn't implement
+    // default `contenteditable` keyboard behavior.
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
+});
+
+test("delete at the end of a paragraph selects the next file", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("test")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"), fileRow(file, file, file))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"), fileRow(file, file, file))');
+    expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"), fileRow(file, file, file))');
+    expect(getSelection()).toEqual({type: "node", anchor: 7});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"), fileRow(file, file, file))');
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    // Delete in text is normally implemented by the browser but JSDOM doesn't implement
+    // default `contenteditable` keyboard behavior.
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test"), fileRow(file, file, file))');
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+});
+
+test("backspace at the start of a paragraph in a list item selects the previous file after deleting the list item style", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("unorderedListItem", {}, [
+                    schema.node("paragraph", {}, [schema.text("test")]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(fileRow(file, file, file), unorderedListItem(paragraph("test")))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(fileRow(file, file, file), unorderedListItem(paragraph("test")))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(fileRow(file, file, file), unorderedListItem(paragraph("test")))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("test"))');
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+});
+
+test("delete at the end of a paragraph in a list item selects the next file", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("unorderedListItem", {}, [
+                    schema.node("paragraph", {}, [schema.text("test")]),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("test")), fileRow(file, file, file))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 2, head: 2});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(6))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("test")), fileRow(file, file, file))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("test")), fileRow(file, file, file))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 9});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(5))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("test")), fileRow(file, file, file))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
+
+    // Delete in text is normally implemented by the browser but JSDOM doesn't implement
+    // default `contenteditable` keyboard behavior.
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(unorderedListItem(paragraph("test")), fileRow(file, file, file))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
+});
+
+test("backspace at the start of an empty paragraph removes the paragraph", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph"),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file), paragraph)");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file), paragraph)");
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file), paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+});
+
+test("delete at the end of an empty paragraph removes the paragraph", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+});
+
+test("pressing enter when a file is selected creates a paragraph between two file rows then pressing backspace deletes it", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+});
+
+test("pressing enter when a file is selected creates a paragraph between two file rows then pressing delete deletes it", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), paragraph, fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 4});
+});
+
+test("pressing arrow down when file is select and the last thing creates a new paragraph", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+});
+
+test("pressing end/home moves to the end/beginning of file gallery respectively", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 10});
+
+    fireEvent.keyDown(getTextbox(), homeKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 10});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 13, head: 13});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 15});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 23});
+
+    fireEvent.keyDown(getTextbox(), homeKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 15});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 18});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 23});
+
+    fireEvent.keyDown(getTextbox(), arrowLeftKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 22});
+
+    fireEvent.keyDown(getTextbox(), homeKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 15});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 23});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 23});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 28});
+
+    fireEvent.keyDown(getTextbox(), endKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 30});
+
+    fireEvent.keyDown(getTextbox(), homeKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 28});
+
+    fireEvent.keyDown(getTextbox(), homeKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(fileRow(file, file), fileRow(file), fileRow(file, file, file), paragraph, fileRow(file), fileRow(file, file), fileRow(file, file), paragraph, fileRow(file, file, file))",
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 28});
+});
+
+test("typing when a file is selected creates a paragraph below", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyPress(getTextbox(), charKeyboardEvent({key: "x", withCharCode: true}));
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file), paragraph("x"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
+});
+
+test("typing when a file is selected in a multi-file row creates a paragraph below (first selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyPress(getTextbox(), charKeyboardEvent({key: "x", withCharCode: true}));
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("x"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
+});
+
+test("typing when a file is selected in a multi-file row creates a paragraph below (second selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 2});
+
+    fireEvent.keyPress(getTextbox(), charKeyboardEvent({key: "x", withCharCode: true}));
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("x"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
+});
+
+test("typing when a file is selected in a multi-file row creates a paragraph below (third selected)", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 2});
+
+    fireEvent.keyDown(getTextbox(), arrowRightKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 3});
+
+    fireEvent.keyPress(getTextbox(), charKeyboardEvent({key: "x", withCharCode: true}));
+
+    expect(getDoc().toString()).toEqual('doc(fileRow(file, file, file), paragraph("x"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 7, head: 7});
+});
+
+test("typing when a file is selected creates a paragraph between two file rows", () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(fileRow(file), fileRow(file, file, file))");
+    expect(getSelection()).toEqual({type: "node", anchor: 1});
+
+    fireEvent.keyPress(getTextbox(), charKeyboardEvent({key: "x", withCharCode: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(fileRow(file), paragraph("x"), fileRow(file, file, file))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
 });

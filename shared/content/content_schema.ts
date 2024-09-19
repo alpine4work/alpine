@@ -18,7 +18,6 @@ import {
 import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
 import {
     boldClassName,
-    bulletListItemClassName,
     codeBlockClassName,
     codeBlockLineClassName,
     codeBlockLineContentClassName,
@@ -32,6 +31,7 @@ import {
     paragraphClassName,
     quoteBlockClassName,
     strikeClassName,
+    unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
@@ -348,7 +348,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 return [
                     "div",
                     {
-                        class: classNames(listItemClassName, bulletListItemClassName),
+                        class: classNames(listItemClassName, unorderedListItemClassName),
                         style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
                         "data-list-indent": indent,
                     },

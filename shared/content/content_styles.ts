@@ -47,8 +47,8 @@ export const listItemClassName =
 export const listItemIndentationVar =
     process.env.NODE_ENV !== "production" ? "var(--content_listItemIndentation)" : "var(--c_lii)";
 
-export const bulletListItemClassName =
-    process.env.NODE_ENV !== "production" ? "content_bulletListItem" : "c_bli";
+export const unorderedListItemClassName =
+    process.env.NODE_ENV !== "production" ? "content_unorderedListItem" : "c_uli";
 
 export const orderedListItemClassName =
     process.env.NODE_ENV !== "production" ? "content_orderedListItem" : "c_oli";

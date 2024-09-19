@@ -4,9 +4,9 @@ import {Sparkle} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {
-    bulletListItemClassName,
     listItemClassName,
     listItemIndentationVar,
+    unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 
@@ -38,7 +38,7 @@ export function SearchInstructionalPlaceholder() {
                 ].map((example, i) => (
                     <Box
                         key={i}
-                        className={classNames(listItemClassName, bulletListItemClassName)}
+                        className={classNames(listItemClassName, unorderedListItemClassName)}
                         style={{
                             ...assignInlineVars({
                                 [listItemIndentationVar]: "0",

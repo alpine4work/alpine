@@ -54,7 +54,7 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 const boldClassName = `.${sharedClassNames.boldClassName}`;
-const bulletListItemClassName = `.${sharedClassNames.bulletListItemClassName}`;
+const unorderedListItemClassName = `.${sharedClassNames.unorderedListItemClassName}`;
 const checkListItemCheckedClassName = `.${sharedClassNames.checkListItemCheckedClassName}`;
 const codeBlockClassName = `.${sharedClassNames.codeBlockClassName}`;
 const codeBlockLineClassName = `.${sharedClassNames.codeBlockLineClassName}`;
@@ -444,9 +444,9 @@ const listItemIndentation = spacing[listItemIndentationSpacing];
 export {listItemIndentationSpacing as listItemIndentation};
 export const listItemIndentationRem = parseRemLengthNumber(listItemIndentation);
 
-const bulletListItemBulletSizeSpacing = "1.5";
-const bulletListItemBulletSize = spacing[bulletListItemBulletSizeSpacing];
-export {bulletListItemBulletSizeSpacing as bulletListItemBulletSize};
+const unorderedListItemBulletSizeSpacing = "1.5";
+const unorderedListItemBulletSize = spacing[unorderedListItemBulletSizeSpacing];
+export {unorderedListItemBulletSizeSpacing as unorderedListItemBulletSize};
 
 globalStyle(listItemClassName, {
     ...blockStyles,
@@ -454,37 +454,37 @@ globalStyle(listItemClassName, {
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
 });
 
-export const bulletListItemBulletTop: RemLength = `${
+export const unorderedListItemBulletTop: RemLength = `${
     parseRemLengthNumber(
-        subtractRemLengths(paragraphFontSize.lineHeight, bulletListItemBulletSize),
+        subtractRemLengths(paragraphFontSize.lineHeight, unorderedListItemBulletSize),
     ) / 2
 }rem`;
 
-const extraCompactBulletListItemBulletTop: RemLength = `${
+const extraCompactUnorderedListItemBulletTop: RemLength = `${
     parseRemLengthNumber(
-        subtractRemLengths(extraCompactParagraphFontSize.lineHeight, bulletListItemBulletSize),
+        subtractRemLengths(extraCompactParagraphFontSize.lineHeight, unorderedListItemBulletSize),
     ) / 2
 }rem`;
 
-export const bulletListItemBulletLeft = `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
+export const unorderedListItemBulletLeft = `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${
     parseRemLengthNumber(listItemIndentation) / 2 -
-    parseRemLengthNumber(bulletListItemBulletSize) / 2
+    parseRemLengthNumber(unorderedListItemBulletSize) / 2
 }rem + ${listItemOffsetVar})`;
 
-globalStyle(`${bulletListItemClassName}::before`, {
+globalStyle(`${unorderedListItemClassName}::before`, {
     content: '""',
     position: "absolute",
     backgroundColor: "currentColor",
     borderRadius: "50%",
     pointerEvents: "none",
-    width: bulletListItemBulletSize,
-    height: bulletListItemBulletSize,
-    top: bulletListItemBulletTop,
-    left: bulletListItemBulletLeft,
+    width: unorderedListItemBulletSize,
+    height: unorderedListItemBulletSize,
+    top: unorderedListItemBulletTop,
+    left: unorderedListItemBulletLeft,
 });
 
-globalStyle(`${extraCompactDocClassName} ${bulletListItemClassName}::before`, {
-    top: extraCompactBulletListItemBulletTop,
+globalStyle(`${extraCompactDocClassName} ${unorderedListItemClassName}::before`, {
+    top: extraCompactUnorderedListItemBulletTop,
 });
 
 globalStyle(`${orderedListItemClassName}::before`, {
