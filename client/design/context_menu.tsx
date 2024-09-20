@@ -180,48 +180,61 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                 // Emulate default browser behavior of selecting word the user right clicked.
                 selectWordIfSelectionEmpty(event.target);
 
-                const isTextSelectedInInput =
-                    document.activeElement instanceof HTMLInputElement &&
-                    document.activeElement.selectionStart !== document.activeElement.selectionEnd;
-
                 const selection = window.getSelection();
 
-                const isTextSelectedInContentEditable =
-                    document.activeElement instanceof HTMLElement &&
-                    document.activeElement.isContentEditable &&
+                const isTextSelectionDisabled =
                     selection &&
-                    selection.anchorOffset !== selection.focusOffset;
+                    selection.anchorNode instanceof Element &&
+                    selection.anchorNode === selection.focusNode
+                        ? getComputedStyle(selection.anchorNode).userSelect === "none"
+                        : false;
 
-                const isTextSelected = isTextSelectedInInput || isTextSelectedInContentEditable;
+                // If you right-click into an element with text selection disabled in a text
+                // input (e.g. image files in `<ContentEditor>`) then we shouldn't show text
+                // input actions.
+                if (!isTextSelectionDisabled) {
+                    const isTextSelectedInInput =
+                        document.activeElement instanceof HTMLInputElement &&
+                        document.activeElement.selectionStart !==
+                            document.activeElement.selectionEnd;
 
-                actions.unshift([
-                    {
-                        label: "Cut",
-                        isDisabled: !isTextSelected,
-                        keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
-                        onPress: () => {
-                            document.execCommand("cut");
+                    const isTextSelectedInContentEditable =
+                        document.activeElement instanceof HTMLElement &&
+                        document.activeElement.isContentEditable &&
+                        selection &&
+                        selection.anchorOffset !== selection.focusOffset;
+
+                    const isTextSelected = isTextSelectedInInput || isTextSelectedInContentEditable;
+
+                    actions.unshift([
+                        {
+                            label: "Cut",
+                            isDisabled: !isTextSelected,
+                            keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
+                            onPress: () => {
+                                document.execCommand("cut");
+                            },
                         },
-                    },
-                    {
-                        label: "Copy",
-                        isDisabled: !isTextSelected,
-                        keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
-                        onPress: () => {
-                            document.execCommand("copy");
+                        {
+                            label: "Copy",
+                            isDisabled: !isTextSelected,
+                            keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
+                            onPress: () => {
+                                document.execCommand("copy");
+                            },
                         },
-                    },
-                    {
-                        label: "Paste",
-                        keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
-                        onPress: () => {
-                            // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
-                            // have a desktop app wrapper also ask the user if they want to install the app
-                            // to paste.
-                            setShouldShowPasteWarningDialog(true);
+                        {
+                            label: "Paste",
+                            keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
+                            onPress: () => {
+                                // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
+                                // have a desktop app wrapper also ask the user if they want to install the app
+                                // to paste.
+                                setShouldShowPasteWarningDialog(true);
+                            },
                         },
-                    },
-                ]);
+                    ]);
+                }
             }
             // If we right-clicked on selectable text then add our standard text
             // processing actions.
