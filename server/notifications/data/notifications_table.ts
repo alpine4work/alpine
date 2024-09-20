@@ -2,7 +2,11 @@ import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {deleteAccountAppleDeviceTokenIfExists} from "~/server/accounts/accounts_table.js";
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
-import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
+import {
+    FileChatAuthorizer,
+    authorizeChatAccessForAccount,
+    getChatAccountIds,
+} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     ServerActionContext,
@@ -13,6 +17,7 @@ import {
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {
+    FileDocumentAuthorizer,
     getDocumentAndCommentThreadsWithInitialComments,
     getDocumentCommentAuthorId,
     getDocumentCommentThreadNotificationSubscribers,
@@ -27,7 +32,9 @@ import {
     DynamoGeneralRealtimeTableSchemaGetTypes,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {
+    FilePostAuthorizer,
     getChannelPreview,
     getPost,
     getPostAndInitialComments,
@@ -52,7 +59,11 @@ import {
     isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {getTaskNotificationSubscribers, getTaskOwner} from "~/server/tasks/data/task_table.js";
+import {
+    FileTaskAuthorizer,
+    getTaskNotificationSubscribers,
+    getTaskOwner,
+} from "~/server/tasks/data/task_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {
@@ -84,6 +95,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
+import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -489,6 +501,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * content in the inbox entry.
                          */
                         latestPost: Schema.object({
+                            postId: Schema.id<PostId>().nullable().default(null),
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: PostContentSchema,
@@ -679,6 +692,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             getContentReferencesForNode(
                                 context,
                                 item.spaceId,
+                                FileChatAuthorizer.bind(item.chatId),
                                 item.latestMessage.contentSnippet,
                             ),
                             authorizeChatAccessForAccount(
@@ -731,6 +745,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   references: getContentReferencesForNode(
                                       context,
                                       item.spaceId,
+                                      FilePostAuthorizer.bind(item.postId),
                                       item.latestComment.contentSnippet,
                                   ),
                               })
@@ -744,6 +759,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   references: getContentReferencesForNode(
                                       context,
                                       item.spaceId,
+                                      FilePostAuthorizer.bind(item.postId),
                                       item.postContentSnippetIfMentioned,
                                   ),
                               })
@@ -795,6 +811,14 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
+                            FilePostAuthorizer.bind(
+                                // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
+                                // this date. So if we have a channel posts entry where `postId` is null then
+                                // use the first post in `item.postIds` and hope it's right. Getting this wrong
+                                // shouldn't matter since posts created before this date also won't have
+                                // attached files since files weren't implemented yet.
+                                item.latestPost.postId ?? assertExists(iterableFirst(item.postIds)),
+                            ),
                             item.latestPost.contentSnippet,
                         ),
                         otherPostAuthorId
@@ -838,6 +862,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
+                            FileDocumentAuthorizer.bind(item.documentId),
                             item.latestComment.contentSnippet,
                         ),
                         item.otherCommentAuthorId
@@ -884,6 +909,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
+                            FileDocumentAuthorizer.bind(item.documentId),
                             item.firstComment.contentSnippet,
                         ),
                         otherCommentThreadAuthorId
@@ -925,6 +951,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             references: getContentReferencesForNode(
                                 context,
                                 item.spaceId,
+                                FileTaskAuthorizer.bind(item.taskId),
                                 item.latestComment.contentSnippet,
                             ),
                         }),
@@ -2550,11 +2577,13 @@ function getInboxEntryLatestUpdateTime(
 
 async function printNotificationEventAlertContentBody(
     context: ServerActionContext,
+    fileAuthorizer: FileAuthorizer,
     event: {spaceId: SpaceId; isContentSnippetComplete: boolean; contentSnippet: Node},
 ) {
     const contentReferences = await getContentReferencesForNode(
         context,
         event.spaceId,
+        fileAuthorizer,
         event.contentSnippet,
     );
 
@@ -2745,7 +2774,11 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             entryItem.otherAccountId && entryItem.otherAccountId !== event.authorId
                 ? getAccount(context, event.spaceId, entryItem.otherAccountId)
                 : null,
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FileChatAuthorizer.bind(event.chatId),
+                event,
+            ),
         ]);
 
         // We don't include "Mentioned you" in the subtitle even if there was a
@@ -2908,7 +2941,11 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             // This function is cached which is important since we call this function when
             // building a `InboxPostCommentsEntryModel` for realtime in the same action.
             getPostAuthorAndChannelPreview(context, event.postId),
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FilePostAuthorizer.bind(event.postId),
+                event,
+            ),
         ]);
 
         let subtitle = "";
@@ -3028,6 +3065,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                         !oldItem ||
                         oldItem.latestPost.createdTime.getTime() < event.createdTime.getTime()
                             ? {
+                                  postId: event.postId,
                                   authorId: event.authorId,
                                   createdTime: event.createdTime,
                                   contentSnippet: event.contentSnippet,
@@ -3042,7 +3080,11 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         const [author, channel, body] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),
             getChannelPreview(context, event.channelId),
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FilePostAuthorizer.bind(event.postId),
+                event,
+            ),
         ]);
 
         let subtitle: string;
@@ -3259,7 +3301,11 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             entryItem.firstCommentAuthorId !== event.authorId
                 ? getAccount(context, event.spaceId, entryItem.firstCommentAuthorId)
                 : null,
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FileDocumentAuthorizer.bind(event.documentId),
+                event,
+            ),
         ]);
 
         const truncatedDocumentTitle = truncateDocumentTitleForNotification(document.getTitle());
@@ -3422,7 +3468,11 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
         const [author, task, body] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),
             getTaskOwner(context, event.taskId),
-            printNotificationEventAlertContentBody(context, event),
+            printNotificationEventAlertContentBody(
+                context,
+                FileTaskAuthorizer.bind(event.taskId),
+                event,
+            ),
         ]);
 
         let subtitle = "";

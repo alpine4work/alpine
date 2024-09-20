@@ -5,7 +5,7 @@ alias(
     testonly = True,
     actual = ":data",
     visibility = [
-        "//server/forum:__subpackages__",
+        "//server:__subpackages__",
     ],
 )
 

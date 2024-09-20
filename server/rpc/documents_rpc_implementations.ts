@@ -3,6 +3,7 @@ import {
     getContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
 import {
+    FileDocumentAuthorizer,
     authorizeDocumentAccess,
     backfillDocumentComments,
     batchGetDocumentCommentThreadReferencesIfExists,
@@ -105,7 +106,12 @@ export default implementRpcs(definitions, {
 
             const [references, {commentThreadById, resolvedCommentThreadIds}] =
                 await runAllPromises([
-                    getContentReferences(context, spaceId, referencedIds),
+                    getContentReferences(
+                        context,
+                        spaceId,
+                        FileDocumentAuthorizer.bind(documentId),
+                        referencedIds,
+                    ),
                     referencedIds.commentThreadIds.size > 0
                         ? batchGetDocumentCommentThreadReferencesIfExists(context, {
                               documentId,
@@ -173,7 +179,12 @@ export default implementRpcs(definitions, {
                 authorizeDocumentAccess(context, input.documentId).then(({spaceId}) =>
                     runAllPromises([
                         getAccount(context, spaceId, context.actor.getAccountId()),
-                        getContentReferencesForNode(context, spaceId, input.content),
+                        getContentReferencesForNode(
+                            context,
+                            spaceId,
+                            FileDocumentAuthorizer.bind(input.documentId),
+                            input.content,
+                        ),
                     ]),
                 ),
             ]);
@@ -205,7 +216,13 @@ export default implementRpcs(definitions, {
             const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
                 updateDocumentCommentContent(context.actor.authorizeSession(), input),
                 authorizeDocumentAccess(context.actor.authorizeSession(), input.documentId).then(
-                    ({spaceId}) => getContentReferencesForNode(context, spaceId, input.content),
+                    ({spaceId}) =>
+                        getContentReferencesForNode(
+                            context,
+                            spaceId,
+                            FileDocumentAuthorizer.bind(input.documentId),
+                            input.content,
+                        ),
                 ),
             ]);
 
@@ -227,12 +244,17 @@ export default implementRpcs(definitions, {
         },
     },
 
-    getOptimisticDocumentCommentReferences: {
+    getOptimisticDocumentCommentThreadReferences: {
         visibility: ["DocumentCollaborationService"],
-        execute: async (context, input) => {
+        execute: async (context, {spaceId, documentId, authorId, contentReferencedIds}) => {
             const [author, contentReferences] = await runAllPromises([
-                getAccount(context, input.spaceId, input.authorId),
-                getContentReferences(context, input.spaceId, input.contentReferencedIds),
+                getAccount(context, spaceId, authorId),
+                getContentReferences(
+                    context,
+                    spaceId,
+                    FileDocumentAuthorizer.bind(documentId),
+                    contentReferencedIds,
+                ),
             ]);
 
             return {author, contentReferences};

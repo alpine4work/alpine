@@ -8,6 +8,7 @@ import {
 } from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
+    authorizeDocumentAccess,
     backfillDocumentComments,
     batchGetDocumentCommentThreadReferencesIfExists,
     createDocument,
@@ -24,6 +25,7 @@ import {
     getDocumentCommentsFromStart,
     getDocumentContent,
     getDocumentContentSteps,
+    getDocumentPreview,
     getDocumentPreviewIfExists,
     getDocumentTitle,
     getDocumentsTableForTest,
@@ -36,11 +38,13 @@ import {
     updateDocumentSnapshotForTest,
 } from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     emptyDocumentContent,
@@ -3171,6 +3175,536 @@ test("counts step count contributions for each account with alternating cache", 
             [session3.account.id, 2],
         ]),
     );
+});
+
+test("authorizing document access as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+        ]);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+    }
+});
+
+test("authorizing document access as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+            authorizeDocumentAccess(actionContext, document.id),
+        ]);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+    }
+});
+
+test("authorizing document access after getting document as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    const commentThread = await document.createCommentThread(
+        session1,
+        {from: 1, to: 3},
+        "Test Document Comment",
+    );
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentPreview(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocument(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentContent(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentThreadNotificationSubscribers(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            isFirstComment: false,
+        });
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromStart(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromEnd(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+});
+
+test("authorizing document access after getting document as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "Test Document"});
+
+    const commentThread = await document.createCommentThread(
+        session1,
+        {from: 1, to: 3},
+        "Test Document Comment",
+    );
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentPreview(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocument(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentContent(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentThreadNotificationSubscribers(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            isFirstComment: false,
+        });
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromStart(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentCommentsFromEnd(actionContext, {
+            documentId: document.id,
+            commentThreadId: commentThread.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeDocumentAccess(actionContext, document.id);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+                authorizeDocumentAccess(actionContext, document.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
 });
 
 describe("Comments", () => {

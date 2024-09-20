@@ -152,6 +152,7 @@ export class TaskNotesCollaborationConnection {
                         : (
                               await getTaskNotesContentReferences(context, {
                                   spaceId: this._contentManager.spaceId,
+                                  taskId: this._contentManager.taskId,
                                   referenceIds: contentReferenceIds,
                               })
                           ).references;
@@ -180,6 +181,7 @@ export class TaskNotesCollaborationConnection {
                         : (
                               await getTaskNotesContentReferences(context, {
                                   spaceId: this._contentManager.spaceId,
+                                  taskId: this._contentManager.taskId,
                                   referenceIds: stepsContentReferenceIds,
                               })
                           ).references;

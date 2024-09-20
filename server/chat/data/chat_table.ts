@@ -12,6 +12,7 @@ import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistenc
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -23,6 +24,7 @@ import {
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -221,6 +223,8 @@ const AccountChatsIndex = ChatTable.addIndex({
 type ChatAttributesItem = DynamoTableItemType<typeof ChatTable, "Chat", "Attributes">;
 type ChatAccountItem = DynamoTableItemType<typeof ChatTable, "Chat", "Account">;
 type ChatMessageItem = DynamoTableItemType<typeof ChatTable, "Chat", "Messages">;
+
+export const FileChatAuthorizer = FileAuthorizer.new(ChatTable, "Chat", authorizeChatAccess);
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
@@ -591,11 +595,23 @@ function actuallyGetOrCreateChatForAccounts(
                         case "Attributes": {
                             assert(!chatItem);
                             chatItem = item;
+
+                            // Once we've loaded the chat item, we can add it to our authorization cache so
+                            // we don't need to make future network requests.
+                            ChatItemAuthorizationCache.set(context, item.chatId, item);
                             break;
                         }
                         case "Account": {
                             assert(chatItem);
                             chatAccountItems.push(item);
+
+                            // Once we've loaded the chat account items, we can add it to our authorization
+                            // cache so we don't need to make future network requests.
+                            ChatAccountItemAuthorizationCache.set(
+                                context,
+                                `${item.chatId}:${item.accountId}`,
+                                item,
+                            );
                             break;
                         }
                         default:
@@ -954,6 +970,82 @@ export function sendChatMessage(
     });
 }
 
+const ChatItemAuthorizationCache = new ContextCache<ChatId, ChatAttributesItem | null>();
+
+async function getChatItemIfExistsForAuthorization(
+    context: ServerActionContext,
+    chatId: ChatId,
+): Promise<ChatAttributesItem | null> {
+    return ChatItemAuthorizationCache.get(context, chatId, async () => {
+        const chatItem = await ChatTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Chat",
+                sortRangeType: "Attributes",
+                chatId,
+            },
+            // It's ok to call this function when expecting strong read consistency.
+            // Authorization is mostly strongly consistent since we retry with strong
+            // consistency if our eventually consistent read fails.
+            {allowsEventualReadConsistency: true},
+        );
+        if (chatItem) return chatItem;
+
+        // If we can't find the chat with eventual consistency, it may have just been
+        // created so try again with strong consistency.
+        return ChatTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Chat",
+                sortRangeType: "Attributes",
+                chatId,
+            },
+            {consistency: "Strong"},
+        );
+    });
+}
+
+const ChatAccountItemAuthorizationCache = new ContextCache<
+    `${ChatId}:${AccountId}`,
+    ChatAccountItem | null
+>();
+
+async function getChatAccountItemIfExistsForAuthorization(
+    context: ServerActionContext,
+    chatId: ChatId,
+    accountId: AccountId,
+): Promise<ChatAccountItem | null> {
+    return ChatAccountItemAuthorizationCache.get(context, `${chatId}:${accountId}`, async () => {
+        const chatAccountItem = await ChatTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Chat",
+                sortRangeType: "Account",
+                chatId,
+                accountId,
+            },
+            // It's ok to call this function when expecting strong read consistency.
+            // Authorization is mostly strongly consistent since we retry with strong
+            // consistency if our eventually consistent read fails.
+            {allowsEventualReadConsistency: true},
+        );
+        if (chatAccountItem) return chatAccountItem;
+
+        // If we couldn't find the item with eventual consistency, it may have just
+        // been created so try again with strong consistency.
+        return ChatTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Chat",
+                sortRangeType: "Account",
+                chatId,
+                accountId,
+            },
+            {consistency: "Strong"},
+        );
+    });
+}
+
 /**
  * Authorize that the current account is allowed to access the chat.
  *
@@ -962,6 +1054,9 @@ export function sendChatMessage(
  * with strong consistency. If an account lost access we have to wait for
  * DynamoDB's eventual consistency lag before this function will start
  * throwing.
+ *
+ * Cached at the action level so multiple requests with the same `ChatId` in
+ * the same action will only load data from the database once.
  */
 export async function authorizeChatAccess(
     context: ServerActionContext,
@@ -974,35 +1069,10 @@ export async function authorizeChatAccess(
 
         // If we have access to the space, we have access to the chat...
         case "System": {
-            let chatItem = await ChatTable.getItemIfExists(
-                context,
-                {
-                    partitionType: "Chat",
-                    sortRangeType: "Attributes",
-                    chatId,
-                },
-                // It's ok to call this function when expecting strong read consistency.
-                // Authorization is mostly strongly consistent since we retry with strong
-                // consistency if our eventually consistent read fails.
-                {allowsEventualReadConsistency: true},
-            );
-
-            // If we can't find the chat with eventual consistency, it may have just been
-            // created so try again with strong consistency.
-            if (!chatItem) {
-                chatItem = await ChatTable.getItemIfExists(
-                    context,
-                    {
-                        partitionType: "Chat",
-                        sortRangeType: "Attributes",
-                        chatId,
-                    },
-                    {consistency: "Strong"},
-                );
-            }
+            const chatItem = await getChatItemIfExistsForAuthorization(context, chatId);
 
             if (!chatItem) {
-                throw new PermissionDeniedError("Account does not have access to chat");
+                throw new NotFoundError("Chat not found");
             }
 
             await authorizeSpaceAccess(context, chatItem.spaceId);
@@ -1036,37 +1106,14 @@ export async function authorizeChatAccessForAccount(
 ): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
     const [chatAccountItem] = await runAllPromises([
         (async () => {
-            let chatAccountItem = await ChatTable.getItemIfExists(
+            const chatAccountItem = await getChatAccountItemIfExistsForAuthorization(
                 context,
-                {
-                    partitionType: "Chat",
-                    sortRangeType: "Account",
-                    chatId,
-                    accountId,
-                },
-                // It's ok to call this function when expecting strong read consistency.
-                // Authorization is mostly strongly consistent since we retry with strong
-                // consistency if our eventually consistent read fails.
-                {allowsEventualReadConsistency: true},
+                chatId,
+                accountId,
             );
 
-            // If we couldn't find the item with eventual consistency, it may have just
-            // been created so try again with strong consistency.
             if (!chatAccountItem) {
-                chatAccountItem = await ChatTable.getItemIfExists(
-                    context,
-                    {
-                        partitionType: "Chat",
-                        sortRangeType: "Account",
-                        chatId,
-                        accountId,
-                    },
-                    {consistency: "Strong"},
-                );
-            }
-
-            if (!chatAccountItem) {
-                throw new PermissionDeniedError("Account does not have access to chat");
+                throw new PermissionDeniedError("Account doesn't have access to chat");
             }
 
             await authorizeSpaceAccess(context, chatAccountItem.spaceId);
@@ -1078,38 +1125,15 @@ export async function authorizeChatAccessForAccount(
                     // We already are loading our session's chat account item above.
                     if (context.actor.getAccountId() === accountId) return;
 
-                    let chatAccountItem = await ChatTable.getItemIfExists(
+                    const chatAccountItem = await getChatAccountItemIfExistsForAuthorization(
                         context,
-                        {
-                            partitionType: "Chat",
-                            sortRangeType: "Account",
-                            chatId,
-                            accountId: context.actor.getAccountId(),
-                        },
-                        // It's ok to call this function when expecting strong read consistency.
-                        // Authorization is mostly strongly consistent since we retry with strong
-                        // consistency if our eventually consistent read fails.
-                        {allowsEventualReadConsistency: true},
+                        chatId,
+                        context.actor.getAccountId(),
                     );
-
-                    // If we couldn't find the item with eventual consistency, it may have just
-                    // been created so try again with strong consistency.
-                    if (!chatAccountItem) {
-                        chatAccountItem = await ChatTable.getItemIfExists(
-                            context,
-                            {
-                                partitionType: "Chat",
-                                sortRangeType: "Account",
-                                chatId,
-                                accountId: context.actor.getAccountId(),
-                            },
-                            {consistency: "Strong"},
-                        );
-                    }
 
                     if (!chatAccountItem) {
                         throw new PermissionDeniedError(
-                            "Session account does not have access to chat",
+                            "Session account doesn't have access to chat",
                         );
                     }
                     break;
@@ -1136,22 +1160,13 @@ async function getChatItemIfExistsAndAuthorizeAccess(
     chatId: ChatId,
 ) {
     const [chatItem, chatAccountItem] = await runAllPromises([
-        ChatTable.getItemIfExists(context, {
-            partitionType: "Chat",
-            sortRangeType: "Attributes",
-            chatId,
-        }),
-        ChatTable.getItemIfExists(context, {
-            partitionType: "Chat",
-            sortRangeType: "Account",
-            chatId,
-            accountId: context.actor.getAccountId(),
-        }),
+        getChatItemIfExistsForAuthorization(context, chatId),
+        getChatAccountItemIfExistsForAuthorization(context, chatId, context.actor.getAccountId()),
     ]);
     if (!chatItem) return null;
 
     await authorizeSpaceAccess(context, chatItem.spaceId);
-    if (!chatAccountItem) throw new PermissionDeniedError("Account does not have access to chat");
+    if (!chatAccountItem) throw new PermissionDeniedError("Account doesn't have access to chat");
 
     return {chatItem, chatAccountItem};
 }
@@ -1318,11 +1333,23 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
             case "Attributes": {
                 assert(!chatItem);
                 chatItem = item;
+
+                // Once we've loaded the chat item, we can add it to our authorization cache so
+                // we don't need to make future network requests.
+                ChatItemAuthorizationCache.set(context, item.chatId, item);
                 break;
             }
             case "Account": {
                 assert(chatItem);
                 chatAccountItems.push(item);
+
+                // Once we've loaded the chat account items, we can add it to our authorization
+                // cache so we don't need to make future network requests.
+                ChatAccountItemAuthorizationCache.set(
+                    context,
+                    `${item.chatId}:${item.accountId}`,
+                    item,
+                );
                 break;
             }
             default:
@@ -1345,7 +1372,7 @@ async function createChatModelFromItems(
             chatAccountItems.map(chatAccountItem => {
                 if (chatAccountItem.spaceId !== chatItem.spaceId)
                     throw new DataLossError(
-                        "Expected chat account item to have same space ID as chat item",
+                        "Expected chat account item to have same `SpaceId` as chat item",
                     );
 
                 return getAccount(context, chatItem.spaceId, chatAccountItem.accountId);
@@ -1358,7 +1385,7 @@ async function createChatModelFromItems(
         case "Session": {
             const sessionAccountId = context.actor.getAccountId();
             if (!accounts.some(account => account.id === sessionAccountId))
-                throw new PermissionDeniedError("Account does not have access to chat");
+                throw new PermissionDeniedError("Account doesn't have access to chat");
             break;
         }
         case "System": {
@@ -1420,6 +1447,10 @@ export async function getChatAccountIds(
             case "Attributes": {
                 assert(!chatItem);
                 chatItem = item;
+
+                // Once we've loaded the chat item, we can add it to our authorization cache so
+                // we don't need to make future network requests.
+                ChatItemAuthorizationCache.set(context, item.chatId, item);
                 break;
             }
             case "Account": {
@@ -1427,10 +1458,18 @@ export async function getChatAccountIds(
 
                 if (item.spaceId !== chatItem.spaceId)
                     throw new DataLossError(
-                        "Expected chat account item to have same space ID as chat item",
+                        "Expected chat account item to have same `SpaceId` as chat item",
                     );
 
                 accountIds.push(item.accountId);
+
+                // Once we've loaded the chat account items, we can add it to our authorization
+                // cache so we don't need to make future network requests.
+                ChatAccountItemAuthorizationCache.set(
+                    context,
+                    `${item.chatId}:${item.accountId}`,
+                    item,
+                );
                 break;
             }
             default:
@@ -1446,7 +1485,7 @@ export async function getChatAccountIds(
         case "Session": {
             const sessionAccountId = context.actor.getAccountId();
             if (!accountIds.some(accountId => accountId === sessionAccountId))
-                throw new PermissionDeniedError("Account does not have access to chat");
+                throw new PermissionDeniedError("Account doesn't have access to chat");
             break;
         }
         case "System": {
@@ -1532,7 +1571,12 @@ async function createChatMessageModelFromItem(
 ): Promise<ChatMessageModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
-        createMessagePayloadModel(context, spaceId, item.payload),
+        createMessagePayloadModel(
+            context,
+            spaceId,
+            FileChatAuthorizer.bind(item.chatId),
+            item.payload,
+        ),
     ]);
 
     return new ChatMessageModel({
@@ -2305,6 +2349,7 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                             references: await getContentReferencesForNode(
                                 context,
                                 chatItem.spaceId,
+                                FileChatAuthorizer.bind(chatItem.chatId),
                                 item.change.content,
                             ),
                         },

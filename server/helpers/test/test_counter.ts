@@ -51,7 +51,7 @@ export class TestCounter<
      *
      * Will throw outside of a test environment.
      */
-    public recordForTest(key: Key): {getCount: () => number} {
+    public recordForTest(key: Key): {getCount: () => number; resetCount: () => void} {
         assert(import.meta.jest);
 
         const keyString = key !== undefined ? jsonStableStringify(key) : "undefined";
@@ -68,6 +68,9 @@ export class TestCounter<
                     "Not recording count for this request, the test probably finished and we reset our state",
                 );
                 return count;
+            },
+            resetCount: () => {
+                this._countByKey.set(keyString, 0);
             },
         };
     }

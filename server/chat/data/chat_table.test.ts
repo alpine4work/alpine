@@ -1,4 +1,5 @@
 import {
+    authorizeChatAccess,
     authorizeChatAccessForAccount,
     backfillChatMessages,
     createChatForTest,
@@ -17,6 +18,7 @@ import {
     updateChatMessageContent,
 } from "~/server/chat/data/chat_table.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -415,7 +417,7 @@ test("can not get messages in a chat you don't have access to", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
@@ -440,7 +442,7 @@ test("can not get messages in a chat you don't have access to", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
@@ -462,7 +464,7 @@ test("can not get messages in a chat you don't have access to", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 });
 
 test("can reply to message by sending to account", async () => {
@@ -963,7 +965,7 @@ test("anyone the message was sent to can read the message", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getChatMessagesFromStart(context.action(scenario.sessionX3), {
@@ -972,7 +974,7 @@ test("anyone the message was sent to can read the message", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 });
 
 test("can reply to a message sent to multiple accounts", async () => {
@@ -1593,7 +1595,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
         id: getOptimisticChatId(scenario.spaceA.id, [
@@ -1627,7 +1629,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
         id: getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
@@ -1655,7 +1657,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 });
 
 test("can reply to message by sending to account (when a chat already has the optimistic id)", async () => {
@@ -2172,7 +2174,7 @@ test("anyone the message was sent to can read the message (when a chat already h
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 
     await expect(
         getChatMessagesFromStart(context.action(scenario.sessionX3), {
@@ -2181,7 +2183,7 @@ test("anyone the message was sent to can read the message (when a chat already h
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
 });
 
 test("can reply to a message sent to multiple accounts (when a chat already has the optimistic id)", async () => {
@@ -3557,6 +3559,328 @@ test("can not authorize which accounts are in the chat if system context does no
             scenario.sessionB1.account.id,
         ),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("authorizing chat access as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chatId = await getOrCreateChatForAccounts(session1.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeChatAccess(actionContext, chatId),
+            authorizeChatAccess(actionContext, chatId),
+            authorizeChatAccess(actionContext, chatId),
+        ]);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+    }
+});
+
+test("authorizing chat access as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chatId = await getOrCreateChatForAccounts(session1.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeChatAccess(actionContext, chatId),
+            authorizeChatAccess(actionContext, chatId),
+            authorizeChatAccess(actionContext, chatId),
+        ]);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(1);
+    }
+});
+
+test("authorizing chat access after getting chat as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chatId = await getOrCreateChatForAccounts(session1.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChat(actionContext, chatId);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChatAccountIds(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChatMessagesFromStart(actionContext, {
+            chatId,
+            limit: 100,
+            afterMessageIndex: null,
+            beforeMessageIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChatMessagesFromEnd(actionContext, {
+            chatId,
+            limit: 100,
+            afterMessageIndex: null,
+            beforeMessageIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+});
+
+test("authorizing chat access after getting chat as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chatId = await getOrCreateChatForAccounts(session1.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChat(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChatAccountIds(actionContext, chatId);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChatAccess(actionContext, chatId);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccess(actionContext, chatId),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
 });
 
 testMessagingImplementation<ChatId>(context, {

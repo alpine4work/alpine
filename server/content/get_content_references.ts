@@ -1,7 +1,7 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {getFile} from "~/server/files/data/files_table.js";
+import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     ContentReferencedIds,
@@ -17,32 +17,44 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 export function getContentReferencesForNode(
     context: ServerActionContext,
     spaceId: SpaceId,
+    fileAuthorizer: FileAuthorizer,
     content: Node,
 ): Promise<ContentReferences> {
     const referencedIds = getContentReferencedIdsForNode(content);
-    return getContentReferences(context, spaceId, referencedIds);
+    return getContentReferences(context, spaceId, fileAuthorizer, referencedIds);
 }
 
 export function getContentReferencesForSteps(
     context: ServerActionContext,
     spaceId: SpaceId,
+    fileAuthorizer: FileAuthorizer,
     steps: ReadonlyArray<Step>,
 ): Promise<ContentReferences> {
     const referencedIds = getContentReferencedIdsForSteps(steps);
-    return getContentReferences(context, spaceId, referencedIds);
+    return getContentReferences(context, spaceId, fileAuthorizer, referencedIds);
 }
 
 /**
  * Get entities referenced in content.
  *
- * This function may be called multiple times on the same content in an action.
- * So all data loading functions are cached.
+ * Must provide a `FileAuthorizer` to authorize files. Accounts are granted
+ * access to files that are attached to the content they're looking at.
+ * `FileAuthorizer` carries information about the attachment target and how to
+ * authorize access to the attachment target.
  */
 export async function getContentReferences(
     context: ServerActionContext,
     spaceId: SpaceId,
+    fileAuthorizer: FileAuthorizer,
     referencedIds: ContentReferencedIds,
 ): Promise<ContentReferences> {
+    // IMPORTANT: This function may be called multiple times on the same content in
+    // an action. So all data loading functions are cached.
+    //
+    // For example, in `notifications_table.ts` `processNotificationEvent()`
+    // function we may load content references once when we build an inbox entry
+    // model and again in `printNotificationEventAlertContentBody()` when we print
+    // for push notifications.
     const [accounts, files] = await runAllPromises([
         runAllPromises(
             mapIterable(referencedIds.accountIds, accountId => {
@@ -59,7 +71,13 @@ export async function getContentReferences(
                 // its "home" space? Should we copy the file into the new space? I kinda like
                 // referencing the file in the home space? The home space could delete the file
                 // but that's the risk you run.
-                const file = await getFile(context, spaceId, accountId, {consistency: "Eventual"});
+                const file = await getFileFromAttachment(
+                    context,
+                    spaceId,
+                    accountId,
+                    fileAuthorizer,
+                    {consistency: "Eventual"},
+                );
 
                 // The client (in `uploadFileFromContentEditor()`) will not attach a file to
                 // content until the preview is at least partially available. So if we see an
@@ -72,7 +90,9 @@ export async function getContentReferences(
                 // partially available preview since at least the layout will be stable even if
                 // we don't have e.g. the image preview's placeholder.
                 if (file.getAttachReadiness() !== "PreviewUnavailable") {
-                    return getFile(context, spaceId, accountId, {consistency: "Strong"});
+                    return getFileFromAttachment(context, spaceId, accountId, fileAuthorizer, {
+                        consistency: "Strong",
+                    });
                 }
 
                 return file;

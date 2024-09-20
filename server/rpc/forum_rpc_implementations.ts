@@ -1,5 +1,6 @@
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
+    FilePostAuthorizer,
     authorizeChannelAccess,
     authorizePostAccess,
     backfillChannelPosts,
@@ -182,7 +183,12 @@ export default implementRpcs(definitions, {
 
             const [author, contentReferences] = await runAllPromises([
                 getAccount(context, spaceId, context.actor.getAccountId()),
-                getContentReferencesForNode(context, spaceId, input.content),
+                getContentReferencesForNode(
+                    context,
+                    spaceId,
+                    FilePostAuthorizer.bind(input.postId),
+                    input.content,
+                ),
             ]);
 
             const comment = new PostCommentModel({
@@ -216,6 +222,7 @@ export default implementRpcs(definitions, {
             const contentReferences = await getContentReferencesForNode(
                 context,
                 spaceId,
+                FilePostAuthorizer.bind(input.postId),
                 input.content,
             );
 

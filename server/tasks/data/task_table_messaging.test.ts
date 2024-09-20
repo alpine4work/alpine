@@ -88,7 +88,7 @@ testMessagingImplementation<TaskId>(processContext, {
             getTaskCommentsSummaryItemIfExistsForTest(context, taskId),
         ]);
 
-        await authorizeTaskAccess(context, taskId, "Comment", null);
+        await authorizeTaskAccess(context, taskId, "Comment");
 
         return {
             key: taskItem.taskId,

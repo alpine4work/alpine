@@ -245,17 +245,11 @@ export const backfillDocumentComments = defineRpc({
     },
 });
 
-/**
- * Load the references needed to return a `DocumentCommentModel` for an
- * optimistic document comment thread.
- *
- * Doesn't actually do anything related to a document at the moment. Could be
- * in a generic `messaging_rpc_definitions.ts` file.
- */
-export const getOptimisticDocumentCommentReferences = defineRpc({
-    name: "getOptimisticDocumentCommentReferences",
+export const getOptimisticDocumentCommentThreadReferences = defineRpc({
+    name: "getOptimisticDocumentCommentThreadReferences",
     input: {
         spaceId: Schema.id<SpaceId>(),
+        documentId: Schema.id<DocumentId>(),
         authorId: Schema.id<AccountId>(),
         contentReferencedIds: ContentReferencedIdsSchema,
     },

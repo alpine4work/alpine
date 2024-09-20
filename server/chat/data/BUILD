@@ -1,5 +1,14 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+alias(
+    name = "data_testonly",
+    testonly = True,
+    actual = ":data",
+    visibility = [
+        "//server:__subpackages__",
+    ],
+)
+
 ts_project(
     name = "data",
     test_deps = [

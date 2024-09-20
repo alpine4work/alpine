@@ -9,8 +9,14 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {
+    DynamoTableItemKeyType,
+    DynamoTableItemType,
+    DynamoTableSchema,
+} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
     InternalError,
@@ -20,6 +26,7 @@ import {
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -27,9 +34,21 @@ import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
 import {FileImagePreviewSize, FilePreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {If} from "~/shared/helpers/types/if.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    ChatId,
+    DocumentId,
+    FileId,
+    PostId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const FilesTable = DynamoTableSchema.new({
@@ -174,10 +193,126 @@ const FilesTable = DynamoTableSchema.new({
                 },
             ],
         },
+        {
+            name: "File",
+            partitionKeyAttributes: {
+                spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+                fileId: DynamoKeyAttributeSchema.id<FileId>(),
+            },
+            sortRanges: [
+                {
+                    name: "ChatAttachmentTarget",
+                    sortKeyAttributes: {
+                        chatId: DynamoKeyAttributeSchema.id<ChatId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "ChannelAttachmentTarget",
+                    sortKeyAttributes: {
+                        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "DocumentAttachmentTarget",
+                    sortKeyAttributes: {
+                        documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "PostAttachmentTarget",
+                    sortKeyAttributes: {
+                        postId: DynamoKeyAttributeSchema.id<PostId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "TaskAttachmentTarget",
+                    sortKeyAttributes: {
+                        taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+            ],
+        },
     ],
 });
 
 type FileItem = DynamoTableItemType<typeof FilesTable, "Space", "File">;
+
+type FileAttachmentTargetItemKey = DynamoTableItemKeyType<
+    typeof FilesTable,
+    "File",
+    `${string}AttachmentTarget`
+>;
+
+function getFileAttachmentTargetItemKey(
+    spaceId: SpaceId,
+    fileId: FileId,
+    target: FileAttachmentTarget,
+): FileAttachmentTargetItemKey {
+    switch (target[0]) {
+        case "Chat": {
+            return {
+                partitionType: "File",
+                sortRangeType: "ChatAttachmentTarget",
+                spaceId,
+                fileId,
+                chatId: target[1],
+            };
+        }
+        case "Channel": {
+            return {
+                partitionType: "File",
+                sortRangeType: "ChannelAttachmentTarget",
+                spaceId,
+                fileId,
+                channelId: target[1],
+            };
+        }
+        case "Document": {
+            return {
+                partitionType: "File",
+                sortRangeType: "DocumentAttachmentTarget",
+                spaceId,
+                fileId,
+                documentId: target[1],
+            };
+        }
+        case "Post": {
+            return {
+                partitionType: "File",
+                sortRangeType: "PostAttachmentTarget",
+                spaceId,
+                fileId,
+                postId: target[1],
+            };
+        }
+        case "Task": {
+            return {
+                partitionType: "File",
+                sortRangeType: "TaskAttachmentTarget",
+                spaceId,
+                fileId,
+                taskId: target[1],
+            };
+        }
+        default:
+            throw exhaustive(target);
+    }
+}
 
 /**
  * If a file upload doesn't complete within this amount of time, we abort the
@@ -1034,13 +1169,57 @@ async function actuallyCleanupFileItem(
     });
 }
 
+const FileItemContextCache = new ContextCache<`${SpaceId}:${FileId}`, FileItem | null>();
+
+function getFileItemIfExistsWithCache(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    {
+        consistency = "Eventual",
+        allowsEventualReadConsistency = false,
+    }: {
+        consistency?: DynamoReadConsistency;
+        allowsEventualReadConsistency?: boolean;
+    } = {},
+): Promise<FileItem | null> {
+    const get = async () => {
+        const item = await FilesTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Space",
+                sortRangeType: "File",
+                spaceId,
+                fileId,
+            },
+            {consistency, allowsEventualReadConsistency},
+        );
+
+        if (!item) return null;
+
+        await authorizeSpaceAccess(context, item.spaceId);
+
+        return item;
+    };
+
+    // We can't use a cached value when reading with strong consistency but we can
+    // save the read value to the cache for later.
+    if (consistency === "Strong") {
+        const getPromise = get();
+        FileItemContextCache.set(context, `${spaceId}:${fileId}`, getPromise);
+        return getPromise;
+    } else {
+        return FileItemContextCache.get(context, `${spaceId}:${fileId}`, get);
+    }
+}
+
 /**
  * Get a file as the file's uploader. Returns null if the file doesn't exist.
  * Throws an error if you're not the account that upload the file. If we have
  * a system actor then the system actor may read all files.
  *
- * Prefer calling `getFileIfExistsWithGrant()` which will work for all
- * accounts, not just the uploader.
+ * Prefer calling `getFileIfExistsFromAttachment()` since that will work for
+ * all accounts with access to the file.
  */
 export async function getFileIfExistsAsUploader(
     context: ServerActionContext,
@@ -1050,11 +1229,7 @@ export async function getFileIfExistsAsUploader(
 ): Promise<FileModel | null> {
     const [, item] = await runAllPromises([
         authorizeSpaceAccess(context, spaceId),
-        FilesTable.getItemIfExists(
-            context,
-            {partitionType: "Space", sortRangeType: "File", spaceId, fileId},
-            {consistency},
-        ),
+        getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
     ]);
     if (!item) return null;
 
@@ -1067,7 +1242,7 @@ export async function getFileIfExistsAsUploader(
         case "Session": {
             // other than the uploader to read a file.
             if (item.uploaderId !== context.actor.getAccountId()) {
-                throw new PermissionDeniedError("Account doesn't have access to file");
+                throw new PermissionDeniedError("Account didn't upload file");
             }
             break;
         }
@@ -1090,16 +1265,331 @@ export async function getFileIfExistsAsUploader(
  * exist. Throws an error if you're not the account that upload the file. If we
  * have a system actor then the system actor may read all files.
  *
- * Prefer calling `getFileWithGrant()` which will work for all accounts, not
- * just the uploader.
+ * Prefer calling `getFileIfFromAttachment()` since that will work for all
+ * accounts with access to the file.
  */
 export async function getFileAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
     options?: {consistency?: DynamoReadConsistency},
-): Promise<FileModel | null> {
+): Promise<FileModel> {
     const file = await getFileIfExistsAsUploader(context, spaceId, fileId, options);
     if (!file) throw new NotFoundError("File not found");
     return file;
+}
+
+const fileAuthorizerAttachmentTargetTypesByTableSchema = new WeakMap<object, Set<string>>();
+
+/**
+ * Authorizes file access through an attachment target.
+ *
+ * `FileAuthorizer`s can either be bound or unbound. You create unbound
+ * `FileAuthorizer`s with `new()` then use that to create bound
+ * `FileAuthorizer`s with `bind()`. Unbound `FileAuthorizer`s define how to
+ * authorize entities of the attachment target type you pass to `new()`. Bound
+ * `FileAuthorizer`s can be used to authorize an individual entity.
+ *
+ * The authorization function you provide in `FileAuthorizer.new()` should
+ * cache results using `CacheContextModule`! We may call your authorization
+ * function multiple times in the same action for the same target. By the time
+ * you're loading files (e.g. via `getContentReferencesForNode()`) you've also
+ * probably already loaded your entity's content so by leveraging the action
+ * cache you shouldn't need to reauthorize at all.
+ *
+ * ### Why is the file authorization API designed this way?
+ *
+ * Simply, to avoid cyclic dependencies. To avoid cyclic dependencies the
+ * `//server/files/data` package doesn't depend on attachment target type
+ * packages. Instead the attachment target type packages depend on
+ * `//server/files/data`.
+ *
+ * For example, `//server/documents/data` depends on `//server/files/data` but
+ * `//server/files/data` doesn't depend on `//server/documents/data`. That
+ * means `//server/files/data` can't call `authorizeDocumentAccess()`! So
+ * instead we construct a `FileDocumentAuthorizer`
+ * (from `FileAuthorizer.new()`) in `//server/documents/data` next to
+ * `DocumentsTable` and pass the result of
+ * `FileDocumentAuthorizer.bind(documentId)` to `//server/files/data` functions
+ * that need to authorize files.
+ *
+ * To make sure instances of `FileAuthorizer` are trusted we require you to
+ * pass a `DynamoTableSchema` to `FileAuthorizer.new()`. This proves you're in
+ * the module that owns data manipulation and authorization for the
+ * `DynamoTableSchema`. So you can create a trusted `FileAuthorizer` instance.
+ *
+ * Our protections depend on TypeScript and ESLint errors. You can trivially
+ * get around them by casting to `any` or with an ESLint disable comment.
+ * That's fine attackers shouldn't be able to inject code so we only need to
+ * encourage the safe patterns for developers.
+ */
+export class FileAuthorizer<Bound extends boolean = true> {
+    public readonly target: If<Bound, FileAttachmentTarget, null>;
+    public readonly authorizeTargetAccess: If<
+        Bound,
+        (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
+        null
+    >;
+
+    protected constructor(
+        target: If<Bound, FileAttachmentTarget, null>,
+        authorizeTargetAccess: If<
+            Bound,
+            (context: ServerActionContext, expectedAccessLevel: "View" | "Edit") => Promise<void>,
+            null
+        >,
+    ) {
+        this.target = target;
+        this.authorizeTargetAccess = authorizeTargetAccess;
+    }
+
+    public static new<Type extends FileAttachmentTarget[0]>(
+        tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
+        type: Type,
+        authorizeTargetAccess: (
+            context: ServerActionContext,
+            target: (FileAttachmentTarget & readonly [Type, unknown])[1],
+            expectedAccessLevel: "View" | "Edit",
+        ) => Promise<unknown>,
+    ) {
+        return new FileAuthorizerUnbound<Type>(tableSchema, type, authorizeTargetAccess);
+    }
+}
+
+// `FileAuthorizerUnbound` extends `FileAuthorizer` so we can use
+// `FileAuthorizer`'s protected constructor in this class.
+export class FileAuthorizerUnbound<
+    Type extends FileAttachmentTarget[0],
+> extends FileAuthorizer<false> {
+    public readonly type: Type;
+    private readonly _authorizeTargetAccess: (
+        context: ServerActionContext,
+        target: (FileAttachmentTarget & readonly [Type, unknown])[1],
+        expectedAccessLevel: "View" | "Edit",
+    ) => Promise<unknown>;
+
+    constructor(
+        tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
+        type: Type,
+        authorizeTargetAccess: (
+            context: ServerActionContext,
+            target: (FileAttachmentTarget & readonly [Type, unknown])[1],
+            expectedAccessLevel: "View" | "Edit",
+        ) => Promise<unknown>,
+    ) {
+        // We only want one authorizer instance per attachment target type. To enforce
+        // this we require you to pass in a `DynamoTableSchema` with the right name
+        // before the table has finished initializing.
+        //
+        // This leverages the infrastructure around `DynamoTableSchema` to make sure
+        // no `DynamoTableSchema` is exported outside the file where it's constructed.
+        // By tying file authorizers to `DynamoTableSchema` we also guarantee
+        // authorizers are only created when you have exclusive access to the
+        // underlying table.
+        //
+        // Authorizers may be exported.
+        assert(
+            tableSchema instanceof DynamoTableSchema ||
+                tableSchema instanceof DynamoGeneralRealtimeTableSchema,
+        );
+        assert(!tableSchema.isInitialized());
+
+        const attachmentTargetTypes = getOrSetDefaultMapValue(
+            fileAuthorizerAttachmentTargetTypesByTableSchema,
+            tableSchema,
+            () => new Set(),
+        );
+
+        // Only allow one `FileAuthorizer` per attachment target type per table schema.
+        assert(!attachmentTargetTypes.has(type));
+        attachmentTargetTypes.add(type);
+
+        switch (type) {
+            case "Chat": {
+                assert(tableSchema.getName() === "Chat");
+                break;
+            }
+            case "Channel":
+            case "Post": {
+                assert(tableSchema.getName() === "ForumRealtime");
+                break;
+            }
+            case "Document": {
+                assert(tableSchema.getName() === "Documents");
+                break;
+            }
+            case "Task": {
+                assert(tableSchema.getName() === "Tasks");
+                break;
+            }
+            default:
+                throw exhaustive(type);
+        }
+
+        super(null, null);
+        this.type = type;
+        this._authorizeTargetAccess = authorizeTargetAccess;
+    }
+
+    public bind(target: (FileAttachmentTarget & readonly [Type, unknown])[1]) {
+        return new FileAuthorizer(
+            [this.type, target] as FileAttachmentTarget,
+            async (context, expectedAccessLevel) => {
+                await this._authorizeTargetAccess(context, target, expectedAccessLevel);
+            },
+        );
+    }
+}
+
+/**
+ * Get a file attached to some entity. Returns null if the file doesn't exist.
+ *
+ * To authorize we need a `FileAuthorizer`. This object contains the target
+ * we're viewing the file in the context of. We'll throw an error if the actor
+ * doesn't have access to the attachment target or the file isn't actually
+ * attached to the target.
+ */
+export async function getFileIfExistsFromAttachment(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    fileAuthorizer: FileAuthorizer,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<FileModel | null> {
+    const [item, , , targetItem] = await runAllPromises([
+        getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),
+
+        // 1. Make sure we have access to the space the file is in
+        authorizeSpaceAccess(context, spaceId),
+
+        // 2. Make sure we have access to the file's attachment target
+        fileAuthorizer.authorizeTargetAccess(context, "View"),
+
+        // 3. Make sure the file is actually attached to the provided target
+        (async () => {
+            let targetItem = await FilesTable.getItemIfExists(
+                context,
+                getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+                {
+                    consistency,
+                    // It's ok to call this function when expecting strong read consistency.
+                    // This authorization check is mostly strongly consistent since we retry with
+                    // strong consistency below if our eventually consistent read fails.
+                    allowsEventualReadConsistency: true,
+                },
+            );
+
+            if (!targetItem && consistency !== "Strong") {
+                targetItem = await FilesTable.getItemIfExists(
+                    context,
+                    getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+                    {consistency: "Strong"},
+                );
+            }
+
+            return targetItem;
+        })(),
+    ]);
+    if (!item) return null;
+
+    // If the file doesn't exist we're ok returning null instead of throwing a not
+    // attached error.
+    if (!targetItem) {
+        throw new PermissionDeniedError("File isn't attached to target");
+    }
+
+    return new FileModel({
+        id: item.fileId,
+        contentType: item.contentType,
+        contentLength: item.contentLength,
+        isUploading: item.isUploading,
+        alternative: item.alternative,
+        preview: item.preview,
+    });
+}
+
+/**
+ * Get a file attached to some entity. Throws an error if the file doesn't
+ * exist.
+ *
+ * To authorize we need a `FileAuthorizer`. This object contains the target
+ * we're viewing the file in the context of. We'll throw an error if the actor
+ * doesn't have access to the attachment target or the file isn't actually
+ * attached to the target.
+ */
+export async function getFileFromAttachment(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    fileAuthorizer: FileAuthorizer,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<FileModel> {
+    const file = await getFileIfExistsFromAttachment(
+        context,
+        spaceId,
+        fileId,
+        fileAuthorizer,
+        options,
+    );
+    if (!file) throw new NotFoundError("File not found");
+    return file;
+}
+
+/**
+ * Attach a file to some `FileAttachmentTarget` (represented by a
+ * `FileAuthorizer` instance) as the file's uploader. Throws an error if the
+ * file doesn't exist or if the actor isn't the file's uploader.
+ *
+ * If you want to attach the file to another target and you're not the file's
+ * uploader then use `attachFileFromAttachment()`.
+ *
+ * Attaching a file gives anyone with access to the `FileAttachmentTarget` the
+ * ability to view the file.
+ */
+// TODO(calebmer, #files): What's our story around detaching? If we don't
+// detach we should at least explain why.
+export async function attachFileAsUploader(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    fileAuthorizer: FileAuthorizer,
+) {
+    await runAllPromises([
+        // Make sure the file exists and our actor is the uploader.
+        getFileAsUploader(context, spaceId, fileId),
+        // Make sure we have access to the new file authorizer.
+        fileAuthorizer.authorizeTargetAccess(context, "Edit"),
+    ]);
+
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
+        createdTime: new Date(),
+    });
+}
+
+/**
+ * Attach a file to some `FileAttachmentTarget` (`to`) based on the actor's
+ * access to the file through a different `FileAttachmentTarget` (`from`).
+ *
+ * See `attachFileAsUploader()` for more information. You call this method when
+ * there's a file you already have you want to attach to another target (e.g.
+ * through copy/pasting).
+ */
+export async function attachFileFromAttachment(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    fileId: FileId,
+    {from: fromFileAuthorizer, to: toFileAuthorizer}: {from: FileAuthorizer; to: FileAuthorizer},
+) {
+    await runAllPromises([
+        // Make sure the file exists and our actor is the uploader.
+        getFileFromAttachment(context, spaceId, fileId, fromFileAuthorizer),
+        // Make sure we have access to the new file authorizer.
+        toFileAuthorizer.authorizeTargetAccess(context, "Edit"),
+    ]);
+
+    await FilesTable.createOrReplaceItem(context, {
+        ...getFileAttachmentTargetItemKey(spaceId, fileId, toFileAuthorizer.target),
+        createdTime: new Date(),
+    });
 }

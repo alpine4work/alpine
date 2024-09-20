@@ -1,18 +1,29 @@
+import {FileChatAuthorizer, getOrCreateChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     FileUploader,
+    attachFileAsUploader,
+    attachFileFromAttachment,
     getFileAsUploader,
+    getFileFromAttachment,
     startUploadingAndProcessingFile,
 } from "~/server/files/data/files_table.js";
+import {FilePostAuthorizer, createChannel, createPost} from "~/server/forum/data/forum_table.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {InternalError, PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+    UnimplementedError,
+} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {getChronologicalIdTime} from "~/shared/id/chronological_id.js";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 
 const context = createTestContext();
 
@@ -5366,5 +5377,722 @@ test("only the uploader account can access their file", async () => {
 
     await expect(
         getFileAsUploader(otherSession.action(), space.id, fileUploader.fileId),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to file"));
+    ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file"));
+});
+
+test("can get file from attachment after it's been attached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session1.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session1.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session1.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind(chatId),
+    );
+
+    expect(
+        await getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can get file from attachment if the file doesn't exist", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            generateChronologicalId(),
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new NotFoundError("File not found"));
+});
+
+test("can't get file from attachment if you don't have access to the attachment target", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session1.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session1.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        getFileFromAttachment(
+            session3.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+
+    await expect(
+        getFileFromAttachment(
+            otherSession.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+
+    await expect(
+        getFileFromAttachment(
+            otherSpace.systemAction(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+
+    await attachFileAsUploader(
+        session1.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind(chatId),
+    );
+
+    expect(
+        await getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session3.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+
+    await expect(
+        getFileFromAttachment(
+            otherSession.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+
+    await expect(
+        getFileFromAttachment(
+            otherSpace.systemAction(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+});
+
+test("can't attach file as uploader if not the uploader", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const fileUploader = await startUploadingAndProcessingFile(session1.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session1.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileAsUploader(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file"));
+
+    await expect(
+        attachFileAsUploader(
+            otherSession.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+
+    await expect(
+        attachFileAsUploader(
+            otherSpace.systemAction(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+});
+
+test("can't attach file if you don't have view access to the target", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const fileUploader = await startUploadingAndProcessingFile(session3.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session3.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileAsUploader(
+            session3.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+});
+
+test("can't attach file if you don't have edit access to the target", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post1 = await createPost(session1.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post 1"),
+    });
+
+    const post2 = await createPost(session2.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post 2"),
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post1.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post2.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileAsUploader(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post1.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have edit access to post"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FilePostAuthorizer.bind(post2.id),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post1.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    expect(
+        await getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post2.id),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can attach file to new target", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(session1.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post"),
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
+            from: FileChatAuthorizer.bind(chatId),
+            to: FilePostAuthorizer.bind(post.id),
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind(chatId),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
+        from: FileChatAuthorizer.bind(chatId),
+        to: FilePostAuthorizer.bind(post.id),
+    });
+
+    expect(
+        await getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can attach file to new target as the uploader", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(session2.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post"),
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
+            from: FileChatAuthorizer.bind(chatId),
+            to: FilePostAuthorizer.bind(post.id),
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind(chatId),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileFromAttachment(session2.action(), space.id, fileUploader.fileId, {
+        from: FileChatAuthorizer.bind(chatId),
+        to: FilePostAuthorizer.bind(post.id),
+    });
+
+    expect(
+        await getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).toEqual(
+        new FileModel({
+            id: fileUploader.fileId,
+            contentType: "image/png",
+            contentLength: 100,
+            isUploading: false,
+            alternative: null,
+            preview: null,
+        }),
+    );
+});
+
+test("can't attach file to new target if you don't have edit access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(session2.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post"),
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
+            from: FileChatAuthorizer.bind(chatId),
+            to: FilePostAuthorizer.bind(post.id),
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FileChatAuthorizer.bind(chatId),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileFromAttachment(session1.action(), space.id, fileUploader.fileId, {
+            from: FileChatAuthorizer.bind(chatId),
+            to: FilePostAuthorizer.bind(post.id),
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have edit access to post"));
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FilePostAuthorizer.bind(post.id),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+});
+
+test("can't attach file to new target you don't have access to", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const fileUploader = await startUploadingAndProcessingFile(session2.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session2.action());
+
+    const chatId = await getOrCreateChatForAccounts(session2.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session1.account.id],
+    });
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post1 = await createPost(session2.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post 1"),
+    });
+
+    const post2 = await createPost(session3.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post 2"),
+    });
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileAsUploader(
+        session2.action(),
+        space.id,
+        fileUploader.fileId,
+        FilePostAuthorizer.bind(post1.id),
+    );
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await expect(
+        attachFileFromAttachment(session3.action(), space.id, fileUploader.fileId, {
+            from: FilePostAuthorizer.bind(post1.id),
+            to: FileChatAuthorizer.bind(chatId),
+        }),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+
+    await expect(
+        getFileFromAttachment(
+            session2.action(),
+            space.id,
+            fileUploader.fileId,
+            FileChatAuthorizer.bind(chatId),
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("File isn't attached to target"));
+
+    await attachFileFromAttachment(session3.action(), space.id, fileUploader.fileId, {
+        from: FilePostAuthorizer.bind(post1.id),
+        to: FilePostAuthorizer.bind(post2.id),
+    });
 });

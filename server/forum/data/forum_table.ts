@@ -23,6 +23,7 @@ import {
     DynamoGeneralRealtimeTableItemType,
     DynamoGeneralRealtimeTableSchema,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
@@ -66,7 +67,7 @@ import {
 import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -562,6 +563,20 @@ type PostAttributesItem = DynamoGeneralRealtimeTableItemType<
 
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
 
+export const FileChannelAuthorizer = FileAuthorizer.new(
+    ForumRealtimeTable,
+    "Channel",
+    // TODO(calebmer): Once documents get a read-only permission level we should
+    // update `authorizeChannelAccess()` to support `expectedAccessLevel`.
+    authorizeChannelAccess,
+);
+
+export const FilePostAuthorizer = FileAuthorizer.new(
+    ForumRealtimeTable,
+    "Post",
+    authorizePostAccess,
+);
+
 /**
  * Scan every channel and post in our database. Use when migrating data.
  */
@@ -953,7 +968,12 @@ async function createChannelModelFromItem(
         name: item.name,
         description: {
             doc: item.description,
-            references: await getContentReferencesForNode(context, item.spaceId, item.description),
+            references: await getContentReferencesForNode(
+                context,
+                item.spaceId,
+                FileChannelAuthorizer.bind(item.channelId),
+                item.description,
+            ),
         },
     });
 }
@@ -1515,7 +1535,7 @@ export async function getPost(
     id: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<DynamoGeneralRealtimeItem<PostModel>> {
-    const post = await ForumRealtimeTable.getRealtimeItem(
+    const postItemPromise = ForumRealtimeTable.getItem(
         context,
         {
             partitionType: "Post",
@@ -1524,6 +1544,14 @@ export async function getPost(
         },
         {consistency},
     );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, id, postItemPromise);
+
+    const postItem = await postItemPromise;
+
+    const post = await ForumRealtimeTable.buildRealtimeItem(context, postItem);
 
     await authorizeChannelAccess(context, post.model.channel.id);
 
@@ -1540,7 +1568,7 @@ export async function getPostContentAndChannelPreview(
     content: PostContent;
     channel: ChannelPreviewModel;
 }> {
-    const postItem = await ForumRealtimeTable.getItem(
+    const postItemPromise = ForumRealtimeTable.getItem(
         context,
         {
             partitionType: "Post",
@@ -1549,6 +1577,12 @@ export async function getPostContentAndChannelPreview(
         },
         {consistency},
     );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, id, postItemPromise);
+
+    const postItem = await postItemPromise;
 
     const channel = await getChannelPreview(context, postItem.channelId, {consistency});
 
@@ -1590,7 +1624,12 @@ async function createPostModelFromItem(
                 accountId => getAccount(context, item.spaceId, accountId),
             ),
         ),
-        getContentReferencesForNode(context, item.spaceId, item.content),
+        getContentReferencesForNode(
+            context,
+            item.spaceId,
+            FilePostAuthorizer.bind(item.postId),
+            item.content,
+        ),
     ]);
 
     assert(channel.id === item.channelId);
@@ -1617,11 +1656,6 @@ async function createPostModelFromItem(
     });
 }
 
-const PostAuthorAndChannelPreviewCache = new ContextCache<
-    PostId,
-    {readonly spaceId: SpaceId; readonly authorId: AccountId; readonly channelId: ChannelId}
->();
-
 /**
  * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored
  * the post.
@@ -1634,19 +1668,7 @@ export async function getPostAuthorAndChannelPreview(
     context: ServerActionContext,
     postId: PostId,
 ): Promise<{author: AccountModel; channel: ChannelPreviewModel}> {
-    const postItem = await PostAuthorAndChannelPreviewCache.get(context, postId, () =>
-        ForumRealtimeTable.getPartialItem(
-            context,
-            {
-                partitionType: "Post",
-                sortRangeType: "Attributes",
-                postId,
-            },
-            {
-                attributes: ["spaceId", "authorId", "channelId"],
-            },
-        ),
-    );
+    const postItem = await getPostItemForAuthorization(context, postId);
 
     const [author, channel] = await runAllPromises([
         getAccount(context, postItem.spaceId, postItem.authorId),
@@ -1667,7 +1689,7 @@ export async function getPostNotificationSubscribers(
     accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
     postCreatedTime: Date;
 }> {
-    const postItem = await ForumRealtimeTable.getPartialItem(
+    const postItemPromise = ForumRealtimeTable.getPartialItem(
         context,
         {
             partitionType: "Post",
@@ -1679,6 +1701,14 @@ export async function getPostNotificationSubscribers(
             consistency,
         },
     );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, id, postItemPromise);
+
+    const postItem = await postItemPromise;
+
+    await authorizeChannelAccess(context, postItem.channelId);
 
     const accountIds = new Set<ContentMentionAccountId>(
         concatIterables(
@@ -1809,6 +1839,56 @@ export async function getPostCommentAuthors(
     );
 }
 
+const PostItemAuthorizationCache = new ContextCache<
+    PostId,
+    Pick<
+        PostAttributesItem,
+        "partitionType" | "sortRangeType" | "postId" | "spaceId" | "channelId" | "authorId"
+    >
+>();
+
+async function getPostItemForAuthorization(
+    context: ServerActionContext,
+    postId: PostId,
+): Promise<
+    Pick<
+        PostAttributesItem,
+        "partitionType" | "sortRangeType" | "postId" | "spaceId" | "channelId" | "authorId"
+    >
+> {
+    return PostItemAuthorizationCache.get(context, postId, async () => {
+        const postItem = await ForumRealtimeTable.getPartialItemIfExists(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId,
+            },
+            {
+                attributes: ["spaceId", "channelId", "authorId"],
+                // It's ok to call this function when expecting strong read consistency.
+                // Authorization is mostly strongly consistent since we retry with strong
+                // consistency if our eventually consistent read fails.
+                allowsEventualReadConsistency: true,
+            },
+        );
+        if (postItem) return postItem;
+
+        return ForumRealtimeTable.getPartialItem(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId,
+            },
+            {
+                attributes: ["spaceId", "channelId", "authorId"],
+                consistency: "Strong",
+            },
+        );
+    });
+}
+
 /**
  * Authorizes that the session user can access the provided post.
  * Implicitly also authorizes that the session user can access the channel the
@@ -1825,38 +1905,7 @@ export async function authorizePostAccess(
     id: PostId,
     expectedAccessLevel: "View" | "Edit",
 ): Promise<{spaceId: SpaceId}> {
-    let postItem = await ForumRealtimeTable.getPartialItemIfExists(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId: id,
-        },
-        {
-            attributes: ["spaceId", "channelId", "authorId"],
-            // It's ok to call this function when expecting strong read consistency.
-            // Authorization is mostly strongly consistent since we retry with strong
-            // consistency if our eventually consistent read fails.
-            allowsEventualReadConsistency: true,
-        },
-    );
-
-    if (!postItem) {
-        postItem = await ForumRealtimeTable.getPartialItemIfExists(
-            context,
-            {
-                partitionType: "Post",
-                sortRangeType: "Attributes",
-                postId: id,
-            },
-            {
-                attributes: ["spaceId", "channelId", "authorId"],
-                consistency: "Strong",
-            },
-        );
-    }
-
-    if (!postItem) throw new NotFoundError("Post not found");
+    const postItem = await getPostItemForAuthorization(context, id);
 
     await authorizeChannelAccess(context, postItem.channelId);
 
@@ -1909,30 +1958,37 @@ export async function createPostComment(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [postItem] = await runAllPromiseThunks(
-            async () => {
-                const postItem = await ForumRealtimeTable.getPartialItemIfExists(
-                    context,
-                    {
-                        partitionType: "Post",
-                        sortRangeType: "Attributes",
-                        postId,
-                    },
-                    {
-                        attributes: [
-                            "spaceId",
-                            "channelId",
-                            "commentsSummary",
-                            "updateLockVersion",
-                        ],
-                    },
-                );
-                if (!postItem) throw new NotFoundError("Post not found");
-                await authorizeChannelAccess(context, postItem.channelId);
+        const postItemPromise = (async () => {
+            const postItem = await ForumRealtimeTable.getPartialItemIfExists(
+                context,
+                {
+                    partitionType: "Post",
+                    sortRangeType: "Attributes",
+                    postId,
+                },
+                {
+                    attributes: [
+                        "spaceId",
+                        "channelId",
+                        "authorId",
+                        "commentsSummary",
+                        "updateLockVersion",
+                    ],
+                },
+            );
+            if (!postItem) throw new NotFoundError("Post not found");
+            await authorizeChannelAccess(context, postItem.channelId);
 
-                return postItem;
-            },
-            async () => {
+            return postItem;
+        })();
+
+        // After we've loaded a post, save it to the authorization cache so if we need
+        // to authorize later in the action it's available.
+        PostItemAuthorizationCache.set(context, postId, postItemPromise);
+
+        const [postItem] = await runAllPromises([
+            postItemPromise,
+            (async () => {
                 if (typeof parentCommentIndex !== "number") return;
 
                 const parentCommentItem = await ForumTable.getPartialItemIfExists(
@@ -1948,8 +2004,8 @@ export async function createPostComment(
                     },
                 );
                 if (!parentCommentItem) throw new NotFoundError("Post parent comment not found");
-            },
-        );
+            })(),
+        ]);
 
         const commentIndex = postItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
@@ -2139,7 +2195,12 @@ async function createPostCommentModelFromItem(
 ): Promise<PostCommentModel> {
     const [author, payload] = await runAllPromises([
         getAccount(context, spaceId, item.authorId),
-        createMessagePayloadModel(context, spaceId, item.payload),
+        createMessagePayloadModel(
+            context,
+            spaceId,
+            FilePostAuthorizer.bind(item.postId),
+            item.payload,
+        ),
     ]);
 
     return new PostCommentModel({
@@ -2170,33 +2231,38 @@ export function updatePostCommentContent(
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
+        const postItemPromise = ForumRealtimeTable.getPartialItem(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId,
+            },
+            {
+                attributes: [
+                    "spaceId",
+                    "channelId",
+                    "authorId",
+                    "createdTime",
+                    "commentsSummary",
+                    "updateLockVersion",
+                ],
+            },
+        );
+
+        // After we've loaded a post, save it to the authorization cache so if we need
+        // to authorize later in the action it's available.
+        PostItemAuthorizationCache.set(context, postId, postItemPromise);
+
         const [postItem, commentItem] = await runAllPromises([
-            ForumRealtimeTable.getPartialItemIfExists(
-                context,
-                {
-                    partitionType: "Post",
-                    sortRangeType: "Attributes",
-                    postId,
-                },
-                {
-                    attributes: [
-                        "channelId",
-                        "createdTime",
-                        "commentsSummary",
-                        "updateLockVersion",
-                    ],
-                },
-            ),
-            ForumTable.getItemIfExists(context, {
+            postItemPromise,
+            ForumTable.getItem(context, {
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
                 commentIndex,
             }),
         ]);
-
-        if (!postItem) throw new NotFoundError("Post not found");
-        if (!commentItem) throw new NotFoundError("Post comment not found");
 
         const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
 
@@ -2291,22 +2357,38 @@ export function deletePostComment(
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
-        const [postItem, commentItem] = await runAllPromises([
-            ForumRealtimeTable.getItemIfExists(context, {
+        const postItemPromise = ForumRealtimeTable.getPartialItem(
+            context,
+            {
                 partitionType: "Post",
                 sortRangeType: "Attributes",
                 postId,
-            }),
-            ForumTable.getItemIfExists(context, {
+            },
+            {
+                attributes: [
+                    "spaceId",
+                    "channelId",
+                    "authorId",
+                    "createdTime",
+                    "commentsSummary",
+                    "updateLockVersion",
+                ],
+            },
+        );
+
+        // After we've loaded a post, save it to the authorization cache so if we need
+        // to authorize later in the action it's available.
+        PostItemAuthorizationCache.set(context, postId, postItemPromise);
+
+        const [postItem, commentItem] = await runAllPromises([
+            postItemPromise,
+            ForumTable.getItem(context, {
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
                 commentIndex,
             }),
         ]);
-
-        if (!postItem) throw new NotFoundError("Post not found");
-        if (!commentItem) throw new NotFoundError("Post comment not found");
 
         const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
 
@@ -2420,13 +2502,19 @@ export async function getPostAndInitialComments(
         limit: commentLimit + 1,
     });
 
-    // Important that this comes after the query call since we want to load the
-    // query and post item in parallel.
-    const postItem = await ForumRealtimeTable.getItem(context, {
+    const postItemPromise = ForumRealtimeTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",
         postId,
     });
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, postId, postItemPromise);
+
+    // Important that this comes after the query call since we want to load the
+    // query and post item in parallel.
+    const postItem = await postItemPromise;
 
     const commentPromises: Array<Promise<PostCommentModel>> = [];
 
@@ -2509,9 +2597,13 @@ export async function getPostCommentsFromStart(
             postId,
         },
         {
-            attributes: ["spaceId", "channelId", "commentsSummary"],
+            attributes: ["spaceId", "channelId", "authorId", "commentsSummary"],
         },
     );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, postId, postItemPromise);
 
     const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
@@ -2693,9 +2785,13 @@ export async function getPostCommentsFromEnd(
             postId,
         },
         {
-            attributes: ["spaceId", "channelId", "commentsSummary"],
+            attributes: ["spaceId", "channelId", "authorId", "commentsSummary"],
         },
     );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, postId, postItemPromise);
 
     const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
@@ -2900,9 +2996,13 @@ export async function backfillPostComments(
             postId,
         },
         {
-            attributes: ["spaceId", "channelId", "createdTime", "commentsSummary"],
+            attributes: ["spaceId", "channelId", "authorId", "createdTime", "commentsSummary"],
         },
     );
+
+    // After we've loaded a post, save it to the authorization cache so if we need
+    // to authorize later in the action it's available.
+    PostItemAuthorizationCache.set(context, postId, postItemPromise);
 
     const [postItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([
@@ -3035,6 +3135,7 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
                             references: await getContentReferencesForNode(
                                 context,
                                 postItem.spaceId,
+                                FilePostAuthorizer.bind(postItem.postId),
                                 item.change.content,
                             ),
                         },

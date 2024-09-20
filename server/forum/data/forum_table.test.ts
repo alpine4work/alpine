@@ -1,11 +1,13 @@
 import {addMinutes} from "date-fns";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_client_execute_action_test_counter.js";
 import {dynamoGeneralRealtimeStaleEventualReadConsistencyWindowMinutes} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {
+    authorizeChannelAccess,
     authorizePostAccess,
     backfillChannelPosts,
     createAlphaSpaceAsAdmin,
@@ -16,8 +18,12 @@ import {
     getChannel,
     getChannelNameAndDescriptionContent,
     getChannelPosts,
+    getChannelPreview,
     getPost,
     getPostCommentAuthors,
+    getPostCommentsFromEnd,
+    getPostCommentsFromStart,
+    getPostContentAndChannelPreview,
     getPostNotificationSubscribers,
     updateChannelDescription,
     updateChannelName,
@@ -47,6 +53,7 @@ import {
     assertPostContent,
     createSimplePostContent,
 } from "~/shared/forum/post_content_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, PostId} from "~/shared/id/types/id_types.js";
@@ -3351,9 +3358,7 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(session1.action(), post1.id, "View")).toEqual(true);
     expect(await authorize(session2.action(), post1.id, "View")).toEqual(true);
     expect(await authorize(session3.action(), post1.id, "View")).toEqual(true);
-    console.log("testing 1");
     expect(await authorize(otherSession.action(), post1.id, "View")).toEqual(false);
-    console.log("testing 2");
 
     expect(await authorize(space.systemAction(), post1.id, "Edit")).toEqual(true);
     expect(await authorize(otherSpace.systemAction(), post1.id, "Edit")).toEqual(false);
@@ -3391,6 +3396,754 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(otherSession.action(), post3.id, "Edit")).toEqual(false);
 });
 
+test("authorizing channel access as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeChannelAccess(actionContext, channel.id),
+            authorizeChannelAccess(actionContext, channel.id),
+            authorizeChannelAccess(actionContext, channel.id),
+        ]);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+    }
+});
+
+test("authorizing channel access as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizeChannelAccess(actionContext, channel.id),
+            authorizeChannelAccess(actionContext, channel.id),
+            authorizeChannelAccess(actionContext, channel.id),
+        ]);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+    }
+});
+
+test("authorizing channel access after getting channel as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannel(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelPreview(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+});
+
+test("authorizing channel access after getting channel as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannel(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelPreview(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        await authorizeChannelAccess(actionContext, channel.id);
+
+        expect(getCount()).toEqual(1);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id),
+            ]);
+        }
+
+        expect(getCount()).toEqual(1);
+    }
+});
+
+test("authorizing post access as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(session1.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session1.action();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "Edit");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "Edit"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizePostAccess(actionContext, post.id, "View"),
+            authorizePostAccess(actionContext, post.id, "View"),
+            authorizePostAccess(actionContext, post.id, "View"),
+        ]);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+    }
+});
+
+test("authorizing post access as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(session1.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post"),
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "Edit");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            authorizePostAccess(actionContext, post.id, "View"),
+            authorizePostAccess(actionContext, post.id, "View"),
+            authorizePostAccess(actionContext, post.id, "View"),
+        ]);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(2);
+    }
+});
+
+test("authorizing post access after getting post as session actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(session1.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post"),
+    });
+
+    // Warm up `Forum` table so we don't create it when we're counting actions.
+    await getPostCommentsFromStart(session1.action(), {
+        postId: post.id,
+        limit: 100,
+        afterCommentIndex: null,
+        beforeCommentIndex: null,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getPost(actionContext, post.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostContentAndChannelPreview(actionContext, post.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostCommentsFromStart(actionContext, {
+            postId: post.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostCommentsFromEnd(actionContext, {
+            postId: post.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(4);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(4);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(4);
+    }
+});
+
+test("authorizing post access after getting post as system actor is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(2);
+
+    const channel = await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test Channel",
+    });
+
+    const post = await createPost(session1.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test Post"),
+    });
+
+    // Warm up `Forum` table so we don't create it when we're counting actions.
+    await getPostCommentsFromStart(session1.action(), {
+        postId: post.id,
+        limit: 100,
+        afterCommentIndex: null,
+        beforeCommentIndex: null,
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount, resetCount} = dynamoClientExecuteActionTestCounter.recordForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getPost(actionContext, post.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "Edit");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostContentAndChannelPreview(actionContext, post.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "Edit");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostNotificationSubscribers(actionContext, post.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "Edit");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostCommentsFromStart(actionContext, {
+            postId: post.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    resetCount();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostCommentsFromEnd(actionContext, {
+            postId: post.id,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        });
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+});
+
 describe("Notification subscribers", () => {
     test("throws when trying to access a post that doesn't exist", async () => {
         await expect(
@@ -3414,6 +4167,24 @@ describe("Notification subscribers", () => {
                 ({accountIds}) => accountIds,
             ),
         ).toEqual(new Set([session1.account.id]));
+    });
+
+    test("can't get notification subscribers for a post in a different space", async () => {
+        const channel = await createChannel(context.action(session1), {
+            spaceId: space.id,
+            name: "Test",
+        });
+
+        const post = await createPost(context.action(session1), {
+            channelId: channel.id,
+            content: testContent1,
+        });
+
+        await expect(
+            getPostNotificationSubscribers(context.systemAction(otherSpace.id), post.id).then(
+                ({accountIds}) => accountIds,
+            ),
+        ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("an account mentioned in the post's content is subscribed to notifications", async () => {
