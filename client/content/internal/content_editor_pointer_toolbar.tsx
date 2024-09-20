@@ -46,6 +46,7 @@ import {createToggleListItemsCommand} from "~/client/content/internal/helpers/cr
 import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {Box} from "~/client/design/box.js";
+import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
@@ -177,9 +178,13 @@ export function ContentEditorPointerToolbar({
         return () => timeout.clear();
     }, [isWaitingForTripleClickAfterDoubleClick]);
 
+    const isContextMenuOpen = useIsContextMenuOpen();
+
     const shouldShowIgnoringInteractionModality = useMemo(
         () =>
             isFocused &&
+            // Don't show while the context menu is open.
+            !isContextMenuOpen &&
             // Make sure some characters are selected before showing the selection toolbar.
             state.selection.from !== state.selection.to &&
             // Only show the pointer toolbar for a text selection. This includes the
@@ -212,6 +217,7 @@ export function ContentEditorPointerToolbar({
             !isWaitingForTripleClickAfterDoubleClick,
         [
             hasPointerMovedWhileDown,
+            isContextMenuOpen,
             isFocused,
             isWaitingForTripleClickAfterDoubleClick,
             state.doc,

@@ -878,8 +878,12 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         // When the mouse hovers over a menu item, we focus it so if the user
         // then uses the keyboard (presses enter or an arrow key) we navigate
         // using the hovered menu item.
-        onHoverStart: event => event.target.focus({preventScroll: true}),
-        onHoverEnd: event => event.target.blur(),
+        onHoverStart: event => {
+            if (!isNotFocusable) event.target.focus({preventScroll: true});
+        },
+        onHoverEnd: event => {
+            if (!isNotFocusable) event.target.blur();
+        },
     });
 
     const {isPressed, pressProps} = usePress({
@@ -1170,8 +1174,12 @@ function MenuCustomItem({
         // When the mouse hovers over a menu item, we focus it so if the user
         // then uses the keyboard (presses enter or an arrow key) we navigate
         // using the hovered menu item.
-        onHoverStart: event => event.target.focus(),
-        onHoverEnd: event => event.target.blur(),
+        onHoverStart: event => {
+            if (!isNotFocusable) event.target.focus();
+        },
+        onHoverEnd: event => {
+            if (!isNotFocusable) event.target.blur();
+        },
     });
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we

@@ -1067,6 +1067,23 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                 left="0"
                 zIndex="-10"
                 style={{width: "100vw", height: "100vh"}}
+                onPointerDown={event => {
+                    // Prevent the browser from moving focus when pressing on the overlay blocking
+                    // cover.
+                    //
+                    // This is important for `context_menu.tsx`. You right click in a focused
+                    // element which opens our custom context menu. If you click the blocking cover
+                    // to close the custom context menu we don't want the element you had previously
+                    // focused to lose focus.
+                    //
+                    // To reproduce a bug which happens when we don't have `event.preventDefault()`
+                    // here: Go to `<ContentEditor>`. Select to highlight some text. Right click the
+                    // text. The pointer toolbar should go away and the right click menu should be
+                    // visible. Click the blocking cover to close the context menu. If the
+                    // `<ContentEditor>` maintained focus the entire time then the pointer toolbar
+                    // should reappear.
+                    event.preventDefault();
+                }}
             />
         );
     } else {
@@ -1079,6 +1096,23 @@ const OverlayBlockingCover = forwardRef(function OverlayBlockingCover(
                 left="0"
                 zIndex="-10"
                 style={{width: "100vw", height: "100vh"}}
+                onPointerDown={event => {
+                    // Prevent the browser from moving focus when pressing on the overlay blocking
+                    // cover.
+                    //
+                    // This is important for `context_menu.tsx`. You right click in a focused
+                    // element which opens our custom context menu. If you click the blocking cover
+                    // to close the custom context menu we don't want the element you had previously
+                    // focused to lose focus.
+                    //
+                    // To reproduce a bug which happens when we don't have `event.preventDefault()`
+                    // here: Go to `<ContentEditor>`. Select to highlight some text. Right click the
+                    // text. The pointer toolbar should go away and the right click menu should be
+                    // visible. Click the blocking cover to close the context menu. If the
+                    // `<ContentEditor>` maintained focus the entire time then the pointer toolbar
+                    // should reappear.
+                    event.preventDefault();
+                }}
             >
                 {coverRects.map((coverRect, i) => (
                     <Box

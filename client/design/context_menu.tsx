@@ -2,11 +2,14 @@ import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
     ReactElement,
+    ReactNode,
     Ref,
     RefCallback,
+    createContext,
     createRef,
     forwardRef,
     useCallback,
+    useContext,
     useEffect,
     useMemo,
     useRef,
@@ -100,6 +103,15 @@ export function ContextMenuActions({
     return useElementWithRef(children, useContextMenuActionsRef(actions));
 }
 
+const IsContextMenuOpenContext = createContext<boolean>(false);
+
+/**
+ * Returns true if the context menu is open.
+ */
+export function useIsContextMenuOpen() {
+    return useContext(IsContextMenuOpenContext);
+}
+
 type ContextMenuInstanceState = {
     readonly x: number;
     readonly y: number;
@@ -111,7 +123,12 @@ type ContextMenuInstanceState = {
 type ContextMenuState =
     | {
           readonly isOpen: false;
-          readonly shouldAnimateOut: boolean;
+          readonly shouldAnimateOut: false;
+          readonly lastInstance: null;
+      }
+    | {
+          readonly isOpen: false;
+          readonly shouldAnimateOut: true;
           readonly lastInstance: ContextMenuInstanceState | null;
       }
     | {
@@ -119,7 +136,7 @@ type ContextMenuState =
           readonly instance: ContextMenuInstanceState;
       };
 
-export function ContextMenuManager() {
+export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
     const {isAppleDevice} = useClientInfo();
 
     const [contextMenuState, setContextMenuState] = useState<ContextMenuState>({
@@ -283,57 +300,66 @@ export function ContextMenuManager() {
     const instance = contextMenuState.isOpen
         ? contextMenuState.instance
         : contextMenuState.lastInstance;
-    if (!instance) return null;
 
     return (
         <>
-            {createPortal(
-                <OverlayAnimated
-                    isBlocking={true}
-                    isVisible={contextMenuState.isOpen}
-                    placement="bottom-start"
-                    disableAnimationIn={true}
-                    disableAnimationOut={
-                        !contextMenuState.isOpen && !contextMenuState.shouldAnimateOut
-                    }
-                    overlay={
-                        <ContextMenu
-                            actions={instance.actions}
-                            targetId={instance.targetId}
-                            focusedMenuItemIndex={instance.focusedMenuItemIndex}
-                            onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
-                                setContextMenuState(contextMenuState => {
-                                    if (!contextMenuState.isOpen) return contextMenuState;
-                                    return {
-                                        ...contextMenuState,
-                                        instance: {
-                                            ...contextMenuState.instance,
-                                            focusedMenuItemIndex,
-                                        },
-                                    };
-                                });
-                            }}
-                            onCloseWithAnimation={() => {
-                                setContextMenuState({
-                                    isOpen: false,
-                                    shouldAnimateOut: true,
-                                    lastInstance: instance,
-                                });
-                            }}
-                            onCloseWithoutAnimation={() => {
+            {instance &&
+                createPortal(
+                    <OverlayAnimated
+                        isBlocking={true}
+                        isVisible={contextMenuState.isOpen}
+                        placement="bottom-start"
+                        disableAnimationIn={true}
+                        disableAnimationOut={
+                            !contextMenuState.isOpen && !contextMenuState.shouldAnimateOut
+                        }
+                        overlay={
+                            <ContextMenu
+                                actions={instance.actions}
+                                targetId={instance.targetId}
+                                focusedMenuItemIndex={instance.focusedMenuItemIndex}
+                                onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
+                                    setContextMenuState(contextMenuState => {
+                                        if (!contextMenuState.isOpen) return contextMenuState;
+                                        return {
+                                            ...contextMenuState,
+                                            instance: {
+                                                ...contextMenuState.instance,
+                                                focusedMenuItemIndex,
+                                            },
+                                        };
+                                    });
+                                }}
+                                onCloseWithAnimation={() => {
+                                    setContextMenuState({
+                                        isOpen: false,
+                                        shouldAnimateOut: true,
+                                        lastInstance: instance,
+                                    });
+                                }}
+                                onCloseWithoutAnimation={() => {
+                                    setContextMenuState({
+                                        isOpen: false,
+                                        shouldAnimateOut: false,
+                                        lastInstance: null,
+                                    });
+                                }}
+                            />
+                        }
+                        onActuallyVisibleChange={isActuallyVisible => {
+                            if (!isActuallyVisible) {
                                 setContextMenuState({
                                     isOpen: false,
                                     shouldAnimateOut: false,
-                                    lastInstance: instance,
+                                    lastInstance: null,
                                 });
-                            }}
-                        />
-                    }
-                >
-                    <Box position="absolute" style={{left: instance.x, top: instance.y}} />
-                </OverlayAnimated>,
-                document.body,
-            )}
+                            }
+                        }}
+                    >
+                        <Box position="absolute" style={{left: instance.x, top: instance.y}} />
+                    </OverlayAnimated>,
+                    document.body,
+                )}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
                     title={`Can only paste with ${isAppleDevice ? "⌘+V" : "Ctrl+V"}`}
@@ -346,6 +372,9 @@ export function ContextMenuManager() {
                     onClose={() => setShouldShowPasteWarningDialog(false)}
                 />
             )}
+            <IsContextMenuOpenContext.Provider value={!!instance}>
+                {children}
+            </IsContextMenuOpenContext.Provider>
         </>
     );
 }

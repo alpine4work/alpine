@@ -22,7 +22,7 @@ import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
-import {ContextMenuManager} from "~/client/design/context_menu.js";
+import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {RootOverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {emitMobileKeyboardFrameChangeIfNotNative} from "~/client/design/subscribe_to_mobile_keyboard_frame_change.js";
@@ -712,40 +712,45 @@ function SpaceLayoutRouteInner({
                 }
             }}
         >
-            <SpaceContextProvider
-                // Re-render everything when the space changes.
-                key={space.id}
-                space={space}
-                currentAccount={currentAccount}
-            >
-                <TaskRealtimeClientContextProvider
-                    spaceId={space.id}
-                    currentAccountId={currentAccount.id}
+            <ContextMenuContextProvider>
+                <SpaceContextProvider
+                    // Re-render everything when the space changes.
+                    key={space.id}
+                    space={space}
+                    currentAccount={currentAccount}
                 >
-                    <ContextMenuManager />
-                    <PeekStackContextProvider ref={peekStackRef}>{nodes}</PeekStackContextProvider>
-                    {!isMobile && searchState && (
-                        <SearchModalErrorBoundary>
-                            <SearchModal
-                                initialQueryText={searchState.initialQueryText}
-                                onClose={() => setSearchState(null)}
-                                pushPeekStack={async (to, options) => {
-                                    await assertExists(peekStackRef.current).push(to, options);
-                                }}
-                                debugOptions={
-                                    debugOptions.isDebugModeEnabled ? debugOptions.options : null
-                                }
-                            />
-                        </SearchModalErrorBoundary>
-                    )}
-                    {isMobile && !clientInfo.isNativeMobile && (
-                        <SpaceLayoutWebMobileTabBar initialInbox={inbox} />
-                    )}
-                    {clientInfo.isNativeMobile && (
-                        <SpaceLayoutNativeMobileInboxController initialInbox={inbox} />
-                    )}
-                </TaskRealtimeClientContextProvider>
-            </SpaceContextProvider>
+                    <TaskRealtimeClientContextProvider
+                        spaceId={space.id}
+                        currentAccountId={currentAccount.id}
+                    >
+                        <PeekStackContextProvider ref={peekStackRef}>
+                            {nodes}
+                        </PeekStackContextProvider>
+                        {!isMobile && searchState && (
+                            <SearchModalErrorBoundary>
+                                <SearchModal
+                                    initialQueryText={searchState.initialQueryText}
+                                    onClose={() => setSearchState(null)}
+                                    pushPeekStack={async (to, options) => {
+                                        await assertExists(peekStackRef.current).push(to, options);
+                                    }}
+                                    debugOptions={
+                                        debugOptions.isDebugModeEnabled
+                                            ? debugOptions.options
+                                            : null
+                                    }
+                                />
+                            </SearchModalErrorBoundary>
+                        )}
+                        {isMobile && !clientInfo.isNativeMobile && (
+                            <SpaceLayoutWebMobileTabBar initialInbox={inbox} />
+                        )}
+                        {clientInfo.isNativeMobile && (
+                            <SpaceLayoutNativeMobileInboxController initialInbox={inbox} />
+                        )}
+                    </TaskRealtimeClientContextProvider>
+                </SpaceContextProvider>
+            </ContextMenuContextProvider>
         </GlobalKeyDownEvent>
     );
 }
