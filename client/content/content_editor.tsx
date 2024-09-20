@@ -1741,14 +1741,28 @@ function ContentEditor<Content extends ContentWithReferences>(
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Shift") {
                 isShiftKeyDown = true;
+            } else {
+                // We've observed a bug where if you shift-right click then release shift while
+                // the context menu is open then we don't receive a `keyup` event! Make sure we
+                // get back in a good state when this happens by resetting `isShiftKeyDown`
+                // whenever we see a keydown without the shift key pressed.
+                isShiftKeyDown = event.shiftKey;
             }
+
             if (event.key === "Alt") {
                 isAltKeyDown = true;
+            } else {
+                isAltKeyDown = event.altKey;
             }
 
             if ((isShiftKeyDown || isAltKeyDown) && !isShiftKeyOrAltKeyDown) {
                 isShiftKeyOrAltKeyDown = true;
                 viewElement.classList.add(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
+            }
+
+            if (!isShiftKeyDown && !isAltKeyDown && isShiftKeyOrAltKeyDown) {
+                isShiftKeyOrAltKeyDown = false;
+                viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
             }
         };
 
@@ -1756,8 +1770,14 @@ function ContentEditor<Content extends ContentWithReferences>(
             if (event.key === "Shift") {
                 isShiftKeyDown = false;
             }
+
             if (event.key === "Alt") {
                 isAltKeyDown = false;
+            }
+
+            if ((isShiftKeyDown || isAltKeyDown) && !isShiftKeyOrAltKeyDown) {
+                isShiftKeyOrAltKeyDown = true;
+                viewElement.classList.add(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
             }
 
             if (!isShiftKeyDown && !isAltKeyDown && isShiftKeyOrAltKeyDown) {
