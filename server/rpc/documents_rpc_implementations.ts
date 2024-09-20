@@ -1,3 +1,4 @@
+import {FileChatAuthorizer} from "~/server/chat/data/chat_table.js";
 import {
     getContentReferences,
     getContentReferencesForNode,
@@ -21,11 +22,20 @@ import {
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
+import {
+    FileAuthorizer,
+    attachFileAsUploader,
+    attachFileFromAttachment,
+} from "~/server/files/data/files_table.js";
+import {FileChannelAuthorizer, FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
+import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
 import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -285,4 +295,64 @@ export default implementRpcs(definitions, {
             return getResolvedDocumentCommentThreadRanges(context, input);
         },
     },
+
+    attachFilesToDocument: {
+        visibility: ["DocumentCollaborationService"],
+        execute: async (context, input) => {
+            const {spaceId} = await authorizeDocumentAccess(context, input.documentId);
+
+            await runAllPromises(
+                input.files.map(async inputFile => {
+                    switch (inputFile.source.type) {
+                        case "Uploader": {
+                            await attachFileAsUploader(
+                                context,
+                                spaceId,
+                                inputFile.fileId,
+                                FileDocumentAuthorizer.bind({
+                                    type: "Document",
+                                    documentId: input.documentId,
+                                }),
+                            );
+                            break;
+                        }
+                        case "Attachment": {
+                            await attachFileFromAttachment(context, spaceId, inputFile.fileId, {
+                                from: getFileAttachmentTargetAuthorizer(inputFile.source.target),
+                                to: FileDocumentAuthorizer.bind({
+                                    type: "Document",
+                                    documentId: input.documentId,
+                                }),
+                            });
+                            break;
+                        }
+                        default:
+                            throw exhaustive(inputFile.source);
+                    }
+                }),
+            );
+
+            return {};
+        },
+    },
 });
+
+function getFileAttachmentTargetAuthorizer(target: FileAttachmentTarget): FileAuthorizer {
+    switch (target.type) {
+        case "ChatMessage":
+            return FileChatAuthorizer.bind(target);
+        case "ChannelDescription":
+            return FileChannelAuthorizer.bind(target);
+        case "Document":
+        case "DocumentComment":
+            return FileDocumentAuthorizer.bind(target);
+        case "Post":
+        case "PostComment":
+            return FilePostAuthorizer.bind(target);
+        case "TaskNotes":
+        case "TaskComment":
+            return FileTaskAuthorizer.bind(target);
+        default:
+            throw exhaustive(target);
+    }
+}

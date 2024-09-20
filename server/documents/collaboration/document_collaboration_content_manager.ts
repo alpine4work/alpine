@@ -43,6 +43,7 @@ import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
@@ -55,6 +56,7 @@ import {
 import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step.js";
 import {getAccounts} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
+    attachFilesToDocument,
     confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency,
     getDocumentContentReferences,
     updateDocumentContent,
@@ -264,6 +266,63 @@ export class DocumentCollaborationContentManager {
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
     }> {
+        const updateFileIds = new Set<FileId>();
+
+        for (const step of update.steps) {
+            visitProsemirrorStep(step, {
+                visitNode: node => {
+                    if (node.type.name === "file" && node.attrs.id) {
+                        updateFileIds.add(node.attrs.id);
+                    }
+                },
+            });
+        }
+
+        // Any files in the steps from our client we need to attach to the document.
+        // And we need to attach the files before sending a realtime update to other
+        // connected clients (otherwise those clients will get a
+        // `PermissionDeniedError` when trying to read the file). We attach files
+        // before capturing the state lock so other realtime updates can continue to
+        // be processed while we're waiting for our attach RPC to complete.
+        //
+        // To attach a file you must already have access to the file. You must be the
+        // file's uploader or you must have copied the file from some other entity you
+        // have access to.
+        //
+        // We don't currently detach files from documents! Once a file is attached to a
+        // document its there forever. Because even if you delete a file from a
+        // document's content you can still go into version history and bring an old
+        // version of the document back. Or you can see the file in a resolved document
+        // comment thread's preview snippet. This is the same behavior as text added to
+        // a document. Once you add text to a document it can be recovered at any point
+        // by a document editor. This isn't great for our security posture. Some
+        // thoughts:
+        //
+        // 1. We should add document deletion. Once a document is deleted then it's
+        //    safe to cleanup all its files.
+        //
+        // 2. We could consider changing permissions so that if a file is removed from
+        //    a document you need at least comment access to see it (comment access
+        //    lets you see it in a comment thread snippet, edit access lets you restore
+        //    from a previous version). However, if we give view-only users the ability
+        //    to look at a document's version history then view-only users still need
+        //    to see files that have been removed from the document.
+        //
+        // Also, it's possible that we successfully attach a file here but fail to
+        // persist our steps. We should consider a file garbage collector that looks at
+        // all attachments and if they're still valid. Any attachments that aren't
+        // valid get cleaned up.
+        if (updateFileIds.size > 0) {
+            await attachFilesToDocument(context, {
+                documentId: this.id,
+                files: Array.from(updateFileIds, fileId => ({
+                    fileId,
+                    // TODO(calebmer, #files): Copy/pasted files need an `Attachment` source.
+                    source: {type: "Uploader"},
+                })),
+            });
+        }
+
         const {oldVersion, steps, presenceState} = await this._state.withLock(async stateRef => {
             await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
                 this.id,

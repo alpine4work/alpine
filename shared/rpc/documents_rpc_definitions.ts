@@ -9,11 +9,13 @@ import {
     DocumentModel,
     DocumentPreviewModel,
 } from "~/shared/documents/document_model.js";
+import {FileAttachmentTargetSchema} from "~/shared/files/file_attachment_target.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
@@ -276,4 +278,24 @@ export const getResolvedDocumentCommentThreadRanges = defineRpc({
             }),
         ),
     },
+});
+
+export const attachFilesToDocument = defineRpc({
+    name: "attachFilesToDocument",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        files: Schema.array(
+            Schema.object({
+                fileId: Schema.id<FileId>(),
+                source: Schema.union({
+                    Uploader: Schema.object({type: Schema.value("Uploader")}),
+                    Attachment: Schema.object({
+                        type: Schema.value("Attachment"),
+                        target: FileAttachmentTargetSchema,
+                    }),
+                }),
+            }),
+        ),
+    },
+    output: {},
 });

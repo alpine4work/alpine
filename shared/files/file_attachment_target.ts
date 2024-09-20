@@ -6,6 +6,7 @@ import {
     PostId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Files may be attached to various entities in our system. A file may be
@@ -25,8 +26,8 @@ export type FileAttachmentTargetByArea = {
     Chat: {readonly type: "ChatMessage"; readonly chatId: ChatId; readonly messageIndex: number};
     // TODO(calebmer, #files): Implement attachments
     Channel: {readonly type: "ChannelDescription"; readonly channelId: ChannelId};
-    Document: // TODO(calebmer, #files): Implement attachments
-    | {readonly type: "Document"; readonly documentId: DocumentId}
+    Document:
+        | {readonly type: "Document"; readonly documentId: DocumentId}
         // TODO(calebmer, #files): Implement attachments
         | {
               readonly type: "DocumentComment";
@@ -43,3 +44,43 @@ export type FileAttachmentTargetByArea = {
         // TODO(calebmer, #files): Implement attachments
         | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number};
 };
+
+export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.union({
+    ChatMessage: Schema.object({
+        type: Schema.value("ChatMessage"),
+        chatId: Schema.id<ChatId>(),
+        messageIndex: Schema.integer,
+    }),
+    ChannelDescription: Schema.object({
+        type: Schema.value("ChannelDescription"),
+        channelId: Schema.id<ChannelId>(),
+    }),
+    Document: Schema.object({
+        type: Schema.value("Document"),
+        documentId: Schema.id<DocumentId>(),
+    }),
+    DocumentComment: Schema.object({
+        type: Schema.value("DocumentComment"),
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        commentIndex: Schema.integer,
+    }),
+    Post: Schema.object({
+        type: Schema.value("Post"),
+        postId: Schema.id<PostId>(),
+    }),
+    PostComment: Schema.object({
+        type: Schema.value("PostComment"),
+        postId: Schema.id<PostId>(),
+        commentIndex: Schema.integer,
+    }),
+    TaskNotes: Schema.object({
+        type: Schema.value("TaskNotes"),
+        taskId: Schema.id<TaskId>(),
+    }),
+    TaskComment: Schema.object({
+        type: Schema.value("TaskComment"),
+        taskId: Schema.id<TaskId>(),
+        commentIndex: Schema.integer,
+    }),
+});
