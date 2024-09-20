@@ -3656,12 +3656,15 @@ export const dynamoGeneratedSchemaDescription: {
                         }
                     },
                     "sortRangeByType": {
-                        "ChatAttachmentTarget": {
+                        "ChatMessageAttachmentTarget": {
                             "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
                                 "chatId": {
                                     "type": "Id"
+                                },
+                                "messageIndex": {
+                                    "type": "Integer"
                                 }
                             },
                             "attributesSchema": {
@@ -3682,7 +3685,7 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
-                        "ChannelAttachmentTarget": {
+                        "ChannelDescriptionAttachmentTarget": {
                             "id": 1,
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
@@ -3734,9 +3737,41 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
-                        "PostAttachmentTarget": {
+                        "DocumentCommentAttachmentTarget": {
                             "id": 3,
                             "orderKey": "a3",
+                            "sortKeyAttributeByKey": {
+                                "documentId": {
+                                    "type": "Id"
+                                },
+                                "commentThreadId": {
+                                    "type": "Id"
+                                },
+                                "commentIndex": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "PostAttachmentTarget": {
+                            "id": 4,
+                            "orderKey": "a4",
                             "sortKeyAttributeByKey": {
                                 "postId": {
                                     "type": "Id"
@@ -3760,12 +3795,70 @@ export const dynamoGeneratedSchemaDescription: {
                                 }
                             }
                         },
-                        "TaskAttachmentTarget": {
-                            "id": 4,
-                            "orderKey": "a4",
+                        "PostCommentAttachmentTarget": {
+                            "id": 5,
+                            "orderKey": "a5",
+                            "sortKeyAttributeByKey": {
+                                "postId": {
+                                    "type": "Id"
+                                },
+                                "commentIndex": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "TaskNotesAttachmentTarget": {
+                            "id": 6,
+                            "orderKey": "a6",
                             "sortKeyAttributeByKey": {
                                 "taskId": {
                                     "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "TaskCommentAttachmentTarget": {
+                            "id": 7,
+                            "orderKey": "a7",
+                            "sortKeyAttributeByKey": {
+                                "taskId": {
+                                    "type": "Id"
+                                },
+                                "commentIndex": {
+                                    "type": "Integer"
                                 }
                             },
                             "attributesSchema": {
@@ -5370,6 +5463,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Object",
                                             "propertySchemaByKey": {
+                                                "commentThreadId": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Id"
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                },
                                                 "authorId": {
                                                     "valueSchema": {
                                                         "type": "Id"

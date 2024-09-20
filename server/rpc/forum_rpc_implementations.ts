@@ -186,7 +186,11 @@ export default implementRpcs(definitions, {
                 getContentReferencesForNode(
                     context,
                     spaceId,
-                    FilePostAuthorizer.bind(input.postId),
+                    FilePostAuthorizer.bind({
+                        type: "PostComment",
+                        postId: input.postId,
+                        commentIndex: index,
+                    }),
                     input.content,
                 ),
             ]);
@@ -222,7 +226,11 @@ export default implementRpcs(definitions, {
             const contentReferences = await getContentReferencesForNode(
                 context,
                 spaceId,
-                FilePostAuthorizer.bind(input.postId),
+                FilePostAuthorizer.bind({
+                    type: "PostComment",
+                    postId: input.postId,
+                    commentIndex: input.commentIndex,
+                }),
                 input.content,
             );
 

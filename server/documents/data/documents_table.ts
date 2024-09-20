@@ -655,7 +655,7 @@ export const FileDocumentAuthorizer = FileAuthorizer.new(
     "Document",
     // TODO(calebmer): Once documents get a read-only permission level we should
     // update `authorizeDocumentAccess()` to support `expectedAccessLevel`.
-    authorizeDocumentAccess,
+    (context, target) => authorizeDocumentAccess(context, target.documentId),
 );
 
 /**
@@ -1289,7 +1289,7 @@ async function getDocumentAndCommentThreadsIfExists(
             getContentReferencesForNode(
                 context,
                 attributes.spaceId,
-                FileDocumentAuthorizer.bind(documentId),
+                FileDocumentAuthorizer.bind({type: "Document", documentId}),
                 content,
             ),
             runAllPromises(mapIterable(referencedCommentThreadIds, getCommentThread)).then(
@@ -1481,7 +1481,7 @@ async function createDocumentCommentThreadModelFromItem(
             ? getContentReferencesForNode(
                   context,
                   spaceId,
-                  FileDocumentAuthorizer.bind(item.documentId),
+                  FileDocumentAuthorizer.bind({type: "Document", documentId: item.documentId}),
                   fallbackContentSnippetNode,
               )
             : null,
@@ -3855,6 +3855,7 @@ export async function createDocumentComment(
         content: MessageContent;
     },
 ): Promise<{
+    spaceId: SpaceId;
     index: number;
     createdTime: Date;
 }> {
@@ -3979,6 +3980,7 @@ export async function createDocumentComment(
         }
 
         return {
+            spaceId,
             index: commentIndex,
             createdTime,
         };
@@ -4121,7 +4123,12 @@ async function createDocumentCommentModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FileDocumentAuthorizer.bind(item.documentId),
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComment",
+                documentId: item.documentId,
+                commentThreadId: item.commentThreadId,
+                commentIndex: item.commentIndex,
+            }),
             item.payload,
         ),
     ]);
@@ -5157,7 +5164,12 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                             references: await getContentReferencesForNode(
                                 context,
                                 spaceId,
-                                FileDocumentAuthorizer.bind(commentThreadItem.documentId),
+                                FileDocumentAuthorizer.bind({
+                                    type: "DocumentComment",
+                                    documentId: item.documentId,
+                                    commentThreadId: item.commentThreadId,
+                                    commentIndex: item.commentIndex,
+                                }),
                                 item.change.content,
                             ),
                         },

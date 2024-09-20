@@ -245,11 +245,13 @@ export const backfillDocumentComments = defineRpc({
     },
 });
 
-export const getOptimisticDocumentCommentThreadReferences = defineRpc({
-    name: "getOptimisticDocumentCommentThreadReferences",
+export const getOptimisticDocumentCommentReferences = defineRpc({
+    name: "getOptimisticDocumentCommentReferences",
     input: {
         spaceId: Schema.id<SpaceId>(),
         documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        commentIndex: Schema.integer,
         authorId: Schema.id<AccountId>(),
         contentReferencedIds: ContentReferencedIdsSchema,
     },

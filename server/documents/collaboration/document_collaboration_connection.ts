@@ -50,7 +50,7 @@ import {
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentPreviewIfExists,
-    getOptimisticDocumentCommentThreadReferences,
+    getOptimisticDocumentCommentReferences,
     getResolvedDocumentCommentThreadRanges,
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
@@ -791,22 +791,23 @@ export class DocumentCollaborationConnection {
         commentThreadId: DocumentCommentThreadId,
         optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
     ) {
-        const {author, contentReferences} = await getOptimisticDocumentCommentThreadReferences(
-            context,
-            {
-                spaceId: this._contentManager.spaceId,
-                documentId: this._contentManager.id,
-                authorId: optimisticCommentThread.initialComment.authorId,
-                contentReferencedIds: getContentReferencedIdsForNode(
-                    optimisticCommentThread.initialComment.content,
-                ),
-            },
-        );
+        const commentIndex = 0;
+
+        const {author, contentReferences} = await getOptimisticDocumentCommentReferences(context, {
+            spaceId: this._contentManager.spaceId,
+            documentId: this._contentManager.id,
+            commentThreadId,
+            commentIndex,
+            authorId: optimisticCommentThread.initialComment.authorId,
+            contentReferencedIds: getContentReferencedIdsForNode(
+                optimisticCommentThread.initialComment.content,
+            ),
+        });
 
         return new DocumentCommentModel({
             documentId: this._contentManager.id,
             commentThreadId,
-            index: 0,
+            index: commentIndex,
             author,
             createdTime: optimisticCommentThread.createdTime,
             payload: {

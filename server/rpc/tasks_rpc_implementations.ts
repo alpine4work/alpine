@@ -112,7 +112,7 @@ export default implementRpcs(definitions, {
             const references = await getContentReferences(
                 context,
                 spaceId,
-                FileTaskAuthorizer.bind(taskId),
+                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                 referenceIds,
             );
             return {references};
@@ -173,7 +173,11 @@ export default implementRpcs(definitions, {
                 getContentReferencesForNode(
                     context,
                     spaceId,
-                    FileTaskAuthorizer.bind(input.taskId),
+                    FileTaskAuthorizer.bind({
+                        type: "TaskComment",
+                        taskId: input.taskId,
+                        commentIndex: index,
+                    }),
                     input.content,
                 ),
             ]);
@@ -208,7 +212,11 @@ export default implementRpcs(definitions, {
             const contentReferences = await getContentReferencesForNode(
                 context,
                 spaceId,
-                FileTaskAuthorizer.bind(input.taskId),
+                FileTaskAuthorizer.bind({
+                    type: "TaskComment",
+                    taskId: input.taskId,
+                    commentIndex: input.commentIndex,
+                }),
                 input.content,
             );
 

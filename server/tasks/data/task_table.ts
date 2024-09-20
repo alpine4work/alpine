@@ -866,7 +866,22 @@ type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
 
 type TaskCommentItem = DynamoTableItemType<typeof TaskTable, "Task", "Comments">;
 
-export const FileTaskAuthorizer = FileAuthorizer.new(TaskTable, "Task", authorizeTaskAccess);
+export const FileTaskAuthorizer = FileAuthorizer.new(
+    TaskTable,
+    "Task",
+    async (context, target, expectedAccessLevel) => {
+        switch (target.type) {
+            case "TaskNotes":
+                await authorizeTaskAccess(context, target.taskId, expectedAccessLevel);
+                break;
+            case "TaskComment":
+                await authorizeTaskAccess(context, target.taskId, "Comment");
+                break;
+            default:
+                throw exhaustive(target);
+        }
+    },
+);
 
 /**
  * Scan every task and task collection in our database. Use when
@@ -4300,7 +4315,11 @@ async function createTaskCommentModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FileTaskAuthorizer.bind(item.taskId),
+            FileTaskAuthorizer.bind({
+                type: "TaskComment",
+                taskId: item.taskId,
+                commentIndex: item.commentIndex,
+            }),
             item.payload,
         ),
     ]);
@@ -4917,7 +4936,7 @@ export async function getTaskNotesContentAndInitialComments(
                                 references: await getContentReferencesForNode(
                                     context,
                                     spaceId,
-                                    FileTaskAuthorizer.bind(taskId),
+                                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                                     notesItem?.content ?? emptyTaskNotesContent,
                                 ),
                             },
@@ -5317,7 +5336,11 @@ async function queryTaskCommentChangeLogAssumingAuthorizedTask(
                             references: await getContentReferencesForNode(
                                 context,
                                 spaceId,
-                                FileTaskAuthorizer.bind(commentsSummaryItem.taskId),
+                                FileTaskAuthorizer.bind({
+                                    type: "TaskComment",
+                                    taskId: item.taskId,
+                                    commentIndex: item.commentIndex,
+                                }),
                                 item.change.content,
                             ),
                         },
@@ -5778,7 +5801,7 @@ export function getTaskNotesContent(
                 references: await getContentReferencesForNode(
                     context,
                     spaceId,
-                    FileTaskAuthorizer.bind(taskId),
+                    FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                     notesItem?.content ?? emptyTaskNotesContent,
                 ),
             },

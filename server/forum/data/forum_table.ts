@@ -568,13 +568,24 @@ export const FileChannelAuthorizer = FileAuthorizer.new(
     "Channel",
     // TODO(calebmer): Once documents get a read-only permission level we should
     // update `authorizeChannelAccess()` to support `expectedAccessLevel`.
-    authorizeChannelAccess,
+    (context, target) => authorizeChannelAccess(context, target.channelId),
 );
 
 export const FilePostAuthorizer = FileAuthorizer.new(
     ForumRealtimeTable,
     "Post",
-    authorizePostAccess,
+    async (context, target, expectedAccessLevel) => {
+        switch (target.type) {
+            case "Post":
+                await authorizePostAccess(context, target.postId, expectedAccessLevel);
+                break;
+            case "PostComment":
+                await authorizePostAccess(context, target.postId, "View");
+                break;
+            default:
+                throw exhaustive(target);
+        }
+    },
 );
 
 /**
@@ -971,7 +982,7 @@ async function createChannelModelFromItem(
             references: await getContentReferencesForNode(
                 context,
                 item.spaceId,
-                FileChannelAuthorizer.bind(item.channelId),
+                FileChannelAuthorizer.bind({type: "ChannelDescription", channelId: item.channelId}),
                 item.description,
             ),
         },
@@ -1627,7 +1638,7 @@ async function createPostModelFromItem(
         getContentReferencesForNode(
             context,
             item.spaceId,
-            FilePostAuthorizer.bind(item.postId),
+            FilePostAuthorizer.bind({type: "Post", postId: item.postId}),
             item.content,
         ),
     ]);
@@ -2198,7 +2209,11 @@ async function createPostCommentModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FilePostAuthorizer.bind(item.postId),
+            FilePostAuthorizer.bind({
+                type: "PostComment",
+                postId: item.postId,
+                commentIndex: item.commentIndex,
+            }),
             item.payload,
         ),
     ]);
@@ -3135,7 +3150,11 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
                             references: await getContentReferencesForNode(
                                 context,
                                 postItem.spaceId,
-                                FilePostAuthorizer.bind(postItem.postId),
+                                FilePostAuthorizer.bind({
+                                    type: "PostComment",
+                                    postId: item.postId,
+                                    commentIndex: item.commentIndex,
+                                }),
                                 item.change.content,
                             ),
                         },

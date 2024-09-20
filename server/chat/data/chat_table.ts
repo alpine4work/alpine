@@ -224,7 +224,9 @@ type ChatAttributesItem = DynamoTableItemType<typeof ChatTable, "Chat", "Attribu
 type ChatAccountItem = DynamoTableItemType<typeof ChatTable, "Chat", "Account">;
 type ChatMessageItem = DynamoTableItemType<typeof ChatTable, "Chat", "Messages">;
 
-export const FileChatAuthorizer = FileAuthorizer.new(ChatTable, "Chat", authorizeChatAccess);
+export const FileChatAuthorizer = FileAuthorizer.new(ChatTable, "Chat", (context, target) =>
+    authorizeChatAccess(context, target.chatId),
+);
 
 /**
  * We are not allowed to export our DynamoDB tables so instead export a
@@ -787,6 +789,7 @@ export function sendChatMessage(
         content: MessageContent;
     },
 ): Promise<{
+    spaceId: SpaceId;
     chatId: ChatId;
     index: number;
     createdTime: Date;
@@ -963,6 +966,7 @@ export function sendChatMessage(
         }
 
         return {
+            spaceId: chatItem.spaceId,
             chatId,
             index: messageIndex,
             createdTime,
@@ -1574,7 +1578,11 @@ async function createChatMessageModelFromItem(
         createMessagePayloadModel(
             context,
             spaceId,
-            FileChatAuthorizer.bind(item.chatId),
+            FileChatAuthorizer.bind({
+                type: "ChatMessage",
+                chatId: item.chatId,
+                messageIndex: item.messageIndex,
+            }),
             item.payload,
         ),
     ]);
@@ -2349,7 +2357,11 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                             references: await getContentReferencesForNode(
                                 context,
                                 chatItem.spaceId,
-                                FileChatAuthorizer.bind(chatItem.chatId),
+                                FileChatAuthorizer.bind({
+                                    type: "ChatMessage",
+                                    chatId: item.chatId,
+                                    messageIndex: item.messageIndex,
+                                }),
                                 item.change.content,
                             ),
                         },

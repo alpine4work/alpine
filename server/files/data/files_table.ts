@@ -26,7 +26,10 @@ import {
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    FileAttachmentTarget,
+    FileAttachmentTargetByArea,
+} from "~/shared/files/file_attachment_target.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -43,6 +46,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    DocumentCommentThreadId,
     DocumentId,
     FileId,
     PostId,
@@ -201,16 +205,17 @@ const FilesTable = DynamoTableSchema.new({
             },
             sortRanges: [
                 {
-                    name: "ChatAttachmentTarget",
+                    name: "ChatMessageAttachmentTarget",
                     sortKeyAttributes: {
                         chatId: DynamoKeyAttributeSchema.id<ChatId>(),
+                        messageIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
                     }),
                 },
                 {
-                    name: "ChannelAttachmentTarget",
+                    name: "ChannelDescriptionAttachmentTarget",
                     sortKeyAttributes: {
                         channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
                     },
@@ -228,6 +233,17 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
+                    name: "DocumentCommentAttachmentTarget",
+                    sortKeyAttributes: {
+                        documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+                        commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
+                        commentIndex: DynamoKeyAttributeSchema.integer,
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
                     name: "PostAttachmentTarget",
                     sortKeyAttributes: {
                         postId: DynamoKeyAttributeSchema.id<PostId>(),
@@ -237,9 +253,29 @@ const FilesTable = DynamoTableSchema.new({
                     }),
                 },
                 {
-                    name: "TaskAttachmentTarget",
+                    name: "PostCommentAttachmentTarget",
+                    sortKeyAttributes: {
+                        postId: DynamoKeyAttributeSchema.id<PostId>(),
+                        commentIndex: DynamoKeyAttributeSchema.integer,
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "TaskNotesAttachmentTarget",
                     sortKeyAttributes: {
                         taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+                    },
+                    attributes: Schema.object({
+                        createdTime: Schema.date,
+                    }),
+                },
+                {
+                    name: "TaskCommentAttachmentTarget",
+                    sortKeyAttributes: {
+                        taskId: DynamoKeyAttributeSchema.id<TaskId>(),
+                        commentIndex: DynamoKeyAttributeSchema.integer,
                     },
                     attributes: Schema.object({
                         createdTime: Schema.date,
@@ -263,23 +299,24 @@ function getFileAttachmentTargetItemKey(
     fileId: FileId,
     target: FileAttachmentTarget,
 ): FileAttachmentTargetItemKey {
-    switch (target[0]) {
-        case "Chat": {
+    switch (target.type) {
+        case "ChatMessage": {
             return {
                 partitionType: "File",
-                sortRangeType: "ChatAttachmentTarget",
+                sortRangeType: "ChatMessageAttachmentTarget",
                 spaceId,
                 fileId,
-                chatId: target[1],
+                chatId: target.chatId,
+                messageIndex: target.messageIndex,
             };
         }
-        case "Channel": {
+        case "ChannelDescription": {
             return {
                 partitionType: "File",
-                sortRangeType: "ChannelAttachmentTarget",
+                sortRangeType: "ChannelDescriptionAttachmentTarget",
                 spaceId,
                 fileId,
-                channelId: target[1],
+                channelId: target.channelId,
             };
         }
         case "Document": {
@@ -288,7 +325,18 @@ function getFileAttachmentTargetItemKey(
                 sortRangeType: "DocumentAttachmentTarget",
                 spaceId,
                 fileId,
-                documentId: target[1],
+                documentId: target.documentId,
+            };
+        }
+        case "DocumentComment": {
+            return {
+                partitionType: "File",
+                sortRangeType: "DocumentCommentAttachmentTarget",
+                spaceId,
+                fileId,
+                documentId: target.documentId,
+                commentThreadId: target.commentThreadId,
+                commentIndex: target.commentIndex,
             };
         }
         case "Post": {
@@ -297,16 +345,36 @@ function getFileAttachmentTargetItemKey(
                 sortRangeType: "PostAttachmentTarget",
                 spaceId,
                 fileId,
-                postId: target[1],
+                postId: target.postId,
             };
         }
-        case "Task": {
+        case "PostComment": {
             return {
                 partitionType: "File",
-                sortRangeType: "TaskAttachmentTarget",
+                sortRangeType: "PostCommentAttachmentTarget",
                 spaceId,
                 fileId,
-                taskId: target[1],
+                postId: target.postId,
+                commentIndex: target.commentIndex,
+            };
+        }
+        case "TaskNotes": {
+            return {
+                partitionType: "File",
+                sortRangeType: "TaskNotesAttachmentTarget",
+                spaceId,
+                fileId,
+                taskId: target.taskId,
+            };
+        }
+        case "TaskComment": {
+            return {
+                partitionType: "File",
+                sortRangeType: "TaskCommentAttachmentTarget",
+                spaceId,
+                fileId,
+                taskId: target.taskId,
+                commentIndex: target.commentIndex,
             };
         }
         default:
@@ -1343,37 +1411,37 @@ export class FileAuthorizer<Bound extends boolean = true> {
         this.authorizeTargetAccess = authorizeTargetAccess;
     }
 
-    public static new<Type extends FileAttachmentTarget[0]>(
+    public static new<Area extends keyof FileAttachmentTargetByArea>(
         tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
-        type: Type,
+        area: Area,
         authorizeTargetAccess: (
             context: ServerActionContext,
-            target: (FileAttachmentTarget & readonly [Type, unknown])[1],
+            target: FileAttachmentTargetByArea[Area],
             expectedAccessLevel: "View" | "Edit",
         ) => Promise<unknown>,
     ) {
-        return new FileAuthorizerUnbound<Type>(tableSchema, type, authorizeTargetAccess);
+        return new FileAuthorizerUnbound<Area>(tableSchema, area, authorizeTargetAccess);
     }
 }
 
 // `FileAuthorizerUnbound` extends `FileAuthorizer` so we can use
 // `FileAuthorizer`'s protected constructor in this class.
 export class FileAuthorizerUnbound<
-    Type extends FileAttachmentTarget[0],
+    Area extends keyof FileAttachmentTargetByArea,
 > extends FileAuthorizer<false> {
-    public readonly type: Type;
+    public readonly area: Area;
     private readonly _authorizeTargetAccess: (
         context: ServerActionContext,
-        target: (FileAttachmentTarget & readonly [Type, unknown])[1],
+        target: FileAttachmentTargetByArea[Area],
         expectedAccessLevel: "View" | "Edit",
     ) => Promise<unknown>;
 
     constructor(
         tableSchema: DynamoTableSchema<any> | DynamoGeneralRealtimeTableSchema<any, any>,
-        type: Type,
+        area: Area,
         authorizeTargetAccess: (
             context: ServerActionContext,
-            target: (FileAttachmentTarget & readonly [Type, unknown])[1],
+            target: FileAttachmentTargetByArea[Area],
             expectedAccessLevel: "View" | "Edit",
         ) => Promise<unknown>,
     ) {
@@ -1401,10 +1469,10 @@ export class FileAuthorizerUnbound<
         );
 
         // Only allow one `FileAuthorizer` per attachment target type per table schema.
-        assert(!attachmentTargetTypes.has(type));
-        attachmentTargetTypes.add(type);
+        assert(!attachmentTargetTypes.has(area));
+        attachmentTargetTypes.add(area);
 
-        switch (type) {
+        switch (area) {
             case "Chat": {
                 assert(tableSchema.getName() === "Chat");
                 break;
@@ -1423,21 +1491,18 @@ export class FileAuthorizerUnbound<
                 break;
             }
             default:
-                throw exhaustive(type);
+                throw exhaustive(area);
         }
 
         super(null, null);
-        this.type = type;
+        this.area = area;
         this._authorizeTargetAccess = authorizeTargetAccess;
     }
 
-    public bind(target: (FileAttachmentTarget & readonly [Type, unknown])[1]) {
-        return new FileAuthorizer(
-            [this.type, target] as FileAttachmentTarget,
-            async (context, expectedAccessLevel) => {
-                await this._authorizeTargetAccess(context, target, expectedAccessLevel);
-            },
-        );
+    public bind(target: FileAttachmentTargetByArea[Area]) {
+        return new FileAuthorizer(target, async (context, expectedAccessLevel) => {
+            await this._authorizeTargetAccess(context, target, expectedAccessLevel);
+        });
     }
 }
 

@@ -109,7 +109,7 @@ export default implementRpcs(definitions, {
                     getContentReferences(
                         context,
                         spaceId,
-                        FileDocumentAuthorizer.bind(documentId),
+                        FileDocumentAuthorizer.bind({type: "Document", documentId}),
                         referencedIds,
                     ),
                     referencedIds.commentThreadIds.size > 0
@@ -174,18 +174,23 @@ export default implementRpcs(definitions, {
         execute: async (unknownContext, input) => {
             const context = unknownContext.actor.authorizeSession();
 
-            const [{index, createdTime}, [author, contentReferences]] = await runAllPromises([
-                createDocumentComment(context.actor.authorizeSession(), input),
-                authorizeDocumentAccess(context, input.documentId).then(({spaceId}) =>
-                    runAllPromises([
-                        getAccount(context, spaceId, context.actor.getAccountId()),
-                        getContentReferencesForNode(
-                            context,
-                            spaceId,
-                            FileDocumentAuthorizer.bind(input.documentId),
-                            input.content,
-                        ),
-                    ]),
+            const {spaceId, index, createdTime} = await createDocumentComment(
+                context.actor.authorizeSession(),
+                input,
+            );
+
+            const [author, contentReferences] = await runAllPromises([
+                getAccount(context, spaceId, context.actor.getAccountId()),
+                getContentReferencesForNode(
+                    context,
+                    spaceId,
+                    FileDocumentAuthorizer.bind({
+                        type: "DocumentComment",
+                        documentId: input.documentId,
+                        commentThreadId: input.commentThreadId,
+                        commentIndex: index,
+                    }),
+                    input.content,
                 ),
             ]);
 
@@ -220,7 +225,12 @@ export default implementRpcs(definitions, {
                         getContentReferencesForNode(
                             context,
                             spaceId,
-                            FileDocumentAuthorizer.bind(input.documentId),
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComment",
+                                documentId: input.documentId,
+                                commentThreadId: input.commentThreadId,
+                                commentIndex: input.commentIndex,
+                            }),
                             input.content,
                         ),
                 ),
@@ -244,15 +254,23 @@ export default implementRpcs(definitions, {
         },
     },
 
-    getOptimisticDocumentCommentThreadReferences: {
+    getOptimisticDocumentCommentReferences: {
         visibility: ["DocumentCollaborationService"],
-        execute: async (context, {spaceId, documentId, authorId, contentReferencedIds}) => {
+        execute: async (
+            context,
+            {spaceId, documentId, commentThreadId, commentIndex, authorId, contentReferencedIds},
+        ) => {
             const [author, contentReferences] = await runAllPromises([
                 getAccount(context, spaceId, authorId),
                 getContentReferences(
                     context,
                     spaceId,
-                    FileDocumentAuthorizer.bind(documentId),
+                    FileDocumentAuthorizer.bind({
+                        type: "DocumentComment",
+                        documentId,
+                        commentThreadId,
+                        commentIndex,
+                    }),
                     contentReferencedIds,
                 ),
             ]);

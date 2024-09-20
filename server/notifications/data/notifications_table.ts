@@ -603,6 +603,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * comment's content in the inbox entry.
                          */
                         firstComment: Schema.object({
+                            commentThreadId: Schema.id<DocumentCommentThreadId>()
+                                .nullable()
+                                .default(null),
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
@@ -692,7 +695,11 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             getContentReferencesForNode(
                                 context,
                                 item.spaceId,
-                                FileChatAuthorizer.bind(item.chatId),
+                                FileChatAuthorizer.bind({
+                                    type: "ChatMessage",
+                                    chatId: item.chatId,
+                                    messageIndex: item.latestMessage.index,
+                                }),
                                 item.latestMessage.contentSnippet,
                             ),
                             authorizeChatAccessForAccount(
@@ -745,7 +752,11 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   references: getContentReferencesForNode(
                                       context,
                                       item.spaceId,
-                                      FilePostAuthorizer.bind(item.postId),
+                                      FilePostAuthorizer.bind({
+                                          type: "PostComment",
+                                          postId: item.postId,
+                                          commentIndex: item.latestComment.index,
+                                      }),
                                       item.latestComment.contentSnippet,
                                   ),
                               })
@@ -759,7 +770,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   references: getContentReferencesForNode(
                                       context,
                                       item.spaceId,
-                                      FilePostAuthorizer.bind(item.postId),
+                                      FilePostAuthorizer.bind({type: "Post", postId: item.postId}),
                                       item.postContentSnippetIfMentioned,
                                   ),
                               })
@@ -811,14 +822,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
-                            FilePostAuthorizer.bind(
+                            FilePostAuthorizer.bind({
+                                type: "Post",
                                 // NOTE(calebmer, 2024-09-20): `postId` didn't exist on `latestPost` before
                                 // this date. So if we have a channel posts entry where `postId` is null then
                                 // use the first post in `item.postIds` and hope it's right. Getting this wrong
                                 // shouldn't matter since posts created before this date also won't have
                                 // attached files since files weren't implemented yet.
-                                item.latestPost.postId ?? assertExists(iterableFirst(item.postIds)),
-                            ),
+                                postId:
+                                    item.latestPost.postId ??
+                                    assertExists(iterableFirst(item.postIds)),
+                            }),
                             item.latestPost.contentSnippet,
                         ),
                         otherPostAuthorId
@@ -862,7 +876,12 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
-                            FileDocumentAuthorizer.bind(item.documentId),
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComment",
+                                documentId: item.documentId,
+                                commentThreadId: item.commentThreadId,
+                                commentIndex: item.latestComment.index,
+                            }),
                             item.latestComment.contentSnippet,
                         ),
                         item.otherCommentAuthorId
@@ -909,7 +928,20 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
-                            FileDocumentAuthorizer.bind(item.documentId),
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComment",
+                                documentId: item.documentId,
+                                // NOTE(calebmer, 2024-09-20): `commentThreadId` didn't exist on `firstComment`
+                                // before this date. So if we have a document comment threads entry where
+                                // `commentThreadId` is null then use the first comment thread in
+                                // `item.commentThreadIds` and hope it's right. Getting this wrong shouldn't
+                                // matter since comment threads created before this date also won't have
+                                // attached files since files weren't implemented yet.
+                                commentThreadId:
+                                    item.firstComment.commentThreadId ??
+                                    assertExists(iterableFirst(item.commentThreadIds)),
+                                commentIndex: 0,
+                            }),
                             item.firstComment.contentSnippet,
                         ),
                         otherCommentThreadAuthorId
@@ -951,7 +983,11 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             references: getContentReferencesForNode(
                                 context,
                                 item.spaceId,
-                                FileTaskAuthorizer.bind(item.taskId),
+                                FileTaskAuthorizer.bind({
+                                    type: "TaskComment",
+                                    taskId: item.taskId,
+                                    commentIndex: item.latestComment.index,
+                                }),
                                 item.latestComment.contentSnippet,
                             ),
                         }),
@@ -2776,7 +2812,11 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 : null,
             printNotificationEventAlertContentBody(
                 context,
-                FileChatAuthorizer.bind(event.chatId),
+                FileChatAuthorizer.bind({
+                    type: "ChatMessage",
+                    chatId: event.chatId,
+                    messageIndex: event.messageIndex,
+                }),
                 event,
             ),
         ]);
@@ -2943,7 +2983,11 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
             getPostAuthorAndChannelPreview(context, event.postId),
             printNotificationEventAlertContentBody(
                 context,
-                FilePostAuthorizer.bind(event.postId),
+                FilePostAuthorizer.bind({
+                    type: "PostComment",
+                    postId: event.postId,
+                    commentIndex: event.commentIndex,
+                }),
                 event,
             ),
         ]);
@@ -3082,7 +3126,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             getChannelPreview(context, event.channelId),
             printNotificationEventAlertContentBody(
                 context,
-                FilePostAuthorizer.bind(event.postId),
+                FilePostAuthorizer.bind({type: "Post", postId: event.postId}),
                 event,
             ),
         ]);
@@ -3165,6 +3209,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                         commentThreadIds,
                         commentThreadAuthorIds,
                         firstComment: oldItem?.firstComment ?? {
+                            commentThreadId: event.commentThreadId,
                             authorId: event.authorId,
                             createdTime: event.createdTime,
                             contentSnippet: event.contentSnippet,
@@ -3303,7 +3348,12 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 : null,
             printNotificationEventAlertContentBody(
                 context,
-                FileDocumentAuthorizer.bind(event.documentId),
+                FileDocumentAuthorizer.bind({
+                    type: "DocumentComment",
+                    documentId: event.documentId,
+                    commentThreadId: event.commentThreadId,
+                    commentIndex: event.commentIndex,
+                }),
                 event,
             ),
         ]);
@@ -3470,7 +3520,11 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
             getTaskOwner(context, event.taskId),
             printNotificationEventAlertContentBody(
                 context,
-                FileTaskAuthorizer.bind(event.taskId),
+                FileTaskAuthorizer.bind({
+                    type: "TaskComment",
+                    taskId: event.taskId,
+                    commentIndex: event.commentIndex,
+                }),
                 event,
             ),
         ]);
