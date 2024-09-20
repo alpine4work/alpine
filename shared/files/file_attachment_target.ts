@@ -18,21 +18,28 @@ import {
  */
 export type FileAttachmentTarget = FileAttachmentTargetByArea[keyof FileAttachmentTargetByArea];
 
+// TODO(calebmer, #files): Integration test for uploading and viewing all of
+// these attachment targets.
 export type FileAttachmentTargetByArea = {
+    // TODO(calebmer, #files): Implement attachments
     Chat: {readonly type: "ChatMessage"; readonly chatId: ChatId; readonly messageIndex: number};
+    // TODO(calebmer, #files): Implement attachments
     Channel: {readonly type: "ChannelDescription"; readonly channelId: ChannelId};
-    Document:
-        | {readonly type: "Document"; readonly documentId: DocumentId}
+    Document: // TODO(calebmer, #files): Implement attachments
+    | {readonly type: "Document"; readonly documentId: DocumentId}
+        // TODO(calebmer, #files): Implement attachments
         | {
               readonly type: "DocumentComment";
               readonly documentId: DocumentId;
               readonly commentThreadId: DocumentCommentThreadId;
               readonly commentIndex: number;
           };
-    Post:
-        | {readonly type: "Post"; readonly postId: PostId}
+    Post: // TODO(calebmer, #files): Implement attachments
+    | {readonly type: "Post"; readonly postId: PostId}
+        // TODO(calebmer, #files): Implement attachments
         | {readonly type: "PostComment"; readonly postId: PostId; readonly commentIndex: number};
-    Task:
-        | {readonly type: "TaskNotes"; readonly taskId: TaskId}
+    Task: // TODO(calebmer, #files): Implement attachments
+    | {readonly type: "TaskNotes"; readonly taskId: TaskId}
+        // TODO(calebmer, #files): Implement attachments
         | {readonly type: "TaskComment"; readonly taskId: TaskId; readonly commentIndex: number};
 };
