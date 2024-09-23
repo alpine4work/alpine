@@ -52,15 +52,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
-let shouldDebugPdfPasswordError = false;
-
-// TODO(calebmer, #files): Remove this test file once we figure out why the
-// password test is flaky in CI.
-export function setShouldDebugPdfPasswordErrorForTest() {
-    assert(import.meta.jest);
-    shouldDebugPdfPasswordError = true;
-}
-
 // Make sure we're using our custom `sharp` `libvips` build built from
 // [`cyberworlds/sharp-libvips`][1] by checking that additional modules are
 // available. We put this assertion here so production will loudly fail if
@@ -398,16 +389,6 @@ async function uploadAndProcessFile(
                   const abortCatcher = createAbortCatcherWithoutAcceptError(message);
 
                   return async (error: unknown) => {
-                      if (shouldDebugPdfPasswordError) {
-                          // eslint-disable-next-line no-console
-                          console.log(
-                              "createAbortCatcher error",
-                              message,
-                              {signalAborted: signal.aborted, hasAcceptedPreviewError},
-                              error,
-                          );
-                      }
-
                       if (hasAcceptedPreviewError) throw error;
 
                       if (!signal.aborted && error instanceof ErrorBase && error.displayMessage) {
@@ -415,11 +396,6 @@ async function uploadAndProcessFile(
                               error,
                               error.displayMessage,
                           );
-
-                          if (shouldDebugPdfPasswordError) {
-                              // eslint-disable-next-line no-console
-                              console.log("acceptError?", acceptError);
-                          }
 
                           if (acceptError) {
                               hasAcceptedPreviewError = true;
@@ -809,24 +785,7 @@ async function uploadAndProcessFile(
           })
         : null;
 
-    await runAllPromises([
-        uploadPromise.catch(error => {
-            if (shouldDebugPdfPasswordError) {
-                // eslint-disable-next-line no-console
-                console.log("uploadPromise error", {signalAborted: signal.aborted}, error);
-            }
-
-            throw error;
-        }),
-        processPromise?.catch(error => {
-            if (shouldDebugPdfPasswordError) {
-                // eslint-disable-next-line no-console
-                console.log("processPromise error", {signalAborted: signal.aborted}, error);
-            }
-
-            throw error;
-        }),
-    ]).catch(async error => {
+    await runAllPromises([uploadPromise, processPromise]).catch(async error => {
         await fileUploader.cleanupAfterUnacceptableError(context);
         throw error;
     });
