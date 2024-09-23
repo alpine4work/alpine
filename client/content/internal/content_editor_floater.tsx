@@ -1,8 +1,17 @@
 import {useHover} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
 import {EditorState} from "prosemirror-state";
-import {EditorView} from "prosemirror-view";
-import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {DecorationSet, EditorView} from "prosemirror-view";
+import {
+    Dispatch,
+    RefObject,
+    SetStateAction,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {FocusScope} from "react-aria";
 import {ContentEditorCommentInputFloater} from "~/client/content/internal/content_editor_comment_input_floater.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
@@ -35,6 +44,7 @@ export function ContentEditorFloater({
     floaterState,
     setFloaterState,
     isFocused,
+    setDecorationCallbacks,
 }: {
     isMobile: boolean;
     withMobileLayout: boolean;
@@ -43,6 +53,11 @@ export function ContentEditorFloater({
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
     isFocused: boolean;
+    setDecorationCallbacks: Dispatch<
+        SetStateAction<
+            ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
+        >
+    >;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -55,6 +70,7 @@ export function ContentEditorFloater({
                     viewRef={viewRef}
                     previousState={floaterState.previousState}
                     isFocused={isFocused}
+                    setDecorationCallbacks={setDecorationCallbacks}
                 />
             );
         }

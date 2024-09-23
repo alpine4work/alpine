@@ -1910,8 +1910,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
                 // While the link input is open, optimistically add the link style so the user
                 // doesn't lose track of the text they selected.
-                case "KeyboardLink":
-                case "PointerLink": {
+                case "KeyboardLink": {
                     return decorationSet.add(state.doc, [
                         Decoration.inline(state.selection.from, state.selection.to, {
                             class: linkClassName,
@@ -2435,6 +2434,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     view.dispatch(setContentEditorFloaterState(view.state.tr, floaterState));
                 }}
                 isFocused={isFocused}
+                setDecorationCallbacks={setDecorationCallbacks}
             />
             {selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />

@@ -17,11 +17,13 @@ import {
 } from "phosphor-react";
 import {Mark, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
-import {EditorView} from "prosemirror-view";
+import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
+    Dispatch,
     Memo,
     ReactNode,
     RefObject,
+    SetStateAction,
     useCallback,
     useEffect,
     useLayoutEffect,
@@ -65,6 +67,7 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {linkClassName} from "~/shared/content/content_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -77,6 +80,7 @@ export function ContentEditorPointerToolbar({
     viewRef,
     previousState,
     isFocused,
+    setDecorationCallbacks,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -85,6 +89,11 @@ export function ContentEditorPointerToolbar({
         ContentEditorPointerToolbarFloaterState
     > | null;
     isFocused: boolean;
+    setDecorationCallbacks: Dispatch<
+        SetStateAction<
+            ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
+        >
+    >;
 }) {
     // We keep track of our own `localInteractionModality` separate from
     // `react-aria`'s `interactionModality`. A user is still considered to have a
@@ -376,7 +385,7 @@ export function ContentEditorPointerToolbar({
               animation: "FadingIn" | null;
               extraOverlay: "LinkInput" | "HighlightSelector" | null;
           }
-        | {isShowing: false; animation?: undefined}
+        | {isShowing: false; animation?: undefined; extraOverlay?: undefined}
     >({isShowing: false});
 
     let showState = _showState;
@@ -471,6 +480,36 @@ export function ContentEditorPointerToolbar({
             };
         }
     }, [showState.animation, showState.isShowing]);
+
+    // When the content editor is unfocused and there's a link input overlay open in
+    // the pointer toolbar then give the editor's selection some style so the user
+    // knows what the floater is editing.
+    useLayoutEffect(() => {
+        if (!showState.isShowing || showState.extraOverlay !== "LinkInput") return;
+
+        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
+            return decorationSet.add(state.doc, [
+                Decoration.inline(state.selection.from, state.selection.to, {
+                    class: linkClassName,
+                }),
+            ]);
+        };
+
+        setDecorationCallbacks(decorationCallbacks => {
+            const newDecorationCallbacks = new Set(decorationCallbacks);
+            newDecorationCallbacks.add(decorationCallback);
+            return newDecorationCallbacks;
+        });
+
+        return () => {
+            setDecorationCallbacks(decorationCallbacks => {
+                if (!decorationCallbacks.has(decorationCallback)) return decorationCallbacks;
+                const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(decorationCallback);
+                return newDecorationCallbacks;
+            });
+        };
+    }, [setDecorationCallbacks, showState.extraOverlay, showState.isShowing]);
 
     if (!showState.isShowing) return null;
 
