@@ -15589,7 +15589,7 @@ test("can update task notes", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", schema.node("paragraph", [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
@@ -15605,7 +15605,7 @@ test("can update task notes", async () => {
         spaceId: space.id,
         version: 3,
         content: {
-            doc: schema.node("doc", schema.node("paragraph", [schema.text("abc")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("abc")])]),
             references: emptyContentReferences,
         },
     });
@@ -15614,7 +15614,7 @@ test("can update task notes", async () => {
         expect.objectContaining({
             spaceId: space.id,
             version: 3,
-            content: schema.node("doc", schema.node("paragraph", [schema.text("abc")])),
+            content: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("abc")])]),
         }),
     );
 });
@@ -15700,7 +15700,7 @@ test("can update task notes in a public collection", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", schema.node("paragraph", [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
@@ -15769,7 +15769,7 @@ test("can't update task notes with the wrong version", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", schema.node("paragraph", [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
@@ -15787,7 +15787,7 @@ test("can't update task notes with the wrong version", async () => {
         spaceId: space.id,
         version: 2,
         content: {
-            doc: schema.node("doc", schema.node("paragraph", [schema.text("ab")])),
+            doc: schema.node("doc", {}, [schema.node("paragraph", {}, [schema.text("ab")])]),
             references: emptyContentReferences,
         },
     });
