@@ -22,6 +22,7 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -174,12 +175,11 @@ function ContentEditorKeyboardHighlightFloater({
             placement="top-start"
             offset="3"
             offsetAlong="-5"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             overlay={
                 <Box
                     ref={useOutsidePress(onClose)}
@@ -266,12 +266,11 @@ function ContentEditorKeyboardLinkFloater({
             placement="top-start"
             offset="3"
             offsetAlong="-5"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             overlay={
                 <Box
                     ref={useOutsidePress(onClose)}
@@ -391,12 +390,11 @@ function ContentEditorPointerLinkFloater({
             // a visual text selection indication for what it's targeting.
             offset="1.5"
             offsetAlong="-5"
-            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
-            // the toolbar at the start of the selection, flipping down will cover the
-            // selection! However there are some scenarios where the toolbar would go
-            // offscreen so it's better to flip and potentially cover content then to
-            // occlude the toolbar.
-            fallbackPlacements={["bottom-start"]}
+            // It doesn't make sense for the toolbar to flip. Since if it's over a range of
+            // text it'll always be at the beginning of the text. Always make sure the
+            // `<ContentEditor>` has some space above it so the toolbar will never go
+            // offscreen.
+            fallbackPlacements={emptyArray}
             overlay={
                 <Box {...hoverProps} ref={useOutsidePress(onClose)}>
                     <ContentEditorLinkInput
