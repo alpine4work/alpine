@@ -346,6 +346,33 @@ export function ContentEditorPointerToolbar({
               isShowing: true;
               selectionFrom: number;
               selectionTo: number;
+              // NOTE(calebmer, 2024-09-23): There used to also be a fade out animation for
+              // the pointer toolbar. However, I'm trying out removing it for the following
+              // reasons:
+              //
+              // 1. Help editing feel faster. When you move your selection your mind is
+              //    focused on the new content so don't distract the user with an animation
+              //    on their old selection.
+              //
+              // 2. Animating out looks weird. A small fade out animation over content looks
+              //    a little weird since there's a moment where the underlying text mixes
+              //    with the toolbar that's fading out.
+              //
+              // 3. Reduce complexity. A fade out animation needs to make sure we keep track
+              //    of the old position you're in so we show the right buttons. e.g. If
+              //    you're in a code block which doesn't have list item styles and you select
+              //    a paragraph the list item style shouldn't appear while fading out.
+              //
+              // This is inconsistent with our general animation pattern of "animate after
+              // indirect interaction." If you unfocus the content editor that's an indirect
+              // interaction so our general recommendation is to animate out.
+              //
+              // We're just trying this out for now. If we decide a fade out animation would
+              // actually be good for the pointer toolbar then you can revert
+              // [this commit][1] and [this commit][2].
+              //
+              // [1]: https://github.com/cyberworlds/cyberworlds/commit/873f350051f968e1f0868341df817643979940e6
+              // [2]: https://github.com/cyberworlds/cyberworlds/commit/1f9937be54634bedc1bb5f5e1203b13553885b3e
               animation: "FadingIn" | null;
               extraOverlay: "LinkInput" | "HighlightSelector" | null;
           }
