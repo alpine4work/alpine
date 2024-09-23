@@ -11,7 +11,7 @@ import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
-import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {getFileAsUploader} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
@@ -79,16 +79,17 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
     looksSameTolerance?: number;
 }>;
 
-export function testFileProcessorContentTypes(testCases: {
-    [key: string]: FileProcessorContentTypeTestCase;
-}) {
+export function testFileProcessorContentTypes(
+    context: TestContext,
+    testCases: {
+        [key: string]: FileProcessorContentTypeTestCase;
+    },
+) {
     let r2Bucket: R2Bucket;
     let serverTokenAgent: TokenAgent;
     let tokenAgent: TokenAgent;
     let port: number;
     let server: Server;
-
-    const context = createTestContext();
 
     beforeAll(async () => {
         const r2Storage = new FileStorage(

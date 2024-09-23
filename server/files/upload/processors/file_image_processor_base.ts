@@ -36,7 +36,20 @@ export async function processFileImagePreviewPlaceholder(
     const {
         data: outputData,
         info: {channels, width},
-    } = await sharp(input, {...options, pages: 1})
+    } = await sharp(input, {
+        ...options,
+        pages: 1,
+        // We've found our test for `py_pdf_sample_libreoffice_write_password.pdf` is
+        // flaky if this is `failOn: "warning"` (the default) since sharp occasionally
+        // doesn't include "pdfload: password required" in the error message.
+        //
+        // We suspect that there's a race condition in libvips between some process
+        // trying to read encrypted PDF data and the process which determines the PDF
+        // is encrypted. If the process trying to read encrypted PDF data runs first
+        // it logs a warning. This behavior is reasonable from libvips, we just need to
+        // make sure we don't prematurely fail on warning.
+        failOn: "error",
+    })
         .timeout({seconds: sharpTimeoutSeconds})
         .resize(placeholderSize, placeholderSize, {fit: "inside"})
         .toFormat("png")
