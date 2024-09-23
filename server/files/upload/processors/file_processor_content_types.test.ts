@@ -1,3 +1,4 @@
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     FileProcessorContentTypeTestCase,
     testFileProcessorContentTypes,
@@ -12,6 +13,8 @@ import {
     FileVideoContentType,
 } from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+
+const context = createTestContext();
 
 // Use TypeScript to make sure we have at least one file as a test case for
 // each of the `FileContentType`s we support.
@@ -514,4 +517,4 @@ month m startDay maxDay = show m ++ &quot; 2015\\n&quot; ++ week ++ spaces Sunda
     ],
 };
 
-testFileProcessorContentTypes(testCases);
+testFileProcessorContentTypes(context, testCases);

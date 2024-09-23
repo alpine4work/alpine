@@ -1,9 +1,12 @@
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     FileProcessorContentTypeTestCase,
     testFileProcessorContentTypes,
 } from "~/server/files/upload/test_helpers/test_file_processor_content_types.js";
 import {FileAudioContentType, FileVideoContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
+
+const context = createTestContext();
 
 // Use TypeScript to make sure we have at least one file as a test case for
 // each of the `FileContentType`s we support.
@@ -363,4 +366,4 @@ const testCases: {
     ],
 };
 
-testFileProcessorContentTypes(testCases);
+testFileProcessorContentTypes(context, testCases);
