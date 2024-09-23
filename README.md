@@ -4,8 +4,8 @@
 
 To develop for Cyberworlds, run the following after you've cloned the repo:
 
-```
-$ ./admin/bin/dev
+```bash
+./admin/bin/dev
 ```
 
 We use [Bazel](https://bazel.build) which installs all the tools you need. Including
