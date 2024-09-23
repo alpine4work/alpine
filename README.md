@@ -35,11 +35,17 @@ We recommend the following setup steps as well:
     mode services will expose for launching a JavaScript inspector. See `.env.development` for
     configuring these ports.
 
+## Optional setup
+
+-   If you want to test uploading Microsoft Office documents (Word, Excel, and PowerPoint) you'll
+    need to install [LibreOffice](https://www.libreoffice.org/download/download-libreoffice) on your
+    system.
+
 ## Troubleshooting
 
 <details>
 
-<summary>Error message while running `dev`: Could not determine Xcode version at all. This likely
+<summary>Error message while running <code>dev</code>: Could not determine Xcode version at all. This likely
 means Xcode isn't available</summary>
 
 If while running `dev` you get an error that looks like:
