@@ -14,6 +14,8 @@ import {scrollbarStyles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 const {
     nativeScrollbarClassName,
@@ -1012,6 +1014,11 @@ export function initializeScrollbar(
     // notifications.
     addSuppressResizeLoopErrorNotificationForElement(element);
     addResizeListenerForElement(element, handleResize);
+    getOrSetDefaultMapValue(
+        (scrollbarResizeFlushEmitterByElement ??= new WeakMap()),
+        element,
+        () => new EventEmitter(),
+    ).addListener(handleResize);
     element.addEventListener("scroll", handleScroll);
 
     const listeningToChildElementResizes = new Set<HTMLElement>();
@@ -1095,13 +1102,34 @@ export function initializeScrollbar(
 
         listeningToChildElementResizes.clear();
 
-        element.removeEventListener("scroll", handleScroll);
         removeSuppressResizeLoopErrorNotificationForElement(element);
         removeResizeListenerForElement(element, handleResize);
+        scrollbarResizeFlushEmitterByElement?.get(element)?.removeListener(handleResize);
+        element.removeEventListener("scroll", handleScroll);
         elementsWithInitializedScrollbarForDev?.delete(element);
 
         element.removeChild(scrollbarElement);
     };
+}
+
+let scrollbarResizeFlushEmitterByElement: WeakMap<Element, EventEmitter> | null = null;
+
+/**
+ * If we're about to synchronously observe `element.scrollHeight` on this or
+ * any parent element possibly after the document was resized then we can't
+ * wait for `MutationObserver` or `ResizeObserver` to handle scrollbar resizes.
+ * We need to immediately resize scrollbars.
+ *
+ * This function will let you synchronously flush scrollbar resizes so you can
+ * safely read `element.scrollHeight`.
+ */
+export function flushScrollbarResizeSync(element: Element) {
+    let currentElement: Element | null = element;
+
+    while (currentElement) {
+        scrollbarResizeFlushEmitterByElement?.get(currentElement)?.emit();
+        currentElement = currentElement.parentElement;
+    }
 }
 
 let wasScrollbarAuditorInstalled = false;

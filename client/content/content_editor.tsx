@@ -1095,6 +1095,27 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return false;
             },
 
+            handleScrollToSelection: () => {
+                // Before scrolling to selection, synchronously flush scrollbar resizes. When
+                // the user is deleting content, our custom scrollbar from `scrollbar.tsx`'s
+                // height will shrink once `ResizeObserver` or `MutationObserver` call their
+                // callbacks. However, ProseMirror will call its `scrollRectIntoView()`
+                // function BEFORE these callbacks are called. Leading to an incorrect scroll
+                // because the parent element's scroll height is larger than it should be given
+                // our custom scrollbar from `scrollbar.tsx` hasn't updated its height yet.
+                //
+                // The fix is to make sure we synchronously flush scrollbar resizes before
+                // `scrollRectIntoView()` is called.
+                //
+                // You can see a bug this fixes [here][1]. Notice how in the bad example when
+                // deleting the document underneath scrolls! Which shouldn't happen.
+                //
+                // [1]: https://gist.github.com/calebmer/7ac49a81c466b14cf3bac987e7bb65a9
+                flushScrollbarResizeSync(view.dom);
+
+                return false;
+            },
+
             // We add this property to `EditorView` with a patch. By default, on
             // triple-click ProseMirror selects the node being clicked and calls
             // `event.preventDefault()`. Calling `event.preventDefault()` stops the

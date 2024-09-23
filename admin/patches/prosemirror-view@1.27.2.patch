@@ -1,8 +1,52 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..89a288a5655ab6964f7634cd5e42e3452c055b0c 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..212bd86361eaccdcff2616226ce470990d24f960 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
-@@ -3437,8 +3437,30 @@ function defaultTripleClick(view, inside, event) {
+@@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
+     var bounding = atTop ? windowRect(doc) : clientRect(elt);
+     var moveX = 0,
+         moveY = 0;
+-    if (rect.top < bounding.top + getSide(scrollThreshold, "top")) moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom")) moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
+-    if (rect.left < bounding.left + getSide(scrollThreshold, "left")) moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"));else if (rect.right > bounding.right - getSide(scrollThreshold, "right")) moveX = rect.right - bounding.right + getSide(scrollMargin, "right");
++    // NOTE(calebmer): Oddly, the implementation of `scrollRectIntoView()` tries to
++    // scroll elements even when they're not scrollable! Check if the element is
++    // scrollable before computing `moveX` and `moveY`. Also bound `moveX` and
++    // `moveY` by the min/max values it can move.
++    //
++    // Admittedly, the implementation was probably fine without putting these bounds
++    // in place but these changes do lead to cleaner scroll event debugger logging.
++    var eltStyle = getComputedStyle(elt);
++    var overflowX = eltStyle.overflowX;
++    var overflowY = eltStyle.overflowY;
++    if (overflowY === "auto" || overflowY === "scroll") {
++      if (rect.top < bounding.top + getSide(scrollThreshold, "top")) moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom")) moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
++
++      if (moveY) {
++        moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop)
++        moveY = Math.max(moveY, -elt.scrollTop)
++      }
++    }
++    if (overflowX === "auto" || overflowX === "scroll") {
++      if (rect.left < bounding.left + getSide(scrollThreshold, "left")) moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"));else if (rect.right > bounding.right - getSide(scrollThreshold, "right")) moveX = rect.right - bounding.right + getSide(scrollMargin, "right");
++
++      if (moveX) {
++        moveX = Math.min(moveX, elt.scrollWidth - elt.clientWidth - elt.scrollLeft)
++        moveX = Math.max(moveX, -elt.scrollLeft)
++      }
++    }
+ 
+     if (moveX || moveY) {
+       if (atTop) {
+@@ -203,7 +227,7 @@ function scrollRectIntoView(view, rect, startDOM) {
+       }
+     }
+ 
+-    if (atTop) break;
++    if (atTop || /^(fixed|sticky)$/.test(getComputedStyle(parent).position)) break;
+   }
+ }
+ 
+@@ -3437,8 +3461,30 @@ function defaultTripleClick(view, inside, event) {
    for (var i = $pos.depth + 1; i > 0; i--) {
      var node = i > $pos.depth ? $pos.nodeAfter : $pos.node(i);
      var nodePos = $pos.before(i);
@@ -35,7 +79,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..89a288a5655ab6964f7634cd5e42e345
    }
  }
  
-@@ -3888,9 +3910,33 @@ handlers.focus = function (view) {
+@@ -3888,9 +3934,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -72,7 +116,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..89a288a5655ab6964f7634cd5e42e345
    }
  };
  
-@@ -5392,6 +5438,8 @@ var EditorView = function () {
+@@ -5392,6 +5462,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -81,7 +125,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..89a288a5655ab6964f7634cd5e42e345
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5840,6 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5864,6 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
@@ -126,10 +170,64 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..9fb17122aa444da0e08e18575289d892
 +    text: string;
 +};
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..f4cf629c35e167234fbd07e3434e456302448ed9 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..1bc0b0f0fdc00483430d69642a8b95645c18438b 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -3000,13 +3000,30 @@ function defaultTripleClick(view, inside, event) {
+@@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
+         let atTop = elt == doc.body;
+         let bounding = atTop ? windowRect(doc) : clientRect(elt);
+         let moveX = 0, moveY = 0;
+-        if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
+-            moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));
+-        else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
+-            moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
+-        if (rect.left < bounding.left + getSide(scrollThreshold, "left"))
+-            moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"));
+-        else if (rect.right > bounding.right - getSide(scrollThreshold, "right"))
+-            moveX = rect.right - bounding.right + getSide(scrollMargin, "right");
++        // NOTE(calebmer): Oddly, the implementation of `scrollRectIntoView()` tries to
++        // scroll elements even when they're not scrollable! Check if the element is
++        // scrollable before computing `moveX` and `moveY`. Also bound `moveX` and
++        // `moveY` by the min/max values it can move.
++        //
++        // Admittedly, the implementation was probably fine without putting these bounds
++        // in place but these changes do lead to cleaner scroll event debugger logging.
++        let {overflowX, overflowY} = getComputedStyle(elt)
++        if (overflowY === "auto" || overflowY === "scroll") {
++            if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
++                moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));
++            else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
++                moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
++
++            if (moveY) {
++                moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop)
++                moveY = Math.max(moveY, -elt.scrollTop)
++            }
++        }
++        if (overflowX === "auto" || overflowX === "scroll") {
++            if (rect.left < bounding.left + getSide(scrollThreshold, "left"))
++                moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"));
++            else if (rect.right > bounding.right - getSide(scrollThreshold, "right"))
++                moveX = rect.right - bounding.right + getSide(scrollMargin, "right");
++
++            if (moveX) {
++                moveX = Math.min(moveX, elt.scrollWidth - elt.clientWidth - elt.scrollLeft)
++                moveX = Math.max(moveX, -elt.scrollLeft)
++            }
++        }
+         if (moveX || moveY) {
+             if (atTop) {
+                 doc.defaultView.scrollBy(moveX, moveY);
+@@ -163,7 +185,7 @@ function scrollRectIntoView(view, rect, startDOM) {
+                 rect = { left: rect.left - dX, top: rect.top - dY, right: rect.right - dX, bottom: rect.bottom - dY };
+             }
+         }
+-        if (atTop)
++        if (atTop || /^(fixed|sticky)$/.test(getComputedStyle(parent).position))
+             break;
+     }
+ }
+@@ -3000,13 +3022,30 @@ function defaultTripleClick(view, inside, event) {
      for (let i = $pos.depth + 1; i > 0; i--) {
          let node = i > $pos.depth ? $pos.nodeAfter : $pos.node(i);
          let nodePos = $pos.before(i);
@@ -166,7 +264,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..f4cf629c35e167234fbd07e3434e4563
      }
  }
  function forceDOMFlush(view) {
-@@ -3460,10 +3477,34 @@ handlers.focus = view => {
+@@ -3460,10 +3499,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -205,7 +303,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..f4cf629c35e167234fbd07e3434e4563
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4879,6 +4920,8 @@ class EditorView {
+@@ -4879,6 +4942,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -214,13 +312,71 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..f4cf629c35e167234fbd07e3434e4563
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5347,6 @@ function checkStateComponent(plugin) {
+@@ -5304,3 +5369,6 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
 +
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +export { serializeForClipboard };
+diff --git a/src/domcoords.ts b/src/domcoords.ts
+index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a11d10deb 100644
+--- a/src/domcoords.ts
++++ b/src/domcoords.ts
+@@ -35,14 +35,36 @@ export function scrollRectIntoView(view: EditorView, rect: Rect, startDOM: Node)
+     let atTop = elt == doc.body
+     let bounding = atTop ? windowRect(doc) : clientRect(elt as HTMLElement)
+     let moveX = 0, moveY = 0
+-    if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
+-      moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"))
+-    else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
+-      moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom")
+-    if (rect.left < bounding.left + getSide(scrollThreshold, "left"))
+-      moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"))
+-    else if (rect.right > bounding.right - getSide(scrollThreshold, "right"))
+-      moveX = rect.right - bounding.right + getSide(scrollMargin, "right")
++    // NOTE(calebmer): Oddly, the implementation of `scrollRectIntoView()` tries to
++    // scroll elements even when they're not scrollable! Check if the element is
++    // scrollable before computing `moveX` and `moveY`. Also bound `moveX` and
++    // `moveY` by the min/max values it can move.
++    //
++    // Admittedly, the implementation was probably fine without putting these bounds
++    // in place but these changes do lead to cleaner scroll event debugger logging.
++    let {overflowX, overflowY} = getComputedStyle(elt)
++    if (overflowY === "auto" || overflowY === "scroll") {
++      if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
++        moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"))
++      else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
++        moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom")
++
++      if (moveY) {
++        moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop)
++        moveY = Math.max(moveY, -elt.scrollTop)
++      }
++    }
++    if (overflowX === "auto" || overflowX === "scroll") {
++      if (rect.left < bounding.left + getSide(scrollThreshold, "left"))
++        moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"))
++      else if (rect.right > bounding.right - getSide(scrollThreshold, "right"))
++        moveX = rect.right - bounding.right + getSide(scrollMargin, "right")
++
++      if (moveX) {
++        moveX = Math.min(moveX, elt.scrollWidth - elt.clientWidth - elt.scrollLeft)
++        moveX = Math.max(moveX, -elt.scrollLeft)
++      }
++    }
+     if (moveX || moveY) {
+       if (atTop) {
+         doc.defaultView!.scrollBy(moveX, moveY)
+@@ -54,7 +76,7 @@ export function scrollRectIntoView(view: EditorView, rect: Rect, startDOM: Node)
+         rect = {left: rect.left - dX, top: rect.top - dY, right: rect.right - dX, bottom: rect.bottom - dY}
+       }
+     }
+-    if (atTop) break
++    if (atTop || /^(fixed|sticky)$/.test(getComputedStyle(parent as HTMLElement).position)) break
+   }
+ }
+ 
 diff --git a/src/index.ts b/src/index.ts
 index f28002967d6ff175430efdd8c2389924211c35ce..4df262c97a21294560f942b10a92218b11145b72 100644
 --- a/src/index.ts
