@@ -490,6 +490,23 @@ export class DocumentCollaborationContentManager {
                                     this.id,
                                 );
 
+                                console.log(
+                                    JSON.stringify(
+                                        {
+                                            documentId: this.id,
+                                            version: oldVersion,
+                                            steps: nextSteps,
+                                            clientId: update.clientId,
+                                            createCommentThreads: nextCreateCommentThreads,
+                                            resolveCommentThreadIds: nextResolveCommentThreadIds,
+                                            unresolveCommentThreadIds:
+                                                nextUnresolveCommentThreadIds,
+                                        },
+                                        null,
+                                        2,
+                                    ),
+                                );
+
                                 const {conflictingSteps, updatedCommentThreads} =
                                     await updateDocumentContent(context, {
                                         documentId: this.id,

@@ -75,6 +75,7 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {
     assertId,
@@ -96,12 +97,14 @@ import {
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {
     visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
 import {
     AddMarksAfterRemoveAllStep,
+    AddMarksAfterRemoveAllStepRange,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
@@ -200,12 +203,7 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
         Resolved: Schema.object({
             type: Schema.value("Resolved"),
             version: Schema.integer,
-            ranges: Schema.array(
-                Schema.object({
-                    from: Schema.integer,
-                    to: Schema.integer,
-                }),
-            ),
+            ranges: Schema.array(AddMarksAfterRemoveAllStepRangeSchema),
         }),
     }).default({
         type: "Unresolved",
@@ -2805,7 +2803,7 @@ export async function updateDocumentContent(
         if (resolveCommentThreadIds.length > 0) {
             await runAllPromises(
                 resolveCommentThreadIds.map(async commentThreadId => {
-                    const ranges: Array<{from: number; to: number}> = [];
+                    const ranges: Array<AddMarksAfterRemoveAllStepRange> = [];
 
                     for (const invertedStep of invertedSteps) {
                         if (
@@ -5253,7 +5251,7 @@ export async function getResolvedDocumentCommentThreadRanges(
     },
 ): Promise<{
     version: number;
-    ranges: ReadonlyArray<{from: number; to: number}>;
+    ranges: ReadonlyArray<AddMarksAfterRemoveAllStepRange>;
 }> {
     let [, commentThreadItem] = await runAllPromises([
         authorizeDocumentAccess(context, documentId),

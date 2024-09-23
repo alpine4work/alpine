@@ -1010,7 +1010,7 @@ function ContentEditorPointerToolbarButton({
             isDisabledWithoutAnimation={isTooltipDisabledWithoutAnimation}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
-            fallbackPlacements={[]}
+            fallbackPlacements={emptyArray}
             content={
                 <Box paddingY="0.5">
                     {description}

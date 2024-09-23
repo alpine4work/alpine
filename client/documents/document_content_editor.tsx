@@ -101,7 +101,6 @@ import {
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
-    screenPaddingXRem,
     spacing,
 } from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -382,18 +381,16 @@ export function DocumentContentEditor({
                 contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
-            const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
             const oldContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx + sidebarWidth - blockMaxWidth) /
-                    2,
+                (editorContainerElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
             );
             const newContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
+                (editorContainerElement.clientWidth - blockMaxWidth) / 2,
             );
 
             animation = timeline(
@@ -534,18 +531,16 @@ export function DocumentContentEditor({
                 contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
-            const paddingXPx = screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2;
             const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
             const oldContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx - sidebarWidth - blockMaxWidth) /
-                    2,
+                (editorContainerElement.clientWidth - blockMaxWidth) / 2,
             );
             const newContentOffset = Math.max(
                 0,
-                (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
+                (editorContainerElement.clientWidth + sidebarWidth - blockMaxWidth) / 2,
             );
 
             animation = timeline(
@@ -1969,11 +1964,28 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
     if (commentThreadIds.length === 0) return null;
 
     return (state, doc, offset) => {
-        const coords = state.editor.coordsAtPos(offset);
+        let coords: {top: number; bottom: number; left: number; right: number} | undefined;
+
+        // If this is a non-text node like `file` then get the DOM element for the node
+        // and use the dimensions of that element instead of the result of
+        // `coordsAtPos()` which will have a height of 0.
+        if (!node.type.inlineContent && !node.type.isText) {
+            const nodeDom = state.editor.nodeDom(offset);
+            if (nodeDom instanceof Element) {
+                coords = nodeDom.getBoundingClientRect();
+            }
+        }
+
+        coords ??= state.editor.coordsAtPos(offset);
+
         const markTop =
             coords.top - state.editorContainerRect.top + state.editorContainerElement.scrollTop;
 
-        const markHeight = coords.bottom - coords.top;
+        const markHeight = Math.min(
+            coords.bottom - coords.top,
+            // Max height for large nodes like files.
+            convertRemLengthToPx(spacing["5"], getRemPxWithoutListening()),
+        );
 
         for (const commentThreadId of commentThreadIds) {
             if (state.seenCommentThreadIds.has(commentThreadId)) continue;
@@ -2327,6 +2339,12 @@ function DocumentContentEditorSidebar({
                                     (!mobileState.isFullScreen ||
                                         mobileState.animationState === "Expanding")
                                         ? spacing[documentContentEditorMobileSidebarInsetTop]
+                                        : undefined
+                                }
+                                // Provide the sidebar width for better layout results when previewing files.
+                                previewFileRowLayoutScreenWidth={
+                                    !withMobileLayout
+                                        ? documentContentEditorSidebarWidth
                                         : undefined
                                 }
                                 // If we're focusing the pinned comment input because the user swiped to reply

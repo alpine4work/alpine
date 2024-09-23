@@ -94,6 +94,7 @@ export function ContentView({
     withUserSelectNone = false,
     onSeeMoreContent,
     onSeeLessContent,
+    fileRowLayoutScreenWidth,
 }: {
     /**
      * Are we rendering with a mobile layout? True on the mobile platform and true
@@ -191,6 +192,14 @@ export function ContentView({
      * `onSeeMoreContent`).
      */
     onSeeLessContent?: () => void;
+
+    /**
+     * Override the screen width provided to `layoutContentFileRow()`. By default
+     * we use the smaller of `clientInfo.screenWidth` and the max content width but
+     * if you're intentionally rendering a narrow `<ContentView>` then you should
+     * set this value for better layout results. Measured in pixels.
+     */
+    fileRowLayoutScreenWidth?: number;
 }) {
     const clientInfo = useClientInfo();
     const isMobile = useIsMobile();
@@ -404,7 +413,7 @@ export function ContentView({
                 renderContentFragmentToHtmlStore(content, {
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
-                    screenWidth: clientInfo.screenWidth,
+                    screenWidth: fileRowLayoutScreenWidth ?? clientInfo.screenWidth,
                     isMobile,
                     placeholder,
                     isInert,
@@ -431,7 +440,7 @@ export function ContentView({
             htmlStore = renderContentFragmentToHtmlStore(content, {
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
-                screenWidth: clientInfo.screenWidth,
+                screenWidth: fileRowLayoutScreenWidth ?? clientInfo.screenWidth,
                 isMobile,
                 placeholder,
                 isInert,
@@ -457,6 +466,7 @@ export function ContentView({
         id,
         accountStore,
         spaceContext?.currentAccount,
+        fileRowLayoutScreenWidth,
         clientInfo.screenWidth,
         isMobile,
         placeholder,

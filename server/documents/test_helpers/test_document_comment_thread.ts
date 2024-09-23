@@ -1,4 +1,4 @@
-import {AddMarkStep} from "prosemirror-transform";
+import {AddMarkStep, AddNodeMarkStep} from "prosemirror-transform";
 import {
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
@@ -36,7 +36,7 @@ export class TestDocumentCommentThread {
     public static async _create(
         document: TestDocument,
         session: TestSpaceSession,
-        range: {from: number; to: number},
+        range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | MessageContent,
     ) {
         const id = generateId<DocumentCommentThreadId>();
@@ -44,11 +44,16 @@ export class TestDocumentCommentThread {
         await document.update(
             session,
             [
-                new AddMarkStep(
-                    range.from,
-                    range.to,
-                    schema.marks.comment.create({commentThreadId: id}),
-                ),
+                range.isNode
+                    ? new AddNodeMarkStep(
+                          range.pos,
+                          schema.marks.comment.create({commentThreadId: id}),
+                      )
+                    : new AddMarkStep(
+                          range.from,
+                          range.to,
+                          schema.marks.comment.create({commentThreadId: id}),
+                      ),
             ],
             {
                 createCommentThreads: [

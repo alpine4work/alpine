@@ -1956,7 +1956,6 @@ export function buildContentEditorKeymapPlugin(
 
             let isCommentSupported = false;
             state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
-                if (!node.inlineContent) return;
                 isCommentSupported ||=
                     !!schema.marks.comment && node.type.allowsMarkType(schema.marks.comment);
             });

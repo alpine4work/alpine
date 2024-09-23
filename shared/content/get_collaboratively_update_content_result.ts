@@ -270,7 +270,11 @@ export function getCollaborativelyUpdateContentResult(
                         }
                         case "addMarksAfterRemoveAll": {
                             for (const range of step.ranges) {
-                                addRangeToValidate(range.from, range.to);
+                                if (range.isNode) {
+                                    addRangeToValidate(range.pos, range.pos + 1);
+                                } else {
+                                    addRangeToValidate(range.from, range.to);
+                                }
                             }
                             break;
                         }
@@ -315,6 +319,22 @@ export function getCollaborativelyUpdateContentResult(
                         ) {
                             throw new FailedPreconditionError(
                                 `Can't add "\\n" character to "codeBlockLine" node`,
+                            );
+                        }
+
+                        // Don't allow adding marks to non-leaf ProseMirror nodes. ProseMirror
+                        // technically allows this. For a node's children to have marks the node itself
+                        // must also support those marks. Since ProseMirror doesn't give us a way to
+                        // disallow marks on non-leaf nodes in the ProseMirror schema we instead block
+                        // them here.
+                        //
+                        // Some examples of what we want to avoid:
+                        //
+                        // - `comment` marks on `fileRow` instead of `file`
+                        // - `bold` marks on `paragraph` instead of a `paragraph`'s text
+                        if (!node.type.isLeaf && node.marks.length > 0) {
+                            throw new FailedPreconditionError(
+                                `Can't add marks directly to non-leaf "${node.type.name}" node`,
                             );
                         }
                     });

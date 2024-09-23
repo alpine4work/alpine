@@ -1,6 +1,7 @@
 import {Fragment, Mark, Slice} from "prosemirror-model";
 import {
     AddMarkStep,
+    AddNodeMarkStep,
     RemoveMarkStep,
     ReplaceAroundStep,
     ReplaceStep,
@@ -8,6 +9,7 @@ import {
 } from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
+    FileDocumentAuthorizer,
     authorizeDocumentAccess,
     backfillDocumentComments,
     batchGetDocumentCommentThreadReferencesIfExists,
@@ -42,6 +44,10 @@ import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {
+    attachFileAsUploader,
+    startUploadingAndProcessingFile,
+} from "~/server/files/data/files_table.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -2856,6 +2862,245 @@ test("can not add a newline character with a new `codeBlockLine` node in a docum
         version: 0,
         content: emptyDocumentContent.toJSON(),
     });
+});
+
+test("can't add comment mark to `fileRow` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    const fileUploader1 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader1.finishUploading(context.action(session1));
+
+    const fileUploader2 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader2.finishUploading(context.action(session1));
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader1.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader2.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await updateDocumentContent(context.action(session1), {
+        id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [
+                            schema.node("file", {id: fileUploader1.fileId}),
+                            schema.node("file", {id: fileUploader2.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 1,
+            steps: [new AddNodeMarkStep(2, schema.marks.comment.create({commentThreadId}))],
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test comment"),
+                },
+            ],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Could not apply step to content: Invalid content for node doc",
+        ),
+    );
+
+    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+        version: 1,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {id: fileUploader1.fileId}),
+                    schema.node("file", {id: fileUploader2.fileId}),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can add comment mark to `file` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    const fileUploader1 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader1.finishUploading(context.action(session1));
+
+    const fileUploader2 = await startUploadingAndProcessingFile(context.action(session1), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader2.finishUploading(context.action(session1));
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader1.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await attachFileAsUploader(
+        context.action(session1),
+        space.id,
+        fileUploader2.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: id}),
+    );
+
+    await updateDocumentContent(context.action(session1), {
+        id,
+        version: 0,
+        steps: [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [
+                            schema.node("file", {id: fileUploader1.fileId}),
+                            schema.node("file", {id: fileUploader2.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    await updateDocumentContent(context.action(session1), {
+        id,
+        version: 1,
+        steps: [new AddNodeMarkStep(3, schema.marks.comment.create({commentThreadId}))],
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test comment"),
+            },
+        ],
+        clientId: generateId(),
+    });
+
+    expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
+        version: 2,
+        content: schema
+            .node("doc", {}, [
+                schema.node("title", {}),
+                schema.node("fileRow", {}, [
+                    schema.node(
+                        "file",
+                        {id: fileUploader1.fileId},
+                        [],
+                        [schema.mark("comment", {commentThreadId})],
+                    ),
+                    schema.node("file", {id: fileUploader2.fileId}),
+                ]),
+            ])
+            .toJSON(),
+    });
+});
+
+test("can't add bold mark to `paragraph` node in a document", async () => {
+    const {id} = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 0,
+            steps: [new AddNodeMarkStep(1, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Could not apply step to content: No node at mark step's position",
+        ),
+    );
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 0,
+            steps: [new AddNodeMarkStep(2, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Could not apply step to content: Invalid content for node doc",
+        ),
+    );
+
+    await expect(
+        updateDocumentContent(context.action(session1), {
+            id,
+            version: 0,
+            steps: [new AddNodeMarkStep(3, schema.marks.bold.create())],
+            clientId: generateId(),
+        }),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Could not apply step to content: No node at mark step's position",
+        ),
+    );
 });
 
 test("can not update a document such that it would have invalid content even when there is a concurrent update", async () => {
@@ -8485,7 +8730,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
         }
 
@@ -8526,7 +8771,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
         }
     });
@@ -8934,7 +9179,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9031,7 +9276,7 @@ describe("Comments", () => {
 
         expect(resolvedCommentThreadRanges).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
 
         {
@@ -9281,7 +9526,11 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 10,
-                ranges: [range1, range2, range3],
+                ranges: [
+                    {...range1, isNode: false},
+                    {...range2, isNode: false},
+                    {...range3, isNode: false},
+                ],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9421,7 +9670,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             expect((await getDocument(session.action(), document.id)).version).toEqual(4);
@@ -9509,7 +9758,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9608,7 +9857,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -9816,15 +10065,15 @@ describe("Comments", () => {
                 steps: [
                     new AddMarksAfterRemoveAllStep(
                         schema.marks.comment.create({commentThreadId: commentThread1.id}),
-                        [range1],
+                        [{...range1, isNode: false}],
                     ),
                     new AddMarksAfterRemoveAllStep(
                         schema.marks.comment.create({commentThreadId: commentThread3.id}),
-                        [range3],
+                        [{...range3, isNode: false}],
                     ),
                     new AddMarksAfterRemoveAllStep(
                         schema.marks.comment.create({commentThreadId: commentThread2.id}),
-                        [range2],
+                        [{...range2, isNode: false}],
                     ),
                 ],
                 unresolveCommentThreadIds: [
@@ -9986,7 +10235,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 4,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -10058,7 +10307,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 6,
-                ranges: [range],
+                ranges: [{...range, isNode: false}],
             });
 
             const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
@@ -10220,7 +10469,7 @@ describe("Comments", () => {
 
             expect(resolvedCommentThreadRanges).toEqual({
                 version: 8,
-                ranges: [{from: 19, to: 24}],
+                ranges: [{isNode: false, from: 19, to: 24}],
             });
 
             const {newVersion, updatedCommentThreads} = await updateDocumentContent(
@@ -10270,6 +10519,464 @@ describe("Comments", () => {
                     ]),
                 ])
                 .toJSON(),
+        );
+    });
+
+    test("can create, resolve, and unresolve comment thread on file", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
+
+        const fileUploader = await startUploadingAndProcessingFile(context.action(session), {
+            spaceId: space.id,
+            contentType: "image/png",
+            contentLength: 100,
+            hasAlternative: false,
+            hasPreview: null,
+        });
+
+        await fileUploader.finishUploading(context.action(session));
+
+        await attachFileAsUploader(
+            context.action(session),
+            space.id,
+            fileUploader.fileId,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        await document.update(session, [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [
+                            schema.node("file", {id: fileUploader.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        const commentThread = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test1",
+        );
+
+        expect(await commentThread.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const {updatedCommentThreads} = await document.update(
+                session,
+                [
+                    new RemoveAllMarksStep(
+                        schema.marks.comment.create({commentThreadId: commentThread.id}),
+                    ),
+                ],
+                {resolveCommentThreadIds: [commentThread.id]},
+            );
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        {
+            const resolvedCommentThreadRanges = await getResolvedDocumentCommentThreadRanges(
+                session.action(),
+                {
+                    documentId: document.id,
+                    commentThreadId: commentThread.id,
+                },
+            );
+
+            expect(resolvedCommentThreadRanges).toEqual({
+                version: 3,
+                ranges: [{isNode: true, pos: 3}],
+            });
+
+            const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
+                id: document.id,
+                version: resolvedCommentThreadRanges.version,
+                steps: [
+                    new AddMarksAfterRemoveAllStep(
+                        schema.marks.comment.create({commentThreadId: commentThread.id}),
+                        resolvedCommentThreadRanges.ranges,
+                    ),
+                ],
+                unresolveCommentThreadIds: [commentThread.id],
+                clientId: generateId(),
+            });
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+    });
+
+    test("can create, resolve, and unresolve multiple comment threads on the same file", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const document = await TestDocument.create(session);
+
+        const fileUploader = await startUploadingAndProcessingFile(context.action(session), {
+            spaceId: space.id,
+            contentType: "image/png",
+            contentLength: 100,
+            hasAlternative: false,
+            hasPreview: null,
+        });
+
+        await fileUploader.finishUploading(context.action(session));
+
+        await attachFileAsUploader(
+            context.action(session),
+            space.id,
+            fileUploader.fileId,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        await document.update(session, [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [
+                            schema.node("file", {id: fileUploader.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        const commentThread1 = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test1",
+        );
+
+        const commentThread2 = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test2",
+        );
+
+        const commentThread3 = await document.createCommentThread(
+            session,
+            {isNode: true, pos: 3},
+            "test3",
+        );
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const {updatedCommentThreads} = await document.update(
+                session,
+                [
+                    new RemoveAllMarksStep(
+                        schema.marks.comment.create({commentThreadId: commentThread2.id}),
+                    ),
+                ],
+                {resolveCommentThreadIds: [commentThread2.id]},
+            );
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread2.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const {updatedCommentThreads} = await document.update(
+                session,
+                [
+                    new RemoveAllMarksStep(
+                        schema.marks.comment.create({commentThreadId: commentThread1.id}),
+                    ),
+                ],
+                {resolveCommentThreadIds: [commentThread1.id]},
+            );
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread1.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread1.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 1,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: true,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        {
+            const resolvedCommentThreadRanges = await getResolvedDocumentCommentThreadRanges(
+                session.action(),
+                {
+                    documentId: document.id,
+                    commentThreadId: commentThread2.id,
+                },
+            );
+
+            expect(resolvedCommentThreadRanges).toEqual({
+                version: 5,
+                ranges: [{isNode: true, pos: 3}],
+            });
+
+            const {updatedCommentThreads} = await updateDocumentContent(session.action(), {
+                id: document.id,
+                version: resolvedCommentThreadRanges.version,
+                steps: [
+                    new AddMarksAfterRemoveAllStep(
+                        schema.marks.comment.create({commentThreadId: commentThread2.id}),
+                        resolvedCommentThreadRanges.ranges,
+                    ),
+                ],
+                unresolveCommentThreadIds: [commentThread2.id],
+                clientId: generateId(),
+            });
+
+            expect(updatedCommentThreads.length).toEqual(1);
+            expect(updatedCommentThreads[0]).toEqual(await commentThread2.get(session));
+            expect(updatedCommentThreads[0]).toEqual(
+                new DocumentCommentThreadModel({
+                    id: commentThread2.id,
+                    documentId: document.id,
+                    createdTime: expect.any(Date),
+                    version: 2,
+                    fallbackContentSnippet: expect.any(Object),
+                    isResolved: false,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    firstCommentAuthor: await session.get(),
+                }),
+            );
+        }
+
+        expect(await commentThread1.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread1.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 1,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: true,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread2.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread2.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 2,
+                fallbackContentSnippet: expect.any(Object),
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
+        );
+
+        expect(await commentThread3.get(session)).toEqual(
+            new DocumentCommentThreadModel({
+                id: commentThread3.id,
+                documentId: document.id,
+                createdTime: expect.any(Date),
+                version: 0,
+                fallbackContentSnippet: null,
+                isResolved: false,
+                commentCount: 1,
+                lastCommentChangeTime: null,
+                firstCommentAuthor: await session.get(),
+            }),
         );
     });
 
@@ -10370,7 +11077,7 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
     });
 
@@ -10401,7 +11108,7 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
 
         await commentThread.unresolve(session);
@@ -10436,7 +11143,7 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 4,
-            ranges: [range],
+            ranges: [{...range, isNode: false}],
         });
 
         await expect(
@@ -10531,7 +11238,11 @@ describe("Comments", () => {
             }),
         ).toEqual({
             version: 10,
-            ranges: [range1, range2, range3],
+            ranges: [
+                {...range1, isNode: false},
+                {...range2, isNode: false},
+                {...range3, isNode: false},
+            ],
         });
     });
 

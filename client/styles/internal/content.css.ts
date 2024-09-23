@@ -922,6 +922,7 @@ export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
 
 globalStyle(fileRowClassName, {
     ...blockStyles,
+    position: "relative",
     marginTop: paragraphMarginVar,
     marginBottom: paragraphMarginVar,
     display: "grid",
@@ -1128,6 +1129,32 @@ globalStyle(`${darkColorSchemeSelector} ${commentClassName} ${commentClassName}`
     backgroundColor: nestedCommentBackgroundColors.dark.default,
 });
 
+globalStyle(`${fileRowClassName} ${commentClassName}`, {
+    position: "relative",
+    display: "grid",
+    backgroundColor: "transparent",
+    paddingTop: 0,
+    paddingBottom: 0,
+});
+
+globalStyle(`${fileRowClassName} ${commentClassName}::after`, {
+    content: '""',
+    position: "absolute",
+    backgroundColor: "transparent",
+    // `inset` and `borderRadius` is based on the `<FocusRing>` we render when the
+    // file is selected. The focus ring should render on top of the file.
+    inset: -4,
+    borderRadius: 4,
+});
+
+globalStyle(`${fileRowClassName} > ${commentClassName}::after`, {
+    backgroundColor: commentBackgroundColors.light.default,
+});
+
+globalStyle(`${darkColorSchemeSelector} ${fileRowClassName} > ${commentClassName}::after`, {
+    backgroundColor: commentBackgroundColors.dark.default,
+});
+
 // Use a pointer cursor for comments in a mobile layout since the comment opens
 // in a bottom sheet and disables interactivity with the document. Since
 // clicking a comment is a more disruptive state shift in mobile layouts, we
@@ -1298,6 +1325,11 @@ ${darkColorSchemeSelector} #$containerId ${commentClassName}[data-comment="$comm
 ${darkColorSchemeSelector} #$containerId ${commentClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.dark.active
 }}
+#$containerId ${fileRowClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
+#$containerId ${fileRowClassName} ${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
+    commentBackgroundColors.light.active
+}}
+#$containerId ${fileRowClassName} > ${commentClassName}:not([data-comment="$commentThreadId"]):has(${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
 ${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameByColor>)
     .map(
         highlightColor => `\

@@ -206,7 +206,7 @@ export class TestDocument {
      */
     public createCommentThread(
         session: TestSpaceSession,
-        range: {from: number; to: number},
+        range: {isNode?: false; from: number; to: number} | {isNode: true; pos: number},
         content: string | MessageContent,
     ) {
         return TestDocumentCommentThread._create(this, session, range, content);

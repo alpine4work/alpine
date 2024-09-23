@@ -127,6 +127,12 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             // there's only a small number of nodes (e.g. `divider`) we actually want to
             // let be selectable.
             selectable: false,
+            // Allow comments on files. Comments should never appear on `fileRow`. Only on
+            // `file`. We validate this is the case in
+            //
+            // TODO(calebmer, #files): When we define this in `content_schema.ts` this
+            // `marks` definition should stay only in `document_content_schema.ts`.
+            marks: "comment",
             toDOM: () => ["div", {class: fileRowClassName}, 0],
         },
 
@@ -145,6 +151,11 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             defining: true,
             isolating: true,
             selectable: true,
+            // Allow comments on files.
+            //
+            // TODO(calebmer, #files): When we define this in `content_schema.ts` this
+            // `marks` definition should stay only in `document_content_schema.ts`.
+            marks: "comment",
             attrs: {
                 // `id` is nullable so the `file` node is generatable. Otherwise ProseMirror
                 // complains that `fileRow` can't be generated because it requires at least one

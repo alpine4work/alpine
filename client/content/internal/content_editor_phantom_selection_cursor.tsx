@@ -4,7 +4,6 @@ import {RefObject} from "react";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
 import {useContentEditorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {sprinkles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/spacing.js";
 
 export function ContentEditorPhantomSelectionCursor({
     state,
@@ -59,15 +58,25 @@ function ContentEditorPhantomTextSelectionCursor({
                 shouldUseLineHeight: true,
             })}
             className={sprinkles({
-                width: "0.5",
+                width: "0",
+                height: "0",
                 position: "absolute",
                 pointerEvents: "none",
-                backgroundColor,
             })}
-            style={{
-                transform: `translateX(-50%)`,
-            }}
         >
+            <div
+                className={sprinkles({
+                    position: "absolute",
+                    height: "full",
+                    backgroundColor,
+                })}
+                style={{
+                    width: 2,
+                    top: 0,
+                    left: 0,
+                    transform: `translateX(-50%)`,
+                }}
+            />
             <div
                 className={sprinkles({
                     position: "absolute",
@@ -77,7 +86,7 @@ function ContentEditorPhantomTextSelectionCursor({
                 })}
                 style={{
                     top: 0,
-                    left: `calc(${spacing["0.5"]} / 2)`,
+                    left: 0,
                     transform: `translate(-50%, -50%)`,
                 }}
             />

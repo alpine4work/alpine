@@ -44,6 +44,7 @@ import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/con
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {createContentEditorFileNodeViewConstructor} from "~/client/content/internal/content_editor_file_node_view.js";
 import {createContentEditorFileRowNodeViewConstructor} from "~/client/content/internal/content_editor_file_row_node_view.js";
+import {ContentEditorFileToolbar} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
@@ -72,6 +73,7 @@ import {
     dispatchTriggeredOverlayOpenEvent,
 } from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {flushScrollbarResizeSync} from "~/client/design/scrollbar.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {Tooltip, TooltipRef} from "~/client/design/tooltip.js";
 import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_input_visibility_maintainer.js";
@@ -178,12 +180,25 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     selectAll(): void;
 
     /**
+     * Scroll the content editor's selection into view.
+     */
+    scrollIntoView(): void;
+
+    /**
      * Get the coordinates of the provided position. Directly calls
      * [`EditorView.coordsAtPos()`][1].
      *
      * [1]: https://prosemirror.net/docs/ref/#view.EditorView.coordsAtPos
      */
     coordsAtPos(pos: number): {left: number; right: number; top: number; bottom: number};
+
+    /**
+     * Get the node at the provided position. Directly calls
+     * [`EditorView.nodeDOM()`][1].
+     *
+     * [1]: https://prosemirror.net/docs/ref/#view.EditorView.nodeDOM
+     */
+    nodeDom(pos: number): globalThis.Node | null;
 
     /**
      * Execute a ProseMirror command against this editor.
@@ -472,9 +487,19 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                     "Selecting all text in content editor on initial render is not implemented",
                 );
             },
+            scrollIntoView: () => {
+                throw new UnimplementedError(
+                    "Scrolling content editor selection into view on initial render is not implemented",
+                );
+            },
             coordsAtPos: () => {
                 throw new UnimplementedError(
                     "Getting coordinates for position in content editor on initial render is not implemented",
+                );
+            },
+            nodeDom: () => {
+                throw new UnimplementedError(
+                    "Getting DOM for position in content editor on initial render is not implemented",
                 );
             },
             dispatchCommand: () => {
@@ -656,9 +681,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const view = assertExists(viewRef.current);
                 view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
             },
+            scrollIntoView: () => {
+                const view = assertExists(viewRef.current);
+                view.dispatch(view.state.tr.scrollIntoView());
+            },
             coordsAtPos: pos => {
                 const view = assertExists(viewRef.current);
                 return view.coordsAtPos(pos);
+            },
+            nodeDom: pos => {
+                const view = assertExists(viewRef.current);
+                return view.nodeDOM(pos);
             },
             dispatchCommand: command => {
                 const view = assertExists(viewRef.current);
@@ -2457,6 +2490,16 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isFocused={isFocused}
                 setDecorationCallbacks={setDecorationCallbacks}
             />
+            {selectedNodeElement &&
+                floaterState.type === "PointerToolbar" &&
+                unwrappedState.selection instanceof NodeSelection &&
+                unwrappedState.selection.node.type.name === "file" && (
+                    <ContentEditorFileToolbar
+                        state={unwrappedState}
+                        viewRef={viewRef}
+                        targetElement={selectedNodeElement}
+                    />
+                )}
             {selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />
             )}

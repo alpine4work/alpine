@@ -27,6 +27,7 @@ export function DocumentCommentThreadHeader({
     contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
+    previewFileRowLayoutScreenWidthRem,
 }: {
     withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
@@ -37,6 +38,7 @@ export function DocumentCommentThreadHeader({
     contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
+    previewFileRowLayoutScreenWidthRem: number;
 }) {
     const reporter = useReporter();
 
@@ -120,6 +122,7 @@ export function DocumentCommentThreadHeader({
                         contentReferences={contentReferences}
                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
                         isResolveButtonPending={isPending}
+                        fileRowLayoutScreenWidthRem={previewFileRowLayoutScreenWidthRem}
                     />
                 </>
             )}

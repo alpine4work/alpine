@@ -14,6 +14,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasAnyOwnProperties} from "~/shared/helpers/object/has_any_own_properties.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -55,6 +56,28 @@ declare module "prosemirror-transform" {
         public readonly structure: boolean;
     }
 }
+
+export const AddMarksAfterRemoveAllStepRangeSchema = Schema.booleanUnion(
+    "isNode",
+    Schema.object({
+        isNode: Schema.value(true),
+        pos: Schema.integer.min(0),
+    }),
+    Schema.object({
+        isNode: Schema.value(false),
+        from: Schema.integer.min(0),
+        to: Schema.integer.min(0),
+    }),
+).migration({
+    // We added the `isNode` flag after the initial creation of this schema.
+    deserialize: range => {
+        if (isObject(range) && !("isNode" in range)) {
+            return {...range, isNode: false};
+        }
+        return range;
+    },
+    serialize: range => range,
+});
 
 /**
  * Creates a schema in our schema framework from a ProseMirror schema for nodes
@@ -228,7 +251,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
                           : NodeAttrsSchema,
                   }
                 : {}),
-            ...(nodeType.isInline
+            ...(nodeType.markSet?.length !== 0
                 ? {
                       marks: NodeMarksPropertySchema,
                   }
@@ -534,12 +557,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
         const AddMarksAfterRemoveAllStepSchema = Schema.object({
             stepType: Schema.value("addMarksAfterRemoveAll"),
             mark: MarkUnionSchema,
-            ranges: Schema.array(
-                Schema.object({
-                    from: Schema.integer.min(0),
-                    to: Schema.integer.min(0),
-                }),
-            ),
+            ranges: Schema.array(AddMarksAfterRemoveAllStepRangeSchema),
         }).transform<AddMarksAfterRemoveAllStep>({
             deserialize: value => new AddMarksAfterRemoveAllStep(value.mark, value.ranges),
             serialize: value => ({

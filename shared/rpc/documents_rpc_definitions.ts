@@ -20,6 +20,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -271,12 +272,7 @@ export const getResolvedDocumentCommentThreadRanges = defineRpc({
     },
     output: {
         version: Schema.integer,
-        ranges: Schema.array(
-            Schema.object({
-                from: Schema.integer,
-                to: Schema.integer,
-            }),
-        ),
+        ranges: Schema.array(AddMarksAfterRemoveAllStepRangeSchema),
     },
 });
 

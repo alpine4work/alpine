@@ -131,7 +131,7 @@ export function createContentEditorCommentMarkViewConstructor({
             }
 
             // If we're inert, pressing on the comment mark does nothing.
-            if (isInert()) {
+            if (isInert() || event.defaultPrevented) {
                 return;
             }
 

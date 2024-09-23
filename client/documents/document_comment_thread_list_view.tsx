@@ -12,6 +12,7 @@ import {
     useState,
 } from "react";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -33,6 +34,7 @@ import {
     renderMessageListItem,
 } from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -57,6 +59,7 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
+    parseRemLengthNumber,
     screenPaddingX,
     spacing,
 } from "~/shared/design/spacing.js";
@@ -237,6 +240,7 @@ function DocumentCommentThreadListView(
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
+        previewFileRowLayoutScreenWidth: originalPreviewFileRowLayoutScreenWidth,
     }: {
         withMobileLayout: boolean;
         documentId: DocumentId;
@@ -338,13 +342,45 @@ function DocumentCommentThreadListView(
          * fullscreen size but when collapsed we have offscreen slop.
          */
         backgroundSlopBottomIfPinnedCommentInput?: RemLength;
+
+        /**
+         * Optionally override the screen width provided to `layoutContentFileRow()` in
+         * the `<ContentView>` for comment thread previews. Overriding this can lead to
+         * more scale appropriate file layouts in the preview window. Defaults to
+         * `clientInfo.screenWidth`. We subtract the `paddingX` prop from this value.
+         */
+        previewFileRowLayoutScreenWidth?: RemLength;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
     const isMobile = useIsMobile();
+    const remPx = useRemPx();
+    const clientInfo = useClientInfo();
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+
+    const previewFileRowLayoutScreenWidthRem = useMemo(
+        () =>
+            (originalPreviewFileRowLayoutScreenWidth
+                ? parseRemLengthNumber(originalPreviewFileRowLayoutScreenWidth)
+                : clientInfo.screenWidth / remPx) -
+            parseRemLengthNumber(
+                spacing[
+                    typeof paddingX === "string"
+                        ? paddingX
+                        : paddingX[isMobile ? "mobile" : "desktop"]
+                ],
+            ) *
+                2,
+        [
+            clientInfo.screenWidth,
+            isMobile,
+            originalPreviewFileRowLayoutScreenWidth,
+            paddingX,
+            remPx,
+        ],
+    );
 
     const [tree, setTree] = useState(() => {
         let tree = createEmptyDocumentCommentThreadTree();
@@ -876,6 +912,9 @@ function DocumentCommentThreadListView(
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
+                                        previewFileRowLayoutScreenWidthRem={
+                                            previewFileRowLayoutScreenWidthRem
+                                        }
                                     />
                                 </div>
                             </div>
@@ -1158,6 +1197,7 @@ function DocumentCommentThreadListView(
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
+            previewFileRowLayoutScreenWidthRem,
             procedures,
             isMobile,
             messageEditing,
