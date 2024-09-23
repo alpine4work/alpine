@@ -1897,8 +1897,8 @@ export function buildContentEditorKeymapPlugin(
     // Toggle inline formats
     keys.set("Mod-b", createToggleMarkCommand(schema.mark("bold")));
     keys.set("Mod-i", createToggleMarkCommand(schema.mark("italic")));
+    keys.set("Mod-e", createToggleMarkCommand(schema.mark("code")));
     keys.set("Mod-shift-x", createToggleMarkCommand(schema.mark("strike")));
-    keys.set("Mod-shift-k", createToggleMarkCommand(schema.mark("code")));
 
     // Highlight overlay
     if (schema.marks.highlight) {
@@ -1921,8 +1921,7 @@ export function buildContentEditorKeymapPlugin(
         });
     }
 
-    // Link overlay
-    keys.set("Mod-k", (state, dispatch) => {
+    const linkCommand: Command = (state, dispatch) => {
         // Only open highlight color selector if we're selecting some text.
         if (state.selection.from === state.selection.to) {
             return false;
@@ -1938,7 +1937,14 @@ export function buildContentEditorKeymapPlugin(
 
         dispatch?.(state.tr.setMeta(openKeyboardLinkFloaterMetaKey, true));
         return true;
-    });
+    };
+
+    // Link overlay
+    //
+    // If you used shift to select text, you're may still be holding shift when
+    // hitting the link shortcut. So cmd-shift-k opens the link input as well.
+    keys.set("Mod-k", linkCommand);
+    keys.set("Mod-shift-k", linkCommand);
 
     // Comments
     if (schema.marks.comment) {
