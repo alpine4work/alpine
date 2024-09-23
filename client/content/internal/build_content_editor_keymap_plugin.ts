@@ -738,6 +738,81 @@ export function buildContentEditorKeymapPlugin(
         // backspace then join with the prior block.
         joinBackward,
 
+        // In a document with only a title and a single paragraph, if you hit backspace
+        // at the start of the paragraph the paragraph should be joined with the title
+        // above. However, `joinBackward()` can't do this since it would remove the one
+        // and only paragraph making the document invalid. So detect this case and
+        // pretend like there's another empty paragraph at the end of the document.
+        // Then `joinBackward()` can work and the empty paragraph will become the
+        // document's one paragraph.
+        //
+        // For example, if the cursor is at `|` the title is `<h1>` and a paragraph is
+        // in `<p>`:
+        //
+        // ```
+        // <h1>foo</h1>
+        // <p>|bar</p>
+        // ```
+        //
+        // Then the result should be:
+        //
+        // ```
+        // <h1>foo|bar</h1>
+        // <p></p>
+        // ```
+        (state, dispatch) => {
+            // 1. Must be in a document with a title
+            if (!state.schema.nodes.title) return false;
+
+            // 2. Handling the edge case where we have a title and a paragraph
+            if (state.doc.childCount !== 2) return false;
+
+            const {$from, $to} = state.selection;
+
+            // 3. Cursor should be at the beginning of a textblock.
+            const isSelectionAtFirstOffsetOfTextblock =
+                $from.pos === $to.pos && $from.parentOffset === 0 && $from.parent.isTextblock;
+
+            if (!isSelectionAtFirstOffsetOfTextblock) return false;
+
+            // 4. Cursor should be in the second node
+            if ($from.index(0) !== 1) return false;
+
+            const transaction = state.tr.insert(
+                state.doc.nodeSize - 2,
+                state.schema.nodes.paragraph!.create(),
+            );
+
+            // 5. Retry `joinBackward()` but with an empty paragraph inserted at the end of
+            //    the document
+            return joinBackward(
+                state.apply(transaction),
+                // Copy the transaction this function was called with (`actualTransaction`)
+                // into `transaction` which the new paragraph insertion.
+                dispatch
+                    ? actualTransaction => {
+                          for (const step of actualTransaction.steps) {
+                              transaction.step(step);
+                          }
+
+                          if (actualTransaction.selectionSet) {
+                              transaction.setSelection(actualTransaction.selection);
+                          }
+
+                          if (actualTransaction.storedMarksSet) {
+                              transaction.setStoredMarks(actualTransaction.storedMarks);
+                          }
+
+                          if (actualTransaction.scrolledIntoView) {
+                              transaction.scrollIntoView();
+                          }
+
+                          dispatch(transaction);
+                      }
+                    : undefined,
+            );
+        },
+
         // NOTE: To be honest, I (Caleb) am not sure what this does, but it is in
         // the ProseMirror base keymap so I assume it is important.
         selectNodeBackward,

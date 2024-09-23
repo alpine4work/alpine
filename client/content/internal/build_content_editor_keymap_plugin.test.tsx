@@ -12,6 +12,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
+    DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
@@ -6882,4 +6883,60 @@ test("typing when a file is selected creates a paragraph between two file rows",
         'doc(fileRow(file), paragraph("x"), fileRow(file, file, file))',
     );
     expect(getSelection()).toEqual({type: "text", anchor: 5, head: 5});
+});
+
+test("can backspace at the start of only paragraph in document after title", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, [
+                    DocumentContentProsemirrorSchema.text("foo"),
+                ]),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                    DocumentContentProsemirrorSchema.text("bar"),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(title("foo"), paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(6))));
+
+    expect(getDoc().toString()).toEqual('doc(title("foo"), paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(title("foobar"), paragraph)');
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+});
+
+test("can delete at the end of title in document with only one paragraph", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, [
+                    DocumentContentProsemirrorSchema.text("foo"),
+                ]),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                    DocumentContentProsemirrorSchema.text("bar"),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(title("foo"), paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    expect(getDoc().toString()).toEqual('doc(title("foo"), paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(title("foobar"), paragraph)');
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
 });

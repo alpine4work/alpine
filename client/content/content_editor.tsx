@@ -2437,10 +2437,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isFocused={isFocused}
             />
             {selectedNodeElement && (
-                // TODO(calebmer): If you type "foo" in the title, then "bar" in the body, then
-                // put your cursor at the beginning of "bar" and hit backspace it selects the
-                // title node and it looks weird. (Make sure there are no paragraphs
-                // after "bar".)
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />
             )}
             {phantomSelections?.map(phantomSelection => (
