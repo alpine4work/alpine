@@ -476,7 +476,7 @@ export function parseSearchContent(
         }
     }
 
-    const outputRootNode = schema.nodes.doc.create({}, outputNodes);
+    const outputRootNode = assertExists(schema.nodes.doc.createAndFill({}, outputNodes));
 
     // Make sure the content is correctly formatted.
     outputRootNode.check();

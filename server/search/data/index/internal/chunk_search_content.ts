@@ -19,6 +19,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -177,7 +178,7 @@ export async function getFullSearchContentChunk(
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModelWithoutSpace | null>;
     },
-) {
+): Promise<SearchContentChunk> {
     // Take our content and divide it into structured chunks of any size. We use
     // the structure of the content to chunk. Headings create sections, child list
     // items stay with their parent list item, and sentences are chunked together.
@@ -187,7 +188,7 @@ export async function getFullSearchContentChunk(
             lineMarginTop: number;
             lineMarginBottom: number;
             sectionHeading: string | null;
-        }>
+        } | null>
     > = mapIterable(chunkSearchContentBySections(content.content), contentChunk => {
         // The heading fragment should not get `sectionHeading` context. Only the
         // content below it.
@@ -216,7 +217,9 @@ export async function getFullSearchContentChunk(
                                 orderListItemNumberByNode: new Map(),
                                 getAccountIfExists,
                             }),
-                        ]).then(([sectionHeading, chunk]) => ({...chunk, sectionHeading})),
+                        ]).then(([sectionHeading, chunk]) =>
+                            chunk ? {...chunk, sectionHeading} : null,
+                        ),
                     ),
             );
         }
@@ -231,40 +234,51 @@ export async function getFullSearchContentChunk(
                 lineMarginTop: number;
                 lineMarginBottom: number;
                 sectionHeading: string | null;
-            }>
+            } | null>
         >,
-    ): Promise<SearchContentChunk> => {
+    ): Promise<SearchContentChunk | null> => {
         let tokenCount1 = 0;
 
-        const chunks = await runAllPromises(
-            mapIterable(chunkIterable, async (chunkPromise): Promise<SearchContentChunk> => {
-                if (!(chunkPromise instanceof Promise)) {
-                    const chunk = await processChunkIterable(chunkPromise);
-                    tokenCount1 += chunk.tokenCount;
-                    return chunk;
-                }
+        const chunks = (
+            await runAllPromises(
+                mapIterable(
+                    chunkIterable,
+                    async (chunkPromise): Promise<SearchContentChunk | null> => {
+                        if (!(chunkPromise instanceof Promise)) {
+                            const chunk = await processChunkIterable(chunkPromise);
+                            if (chunk) tokenCount1 += chunk.tokenCount;
+                            return chunk;
+                        }
 
-                const chunk = await chunkPromise;
+                        const chunk = await chunkPromise;
+                        if (!chunk) return null;
 
-                let tokenCount2 = 0;
+                        let tokenCount2 = 0;
 
-                const sentenceChunks = chunk.sentenceChunks.map(sentenceChunk => {
-                    const tokenCount = tokenizer.countTokens(sentenceChunk);
-                    tokenCount1 += tokenCount;
-                    tokenCount2 += tokenCount;
-                    return {text: sentenceChunk, tokenCount};
-                });
+                        const sentenceChunks = chunk.sentenceChunks.map(sentenceChunk => {
+                            const tokenCount = tokenizer.countTokens(sentenceChunk);
+                            tokenCount1 += tokenCount;
+                            tokenCount2 += tokenCount;
+                            return {text: sentenceChunk, tokenCount};
+                        });
 
-                return {
-                    isGroup: false,
-                    tokenCount: tokenCount2,
-                    context: {sectionHeading: chunk.sectionHeading},
-                    sentenceChunks,
-                    lineMarginTop: chunk.lineMarginTop,
-                    lineMarginBottom: chunk.lineMarginBottom,
-                };
-            }),
-        );
+                        return {
+                            isGroup: false,
+                            tokenCount: tokenCount2,
+                            context: {sectionHeading: chunk.sectionHeading},
+                            sentenceChunks,
+                            lineMarginTop: chunk.lineMarginTop,
+                            lineMarginBottom: chunk.lineMarginBottom,
+                        };
+                    },
+                ),
+            )
+        ).filter(isNonNullable);
+
+        // If there are no child chunks then return null.
+        if (chunks.length === 0) {
+            return null;
+        }
 
         // Flatten singleton nesting levels.
         if (chunks.length === 1) {
@@ -293,7 +307,16 @@ export async function getFullSearchContentChunk(
         };
     };
 
-    return processChunkIterable(chunkIterable);
+    return (
+        (await processChunkIterable(chunkIterable)) ?? {
+            isGroup: false,
+            tokenCount: 0,
+            context: {sectionHeading: null},
+            sentenceChunks: [],
+            lineMarginTop: 0,
+            lineMarginBottom: 0,
+        }
+    );
 }
 
 /**
@@ -818,25 +841,55 @@ async function chunkSearchContentBySentenceForBlockFragment(
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModelWithoutSpace | null>;
     },
-): Promise<{sentenceChunks: Array<string>; lineMarginTop: number; lineMarginBottom: number}> {
+): Promise<{
+    sentenceChunks: Array<string>;
+    lineMarginTop: number;
+    lineMarginBottom: number;
+} | null> {
     const chunks = await runAllPromises(
         fragment.content.map(node =>
             chunkSearchContentBySentenceForBlockNode(parentNode, node, options),
         ),
     );
 
-    const sentenceChunks = chunks.flatMap((chunk, i) => {
-        if (i === 0) return chunk.sentenceChunks;
+    if (chunks.every(chunk => !chunk)) {
+        return null;
+    }
 
-        const lastChunk = chunks[i - 1]!;
+    let lastUsedChunk: {
+        sentenceChunks: Array<string>;
+        lineMarginTop: number;
+        lineMarginBottom: number;
+    } | null = null;
+    const sentenceChunks: Array<string> = [];
+
+    for (const chunk of chunks) {
+        // Completely ignore `null` chunks
+        if (!chunk) continue;
+
+        const lastChunk = lastUsedChunk;
+        lastUsedChunk = chunk;
+
+        if (!lastChunk) {
+            for (const sentenceChunk of chunk.sentenceChunks) {
+                sentenceChunks.push(sentenceChunk);
+            }
+            continue;
+        }
+
         const lineMargin = Math.max(lastChunk.lineMarginBottom, chunk.lineMarginTop);
 
-        if (chunk.sentenceChunks.length === 0) return ["\n".repeat(lineMargin)];
+        if (chunk.sentenceChunks.length === 0) {
+            sentenceChunks.push("\n".repeat(lineMargin));
+            continue;
+        }
 
         chunk.sentenceChunks[0] = "\n".repeat(lineMargin) + chunk.sentenceChunks[0]!;
 
-        return chunk.sentenceChunks;
-    });
+        for (const sentenceChunk of chunk.sentenceChunks) {
+            sentenceChunks.push(sentenceChunk);
+        }
+    }
 
     const lineMarginTop = chunks[0]?.lineMarginTop ?? 0;
     const lineMarginBottom = chunks[0]?.lineMarginBottom ?? 0;
@@ -857,7 +910,11 @@ async function chunkSearchContentBySentenceForBlockNode(
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModelWithoutSpace | null>;
     },
-): Promise<{sentenceChunks: Array<string>; lineMarginTop: number; lineMarginBottom: number}> {
+): Promise<{
+    sentenceChunks: Array<string>;
+    lineMarginTop: number;
+    lineMarginBottom: number;
+} | null> {
     const typeName = node.type.name as ContentBlockNodeTypeName | "title";
 
     switch (typeName) {
@@ -871,11 +928,12 @@ async function chunkSearchContentBySentenceForBlockNode(
             return {sentenceChunks, lineMarginTop: 2, lineMarginBottom: 2};
         }
         case "quoteBlock": {
-            const {sentenceChunks} = await chunkSearchContentBySentenceForBlockFragment(
+            const result = await chunkSearchContentBySentenceForBlockFragment(
                 node,
                 node.content,
                 options,
             );
+            const sentenceChunks = result?.sentenceChunks ?? [];
 
             const prefixedSentenceChunks = sentenceChunks.map((sentenceChunk, i) => {
                 return sentenceChunk
@@ -910,11 +968,12 @@ async function chunkSearchContentBySentenceForBlockNode(
         case "checkListItem": {
             const indent = clampListItemIndentation(node.attrs.indent);
 
-            const {sentenceChunks} = await chunkSearchContentBySentenceForBlockFragment(
+            const result = await chunkSearchContentBySentenceForBlockFragment(
                 node,
                 node.content,
                 options,
             );
+            const sentenceChunks = result?.sentenceChunks ?? [];
 
             let bullet;
             switch (typeName) {
@@ -1002,6 +1061,26 @@ async function chunkSearchContentBySentenceForBlockNode(
         }
         case "divider": {
             return {sentenceChunks: ["---"], lineMarginTop: 2, lineMarginBottom: 2};
+        }
+        // We don't currently include anything related to files in the chunked content.
+        // When searching via our search index we don't want the text "https" or a
+        // `FileId` to match any document containing a file. That wouldn't make sense
+        // to the user.
+        //
+        // However, it may be useful for LLMs to see images. So it may be worth
+        // considering including an image using the Markdown syntax and stripping
+        // images before text indexing. So images aren't available in a text index but
+        // are available to LLMs. Otherwise text like "This image shows..." might not
+        // be interpreted correctly by an LLM. This makes even more sense if the LLM is
+        // smart enough to parse images from the markdown and interpret image
+        // semantics. We could also generate `alt` text for files ourselves and feed
+        // that to LLMs here. But again, the `alt` text shouldn't be available to the
+        // search index.
+        //
+        // Anyway, for now we don't include files at all in the search body but I'm
+        // sure we'll experiment with different approaches over time.
+        case "fileRow": {
+            return null;
         }
         default:
             throw exhaustive(typeName);

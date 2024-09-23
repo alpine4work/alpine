@@ -419,8 +419,11 @@ const isLineBreakingByNodeType: {
     break: true,
     heading: true,
     divider: true,
+    fileRow: true,
     // `display: inline`
     mention: false,
+    // Horizontal layout in a `display: flex` or `display: grid` element
+    file: false,
 };
 
 /**
@@ -441,8 +444,8 @@ const dontCutLeadingChildrenByNodeType: {
     paragraph: true,
     // Quote blocks can be cut wherever.
     quoteBlock: false,
-    // TODO(calebmer): Reconsider when we actually implement code blocks. Should
-    // probably cut along newlines.
+    // Can't cut inside a `codeBlockLine` but free to cut any lines above the
+    // current line.
     codeBlock: false,
     codeBlockLine: true,
     // In multi-paragraph list items don't cut preceding paragraphs or else the
@@ -450,6 +453,10 @@ const dontCutLeadingChildrenByNodeType: {
     unorderedListItem: true,
     orderedListItem: true,
     checkListItem: true,
+    // Don't cut files within a file row since this will adjust the layout of the
+    // remaining files in the row.
+    fileRow: true,
+    file: true,
     // The answer for nodes without children doesn't really matter since we won't
     // cut within them anyways.
     break: true,

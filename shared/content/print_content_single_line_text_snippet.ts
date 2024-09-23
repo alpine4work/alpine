@@ -160,7 +160,9 @@ export function printContentSingleLineTextSnippetWithHighlighting(
                 }
                 break;
             }
-            case "divider": {
+            // Purely visual blocks that don't have a text representation.
+            case "divider":
+            case "fileRow": {
                 break;
             }
             default:
