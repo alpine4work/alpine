@@ -50,6 +50,7 @@ import {
     greyElevated2ClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
+    overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -322,7 +323,7 @@ export function ContentEditorPointerToolbar({
               isShowing: true;
               selectionFrom: number;
               selectionTo: number;
-              animation: "FadingIn" | null;
+              animation: "FadingIn" | "FadingOut" | null;
               extraOverlay: "LinkInput" | "HighlightSelector" | null;
           }
         | {isShowing: false; animation?: undefined}
@@ -344,7 +345,8 @@ export function ContentEditorPointerToolbar({
                       ...showState,
                       selectionFrom: state.selection.from,
                       selectionTo: state.selection.to,
-                      animation: showState.animation,
+                      animation:
+                          showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
                       // Close the link input when the selection changes.
                       extraOverlay: null,
                   }
@@ -370,7 +372,7 @@ export function ContentEditorPointerToolbar({
         // close the toolbar when this happens.
         showState.extraOverlay !== "LinkInput"
     ) {
-        showState = {isShowing: false};
+        showState = {...showState, animation: "FadingOut"};
     }
 
     // Make sure we update our state with the new value.
@@ -420,6 +422,21 @@ export function ContentEditorPointerToolbar({
             };
         }
     }, [showState.animation, showState.isShowing]);
+
+    // Keep the toolbar mounted for a bit before unmounting. This way if the user
+    // is quickly clicking around they don't have to wait again for the delay that
+    // shows the toolbar.
+    useEffect(() => {
+        if (showState.isShowing && showState.animation === "FadingOut") {
+            const timeoutId = setTimeout(() => {
+                setShowState({isShowing: false});
+            }, 1000);
+
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [showState.isShowing, showState.animation]);
 
     if (!showState.isShowing) return null;
 
@@ -477,7 +494,7 @@ function ContentEditorPointerToolbarOverlay({
     viewRef: RefObject<EditorView | null>;
     selectionFrom: number;
     selectionTo: number;
-    animation: "FadingIn" | null;
+    animation: "FadingIn" | "FadingOut" | null;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -527,7 +544,11 @@ function ContentEditorPointerToolbarOverlay({
                         boxShadow="elevation-20"
                         className={classNames(
                             greyElevated2ClassName,
-                            animation === "FadingIn" ? overlayAnimateFadeInClassName : undefined,
+                            animation === "FadingIn"
+                                ? overlayAnimateFadeInClassName
+                                : animation === "FadingOut"
+                                ? overlayAnimateFadeOutClassName
+                                : undefined,
                         )}
                         style={{marginLeft: -1, marginRight: -1}}
                     >
@@ -537,6 +558,7 @@ function ContentEditorPointerToolbarOverlay({
                             selectionFrom={selectionFrom}
                             selectionTo={selectionTo}
                             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                            isFadingOut={animation === "FadingOut"}
                             isLinkInputOpen={isLinkInputOpen}
                             onLinkInputOpen={onLinkInputOpen}
                             onLinkInputClose={onLinkInputClose}
@@ -572,6 +594,7 @@ function ContentEditorPointerToolbarButtons({
     selectionFrom,
     selectionTo,
     sharedTooltipLifecycleRef,
+    isFadingOut,
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
@@ -584,6 +607,7 @@ function ContentEditorPointerToolbarButtons({
     selectionFrom: number;
     selectionTo: number;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+    isFadingOut: boolean;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -731,6 +755,7 @@ function ContentEditorPointerToolbarButtons({
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                isToolbarFadingOut={isFadingOut}
                 activeLinkMark={activeLinkMark}
                 isLinkInputOpen={isLinkInputOpen}
                 onLinkInputOpen={onLinkInputOpen}
@@ -742,6 +767,7 @@ function ContentEditorPointerToolbarButtons({
                     viewRef={viewRef}
                     isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                    isToolbarFadingOut={isFadingOut}
                     activeHighlightMark={activeHighlightMark}
                     isHighlightSelectorOpen={isHighlightSelectorOpen}
                     onHighlightSelectorOpen={onHighlightSelectorOpen}
@@ -989,6 +1015,7 @@ function ContentEditorPointerToolbarLinkButton({
     viewRef,
     isTooltipDisabledWithoutAnimation,
     sharedTooltipLifecycleRef,
+    isToolbarFadingOut,
     activeLinkMark,
     isLinkInputOpen,
     onLinkInputOpen,
@@ -1000,6 +1027,7 @@ function ContentEditorPointerToolbarLinkButton({
     viewRef: RefObject<EditorView | null>;
     isTooltipDisabledWithoutAnimation: boolean;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+    isToolbarFadingOut: boolean;
     activeLinkMark: Mark | null;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
@@ -1020,7 +1048,7 @@ function ContentEditorPointerToolbarLinkButton({
 
     return (
         <OverlayAnimated
-            isVisible={isLinkInputOpen}
+            isVisible={isLinkInputOpen && !isToolbarFadingOut}
             placement="top"
             fallbackPlacements={[]}
             offset="1.5"
@@ -1108,6 +1136,7 @@ function ContentEditorPointerToolbarHighlightButton({
     viewRef,
     isTooltipDisabledWithoutAnimation,
     sharedTooltipLifecycleRef,
+    isToolbarFadingOut,
     activeHighlightMark,
     isHighlightSelectorOpen,
     onHighlightSelectorOpen,
@@ -1118,6 +1147,7 @@ function ContentEditorPointerToolbarHighlightButton({
     viewRef: RefObject<EditorView | null>;
     isTooltipDisabledWithoutAnimation: boolean;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+    isToolbarFadingOut: boolean;
     activeHighlightMark: Mark | null;
     isHighlightSelectorOpen: boolean;
     onHighlightSelectorOpen: () => void;
@@ -1133,7 +1163,7 @@ function ContentEditorPointerToolbarHighlightButton({
 
     return (
         <OverlayAnimated
-            isVisible={isHighlightSelectorOpen}
+            isVisible={isHighlightSelectorOpen && !isToolbarFadingOut}
             placement="top"
             fallbackPlacements={[]}
             offset="1.5"
