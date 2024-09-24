@@ -26,7 +26,7 @@ import {ContentEditorPointerToolbar} from "~/client/content/internal/content_edi
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {Overlay, OverlayRef} from "~/client/design/overlay.js";
+import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
@@ -153,7 +153,7 @@ function ContentEditorKeyboardHighlightFloater({
     state,
     viewRef,
     range,
-    onClose: onActuallyClose,
+    onClose: _onActuallyClose,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
@@ -171,23 +171,41 @@ function ContentEditorKeyboardHighlightFloater({
         [range, state.doc],
     );
 
-    const onClose = () => {
+    const [isClosing, setIsClosing] = useState(false);
+
+    const onClose = useCallback(() => {
         assert(viewRef.current);
         viewRef.current.dom.focus({preventScroll: true});
-        onActuallyClose();
-    };
+        setIsClosing(true);
+    }, [viewRef]);
+
+    const onActuallyClose = useEvent(_onActuallyClose);
+    useEffect(() => {
+        if (isClosing) {
+            const timeoutId = setTimeout(() => {
+                onActuallyClose();
+            }, overlayFadeOutAnimationDurationMs);
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [isClosing, onActuallyClose]);
 
     useEffect(() => {
         selectorRef.current?.focus({preventScroll: true});
     }, []);
 
     return (
-        <Overlay
+        <OverlayAnimated
             ref={overlayRef}
             // We don't animate in because the overlay appears in direct response to a user
-            // input (keyboard shortcut). Also it looks a little better to not animate when
-            // replacing a possibly existing toolbar.
-            isVisible={true}
+            // input (keyboard shortcut). But we do animate out because closing is less
+            // intentional.
+            //
+            // Also it looks a little better to not animate when replacing a possibly
+            // existing toolbar.
+            isVisible={!isClosing}
+            disableAnimation={!isClosing}
             placement="top-start"
             offset="3"
             offsetAlong="-5"
@@ -229,7 +247,7 @@ function ContentEditorKeyboardHighlightFloater({
                         ref={selectorRef}
                         viewRef={viewRef}
                         mark={mark}
-                        isFocusable={true}
+                        isFocusable={!isClosing}
                         onClose={onClose}
                     />
                 </Box>
@@ -241,7 +259,7 @@ function ContentEditorKeyboardHighlightFloater({
                 pos={range.from}
                 onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
             />
-        </Overlay>
+        </OverlayAnimated>
     );
 }
 
@@ -249,7 +267,7 @@ function ContentEditorKeyboardLinkFloater({
     state,
     viewRef,
     range,
-    onClose: onActuallyClose,
+    onClose: _onActuallyClose,
 }: {
     state: EditorState;
     viewRef: RefObject<EditorView | null>;
@@ -266,19 +284,37 @@ function ContentEditorKeyboardLinkFloater({
         [range, state.doc],
     );
 
-    const onClose = () => {
+    const [isClosing, setIsClosing] = useState(false);
+
+    const onClose = useCallback(() => {
         assert(viewRef.current);
         viewRef.current.dom.focus({preventScroll: true});
-        onActuallyClose();
-    };
+        setIsClosing(true);
+    }, [viewRef]);
+
+    const onActuallyClose = useEvent(_onActuallyClose);
+    useEffect(() => {
+        if (isClosing) {
+            const timeoutId = setTimeout(() => {
+                onActuallyClose();
+            }, overlayFadeOutAnimationDurationMs);
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [isClosing, onActuallyClose]);
 
     return (
-        <Overlay
+        <OverlayAnimated
             ref={overlayRef}
             // We don't animate in because the overlay appears in direct response to a user
-            // input (keyboard shortcut). Also it looks a little better to not animate when
-            // replacing a possibly existing toolbar.
-            isVisible={true}
+            // input (keyboard shortcut). But we do animate out because closing is less
+            // intentional.
+            //
+            // Also it looks a little better to not animate when replacing a possibly
+            // existing toolbar.
+            isVisible={!isClosing}
+            disableAnimation={!isClosing}
             placement="top-start"
             offset="3"
             offsetAlong="-5"
@@ -297,15 +333,25 @@ function ContentEditorKeyboardLinkFloater({
                     // what the user wants.
                     tabIndex={-1}
                 >
-                    <FocusScope contain restoreFocus>
+                    {isClosing ? (
                         <ContentEditorLinkInput
                             viewRef={viewRef}
                             range={range}
                             mark={mark}
-                            autoFocus={true}
+                            isDisabled={true}
                             onClose={onClose}
                         />
-                    </FocusScope>
+                    ) : (
+                        <FocusScope contain restoreFocus>
+                            <ContentEditorLinkInput
+                                viewRef={viewRef}
+                                range={range}
+                                mark={mark}
+                                autoFocus={true}
+                                onClose={onClose}
+                            />
+                        </FocusScope>
+                    )}
                 </Box>
             }
         >
@@ -315,7 +361,7 @@ function ContentEditorKeyboardLinkFloater({
                 pos={range.from}
                 onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
             />
-        </Overlay>
+        </OverlayAnimated>
     );
 }
 

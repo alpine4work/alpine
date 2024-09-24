@@ -63,6 +63,7 @@ import {
     greyElevated2ClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
+    overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -355,34 +356,7 @@ export function ContentEditorPointerToolbar({
               isShowing: true;
               selectionFrom: number;
               selectionTo: number;
-              // NOTE(calebmer, 2024-09-23): There used to also be a fade out animation for
-              // the pointer toolbar. However, I'm trying out removing it for the following
-              // reasons:
-              //
-              // 1. Help editing feel faster. When you move your selection your mind is
-              //    focused on the new content so don't distract the user with an animation
-              //    on their old selection.
-              //
-              // 2. Animating out looks weird. A small fade out animation over content looks
-              //    a little weird since there's a moment where the underlying text mixes
-              //    with the toolbar that's fading out.
-              //
-              // 3. Reduce complexity. A fade out animation needs to make sure we keep track
-              //    of the old position you're in so we show the right buttons. e.g. If
-              //    you're in a code block which doesn't have list item styles and you select
-              //    a paragraph the list item style shouldn't appear while fading out.
-              //
-              // This is inconsistent with our general animation pattern of "animate after
-              // indirect interaction." If you unfocus the content editor that's an indirect
-              // interaction so our general recommendation is to animate out.
-              //
-              // We're just trying this out for now. If we decide a fade out animation would
-              // actually be good for the pointer toolbar then you can revert
-              // [this commit][1] and [this commit][2].
-              //
-              // [1]: https://github.com/cyberworlds/cyberworlds/commit/873f350051f968e1f0868341df817643979940e6
-              // [2]: https://github.com/cyberworlds/cyberworlds/commit/1f9937be54634bedc1bb5f5e1203b13553885b3e
-              animation: "FadingIn" | null;
+              animation: "FadingIn" | "FadingOut" | null;
               extraOverlay: "LinkInput" | "HighlightSelector" | null;
           }
         | {isShowing: false; animation?: undefined; extraOverlay?: undefined}
@@ -404,7 +378,8 @@ export function ContentEditorPointerToolbar({
                       ...showState,
                       selectionFrom: state.selection.from,
                       selectionTo: state.selection.to,
-                      animation: showState.animation,
+                      animation:
+                          showState.animation === "FadingOut" ? "FadingIn" : showState.animation,
                       // Close the link input when the selection changes.
                       extraOverlay: null,
                   }
@@ -430,7 +405,7 @@ export function ContentEditorPointerToolbar({
         // close the toolbar when this happens.
         showState.extraOverlay !== "LinkInput"
     ) {
-        showState = {isShowing: false};
+        showState = {...showState, animation: "FadingOut"};
     }
 
     // Make sure we update our state with the new value.
@@ -480,6 +455,21 @@ export function ContentEditorPointerToolbar({
             };
         }
     }, [showState.animation, showState.isShowing]);
+
+    // Keep the toolbar mounted for a bit before unmounting. This way if the user
+    // is quickly clicking around they don't have to wait again for the delay that
+    // shows the toolbar.
+    useEffect(() => {
+        if (showState.isShowing && showState.animation === "FadingOut") {
+            const timeoutId = setTimeout(() => {
+                setShowState({isShowing: false});
+            }, 1000);
+
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [showState.isShowing, showState.animation]);
 
     // When the content editor is unfocused and there's a link input overlay open in
     // the pointer toolbar then give the editor's selection some style so the user
@@ -567,7 +557,7 @@ function ContentEditorPointerToolbarOverlay({
     viewRef: RefObject<EditorView | null>;
     selectionFrom: number;
     selectionTo: number;
-    animation: "FadingIn" | null;
+    animation: "FadingIn" | "FadingOut" | null;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -616,7 +606,11 @@ function ContentEditorPointerToolbarOverlay({
                         boxShadow="elevation-20"
                         className={classNames(
                             greyElevated2ClassName,
-                            animation === "FadingIn" ? overlayAnimateFadeInClassName : undefined,
+                            animation === "FadingIn"
+                                ? overlayAnimateFadeInClassName
+                                : animation === "FadingOut"
+                                ? overlayAnimateFadeOutClassName
+                                : undefined,
                         )}
                         style={{marginLeft: -1, marginRight: -1}}
                     >
@@ -626,6 +620,7 @@ function ContentEditorPointerToolbarOverlay({
                             selectionFrom={selectionFrom}
                             selectionTo={selectionTo}
                             sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                            isFadingOut={animation === "FadingOut"}
                             isLinkInputOpen={isLinkInputOpen}
                             onLinkInputOpen={onLinkInputOpen}
                             onLinkInputClose={onLinkInputClose}
@@ -661,6 +656,7 @@ function ContentEditorPointerToolbarButtons({
     selectionFrom,
     selectionTo,
     sharedTooltipLifecycleRef,
+    isFadingOut,
     isLinkInputOpen,
     onLinkInputOpen,
     onLinkInputClose,
@@ -673,6 +669,7 @@ function ContentEditorPointerToolbarButtons({
     selectionFrom: number;
     selectionTo: number;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+    isFadingOut: boolean;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
     onLinkInputClose: () => void;
@@ -820,6 +817,7 @@ function ContentEditorPointerToolbarButtons({
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                isToolbarFadingOut={isFadingOut}
                 activeLinkMark={activeLinkMark}
                 isLinkInputOpen={isLinkInputOpen}
                 onLinkInputOpen={onLinkInputOpen}
@@ -831,6 +829,7 @@ function ContentEditorPointerToolbarButtons({
                     viewRef={viewRef}
                     isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                    isToolbarFadingOut={isFadingOut}
                     activeHighlightMark={activeHighlightMark}
                     isHighlightSelectorOpen={isHighlightSelectorOpen}
                     onHighlightSelectorOpen={onHighlightSelectorOpen}
@@ -1078,6 +1077,7 @@ function ContentEditorPointerToolbarLinkButton({
     viewRef,
     isTooltipDisabledWithoutAnimation,
     sharedTooltipLifecycleRef,
+    isToolbarFadingOut,
     activeLinkMark,
     isLinkInputOpen,
     onLinkInputOpen,
@@ -1089,6 +1089,7 @@ function ContentEditorPointerToolbarLinkButton({
     viewRef: RefObject<EditorView | null>;
     isTooltipDisabledWithoutAnimation: boolean;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+    isToolbarFadingOut: boolean;
     activeLinkMark: Mark | null;
     isLinkInputOpen: boolean;
     onLinkInputOpen: () => void;
@@ -1109,7 +1110,7 @@ function ContentEditorPointerToolbarLinkButton({
 
     return (
         <OverlayAnimated
-            isVisible={isLinkInputOpen}
+            isVisible={isLinkInputOpen && !isToolbarFadingOut}
             placement="top"
             fallbackPlacements={[]}
             offset="1.5"
@@ -1197,6 +1198,7 @@ function ContentEditorPointerToolbarHighlightButton({
     viewRef,
     isTooltipDisabledWithoutAnimation,
     sharedTooltipLifecycleRef,
+    isToolbarFadingOut,
     activeHighlightMark,
     isHighlightSelectorOpen,
     onHighlightSelectorOpen,
@@ -1207,6 +1209,7 @@ function ContentEditorPointerToolbarHighlightButton({
     viewRef: RefObject<EditorView | null>;
     isTooltipDisabledWithoutAnimation: boolean;
     sharedTooltipLifecycleRef: Memo<(tooltipRef: TooltipRef) => () => void>;
+    isToolbarFadingOut: boolean;
     activeHighlightMark: Mark | null;
     isHighlightSelectorOpen: boolean;
     onHighlightSelectorOpen: () => void;
@@ -1222,7 +1225,7 @@ function ContentEditorPointerToolbarHighlightButton({
 
     return (
         <OverlayAnimated
-            isVisible={isHighlightSelectorOpen}
+            isVisible={isHighlightSelectorOpen && !isToolbarFadingOut}
             placement="top"
             fallbackPlacements={[]}
             offset="1.5"
