@@ -6,6 +6,12 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 
+// TODO(calebmer, #files): Test:
+//
+// - Floating files
+// - Comments on file rows and floating files
+// - File toolbar
+
 const {context, services} = createTestServices();
 
 test("can drop files into document", async ({context: browserContext, page}) => {

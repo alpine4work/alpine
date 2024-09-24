@@ -1,3 +1,4 @@
+import {Node} from "prosemirror-model";
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
@@ -16,6 +17,7 @@ export function createContentEditorFileNodeViewConstructor({
         let dom = null as HTMLElement | null;
 
         let isDestroyed = false;
+        let lastNode: Node | null = null;
         let lastFile: FileModel | undefined | null = null;
 
         const update = () => {
@@ -24,7 +26,8 @@ export function createContentEditorFileNodeViewConstructor({
                 ? getContentEditorReferences(view.state).references.fileById.get(fileId)
                 : undefined;
 
-            if (file === lastFile) return;
+            if (node === lastNode && file === lastFile) return;
+            lastNode = node;
             lastFile = file;
 
             const html = renderContentFilePreview(node, file);
@@ -88,6 +91,13 @@ export function createContentEditorFileNodeViewConstructor({
 
         return {
             dom,
+            update: newNode => {
+                if (node.type !== newNode.type) return false;
+
+                node = newNode;
+                update();
+                return true;
+            },
             destroy: () => {
                 if (isDestroyed) return;
                 isDestroyed = true;

@@ -63,6 +63,16 @@ const fallbackFileWidth = contentStyles.blockMaxWidthRem.mobile * remPxByPlatfor
 const fallbackFileHeight = fallbackFileWidth / fallbackFileAspectRatio;
 const fallbackFileSize = {width: fallbackFileWidth, height: fallbackFileHeight};
 
+// Round numbers to 3 decimal places so we sending less data over the
+// network in our generated HTML.
+function round3(n: number) {
+    return Math.round(n * 10 ** 3) / 10 ** 3;
+}
+
+function round6(n: number) {
+    return Math.round(n * 10 ** 6) / 10 ** 6;
+}
+
 /**
  * Layout the files in a file row. Uses the [Cassowary algorithm][1]
  * (specifically the [`@lume/kiwi`][2] JavaScript implementation) to determine
@@ -272,9 +282,10 @@ export function layoutContentFileRow<Files extends Array<FileModel | null>>(
             width / (fileRowWidth - contentStyles.fileRowGapWidthRem * remPx * (files.length - 1));
 
         return {
-            width,
-            widthFr,
-            height,
+            width: round3(width),
+            // More decimal places for `widthFr` since it's always between 0 and 1.
+            widthFr: round6(widthFr),
+            height: round3(height),
         };
     }) as any;
 }
@@ -449,13 +460,17 @@ export function layoutContentFileFloat(
 
     solver.updateVariables();
 
+    const widthSolution = widthVariable.value() + contentStyles.fileFloatMarginXRem * remPx;
+
+    const heightSolution =
+        heightVariable.value() +
+        contentStyles.fileFloatMarginYRem * remPx * 2 +
+        // Account for the extra space added by `fileFloatRightClassName`.
+        (direction === "right" ? contentStyles.fileFloatRightExtraMarginBottomPx : 0);
+
     return {
-        width: widthVariable.value() + contentStyles.fileFloatMarginXRem * remPx,
-        height:
-            heightVariable.value() +
-            contentStyles.fileFloatMarginYRem * remPx * 2 +
-            // Account for the extra space added by `fileFloatRightClassName`.
-            (direction === "right" ? contentStyles.fileFloatRightExtraMarginBottomPx : 0),
+        width: round3(widthSolution),
+        height: round3(heightSolution),
     };
 }
 

@@ -77,6 +77,13 @@ export function renderContentFilePreview(
 
     return html;
 }
+
+// Round numbers to 3 decimal places so we sending less data over the
+// network in our generated HTML.
+function round3(n: number) {
+    return Math.round(n * 10 ** 3) / 10 ** 3;
+}
+
 function renderFileImagePreviewPlaceholder(
     size: FileImagePreviewSize,
     placeholder: FileImagePreviewPlaceholder,
@@ -92,7 +99,9 @@ function renderFileImagePreviewPlaceholder(
     const pixelWidth = size.width / pixelGrid[0].length;
     const pixelHeight = size.height / pixelGrid.length;
 
-    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${blurStdDeviation}" /></filter><g filter="url(#blur)">`;
+    svg += `<filter id="blur"><feGaussianBlur in="SourceGraphic" stdDeviation="${round3(
+        blurStdDeviation,
+    )}" /></filter><g filter="url(#blur)">`;
 
     for (let y = 0; y < pixelGrid.length; y++) {
         const pixelRow = pixelGrid[y]!;
@@ -107,12 +116,12 @@ function renderFileImagePreviewPlaceholder(
 
             svg +=
                 `<rect ` +
-                `x="${x * pixelWidth * scaleX + translateX}" ` +
-                `y="${y * pixelHeight * scaleY + translateY}" ` +
+                `x="${round3(x * pixelWidth * scaleX + translateX)}" ` +
+                `y="${round3(y * pixelHeight * scaleY + translateY)}" ` +
                 // Have `width` and `height` fill the remainder of the image so we don't get
                 // any gaps between `<rect>`s from rounding errors when rendering the SVG.
-                `width="${pixelWidth * scaleX}" ` +
-                `height="${pixelHeight * scaleY}" ` +
+                `width="${round3(pixelWidth * scaleX)}" ` +
+                `height="${round3(pixelHeight * scaleY)}" ` +
                 `fill="${color}"${
                     pixel.alpha !== undefined ? ` fill-opacity="${pixel.alpha}"` : ""
                 } />`;
