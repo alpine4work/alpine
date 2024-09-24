@@ -208,8 +208,20 @@ export class TokenAgentPublicSide {
         try {
             ({payload: serializedPayload} = await jwtVerify(token, publicKey, {
                 algorithms: ["RS256"],
-                issuer: tokenServiceShortNameByName[serviceName],
-                audience: tokenServiceShortNameByName[this._serviceName],
+                issuer: [
+                    tokenServiceShortNameByName[serviceName],
+                    // NOTE(calebmer, 2024-09-24): Support token payloads created before this date.
+                    // When all current tokens expire we should be able to use our new format
+                    // exclusively and we can remove this migration.
+                    serviceName,
+                ],
+                audience: [
+                    tokenServiceShortNameByName[this._serviceName],
+                    // NOTE(calebmer, 2024-09-24): Support token payloads created before this date.
+                    // When all current tokens expire we should be able to use our new format
+                    // exclusively and we can remove this migration.
+                    this._serviceName,
+                ],
             }));
         } catch (error) {
             throw PermissionDeniedError.from(error);
