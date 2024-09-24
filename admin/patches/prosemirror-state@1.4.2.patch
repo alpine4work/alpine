@@ -21,7 +21,7 @@ index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..d32eadbcf862b8c6a268af3b39e79fcd
 +      if (
 +        !content.size &&
 +        this.node.type.name === "file" &&
-+        this.$anchor.parent.type.name === "fileRow" &&
++        (this.$anchor.parent.type.name === "fileRow" || this.$anchor.parent.type.name === "fileFloat") &&
 +        this.$anchor.parent.childCount === 1
 +      ) {
 +        let mapFrom = tr.steps.length;
@@ -55,7 +55,7 @@ index 4e31ea63142d7cd3fe570b499c8cb160023531af..a788ad9ac27a36b8d396867991186422
 +        if (
 +            !content.size &&
 +            this.node.type.name === "file" &&
-+            this.$anchor.parent.type.name === "fileRow" &&
++            (this.$anchor.parent.type.name === "fileRow" || this.$anchor.parent.type.name === "fileFloat") &&
 +            this.$anchor.parent.childCount === 1
 +        ) {
 +            let mapFrom = tr.steps.length;
@@ -90,7 +90,7 @@ index c0ff60847f94c5ac8f6cb654780cf9e81bf372d8..d7e8379a535d753ae720a9bc3d50fac2
 +    if (
 +      !content.size &&
 +      this.node.type.name === "file" &&
-+      this.$anchor.parent.type.name === "fileRow" &&
++      (this.$anchor.parent.type.name === "fileRow" || this.$anchor.parent.type.name === "fileFloat") &&
 +      this.$anchor.parent.childCount === 1
 +    ) {
 +      let mapFrom = tr.steps.length

@@ -94,7 +94,7 @@ export function ContentView({
     withUserSelectNone = false,
     onSeeMoreContent,
     onSeeLessContent,
-    fileRowLayoutScreenWidth,
+    fileLayoutScreenWidth,
 }: {
     /**
      * Are we rendering with a mobile layout? True on the mobile platform and true
@@ -199,7 +199,7 @@ export function ContentView({
      * if you're intentionally rendering a narrow `<ContentView>` then you should
      * set this value for better layout results. Measured in pixels.
      */
-    fileRowLayoutScreenWidth?: number;
+    fileLayoutScreenWidth?: number;
 }) {
     const clientInfo = useClientInfo();
     const isMobile = useIsMobile();
@@ -413,7 +413,7 @@ export function ContentView({
                 renderContentFragmentToHtmlStore(content, {
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
-                    screenWidth: fileRowLayoutScreenWidth ?? clientInfo.screenWidth,
+                    screenWidth: fileLayoutScreenWidth ?? clientInfo.screenWidth,
                     isMobile,
                     placeholder,
                     isInert,
@@ -440,7 +440,7 @@ export function ContentView({
             htmlStore = renderContentFragmentToHtmlStore(content, {
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
-                screenWidth: fileRowLayoutScreenWidth ?? clientInfo.screenWidth,
+                screenWidth: fileLayoutScreenWidth ?? clientInfo.screenWidth,
                 isMobile,
                 placeholder,
                 isInert,
@@ -466,7 +466,7 @@ export function ContentView({
         id,
         accountStore,
         spaceContext?.currentAccount,
-        fileRowLayoutScreenWidth,
+        fileLayoutScreenWidth,
         clientInfo.screenWidth,
         isMobile,
         placeholder,

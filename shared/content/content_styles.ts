@@ -86,4 +86,13 @@ export const headingLevel3ClassName =
 
 export const fileRowClassName = process.env.NODE_ENV !== "production" ? "content_fileRow" : "c_fr";
 
+export const fileFloatClassName =
+    process.env.NODE_ENV !== "production" ? "content_fileFloat" : "c_ff";
+
+export const fileFloatLeftClassName =
+    process.env.NODE_ENV !== "production" ? "content_fileFloatLeft" : "c_ffl";
+
+export const fileFloatRightClassName =
+    process.env.NODE_ENV !== "production" ? "content_fileFloatRight" : "c_ffr";
+
 export const fileClassName = process.env.NODE_ENV !== "production" ? "content_file" : "c_f";

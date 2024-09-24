@@ -75,7 +75,7 @@ export function collectContentReferencedIds(
             }
 
             if (node.type.name === "file") {
-                const fileId: FileId | null = node.attrs.id;
+                const fileId: FileId | null = node.attrs.fileId;
                 if (fileId !== null) {
                     fileIds.add(fileId);
                 }

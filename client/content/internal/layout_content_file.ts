@@ -75,6 +75,13 @@ const fallbackFileSize = {width: fallbackFileWidth, height: fallbackFileHeight};
  * based on the Cassowary algorithm. Which is what gives us confidence for the
  * performance of this approach.
  *
+ * Layout satisfies the following constraints:
+ *
+ * - Must be larger than our minimum size and smaller than our maximum size
+ * - Must have the same height across all files in the row
+ * - Should maintain the aspect ratio of the underlying files
+ * - Should have the file widths add up to the document width
+ *
  * [1]: https://en.wikipedia.org/wiki/Cassowary_(software)
  * [2]: https://github.com/lume/kiwi
  * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
@@ -120,7 +127,7 @@ export function layoutContentFileRow<Files extends Array<FileModel | null>>(
         // this loop adding up all `widthVariables` and requiring that they're less
         // than our file row's width.
         {
-            const minWidth = contentStyles.fileMinSizeRem * remPx;
+            const minWidth = contentStyles.minFileSizeRem * remPx;
             const maxWidth = Math.max(minWidth, width);
 
             if (minWidth === maxWidth) {
@@ -157,8 +164,8 @@ export function layoutContentFileRow<Files extends Array<FileModel | null>>(
         // than both the file's original height (since making a small file larger will
         // start to add resize artifacts) and the file row's maximum height.
         {
-            const minHeight = contentStyles.fileMinSizeRem * remPx;
-            const maxHeight = clamp(minHeight, height, contentStyles.fileMaxHeightRem * remPx);
+            const minHeight = contentStyles.minFileSizeRem * remPx;
+            const maxHeight = clamp(minHeight, height, contentStyles.fileRowMaxHeightRem * remPx);
 
             if (minHeight === maxHeight) {
                 solver.addConstraint(
@@ -273,6 +280,186 @@ export function layoutContentFileRow<Files extends Array<FileModel | null>>(
 }
 
 /**
+ * Layout the file in a file float. Uses the [Cassowary algorithm][1]
+ * (specifically the [`@lume/kiwi`][2] JavaScript implementation) to determine
+ * the best aesthetic layout.
+ *
+ * [Apple's Auto Layout framework][3] for iOS and OS X development is also
+ * based on the Cassowary algorithm. Which is what gives us confidence for the
+ * performance of this approach.
+ *
+ * Layout satisfies the following constraints:
+ *
+ * - Must be larger than our minimum size and smaller than our maximum size
+ * - Should maintain the aspect ratio of the underlying file
+ * - Should have height be a multiple of a paragraph's line height so text can
+ *   cleanly wrap around the file
+ *
+ * [1]: https://en.wikipedia.org/wiki/Cassowary_(software)
+ * [2]: https://github.com/lume/kiwi
+ * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
+ */
+export function layoutContentFileFloat(
+    direction: "left" | "right",
+    file: FileModel | null,
+    {screenWidth, isMobile}: {screenWidth: number; isMobile: boolean},
+) {
+    const remPx = remPxByPlatform[isMobile ? "mobile" : "desktop"];
+    const {width, height} = getFilePreviewSize(file);
+
+    const fileFloatMaxWidth = Math.round(
+        Math.min(
+            contentStyles.blockMaxWidthRem[isMobile ? "mobile" : "desktop"] * remPx,
+            screenWidth - screenPaddingXRem[isMobile ? "mobile" : "desktop"] * remPx * 2,
+        ) * contentStyles.fileFloatMaxWidthPercent,
+    );
+
+    const solver = new kiwi.Solver();
+
+    const widthVariable = new kiwi.Variable();
+    const heightVariable = new kiwi.Variable();
+
+    // Add `width` bounds. `width` should be larger than our min file size and less
+    // than the file's original width (since making a small file larger will start
+    // to add resize artifacts).
+    //
+    // The maximum width is also implicitly bound by the constraint we add below
+    // this loop adding up all `widthVariables` and requiring that they're less
+    // than our file row's width.
+    {
+        const minWidth = contentStyles.minFileSizeRem * remPx;
+        const maxWidth = clamp(minWidth, width, fileFloatMaxWidth);
+
+        if (minWidth === maxWidth) {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Eq,
+                    minWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+        } else {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Ge,
+                    minWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthVariable,
+                    kiwi.Operator.Le,
+                    maxWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            // Ideally we match the file's width. But it's not required. If our width is
+            // larger than the max width the solver will maximize our width variable.
+            solver.addConstraint(
+                new kiwi.Constraint(widthVariable, kiwi.Operator.Eq, width, kiwi.Strength.weak),
+            );
+        }
+    }
+
+    // Add `height` bounds. `height` should be larger than our min file size and less
+    // than both the file's original height (since making a small file larger will
+    // start to add resize artifacts) and the file row's maximum height.
+    {
+        const minHeight = contentStyles.fileFloatMinHeightRem * remPx;
+        const maxHeight = clamp(minHeight, height, contentStyles.fileRowMaxHeightRem * remPx);
+
+        if (minHeight === maxHeight) {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    heightVariable,
+                    kiwi.Operator.Eq,
+                    minHeight,
+                    kiwi.Strength.required,
+                ),
+            );
+        } else {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    heightVariable,
+                    kiwi.Operator.Ge,
+                    minHeight,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    heightVariable,
+                    kiwi.Operator.Le,
+                    maxHeight,
+                    kiwi.Strength.required,
+                ),
+            );
+
+            // Ideally we match the file's height. But it's not required. If our height is
+            // larger than the max height the solver will maximize our height variable.
+            solver.addConstraint(
+                new kiwi.Constraint(heightVariable, kiwi.Operator.Eq, height, kiwi.Strength.weak),
+            );
+        }
+    }
+
+    // Maintain the aspect ratio of the file as best we can. This constraint isn't
+    // required, the solver may break it if necessary.
+    solver.addConstraint(
+        new kiwi.Constraint(
+            widthVariable.minus(
+                heightVariable.multiply(
+                    clamp(minFileAspectRatio, width / height, maxFileAspectRatio),
+                ),
+            ),
+            kiwi.Operator.Eq,
+            0,
+            kiwi.Strength.strong,
+        ),
+    );
+
+    solver.updateVariables();
+
+    // Get our initial height from the solver then let's try rounding the height to
+    // the nearest number of paragraph lines. By rounding the file height to
+    // paragraph lines we can neatly fit our file next to text which'll flow
+    // naturally around the file.
+    {
+        const lineCount = Math.floor(
+            (heightVariable.value() + contentStyles.fileFloatMarginYRem * remPx * 2) /
+                (contentStyles.paragraphLineHeightRem * remPx),
+        );
+
+        solver.addConstraint(
+            new kiwi.Constraint(
+                heightVariable,
+                kiwi.Operator.Eq,
+                lineCount * (contentStyles.paragraphLineHeightRem * remPx) -
+                    contentStyles.fileFloatMarginYRem * remPx * 2,
+                kiwi.Strength.medium,
+            ),
+        );
+    }
+
+    solver.updateVariables();
+
+    return {
+        width: widthVariable.value() + contentStyles.fileFloatMarginXRem * remPx,
+        height:
+            heightVariable.value() +
+            contentStyles.fileFloatMarginYRem * remPx * 2 +
+            // Account for the extra space added by `fileFloatRightClassName`.
+            (direction === "right" ? contentStyles.fileFloatRightExtraMarginBottomPx : 0),
+    };
+}
+
+/**
  * Get the original size of the file's preview in pixels. When laying out files
  * we'll try to preserve the width/height aspect ratio from this function. We
  * also won't grow the file to a size larger than the width/height returned by
@@ -294,7 +481,7 @@ function getFilePreviewSize(file: FileModel | null): {width: number; height: num
 
             // Use the larger `remPx` size (mobile). The file will be scaled down as
             // necessary.
-            const height = contentStyles.fileMinSizeRem * remPxByPlatform.mobile;
+            const height = contentStyles.minFileSizeRem * remPxByPlatform.mobile;
             const width = height * aspectRatio;
             return {width, height};
         }

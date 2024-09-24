@@ -19,6 +19,7 @@ import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
+// TODO(calebmer, #files): Loading spinner before file is attached
 export async function uploadFileFromContentEditor(
     context: AppContext,
     spaceId: SpaceId,

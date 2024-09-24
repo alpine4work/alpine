@@ -1,6 +1,7 @@
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
+import {withDisableContentEditorFileToolbarInitialAnimation} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -18,7 +19,7 @@ export function createContentEditorFileNodeViewConstructor({
         let lastFile: FileModel | undefined | null = null;
 
         const update = () => {
-            const fileId: FileId | null = node.attrs.id;
+            const fileId: FileId | null = node.attrs.fileId;
             const file = fileId
                 ? getContentEditorReferences(view.state).references.fileById.get(fileId)
                 : undefined;
@@ -38,6 +39,8 @@ export function createContentEditorFileNodeViewConstructor({
         update();
         assert(dom);
 
+        // TODO(calebmer, #files): Long press should also select file instead of
+        // opening file viewer.
         const handlePointerDown = (event: PointerEvent) => {
             // The browser default behavior when clicking on a file is to move focus to the
             // nearest position in the document's text. Don't do this.
@@ -50,22 +53,32 @@ export function createContentEditorFileNodeViewConstructor({
             // use keyboard shortcuts or right click to select a file. The user should be
             // able to figure out one of these three methods.
             if (event.pointerType === "mouse" && (event.altKey || event.shiftKey)) {
-                view.dom.focus();
-
                 view.dispatch(
                     view.state.tr.setSelection(new NodeSelection(view.state.doc.resolve(getPos()))),
                 );
+
+                if (!view.hasFocus()) view.focus();
             }
         };
 
         const handleContextMenu = () => {
-            view.dom.focus();
+            // Make sure `<ContentEditorFileToolbar>` doesn't animate in then immediately
+            // animate out. Since by setting selection here we'll render
+            // `<ContentEditorFileToolbar>`. Then once this event finishes processing
+            // `contextmenu` will update `useIsContextMenuOpen()`. Without this function
+            // this causes the toolbar to animate in/out on mount which looks broken.
+            //
+            // This relies on the fact that `view.dispatch()` performs its update with
+            // `flushSync()`.
+            withDisableContentEditorFileToolbarInitialAnimation(() => {
+                // Right-clicking on a file selects the file. This is another way to access
+                // file selection tools.
+                view.dispatch(
+                    view.state.tr.setSelection(new NodeSelection(view.state.doc.resolve(getPos()))),
+                );
 
-            // Right-clicking on a file selects the file. This is another way to access
-            // file selection tools.
-            view.dispatch(
-                view.state.tr.setSelection(new NodeSelection(view.state.doc.resolve(getPos()))),
-            );
+                if (!view.hasFocus()) view.focus();
+            });
         };
 
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(update);

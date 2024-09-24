@@ -35,7 +35,7 @@ export function DocumentCommentThreadPreview({
     contentReferences,
     onCommentThreadSnippetPress,
     isResolveButtonPending,
-    fileRowLayoutScreenWidthRem,
+    fileLayoutScreenWidthRem,
 }: {
     withMobileLayout: boolean;
     commentThread: DocumentCommentThreadModel;
@@ -44,7 +44,7 @@ export function DocumentCommentThreadPreview({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
     isResolveButtonPending: boolean;
-    fileRowLayoutScreenWidthRem: number;
+    fileLayoutScreenWidthRem: number;
 }) {
     const remPx = useRemPx();
     const previewRef = useRef<HTMLDivElement>(null);
@@ -204,9 +204,8 @@ export function DocumentCommentThreadPreview({
                                 // Clicking on the preview opens it in the document.
                                 isInert={true}
                                 shouldHighlightComment={shouldHighlightComment}
-                                fileRowLayoutScreenWidth={
-                                    (fileRowLayoutScreenWidthRem /
-                                        documentCommentThreadPreviewScale) *
+                                fileLayoutScreenWidth={
+                                    (fileLayoutScreenWidthRem / documentCommentThreadPreviewScale) *
                                     remPx
                                 }
                             />

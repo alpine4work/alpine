@@ -14,6 +14,9 @@ import {
     checkListItemCheckedClassName,
     commentClassName,
     fileClassName,
+    fileFloatClassName,
+    fileFloatLeftClassName,
+    fileFloatRightClassName,
     fileRowClassName,
     highlightClassNameByColor,
     listItemClassName,
@@ -137,6 +140,47 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         },
 
         /**
+         * Renders a single file floating to the left or right. Text will wrap around
+         * the floating file. A useful rendering mode for files when you're writing
+         * prose. You can put your file to the side of your text where it will
+         * supplements the document's content instead of interrupting it.
+         */
+        // TODO(calebmer, #files): Floats shouldn't be allowed in `MessageContent`.
+        // Only file rows should be allowed in `MessageContent`.
+        fileFloat: {
+            group: "block",
+            content: "file",
+            defining: true,
+            isolating: true,
+            // Don't allow selecting with a `NodeSelection`. The default is `true` but
+            // there's only a small number of nodes (e.g. `divider`) we actually want to
+            // let be selectable.
+            selectable: false,
+            // Allow comments on files. Comments should never appear on `fileRow`. Only on
+            // `file`. We validate this is the case in
+            //
+            // TODO(calebmer, #files): When we define this in `content_schema.ts` this
+            // `marks` definition should stay only in `document_content_schema.ts`.
+            marks: "comment",
+            attrs: {
+                direction: {
+                    schema: Schema.enum(["left", "right"]),
+                },
+            },
+            toDOM: node => [
+                "div",
+                {
+                    class: `${fileFloatClassName} ${
+                        node.attrs.direction === "left"
+                            ? fileFloatLeftClassName
+                            : fileFloatRightClassName
+                    }`,
+                },
+                0,
+            ],
+        },
+
+        /**
          * A file attached to our content. Files can be images, videos, documents
          * (e.g. PDFs or Microsoft Word docs), audio, code, and more.
          *
@@ -145,8 +189,6 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
          * for rendering file content whereas the container is responsible for figuring
          * out how to lay out the file.
          */
-        // TODO(calebmer, #files): Files that float to the left and right. This will be
-        // another example of a `file` container.
         file: {
             defining: true,
             isolating: true,
@@ -157,11 +199,11 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             // `marks` definition should stay only in `document_content_schema.ts`.
             marks: "comment",
             attrs: {
-                // `id` is nullable so the `file` node is generatable. Otherwise ProseMirror
-                // complains that `fileRow` can't be generated because it requires at least one
-                // file node. `id: null` files will always render with an error. You should
-                // always provide a `FileId`.
-                id: {
+                // `fileId` is nullable so the `file` node is generatable. Otherwise
+                // ProseMirror complains that `fileRow` can't be generated because it requires
+                // at least one file node. `fileId: null` files will always render with an
+                // error. You should always provide a `FileId`.
+                fileId: {
                     schema: Schema.id<FileId>().nullable(),
                     default: null,
                 },

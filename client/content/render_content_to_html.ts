@@ -2,7 +2,10 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {layoutContentFileRow} from "~/client/content/internal/layout_content_file_row.js";
+import {
+    layoutContentFileFloat,
+    layoutContentFileRow,
+} from "~/client/content/internal/layout_content_file.js";
 import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
@@ -312,7 +315,7 @@ export function renderContentFragmentToHtmlStore(
                     const layout = layoutContentFileRow(
                         node.content.content.map(childNode => {
                             assert(childNode.type.name === "file");
-                            const fileId: FileId | null = childNode.attrs.id;
+                            const fileId: FileId | null = childNode.attrs.fileId;
                             if (!fileId) return null;
                             return content.references.fileById.get(fileId) ?? null;
                         }),
@@ -337,8 +340,35 @@ export function renderContentFragmentToHtmlStore(
                         contentHtml,
                     };
                 },
+                fileFloat: node => {
+                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                        node.type.spec.toDOM!(node),
+                    );
+
+                    assert(html instanceof HtmlElementGenerator);
+
+                    const childNode = node.content.content[0]!;
+                    assert(childNode.type.name === "file");
+                    const fileId: FileId | null = childNode.attrs.fileId;
+                    const file = fileId ? content.references.fileById.get(fileId) ?? null : null;
+
+                    const layout = layoutContentFileFloat(node.attrs.direction, file, {
+                        screenWidth,
+                        isMobile,
+                    });
+
+                    html.setAttribute(
+                        "style",
+                        [`width: ${layout.width}px`, `height: ${layout.height}px`].join("; "),
+                    );
+
+                    return {
+                        html,
+                        contentHtml,
+                    };
+                },
                 file: node => {
-                    const fileId: FileId | null = node.attrs.id;
+                    const fileId: FileId | null = node.attrs.fileId;
                     const file = fileId ? content.references.fileById.get(fileId) : undefined;
 
                     const html = renderContentFilePreview(node, file);

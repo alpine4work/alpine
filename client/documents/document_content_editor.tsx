@@ -2342,7 +2342,7 @@ function DocumentContentEditorSidebar({
                                         : undefined
                                 }
                                 // Provide the sidebar width for better layout results when previewing files.
-                                previewFileRowLayoutScreenWidth={
+                                previewFileLayoutScreenWidth={
                                     !withMobileLayout
                                         ? documentContentEditorSidebarWidth
                                         : undefined

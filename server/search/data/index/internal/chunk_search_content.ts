@@ -1079,7 +1079,8 @@ async function chunkSearchContentBySentenceForBlockNode(
         //
         // Anyway, for now we don't include files at all in the search body but I'm
         // sure we'll experiment with different approaches over time.
-        case "fileRow": {
+        case "fileRow":
+        case "fileFloat": {
             return null;
         }
         default:

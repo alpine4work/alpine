@@ -89,7 +89,7 @@ async function dropIgnoredSearchContent(
         ) => Promise<AccountModel | null>;
     },
 ): Promise<Node | null> {
-    if (node.type.name === "fileRow") return null;
+    if (node.type.name === "fileRow" || node.type.name === "fileFloat") return null;
 
     if (node.type.name === "mention") {
         const mention: ContentMention = node.attrs.mention;
@@ -4744,20 +4744,98 @@ test("ignores files in file rows", async () => {
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("The quick brown")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("paragraph", {}, [schema.text("fox jumps")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("paragraph", {}, [schema.text("over the")]),
-                schema.node("fileRow", {}, [schema.node("file", {id: null})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: null})]),
                 schema.node("paragraph", {}, [schema.text("lazy dog")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: null}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: null}),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+The quick brown
+
+fox jumps
+
+over the
+
+lazy dog`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 9,
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "The quick brown", tokenCount: 3}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "fox jumps", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "over the", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 2,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "lazy dog", tokenCount: 2}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+test("ignores files in file floats", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("The quick brown")]),
+                schema.node("fileFloat", {direction: "right"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("fox jumps")]),
+                schema.node("fileFloat", {direction: "left"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileFloat", {direction: "left"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("over the")]),
+                schema.node("fileFloat", {direction: "right"}, [
+                    schema.node("file", {fileId: null}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("lazy dog")]),
+                schema.node("fileFloat", {direction: "right"}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ]),
             {tokenizer, getAccountIfExists},
@@ -4834,13 +4912,13 @@ test("chunks doc that is only files", async () => {
         await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ]),
             {tokenizer, getAccountIfExists},
@@ -4869,9 +4947,9 @@ test("ignores files in file rows when file row is in quote block or list item", 
                 // this case since we may support this format someday.
                 schema.nodes.quoteBlock.create({}, [
                     schema.node("fileRow", {}, [
-                        schema.node("file", {id: generateChronologicalId<FileId>()}),
-                        schema.node("file", {id: generateChronologicalId<FileId>()}),
-                        schema.node("file", {id: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                     ]),
                 ]),
                 schema.node("paragraph", {}, [schema.text("over the")]),
@@ -4881,9 +4959,9 @@ test("ignores files in file rows when file row is in quote block or list item", 
                 schema.nodes.orderedListItem.create({}, [
                     schema.node("paragraph", {}, [schema.text("hi")]),
                     schema.node("fileRow", {}, [
-                        schema.node("file", {id: generateChronologicalId<FileId>()}),
-                        schema.node("file", {id: generateChronologicalId<FileId>()}),
-                        schema.node("file", {id: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                        schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                     ]),
                 ]),
                 schema.node("paragraph", {}, [schema.text("lazy dog")]),

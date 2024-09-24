@@ -15,7 +15,7 @@ import {
     useRef,
     useState,
 } from "react";
-import {createPortal} from "react-dom";
+import {createPortal, flushSync} from "react-dom";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
@@ -28,7 +28,6 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -275,7 +274,7 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
             if (actions.length > 0) {
                 // Right-clicking may focus an element which may render something (e.g. open a
                 // dropdown on focus). Make sure we render our context menu in the same render.
-                runWithImmediatePriority(() => {
+                flushSync(() => {
                     // If the right-clicked element doesn't have an `id` then generate an `id` and
                     // set it on the element.
                     let targetId: string;

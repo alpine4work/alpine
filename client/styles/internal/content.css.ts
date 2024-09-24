@@ -76,6 +76,9 @@ const quoteBlockClassName = `.${sharedClassNames.quoteBlockClassName}`;
 const strikeClassName = `.${sharedClassNames.strikeClassName}`;
 const titleClassName = `.${sharedClassNames.titleClassName}`;
 const fileRowClassName = `.${sharedClassNames.fileRowClassName}`;
+const fileFloatClassName = `.${sharedClassNames.fileFloatClassName}`;
+const fileFloatLeftClassName = `.${sharedClassNames.fileFloatLeftClassName}`;
+const fileFloatRightClassName = `.${sharedClassNames.fileFloatRightClassName}`;
 const fileClassName = `.${sharedClassNames.fileClassName}`;
 
 const highlightClassNameByColor = mapObjectValues(
@@ -199,7 +202,11 @@ const blockStyles = {
     maxWidth: blockMaxWidthVar,
     marginLeft: "auto",
     marginRight: "auto",
-};
+    // By default, all blocks are rendered below `fileFloat`. If you want your
+    // block to be rendered besides `fileFloat` you must explicitly omit this
+    // `clear` property.
+    clear: "both",
+} as const;
 
 export const paragraphFontSize: {
     fontSize: string;
@@ -209,6 +216,8 @@ export const paragraphFontSize: {
     ...fontSizes["100"],
     lineHeight: "1.375rem",
 };
+
+export const paragraphLineHeightRem = parseRemLengthNumber(paragraphFontSize.lineHeight);
 
 export const extraCompactParagraphFontSize: {
     fontSize: string;
@@ -222,7 +231,7 @@ export const extraCompactParagraphFontSize: {
 };
 
 globalStyle(paragraphClassName, {
-    ...blockStyles,
+    ...omitObject(blockStyles, ["clear"]),
     ...fontStyles.normal,
     ...paragraphFontSize,
     // Make sure this node always takes up space even if it is empty. Important
@@ -408,7 +417,7 @@ const quoteBlockIndentation = spacing["4"];
 const quoteBlockBorderWidth = "0.1875rem";
 
 globalStyle(quoteBlockClassName, {
-    ...blockStyles,
+    ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: quoteBlockIndentation,
     marginTop: standaloneBlockMarginVar,
@@ -449,7 +458,7 @@ const unorderedListItemBulletSize = spacing[unorderedListItemBulletSizeSpacing];
 export {unorderedListItemBulletSizeSpacing as unorderedListItemBulletSize};
 
 globalStyle(listItemClassName, {
-    ...blockStyles,
+    ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation} + ${listItemOffsetVar})`,
 });
@@ -911,11 +920,11 @@ globalStyle(
     },
 );
 
-const fileMinSize = spacing["20"];
-export const fileMinSizeRem = parseRemLengthNumber(fileMinSize);
+const minFileSize = spacing["20"];
+export const minFileSizeRem = parseRemLengthNumber(minFileSize);
 
-const fileMaxHeight = spacing["128"];
-export const fileMaxHeightRem = parseRemLengthNumber(fileMaxHeight);
+const fileRowMaxHeight = spacing["128"];
+export const fileRowMaxHeightRem = parseRemLengthNumber(fileRowMaxHeight);
 
 const fileRowGapWidth = spacing["2.5"];
 export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
@@ -928,8 +937,8 @@ globalStyle(fileRowClassName, {
     display: "grid",
     justifyContent: "center",
     gap: fileRowGapWidth,
-    minHeight: fileMinSize,
-    maxHeight: fileMaxHeight,
+    minHeight: minFileSize,
+    maxHeight: fileRowMaxHeight,
     userSelect: "none",
 });
 
@@ -941,13 +950,95 @@ globalStyle(`${fileRowClassName} + ${fileRowClassName}`, {
     marginTop: fileRowGapWidth,
 });
 
+export const fileFloatMaxWidthPercent = 1 / 3;
+
+const fileFloatMarginX = spacing["2.5"];
+export const fileFloatMarginXRem = parseRemLengthNumber(fileFloatMarginX);
+
+const fileFloatMarginY = spacing["1"];
+export const fileFloatMarginYRem = parseRemLengthNumber(fileFloatMarginY);
+
+export const fileFloatRightExtraMarginBottomPx = 1;
+
+export const fileFloatMinHeightParagraphLineCount = Math.ceil(
+    minFileSizeRem / paragraphLineHeightRem,
+);
+export const fileFloatMinHeightRem = fileFloatMinHeightParagraphLineCount * paragraphLineHeightRem;
+
+export const fileFloatMaxHeightParagraphLineCount = 16;
+export const fileFloatMaxHeightRem = fileFloatMaxHeightParagraphLineCount * paragraphLineHeightRem;
+
+globalStyle(fileFloatClassName, {
+    clear: "both",
+    display: "grid",
+    gridTemplateColumns: "100% 0",
+    paddingTop: fileFloatMarginY,
+    paddingBottom: fileFloatMarginY,
+    userSelect: "none",
+});
+
+// [Clearfix][1] our floated files. CSS floats used to be very popular as they
+// were the solution for creating header/sidebar layouts which today are now
+// common across basically all websites. CSS floats aren't used for this
+// purpose anymore since CSS flexbox and CSS grid are much better solutions for
+// this problem.
+//
+// When floats were popular, most floats came with a "clearfix". This made sure
+// the parent element adopted the height of the floated element. We probably
+// need this for our floated files too.
+//
+// For further reading there's a good article on floats by Chris Coyier called
+// "[All About Floats][2]".
+//
+// [1]: https://stackoverflow.com/questions/8554043/what-is-a-clearfix
+// [2]: https://css-tricks.com/all-about-floats/
+globalStyle(`${fileFloatClassName}::after`, {
+    content: '""',
+    display: "table",
+    clear: "both",
+});
+
+globalStyle(fileFloatLeftClassName, {
+    float: "left",
+    paddingRight: fileFloatMarginX,
+    marginLeft: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
+});
+
+globalStyle(`${mobilePlatformSelector} ${fileFloatLeftClassName}`, {
+    marginLeft: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
+});
+
+globalStyle(fileFloatRightClassName, {
+    float: "right",
+    paddingLeft: fileFloatMarginX,
+    marginRight: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
+    // Add a little bit of extra space below right floating files. This space
+    // should be enough to cause an additional line of text to wrap underneath a
+    // right floated file. But it should be as small as possible so the difference
+    // is almost undetectable when you have to files floated right stacked on top
+    // of each other. 1px should be fine as this extra margin bottom value if
+    // `layoutContentFile()` was successful in finding a file's height that's a
+    // multiple of `paragraphLineHeightRem`.
+    //
+    // The reason we want an extra line of text to wrap underneath files floated to
+    // the right is that a paragraph's ragged right edge next to a floated file
+    // creates visual whitespace that looks imbalanced if text tightly wraps below
+    // the file. By forcing one more line to wrap around the image we improve the
+    // optical alignment around images.
+    paddingBottom: `calc(${fileFloatMarginY} + ${fileFloatRightExtraMarginBottomPx}px)`,
+});
+
+globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {
+    marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
+});
+
 globalStyle(fileClassName, {
     zIndex: "10",
     position: "relative",
     overflow: "hidden",
-    minWidth: fileMinSize,
-    minHeight: fileMinSize,
-    maxHeight: fileMaxHeight,
+    minWidth: minFileSize,
+    minHeight: minFileSize,
+    maxHeight: fileRowMaxHeight,
     userSelect: "none",
     // Files have an interactive pointer cursor as a hint that when you click on a
     // file it opens up the file viewer. The file alone is not obviously
@@ -1129,7 +1220,7 @@ globalStyle(`${darkColorSchemeSelector} ${commentClassName} ${commentClassName}`
     backgroundColor: nestedCommentBackgroundColors.dark.default,
 });
 
-globalStyle(`${fileRowClassName} ${commentClassName}`, {
+globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}`, {
     position: "relative",
     display: "grid",
     backgroundColor: "transparent",
@@ -1137,7 +1228,7 @@ globalStyle(`${fileRowClassName} ${commentClassName}`, {
     paddingBottom: 0,
 });
 
-globalStyle(`${fileRowClassName} ${commentClassName}::after`, {
+globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}::after`, {
     content: '""',
     position: "absolute",
     backgroundColor: "transparent",
@@ -1147,13 +1238,16 @@ globalStyle(`${fileRowClassName} ${commentClassName}::after`, {
     borderRadius: 4,
 });
 
-globalStyle(`${fileRowClassName} > ${commentClassName}::after`, {
+globalStyle(`:is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}::after`, {
     backgroundColor: commentBackgroundColors.light.default,
 });
 
-globalStyle(`${darkColorSchemeSelector} ${fileRowClassName} > ${commentClassName}::after`, {
-    backgroundColor: commentBackgroundColors.dark.default,
-});
+globalStyle(
+    `${darkColorSchemeSelector} :is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}::after`,
+    {
+        backgroundColor: commentBackgroundColors.dark.default,
+    },
+);
 
 // Use a pointer cursor for comments in a mobile layout since the comment opens
 // in a bottom sheet and disables interactivity with the document. Since
@@ -1325,11 +1419,11 @@ ${darkColorSchemeSelector} #$containerId ${commentClassName}[data-comment="$comm
 ${darkColorSchemeSelector} #$containerId ${commentClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
     nestedCommentBackgroundColors.dark.active
 }}
-#$containerId ${fileRowClassName} ${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
-#$containerId ${fileRowClassName} ${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
+#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}[data-comment="$commentThreadId"] {background-color: transparent}
+#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) ${commentClassName}[data-comment="$commentThreadId"]::after {background-color: ${
     commentBackgroundColors.light.active
 }}
-#$containerId ${fileRowClassName} > ${commentClassName}:not([data-comment="$commentThreadId"]):has(${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
+#$containerId :is(${fileRowClassName}, ${fileFloatClassName}) > ${commentClassName}:not([data-comment="$commentThreadId"]):has(${commentClassName}[data-comment="$commentThreadId"])::after {background-color: transparent}
 ${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameByColor>)
     .map(
         highlightColor => `\

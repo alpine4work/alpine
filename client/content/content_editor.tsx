@@ -42,9 +42,10 @@ import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/
 import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
+import {createContentEditorFileFloatNodeViewConstructor} from "~/client/content/internal/content_editor_file_float_node_view.js";
 import {createContentEditorFileNodeViewConstructor} from "~/client/content/internal/content_editor_file_node_view.js";
 import {createContentEditorFileRowNodeViewConstructor} from "~/client/content/internal/content_editor_file_row_node_view.js";
-import {ContentEditorFileToolbar} from "~/client/content/internal/content_editor_file_toolbar.js";
+import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
@@ -895,6 +896,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                         return referencesUpdateEmitterRef.current.subscribe(listener);
                     },
                 }),
+                fileFloat: createContentEditorFileFloatNodeViewConstructor({
+                    subscribeToReferencesUpdate: listener => {
+                        referencesUpdateEmitterRef.current ??= new EventEmitter();
+                        return referencesUpdateEmitterRef.current.subscribe(listener);
+                    },
+                }),
                 file: createContentEditorFileNodeViewConstructor({
                     subscribeToReferencesUpdate: listener => {
                         referencesUpdateEmitterRef.current ??= new EventEmitter();
@@ -1092,7 +1099,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                         dropTarget.action.pos,
                                                         schema.nodes.fileRow!.create(null, [
                                                             schema.nodes.file!.create({
-                                                                id: initialFile.id,
+                                                                fileId: initialFile.id,
                                                             }),
                                                         ]),
                                                     );
@@ -1102,7 +1109,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                     transaction.insert(
                                                         dropTarget.action.pos,
                                                         schema.nodes.file!.create({
-                                                            id: initialFile.id,
+                                                            fileId: initialFile.id,
                                                         }),
                                                     );
                                                     break;
@@ -2584,16 +2591,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                 isFocused={isFocused}
                 setDecorationCallbacks={setDecorationCallbacks}
             />
-            {selectedNodeElement &&
-                floaterState.type === "PointerToolbar" &&
-                unwrappedState.selection instanceof NodeSelection &&
-                unwrappedState.selection.node.type.name === "file" && (
-                    <ContentEditorFileToolbar
-                        state={unwrappedState}
-                        viewRef={viewRef}
-                        targetElement={selectedNodeElement}
-                    />
-                )}
+            <ContentEditorFileToolbarController
+                state={unwrappedState}
+                viewRef={viewRef}
+                floaterState={floaterState}
+                selectedNodeElement={selectedNodeElement}
+            />
             {selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />
             )}
@@ -3130,7 +3133,7 @@ type ContentEditorFileDropTarget = {
  */
 function getContentEditorFileDropTargets(
     view: EditorView,
-    aroundTopBlockIndex: number,
+    aroundIndex: number,
 ): Array<ContentEditorFileDropTarget> {
     const dropTargets: Array<ContentEditorFileDropTarget> = [];
 
@@ -3139,168 +3142,251 @@ function getContentEditorFileDropTargets(
     if (!schema.nodes.fileRow) return dropTargets;
 
     const remPx = getRemPxWithoutListening();
-    const topBlockIndexSeekBackwardsCount = 1;
-    const topBlockIndexSeekForwardsCount = 2;
-    let nextTopBlockPos = 0;
+    const nodeCount = doc.content.content.length;
+    let seekBackwardsCount = 1;
+    let seekForwardsCount = 2;
 
-    const defaultDropTargetCenterY =
+    let startIndex = aroundIndex;
+    if (seekBackwardsCount > 0) {
+        for (let i = aroundIndex - 1; i >= 0; i--) {
+            const node = doc.content.content[i]!;
+
+            // Ignore floating files. They're not positioned normally in the document so
+            // cause drop targets to be rendered in weird positions.
+            if (node.type.name === "fileFloat") continue;
+
+            seekBackwardsCount--;
+
+            if (seekBackwardsCount <= 0) {
+                startIndex = i;
+                break;
+            }
+        }
+    }
+
+    const defaultDropTargetOffsetY =
         convertRemLengthToPx(spacing[contentStyles.defaultParagraphMargin], remPx) / 2;
-    let lastDropTargetOffsetY = defaultDropTargetCenterY;
+    let previousDropTargetOffsetY = defaultDropTargetOffsetY;
 
-    let topBlockElement: HTMLElement | null = null;
-    const topBlockIndexIterationCount = Math.min(
-        doc.content.content.length,
-        aroundTopBlockIndex + topBlockIndexSeekForwardsCount + 1,
-    );
-    for (let topBlockIndex = 0; topBlockIndex < topBlockIndexIterationCount; topBlockIndex++) {
-        const topBlockNode = doc.content.content[topBlockIndex]!;
+    let nextPos = 0;
+    let element: HTMLElement | null = null;
+    const previousFileFloats: Array<{node: Node; pos: number}> = [];
 
-        const topBlockPos = nextTopBlockPos;
-        nextTopBlockPos += topBlockNode.nodeSize;
+    for (let i = 0; i < nodeCount; i++) {
+        const node = doc.content.content[i]!;
 
-        // We need to set `topBlock` a node before the first top block index we
-        // actually add drop targets for. Which is why we add +1 to
-        // `topBlockIndexSeekBackwardsCount`. We'll `continue` out of the loop
-        // iteration later.
-        if (topBlockIndex < aroundTopBlockIndex - (topBlockIndexSeekBackwardsCount + 1)) continue;
+        const pos = nextPos;
+        nextPos += node.nodeSize;
 
-        const topBlockPosElement = view.nodeDOM(topBlockPos);
-        if (!(topBlockPosElement instanceof HTMLElement)) continue;
-        const lastTopBlockElement = topBlockElement;
-        topBlockElement = topBlockPosElement;
+        // Ignore floating files. They're not positioned normally in the document so
+        // cause drop targets to be rendered in weird positions.
+        if (node.type.name === "fileFloat") {
+            previousFileFloats.push({node, pos});
+            continue;
+        }
 
-        if (topBlockIndex < aroundTopBlockIndex - topBlockIndexSeekBackwardsCount) continue;
+        // We need the element before `startIndex` but let's not run `view.nodeDOM()`
+        // for any other elements.
+        if (i < startIndex - 1) continue;
 
-        if (doc.canReplaceWith(topBlockIndex, topBlockIndex, schema.nodes.fileRow)) {
-            lastDropTargetOffsetY = lastTopBlockElement
-                ? (topBlockElement.offsetTop -
-                      (lastTopBlockElement.offsetTop + lastTopBlockElement.offsetHeight)) /
-                  2
-                : defaultDropTargetCenterY;
+        // If we're past `aroundIndex` then decrement `seekForwardsCount` until we
+        // reach 0.
+        if (i > aroundIndex) {
+            if (seekForwardsCount <= 0) break;
+            seekForwardsCount--;
+        }
 
-            if (topBlockNode.type.name === "heading") {
-                lastDropTargetOffsetY = Math.min(
-                    lastDropTargetOffsetY,
-                    convertRemLengthToPx(spacing[contentStyles.defaultParagraphMargin], remPx) / 2,
+        const currentElement = view.nodeDOM(pos);
+        if (!(currentElement instanceof HTMLElement)) continue;
+        const lastElement = element;
+        element = currentElement;
+
+        if (i < startIndex) continue;
+
+        if (doc.canReplaceWith(i, i, schema.nodes.fileRow)) {
+            previousDropTargetOffsetY = lastElement
+                ? (element.offsetTop - (lastElement.offsetTop + lastElement.offsetHeight)) / 2
+                : defaultDropTargetOffsetY;
+
+            // If heading is at the end of the document and a file is dragged below it,
+            // let's use paragraph margin for the drop target offset instead of the
+            // heading's margin from above.
+            if (node.type.name === "heading") {
+                previousDropTargetOffsetY = Math.min(
+                    previousDropTargetOffsetY,
+                    defaultDropTargetOffsetY,
                 );
             }
 
-            const dropTargetY =
-                // If we are dropping above a `fileRow` then always use the file row gap to
-                // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-                // since this adjustment may not make sense for the last block in our doc.
-                topBlockNode.type.name === "fileRow"
-                    ? topBlockElement.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2
-                    : lastTopBlockElement &&
-                      doc.content.content[topBlockIndex - 1]!.type.name === "fileRow"
-                    ? // If we are dropping below a `fileRow` then always use the file row gap to
-                      // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-                      // since this adjustment may not make sense for the last block in our doc.
-                      lastTopBlockElement.offsetTop +
-                      lastTopBlockElement.offsetHeight +
-                      (contentStyles.fileRowGapWidthRem * remPx) / 2
-                    : // If we are dropping above a `heading` then add `lastDropTargetOffsetY` to the
-                    // last top block element's bottom instead of subtracting it from this top block
-                    // element's top. Since the heading creates a new section the dropped file would
-                    // be a part of the previous section.
-                    lastTopBlockElement && topBlockNode.type.name === "heading"
-                    ? lastTopBlockElement.offsetTop +
-                      lastTopBlockElement.offsetHeight +
-                      lastDropTargetOffsetY
-                    : topBlockElement.offsetTop - lastDropTargetOffsetY;
+            let dropTargetY: number;
+
+            // If we are dropping above a `fileRow` then always use the file row gap to
+            // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
+            // since this adjustment may not make sense for the last block in our doc.
+            if (node.type.name === "fileRow") {
+                dropTargetY = element.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2;
+            }
+            // If we are dropping below a `fileRow` then always use the file row gap to
+            // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
+            // since this adjustment may not make sense for the last block in our doc.
+            else if (lastElement && doc.content.content[i - 1]!.type.name === "fileRow") {
+                dropTargetY =
+                    lastElement.offsetTop +
+                    lastElement.offsetHeight +
+                    (contentStyles.fileRowGapWidthRem * remPx) / 2;
+            }
+            // If we are dropping above a `heading` then add `lastDropTargetOffsetY` to the
+            // last top block element's bottom instead of subtracting it from this top block
+            // element's top. Since the heading creates a new section the dropped file
+            // should appear to logically be a part of the previous section.
+            else if (lastElement && node.type.name === "heading") {
+                dropTargetY =
+                    lastElement.offsetTop + lastElement.offsetHeight + previousDropTargetOffsetY;
+            } else {
+                dropTargetY = element.offsetTop - previousDropTargetOffsetY;
+            }
+
+            let dropTargetLeft = element.offsetLeft;
+            let dropTargetRight = element.offsetLeft + element.offsetWidth;
+
+            // Scan through the `fileFloat`s above us. Check to see our drop target
+            // overlaps with any of them. If there is an overlap then update our drop
+            // target left/right so we don't draw a drop target over a `fileFloat`. This
+            // search takes advantage of a couple facts:
+            //
+            // - The order of `fileFloat`s in the document represents their same vertical
+            //   order on screen. So if `j < k` then we know
+            //   `previousFileFloats[j].offsetTop + previousFileFloats[j].offsetHeight <= previousFileFloats[k].offsetTop`.
+            //
+            // - You can't have two `fileFloat`s at the same X position because all
+            //   `fileFloat`s have the CSS `clear: both`.
+            for (let j = previousFileFloats.length - 1; j >= 0; j--) {
+                const previousFileFloat = previousFileFloats[j]!;
+                const fileFloatElement = view.nodeDOM(previousFileFloat.pos);
+
+                if (fileFloatElement instanceof HTMLElement) {
+                    // If this float is above the drop target then all other `previousFileFloats`
+                    // will similarly be over the drop target. So we can end iteration.
+                    if (fileFloatElement.offsetTop + fileFloatElement.offsetHeight < dropTargetY) {
+                        break;
+                    }
+
+                    if (fileFloatElement.offsetTop < dropTargetY) {
+                        if (previousFileFloat.node.attrs.direction === "right") {
+                            dropTargetRight = Math.min(
+                                dropTargetRight,
+                                fileFloatElement.offsetLeft,
+                            );
+                        } else if (previousFileFloat.node.attrs.direction === "left") {
+                            dropTargetLeft = Math.max(
+                                dropTargetLeft,
+                                fileFloatElement.offsetLeft + fileFloatElement.offsetWidth,
+                            );
+                        }
+
+                        // Two `fileFloat`s aren't allowed to be at the same X position. Since we set
+                        // `clear: "both"` on all `fileFloat`s. So if we find one `fileFloat` that
+                        // intersects our drop target we know there won't be any more.
+                        break;
+                    }
+                }
+            }
 
             dropTargets.push({
-                offsetParent: topBlockElement.offsetParent,
+                offsetParent: element.offsetParent,
                 indicator: "Top",
                 rect: {
-                    left: topBlockElement.offsetLeft,
-                    right: topBlockElement.offsetLeft + topBlockElement.offsetWidth,
+                    left: dropTargetLeft,
+                    right: dropTargetRight,
                     top: dropTargetY,
                     bottom: dropTargetY,
                 },
                 action: {
                     type: "InsertFileRow",
-                    pos: topBlockPos,
+                    pos,
                 },
             });
         }
 
-        if (topBlockNode.type.name === "fileRow" && topBlockNode.childCount < 3) {
+        // If we're dragging near a file row then also create vertical drop indicators
+        // which'll allow you to create a gallery when dropping a file to the left or
+        // right.
+        if (node.type.name === "fileRow" && node.childCount < 3) {
             {
-                const topBlockLeftElement =
-                    topBlockElement.firstElementChild instanceof HTMLElement
-                        ? topBlockElement.firstElementChild
-                        : topBlockElement;
+                const fileRowLeftElement =
+                    element.firstElementChild instanceof HTMLElement
+                        ? element.firstElementChild
+                        : element;
 
                 const dropTargetX =
-                    topBlockLeftElement.offsetLeft - (contentStyles.fileRowGapWidthRem * remPx) / 2;
+                    fileRowLeftElement.offsetLeft - (contentStyles.fileRowGapWidthRem * remPx) / 2;
 
                 dropTargets.push({
-                    offsetParent: topBlockElement.offsetParent,
+                    offsetParent: element.offsetParent,
                     indicator: "Right",
                     rect: {
                         left: 0,
                         right: dropTargetX,
-                        top: topBlockElement.offsetTop,
-                        bottom: topBlockElement.offsetTop + topBlockElement.offsetHeight,
+                        top: element.offsetTop,
+                        bottom: element.offsetTop + element.offsetHeight,
                     },
 
                     action: {
                         type: "InsertFileIntoRow",
-                        pos: topBlockPos + 1,
+                        pos: pos + 1,
                     },
                 });
             }
 
-            if (topBlockNode.type.name === "fileRow" && topBlockNode.childCount === 2) {
-                const topBlockFirstChildElement = topBlockElement.firstElementChild;
+            if (node.type.name === "fileRow" && node.childCount === 2) {
+                const fileRowLeftElement = element.firstElementChild;
 
-                if (topBlockFirstChildElement instanceof HTMLElement) {
+                if (fileRowLeftElement instanceof HTMLElement) {
                     const dropTargetX =
-                        topBlockFirstChildElement.offsetLeft +
-                        topBlockFirstChildElement.offsetWidth +
+                        fileRowLeftElement.offsetLeft +
+                        fileRowLeftElement.offsetWidth +
                         (contentStyles.fileRowGapWidthRem * remPx) / 2;
 
                     dropTargets.push({
-                        offsetParent: topBlockElement.offsetParent,
+                        offsetParent: element.offsetParent,
                         indicator: "Right",
                         rect: {
                             left: dropTargetX,
                             right: dropTargetX,
-                            top: topBlockElement.offsetTop,
-                            bottom: topBlockElement.offsetTop + topBlockElement.offsetHeight,
+                            top: element.offsetTop,
+                            bottom: element.offsetTop + element.offsetHeight,
                         },
                         action: {
                             type: "InsertFileIntoRow",
-                            pos: topBlockPos + 2,
+                            pos: pos + 2,
                         },
                     });
                 }
             }
 
             {
-                const topBlockRightElement =
-                    topBlockElement.lastElementChild instanceof HTMLElement
-                        ? topBlockElement.lastElementChild
-                        : topBlockElement;
+                const fileRowRightElement =
+                    element.lastElementChild instanceof HTMLElement
+                        ? element.lastElementChild
+                        : element;
 
                 const dropTargetX =
-                    topBlockRightElement.offsetLeft +
-                    topBlockRightElement.offsetWidth +
+                    fileRowRightElement.offsetLeft +
+                    fileRowRightElement.offsetWidth +
                     (contentStyles.fileRowGapWidthRem * remPx) / 2;
 
                 dropTargets.push({
-                    offsetParent: topBlockElement.offsetParent,
+                    offsetParent: element.offsetParent,
                     indicator: "Left",
                     rect: {
                         left: dropTargetX,
-                        right: topBlockElement.offsetParent?.clientWidth ?? dropTargetX,
-                        top: topBlockElement.offsetTop,
-                        bottom: topBlockElement.offsetTop + topBlockElement.offsetHeight,
+                        right: element.offsetParent?.clientWidth ?? dropTargetX,
+                        top: element.offsetTop,
+                        bottom: element.offsetTop + element.offsetHeight,
                     },
                     action: {
                         type: "InsertFileIntoRow",
-                        pos: topBlockPos + topBlockNode.nodeSize - 1,
+                        pos: pos + node.nodeSize - 1,
                     },
                 });
             }
@@ -3308,35 +3394,33 @@ function getContentEditorFileDropTargets(
     }
 
     if (
-        doc.content.content.length < aroundTopBlockIndex + topBlockIndexSeekForwardsCount + 1 &&
-        topBlockElement &&
-        doc.canReplaceWith(
-            doc.content.content.length,
-            doc.content.content.length,
-            schema.nodes.fileRow,
-        )
+        seekForwardsCount > 0 &&
+        element &&
+        doc.canReplaceWith(nodeCount, nodeCount, schema.nodes.fileRow)
     ) {
+        seekForwardsCount--;
+
         const dropTargetY =
-            topBlockElement.offsetTop +
-            topBlockElement.offsetHeight +
+            element.offsetTop +
+            element.offsetHeight +
             // Reuse the offset between the last two blocks we've seen for the last drop
             // target. e.g. If the last block was a paragraph then we may be using the
             // paragraph's margins. Otherwise the rect (and so droppable indicator) touch
             // the end of the last block which looks weird.
-            lastDropTargetOffsetY;
+            previousDropTargetOffsetY;
 
         dropTargets.push({
-            offsetParent: topBlockElement.offsetParent,
+            offsetParent: element.offsetParent,
             indicator: "Top",
             rect: {
-                left: topBlockElement.offsetLeft,
-                right: topBlockElement.offsetLeft + topBlockElement.offsetWidth,
+                left: element.offsetLeft,
+                right: element.offsetLeft + element.offsetWidth,
                 top: dropTargetY,
                 bottom: dropTargetY,
             },
             action: {
                 type: "InsertFileRow",
-                pos: nextTopBlockPos,
+                pos: nextPos,
             },
         });
     }

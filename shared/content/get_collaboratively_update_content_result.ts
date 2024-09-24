@@ -1,11 +1,12 @@
 import {Node} from "prosemirror-model";
-import {Mapping, Step} from "prosemirror-transform";
+import {AttrStep, Mapping, Step} from "prosemirror-transform";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
+import {DataLossError, FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
 
@@ -106,10 +107,29 @@ export function getCollaborativelyUpdateContentResult(
                 invertedSteps = [];
 
                 for (const step of clientSteps) {
+                    // ProseMirror will happily apply an `AttrStep` to any node even if the node
+                    // doesn't support the attribute in question. So add extra validation on the
+                    // server to make sure we're applying `AttrStep` to a node which supports this
+                    // attribute.
+                    if (step instanceof AttrStep) {
+                        const node = content.nodeAt(step.pos);
+                        if (node) {
+                            const attrSpec = node.type.spec.attrs?.[step.attr];
+                            if (!attrSpec) {
+                                throw new FailedPreconditionError(
+                                    quote`Couldn't apply attr step to node ${node.type.name} because it doesn't support attr ${step.attr}`,
+                                );
+                            }
+
+                            // Make sure the step is valid.
+                            attrSpec.schema.validate?.(step.value);
+                        }
+                    }
+
                     const stepResult = step.apply(content);
                     if (!stepResult.doc) {
                         throw new FailedPreconditionError(
-                            `Could not apply step to content: ${stepResult.failed!}`,
+                            `Couldn't apply step to content: ${stepResult.failed!}`,
                         );
                     }
 
@@ -147,17 +167,36 @@ export function getCollaborativelyUpdateContentResult(
                         const invertedStepResult = invertedStep.apply(clientContent);
                         if (!invertedStepResult.doc)
                             throw new DataLossError(
-                                `Could not apply inverse of saved content step: ${invertedStepResult.failed!}`,
+                                `Couldn't apply inverse of saved content step: ${invertedStepResult.failed!}`,
                             );
 
                         clientContent = invertedStepResult.doc;
                     }
 
                     for (const step of clientSteps) {
+                        // ProseMirror will happily apply an `AttrStep` to any node even if the node
+                        // doesn't support the attribute in question. So add extra validation on the
+                        // server to make sure we're applying `AttrStep` to a node which supports this
+                        // attribute.
+                        if (step instanceof AttrStep) {
+                            const node = clientContent.nodeAt(step.pos);
+                            if (node) {
+                                const attrSpec = node.type.spec.attrs?.[step.attr];
+                                if (!attrSpec) {
+                                    throw new FailedPreconditionError(
+                                        quote`Couldn't apply attr step to node ${node.type.name} because it doesn't support attr ${step.attr}`,
+                                    );
+                                }
+
+                                // Make sure the step is valid.
+                                attrSpec.schema.validate?.(step.value);
+                            }
+                        }
+
                         const stepResult = step.apply(clientContent);
                         if (!stepResult.doc) {
                             throw new FailedPreconditionError(
-                                `Could not apply step to content: ${stepResult.failed!}`,
+                                `Couldn't apply step to content: ${stepResult.failed!}`,
                             );
                         }
 
@@ -191,6 +230,34 @@ export function getCollaborativelyUpdateContentResult(
                     // implementation does:
                     // https://github.com/ProseMirror/prosemirror-collab/blob/ed039eb7e62fd0079b51406863931c6f67046881/src/collab.ts#L21
                     if (!rebasedStep) continue;
+
+                    // ProseMirror will happily apply an `AttrStep` to any node even if the node
+                    // doesn't support the attribute in question. So add extra validation on the
+                    // server to make sure we're applying `AttrStep` to a node which supports this
+                    // attribute.
+                    //
+                    // NOTE(calebmer): We consider this an `InternalError` (instead of
+                    // `FailedPreconditionError`) and add `AFTER REBASING` to the error message
+                    // since if `AttrStep` is updating an attribute on a node that doesn't support
+                    // the attribute then we should error above when we apply `clientSteps` to
+                    // `clientContent` not here. However, maybe a bug in ProseMirror may lead our
+                    // rebased `AttrStep` targeting a different node than what it was targeting
+                    // initially. If this happens we want to catch the issue early (instead of
+                    // writing corrupted data to the database).
+                    if (rebasedStep instanceof AttrStep) {
+                        const node = content.nodeAt(rebasedStep.pos);
+                        if (node) {
+                            const attrSpec = node.type.spec.attrs?.[rebasedStep.attr];
+                            if (!attrSpec) {
+                                throw new InternalError(
+                                    quote`Couldn't apply attr step to node ${node.type.name} because it doesn't support attr ${rebasedStep.attr} (AFTER REBASING)`,
+                                );
+                            }
+
+                            // Make sure the step is valid.
+                            attrSpec.schema.validate?.(rebasedStep.value);
+                        }
+                    }
 
                     const rebasedStepResult = rebasedStep.apply(content);
 

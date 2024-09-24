@@ -2,6 +2,7 @@ import {Fragment, Mark, Slice} from "prosemirror-model";
 import {
     AddMarkStep,
     AddNodeMarkStep,
+    AttrStep,
     RemoveMarkStep,
     ReplaceAroundStep,
     ReplaceStep,
@@ -2914,8 +2915,8 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
                 new Slice(
                     Fragment.from(
                         schema.node("fileRow", {}, [
-                            schema.node("file", {id: fileUploader1.fileId}),
-                            schema.node("file", {id: fileUploader2.fileId}),
+                            schema.node("file", {fileId: fileUploader1.fileId}),
+                            schema.node("file", {fileId: fileUploader2.fileId}),
                         ]),
                     ),
                     0,
@@ -2942,9 +2943,7 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        new FailedPreconditionError(
-            "Could not apply step to content: Invalid content for node doc",
-        ),
+        new FailedPreconditionError("Couldn't apply step to content: Invalid content for node doc"),
     );
 
     expect(massageDocument(await getDocument(context.action(session1), id))).toEqual({
@@ -2953,8 +2952,8 @@ test("can't add comment mark to `fileRow` node in a document", async () => {
             .node("doc", {}, [
                 schema.node("title", {}),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: fileUploader1.fileId}),
-                    schema.node("file", {id: fileUploader2.fileId}),
+                    schema.node("file", {fileId: fileUploader1.fileId}),
+                    schema.node("file", {fileId: fileUploader2.fileId}),
                 ]),
             ])
             .toJSON(),
@@ -3011,8 +3010,8 @@ test("can add comment mark to `file` node in a document", async () => {
                 new Slice(
                     Fragment.from(
                         schema.node("fileRow", {}, [
-                            schema.node("file", {id: fileUploader1.fileId}),
-                            schema.node("file", {id: fileUploader2.fileId}),
+                            schema.node("file", {fileId: fileUploader1.fileId}),
+                            schema.node("file", {fileId: fileUploader2.fileId}),
                         ]),
                     ),
                     0,
@@ -3050,7 +3049,7 @@ test("can add comment mark to `file` node in a document", async () => {
                         [],
                         [schema.mark("comment", {commentThreadId})],
                     ),
-                    schema.node("file", {id: fileUploader2.fileId}),
+                    schema.node("file", {fileId: fileUploader2.fileId}),
                 ]),
             ])
             .toJSON(),
@@ -3072,7 +3071,7 @@ test("can't add bold mark to `paragraph` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Could not apply step to content: No node at mark step's position",
+            "Couldn't apply step to content: No node at mark step's position",
         ),
     );
 
@@ -3084,9 +3083,7 @@ test("can't add bold mark to `paragraph` node in a document", async () => {
             clientId: generateId(),
         }),
     ).rejects.toThrow(
-        new FailedPreconditionError(
-            "Could not apply step to content: Invalid content for node doc",
-        ),
+        new FailedPreconditionError("Couldn't apply step to content: Invalid content for node doc"),
     );
 
     await expect(
@@ -3098,7 +3095,7 @@ test("can't add bold mark to `paragraph` node in a document", async () => {
         }),
     ).rejects.toThrow(
         new FailedPreconditionError(
-            "Could not apply step to content: No node at mark step's position",
+            "Couldn't apply step to content: No node at mark step's position",
         ),
     );
 });
@@ -3949,6 +3946,178 @@ test("authorizing document access after getting document as system actor is cach
         }
 
         expect(getCount()).toEqual(3);
+    }
+});
+
+test("can convert `fileRow` to a `fileFloat` and change `fileFloat` direction", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session);
+
+    const fileUploader = await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+        hasAlternative: false,
+        hasPreview: null,
+    });
+
+    await fileUploader.finishUploading(session.action());
+
+    await attachFileAsUploader(
+        session.action(),
+        space.id,
+        fileUploader.fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+    );
+
+    {
+        const {newInvertedSteps} = await document.update(session, [
+            new ReplaceStep(
+                2,
+                4,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileRow", {}, [
+                            schema.node("file", {fileId: fileUploader.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}),
+                    schema.node("fileRow", {}, [
+                        schema.node("file", {fileId: fileUploader.fileId}),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(newInvertedSteps.map(step => step.toJSON())).toEqual(
+            [
+                new ReplaceStep(
+                    2,
+                    5,
+                    new Slice(Fragment.from(schema.node("paragraph", {}, [])), 0, 0),
+                ),
+            ].map(step => step.toJSON()),
+        );
+    }
+
+    {
+        const {newInvertedSteps} = await document.update(session, [
+            new ReplaceStep(
+                2,
+                5,
+                new Slice(
+                    Fragment.from(
+                        schema.node("fileFloat", {direction: "right"}, [
+                            schema.node("file", {fileId: fileUploader.fileId}),
+                        ]),
+                    ),
+                    0,
+                    0,
+                ),
+            ),
+        ]);
+
+        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}),
+                    schema.node("fileFloat", {direction: "right"}, [
+                        schema.node("file", {fileId: fileUploader.fileId}),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(newInvertedSteps.map(step => step.toJSON())).toEqual(
+            [
+                new ReplaceStep(
+                    2,
+                    5,
+                    new Slice(
+                        Fragment.from(
+                            schema.node("fileRow", {}, [
+                                schema.node("file", {fileId: fileUploader.fileId}),
+                            ]),
+                        ),
+                        0,
+                        0,
+                    ),
+                ),
+            ].map(step => step.toJSON()),
+        );
+    }
+
+    await expect(document.update(session, [new AttrStep(3, "direction", "left")])).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "file" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(3, "direction", "left")], {versionOverride: 1}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "file" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(2, "direction", "left")], {versionOverride: 1}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "fileRow" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(3, "direction", "left")], {versionOverride: 0}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            "Couldn't apply step to content: No node at attribute step's position",
+        ),
+    );
+
+    await expect(
+        document.update(session, [new AttrStep(2, "direction", "left")], {versionOverride: 0}),
+    ).rejects.toThrow(
+        new FailedPreconditionError(
+            'Couldn\'t apply attr step to node "paragraph" because it doesn\'t support attr "direction"',
+        ),
+    );
+
+    {
+        const {newInvertedSteps} = await document.update(session, [
+            new AttrStep(2, "direction", "left"),
+        ]);
+
+        expect(massageDocument(await getDocument(session.action(), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}),
+                    schema.node("fileFloat", {direction: "left"}, [
+                        schema.node("file", {fileId: fileUploader.fileId}),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(newInvertedSteps.map(step => step.toJSON())).toEqual(
+            [new AttrStep(2, "direction", "right")].map(step => step.toJSON()),
+        );
     }
 });
 
@@ -10552,7 +10721,7 @@ describe("Comments", () => {
                 new Slice(
                     Fragment.from(
                         schema.node("fileRow", {}, [
-                            schema.node("file", {id: fileUploader.fileId}),
+                            schema.node("file", {fileId: fileUploader.fileId}),
                         ]),
                     ),
                     0,
@@ -10684,7 +10853,7 @@ describe("Comments", () => {
                 new Slice(
                     Fragment.from(
                         schema.node("fileRow", {}, [
-                            schema.node("file", {id: fileUploader.fileId}),
+                            schema.node("file", {fileId: fileUploader.fileId}),
                         ]),
                     ),
                     0,

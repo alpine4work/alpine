@@ -28,6 +28,7 @@ export const contentNodeTypeNames = {
     mention: true,
     title: true,
     fileRow: true,
+    fileFloat: true,
     file: true,
 };
 
@@ -85,6 +86,7 @@ export const contentBlockNodeTypeNames = {
     heading: true,
     divider: true,
     fileRow: true,
+    fileFloat: true,
 };
 
 /**

@@ -75,7 +75,6 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {
     assertId,

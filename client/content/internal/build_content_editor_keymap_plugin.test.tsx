@@ -4949,7 +4949,7 @@ test("pressing arrow down above a file selects the file", () => {
             initialContent={schema.node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -4969,7 +4969,7 @@ test("pressing enter when a file is selected creates a paragraph below", () => {
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -4989,9 +4989,9 @@ test("pressing enter when a file is selected in a multi-file row creates a parag
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5011,9 +5011,9 @@ test("pressing enter when a file is selected in a multi-file row creates a parag
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5038,9 +5038,9 @@ test("pressing enter when a file is selected in a multi-file row creates a parag
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5070,12 +5070,12 @@ test("pressing enter when a file is selected creates a paragraph between two fil
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5095,7 +5095,7 @@ test("pressing alt-enter when a file is selected creates a paragraph above", () 
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5115,9 +5115,9 @@ test("pressing alt-enter when a file is selected in a multi-file row creates a p
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5137,9 +5137,9 @@ test("pressing alt-enter when a file is selected in a multi-file row creates a p
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5164,9 +5164,9 @@ test("pressing alt-enter when a file is selected in a multi-file row creates a p
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5196,12 +5196,12 @@ test("pressing alt-enter when a file is selected creates a paragraph between two
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -5234,14 +5234,14 @@ test("backspace from first to last in a gallery maintains file selection", () =>
             initialContent={schema.node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])}
@@ -5253,14 +5253,14 @@ test("backspace from first to last in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5275,14 +5275,14 @@ test("backspace from first to last in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5297,13 +5297,13 @@ test("backspace from first to last in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5317,11 +5317,11 @@ test("backspace from first to last in a gallery maintains file selection", () =>
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file3Id})]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file3Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5335,10 +5335,10 @@ test("backspace from first to last in a gallery maintains file selection", () =>
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5353,8 +5353,8 @@ test("backspace from first to last in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5368,7 +5368,7 @@ test("backspace from first to last in a gallery maintains file selection", () =>
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file6Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file6Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -5396,14 +5396,14 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             initialContent={schema.node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])}
@@ -5415,14 +5415,14 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5437,14 +5437,14 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5459,14 +5459,14 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5481,12 +5481,12 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file5Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file5Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -5500,11 +5500,11 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -5518,9 +5518,9 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5535,8 +5535,8 @@ test("backspace from last to first in a gallery maintains file selection", () =>
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5550,7 +5550,7 @@ test("backspace from last to first in a gallery maintains file selection", () =>
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file1Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file1Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -5578,14 +5578,14 @@ test("backspace from first to last in a gallery maintains file selection when su
             initialContent={schema.node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])}
@@ -5597,14 +5597,14 @@ test("backspace from first to last in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5619,14 +5619,14 @@ test("backspace from first to last in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5641,13 +5641,13 @@ test("backspace from first to last in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5661,11 +5661,11 @@ test("backspace from first to last in a gallery maintains file selection when su
         schema
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file3Id})]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file3Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5679,10 +5679,10 @@ test("backspace from first to last in a gallery maintains file selection when su
         schema
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5697,8 +5697,8 @@ test("backspace from first to last in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5712,7 +5712,7 @@ test("backspace from first to last in a gallery maintains file selection when su
         schema
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file6Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file6Id})]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
             .toJSON(),
@@ -5745,14 +5745,14 @@ test("backspace from last to first in a gallery maintains file selection when su
             initialContent={schema.node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])}
@@ -5764,14 +5764,14 @@ test("backspace from last to first in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5786,14 +5786,14 @@ test("backspace from last to first in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5808,14 +5808,14 @@ test("backspace from last to first in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5830,12 +5830,12 @@ test("backspace from last to first in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file5Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file5Id})]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
             .toJSON(),
@@ -5849,11 +5849,11 @@ test("backspace from last to first in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
             .toJSON(),
@@ -5867,9 +5867,9 @@ test("backspace from last to first in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5884,8 +5884,8 @@ test("backspace from last to first in a gallery maintains file selection when su
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
                 ]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
@@ -5899,7 +5899,7 @@ test("backspace from last to first in a gallery maintains file selection when su
         schema
             .node("doc", {}, [
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file1Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file1Id})]),
                 schema.node("unorderedListItem", {}, [schema.node("paragraph")]),
             ])
             .toJSON(),
@@ -5932,14 +5932,14 @@ test("delete from first to last in a gallery maintains file selection", () => {
             initialContent={schema.node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])}
@@ -5951,14 +5951,14 @@ test("delete from first to last in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5973,14 +5973,14 @@ test("delete from first to last in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -5995,13 +5995,13 @@ test("delete from first to last in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6015,11 +6015,11 @@ test("delete from first to last in a gallery maintains file selection", () => {
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file3Id})]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file3Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6033,10 +6033,10 @@ test("delete from first to last in a gallery maintains file selection", () => {
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6051,8 +6051,8 @@ test("delete from first to last in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6066,7 +6066,7 @@ test("delete from first to last in a gallery maintains file selection", () => {
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file6Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file6Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -6094,14 +6094,14 @@ test("delete from last to first in a gallery maintains file selection", () => {
             initialContent={schema.node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])}
@@ -6113,14 +6113,14 @@ test("delete from last to first in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6135,14 +6135,14 @@ test("delete from last to first in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6157,14 +6157,14 @@ test("delete from last to first in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file5Id}),
-                    schema.node("file", {id: file6Id}),
+                    schema.node("file", {fileId: file5Id}),
+                    schema.node("file", {fileId: file6Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6179,12 +6179,12 @@ test("delete from last to first in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file5Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file5Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -6198,11 +6198,11 @@ test("delete from last to first in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
-                schema.node("fileRow", {}, [schema.node("file", {id: file4Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file4Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -6216,9 +6216,9 @@ test("delete from last to first in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
-                    schema.node("file", {id: file3Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
+                    schema.node("file", {fileId: file3Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6233,8 +6233,8 @@ test("delete from last to first in a gallery maintains file selection", () => {
             .node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: file1Id}),
-                    schema.node("file", {id: file2Id}),
+                    schema.node("file", {fileId: file1Id}),
+                    schema.node("file", {fileId: file2Id}),
                 ]),
                 schema.node("paragraph"),
             ])
@@ -6248,7 +6248,7 @@ test("delete from last to first in a gallery maintains file selection", () => {
         schema
             .node("doc", {}, [
                 schema.node("paragraph"),
-                schema.node("fileRow", {}, [schema.node("file", {id: file1Id})]),
+                schema.node("fileRow", {}, [schema.node("file", {fileId: file1Id})]),
                 schema.node("paragraph"),
             ])
             .toJSON(),
@@ -6268,9 +6268,9 @@ test("backspace at the start of a paragraph selects the previous file", () => {
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("paragraph", {}, [schema.text("test")]),
             ])}
@@ -6314,9 +6314,9 @@ test("delete at the end of a paragraph selects the next file", () => {
             initialContent={schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("test")]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6353,9 +6353,9 @@ test("backspace at the start of a paragraph in a list item selects the previous 
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("unorderedListItem", {}, [
                     schema.node("paragraph", {}, [schema.text("test")]),
@@ -6402,9 +6402,9 @@ test("delete at the end of a paragraph in a list item selects the next file", ()
                     schema.node("paragraph", {}, [schema.text("test")]),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6451,9 +6451,9 @@ test("backspace at the start of an empty paragraph removes the paragraph", () =>
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("paragraph"),
             ])}
@@ -6485,9 +6485,9 @@ test("delete at the end of an empty paragraph removes the paragraph", () => {
             initialContent={schema.node("doc", {}, [
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6507,12 +6507,12 @@ test("pressing enter when a file is selected creates a paragraph between two fil
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6537,12 +6537,12 @@ test("pressing enter when a file is selected creates a paragraph between two fil
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6567,7 +6567,7 @@ test("pressing arrow down when file is select and the last thing creates a new p
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6592,34 +6592,34 @@ test("pressing end/home moves to the end/beginning of file gallery respectively"
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                ]),
-                schema.node("paragraph"),
-                schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                ]),
-                schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                ]),
-                schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("paragraph"),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                ]),
+                schema.node("paragraph"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6762,7 +6762,7 @@ test("typing when a file is selected creates a paragraph below", () => {
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6782,9 +6782,9 @@ test("typing when a file is selected in a multi-file row creates a paragraph bel
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6804,9 +6804,9 @@ test("typing when a file is selected in a multi-file row creates a paragraph bel
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6831,9 +6831,9 @@ test("typing when a file is selected in a multi-file row creates a paragraph bel
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,
@@ -6863,12 +6863,12 @@ test("typing when a file is selected creates a paragraph between two file rows",
         <TestContentEditor
             initialContent={schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
                 schema.node("fileRow", {}, [
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
-                    schema.node("file", {id: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
+                    schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ])}
         />,

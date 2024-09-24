@@ -3845,7 +3845,7 @@ test("can unresolve a comment thread", async () => {
             steps: [
                 new AddMarksAfterRemoveAllStep(
                     schema.mark("comment", {commentThreadId: commentThread.id}),
-                    [{from: 3, to: 8}],
+                    [{isNode: false, from: 3, to: 8}],
                 ),
             ],
             stepsContentReferences: {
@@ -3889,7 +3889,7 @@ test("can unresolve a comment thread", async () => {
             steps: [
                 new AddMarksAfterRemoveAllStep(
                     schema.mark("comment", {commentThreadId: commentThread.id}),
-                    [{from: 3, to: 8}],
+                    [{isNode: false, from: 3, to: 8}],
                 ),
             ],
             stepsContentReferences: {

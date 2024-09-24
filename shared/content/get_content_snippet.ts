@@ -424,6 +424,9 @@ const isLineBreakingByNodeType: {
     mention: false,
     // Horizontal layout in a `display: flex` or `display: grid` element
     file: false,
+    // Set as `float: left` and `float: right`. Multiple adjacent `fileFloat`s
+    // should not be counted as lines for the purpose of snippet cutting
+    fileFloat: false,
 };
 
 /**
@@ -456,6 +459,7 @@ const dontCutLeadingChildrenByNodeType: {
     // Don't cut files within a file row since this will adjust the layout of the
     // remaining files in the row.
     fileRow: true,
+    fileFloat: true,
     file: true,
     // The answer for nodes without children doesn't really matter since we won't
     // cut within them anyways.

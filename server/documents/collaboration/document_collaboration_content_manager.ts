@@ -271,8 +271,8 @@ export class DocumentCollaborationContentManager {
         for (const step of update.steps) {
             visitProsemirrorStep(step, {
                 visitNode: node => {
-                    if (node.type.name === "file" && node.attrs.id) {
-                        updateFileIds.add(node.attrs.id);
+                    if (node.type.name === "file" && node.attrs.fileId) {
+                        updateFileIds.add(node.attrs.fileId);
                     }
                 },
             });
@@ -488,23 +488,6 @@ export class DocumentCollaborationContentManager {
                             try {
                                 await documentCollaborationContentManagerBeforePersistTestCheckpoint.waitForTest(
                                     this.id,
-                                );
-
-                                console.log(
-                                    JSON.stringify(
-                                        {
-                                            documentId: this.id,
-                                            version: oldVersion,
-                                            steps: nextSteps,
-                                            clientId: update.clientId,
-                                            createCommentThreads: nextCreateCommentThreads,
-                                            resolveCommentThreadIds: nextResolveCommentThreadIds,
-                                            unresolveCommentThreadIds:
-                                                nextUnresolveCommentThreadIds,
-                                        },
-                                        null,
-                                        2,
-                                    ),
                                 );
 
                                 const {conflictingSteps, updatedCommentThreads} =

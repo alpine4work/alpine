@@ -240,7 +240,7 @@ function DocumentCommentThreadListView(
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
-        previewFileRowLayoutScreenWidth: originalPreviewFileRowLayoutScreenWidth,
+        previewFileLayoutScreenWidth: originalPreviewFileLayoutScreenWidth,
     }: {
         withMobileLayout: boolean;
         documentId: DocumentId;
@@ -349,7 +349,7 @@ function DocumentCommentThreadListView(
          * more scale appropriate file layouts in the preview window. Defaults to
          * `clientInfo.screenWidth`. We subtract the `paddingX` prop from this value.
          */
-        previewFileRowLayoutScreenWidth?: RemLength;
+        previewFileLayoutScreenWidth?: RemLength;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
@@ -360,10 +360,10 @@ function DocumentCommentThreadListView(
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const previewFileRowLayoutScreenWidthRem = useMemo(
+    const previewFileLayoutScreenWidthRem = useMemo(
         () =>
-            (originalPreviewFileRowLayoutScreenWidth
-                ? parseRemLengthNumber(originalPreviewFileRowLayoutScreenWidth)
+            (originalPreviewFileLayoutScreenWidth
+                ? parseRemLengthNumber(originalPreviewFileLayoutScreenWidth)
                 : clientInfo.screenWidth / remPx) -
             parseRemLengthNumber(
                 spacing[
@@ -373,13 +373,7 @@ function DocumentCommentThreadListView(
                 ],
             ) *
                 2,
-        [
-            clientInfo.screenWidth,
-            isMobile,
-            originalPreviewFileRowLayoutScreenWidth,
-            paddingX,
-            remPx,
-        ],
+        [clientInfo.screenWidth, isMobile, originalPreviewFileLayoutScreenWidth, paddingX, remPx],
     );
 
     const [tree, setTree] = useState(() => {
@@ -912,8 +906,8 @@ function DocumentCommentThreadListView(
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                                        previewFileRowLayoutScreenWidthRem={
-                                            previewFileRowLayoutScreenWidthRem
+                                        previewFileLayoutScreenWidthRem={
+                                            previewFileLayoutScreenWidthRem
                                         }
                                     />
                                 </div>
@@ -1197,7 +1191,7 @@ function DocumentCommentThreadListView(
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
-            previewFileRowLayoutScreenWidthRem,
+            previewFileLayoutScreenWidthRem,
             procedures,
             isMobile,
             messageEditing,
