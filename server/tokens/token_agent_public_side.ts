@@ -1,6 +1,10 @@
 import {CompactEncrypt, JWTPayload, KeyLike, decodeJwt, importSPKI, jwtVerify} from "jose";
 import {TokenPayload, TokenPayloadSchema} from "~/server/tokens/token_payload.js";
-import {TokenServiceName, TokenServiceNameSchema} from "~/server/tokens/token_service_name.js";
+import {
+    TokenServiceName,
+    TokenServiceNameSchema,
+    tokenServiceShortNameByName,
+} from "~/server/tokens/token_service_name.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -204,8 +208,8 @@ export class TokenAgentPublicSide {
         try {
             ({payload: serializedPayload} = await jwtVerify(token, publicKey, {
                 algorithms: ["RS256"],
-                issuer: serviceName,
-                audience: this._serviceName,
+                issuer: tokenServiceShortNameByName[serviceName],
+                audience: tokenServiceShortNameByName[this._serviceName],
             }));
         } catch (error) {
             throw PermissionDeniedError.from(error);
