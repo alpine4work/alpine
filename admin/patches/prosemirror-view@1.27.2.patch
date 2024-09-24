@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..212bd86361eaccdcff2616226ce470990d24f960 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47d1ba098a159b1de6cdccf845c7f68ec8a05e44 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -46,40 +46,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..212bd86361eaccdcff2616226ce47099
    }
  }
  
-@@ -3437,8 +3461,30 @@ function defaultTripleClick(view, inside, event) {
-   for (var i = $pos.depth + 1; i > 0; i--) {
-     var node = i > $pos.depth ? $pos.nodeAfter : $pos.node(i);
-     var nodePos = $pos.before(i);
--    if (node.inlineContent) updateSelection(view, prosemirrorState.TextSelection.create(doc, nodePos + 1, nodePos + 1 + node.content.size), "pointer");else if (prosemirrorState.NodeSelection.isSelectable(node)) updateSelection(view, prosemirrorState.NodeSelection.create(doc, nodePos), "pointer");else continue;
--    return true;
-+    if (node.inlineContent) {
-+      // NOTE(calebmer): By calling `event.preventDefault()` after a triple click it
-+      // stops Chrome from allowing a drag selection to continue. To test, try triple
-+      // clicking a paragraph in a document then dragging down. In Chrome the
-+      // selection won't extend to where you're dragging if `event.preventDefault()`
-+      // is called. Given the platform default triple click works well for regular
-+      // paragraphs, allow the user to override when the default triple click
-+      // behavior kicks in.
-+      if (view.someProp("shouldDefaultTripleClickNotPreventDefault", f => f(node))) {
-+        return false;
-+      } else {
-+        updateSelection(view, prosemirrorState.TextSelection.create(doc, nodePos + 1, nodePos + 1 + node.content.size), "pointer");
-+        return true;
-+      }
-+    } else if (prosemirrorState.NodeSelection.isSelectable(node)) {
-+      if (view.someProp("shouldDefaultTripleClickNotPreventDefault", f => f(node))) {
-+        return false;
-+      } else {
-+        updateSelection(view, prosemirrorState.NodeSelection.create(doc, nodePos), "pointer");
-+        return true;
-+      }
-+    } else {
-+      continue;
-+    }
-   }
- }
- 
-@@ -3888,9 +3934,33 @@ handlers.focus = function (view) {
+@@ -3888,9 +3912,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -116,7 +83,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..212bd86361eaccdcff2616226ce47099
    }
  };
  
-@@ -5392,6 +5462,8 @@ var EditorView = function () {
+@@ -5392,6 +5440,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -125,7 +92,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..212bd86361eaccdcff2616226ce47099
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5864,6 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5842,6 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
@@ -133,25 +100,10 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..212bd86361eaccdcff2616226ce47099
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +exports.serializeForClipboard = serializeForClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..9fb17122aa444da0e08e18575289d89212c4a066 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..1f85b45afccc6fc0091ca8dbffdd2c5eec2c0e60 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -638,6 +638,14 @@ interface EditorProps<P = any> {
-     Called when the editor is triple-clicked, after `handleTripleClickOn`.
-     */
-     handleTripleClick?: (this: P, view: EditorView, pos: number, event: MouseEvent) => boolean | void;
-+    // NOTE(calebmer): By calling `event.preventDefault()` after a triple click it
-+    // stops Chrome from allowing a drag selection to continue. To test, try triple
-+    // clicking a paragraph in a document then dragging down. In Chrome the
-+    // selection won't extend to where you're dragging if `event.preventDefault()`
-+    // is called. Given the platform default triple click works well for regular
-+    // paragraphs, allow the user to override when the default triple click
-+    // behavior kicks in.
-+    shouldDefaultTripleClickNotPreventDefault?: (this: P, node: Node) => boolean | void;
-     /**
-     Can be used to override the behavior of pasting. `slice` is the
-     pasted content parsed by the editor, but you can directly access
-@@ -831,6 +839,17 @@ interface DirectEditorProps extends EditorProps {
+@@ -831,6 +831,17 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -170,7 +122,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..9fb17122aa444da0e08e18575289d892
 +    text: string;
 +};
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..1bc0b0f0fdc00483430d69642a8b95645c18438b 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..6a70e4bea94983c67ef46006776d62d2e3238555 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -227,44 +179,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..1bc0b0f0fdc00483430d69642a8b9564
              break;
      }
  }
-@@ -3000,13 +3022,30 @@ function defaultTripleClick(view, inside, event) {
-     for (let i = $pos.depth + 1; i > 0; i--) {
-         let node = i > $pos.depth ? $pos.nodeAfter : $pos.node(i);
-         let nodePos = $pos.before(i);
--        if (node.inlineContent)
--            updateSelection(view, TextSelection.create(doc, nodePos + 1, nodePos + 1 + node.content.size), "pointer");
--        else if (NodeSelection.isSelectable(node))
--            updateSelection(view, NodeSelection.create(doc, nodePos), "pointer");
--        else
-+        if (node.inlineContent) {
-+            // NOTE(calebmer): By calling `event.preventDefault()` after a triple click it
-+            // stops Chrome from allowing a drag selection to continue. To test, try triple
-+            // clicking a paragraph in a document then dragging down. In Chrome the
-+            // selection won't extend to where you're dragging if `event.preventDefault()`
-+            // is called. Given the platform default triple click works well for regular
-+            // paragraphs, allow the user to override when the default triple click
-+            // behavior kicks in.
-+            if (view.someProp("shouldDefaultTripleClickNotPreventDefault", f => f(node))) {
-+                return false;
-+            } else {
-+                updateSelection(view, TextSelection.create(doc, nodePos + 1, nodePos + 1 + node.content.size), "pointer");
-+                return true;
-+            }
-+        } else if (NodeSelection.isSelectable(node)) {
-+            if (view.someProp("shouldDefaultTripleClickNotPreventDefault", f => f(node))) {
-+                return false;
-+            } else {
-+                updateSelection(view, NodeSelection.create(doc, nodePos), "pointer");
-+                return true;
-+            }
-+        } else {
-             continue;
--        return true;
-+        }
-     }
- }
- function forceDOMFlush(view) {
-@@ -3460,10 +3499,34 @@ handlers.focus = view => {
+@@ -3460,10 +3482,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -303,7 +218,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..1bc0b0f0fdc00483430d69642a8b9564
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4879,6 +4942,8 @@ class EditorView {
+@@ -4879,6 +4925,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -312,7 +227,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..1bc0b0f0fdc00483430d69642a8b9564
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5369,6 @@ function checkStateComponent(plugin) {
+@@ -5304,3 +5352,6 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
@@ -378,7 +293,7 @@ index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a
  }
  
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..4df262c97a21294560f942b10a92218b11145b72 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..e6262cf2d5f958031a1b1ef07ef499410685a99e 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
@@ -409,23 +324,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..4df262c97a21294560f942b10a92218b
    }
  
    /// An editable DOM node containing the document. (You probably
-@@ -581,6 +588,15 @@ export interface EditorProps<P = any> {
-   /// Called for each node around a triple click.
-   handleTripleClickOn?: (this: P, view: EditorView, pos: number, node: Node, nodePos: number, event: MouseEvent, direct: boolean) => boolean | void
- 
-+  // NOTE(calebmer): By calling `event.preventDefault()` after a triple click it
-+  // stops Chrome from allowing a drag selection to continue. To test, try triple
-+  // clicking a paragraph in a document then dragging down. In Chrome the
-+  // selection won't extend to where you're dragging if `event.preventDefault()`
-+  // is called. Given the platform default triple click works well for regular
-+  // paragraphs, allow the user to override when the default triple click
-+  // behavior kicks in.
-+  shouldDefaultTripleClickNotPreventDefault?: (this: P, node: Node) => boolean | void;
-+
-   /// Called when the editor is triple-clicked, after `handleTripleClickOn`.
-   handleTripleClick?: (this: P, view: EditorView, pos: number, event: MouseEvent) => boolean | void
- 
-@@ -734,4 +750,9 @@ export interface DirectEditorProps extends EditorProps {
+@@ -734,4 +741,9 @@ export interface DirectEditorProps extends EditorProps {
    /// [applied](#state.EditorState.apply). The callback will be bound to have
    /// the view instance as its `this` binding.
    dispatchTransaction?: (tr: Transaction) => void
@@ -436,47 +335,10 @@ index f28002967d6ff175430efdd8c2389924211c35ce..4df262c97a21294560f942b10a92218b
 +  shouldUseDOMSelectionOnFocus?: boolean
  }
 diff --git a/src/input.ts b/src/input.ts
-index d5d66205262a462451dc19cb9213dab20e2ce02a..5a01593d0a0ec6d4fad0e06e57fd50e16178c060 100644
+index d5d66205262a462451dc19cb9213dab20e2ce02a..6e1ceb7002f6998b83c617a0eb48380383365eab 100644
 --- a/src/input.ts
 +++ b/src/input.ts
-@@ -252,13 +252,30 @@ function defaultTripleClick(view: EditorView, inside: number, event: MouseEvent)
-   for (let i = $pos.depth + 1; i > 0; i--) {
-     let node = i > $pos.depth ? $pos.nodeAfter! : $pos.node(i)
-     let nodePos = $pos.before(i)
--    if (node.inlineContent)
--      updateSelection(view, TextSelection.create(doc, nodePos + 1, nodePos + 1 + node.content.size), "pointer")
--    else if (NodeSelection.isSelectable(node))
--      updateSelection(view, NodeSelection.create(doc, nodePos), "pointer")
--    else
-+    if (node.inlineContent) {
-+      // NOTE(calebmer): By calling `event.preventDefault()` after a triple click it
-+      // stops Chrome from allowing a drag selection to continue. To test, try triple
-+      // clicking a paragraph in a document then dragging down. In Chrome the
-+      // selection won't extend to where you're dragging if `event.preventDefault()`
-+      // is called. Given the platform default triple click works well for regular
-+      // paragraphs, allow the user to override when the default triple click
-+      // behavior kicks in.
-+      if (view.someProp("shouldDefaultTripleClickNotPreventDefault", f => f(node))) {
-+        return false;
-+      } else {
-+        updateSelection(view, TextSelection.create(doc, nodePos + 1, nodePos + 1 + node.content.size), "pointer")
-+        return true
-+      }
-+    } else if (NodeSelection.isSelectable(node)) {
-+      if (view.someProp("shouldDefaultTripleClickNotPreventDefault", f => f(node))) {
-+        return false;
-+      } else {
-+        updateSelection(view, NodeSelection.create(doc, nodePos), "pointer")
-+        return true
-+      }
-+    } else {
-       continue
--    return true
-+    }
-   }
- }
- 
-@@ -714,10 +731,34 @@ handlers.focus = view => {
+@@ -714,10 +714,34 @@ handlers.focus = view => {
      view.dom.classList.add("ProseMirror-focused")
      view.domObserver.start()
      view.focused = true

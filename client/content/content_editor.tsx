@@ -644,6 +644,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     const viewRef = useRef<EditorView | null>(null);
     const lastTransactionRef = useRef<Transaction | null>(null);
     const referencesUpdateEmitterRef = useRef<EventEmitter | null>(null);
+    const tripleClickSelectionDragRef = useRef<{
+        selection: Selection | null;
+        done: () => void;
+    } | null>(null);
 
     useImperativeHandle(
         editorRef,
@@ -1149,16 +1153,89 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return false;
             },
 
-            // We add this property to `EditorView` with a patch. By default, on
-            // triple-click ProseMirror selects the node being clicked and calls
-            // `event.preventDefault()`. Calling `event.preventDefault()` stops the
-            // selection from moving when the user drags their mouse in Chrome. The native
-            // triple-click selection behavior in Chrome works well. Since we want the
-            // selection to keep moving as the user drags, turn off the default
-            // ProseMirror behavior.
+            // ProseMirror provides its own triple click selection support. This is good,
+            // the browser's triple click support doesn't work well with
+            // `contenteditable="false"` children. e.g. A mention in a paragraph (the
+            // mention is `contenteditable="false"`). The browser default won't select the
+            // whole paragraph on triple click. Or a paragraph followed by a `fileFloat` or
+            // `fileRow` (which are also `contenteditable="false"`). A triple click for
+            // paragraphs followed by files moves the cursor to the start of the paragraph
+            // instead of selecting the paragraph.
             //
-            // For some node types we may need the ProseMirror behavior in the future.
-            shouldDefaultTripleClickNotPreventDefault: () => true,
+            // ProseMirror's triple click support works consistently unlike the browser.
+            // However, ProseMirror doesn't implement dragging the mouse after a triple
+            // click to move the selection like the browser does. And preventing the
+            // browser default with `event.preventDefault()` means the browser won't move
+            // the selection during a drag. So we reimplement dragging the selection after
+            // a triple click here.
+            handleTripleClick: () => {
+                tripleClickSelectionDragRef.current?.done();
+                tripleClickSelectionDragRef.current = null;
+
+                const done = () => {
+                    document.removeEventListener("mousemove", move);
+                    document.removeEventListener("mouseup", done);
+                    document.removeEventListener("dragstart", done);
+                };
+
+                // TODO(calebmer, #files): If the user's cursor is near the top or bottom of the
+                // screen then we should start scrolling. I want to implement this at the same
+                // time as I'm scrolling for file drags.
+                const move = (event: MouseEvent) => {
+                    if (event.buttons === 0 || !tripleClickSelectionDragRef.current) {
+                        done();
+                        return;
+                    }
+
+                    // We expect the selection to be updated by ProseMirror's default triple click
+                    // support synchronously after `handleTripleClick` is called. So
+                    // `originalSelection` shouldn't be null. Silently ignore event if it is null.
+                    const {selection: originalSelection} = tripleClickSelectionDragRef.current;
+                    if (!originalSelection) return;
+
+                    const posResult = view.posAtCoords({
+                        top: event.clientY,
+                        left: event.clientX,
+                    });
+                    if (!posResult) return;
+
+                    const $pos = view.state.doc.resolve(posResult.pos);
+
+                    let selection: Selection;
+                    if ($pos.pos < originalSelection.from) {
+                        selection = TextSelection.between(originalSelection.$to, $pos, -1);
+                    } else if ($pos.pos > originalSelection.to) {
+                        selection = TextSelection.between(originalSelection.$from, $pos, 1);
+                    } else if (view.state.selection.$anchor === originalSelection.$from) {
+                        selection = TextSelection.between(
+                            originalSelection.$from,
+                            originalSelection.$to,
+                            -1,
+                        );
+                    } else {
+                        selection = TextSelection.between(
+                            originalSelection.$to,
+                            originalSelection.$from,
+                            1,
+                        );
+                    }
+
+                    if (!selection.eq(view.state.selection)) {
+                        view.dispatch(view.state.tr.setSelection(selection));
+                    }
+                };
+
+                document.addEventListener("mousemove", move);
+                document.addEventListener("mouseup", done);
+                document.addEventListener("dragstart", done);
+
+                tripleClickSelectionDragRef.current = {
+                    selection: null,
+                    done,
+                };
+
+                return false;
+            },
 
             dispatchTransaction(transaction) {
                 const oldState = view.state;
@@ -1618,6 +1695,23 @@ function ContentEditor<Content extends ContentWithReferences>(
         if (transaction?.doc !== newState.doc) transaction = null;
 
         view.updateState(newState);
+
+        // If the document changes then map our triple click selection based on the
+        // document changes.
+        if (tripleClickSelectionDragRef.current) {
+            if (!tripleClickSelectionDragRef.current.selection) {
+                tripleClickSelectionDragRef.current.selection = newState.selection;
+            } else if (!transaction) {
+                tripleClickSelectionDragRef.current.done();
+                tripleClickSelectionDragRef.current = null;
+            } else if (transaction.docChanged) {
+                tripleClickSelectionDragRef.current.selection =
+                    tripleClickSelectionDragRef.current.selection.map(
+                        newState.doc,
+                        transaction.mapping,
+                    );
+            }
+        }
 
         // Adds the `emptyTitleClassName` class if the editor document is empty and
         // removes the class when the editor document is not empty.
