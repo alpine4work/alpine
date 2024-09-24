@@ -23,7 +23,51 @@ const tokenServiceNames = [
 export type TokenEdgeServiceFamilyName = (typeof tokenEdgeServiceFamilyNames)[number];
 export type TokenServiceName = (typeof tokenServiceNames)[number];
 
-export const TokenServiceNameSchema = Schema.enum<TokenServiceName>(tokenServiceNames);
+export const tokenServiceShortNameByName: {[Key in TokenServiceName]: string} = {
+    AppService: "app",
+    TaskRealtimeService: "tsk",
+    JobQueueService: "job",
+    FileUploadService: "fup",
+    EdgeService: "edg",
+    DocumentCollaborationService: "doc",
+    PostRealtimeService: "pst",
+    ChannelRealtimeService: "chl",
+    ChatRealtimeService: "cht",
+    MyAccountService: "acc",
+    TaskNotesCollaborationService: "tkn",
+};
+
+let tokenServiceNameByShortName: ReadonlyMap<string, TokenServiceName> | undefined;
+
+export function getTokenServiceNameByShortName() {
+    tokenServiceNameByShortName ??= new Map(
+        Object.entries(tokenServiceShortNameByName).map(([tokenServiceName, shortName]) => [
+            shortName,
+            tokenServiceName as TokenServiceName,
+        ]),
+    );
+    return tokenServiceNameByShortName;
+}
+
+export const TokenServiceNameSchema = Schema.enum(tokenServiceShortNameByName)
+    .transform<TokenServiceName>({
+        serialize: name => tokenServiceShortNameByName[name],
+        deserialize: name => getTokenServiceNameByShortName().get(name)!,
+    })
+    .migration({
+        serialize: name => name,
+        deserialize: name => {
+            if (typeof name !== "string") return name;
+
+            // NOTE(calebmer, 2024-09-24): Support token payloads created before this date.
+            // When all current tokens expire we should be able to use our new format
+            // exclusively and we can remove this migration.
+            const shortName = (tokenServiceShortNameByName as any)[name];
+            if (shortName) return shortName;
+
+            return name;
+        },
+    });
 
 // All `TokenServiceName`s are also services.
 assertAssignableTypes<TokenServiceName, TracerServiceName>();

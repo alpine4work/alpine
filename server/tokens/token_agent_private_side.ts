@@ -4,9 +4,10 @@ import {
     TokenPayload,
     TokenPayloadSchema,
 } from "~/server/tokens/token_payload.js";
-import {TokenServiceName} from "~/server/tokens/token_service_name.js";
+import {TokenServiceName, tokenServiceShortNameByName} from "~/server/tokens/token_service_name.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 /**
  * The token agent class is responsible for RSA key cryptography between
@@ -76,11 +77,17 @@ export class TokenAgentPrivateSide {
         const currentTime =
             currentTimeForTest !== undefined ? currentTimeForTest.getTime() : Date.now();
 
-        const signer = new SignJWT(TokenPayloadSchema.serialize(payload))
+        const signer = new SignJWT(
+            TokenPayloadSchema.serialize(payload) as SchemaSerializedObjectValue,
+        )
             .setProtectedHeader({alg: "RS256"})
             .setExpirationTime(Math.floor((currentTime + 1000 * 60 * 2) / 1000))
-            .setIssuer(this._serviceName)
-            .setAudience(audience);
+            .setIssuer(tokenServiceShortNameByName[this._serviceName])
+            .setAudience(
+                typeof audience === "string"
+                    ? tokenServiceShortNameByName[audience]
+                    : audience.map(audience => tokenServiceShortNameByName[audience]),
+            );
 
         return signer.sign(this._servicePrivateKeyForRs256);
     }
@@ -156,11 +163,16 @@ export class AppServiceTokenAgentPrivateSide extends TokenAgentPrivateSide {
     public async dangerouslySignEternalSessionToken(payload: SessionTokenPayload): Promise<string> {
         assert(payload.type === "Session");
 
-        const signer = new SignJWT(TokenPayloadSchema.serialize(payload))
+        const signer = new SignJWT(
+            TokenPayloadSchema.serialize(payload) as SchemaSerializedObjectValue,
+        )
             .setProtectedHeader({alg: "RS256"})
             .setIssuedAt()
-            .setIssuer(this._serviceName)
-            .setAudience(["AppService", "EdgeService"]);
+            .setIssuer(tokenServiceShortNameByName[this._serviceName])
+            .setAudience([
+                tokenServiceShortNameByName.AppService,
+                tokenServiceShortNameByName.EdgeService,
+            ]);
 
         return signer.sign(this._servicePrivateKeyForRs256);
     }
