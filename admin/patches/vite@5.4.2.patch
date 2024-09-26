@@ -241,18 +241,9 @@ index 184597a2d7b1acc23556e16264e6677457023e81..f2abb9129aa1663c24f5aefc773d4815
 +// caching.
 +export { prepareEsbuildOptimizerRun, esbuildOutputFromId, flattenId, needsInterop, stringifyDepsOptimizerMetadata, tryNodeResolve };
 diff --git a/dist/node/index.d.ts b/dist/node/index.d.ts
-index 8592398c31e06c937468f1458650bf1194e18f8e..d78bf8a08f9eaf50cef16cceb2a975356b37dc02 100644
+index 8592398c31e06c937468f1458650bf1194e18f8e..cebafdd2e9dbb51b4bbe181f52eae9a55be33a47 100644
 --- a/dist/node/index.d.ts
 +++ b/dist/node/index.d.ts
-@@ -2132,7 +2132,7 @@ declare namespace Terser {
-     hoist_vars?: boolean
-     ie8?: boolean
-     if_return?: boolean
--    inline?: boolean | InlineFunctions
-+    ?: boolean | InlineFunctions
-     join_vars?: boolean
-     keep_classnames?: boolean | RegExp
-     keep_fargs?: boolean
 @@ -2670,6 +2670,11 @@ interface DepOptimizationConfig {
       * @experimental
       */
