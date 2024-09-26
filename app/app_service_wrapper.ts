@@ -36,7 +36,6 @@ type Options = ServiceOptions<typeof options>;
 export const options = {
     port: {type: "string"},
     viteDev: {type: "boolean"},
-    viteCachePath: {type: "string"},
     bazelDevServerPort: {type: "string"},
     shouldSeedDynamo: {type: "boolean"},
     edgeServiceUrl: {type: "string"},
@@ -211,10 +210,7 @@ export async function run({
 
         const viteDevServer = await vite.createServer({
             root: rootPath,
-            cacheDir: assertExists(
-                options.viteCachePath,
-                "`viteCachePath` option is required when `viteDev` option is provided",
-            ),
+            cacheDir: joinPath(runfilesPath, "cyberworlds/app/optimize_deps"),
             configFile: joinPath(rootPath, "vite.config.mjs"),
             server: {
                 middlewareMode: true,
@@ -237,6 +233,22 @@ export async function run({
                 watch: {
                     atomic: 500,
                     awaitWriteFinish: {stabilityThreshold: 100, pollInterval: 10},
+                },
+            },
+            optimizeDeps: {
+                // We prebuild Vite's optimized dependencies in `app/optimize_deps`. Don't
+                // build optimized dependencies at runtime with Vite, instead use the prebuild.
+                // We use Bazel to prebuild so we get all the usual advantages of Bazel builds.
+                // Including reproducibility and remote caching.
+                hasBazelPrebuild: true,
+            },
+            ssr: {
+                optimizeDeps: {
+                    // We prebuild Vite's optimized dependencies in `app/optimize_deps`. Don't
+                    // build optimized dependencies at runtime with Vite, instead use the prebuild.
+                    // We use Bazel to prebuild so we get all the usual advantages of Bazel builds.
+                    // Including reproducibility and remote caching.
+                    hasBazelPrebuild: true,
                 },
             },
             waitForBazelBuild: async () => {

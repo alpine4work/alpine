@@ -1,12 +1,14 @@
 load("@aspect_bazel_lib//lib:output_files.bzl", "output_files")
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_run_binary")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 load("@npm//:@remix-run/dev/package_json.bzl", remix_bin = "bin")
 load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 load("//admin/esbuild:esbuild_runfiles_aspect.bzl", "esbuild_runfiles_without_sources")
 load("//app:app_wrapper_srcs.bzl", "APP_WRAPPER_SRCS")
-load("//app:app_client_node_modules.bzl", "app_client_node_modules")
+load("//app:app_client_optimize_deps.bzl", "app_client_optimize_deps")
+load("//app:app_client_optimize_deps_data.bzl", "APP_CLIENT_OPTIMIZE_DEPS")
 
 # `app_wrapper` is a slim binary that runs `AppService` in development. We run
 # the Vite dev server inside `app_wrapper` and that's what serves our Remix
@@ -117,10 +119,69 @@ ts_project(
     ],
 )
 
-app_client_node_modules(
-    name = "app_client_node_modules",
+APP_BUILD_SHARED_ARGS = ["vite:build"]
+
+APP_BUILD_DEVELOPMENT_ARGS = APP_BUILD_SHARED_ARGS + [
+    "--mode=development",
+    "--minify=false",
+]
+
+APP_BUILD_PRODUCTION_ARGS = APP_BUILD_SHARED_ARGS + [
+    "--mode=production",
+    "--minify=terser",
+]
+
+APP_BUILD_DEVELOPMENT_ENV = {
+    "NODE_ENV": "development",
+}
+
+APP_BUILD_PRODUCTION_ENV = {
+    "NODE_ENV": "production",
+}
+
+app_client_optimize_deps(
+    name = "app_client_optimize_deps_data",
     target = "//app:app_lib",
-    visibility = ["//:__pkg__"],
+)
+
+# By writing to a file anyone who depends on
+# `app_client_optimize_deps_data.bzl` doesn't take a dependency on all of
+# `//app:app_lib`. This is great for our development environment since
+# otherwise a change to any file used by `//app:app_lib` would cause
+# `app_client_optimize_deps` (used by `app_wrapper`) to rebuild.
+write_source_files(
+    name = "write_app_client_optimize_deps",
+    files = {
+        "app_client_optimize_deps_data.bzl": ":app_client_optimize_deps_data",
+    },
+)
+
+js_binary(
+    name = "app_client_optimize_deps_tool",
+    data = ["@aspect_rules_esbuild//esbuild/private:plugins/bazel-sandbox.js"],
+    entry_point = "app_client_optimize_deps_main.mjs",
+    no_copy_to_bin = ["@aspect_rules_esbuild//esbuild/private:plugins/bazel-sandbox.js"],
+)
+
+js_run_binary(
+    name = "app_client_optimize_deps",
+    srcs = [
+        "app_client_optimize_deps_data.bzl",
+        "//:node_modules/@remix-run/dev",
+        "//:node_modules/vite",
+        "//:remix_config_files",
+    ] + {
+        "//:node_modules/{}".format("/".join(dep.split("/")[0:1]) if dep.startswith("@") else dep.split("/")[0]): None
+        for dep in APP_CLIENT_OPTIMIZE_DEPS
+    }.keys(),
+    env = {"VITE_CONFIG_WITHOUT_REMIX_PLUGIN": "true"} | select({
+        "//admin/bazel:compilation_mode_fastbuild": APP_BUILD_DEVELOPMENT_ENV,
+        "//admin/bazel:compilation_mode_dbg": APP_BUILD_DEVELOPMENT_ENV,
+        "//admin/bazel:compilation_mode_opt": APP_BUILD_PRODUCTION_ENV,
+    }),
+    out_dirs = ["optimize_deps"],
+    progress_message = "Optimizing dependencies with Vite",
+    tool = ":app_client_optimize_deps_tool",
 )
 
 # Files the Vite dev server watches. Our dev process manager will keep this
@@ -143,29 +204,12 @@ filegroup(
 
 js_binary(
     name = "app_wrapper",
-    data = [":app_wrapper_lib"],
+    data = [
+        ":app_client_optimize_deps",
+        ":app_wrapper_lib",
+    ],
     entry_point = "app_service_main.js",
 )
-
-APP_BUILD_SHARED_ARGS = ["vite:build"]
-
-APP_BUILD_DEVELOPMENT_ARGS = APP_BUILD_SHARED_ARGS + [
-    "--mode=development",
-    "--minify=false",
-]
-
-APP_BUILD_PRODUCTION_ARGS = APP_BUILD_SHARED_ARGS + [
-    "--mode=production",
-    "--minify=terser",
-]
-
-APP_BUILD_DEVELOPMENT_ENV = {
-    "NODE_ENV": "development",
-}
-
-APP_BUILD_PRODUCTION_ENV = {
-    "NODE_ENV": "production",
-}
 
 remix_bin.remix(
     name = "app_build",

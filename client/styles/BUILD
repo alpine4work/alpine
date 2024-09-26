@@ -1,3 +1,4 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
@@ -28,8 +29,14 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
-        ":styles_bundle_file",
-        ":styles_internal_typings",
+        # `:styles_bundle_file` as a dependency here adds `styles.js` and `styles.css`
+        # to our runfiles and not our sources. You can run
+        # `bazel build //app:app_client_runfiles` to see our runfiles.
+        ":styles_bundle",
+        # `:styles_internal_typings` as a dependency here adds a bunch of source files
+        # to our runfiles. You can run `bazel build //app:app_client_runfiles` to see
+        # our runfiles.
+        ":styles_internal",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",
@@ -64,6 +71,11 @@ ts_project(
         "//shared/helpers",
         "//shared/schema",
     ],
+)
+
+js_library(
+    name = "styles_bundle",
+    srcs = [":styles_bundle_file"],
 )
 
 esbuild(

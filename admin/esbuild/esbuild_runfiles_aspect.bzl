@@ -17,14 +17,12 @@ EsbuildRunfilesInfo = provider(
 )
 
 def _esbuild_runfiles_aspect_impl(target, ctx):
-    if not (JsInfo in target):
-        return []
-
     runfiles_without_sources = _gather_runfiles(
-        copy_data_files_to_bin = ctx.rule.attr.copy_data_to_bin if hasattr(ctx.rule.attr, "copy_data_to_bin") else False,
+        get_runfiles = _get_runfiles_without_sources,
         ctx = ctx,
         data = ctx.rule.attr.data if hasattr(ctx.rule.attr, "data") else [],
         data_files = ctx.rule.files.data if hasattr(ctx.rule.files, "data") else [],
+        copy_data_files_to_bin = ctx.rule.attr.copy_data_to_bin if hasattr(ctx.rule.attr, "copy_data_to_bin") else False,
         include_sources = False,
         include_declarations = False,
         include_npm_linked_packages = True,
@@ -34,14 +32,14 @@ def _esbuild_runfiles_aspect_impl(target, ctx):
         # The call in `js_library()` includes `srcs` but because we want to exclude
         # sources in this runfiles object we remove it from here.
         deps = (ctx.rule.attr.declarations if hasattr(ctx.rule.attr, "declarations") else []) + (ctx.rule.attr.deps if hasattr(ctx.rule.attr, "deps") else []),
-        get_runfiles = _get_runfiles_without_sources,
     )
 
     runfiles_without_sources_and_npm_linked_packages = _gather_runfiles(
-        copy_data_files_to_bin = ctx.rule.attr.copy_data_to_bin if hasattr(ctx.rule.attr, "copy_data_to_bin") else False,
+        get_runfiles = _get_runfiles_without_sources_and_npm_linked_packages,
         ctx = ctx,
         data = ctx.rule.attr.data if hasattr(ctx.rule.attr, "data") else [],
         data_files = ctx.rule.files.data if hasattr(ctx.rule.files, "data") else [],
+        copy_data_files_to_bin = ctx.rule.attr.copy_data_to_bin if hasattr(ctx.rule.attr, "copy_data_to_bin") else False,
         include_sources = False,
         include_declarations = False,
         include_npm_linked_packages = False,
@@ -51,21 +49,19 @@ def _esbuild_runfiles_aspect_impl(target, ctx):
         # The call in `js_library()` includes `srcs` but because we want to exclude
         # sources in this runfiles object we remove it from here.
         deps = (ctx.rule.attr.declarations if hasattr(ctx.rule.attr, "declarations") else []) + (ctx.rule.attr.deps if hasattr(ctx.rule.attr, "deps") else []),
-        get_runfiles = _get_runfiles_without_sources_and_npm_linked_packages,
     )
 
-    return [EsbuildRunfilesInfo(
+    return EsbuildRunfilesInfo(
         runfiles_without_sources = runfiles_without_sources,
         runfiles_without_sources_and_npm_linked_packages = runfiles_without_sources_and_npm_linked_packages,
-    )]
+    )
 
 esbuild_runfiles_aspect = aspect(
     _esbuild_runfiles_aspect_impl,
     attr_aspects = ["deps"],
+    provides = [EsbuildRunfilesInfo],
+    required_providers = [JsInfo],
 )
-
-def _get_runfiles(target):
-    return target[DefaultInfo].default_runfiles
 
 def _get_runfiles_without_sources(target):
     return target[EsbuildRunfilesInfo].runfiles_without_sources if EsbuildRunfilesInfo in target else target[DefaultInfo].default_runfiles
@@ -82,6 +78,7 @@ def _get_runfiles_without_sources_and_npm_linked_packages(target):
 # - `get_runfiles`: Provide a function to get runfiles from somewhere other
 #   than `DefaultInfo`
 def _gather_runfiles(
+        get_runfiles,
         ctx,
         sources,
         data,
@@ -92,8 +89,7 @@ def _gather_runfiles(
         include_sources = True,
         include_transitive_sources = True,
         include_declarations = False,
-        include_npm_linked_packages = True,
-        get_runfiles = _get_runfiles):
+        include_npm_linked_packages = True):
     transitive_files_depsets = []
 
     # Includes sources
@@ -183,7 +179,7 @@ def _gather_files_from_js_providers(
     return depset([], transitive = files_depsets)
 
 def _esbuild_runfiles_without_sources_impl(ctx):
-    return [DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources.files)]
+    return DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources.files)
 
 esbuild_runfiles_without_sources = rule(
     _esbuild_runfiles_without_sources_impl,
@@ -193,7 +189,7 @@ esbuild_runfiles_without_sources = rule(
 )
 
 def _esbuild_runfiles_without_sources_and_npm_linked_packages_impl(ctx):
-    return [DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_linked_packages.files)]
+    return DefaultInfo(files = ctx.attr.target[EsbuildRunfilesInfo].runfiles_without_sources_and_npm_linked_packages.files)
 
 esbuild_runfiles_without_sources_and_npm_linked_packages = rule(
     _esbuild_runfiles_without_sources_and_npm_linked_packages_impl,

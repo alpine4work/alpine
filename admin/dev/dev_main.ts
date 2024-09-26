@@ -288,7 +288,6 @@ function createArtifacts() {
             },
             args: [
                 "--viteDev",
-                `--viteCachePath=${joinPath(devEnvPaths.cache, "vite")}`,
                 `--bazelDevServerPort=${bazelDevServerPort}`,
                 `--appServicePublicKey=${appServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${edgeServiceFamilyPublicKeyPath}`,

@@ -54,11 +54,11 @@ js_library(
         "all_rpc_definitions.d.ts",
         ":all_rpc_definitions_file",
     ],
-    data = [
-        "//shared/error",
-        "//shared/helpers",
-    ],
     # We don't want to let any client code import `all_rpc_definitions.js`!
     # Including all RPC definitions will lead to a bloated client bundle.
     visibility = ["//server/rpc:__pkg__"],
+    deps = [
+        "//shared/error",
+        "//shared/helpers",
+    ],
 )
