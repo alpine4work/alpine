@@ -311,11 +311,21 @@ async function uploadAndProcessFile(
         createAbortCatcher: (message: string) => (error: unknown) => never;
     },
 ) {
+    // The client won't be able to use the preview URL until the preview has
+    // finished processing. But given the URL expires in 10 minutes processing
+    // should finish before the URL expires.
+    const previewUrl = await context.files.dangerouslySignFilePreviewUrlWithoutAuthorization(
+        spaceId,
+        fileUploader.fileId,
+        {hasPreview: fileProcessor.hasPreview},
+    );
+
     sendEvent({
         type: "Start",
         fileId: fileUploader.fileId,
         hasAlternative: !!fileProcessor.hasAlternative,
         hasPreview: fileProcessor.hasPreview,
+        previewUrlSearch: previewUrl?.search ?? null,
     });
 
     // Make sure the stream hasn't started outputting data yet. See:

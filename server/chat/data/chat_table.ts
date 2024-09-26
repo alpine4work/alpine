@@ -6,6 +6,10 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+} from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -452,7 +456,7 @@ export async function getOrCreateChatForAccounts(
  * component's UX.
  */
 export function selectChatForAccounts(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -1512,7 +1516,7 @@ export async function getChatAccountIds(
  * Get a single chat message comment.
  */
 export async function getChatMessage(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<ChatMessageModel> {
     const [{spaceId}, item] = await runAllPromises([
@@ -1569,7 +1573,7 @@ export async function getChatMessagePayload(
 }
 
 async function createChatMessageModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: ChatMessageItem,
 ): Promise<ChatMessageModel> {
@@ -1784,7 +1788,7 @@ export function deleteChatMessage(
  * Get our chat and initial messages that come with it efficiently at once.
  */
 export function getChatAndInitialMessages(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {chatId, messagesLimit}: {chatId: ChatId; messagesLimit: number},
 ): Promise<{
     chat: ChatModel;
@@ -1798,7 +1802,7 @@ export function getChatAndInitialMessages(
 }
 
 async function actuallyGetChatAndInitialMessages(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {result, messagesLimit}: {result: ChatForAccountsResult; messagesLimit: number},
 ): Promise<{
     chat: ChatModel;
@@ -1854,7 +1858,7 @@ async function actuallyGetChatAndInitialMessages(
  * Paginate through chat messages from start to finish.
  */
 export async function getChatMessagesFromStart(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         chatId,
         limit,
@@ -1901,7 +1905,7 @@ export async function getChatMessagesFromStart(
 }
 
 async function getChatMessagesFromStartAssumingAuthorizedChat(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         chatId,
         getSpaceId,
@@ -2023,7 +2027,7 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
  * Paginate through chat messages from finish to start.
  */
 export async function getChatMessagesFromEnd(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         chatId,
         limit,
@@ -2070,7 +2074,7 @@ export async function getChatMessagesFromEnd(
 }
 
 async function getChatMessagesFromEndAssumingAuthorizedChat(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         chatId,
         getSpaceId,
@@ -2214,7 +2218,7 @@ export type ChatMessageChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillChatMessages(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         chatId,
         clientMessageCount,
@@ -2294,7 +2298,7 @@ export async function backfillChatMessages(
 }
 
 async function queryChatMessageChangeLogAssumingAuthorizedPost(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         chatItem,
         lastMessageChangeTime,

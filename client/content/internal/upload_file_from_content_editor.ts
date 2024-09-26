@@ -27,7 +27,7 @@ export async function uploadFileFromContentEditor(
     {
         onAttach,
     }: {
-        onAttach: (fileStore: Store<FileModel>) => void;
+        onAttach: (options: {previewUrlSearch: string | null; fileStore: Store<FileModel>}) => void;
     },
 ) {
     // Get the file's content type. We prefer determining the content type based on
@@ -102,12 +102,14 @@ export async function uploadFileFromContentEditor(
                 }
             }
 
-            // NOTE(calebmer): If I write this as
-            // `let fileStore: ValueStore<FileModel> | null = null` then annoyingly
-            // TypeScript thinks `fileStore` will always be `null` even though we
-            // definitely have an assignment to `fileStore` in our switch statement. The
+            // NOTE(calebmer): If I write this without the `cast()` then annoyingly
+            // TypeScript thinks `state` will always be `null` even though we
+            // definitely have an assignment to `state` in our switch statement. The
             // `cast()` function works around TypeScript's literal assignment logic.
-            let fileStore = cast<ValueStore<FileModel> | null>(null);
+            let state = cast<{
+                previewUrlSearch: string | null;
+                fileStore: ValueStore<FileModel>;
+            } | null>(null);
 
             let hasCalledOnAttach = false;
             let callOnAttachTimeout: Timeout | null = null;
@@ -120,7 +122,7 @@ export async function uploadFileFromContentEditor(
                         throw event.error;
                     }
                     case "Start": {
-                        assert(!fileStore);
+                        assert(!state);
 
                         let preview: FilePreview | null = null;
                         if (event.hasPreview) {
@@ -161,20 +163,23 @@ export async function uploadFileFromContentEditor(
                             }
                         }
 
-                        fileStore = new ValueStore(
-                            new FileModel({
-                                id: event.fileId,
-                                contentType,
-                                contentLength,
-                                isUploading: true,
-                                alternative: event.hasAlternative ? {isProcessing: true} : null,
-                                preview,
-                            }),
-                        );
+                        state = {
+                            previewUrlSearch: event.previewUrlSearch,
+                            fileStore: new ValueStore(
+                                new FileModel({
+                                    id: event.fileId,
+                                    contentType,
+                                    contentLength,
+                                    isUploading: true,
+                                    alternative: event.hasAlternative ? {isProcessing: true} : null,
+                                    preview,
+                                }),
+                            ),
+                        };
                         break;
                     }
                     case "Finish": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.isUploading);
 
                             return file.clone({isUploading: false});
@@ -182,7 +187,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "Alternative": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.alternative?.isProcessing);
 
                             return file.clone({
@@ -197,7 +202,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "ImagePreviewSize": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.preview?.type === "Image");
                             assert(file.preview.isProcessing);
 
@@ -224,7 +229,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "ImagePreviewPlaceholder": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.preview?.type === "Image");
                             assert(file.preview.isProcessing);
 
@@ -251,7 +256,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "ImagePreviewContent": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.preview?.type === "Image");
                             assert(file.preview.isProcessing);
 
@@ -284,7 +289,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "ImagePreviewVideoDuration": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.preview?.type === "Image");
                             assert(file.preview.isProcessing);
 
@@ -311,7 +316,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "AudioPreviewDuration": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.preview?.type === "Audio");
                             assert(file.preview.isProcessing);
 
@@ -326,7 +331,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "CodePreviewContent": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.preview?.type === "Code");
                             assert(file.preview.isProcessing);
 
@@ -341,7 +346,7 @@ export async function uploadFileFromContentEditor(
                         break;
                     }
                     case "PreviewError": {
-                        assertExists(fileStore).set(file => {
+                        assertExists(state).fileStore.set(file => {
                             assert(file?.preview?.type === "Image");
                             assert(file.preview.isProcessing);
 
@@ -351,6 +356,22 @@ export async function uploadFileFromContentEditor(
                                     isProcessing: false,
                                     ok: false,
                                     error: event.error,
+                                    size:
+                                        file.preview.size === "Processing"
+                                            ? "Error"
+                                            : file.preview.size,
+                                    placeholder:
+                                        file.preview.placeholder === "Processing"
+                                            ? "Error"
+                                            : file.preview.placeholder,
+                                    content:
+                                        file.preview.content === "Processing"
+                                            ? "Error"
+                                            : file.preview.content,
+                                    videoDuration:
+                                        file.preview.videoDuration === "Processing"
+                                            ? "Error"
+                                            : file.preview.videoDuration,
                                 },
                             });
                         });
@@ -360,8 +381,8 @@ export async function uploadFileFromContentEditor(
                         throw exhaustive(event);
                 }
 
-                if (fileStore && !hasCalledOnAttach) {
-                    const attachReadiness = fileStore.getSnapshot().getAttachReadiness();
+                if (state && !hasCalledOnAttach) {
+                    const attachReadiness = state.fileStore.getSnapshot().getAttachReadiness();
 
                     switch (attachReadiness) {
                         case "PreviewUnavailable": {
@@ -376,7 +397,7 @@ export async function uploadFileFromContentEditor(
                                 hasCalledOnAttach = true;
                                 callOnAttachTimeout = null;
                                 try {
-                                    onAttach(fileStore!);
+                                    onAttach(state!);
                                 } catch (error) {
                                     scheduleUncaughtError(error);
                                 }
@@ -388,7 +409,7 @@ export async function uploadFileFromContentEditor(
                             callOnAttachTimeout?.clear();
                             callOnAttachTimeout = null;
                             try {
-                                onAttach(fileStore);
+                                onAttach(state);
                             } catch (error) {
                                 scheduleUncaughtError(error);
                             }

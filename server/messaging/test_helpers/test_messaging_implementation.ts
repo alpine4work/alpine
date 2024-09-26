@@ -1,4 +1,5 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerContentSessionActionContext} from "~/server/context/server_content_action_context.js";
 import {
     TestContext,
     TestSessionActionContext,
@@ -53,7 +54,7 @@ type CreateMessageFunctionForTest<RoomKey extends string> = (
  * Get a message.
  */
 type GetMessageFunctionForTest<Message extends MessageModel> = (
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     options: {
         roomKey: MessageRoomKeyType<Message>;
         messageIndex: number;
@@ -106,7 +107,7 @@ type DeleteMessageFunctionForTest<RoomKey extends string> = (
  * starting after a message ID) and loading forwards in time.
  */
 type GetMessagesFromStartForTest<Message extends MessageModel> = (
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     options: {
         roomKey: MessageRoomKeyType<Message>;
         limit: number;
@@ -125,7 +126,7 @@ type GetMessagesFromStartForTest<Message extends MessageModel> = (
  * starting before a message ID) and loading backwards in time.
  */
 type GetMessagesFromEndForTest<Message extends MessageModel> = (
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     options: {
         roomKey: MessageRoomKeyType<Message>;
         limit: number;
@@ -146,7 +147,7 @@ type GetMessagesFromEndForTest<Message extends MessageModel> = (
  * when data was loaded and when we connected to our realtime WebSocket.
  */
 type BackfillMessagesFunctionForTest<Message extends MessageModel> = (
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     options: {
         roomKey: MessageRoomKeyType<Message>;
         clientMessageCount: number;
@@ -472,7 +473,7 @@ export function testMessagingImplementation<RoomKey extends string>(
     }
 
     async function expectGetMessage(
-        context: ServerSessionActionContext,
+        context: ServerContentSessionActionContext,
         {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
         expected: any,
     ) {
@@ -496,7 +497,7 @@ export function testMessagingImplementation<RoomKey extends string>(
     }
 
     async function expectGetMessageNotToBeNull(
-        context: ServerSessionActionContext,
+        context: ServerContentSessionActionContext,
         {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
     ) {
         expect(
@@ -519,7 +520,7 @@ export function testMessagingImplementation<RoomKey extends string>(
     }
 
     async function expectGetMessageToThrow(
-        context: ServerSessionActionContext,
+        context: ServerContentSessionActionContext,
         {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
         expected: any,
     ) {

@@ -13,6 +13,7 @@ import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
+import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -4252,7 +4253,7 @@ async function authorizeTaskItemAccess(
 }
 
 export async function getTaskComment(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<TaskCommentModel> {
     const [{spaceId}, commentsSummaryItem] = await runAllPromises([
@@ -4306,7 +4307,7 @@ export async function getTaskCommentPayload(
 }
 
 async function createTaskCommentModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: TaskCommentItem,
 ): Promise<TaskCommentModel> {
@@ -4727,7 +4728,7 @@ export async function createTaskComment(
 }
 
 export async function getTaskCommentsFromStart(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         limit,
@@ -4781,7 +4782,7 @@ export async function getTaskCommentsFromStart(
 }
 
 async function getTaskCommentsFromStartAssumingAuthorizedTask(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         getSpaceId,
@@ -4903,7 +4904,7 @@ async function getTaskCommentsFromStartAssumingAuthorizedTask(
  * Efficiently load a task's notes and initial comments at the same time.
  */
 export async function getTaskNotesContentAndInitialComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {taskId, commentsLimit}: {taskId: TaskId; commentsLimit: number},
 ): Promise<{
     notes: {
@@ -4983,7 +4984,7 @@ export async function getTaskNotesContentAndInitialComments(
 }
 
 export async function getTaskCommentsFromEnd(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         limit,
@@ -5037,7 +5038,7 @@ export async function getTaskCommentsFromEnd(
 }
 
 async function getTaskCommentsFromEndAssumingAuthorizedTask(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         getSpaceId,
@@ -5164,7 +5165,7 @@ export type TaskCommentChangesResult =
       };
 
 export async function backfillTaskComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         taskId,
         clientCommentCount,
@@ -5258,7 +5259,7 @@ export async function backfillTaskComments(
 }
 
 async function queryTaskCommentChangeLogAssumingAuthorizedTask(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         commentsSummaryItem,
         spaceId,
@@ -5782,7 +5783,7 @@ export function getTaskNotesContentWithoutReferences(
  * Get the current notes content for some task.
  */
 export function getTaskNotesContent(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;

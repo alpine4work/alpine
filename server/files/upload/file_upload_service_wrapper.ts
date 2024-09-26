@@ -2,6 +2,7 @@ import {
     createServiceCloudflareR2ContextModule,
     serviceCloudflareR2Options,
 } from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
+import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
@@ -56,6 +57,7 @@ export async function run({
         options,
     }).clone({
         r2: createServiceCloudflareR2ContextModule(options),
+        files: new FilesContextModule(tokenAgent),
     });
 
     const server = createFileUploadService(processContext, {

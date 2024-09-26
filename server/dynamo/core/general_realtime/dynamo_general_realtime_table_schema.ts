@@ -1,8 +1,9 @@
 import {addDays, subDays, subMinutes} from "date-fns";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
-    ServerActionContext,
-    ServerActionContextModules,
-} from "~/server/context/server_action_context.js";
+    ServerContentActionContext,
+    ServerContentActionContextModules,
+} from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -48,7 +49,7 @@ import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.js";
 // Intentionally not exported. We encourage users of
 // `dynamo_general_realtime_table_schema.ts` to create their own named context
 // types. e.g. `ForumActionContext` in `forum_table.ts`.
-type ServerActionContextModulesWithBroadcast = ServerActionContextModules & {
+type ServerActionContextModulesWithBroadcast = ServerContentActionContextModules & {
     edge: EdgeServiceContextModuleBase;
 };
 
@@ -100,7 +101,7 @@ type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
         SortRangesConfig[Index]["name"],
         {
             build: (
-                context: ServerActionContext,
+                context: ServerContentActionContext,
                 item: DynamoTableSchemaTypes.ItemType<PartitionConfig, SortRangesConfig[Index]>,
             ) => Promise<unknown>;
         },
@@ -188,7 +189,7 @@ type DynamoGeneralRealtimeInternalEvent<Item, Model> = {
     readonly item: Item;
     readonly key: DynamoItemKey;
     readonly version: number;
-    readonly getModel: (context: ServerActionContext) => Promise<Model>;
+    readonly getModel: (context: ServerContentActionContext) => Promise<Model>;
 };
 
 /**
@@ -422,7 +423,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private _buildModel<Item extends Types["Item"]>(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         item: Item,
     ): Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]> {
         return this._models[item.partitionType]![item.sortRangeType]!.build(
@@ -1119,7 +1120,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * data in realtime.
      */
     public async getRealtimeItemIfExists<Key extends Types["ItemKey"]>(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<
@@ -1146,7 +1147,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * this data in realtime.
      */
     public async getRealtimeItem<Key extends Types["ItemKey"]>(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
@@ -1168,7 +1169,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * Build a realtime item from a DynamoDB item object we've previously loaded.
      */
     public async buildRealtimeItem<Item extends Types["Item"]>(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         item: Item,
     ): Promise<DynamoGeneralRealtimeItem<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>> {
         return {
@@ -1843,7 +1844,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private async _backfillRealtimeQuery(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         {
             indexName,
             realtimeKey,
@@ -2004,7 +2005,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      * Query the index.
      */
     realtimeQuery(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         options: {
             partitionKey: IndexPartitionKey;
             startSortKey?: IndexSortKey;
@@ -2031,7 +2032,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      * when you connect to realtime after dispatching your query.
      */
     backfillRealtimeQuery(
-        context: ServerActionContext,
+        context: ServerContentActionContext,
         options: {partitionKey: IndexPartitionKey; readTime: Date},
     ): Promise<DynamoGeneralRealtimeBackfillResult<Model>>;
 }

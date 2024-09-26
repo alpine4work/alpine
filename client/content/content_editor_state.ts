@@ -20,6 +20,7 @@ import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_c
 import {
     ContentReferences,
     ContentWithReferences,
+    getContentReferencesFileSignedUrlExpirationTime,
     mergeContentReferences,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
@@ -754,6 +755,7 @@ export type ContentEditorReferencesSetAccountAction = {
 
 export type ContentEditorReferencesSetFileAction = {
     readonly type: "SetFile";
+    readonly previewUrlSearch: string | null;
     readonly file: FileModel;
 };
 
@@ -801,13 +803,27 @@ export function reduceContentReferencesShared<References extends ContentReferenc
         }
         case "SetFile": {
             const oldFile = references.fileById.get(action.file.id);
+
             // Prefer `oldFile` in `FileModel.minLoadingCount()` to avoid unnecessary
             // re-renders.
-            const newFile = oldFile ? FileModel.minLoadingCount(oldFile, action.file) : action.file;
-            if (oldFile === newFile) return references;
+            const newFile = oldFile
+                ? FileModel.minLoadingCount(oldFile.file, action.file)
+                : action.file;
+
+            // Pick the `previewUrlSearch` that expires later.
+            const newPreviewUrlSearch =
+                oldFile?.previewUrlSearch &&
+                action.previewUrlSearch &&
+                getContentReferencesFileSignedUrlExpirationTime(oldFile.previewUrlSearch) >=
+                    getContentReferencesFileSignedUrlExpirationTime(action.previewUrlSearch)
+                    ? oldFile.previewUrlSearch
+                    : action.previewUrlSearch;
+
+            if (oldFile?.file === newFile && oldFile.previewUrlSearch === newPreviewUrlSearch)
+                return references;
 
             const newFileById = new Map(references.fileById);
-            newFileById.set(newFile.id, newFile);
+            newFileById.set(newFile.id, {previewUrlSearch: newPreviewUrlSearch, file: newFile});
             return {...references, fileById: newFileById};
         }
         default:

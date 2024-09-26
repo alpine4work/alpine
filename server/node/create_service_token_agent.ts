@@ -14,6 +14,7 @@ export const serviceTokenAgentOptions = {
     jobQueueServicePublicKey: {type: "string"},
     fileUploadServicePublicKey: {type: "string"},
     servicePrivateKey: {type: "string"},
+    tokenAgentSecret: {type: "string"},
 } as const;
 
 export type ServiceTokenAgentOptions = {
@@ -23,6 +24,7 @@ export type ServiceTokenAgentOptions = {
     readonly jobQueueServicePublicKey?: string;
     readonly fileUploadServicePublicKey?: string;
     readonly servicePrivateKey?: string;
+    readonly tokenAgentSecret?: string;
 };
 
 /**
@@ -41,6 +43,7 @@ export async function createServiceTokenAgent<
         "new"(options: {
             serviceName: TokenServiceName;
             servicePrivateKey: string;
+            secret: string;
         }): Promise<PrivateSide>;
     };
     options: ServiceTokenAgentOptions;
@@ -56,6 +59,7 @@ export async function createServiceTokenAgent<
     if (!options.fileUploadServicePublicKey)
         throw new InternalError("Missing `fileUploadServicePublicKey` option");
     if (!options.servicePrivateKey) throw new InternalError("Missing `servicePrivateKey` option");
+    if (!options.tokenAgentSecret) throw new InternalError("Missing `tokenAgentSecret` option");
 
     const [
         appServicePublicKey,
@@ -64,6 +68,7 @@ export async function createServiceTokenAgent<
         jobQueueServicePublicKey,
         fileUploadServicePublicKey,
         servicePrivateKey,
+        tokenAgentSecret,
     ] = await runAllPromises([
         getServiceTokenAgentKeyFromOption(options.appServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.edgeServiceFamilyPublicKey),
@@ -71,6 +76,7 @@ export async function createServiceTokenAgent<
         getServiceTokenAgentKeyFromOption(options.jobQueueServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.fileUploadServicePublicKey),
         getServiceTokenAgentKeyFromOption(options.servicePrivateKey),
+        getServiceTokenAgentKeyFromOption(options.tokenAgentSecret),
     ]);
 
     const [publicSide, privateSide] = await runAllPromises([
@@ -81,10 +87,12 @@ export async function createServiceTokenAgent<
             taskRealtimeServicePublicKey,
             jobQueueServicePublicKey,
             fileUploadServicePublicKey,
+            secret: tokenAgentSecret,
         }),
         privateSideClass.new({
             serviceName,
             servicePrivateKey,
+            secret: tokenAgentSecret,
         }),
     ]);
 

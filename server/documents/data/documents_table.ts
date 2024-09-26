@@ -11,6 +11,10 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+} from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -1072,7 +1076,7 @@ async function getInternalDocumentIfExists(
  * exist.
  */
 export async function getDocument(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     documentId: DocumentId,
 ): Promise<DocumentModel> {
     return (await getDocumentAndCommentThreads(context, {documentId, commentThreadIds: []}))
@@ -1083,7 +1087,7 @@ export async function getDocument(
  * Get the full document with the provided id. Return null if it doesn't exist.
  */
 export async function getDocumentIfExists(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     documentId: DocumentId,
 ): Promise<DocumentModel | null> {
     return (
@@ -1100,7 +1104,7 @@ export async function getDocumentIfExists(
  * in the `archivedCommentThreadById` map.
  */
 export async function getDocumentAndCommentThreads(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     options: {
         documentId: DocumentId;
         // Allow `commentThreadIds` to be a promise so we can execute document loading
@@ -1122,7 +1126,7 @@ export async function getDocumentAndCommentThreads(
 }
 
 async function getDocumentAndCommentThreadsIfExists(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadIds: _requestedCommentThreadIds,
@@ -1419,7 +1423,7 @@ export async function getDocumentContent(
  * Get a single document comment thread model object.
  */
 export async function getDocumentCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -1460,7 +1464,7 @@ function getReferencedDocumentCommentThreadIds(content: Node): Set<DocumentComme
  * comments underneath the thread.
  */
 async function createDocumentCommentThreadModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: DocumentCommentThreadItem,
 ): Promise<DocumentCommentThreadModel> {
@@ -2165,7 +2169,7 @@ export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new T
  *   the majority of updates we only save the steps.
  */
 export async function updateDocumentContent(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         id,
         version: clientVersion,
@@ -3988,7 +3992,7 @@ export async function createDocumentComment(
  * Get a single document comment.
  */
 export async function getDocumentComment(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4111,7 +4115,7 @@ async function getDocumentCommentItem(
 }
 
 async function createDocumentCommentModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: DocumentCommentItem,
 ): Promise<DocumentCommentModel> {
@@ -4371,7 +4375,7 @@ export function deleteDocumentComment(
  * Get a document comment thread and some initial comments for that thread.
  */
 export async function getDocumentCommentThreadAndInitialCommentsIfExists(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4440,7 +4444,7 @@ export async function getDocumentCommentThreadAndInitialCommentsIfExists(
  * Get a document comment thread and some initial comments for that thread.
  */
 export async function getDocumentCommentThreadAndInitialComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     input: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
@@ -4472,7 +4476,7 @@ export async function getDocumentCommentThreadAndInitialComments(
  * contain.
  */
 export async function getDocumentAndCommentThreadsWithInitialComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadIds,
@@ -4583,7 +4587,7 @@ export async function getDocumentAndCommentThreadsWithInitialComments(
  * Paginate through document comments from start to finish.
  */
 export async function getDocumentCommentsFromStart(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4641,7 +4645,7 @@ export async function getDocumentCommentsFromStart(
 }
 
 async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4767,7 +4771,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
  * Paginate through document comments from finish to start.
  */
 export async function getDocumentCommentsFromEnd(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4825,7 +4829,7 @@ export async function getDocumentCommentsFromEnd(
 }
 
 async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -4973,7 +4977,7 @@ export type DocumentCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillDocumentComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         documentId,
         commentThreadId,
@@ -5089,7 +5093,7 @@ export async function backfillDocumentComments(
 }
 
 async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         spaceId,
         commentThreadItem,

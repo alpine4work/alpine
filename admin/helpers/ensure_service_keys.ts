@@ -2,6 +2,7 @@ import {generateKeyPair} from "crypto";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 
 /**
  * Make sure our development key files exist. If our key files do not exist
@@ -9,6 +10,15 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
  */
 export async function ensureServiceKeys(directoryPath: string) {
     await runAllPromises([
+        (async () => {
+            if (await fs.pathExists(joinPath(directoryPath, "token_agent_secret"))) return;
+
+            const secretBytes = new Uint8Array(32);
+            crypto.getRandomValues(secretBytes);
+            const secret = encodeBase64(secretBytes);
+
+            await fs.writeFile(joinPath(directoryPath, "token_agent_secret"), secret + "\n");
+        })(),
         (async () => {
             if (await fs.pathExists(joinPath(directoryPath, "app_service_rsa"))) return;
             await fs.ensureDir(directoryPath);

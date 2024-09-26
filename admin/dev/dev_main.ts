@@ -142,6 +142,8 @@ const jobQueueServicePublicKeyPath = joinPath(keysDirectoryPath, "job_queue_serv
 const fileUploadServicePrivateKeyPath = joinPath(keysDirectoryPath, "file_upload_service_rsa");
 const fileUploadServicePublicKeyPath = joinPath(keysDirectoryPath, "file_upload_service_rsa.pub");
 
+const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
+
 const apnsCertificatePath = joinPath(
     runfilesPath,
     "cyberworlds/server/apns/certificates/apns_development_certificate.pem",
@@ -295,6 +297,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 "--shouldSeedDynamo",
@@ -338,6 +341,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileUploadServiceHostname=localhost:${fileUploadDevPort}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
@@ -363,6 +367,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
@@ -383,6 +388,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
@@ -414,6 +420,7 @@ function createArtifacts() {
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileUploadServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,

@@ -43,7 +43,7 @@ export function createContentEditorFileRowNodeViewConstructor({
                 assert(childNode.type.name === "file");
                 const fileId: FileId | null = childNode.attrs.fileId;
                 if (!fileId) return null;
-                return references.fileById.get(fileId) ?? null;
+                return references.fileById.get(fileId)?.file ?? null;
             });
 
             if (lastIsMobile === isMobile && lastFiles && isShallowEqual(files, lastFiles)) return;

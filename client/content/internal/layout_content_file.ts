@@ -529,10 +529,7 @@ function getFilePreviewSize(file: FileModel | null): {width: number; height: num
             return {width, height};
         }
         case "Image": {
-            if (
-                (!file.preview.isProcessing && !file.preview.ok) ||
-                file.preview.size === "Processing"
-            ) {
+            if (file.preview.size === "Processing" || file.preview.size === "Error") {
                 return fallbackFileSize;
             }
 

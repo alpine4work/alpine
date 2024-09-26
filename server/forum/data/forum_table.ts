@@ -5,6 +5,7 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContext,
     ServerActionContextModules,
@@ -13,6 +14,7 @@ import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
+import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -104,6 +106,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 type ForumActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
+    files: FilesContextModuleBase;
 };
 
 export type ForumActionContextModulesWithBroadcast = ServerActionContextModules &
@@ -918,7 +921,7 @@ export async function createChannel(
  * channel instead of returning null.
  */
 export async function getChannelIfPossible(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, PermissionDeniedError> | null> {
@@ -963,7 +966,7 @@ export async function getChannelIfPossible(
 }
 
 async function createChannelModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     item: {
         readonly channelId: ChannelId;
         readonly spaceId: SpaceId;
@@ -994,7 +997,7 @@ async function createChannelModelFromItem(
  * doesn't exist or throws if you don't have access to the channel.
  */
 export async function getChannelIfExists(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<ChannelModel> | null> {
@@ -1008,7 +1011,7 @@ export async function getChannelIfExists(
  * exist or you don't have access to the channel.
  */
 export async function getChannel(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     channelId: ChannelId,
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<ChannelModel>> {
@@ -1370,7 +1373,7 @@ export async function updateChannelNameAndDescription(
  * post will be the first in the array.
  */
 export async function getChannelPosts(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         channelId,
         limit,
@@ -1398,7 +1401,7 @@ export async function getChannelPosts(
  * disconnected from realtime.
  */
 export async function backfillChannelPosts(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {channelId, readTime}: {channelId: ChannelId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
     const [, result] = await runAllPromises([
@@ -1542,7 +1545,7 @@ export async function createPost(
  * Gets the post with the provided `PostId`.
  */
 export async function getPost(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     id: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<DynamoGeneralRealtimeItem<PostModel>> {
@@ -1606,7 +1609,7 @@ export async function getPostContentAndChannelPreview(
 }
 
 async function createPostModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     channelPromise: MaybePromise<ChannelPreviewModel>,
     item: {
         readonly postId: PostId;
@@ -2143,7 +2146,7 @@ export async function createPostComment(
  * Get a single post comment.
  */
 export async function getPostComment(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
@@ -2200,7 +2203,7 @@ export async function getPostCommentPayload(
 }
 
 async function createPostCommentModelFromItem(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     item: PostCommentItem,
 ): Promise<PostCommentModel> {
@@ -2485,7 +2488,7 @@ export function deletePostComment(
  * one request.
  */
 export async function getPostAndInitialComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         postId,
         commentLimit,
@@ -2586,7 +2589,7 @@ export async function getPostAndInitialComments(
  * Paginate through post comments from start to finish.
  */
 export async function getPostCommentsFromStart(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         postId,
         limit,
@@ -2652,7 +2655,7 @@ export async function getPostCommentsFromStart(
 }
 
 async function getPostCommentsFromStartAssumingAuthorizedPost(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         postId,
         getSpaceId,
@@ -2774,7 +2777,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
  * Paginate through post comments from finish to start.
  */
 export async function getPostCommentsFromEnd(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         postId,
         limit,
@@ -2840,7 +2843,7 @@ export async function getPostCommentsFromEnd(
 }
 
 async function getPostCommentsFromEndAssumingAuthorizedPost(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         postId,
         getSpaceId,
@@ -2984,7 +2987,7 @@ export type PostCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillPostComments(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         postId,
         clientCommentCount,
@@ -3083,7 +3086,7 @@ export async function backfillPostComments(
 }
 
 async function queryPostCommentChangeLogAssumingAuthorizedPost(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     {
         postItem,
         lastCommentChangeTime,

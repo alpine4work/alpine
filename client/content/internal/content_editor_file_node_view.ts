@@ -23,7 +23,7 @@ export function createContentEditorFileNodeViewConstructor({
         const update = () => {
             const fileId: FileId | null = node.attrs.fileId;
             const file = fileId
-                ? getContentEditorReferences(view.state).references.fileById.get(fileId)
+                ? getContentEditorReferences(view.state).references.fileById.get(fileId)?.file
                 : undefined;
 
             if (node === lastNode && file === lastFile) return;

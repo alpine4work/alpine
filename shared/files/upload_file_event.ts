@@ -3,7 +3,7 @@ import {ErrorDisplayMessageSchema, ErrorSchema} from "~/shared/error/error_schem
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileImagePreviewSizeSchema} from "~/shared/files/file_preview.js";
+import {FileHasPreviewSchema, FileImagePreviewSizeSchema} from "~/shared/files/file_preview.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
@@ -17,19 +17,8 @@ export const UploadFileEventSchema = Schema.union({
         type: Schema.value("Start"),
         fileId: Schema.id<FileId>(),
         hasAlternative: Schema.boolean,
-        hasPreview: Schema.union({
-            Image: Schema.object({
-                type: Schema.value("Image"),
-                hasContent: Schema.boolean,
-                hasVideoDuration: Schema.boolean,
-            }),
-            Audio: Schema.object({
-                type: Schema.value("Audio"),
-            }),
-            Code: Schema.object({
-                type: Schema.value("Code"),
-            }),
-        }).nullable(),
+        hasPreview: FileHasPreviewSchema.nullable(),
+        previewUrlSearch: Schema.string.nullable(),
     }),
     Finish: Schema.object({
         type: Schema.value("Finish"),

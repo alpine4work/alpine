@@ -1,5 +1,6 @@
 import {Node} from "prosemirror-model";
 import {FileModel} from "~/shared/files/file_model.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
@@ -24,11 +25,23 @@ export const ContentReferencesSchema = Schema.object({
 
     /**
      * Files attached to the content.
+     *
+     * Also includes the search part of the preview URL we'll need to render in
+     * `previewUrlSearch`. We only include the search part since the path and
+     * domain can be easily generated on the client. The path pattern is
+     * `/s/:spaceId/files/:fileId`. You won't find a Remix route for this path
+     * since it's handled by `EdgeService`.
      */
     // TODO(calebmer, #files): Right now files are only allowed in document content
     // but eventually all content will need to support files. Which is why we have
     // it here even if that's a little premature.
-    fileById: Schema.map(Schema.id<FileId>(), FileModel.schema()),
+    fileById: Schema.map(
+        Schema.id<FileId>(),
+        Schema.object({
+            previewUrlSearch: Schema.string.nullable(),
+            file: FileModel.schema(),
+        }),
+    ),
 });
 
 /**
@@ -72,7 +85,7 @@ export function mergeContentReferences(
     if (isEmptyContentReferences(references2)) return references1;
 
     const accountById = new Map<ContentMentionAccountId, AccountModel>();
-    const fileById = new Map<FileId, FileModel>();
+    const fileById = new Map<FileId, {previewUrlSearch: string | null; file: FileModel}>();
 
     // Merge accounts together...
     for (const [accountId, account] of concatIterables(
@@ -86,14 +99,35 @@ export function mergeContentReferences(
     // Merge files together...
     //
     // Prefer `existingFile` in `FileModel.minLoadingCount()` to avoid unnecessary
-    // re-renders.
+    // re-renders. Pick the `previewUrlSearch` that expires later.
     for (const [fileId, file] of concatIterables(references1.fileById, references2.fileById)) {
         const existingFile = fileById.get(fileId);
-        fileById.set(fileId, existingFile ? FileModel.minLoadingCount(existingFile, file) : file);
+        fileById.set(fileId, {
+            previewUrlSearch:
+                existingFile?.previewUrlSearch &&
+                file.previewUrlSearch &&
+                getContentReferencesFileSignedUrlExpirationTime(existingFile.previewUrlSearch) >=
+                    getContentReferencesFileSignedUrlExpirationTime(file.previewUrlSearch)
+                    ? existingFile.previewUrlSearch
+                    : file.previewUrlSearch,
+            file: existingFile
+                ? FileModel.minLoadingCount(existingFile.file, file.file)
+                : file.file,
+        });
     }
 
     return {
         accountById,
         fileById,
     };
+}
+
+/**
+ * Get the expiration time from a JWT token in `ContentReferences` for a file.
+ */
+export function getContentReferencesFileSignedUrlExpirationTime(previewUrlSearch: string): number {
+    const searchParams = new URLSearchParams(previewUrlSearch.split("?", 2)[1]);
+    const expirationTime = parseInt(searchParams.get("exp") ?? "", 10);
+    assert(Number.isInteger(expirationTime));
+    return expirationTime;
 }

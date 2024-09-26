@@ -1076,7 +1076,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     spaceContext.space.id,
                                     assertExists(fileItem.getAsFile()),
                                     {
-                                        onAttach: fileStore => {
+                                        onAttach: ({previewUrlSearch, fileStore}) => {
                                             // Whenever the file changes during the upload, make sure to update it in
                                             // our content references. We unsubscribe once the upload has finished since
                                             // after that the file should be immutable.
@@ -1084,6 +1084,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                 view.dispatch(
                                                     updateContentEditorReferences(view.state.tr, {
                                                         type: "SetFile",
+                                                        previewUrlSearch,
                                                         file: fileStore.getSnapshot(),
                                                     }),
                                                 );
@@ -1120,6 +1121,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                             updateContentEditorReferences(transaction, {
                                                 type: "SetFile",
+                                                previewUrlSearch,
                                                 file: initialFile,
                                             });
 

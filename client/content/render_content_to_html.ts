@@ -317,7 +317,7 @@ export function renderContentFragmentToHtmlStore(
                             assert(childNode.type.name === "file");
                             const fileId: FileId | null = childNode.attrs.fileId;
                             if (!fileId) return null;
-                            return content.references.fileById.get(fileId) ?? null;
+                            return content.references.fileById.get(fileId)?.file ?? null;
                         }),
                         {
                             screenWidth,
@@ -350,7 +350,9 @@ export function renderContentFragmentToHtmlStore(
                     const childNode = node.content.content[0]!;
                     assert(childNode.type.name === "file");
                     const fileId: FileId | null = childNode.attrs.fileId;
-                    const file = fileId ? content.references.fileById.get(fileId) ?? null : null;
+                    const file = fileId
+                        ? content.references.fileById.get(fileId)?.file ?? null
+                        : null;
 
                     const layout = layoutContentFileFloat(node.attrs.direction, file, {
                         screenWidth,
@@ -369,7 +371,7 @@ export function renderContentFragmentToHtmlStore(
                 },
                 file: node => {
                     const fileId: FileId | null = node.attrs.fileId;
-                    const file = fileId ? content.references.fileById.get(fileId) : undefined;
+                    const file = fileId ? content.references.fileById.get(fileId)?.file : undefined;
 
                     const html = renderContentFilePreview(node, file);
                     return {html};

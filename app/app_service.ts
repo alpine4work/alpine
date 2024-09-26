@@ -23,6 +23,7 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
+import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
@@ -50,7 +51,7 @@ import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_
 import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -98,7 +99,7 @@ async function createAppService({
     const [tokenAgent, apnsCertificate, apnsCertificatePrivateKey] = await runAllPromises([
         createServiceTokenAgent({
             serviceName: "AppService",
-            privateSide: AppServiceTokenAgentPrivateSide,
+            privateSide: TokenAgentAppServicePrivateSide,
             options,
         }),
         getServiceTokenAgentKeyFromOption(
@@ -199,6 +200,7 @@ async function createAppService({
         opensearch: opensearchContextModule,
         languageModel: new LanguageModelContextModule(languageModel),
         apns: apnsContextModule,
+        files: new FilesContextModule(tokenAgent),
     });
 
     let hasSeededDynamo = false;

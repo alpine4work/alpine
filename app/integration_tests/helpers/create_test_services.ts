@@ -13,7 +13,7 @@ import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
-import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -122,7 +122,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
         },
     });
 
-    let appServiceTokenAgentPrivateSide: AppServiceTokenAgentPrivateSide | undefined;
+    let appServiceTokenAgentPrivateSide: TokenAgentAppServicePrivateSide | undefined;
 
     let appServiceSubprocess: ChildProcessByStdio<null, ReadableStream, ReadableStream> | undefined;
     let edgeServiceSubprocess:
@@ -190,6 +190,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
             "file_upload_service_rsa.pub",
         );
 
+        const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
+
         const [
             edgeServicePort,
             taskRealtimeServicePort,
@@ -202,9 +204,10 @@ export function createTestServices(): {context: TestContext; services: TestServi
             getPort(),
             getPort(),
             ensureServiceKeys(keysDirectoryPath).then(async () =>
-                AppServiceTokenAgentPrivateSide.new({
+                TokenAgentAppServicePrivateSide.new({
                     serviceName: "AppService",
                     servicePrivateKey: await fs.readFile(appServicePrivateKeyPath, "utf8"),
+                    secret: await fs.readFile(tokenAgentSecretPath, "utf8"),
                 }),
             ),
         ]);
@@ -234,6 +237,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${appServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
@@ -279,6 +283,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileUploadServiceHostname=localhost:${fileUploadServicePort}`,
             ],
             {
@@ -302,6 +307,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${taskRealtimeServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
@@ -328,6 +334,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${jobQueueServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
@@ -358,6 +365,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--jobQueueServicePublicKey=${jobQueueServicePublicKeyPath}`,
                 `--fileUploadServicePublicKey=${fileUploadServicePublicKeyPath}`,
                 `--servicePrivateKey=${fileUploadServicePrivateKeyPath}`,
+                `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,

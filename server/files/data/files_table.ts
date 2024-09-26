@@ -34,7 +34,12 @@ import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.j
 import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileAlternativeSchema, FileModel} from "~/shared/files/file_model.js";
-import {FileImagePreviewSize, FilePreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
+import {
+    FileHasPreview,
+    FileImagePreviewSize,
+    FilePreview,
+    FilePreviewSchema,
+} from "~/shared/files/file_preview.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -431,11 +436,7 @@ export async function startUploadingAndProcessingFile(
         contentType: FileContentType;
         contentLength: number;
         hasAlternative: boolean;
-        hasPreview:
-            | {type: "Image"; hasContent: boolean; hasVideoDuration: boolean}
-            | {type: "Audio"}
-            | {type: "Code"}
-            | null;
+        hasPreview: FileHasPreview | null;
     },
 ): Promise<FileUploader> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1118,6 +1119,19 @@ export class FileUploader {
                             isProcessing: false,
                             ok: false,
                             error,
+                            size: item.preview.size === "Processing" ? "Error" : item.preview.size,
+                            placeholder:
+                                item.preview.placeholder === "Processing"
+                                    ? "Error"
+                                    : item.preview.placeholder,
+                            content:
+                                item.preview.content === "Processing"
+                                    ? "Error"
+                                    : item.preview.content,
+                            videoDuration:
+                                item.preview.videoDuration === "Processing"
+                                    ? "Error"
+                                    : item.preview.videoDuration,
                         },
                     };
                 },

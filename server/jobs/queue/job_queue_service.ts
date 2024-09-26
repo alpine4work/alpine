@@ -10,6 +10,7 @@ import {
     ApnsContextModuleBase,
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
+import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {
     GithubContextModule,
@@ -249,6 +250,7 @@ export async function run({
         apns: apnsContextModule,
         github: githubContextModule,
         scheduler: schedulerContextModule,
+        files: new FilesContextModule(tokenAgent),
     });
 
     const consumer = JobQueueConsumer.start(processContext, {

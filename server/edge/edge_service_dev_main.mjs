@@ -34,6 +34,7 @@ async function main() {
             jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
             fileUploadServicePublicKey: fileUploadServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
+            tokenAgentSecret: tokenAgentSecretPath,
             fileUploadServiceHostname,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
@@ -48,6 +49,7 @@ async function main() {
             jobQueueServicePublicKey: {type: "string"},
             fileUploadServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
+            tokenAgentSecret: {type: "string"},
             fileUploadServiceHostname: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
@@ -70,6 +72,7 @@ async function main() {
         throw new Error("Missing `fileUploadServicePublicKeyPath` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
+    if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
     if (!fileUploadServiceHostname) throw new Error("Missing `fileUploadServiceHostname` arg");
 
     const [
@@ -79,6 +82,7 @@ async function main() {
         jobQueueServicePublicKey,
         fileUploadServicePublicKey,
         edgeServiceFamilyPrivateKey,
+        tokenAgentSecret,
     ] = await Promise.all([
         fs.readFile(appServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
@@ -86,6 +90,7 @@ async function main() {
         fs.readFile(jobQueueServicePublicKeyPath, "utf8"),
         fs.readFile(fileUploadServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
+        fs.readFile(tokenAgentSecretPath, "utf8"),
     ]);
 
     const port = parseInt(portString, 10);
@@ -111,6 +116,7 @@ async function main() {
             JOB_QUEUE_SERVICE_PUBLIC_KEY: jobQueueServicePublicKey,
             FILE_UPLOAD_SERVICE_PUBLIC_KEY: fileUploadServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
+            TOKEN_AGENT_SECRET: tokenAgentSecret,
             FILE_UPLOAD_SERVICE_HOSTNAME: fileUploadServiceHostname,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },

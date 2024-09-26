@@ -4,7 +4,7 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {FileContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
-import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
+import {FileHasPreview, FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {If} from "~/shared/helpers/types/if.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -82,28 +82,9 @@ export interface NoopFileProcessor {
     readonly hasPreview: null;
 }
 
-type FileProcessorTemplateHasImagePreview = {
-    readonly type: "Image";
-    readonly hasContent: boolean;
-    readonly hasVideoDuration: boolean;
-};
-
-type FileProcessorTemplateHasAudioPreview = {
-    readonly type: "Audio";
-};
-
-type FileProcessorTemplateHasCodePreview = {
-    readonly type: "Code";
-};
-
-type FileProcessorTemplateHasPreview =
-    | FileProcessorTemplateHasImagePreview
-    | FileProcessorTemplateHasAudioPreview
-    | FileProcessorTemplateHasCodePreview;
-
 export interface FileProcessorTemplate<
     HasAlternative extends boolean | "ImagePreviewContent",
-    HasPreview extends FileProcessorTemplateHasPreview | null,
+    HasPreview extends FileHasPreview | null,
 > {
     readonly type:
         | "WebSafeImage"
@@ -143,7 +124,7 @@ export interface FileProcessorTemplate<
 
 type FileProcessorTemplateResult<
     HasAlternative extends boolean | "ImagePreviewContent",
-    HasPreview extends FileProcessorTemplateHasPreview | null,
+    HasPreview extends FileHasPreview | null,
 > = MergeObjectIntersection<
     {
         extraPromise?: Promise<void>;
@@ -168,20 +149,19 @@ type FileProcessorTemplateResult<
         FileProcessorTemplateResultFromHasPreview<HasPreview>
 >;
 
-type FileProcessorTemplateResultFromHasPreview<
-    HasPreview extends FileProcessorTemplateHasPreview | null,
-> = HasPreview extends null
-    ? {}
-    : HasPreview extends {type: "Image"}
-    ? FileProcessorTemplateResultFromHasImagePreview<Exclude<HasPreview, null>>
-    : HasPreview extends {type: "Audio"}
-    ? FileProcessorTemplateResultFromHasAudioPreview
-    : HasPreview extends {type: "Code"}
-    ? FileProcessorTemplateResultFromHasCodePreview
-    : never;
+type FileProcessorTemplateResultFromHasPreview<HasPreview extends FileHasPreview | null> =
+    HasPreview extends null
+        ? {}
+        : HasPreview extends {type: "Image"}
+        ? FileProcessorTemplateResultFromHasImagePreview<Exclude<HasPreview, null>>
+        : HasPreview extends {type: "Audio"}
+        ? FileProcessorTemplateResultFromHasAudioPreview
+        : HasPreview extends {type: "Code"}
+        ? FileProcessorTemplateResultFromHasCodePreview
+        : never;
 
 type FileProcessorTemplateResultFromHasImagePreview<
-    HasPreview extends FileProcessorTemplateHasImagePreview,
+    HasPreview extends FileHasPreview & {type: "Image"},
 > = {
     imagePreviewSizePromise: Promise<
         FileImagePreviewSize &

@@ -8,14 +8,18 @@ import {
     getChatAccountIds,
 } from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
-    ServerActionContext,
     ServerActionContextModules,
-    ServerSessionActionContext,
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
+import {
+    ServerContentActionContext,
+    ServerContentSessionActionContext,
+    ServerContentSystemActionContext,
+} from "~/server/context/server_content_action_context.js";
 import {
     FileDocumentAuthorizer,
     getDocumentAndCommentThreadsWithInitialComments,
@@ -140,6 +144,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type InboxActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
+    files: FilesContextModuleBase;
 };
 
 export type InboxActionContextModulesWithBroadcast = ServerActionContextModules &
@@ -1311,7 +1316,7 @@ export async function getInbox(
  * inboxes for spaces the actor has lost access to.
  */
 export async function getOurAccountInboxes(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     spaceIds: ReadonlySet<SpaceId>,
 ): Promise<ReadonlyArray<DynamoGeneralRealtimeItem<InboxModel>>> {
     const inboxes = await parallelMapAsyncIterableToArray(
@@ -1344,7 +1349,7 @@ export async function getOurAccountInboxes(
  * Get the entries for the current account's inbox.
  */
 export async function getInboxEntries(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         spaceId,
         filter,
@@ -1427,7 +1432,7 @@ export async function getInboxEntries(
  * Get a single inbox for the actor based on the provided key.
  */
 export async function getInboxEntry(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {
         spaceId,
         key,
@@ -1457,7 +1462,7 @@ export async function getInboxEntry(
  * This will backfill updates both for non-archived and archived entries.
  */
 export async function backfillInboxEntries(
-    context: ServerSessionActionContext,
+    context: ServerContentSessionActionContext,
     {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1980,7 +1985,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * [1]: https://developer.apple.com/design/human-interface-guidelines/notifications
      */
     getAlertContent: (
-        context: ServerSystemActionContext,
+        context: ServerContentSystemActionContext,
         event: Event,
         options: {
             info: Info;
@@ -2612,7 +2617,7 @@ function getInboxEntryLatestUpdateTime(
 }
 
 async function printNotificationEventAlertContentBody(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     fileAuthorizer: FileAuthorizer,
     event: {spaceId: SpaceId; isContentSnippetComplete: boolean; contentSnippet: Node},
 ) {

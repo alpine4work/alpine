@@ -1,5 +1,5 @@
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
-import {FilePreviewSchema} from "~/shared/files/file_preview.js";
+import {FileHasPreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -38,6 +38,34 @@ export class FileModel extends Model(
         preview: FilePreviewSchema.nullable(),
     }),
 ) {
+    private _hasPreview?: FileHasPreview;
+
+    public get hasPreview(): FileHasPreview | null {
+        if (this.preview === null) return null;
+
+        if (this._hasPreview === undefined) {
+            switch (this.preview.type) {
+                case "Image":
+                    this._hasPreview = {
+                        type: "Image",
+                        hasContent: this.preview.content !== undefined,
+                        hasVideoDuration: this.preview.videoDuration !== undefined,
+                    };
+                    break;
+                case "Audio":
+                    this._hasPreview = {type: "Audio"};
+                    break;
+                case "Code":
+                    this._hasPreview = {type: "Code"};
+                    break;
+                default:
+                    throw exhaustive(this.preview);
+            }
+        }
+
+        return this._hasPreview;
+    }
+
     /**
      * Get the file with the smaller number of loading components. If both files
      * have the same number of loading components then we return `file1`.

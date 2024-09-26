@@ -253,6 +253,10 @@ export function testFileProcessorContentTypes(
                                       isProcessing: false,
                                       ok: false,
                                       error: expectedPreviewError,
+                                      size: "Error",
+                                      placeholder: "Error",
+                                      content: "Error",
+                                      videoDuration: "Error",
                                   }
                                 : expectedImagePreviewSize
                                 ? {

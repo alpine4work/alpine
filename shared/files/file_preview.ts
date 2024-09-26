@@ -131,6 +131,15 @@ export const FileImagePreviewSchema = Schema.booleanUnion(
                 code: Schema.enum(getErrorCodes()),
                 displayMessage: ErrorDisplayMessageSchema,
             }),
+            size: errorSchema(FileImagePreviewSizeSchema),
+            placeholder: errorSchema(FileImagePreviewPlaceholder.schema),
+            content: errorSchema(
+                Schema.object({
+                    contentType: FileContentTypeSchema,
+                    contentLength: Schema.integer,
+                }),
+            ).optional(),
+            videoDuration: errorSchema(Schema.integer).optional(),
         }),
     ),
 ).validation(
@@ -199,6 +208,22 @@ export const FilePreviewSchema = Schema.union({
     Code: FileCodePreviewSchema,
 });
 
+export type FileHasPreview = SchemaType<typeof FileHasPreviewSchema>;
+
+export const FileHasPreviewSchema = Schema.union({
+    Image: Schema.object({
+        type: Schema.value("Image"),
+        hasContent: Schema.boolean,
+        hasVideoDuration: Schema.boolean,
+    }),
+    Audio: Schema.object({
+        type: Schema.value("Audio"),
+    }),
+    Code: Schema.object({
+        type: Schema.value("Code"),
+    }),
+});
+
 /**
  * Take a schema and give it an explicit `"Processing"` state. Under the hood
  * this uses `schema.nullable()` so in the database processing is treated as
@@ -218,6 +243,29 @@ function processingSchema<Value>(schema: Schema<Value>): Schema<Value | "Process
             assert(value !== "Processing");
 
             return value === null ? "Processing" : value;
+        },
+    });
+}
+
+/**
+ * Take a schema and give it an explicit `"Error"` state. Under the hood
+ * this uses `schema.nullable()` so in the database processing is treated as
+ * null. In our code you must explicitly deal with the `"Error"` state.
+ */
+function errorSchema<Value>(schema: Schema<Value>): Schema<Value | "Error"> {
+    return schema.nullable().transform<Value | "Error">({
+        serialize: value => {
+            // `value` must not be null or else the serialized value may be ambiguous.
+            assert(value !== null);
+
+            return value === "Error" ? null : value;
+        },
+        deserialize: value => {
+            // `value` must not be `"Error"` or else the serialized value may be
+            // ambiguous.
+            assert(value !== "Error");
+
+            return value === null ? "Error" : value;
         },
     });
 }

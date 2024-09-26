@@ -1,6 +1,6 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
@@ -15,7 +15,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export function getContentReferencesForNode(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     content: Node,
@@ -25,7 +25,7 @@ export function getContentReferencesForNode(
 }
 
 export function getContentReferencesForSteps(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     steps: ReadonlyArray<Step>,
@@ -43,7 +43,7 @@ export function getContentReferencesForSteps(
  * authorize access to the attachment target.
  */
 export async function getContentReferences(
-    context: ServerActionContext,
+    context: ServerContentActionContext,
     spaceId: SpaceId,
     fileAuthorizer: FileAuthorizer,
     referencedIds: ContentReferencedIds,
@@ -64,25 +64,21 @@ export async function getContentReferences(
             }),
         ),
         runAllPromises(
-            mapIterable(referencedIds.fileIds, async accountId => {
+            mapIterable(referencedIds.fileIds, async fileId => {
                 // TODO(calebmer, #files): This will break if you copy some content from a
                 // different space then paste. Ideally we'd allow copying a file from a
                 // different space. How do we make this work? Should we reference the file in
                 // its "home" space? Should we copy the file into the new space? I kinda like
                 // referencing the file in the home space? The home space could delete the file
                 // but that's the risk you run.
-                const file = await getFileFromAttachment(
-                    context,
-                    spaceId,
-                    accountId,
-                    fileAuthorizer,
-                    {consistency: "Eventual"},
-                );
+                let file = await getFileFromAttachment(context, spaceId, fileId, fileAuthorizer, {
+                    consistency: "Eventual",
+                });
 
                 // The client (in `uploadFileFromContentEditor()`) will not attach a file to
                 // content until the preview is at least partially available. So if we see an
-                // unavailable preview here that's probably an eventual consistency lag. Try
-                // reading again with strong consistency and returning that.
+                // unavailable preview here that's probably because of eventual consistency
+                // lag. Try reading again with strong consistency and returning that.
                 //
                 // We don't want to show a file with an unavailable preview to the user since
                 // it'll have the incorrect size then after a bit will flash in with the
@@ -90,12 +86,27 @@ export async function getContentReferences(
                 // partially available preview since at least the layout will be stable even if
                 // we don't have e.g. the image preview's placeholder.
                 if (file.getAttachReadiness() !== "PreviewUnavailable") {
-                    return getFileFromAttachment(context, spaceId, accountId, fileAuthorizer, {
+                    file = await getFileFromAttachment(context, spaceId, fileId, fileAuthorizer, {
                         consistency: "Strong",
                     });
                 }
 
-                return file;
+                let previewUrl: URL | null = null;
+
+                // If there was an error while processing then don't generate a preview URL
+                // since the client will render an error message, not a preview.
+                if (file.preview && (!("ok" in file.preview) || file.preview.ok === true)) {
+                    previewUrl =
+                        // It's ok to generate a signed URL since `getFileFromAttachment()` authorizes
+                        // that the actor has access to the file.
+                        await context.files.dangerouslySignFilePreviewUrlWithoutAuthorization(
+                            spaceId,
+                            fileId,
+                            file,
+                        );
+                }
+
+                return {previewUrlSearch: previewUrl?.search ?? null, file};
             }),
         ),
     ]);
@@ -110,7 +121,7 @@ export async function getContentReferences(
     const fileById = new Map(
         filterMapIterable(files, file => {
             if (!file) return;
-            return [file.id, file];
+            return [file.file.id, file];
         }),
     );
 

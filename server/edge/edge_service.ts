@@ -35,6 +35,7 @@ type EdgeServiceEnv = {
     JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
     FILE_UPLOAD_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
+    TOKEN_AGENT_SECRET?: string;
     FILE_UPLOAD_SERVICE_HOSTNAME?: string;
     HONEYCOMB_API_KEY?: string;
 };
@@ -324,6 +325,10 @@ async function handleFetch(
                         "Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable",
                     );
 
+                const tokenAgentSecret = env.TOKEN_AGENT_SECRET;
+                if (!tokenAgentSecret)
+                    throw new InternalError("Missing `TOKEN_AGENT_SECRET` env variable");
+
                 const tokenAgentPromise = runAllPromises([
                     TokenAgentPublicSide.new({
                         serviceName: "EdgeService",
@@ -332,10 +337,12 @@ async function handleFetch(
                         taskRealtimeServicePublicKey,
                         jobQueueServicePublicKey,
                         fileUploadServicePublicKey,
+                        secret: tokenAgentSecret,
                     }),
                     TokenAgentPrivateSide.new({
                         serviceName: "EdgeService",
                         servicePrivateKey: edgeServiceFamilyPrivateKey,
+                        secret: tokenAgentSecret,
                     }),
                 ]).then(([publicSide, privateSide]) => ({publicSide, privateSide}));
 

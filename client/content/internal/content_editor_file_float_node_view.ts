@@ -45,7 +45,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
             const childNode = node.content.content[0]!;
             assert(childNode.type.name === "file");
             const fileId: FileId | null = childNode.attrs.fileId;
-            const file = fileId ? references.fileById.get(fileId) ?? null : null;
+            const file = fileId ? references.fileById.get(fileId)?.file ?? null : null;
 
             if (
                 lastIsMobile === isMobile &&

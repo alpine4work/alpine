@@ -3617,6 +3617,59 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             }
                                                                         },
                                                                         "optional": false
+                                                                    },
+                                                                    "size": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Reference",
+                                                                                "reuseReferenceId": "4ee80a94"
+                                                                            }
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "placeholder": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Reference",
+                                                                                "reuseReferenceId": "3711d264"
+                                                                            }
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "content": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "contentType": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Reference",
+                                                                                            "reuseReferenceId": "af264040"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "contentLength": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Integer"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "optional": true
+                                                                    },
+                                                                    "videoDuration": {
+                                                                        "valueSchema": {
+                                                                            "type": "Nullable",
+                                                                            "schema": {
+                                                                                "type": "Integer"
+                                                                            }
+                                                                        },
+                                                                        "optional": true
                                                                     }
                                                                 }
                                                             }

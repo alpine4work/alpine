@@ -7,7 +7,7 @@ import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {RpcServerActionContextModules} from "~/server/rpc/rpc_server_action_context.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -51,7 +51,7 @@ export class LoaderContextModule extends ContextModuleBase {
     /**
      * Allow Remix loaders to sign tokens and encrypt data with our token agent.
      */
-    public readonly tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
+    public readonly tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
 
     /**
      * Manipulate the HTTP session cookie. Important to remember that the client
@@ -82,7 +82,7 @@ export class LoaderContextModule extends ContextModuleBase {
             tokenAgent,
             sessionCookie,
         }: {
-            tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
+            tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
             sessionCookie: SessionCookie;
         },
     ) {
