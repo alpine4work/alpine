@@ -120,6 +120,7 @@ export const blockMaxWidthRem = mapObjectValues(blockMaxWidth, blockMaxWidth =>
 const defaultParagraphMarginSpacing = "2";
 const defaultParagraphMargin = spacing[defaultParagraphMarginSpacing];
 export {defaultParagraphMarginSpacing as defaultParagraphMargin};
+export const defaultParagraphMarginRem = parseRemLengthNumber(defaultParagraphMargin);
 
 const blockMaxWidthVar = createVar("block-max-width");
 const paragraphMarginVar = createVar("paragraph-margin");
@@ -952,13 +953,17 @@ globalStyle(`${fileRowClassName} + ${fileRowClassName}`, {
 
 export const fileFloatMaxWidthPercent = 1 / 3;
 
-const fileFloatMarginX = spacing["2.5"];
-export const fileFloatMarginXRem = parseRemLengthNumber(fileFloatMarginX);
+const fileFloatLeftMarginX = spacing["5"];
+export const fileFloatLeftMarginXRem = parseRemLengthNumber(fileFloatLeftMarginX);
+
+// We have less horizontal margin for a right float since the text's right
+// ragged edge already creates some whitespace. So let longer lines of text
+// flow closer to the file.
+const fileFloatRightMarginX = spacing["3"];
+export const fileFloatRightMarginXRem = parseRemLengthNumber(fileFloatRightMarginX);
 
 const fileFloatMarginY = spacing["1"];
 export const fileFloatMarginYRem = parseRemLengthNumber(fileFloatMarginY);
-
-export const fileFloatRightExtraMarginBottomPx = 1;
 
 export const fileFloatMinHeightParagraphLineCount = Math.ceil(
     minFileSizeRem / paragraphLineHeightRem,
@@ -1000,7 +1005,7 @@ globalStyle(`${fileFloatClassName}::after`, {
 
 globalStyle(fileFloatLeftClassName, {
     float: "left",
-    paddingRight: fileFloatMarginX,
+    paddingRight: fileFloatLeftMarginX,
     marginLeft: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
 });
 
@@ -1010,22 +1015,8 @@ globalStyle(`${mobilePlatformSelector} ${fileFloatLeftClassName}`, {
 
 globalStyle(fileFloatRightClassName, {
     float: "right",
-    paddingLeft: fileFloatMarginX,
+    paddingLeft: fileFloatRightMarginX,
     marginRight: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
-    // Add a little bit of extra space below right floating files. This space
-    // should be enough to cause an additional line of text to wrap underneath a
-    // right floated file. But it should be as small as possible so the difference
-    // is almost undetectable when you have to files floated right stacked on top
-    // of each other. 1px should be fine as this extra margin bottom value if
-    // `layoutContentFile()` was successful in finding a file's height that's a
-    // multiple of `paragraphLineHeightRem`.
-    //
-    // The reason we want an extra line of text to wrap underneath files floated to
-    // the right is that a paragraph's ragged right edge next to a floated file
-    // creates visual whitespace that looks imbalanced if text tightly wraps below
-    // the file. By forcing one more line to wrap around the image we improve the
-    // optical alignment around images.
-    paddingBottom: `calc(${fileFloatMarginY} + ${fileFloatRightExtraMarginBottomPx}px)`,
 });
 
 globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {

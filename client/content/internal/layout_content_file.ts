@@ -442,10 +442,25 @@ export function layoutContentFileFloat(
     // paragraph lines we can neatly fit our file next to text which'll flow
     // naturally around the file.
     {
-        const lineCount = Math.floor(
+        let lineCount =
             (heightVariable.value() + contentStyles.fileFloatMarginYRem * remPx * 2) /
-                (contentStyles.paragraphLineHeightRem * remPx),
-        );
+            (contentStyles.paragraphLineHeightRem * remPx);
+
+        // We actually are rounding to the nearest `n + 0.7` line count (where `n` is
+        // an integer) that's smaller than the original file height. We have to strike
+        // this balance where the bottom margin around the file looks good in as many
+        // scenarios as possible. The two main scenarios we consider are:
+        //
+        // 1. When there's a single full paragraph to the right of the file
+        // 2. When there's two paragraphs to the right of the file
+        //
+        // 0.7 is the value we found through optical alignment that balances whitespace
+        // in these two scenarios. [Some example images][1] of the cases we're testing.
+        //
+        // [1]: https://gist.github.com/calebmer/6f3d44fbc6c3748cd75db7ac9faddd13
+        const lineCountRemainder = 0.7;
+
+        lineCount = Math.floor(lineCount + (1 - lineCountRemainder)) - (1 - lineCountRemainder);
 
         solver.addConstraint(
             new kiwi.Constraint(
@@ -460,13 +475,14 @@ export function layoutContentFileFloat(
 
     solver.updateVariables();
 
-    const widthSolution = widthVariable.value() + contentStyles.fileFloatMarginXRem * remPx;
+    const widthSolution =
+        widthVariable.value() +
+        (direction === "left"
+            ? contentStyles.fileFloatLeftMarginXRem
+            : contentStyles.fileFloatRightMarginXRem) *
+            remPx;
 
-    const heightSolution =
-        heightVariable.value() +
-        contentStyles.fileFloatMarginYRem * remPx * 2 +
-        // Account for the extra space added by `fileFloatRightClassName`.
-        (direction === "right" ? contentStyles.fileFloatRightExtraMarginBottomPx : 0);
+    const heightSolution = heightVariable.value() + contentStyles.fileFloatMarginYRem * remPx * 2;
 
     return {
         width: round3(widthSolution),

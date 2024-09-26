@@ -144,6 +144,17 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
          * the floating file. A useful rendering mode for files when you're writing
          * prose. You can put your file to the side of your text where it will
          * supplements the document's content instead of interrupting it.
+         *
+         * Keyboard navigation and selection of floated files can be non-intuitive at
+         * times. Floated files usually exist in the document at their top edge.
+         * However, if there would be multiple conflicting floats at a given X position
+         * than they're cleared with the CSS `clear: both`. So a float may be visually
+         * pushed down the page by another float. This means a floating file can be in
+         * a completely different position visually than it is in the document.
+         * Changing keyboard navigation and selection interactions so they match the
+         * visual position of the file would be a difficult, maybe impossible, task. So
+         * we accept the user can get into some weird states with floating files and
+         * leave them to it.
          */
         // TODO(calebmer, #files): Floats shouldn't be allowed in `MessageContent`.
         // Only file rows should be allowed in `MessageContent`.
