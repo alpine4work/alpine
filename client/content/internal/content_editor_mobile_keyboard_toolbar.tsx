@@ -18,7 +18,7 @@ import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from 
 import {mergeProps, useHover, usePress} from "react-aria";
 import {createPortal} from "react-dom";
 import {isContinuouslyTypingInContentEditor} from "~/client/content/content_editor_state.js";
-import {openMentionFloaterMetaKey} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_input_rules_plugin.js";
 import {
     ContentEditorMobileKeyboardSubstitute,
     ContentEditorMobileKeyboardSubstituteRef,

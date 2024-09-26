@@ -15,7 +15,7 @@ import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useId, useMemo, useRef} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {openMentionFloaterMetaKey} from "~/client/content/internal/build_content_editor_input_rules_plugin.js";
+import {openMentionFloaterMetaKey} from "~/client/content/internal/content_editor_input_rules_plugin.js";
 import {
     ContentEditorMobileLinkModalState,
     getContentEditorMobileLinkModalSelectionSliceText,

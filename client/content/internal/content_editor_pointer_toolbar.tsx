@@ -33,13 +33,13 @@ import {
 } from "react";
 import {mergeProps} from "react-aria";
 import {flushSync} from "react-dom";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/build_content_editor_keymap_plugin.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
     ContentEditorFloaterState,
     ContentEditorPointerToolbarFloaterState,
 } from "~/client/content/internal/content_editor_floater_state.js";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
+import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
