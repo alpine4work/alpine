@@ -651,7 +651,7 @@ test("will toggle strike for selection on Cmd+Shift+X", () => {
     expect(textbox.querySelector("del")).not.toBeInTheDocument();
 });
 
-test("will toggle inline code for selection on Cmd+Shift+K", () => {
+test("will toggle inline code for selection on Cmd+Shift+E", () => {
     render(<TestContentEditor />);
 
     const textbox = getTextbox();
@@ -664,11 +664,11 @@ test("will toggle inline code for selection on Cmd+Shift+K", () => {
 
     expect(textbox.querySelector("code")).not.toBeInTheDocument();
 
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "e", metaKey: true, shiftKey: true}));
 
     expect(textbox.querySelector("code")).toBeInTheDocument();
 
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+    fireEvent.keyDown(textbox, charKeyboardEvent({key: "e", metaKey: true, shiftKey: true}));
 
     expect(textbox.querySelector("code")).not.toBeInTheDocument();
 });
@@ -3373,9 +3373,9 @@ test("italic mark is not ended until it is toggled off", async () => {
 test("code mark is not ended until it is toggled off", async () => {
     render(<TestContentEditor />);
 
-    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "e", metaKey: true, shiftKey: true}));
     await simulateTyping("hello");
-    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "k", metaKey: true, shiftKey: true}));
+    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "e", metaKey: true, shiftKey: true}));
     await simulateTyping("world");
 
     expect(getDoc().toString()).toEqual('doc(paragraph(code("hello"), "world"))');

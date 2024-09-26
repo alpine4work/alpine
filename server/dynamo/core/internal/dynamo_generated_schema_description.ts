@@ -1624,7 +1624,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "schema": {
                                                                                             "type": "Id"
                                                                                         },
-                                                                                        "referenceId": "520912e2"
+                                                                                        "referenceId": "d0079949"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2382,10 +2382,10 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                             "schema": {
                                                                                                                                                 "type": "Object",
                                                                                                                                                 "propertySchemaByKey": {
-                                                                                                                                                    "id": {
+                                                                                                                                                    "fileId": {
                                                                                                                                                         "valueSchema": {
                                                                                                                                                             "type": "Reference",
-                                                                                                                                                            "reuseReferenceId": "520912e2"
+                                                                                                                                                            "reuseReferenceId": "d0079949"
                                                                                                                                                         },
                                                                                                                                                         "optional": true
                                                                                                                                                     }

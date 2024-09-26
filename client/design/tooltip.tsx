@@ -40,9 +40,11 @@ import {
     overlayFadeOutAnimationDurationMs,
 } from "~/client/styles/styles.js";
 import {Spacing} from "~/shared/design/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 
 /**
  * Time it takes before we present a tooltip to the user if the user has
@@ -425,7 +427,8 @@ function Tooltip(
     );
 
     const activeTooltipSymbol = useContext(TooltipCoordinationActiveSymbolContext);
-    const coordinationContext = useContext(TooltipCoordinationContext);
+    const coordinationContext =
+        useContext(TooltipCoordinationContext) ?? tooltipCoordinationContextForTest;
     assert(
         coordinationContext !== null,
         "Expected a parent `<TooltipCoordinationContextProvider>` component",
@@ -1005,6 +1008,29 @@ type TooltipCoordinationContext = {
     readonly deleteDisableTooltipSymbol: (symbol: symbol) => void;
     readonly skipTooltipHoverDelay: () => void;
 };
+
+const tooltipCoordinationContextForTest: TooltipCoordinationContext | null = import.meta.jest
+    ? (() => {
+          const unimplemented = (): never => {
+              throw new UnimplementedError(
+                  "`<Tooltip>` components don't respond to events in tests without a parent `<TooltipCoordinationContextProvider>` component",
+              );
+          };
+
+          return {
+              tooltipSymbolAboutToFadeOutRef: {current: null},
+              addHoveredAndAddFocusedTooltipSymbol: unimplemented,
+              addHoveredAndDeleteFocusedTooltipSymbol: unimplemented,
+              deleteHoveredAndAddFocusedTooltipSymbol: unimplemented,
+              // This is called unconditionally by `<Tooltip>` components. Given there's
+              // nothing to delete in our test coordination context it's safe to noop.
+              deleteHoveredAndDeleteFocusedTooltipSymbol: noop,
+              addDisableTooltipSymbol: unimplemented,
+              deleteDisableTooltipSymbol: unimplemented,
+              skipTooltipHoverDelay: unimplemented,
+          };
+      })()
+    : null;
 
 const TooltipCoordinationContext = createContext<TooltipCoordinationContext | null>(null);
 

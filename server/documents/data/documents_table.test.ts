@@ -3045,7 +3045,7 @@ test("can add comment mark to `file` node in a document", async () => {
                 schema.node("fileRow", {}, [
                     schema.node(
                         "file",
-                        {id: fileUploader1.fileId},
+                        {fileId: fileUploader1.fileId},
                         [],
                         [schema.mark("comment", {commentThreadId})],
                     ),
