@@ -135,7 +135,6 @@ export function createFileWebSafeVideoProcessor(
                             replayStream.pipe(subprocess.stdin);
                         }
 
-                        let stdout = "";
                         let stderr = "";
 
                         // This function checks to see if the input's duration and width/height have
@@ -156,11 +155,6 @@ export function createFileWebSafeVideoProcessor(
                                 previewSizePromiseResolver.reject(error);
                             }
                         };
-
-                        subprocess.stdout.on("data", (chunk: Buffer) => {
-                            const string = chunk.toString("utf8");
-                            stdout += string;
-                        });
 
                         subprocess.stderr.on("data", (chunk: Buffer) => {
                             const string = chunk.toString("utf8");
@@ -190,14 +184,14 @@ export function createFileWebSafeVideoProcessor(
                                 if (signal.aborted) throw signal.reason;
 
                                 // We include the stderr in error messages even in production since it shouldn't
-                                // contain sensitive user data. Even if it does contain sensitive user data it
-                                // should be so opaque as to not be useful for reconstructing the video file.
+                                // contain sensitive user data. It may contain the file's duration and other
+                                // metadata but it shouldn't be harmful for a developer to read that.
                                 //
                                 // However, including the stderr will really help us debug any issues.
                                 throw new UnknownError(
                                     `${
                                         error instanceof Error ? error.message : String(error)
-                                    }\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                                    }\n\nstderr:\n${stderr.trim()}`,
                                     {
                                         cause: error instanceof Error ? error.cause : undefined,
                                     },
@@ -215,7 +209,7 @@ export function createFileWebSafeVideoProcessor(
 
                         if (!previewSizePromiseResolver.isSettled()) {
                             throw new InternalError(
-                                `Couldn't find video duration and width/height from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                                `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${stderr.trim()}`,
                             );
                         }
 
@@ -322,8 +316,8 @@ export function createFileWebSafeVideoProcessor(
                         if (signal.aborted) throw signal.reason;
 
                         // We include the stderr in error messages even in production since it shouldn't
-                        // contain sensitive user data. Even if it does contain sensitive user data it
-                        // should be so opaque as to not be useful for reconstructing the video file.
+                        // contain sensitive user data. It may contain the file's duration and other
+                        // metadata but it shouldn't be harmful for a developer to read that.
                         //
                         // However, including the stderr will really help us debug any issues.
                         throw new UnknownError(

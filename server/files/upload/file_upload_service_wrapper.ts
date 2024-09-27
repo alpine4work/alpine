@@ -18,6 +18,7 @@ import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 type Options = ServiceOptions<typeof options>;
@@ -27,7 +28,7 @@ export const options = {
     temporaryDirectoryPath: {type: "string"},
     ...serviceTokenAgentOptions,
     ...serverProcessContextOptions,
-    ...serviceCloudflareR2Options,
+    ...omitObject(serviceCloudflareR2Options, ["fileUploadServiceHostname"]),
 } as const;
 
 export async function run({
@@ -56,7 +57,10 @@ export async function run({
         awsSigner,
         options,
     }).clone({
-        r2: createServiceCloudflareR2ContextModule(options),
+        r2: createServiceCloudflareR2ContextModule({
+            ...options,
+            fileUploadServiceHostname: `localhost:${port}`,
+        }),
         files: new FilesContextModule(tokenAgent),
     });
 

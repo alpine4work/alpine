@@ -355,7 +355,7 @@ async function uploadAndProcessFile(
                 ContentType: contentType,
                 Body: stream,
             },
-            {signal: signal},
+            {signal},
         );
 
         if (signal.aborted) throw signal.reason;

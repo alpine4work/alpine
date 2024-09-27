@@ -20,6 +20,10 @@ export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: Tracer
         this._client = client;
     }
 
+    public isMiniflare() {
+        return this._client.isMiniflare();
+    }
+
     /**
      * S3 [`GetObject`][1] action. See [Cloudflare R2 S3 API compatibility
      * notes][2].
@@ -65,5 +69,20 @@ export class CloudflareR2ContextModule extends ContextModuleBase<{tracer: Tracer
      */
     public DeleteObject(input: DeleteObjectCommandInput): Promise<DeleteObjectCommandOutput> {
         return this._client.DeleteObject(this._context.tracer.getTracer(), input);
+    }
+
+    /**
+     * Get a [pre-signed URL][1] for the S3 [`GetObject`][2] action that'll expire
+     * at the provided expiration time.
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
+     * [2]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+     */
+    public getGetObjectSignedUrl(expirationTime: Date, input: GetObjectCommandInput) {
+        return this._client.getGetObjectSignedUrl(
+            this._context.tracer.getTracer(),
+            expirationTime,
+            input,
+        );
     }
 }

@@ -6,6 +6,7 @@ import getPort from "get-port";
 import {Server} from "http";
 import net from "net";
 import {join as joinPath} from "path";
+import sharp from "sharp";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
@@ -13,6 +14,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {getFileAsUploader} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
+import {ffprobeExecutablePath} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
+import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -45,17 +48,22 @@ let server: Server;
 const context = createTestContext();
 
 beforeAll(async () => {
+    port = await getPort();
+
     const r2Storage = new FileStorage(
         joinPath(context.getTemporaryDirectoryPath(), "r2", filesBucketName),
     );
     const r2Bucket = new R2Bucket(r2Storage);
     const r2ContextModule = new CloudflareR2ContextModule(
-        new MiniflareR2Client(new Map([[filesBucketName, r2Bucket]])),
+        new MiniflareR2Client({
+            fileUploadServiceHostname: `localhost:${port}`,
+            bucketByName: new Map([[filesBucketName, r2Bucket]]),
+        }),
     );
 
-    [[serverTokenAgent, tokenAgent], port] = await runAllPromises([
-        createTestTokenAgents(context, ["FileUploadService", "EdgeService"]),
-        getPort(),
+    [serverTokenAgent, tokenAgent] = await createTestTokenAgents(context, [
+        "FileUploadService",
+        "EdgeService",
     ]);
     server = createFileUploadService(context.clone({r2: r2ContextModule}), {
         tokenAgent: serverTokenAgent,
@@ -328,7 +336,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"previewUrlSearch":""}\n\
 \r\n\
 chunk\r\n\
 {"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
@@ -432,7 +440,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"previewUrlSearch":""}\n\
 \r\n\
 chunk\r\n\
 {"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
@@ -541,7 +549,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"previewUrlSearch":""}\n\
 \r\n\
 `);
 
@@ -641,7 +649,7 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false}}\n\
+{"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"previewUrlSearch":""}\n\
 \r\n\
 chunk\r\n\
 {"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
@@ -701,6 +709,7 @@ test("can't upload invalid image data", async () => {
                 hasVideoDuration: false,
             },
             fileId: expect.any(String),
+            previewUrlSearch: "",
         },
         {
             type: "Error",
@@ -751,6 +760,7 @@ test("can't upload image with the wrong content type", async () => {
                 hasVideoDuration: false,
             },
             fileId: expect.any(String),
+            previewUrlSearch: "",
         },
         {
             type: "Error",
@@ -798,6 +808,7 @@ test("can upload image", async () => {
                 hasVideoDuration: false,
             },
             fileId: expect.any(String),
+            previewUrlSearch: "",
         },
         {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
         {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
@@ -826,4 +837,710 @@ test("can upload image", async () => {
             },
         }),
     );
+});
+
+test.only("can't resize an image with a session actor", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/jpeg",
+        },
+        body: await fs.readFile(jpegTestFixturePath),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(uploadEvents).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            previewUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    const resizeResponse = await fetch(
+        `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+        {
+            method: "GET",
+            headers: {authorization: await authorization(session)},
+        },
+    );
+
+    expect(resizeResponse.status).toEqual(400);
+    expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
+    expect(await resizeResponse.text()).toEqual("400 Bad Request");
+});
+
+test.only("can't resize an image with a token that's not from edge service", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/jpeg",
+        },
+        body: await fs.readFile(jpegTestFixturePath),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(uploadEvents).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            previewUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    const resizeResponse = await fetch(
+        `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+        {
+            method: "GET",
+            headers: {authorization: await authorization(space, serverTokenAgent)},
+        },
+    );
+
+    expect(resizeResponse.status).toEqual(400);
+    expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
+    expect(await resizeResponse.text()).toEqual("400 Bad Request");
+});
+
+test.only("can resize a JPEG image", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/jpeg",
+        },
+        body: await fs.readFile(jpegTestFixturePath),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(uploadEvents).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            previewUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 200,
+            height: 150,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 400,
+            height: 300,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 500,
+            height: 375,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
+});
+
+test.only("can resize a PNG image", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/png",
+        },
+        body: await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.png",
+            ),
+        ),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(uploadEvents).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            previewUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 336, height: 252, scale: 1}},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 200,
+            height: 150,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 336,
+            height: 252,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
+});
+
+// TODO(calebmer, #files): Make sure animated GIFs work.
+test.only("can resize a GIF image", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/gif",
+        },
+        body: await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/wikimedia_rotating_earth.gif",
+            ),
+        ),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(uploadEvents).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            previewUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 400, height: 400, scale: 1}},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+        // animated AVIF file which `sharp()` doesn't like.
+        expect(
+            JSON.parse(
+                await runProcess(
+                    ffprobeExecutablePath,
+                    ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                    {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                ),
+            ),
+        ).toEqual(
+            expect.objectContaining({
+                format: expect.objectContaining({
+                    start_time: "0.000000",
+                    duration: "1.980000",
+                }),
+                streams: [
+                    expect.objectContaining({
+                        codec_name: "av1",
+                        codec_type: "video",
+                        width: 200,
+                        height: 200,
+                        start_time: "0.000000",
+                        avg_frame_rate: "1/1",
+                    }),
+                    expect.objectContaining({
+                        codec_name: "av1",
+                        codec_type: "video",
+                        width: 200,
+                        height: 200,
+                        start_time: "0.000000",
+                        duration: "1.980000",
+                        avg_frame_rate: "50/3",
+                    }),
+                ],
+            }),
+        );
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=300`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+        // animated AVIF file which `sharp()` doesn't like.
+        expect(
+            JSON.parse(
+                await runProcess(
+                    ffprobeExecutablePath,
+                    ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                    {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                ),
+            ),
+        ).toEqual(
+            expect.objectContaining({
+                format: expect.objectContaining({
+                    start_time: "0.000000",
+                    duration: "1.980000",
+                }),
+                streams: [
+                    expect.objectContaining({
+                        codec_name: "av1",
+                        codec_type: "video",
+                        width: 300,
+                        height: 300,
+                        start_time: "0.000000",
+                        avg_frame_rate: "1/1",
+                    }),
+                    expect.objectContaining({
+                        codec_name: "av1",
+                        codec_type: "video",
+                        width: 300,
+                        height: 300,
+                        start_time: "0.000000",
+                        duration: "1.980000",
+                        avg_frame_rate: "50/3",
+                    }),
+                ],
+            }),
+        );
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+        // animated AVIF file which `sharp()` doesn't like.
+        expect(
+            JSON.parse(
+                await runProcess(
+                    ffprobeExecutablePath,
+                    ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                    {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                ),
+            ),
+        ).toEqual(
+            expect.objectContaining({
+                format: expect.objectContaining({
+                    start_time: "0.000000",
+                    duration: "1.980000",
+                }),
+                streams: [
+                    expect.objectContaining({
+                        codec_name: "av1",
+                        codec_type: "video",
+                        width: 400,
+                        height: 400,
+                        start_time: "0.000000",
+                        avg_frame_rate: "1/1",
+                    }),
+                    expect.objectContaining({
+                        codec_name: "av1",
+                        codec_type: "video",
+                        width: 400,
+                        height: 400,
+                        start_time: "0.000000",
+                        duration: "1.980000",
+                        avg_frame_rate: "50/3",
+                    }),
+                ],
+            }),
+        );
+    }
+});
+
+test.only("can resize an AVIF image", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/avif",
+        },
+        body: await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/filesampleshub_heif_sample1.avif",
+            ),
+        ),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(uploadEvents).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            previewUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 640, height: 426, scale: 1}},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 200,
+            height: 133,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 400,
+            height: 266,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=700`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 640,
+            height: 426,
+            space: "srgb",
+            channels: 3,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: false,
+        });
+    }
 });

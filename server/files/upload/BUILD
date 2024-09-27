@@ -33,6 +33,7 @@ ts_project(
         "//:node_modules/@miniflare/r2",
         "//:node_modules/@miniflare/storage-file",
         "//:node_modules/@types/node",
+        "//:node_modules/date-fns",
         "//:node_modules/decode-ico",
         "//:node_modules/pretty-bytes",
         "//:node_modules/sharp",

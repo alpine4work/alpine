@@ -417,6 +417,16 @@ export type TracerEventData = {
          * Was the data we're loading in this span cached? True if so false if not.
          */
         readonly wasCached?: boolean;
+
+        /**
+         * Width of some geometry in whatever units are relevant to the span.
+         */
+        readonly width?: number;
+
+        /**
+         * Height of some geometry in whatever units are relevant to the span.
+         */
+        readonly height?: number;
     };
 
     /**

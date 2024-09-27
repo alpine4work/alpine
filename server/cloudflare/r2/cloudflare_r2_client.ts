@@ -13,6 +13,7 @@ import {
     PutObjectCommandOutput,
     S3Client,
 } from "@aws-sdk/client-s3";
+import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 import {ErrorBase, UnknownError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
@@ -26,6 +27,11 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
 assert(process.versions.node);
 
 export interface CloudflareR2ClientBase {
+    /**
+     * Returns true if this is the Miniflare Cloudflare R2 client.
+     */
+    isMiniflare(): boolean;
+
     /**
      * S3 [`GetObject`][1] action. See [Cloudflare R2 S3 API compatibility
      * notes][2].
@@ -68,6 +74,19 @@ export interface CloudflareR2ClientBase {
         tracer: TracerBase,
         input: DeleteObjectCommandInput,
     ): Promise<DeleteObjectCommandOutput>;
+
+    /**
+     * Get a [pre-signed URL][1] for the S3 [`GetObject`][2] action that'll expire
+     * at the provided expiration time.
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
+     * [2]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+     */
+    getGetObjectSignedUrl(
+        tracer: TracerBase,
+        expirationTime: Date,
+        input: GetObjectCommandInput,
+    ): Promise<string>;
 }
 
 /**
@@ -108,6 +127,10 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
                 secretAccessKey,
             },
         });
+    }
+
+    public isMiniflare() {
+        return false;
     }
 
     /**
@@ -277,6 +300,43 @@ export class CloudflareR2Client implements CloudflareR2ClientBase {
             return this._client
                 .send(new DeleteObjectCommand(input))
                 .catch(rethrowClassifiedCloudflareR2Error);
+        });
+    }
+
+    /**
+     * Get a [pre-signed URL][1] for the S3 [`GetObject`][2] action that'll expire
+     * at the provided expiration time.
+     *
+     * [1]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
+     * [2]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+     */
+    public getGetObjectSignedUrl(
+        tracer: TracerBase,
+        expirationTime: Date,
+        input: GetObjectCommandInput,
+    ) {
+        let spanName = "Cloudflare R2 sign URL for GetObject";
+
+        if (input.Bucket !== undefined) {
+            spanName += ` ${input.Bucket}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        action: "GetObject",
+                        bucket: input.Bucket,
+                        object: {
+                            key: input.Key,
+                        },
+                    },
+                },
+            });
+
+            return getSignedUrl(this._client, new GetObjectCommand(input), {
+                expiresIn: (expirationTime.getTime() - Date.now()) / 1000,
+            });
         });
     }
 }

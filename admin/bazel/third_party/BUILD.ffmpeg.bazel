@@ -74,6 +74,8 @@ PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     --enable-libaom \\
     --enable-libopus \\
     --enable-libvpx \\
+    --enable-decoder=png \\
+    --enable-zlib \\
     >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
 
 sed -i.bak "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" config.h

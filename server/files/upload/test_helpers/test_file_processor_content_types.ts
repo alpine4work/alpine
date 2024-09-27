@@ -96,17 +96,22 @@ export function testFileProcessorContentTypes(
     let server: Server;
 
     beforeAll(async () => {
+        port = await getPort();
+
         const r2Storage = new FileStorage(
             joinPath(context.getTemporaryDirectoryPath(), "r2", filesBucketName),
         );
         r2Bucket = new R2Bucket(r2Storage);
         const r2ContextModule = new CloudflareR2ContextModule(
-            new MiniflareR2Client(new Map([[filesBucketName, r2Bucket]])),
+            new MiniflareR2Client({
+                fileUploadServiceHostname: `localhost:${port}`,
+                bucketByName: new Map([[filesBucketName, r2Bucket]]),
+            }),
         );
 
-        [[serverTokenAgent, tokenAgent], port] = await runAllPromises([
-            createTestTokenAgents(context, ["FileUploadService", "EdgeService"]),
-            getPort(),
+        [serverTokenAgent, tokenAgent] = await createTestTokenAgents(context, [
+            "FileUploadService",
+            "EdgeService",
         ]);
         server = createFileUploadService(context.clone({r2: r2ContextModule}), {
             tokenAgent: serverTokenAgent,

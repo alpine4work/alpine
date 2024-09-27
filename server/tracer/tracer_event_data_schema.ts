@@ -166,6 +166,8 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         didNothing: Schema.boolean,
         processDurationMs: Schema.float,
         wasCached: Schema.boolean,
+        width: Schema.float,
+        height: Schema.float,
     },
     context: {
         handler: Schema.string,

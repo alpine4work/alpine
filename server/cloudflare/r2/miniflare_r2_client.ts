@@ -14,10 +14,12 @@ import type * as miniflareTypes from "@miniflare/r2";
 import {NodeJsRuntimeStreamingBlobPayloadInputTypes} from "@smithy/types";
 import {Readable as ReadableStream} from "stream";
 import {ReadableStream as ReadableWebStream, TextDecoderStream} from "stream/web";
+import {Headers} from "undici";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -25,14 +27,26 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  * tests.
  */
 export class MiniflareR2Client implements CloudflareR2ClientBase {
+    private readonly _fileUploadServiceHostname: string;
     private readonly _bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
 
-    constructor(bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>) {
+    constructor({
+        fileUploadServiceHostname,
+        bucketByName,
+    }: {
+        fileUploadServiceHostname: string;
+        bucketByName: ReadonlyMap<string, miniflareTypes.R2Bucket>;
+    }) {
         // Miniflare should not be used in production! It's only used to store files in
         // development.
         assert(process.env.NODE_ENV !== "production");
 
+        this._fileUploadServiceHostname = fileUploadServiceHostname;
         this._bucketByName = bucketByName;
+    }
+
+    public isMiniflare(): boolean {
+        return true;
     }
 
     private _getBucket(bucketName: string | undefined): miniflareTypes.R2Bucket {
@@ -51,6 +65,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             IfNoneMatch: etagDoesNotMatch,
             IfModifiedSince: uploadedAfter,
             IfUnmodifiedSince: uploadedBefore,
+            Range: range,
             ...unrecognizedInputs
         }: GetObjectCommandInput,
     ): Promise<GetObjectCommandOutput> {
@@ -89,6 +104,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     uploadedAfter,
                     uploadedBefore,
                 },
+                range: range !== undefined ? new Headers([["range", range]]) : undefined,
             });
 
             if (!object) {
@@ -114,8 +130,9 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                         "`$metadata` is unimplemented for `MiniflareR2Client`",
                     );
                 },
+                AcceptRanges: "bytes",
                 LastModified: object.uploaded,
-                ContentLength: object.size,
+                ContentLength: object.range?.length ?? object.size,
                 ETag: object.etag,
                 VersionId: object.version,
                 ContentType: object.httpMetadata.contentType,
@@ -123,6 +140,11 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                 ContentDisposition: object.httpMetadata.contentDisposition,
                 ContentEncoding: object.httpMetadata.contentEncoding,
                 CacheControl: object.httpMetadata.cacheControl,
+                ContentRange: object.range
+                    ? `bytes ${object.range.offset ?? 0}-${
+                          (object.range.offset ?? 0) + (object.range.length ?? 0) - 1
+                      }/${object.size}`
+                    : undefined,
                 Body:
                     "body" in object
                         ? Object.assign(ReadableStream.fromWeb(object.body), {
@@ -325,6 +347,46 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     );
                 },
             };
+        });
+    }
+
+    public getGetObjectSignedUrl(
+        tracer: TracerBase,
+        expirationTime: Date,
+        input: GetObjectCommandInput,
+    ) {
+        let spanName = "Cloudflare R2 sign URL for GetObject";
+
+        if (input.Bucket !== undefined) {
+            spanName += ` ${input.Bucket}`;
+        }
+
+        return tracer.withSpan(spanName, async span => {
+            span.addData({
+                cloudflare: {
+                    r2: {
+                        action: "GetObject",
+                        bucket: input.Bucket,
+                        object: {
+                            key: input.Key,
+                        },
+                    },
+                },
+            });
+
+            // Make sure the bucket name is valid to add to a URL:
+            // https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html#general-purpose-bucket-names
+            const bucketName = input.Bucket ?? "";
+            assert(/^[a-z0-9.-]{3,63}$/.test(bucketName));
+
+            const key = encodeURIComponent(input.Key ?? "");
+
+            const expirationTimeString = serializeDateString(expirationTime);
+
+            // `FileUploadService` has an internal route for mocking signed URLs in
+            // development. This route is completely insecure and must not work in
+            // production. In production we'll generate actual S3 compatible signed URLs.
+            return `http://${this._fileUploadServiceHostname}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
         });
     }
 }

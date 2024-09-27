@@ -116,8 +116,8 @@ export function createFileWebUnsafeAudioProcessor(
                         if (signal.aborted) throw signal.reason;
 
                         // We include the stderr in error messages even in production since it shouldn't
-                        // contain sensitive user data. Even if it does contain sensitive user data it
-                        // should be so opaque as to not be useful for reconstructing the video file.
+                        // contain sensitive user data. It may contain the file's duration and other
+                        // metadata but it shouldn't be harmful for a developer to read that.
                         //
                         // However, including the stderr will really help us debug any issues.
                         throw new UnknownError(

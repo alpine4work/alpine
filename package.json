@@ -20,6 +20,7 @@
         "@aws-sdk/client-sqs": "3.624.0",
         "@aws-sdk/credential-provider-node": "3.624.0",
         "@aws-sdk/credential-providers": "3.624.0",
+        "@aws-sdk/s3-request-presigner": "3.626.0",
         "@bazel/worker": "^5.7.1",
         "@cloudflare/workers-types": "^3.18.0",
         "@cloudsnorkel/cdk-github-runners": "0.14.1",
