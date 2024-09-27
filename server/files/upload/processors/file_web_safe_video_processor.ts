@@ -1,15 +1,15 @@
 import {spawn} from "child_process";
 import fsSync from "fs";
-import fs from "fs/promises";
 import {join as joinPath} from "path";
+import {Readable as ReadableStream} from "stream";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
+import {waitForReadableStreamData} from "~/server/files/upload/helpers/wait_for_readable_stream_data.js";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
 import {processFileImagePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
     ffmpegImagePreviewContentOutputContentType,
-    ffmpegImagePreviewContentOutputExtension,
     ffmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
@@ -62,8 +62,12 @@ export function createFileWebSafeVideoProcessor(
             const previewSizePromiseResolver = createPromiseResolver<
                 FileImagePreviewSize & {videoDuration?: number}
             >();
+            const previewContentPromiseResolver = createPromiseResolver<{
+                contentType: FileContentType;
+                data: ReadableStream;
+            }>();
 
-            const previewContentPromise = (() => {
+            const extraPromise = (() => {
                 // Create a replay stream which will replay any chunks written while we create
                 // our temporary directory. This won't block the Cloudflare R2 upload which is
                 // also consuming the stream in parallel.
@@ -72,17 +76,7 @@ export function createFileWebSafeVideoProcessor(
                 return withTemporaryDirectory(
                     parentTemporaryDirectoryPath,
                     `${fileId}_`,
-                    async (
-                        temporaryDirectoryPath,
-                    ): Promise<{
-                        contentType: FileContentType;
-                        data: Buffer;
-                    }> => {
-                        const outputPath = joinPath(
-                            temporaryDirectoryPath,
-                            `output.${ffmpegImagePreviewContentOutputExtension}`,
-                        );
-
+                    async (temporaryDirectoryPath): Promise<void> => {
                         // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
                         // to provide FFmpeg a file path. For example [MOV must be seekable][1].
                         //
@@ -117,10 +111,8 @@ export function createFileWebSafeVideoProcessor(
                                 "2",
                                 // Capture a thumbnail from the first second of the video.
                                 ...ffmpegImagePreviewContentOutputOptions,
-                                // We must output to a file. We can't output to stdout when taking a screenshot
-                                // or else we get the error "[avif] muxer does not support non seekable
-                                // output".
-                                outputPath,
+                                // Output to `subprocess.stdout`.
+                                "pipe:1",
                             ],
                             {
                                 cwd: runfilesPath,
@@ -135,7 +127,6 @@ export function createFileWebSafeVideoProcessor(
                             replayStream.pipe(subprocess.stdin);
                         }
 
-                        let stdout = "";
                         let stderr = "";
 
                         // This function checks to see if the input's duration and width/height have
@@ -157,16 +148,16 @@ export function createFileWebSafeVideoProcessor(
                             }
                         };
 
-                        subprocess.stdout.on("data", (chunk: Buffer) => {
-                            const string = chunk.toString("utf8");
-                            stdout += string;
-                        });
-
                         subprocess.stderr.on("data", (chunk: Buffer) => {
                             const string = chunk.toString("utf8");
                             stderr += string;
 
                             attemptResolvePreviewSize();
+                        });
+
+                        previewContentPromiseResolver.resolve({
+                            contentType: ffmpegImagePreviewContentOutputContentType,
+                            data: subprocess.stdout,
                         });
 
                         await span.withSpan("FFmpeg generate preview image", async span => {
@@ -197,7 +188,7 @@ export function createFileWebSafeVideoProcessor(
                                 throw new UnknownError(
                                     `${
                                         error instanceof Error ? error.message : String(error)
-                                    }\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                                    }\n\nstderr:\n${stderr.trim()}`,
                                     {
                                         cause: error instanceof Error ? error.cause : undefined,
                                     },
@@ -215,27 +206,33 @@ export function createFileWebSafeVideoProcessor(
 
                         if (!previewSizePromiseResolver.isSettled()) {
                             throw new InternalError(
-                                `Couldn't find video duration and width/height from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                                `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${stderr.trim()}`,
                             );
                         }
-
-                        return {
-                            contentType: ffmpegImagePreviewContentOutputContentType,
-                            // Unfortunately, `sharp` doesn't support efficient stream processing so it's
-                            // more efficient to read the full data buffer into memory than to use
-                            // `fs.createReadStream()` and stream that data into `sharp`. See our comment
-                            // on `FileProcessor`.
-                            //
-                            // Reading the file into memory also allows our temporary directory to be
-                            // cleaned up.
-                            data: await fs.readFile(outputPath),
-                        };
                     },
                 );
-            })().catch(error => {
-                previewSizePromiseResolver.reject(error);
-                throw error;
-            });
+            })().then(
+                () => {
+                    // All of these promise resolvers MUST have either been resolved or rejected by
+                    // the end of this promise. So any promise resolvers that haven't been settled
+                    // yet reject with an error as a safety mechanism.
+                    if (!previewSizePromiseResolver.isSettled()) {
+                        previewSizePromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
+                    if (!previewContentPromiseResolver.isSettled()) {
+                        previewContentPromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
+                },
+                error => {
+                    previewSizePromiseResolver.reject(error);
+                    previewContentPromiseResolver.reject(error);
+                    throw error;
+                },
+            );
 
             // To determine the video's duration we first wait for metadata from our FFmpeg
             // run (from `previewSizePromiseResolver`). If we have duration metadata we can
@@ -354,12 +351,14 @@ export function createFileWebSafeVideoProcessor(
             })();
 
             return {
+                extraPromise,
                 imagePreviewSizePromise: previewSizePromiseResolver.promise,
                 imagePreviewPlaceholderPromise: (async () => {
-                    const {data} = await previewContentPromise;
+                    const {data: dataStream} = await previewContentPromiseResolver.promise;
+                    const data = await waitForReadableStreamData(dataStream, signal);
                     return processFileImagePreviewPlaceholder(data);
                 })(),
-                imagePreviewContentPromise: previewContentPromise,
+                imagePreviewContentPromise: previewContentPromiseResolver.promise,
                 imagePreviewVideoDurationPromise: previewVideoDurationPromise,
             };
         },
