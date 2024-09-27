@@ -1,5 +1,6 @@
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {FileHasPreview} from "~/shared/files/file_preview.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -16,7 +17,10 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
  * CDN. Since it depends on client support for requesting a new signed URL to
  * view a file.
  */
-export abstract class FilesContextModuleBase extends ContextModuleBase {
+export abstract class FilesContextModuleBase
+    extends ContextModuleBase
+    implements ForkableContextModuleBase
+{
     /**
      * Create a signed URL for a file's preview. The signed URL expires after
      * 10 minutes.
@@ -30,6 +34,8 @@ export abstract class FilesContextModuleBase extends ContextModuleBase {
         fileId: FileId,
         file: {hasPreview: FileHasPreview | null},
     ): Promise<URL | null>;
+
+    public abstract fork(): FilesContextModuleBase;
 }
 
 export class FilesContextModule extends FilesContextModuleBase {
@@ -58,6 +64,10 @@ export class FilesContextModule extends FilesContextModuleBase {
             {expirationMinutes: 10},
         );
     }
+
+    public fork() {
+        return new FilesContextModule(this._tokenAgent);
+    }
 }
 
 // We don't actually sign URLs in the test context module since we don't have a
@@ -81,5 +91,9 @@ export class TestFilesContextModule extends FilesContextModuleBase {
                 file.hasPreview.hasContent ? "-preview" : ""
             }`,
         );
+    }
+
+    public fork() {
+        return new TestFilesContextModule();
     }
 }
