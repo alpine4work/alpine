@@ -7,6 +7,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 export const ffmpegExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffmpeg");
 export const ffprobeExecutablePath = joinPath(runfilesPath, "ffmpeg/install/bin/ffprobe");
 
+export const ffmpegImagePreviewContentOutputExtension = "avif";
 export const ffmpegImagePreviewContentOutputContentType: FileContentType = "image/avif";
 
 /**
@@ -31,8 +32,6 @@ export const ffmpegImagePreviewContentOutputOptions = [
     // [2]: https://jakearchibald.com/2020/avif-has-landed
     "-f",
     "avif",
-    "-f",
-    "image2pipe",
     // Should control quality. Quality is between 0 and 63 where 0 is the best
     // quality (lossless). We want relatively high quality preview images while
     // still getting some compression.

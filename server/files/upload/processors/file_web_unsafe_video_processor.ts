@@ -1,15 +1,16 @@
 import {spawn} from "child_process";
 import fsSync from "fs";
+import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {ReplayStream} from "~/server/files/upload/helpers/replay_stream.js";
-import {waitForReadableStreamData} from "~/server/files/upload/helpers/wait_for_readable_stream_data.js";
 import {waitForWritableStreamClose} from "~/server/files/upload/helpers/wait_for_writable_stream_close.js";
 import {processFileImagePreviewPlaceholder} from "~/server/files/upload/processors/file_image_processor_base.js";
 import {FileProcessor} from "~/server/files/upload/processors/file_processor.js";
 import {
     ffmpegExecutablePath,
     ffmpegImagePreviewContentOutputContentType,
+    ffmpegImagePreviewContentOutputExtension,
     ffmpegImagePreviewContentOutputOptions,
     parseFfmpegStderrDuration,
     parseFfmpegStderrInputCodecNames,
@@ -67,7 +68,7 @@ export function createFileWebUnsafeVideoProcessor(
             >();
             const previewContentPromiseResolver = createPromiseResolver<{
                 contentType: FileContentType;
-                data: ReadableStream;
+                data: Buffer;
             }>();
             const previewVideoDurationPromiseResolver = createPromiseResolver<number>();
 
@@ -81,6 +82,11 @@ export function createFileWebUnsafeVideoProcessor(
                     parentTemporaryDirectoryPath,
                     `${fileId}_`,
                     async temporaryDirectoryPath => {
+                        const outputPath = joinPath(
+                            temporaryDirectoryPath,
+                            `output.${ffmpegImagePreviewContentOutputExtension}`,
+                        );
+
                         // Some formats must be seekable so can't be piped into FFmpeg. Instead we need
                         // to provide FFmpeg a file path. For example [MOV must be seekable][1]. MPEG
                         // can't find the duration when it's streamed in.
@@ -118,8 +124,10 @@ export function createFileWebUnsafeVideoProcessor(
                                 "2",
                                 // Capture a thumbnail from the first second of the video.
                                 ...ffmpegImagePreviewContentOutputOptions,
-                                // Output to `subprocess.stdout`.
-                                "pipe:1",
+                                // We must output to a file. We can't output to stdout when taking a screenshot
+                                // or else we get the error "[avif] muxer does not support non seekable
+                                // output".
+                                outputPath,
                             ],
                             {
                                 cwd: runfilesPath,
@@ -203,11 +211,6 @@ export function createFileWebUnsafeVideoProcessor(
                             attemptResolvePreviewSize();
                         });
 
-                        previewContentPromiseResolver.resolve({
-                            contentType: ffmpegImagePreviewContentOutputContentType,
-                            data: previewContentSubprocess.stdout,
-                        });
-
                         alternativeSubprocess.stderr.on("data", (chunk: Buffer) => {
                             const string = chunk.toString("utf8");
                             alternativeStderr += string;
@@ -275,6 +278,18 @@ export function createFileWebUnsafeVideoProcessor(
                                             `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${previewContentStderr.trim()}`,
                                         );
                                     }
+                                });
+
+                                previewContentPromiseResolver.resolve({
+                                    contentType: ffmpegImagePreviewContentOutputContentType,
+                                    // Unfortunately, `sharp` doesn't support efficient stream processing so it's
+                                    // more efficient to read the full data buffer into memory than to use
+                                    // `fs.createReadStream()` and stream that data into `sharp`. See our comment
+                                    // on `FileProcessor`.
+                                    //
+                                    // Reading the file into memory also allows our temporary directory to be
+                                    // cleaned up.
+                                    data: await fs.readFile(outputPath),
                                 });
                             })(),
                             span.withSpan("FFmpeg transcode video alternative", async span => {
@@ -369,8 +384,7 @@ export function createFileWebUnsafeVideoProcessor(
                 alternativePromise: alternativePromiseResolver.promise,
                 imagePreviewSizePromise: previewSizePromiseResolver.promise,
                 imagePreviewPlaceholderPromise: (async () => {
-                    const {data: dataStream} = await previewContentPromiseResolver.promise;
-                    const data = await waitForReadableStreamData(dataStream, signal);
+                    const {data} = await previewContentPromiseResolver.promise;
                     return processFileImagePreviewPlaceholder(data);
                 })(),
                 imagePreviewContentPromise: previewContentPromiseResolver.promise,
