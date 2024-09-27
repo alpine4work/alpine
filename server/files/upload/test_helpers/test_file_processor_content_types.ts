@@ -33,7 +33,10 @@ import {
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    getFileContentTypePreferredExtension,
+} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
@@ -44,6 +47,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -256,7 +260,9 @@ export function testFileProcessorContentTypes(
                                       size: "Error",
                                       placeholder: "Error",
                                       content: "Error",
-                                      videoDuration: "Error",
+                                      videoDuration: expectedImagePreviewVideoDuration
+                                          ? "Error"
+                                          : undefined,
                                   }
                                 : expectedImagePreviewSize
                                 ? {
@@ -991,6 +997,22 @@ async function testFileUploadServiceContentTypeExpectedImagePreviewContentSimila
             ),
         ),
     ]);
+
+    // Make sure the preview image actually matches the expected format.
+    expect(
+        pickObject(await sharp(actualImageContents).metadata(), ["format", "compression"]),
+    ).toEqual(
+        expectedImagePreviewContent.contentType === "image/avif"
+            ? {
+                  format: "heif",
+                  compression: "av1",
+              }
+            : {
+                  format: getFileContentTypePreferredExtension(
+                      expectedImagePreviewContent.contentType,
+                  ),
+              },
+    );
 
     const result = await looksSame(actualImageContents, expectedImageContents, {
         tolerance: looksSameTolerance,

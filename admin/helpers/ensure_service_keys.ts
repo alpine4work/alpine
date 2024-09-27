@@ -14,6 +14,8 @@ const mutexByDirectoryPath = new DefaultMap<string, Mutex>(() => new Mutex());
  */
 export async function ensureServiceKeys(directoryPath: string) {
     await mutexByDirectoryPath.getOrSetDefault(directoryPath).withLock(async () => {
+        await fs.ensureDir(directoryPath);
+
         await runAllPromises([
             (async () => {
                 if (await fs.pathExists(joinPath(directoryPath, "token_agent_secret"))) return;
@@ -26,7 +28,6 @@ export async function ensureServiceKeys(directoryPath: string) {
             })(),
             (async () => {
                 if (await fs.pathExists(joinPath(directoryPath, "app_service_rsa"))) return;
-                await fs.ensureDir(directoryPath);
 
                 const {publicKey, privateKey} = await new Promise<{
                     publicKey: string;
@@ -53,7 +54,6 @@ export async function ensureServiceKeys(directoryPath: string) {
             })(),
             (async () => {
                 if (await fs.pathExists(joinPath(directoryPath, "edge_service_family_rsa"))) return;
-                await fs.ensureDir(directoryPath);
 
                 const {publicKey, privateKey} = await new Promise<{
                     publicKey: string;
@@ -81,7 +81,6 @@ export async function ensureServiceKeys(directoryPath: string) {
             (async () => {
                 if (await fs.pathExists(joinPath(directoryPath, "task_realtime_service_rsa")))
                     return;
-                await fs.ensureDir(directoryPath);
 
                 const {publicKey, privateKey} = await new Promise<{
                     publicKey: string;
@@ -111,7 +110,6 @@ export async function ensureServiceKeys(directoryPath: string) {
             })(),
             (async () => {
                 if (await fs.pathExists(joinPath(directoryPath, "job_queue_service_rsa"))) return;
-                await fs.ensureDir(directoryPath);
 
                 const {publicKey, privateKey} = await new Promise<{
                     publicKey: string;
@@ -138,7 +136,6 @@ export async function ensureServiceKeys(directoryPath: string) {
             })(),
             (async () => {
                 if (await fs.pathExists(joinPath(directoryPath, "file_upload_service_rsa"))) return;
-                await fs.ensureDir(directoryPath);
 
                 const {publicKey, privateKey} = await new Promise<{
                     publicKey: string;
