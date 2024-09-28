@@ -25,6 +25,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type EdgeServiceEnv = {
     AppStaticBucket: R2Bucket;
@@ -47,11 +48,13 @@ type EdgeServiceEnv = {
 };
 
 // Cache some shared resources across requests.
-let sharedResources: {
+let sharedResources: EdgeServiceSharedResources | null = null;
+
+type EdgeServiceSharedResources = {
     env: EdgeServiceEnv;
     tokenAgentPromise: Promise<TokenAgent>;
     taskRealtimeServiceRouterPromise: Promise<TaskRealtimeServiceEdgeRouter>;
-} | null = null;
+};
 
 async function handleFetch(
     request: Request,
@@ -559,168 +562,14 @@ async function handleFetch(
                 // browser wouldn't send session cookies to the subdomain. We use signed URLs
                 // to authorize file requests, we don't need cookies.
                 case "File": {
-                    // Can't forward a request to upgrade to a WebSocket connection to
-                    // `FileUploadService`. All WebSocket connection routes are enumerated above.
-                    if (request.headers.has("upgrade")) {
-                        return new Response(
-                            "400 Bad Request: Can't upgrade to WebSocket connection",
-                            {
-                                status: 400,
-                                headers: {"content-type": "text/plain"},
-                            },
-                        );
-                    }
-
-                    try {
-                        const fileUploadServiceHostname = env.FILE_UPLOAD_SERVICE_HOSTNAME;
-                        if (!fileUploadServiceHostname)
-                            throw new InternalError(
-                                "Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable",
-                            );
-
-                        const tokenAgent = await sharedResources.tokenAgentPromise;
-
-                        const signedUrl = new URL(url);
-
-                        // Don't include the `width` search parameter in the signed URL verification.
-                        // Clients are allowed to vary this argument.
-                        const widthString = signedUrl.searchParams.get("width");
-                        signedUrl.searchParams.delete("width");
-
-                        // NOCOMMIT: Allow not including width search param.
-                        if (!widthString) {
-                            throw new InvalidArgumentError('Missing required "width" search param');
-                        }
-
-                        const width = parseInt(widthString, 10);
-                        if (!isFilePreviewImageResizeWidth(width)) {
-                            throw new InvalidArgumentError(
-                                `Search param "width" is not a valid resize width, the nearest valid resize width is ${getFilePreviewImageResizeWidth(
-                                    width,
-                                )}`,
-                            );
-                        }
-
-                        // Make sure the user is allowed to access this file by verifying the signed
-                        // URL. If the user tampered with the URL then we'll throw an error.
-                        await tokenAgent.publicSide.verifyUrl(signedUrl);
-
-                        const headers = new Headers(request.headers);
-                        addTracerPropagationContextHeader(headers, span);
-
-                        // We authenticate with an `Authorization` not a `Cookie` header.
-                        headers.delete("cookie");
-
-                        // Use a system actor for our resize action. We've already verified the user
-                        // has access to this URL after calling `verifyUrl()`.
-                        const token = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                            "FileUploadService",
-                            {type: "System", spaceId: route.spaceId},
-                        );
-                        headers.set("authorization", `bearer ${token}`);
-
-                        const subrequest = new Request(
-                            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${
-                                route.fileId
-                            }${route.variant ? `-${route.variant}` : ""}?width=${width}`,
-                            {
-                                method: request.method,
-                                headers,
-                            },
-                        );
-
-                        // Use a cache specifically for files since we'll be saving private files to
-                        // this cache. We don't want to accidentally serve these files from another
-                        // request.
-                        //
-                        // TODO(calebmer, 2024-09-27): There's some improvements we can make to our
-                        // caching here to improve performance:
-                        //
-                        // 1. By using the Cloudflare Workers cache API we don't get [tiered
-                        //    caching][1].
-                        //
-                        // 2. How is concurrency handled? What if two users try to access a cached
-                        //    file at the same exact time. Ideally we only make one request to
-                        //    `FileUploadService` but unless Cloudflare is doing some intelligent
-                        //    request deduping behind the scenes this code will make two requests.
-                        //
-                        // [1]: https://developers.cloudflare.com/cache/how-to/tiered-cache
-                        const filesCache = await caches.open("files");
-
-                        let cachedResponse = await filesCache.match(subrequest);
-                        if (cachedResponse) {
-                            const cachedResponseHeaders = new Headers(cachedResponse.headers);
-
-                            // Make sure to switch the `public` `cache-control` directive back to
-                            // `private` before returning.
-                            const cacheControlResponseHeader =
-                                cachedResponseHeaders.get("cache-control");
-                            if (cacheControlResponseHeader) {
-                                cachedResponseHeaders.set(
-                                    "cache-control",
-                                    cacheControlResponseHeader.replace(
-                                        /((?:^|,) *)public( *(?:,|$))/,
-                                        "$1private$2",
-                                    ),
-                                );
-                            }
-
-                            return new Response(cachedResponse.body, {
-                                ...cachedResponse,
-                                headers: cachedResponseHeaders,
-                            });
-                        }
-
-                        // eslint-disable-next-line no-global-fetch
-                        const response = await fetch(subrequest);
-
-                        // Replace the `private` `cache-control` directive with `public`. It's safe to
-                        // cache files in `filesCache` since in order to access `filesCache` you must
-                        // have a valid signed URL when accessing this endpoint. We'll only generate
-                        // signed URLs when the user actually has access to a file.
-                        cachedResponse = response.clone();
-                        const cacheControlResponseHeader =
-                            cachedResponse.headers.get("cache-control");
-                        if (cacheControlResponseHeader) {
-                            cachedResponse.headers.set(
-                                "cache-control",
-                                cacheControlResponseHeader.replace(
-                                    /((?:^|,) *)private( *(?:,|$))/,
-                                    "$1public$2",
-                                ),
-                            );
-                        }
-
-                        executionContext.waitUntil(filesCache.put(subrequest, cachedResponse));
-
-                        return response;
-                    } catch (error) {
-                        span.addException(error);
-
-                        let statusCode;
-                        let statusMessage;
-
-                        if (error instanceof PermissionDeniedError) {
-                            statusCode = 401;
-                            statusMessage = "Unauthorized";
-                        } else if (!isSystemError(error)) {
-                            statusCode = 400;
-                            statusMessage = "Bad Request";
-                        } else {
-                            statusCode = 500;
-                            statusMessage = "Internal Server Error";
-                        }
-
-                        return new Response(
-                            `${statusCode} ${statusMessage}: ${
-                                error instanceof Error ? error.message : String(error)
-                            }`,
-                            {
-                                status: statusCode,
-                                headers: {"content-type": "text/plain"},
-                            },
-                        );
-                    }
+                    return handleFileFetch(
+                        executionContext,
+                        sharedResources,
+                        request,
+                        url,
+                        span,
+                        route,
+                    );
                 }
                 default:
                     throw exhaustive(route);
@@ -782,6 +631,168 @@ async function handleFetch(
 
         return response;
     });
+}
+
+async function handleFileFetch(
+    executionContext: ExecutionContext,
+    sharedResources: EdgeServiceSharedResources,
+    request: Request,
+    url: URL,
+    span: TracerSpan,
+    route: {spaceId: SpaceId; fileId: FileId; variant: "preview" | null},
+) {
+    // Can't forward a request to upgrade to a WebSocket connection to
+    // `FileUploadService`. All WebSocket connection routes are enumerated above.
+    if (request.headers.has("upgrade")) {
+        return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
+            status: 400,
+            headers: {"content-type": "text/plain"},
+        });
+    }
+
+    try {
+        const fileUploadServiceHostname = sharedResources.env.FILE_UPLOAD_SERVICE_HOSTNAME;
+        if (!fileUploadServiceHostname)
+            throw new InternalError("Missing `FILE_UPLOAD_SERVICE_HOSTNAME` env variable");
+
+        const tokenAgent = await sharedResources.tokenAgentPromise;
+
+        const signedUrl = new URL(url);
+
+        // Don't include the `width` search parameter in the signed URL verification.
+        // Clients are allowed to vary this argument.
+        const widthString = signedUrl.searchParams.get("width");
+        signedUrl.searchParams.delete("width");
+
+        // NOCOMMIT: Allow not including width search param.
+        if (!widthString) {
+            throw new InvalidArgumentError('Missing required "width" search param');
+        }
+
+        const width = parseInt(widthString, 10);
+        if (!isFilePreviewImageResizeWidth(width)) {
+            throw new InvalidArgumentError(
+                `Search param "width" is not a valid resize width, the nearest valid resize width is ${getFilePreviewImageResizeWidth(
+                    width,
+                )}`,
+            );
+        }
+
+        // Make sure the user is allowed to access this file by verifying the signed
+        // URL. If the user tampered with the URL then we'll throw an error.
+        await tokenAgent.publicSide.verifyUrl(signedUrl);
+
+        const headers = new Headers(request.headers);
+        addTracerPropagationContextHeader(headers, span);
+
+        // We authenticate with an `Authorization` not a `Cookie` header.
+        headers.delete("cookie");
+
+        // Use a system actor for our resize action. We've already verified the user
+        // has access to this URL after calling `verifyUrl()`.
+        const token = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+            "FileUploadService",
+            {type: "System", spaceId: route.spaceId},
+        );
+        headers.set("authorization", `bearer ${token}`);
+
+        const subrequest = new Request(
+            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${route.fileId}${
+                route.variant ? `-${route.variant}` : ""
+            }?width=${width}`,
+            {
+                method: request.method,
+                headers,
+            },
+        );
+
+        // Use a cache specifically for files since we'll be saving private files to
+        // this cache. We don't want to accidentally serve these files from another
+        // request.
+        //
+        // TODO(calebmer, 2024-09-27): There's some improvements we can make to our
+        // caching here to improve performance:
+        //
+        // 1. By using the Cloudflare Workers cache API we don't get [tiered
+        //    caching][1].
+        //
+        // 2. How is concurrency handled? What if two users try to access a cached
+        //    file at the same exact time. Ideally we only make one request to
+        //    `FileUploadService` but unless Cloudflare is doing some intelligent
+        //    request deduping behind the scenes this code will make two requests.
+        //
+        // [1]: https://developers.cloudflare.com/cache/how-to/tiered-cache
+        const filesCache = await caches.open("files");
+
+        let cachedResponse = await filesCache.match(subrequest);
+        if (cachedResponse) {
+            const cachedResponseHeaders = new Headers(cachedResponse.headers);
+
+            // Make sure to switch the `public` `cache-control` directive back to
+            // `private` before returning.
+            const cacheControlResponseHeader = cachedResponseHeaders.get("cache-control");
+            if (cacheControlResponseHeader) {
+                cachedResponseHeaders.set(
+                    "cache-control",
+                    cacheControlResponseHeader.replace(
+                        /((?:^|,) *)public( *(?:,|$))/,
+                        "$1private$2",
+                    ),
+                );
+            }
+
+            return new Response(cachedResponse.body, {
+                ...cachedResponse,
+                headers: cachedResponseHeaders,
+            });
+        }
+
+        // eslint-disable-next-line no-global-fetch
+        const response = await fetch(subrequest);
+
+        // Replace the `private` `cache-control` directive with `public`. It's safe to
+        // cache files in `filesCache` since in order to access `filesCache` you must
+        // have a valid signed URL when accessing this endpoint. We'll only generate
+        // signed URLs when the user actually has access to a file.
+        cachedResponse = response.clone();
+        const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
+        if (cacheControlResponseHeader) {
+            cachedResponse.headers.set(
+                "cache-control",
+                cacheControlResponseHeader.replace(/((?:^|,) *)private( *(?:,|$))/, "$1public$2"),
+            );
+        }
+
+        executionContext.waitUntil(filesCache.put(subrequest, cachedResponse));
+
+        return response;
+    } catch (error) {
+        span.addException(error);
+
+        let statusCode;
+        let statusMessage;
+
+        if (error instanceof PermissionDeniedError) {
+            statusCode = 401;
+            statusMessage = "Unauthorized";
+        } else if (!isSystemError(error)) {
+            statusCode = 400;
+            statusMessage = "Bad Request";
+        } else {
+            statusCode = 500;
+            statusMessage = "Internal Server Error";
+        }
+
+        return new Response(
+            `${statusCode} ${statusMessage}: ${
+                error instanceof Error ? error.message : String(error)
+            }`,
+            {
+                status: statusCode,
+                headers: {"content-type": "text/plain"},
+            },
+        );
+    }
 }
 
 // eslint-disable-next-line import/no-default-export
