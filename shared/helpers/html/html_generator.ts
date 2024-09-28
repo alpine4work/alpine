@@ -173,6 +173,10 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
         this.tagName = tagName;
     }
 
+    public getAttribute(attributeName: string): string | null {
+        return this._attributes.get(attributeName) ?? null;
+    }
+
     public setAttribute(attributeName: string, attributeValue: unknown) {
         assert(
             /^[a-z]([a-z0-9-]*[a-z0-9]|)$/.test(attributeName),

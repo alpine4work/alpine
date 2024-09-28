@@ -1,5 +1,6 @@
 import {Node} from "prosemirror-model";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
+import {sprinkles} from "~/client/styles/styles.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
@@ -16,6 +17,8 @@ import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_pro
  * `HtmlElementGenerator` can either be used to render `<ContentEditor>` or
  * `<ContentView>`.
  */
+// TODO(calebmer, #files): Consider switching to a pure white background color
+// so files on pure white look natural.
 export function renderContentFilePreview(
     spaceId: SpaceId,
     node: Node,
@@ -70,33 +73,47 @@ export function renderContentFilePreview(
                     ].join("; "),
                 );
 
-                // NOCOMMIT: Don't resize if file is less than width
-
                 const imageSourcePathname = `/files/${spaceId}/${reference.file.id}${
                     reference.file.preview.content !== undefined ? "-preview" : ""
                 }`;
 
+                const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
+                const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
+                const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
+
                 // NOCOMMIT: If `fileReference.previewUrlSearch` is expired we need to request
                 // a new one
-                const image1xSource = `${imageSourcePathname}${
-                    reference.previewUrlSearch
-                }&width=${getFilePreviewImageResizeWidth(layout.width)}`;
+                const image1xSource =
+                    reference.file.preview.size.width <= image1xWidth
+                        ? `${imageSourcePathname}${reference.previewUrlSearch}`
+                        : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image1xWidth}`;
 
-                const image2xSource = `${imageSourcePathname}${
-                    reference.previewUrlSearch
-                }&width=${getFilePreviewImageResizeWidth(layout.width * 2)}`;
+                const image2xSource =
+                    reference.file.preview.size.width <= image2xWidth
+                        ? `${imageSourcePathname}${reference.previewUrlSearch}`
+                        : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image2xWidth}`;
 
-                const image3xSource = `${imageSourcePathname}${
-                    reference.previewUrlSearch
-                }&width=${getFilePreviewImageResizeWidth(layout.width * 3)}`;
+                const image3xSource =
+                    reference.file.preview.size.width <= image3xWidth
+                        ? `${imageSourcePathname}${reference.previewUrlSearch}`
+                        : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image3xWidth}`;
 
                 // NOCOMMIT: Save and reuse image HTML DOM elements?
                 const imageHtml = new HtmlElementGenerator("img");
+                imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
+                imageHtml.setAttribute("style", "object-position: center top; object-fit: cover");
                 imageHtml.setAttribute("src", image1xSource);
-                imageHtml.setAttribute(
-                    "srcset",
-                    `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`,
-                );
+
+                if (image1xSource === image2xSource) {
+                    // We don't have any additional responsive image sources.
+                } else if (image2xSource === image3xSource) {
+                    imageHtml.setAttribute("srcset", `${image1xSource}, ${image2xSource} 2x`);
+                } else {
+                    imageHtml.setAttribute(
+                        "srcset",
+                        `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`,
+                    );
+                }
 
                 html.appendChild(imageHtml);
 

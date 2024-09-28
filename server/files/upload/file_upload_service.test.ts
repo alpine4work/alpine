@@ -955,6 +955,22 @@ test("can't resize an image with a token that's not from edge service", async ()
     expect(await resizeResponse.text()).toEqual("400 Bad Request");
 });
 
+test("can't resize an image that doesn't exist", async () => {
+    const space = await TestSpace.create(context);
+
+    const resizeResponse = await fetch(
+        `http://localhost:${port}/${space.id}/resize/${generateChronologicalId()}?width=200`,
+        {
+            method: "GET",
+            headers: {authorization: await authorization(space)},
+        },
+    );
+
+    expect(resizeResponse.status).toEqual(404);
+    expect(resizeResponse.headers.get("content-type")).toEqual("text/plain");
+    expect(await resizeResponse.text()).toEqual("404 Not Found");
+});
+
 test("can resize a JPEG image", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();

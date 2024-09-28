@@ -1,6 +1,7 @@
 import {IncomingMessage, ServerResponse, createServer} from "http";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
+import {isCloudflareR2NoSuchKeyError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {FileUploadServiceProcessContext} from "~/server/files/upload/file_upload_service_context.js";
 import {resizeFile} from "~/server/files/upload/resize_file.js";
@@ -18,7 +19,6 @@ import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
-    NotFoundError,
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -217,7 +217,9 @@ export function createFileUploadService(
             } catch (error) {
                 span.addException(error);
 
-                if (res.headersSent) {
+                if (res.writableEnded) {
+                    // Response was already handled, do nothing other than log the error.
+                } else if (res.headersSent) {
                     res.end();
                 } else {
                     const statusCode = isSystemError(error) ? 500 : 400;
@@ -317,35 +319,44 @@ async function handleInternalMiniflareGetObject(
 
     // Make sure all relevant request headers are passed into `GetObject()`.
     // https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html#API_GetObject_RequestSyntax
-    const object = await processContext.r2.GetObject({
-        Bucket: bucketName,
-        Key: key,
-        IfMatch: headers.get("if-match") ?? undefined,
-        IfModifiedSince: dateHeader(headers.get("if-modified-since")),
-        IfNoneMatch: headers.get("if-none-match") ?? undefined,
-        IfUnmodifiedSince: dateHeader(headers.get("if-unmodified-since")),
-        Range: headers.get("range") ?? undefined,
-    });
-    if (!object) throw new NotFoundError("Object not found");
+    try {
+        const object = await processContext.r2.GetObject({
+            Bucket: bucketName,
+            Key: key,
+            IfMatch: headers.get("if-match") ?? undefined,
+            IfModifiedSince: dateHeader(headers.get("if-modified-since")),
+            IfNoneMatch: headers.get("if-none-match") ?? undefined,
+            IfUnmodifiedSince: dateHeader(headers.get("if-unmodified-since")),
+            Range: headers.get("range") ?? undefined,
+        });
 
-    // Make sure all relevant response headers are passed from `GetObject()`.
-    // https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html#API_GetObject_ResponseSyntax
-    if (object.AcceptRanges !== undefined) res.setHeader("accept-ranges", object.AcceptRanges);
-    if (object.LastModified !== undefined)
-        res.setHeader("last-modified", object.LastModified.toUTCString());
-    if (object.ContentLength !== undefined) res.setHeader("content-length", object.ContentLength);
-    if (object.ETag !== undefined) res.setHeader("etag", object.ETag);
-    if (object.CacheControl !== undefined) res.setHeader("cache-control", object.CacheControl);
-    if (object.ContentDisposition !== undefined)
-        res.setHeader("content-disposition", object.ContentDisposition);
-    if (object.ContentEncoding !== undefined)
-        res.setHeader("content-encoding", object.ContentEncoding);
-    if (object.ContentLanguage !== undefined)
-        res.setHeader("content-language", object.ContentLanguage);
-    if (object.ContentRange !== undefined) res.setHeader("content-range", object.ContentRange);
-    if (object.ContentType !== undefined) res.setHeader("content-type", object.ContentType);
-    if (object.ExpiresString !== undefined) res.setHeader("expires", object.ExpiresString);
+        // Make sure all relevant response headers are passed from `GetObject()`.
+        // https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html#API_GetObject_ResponseSyntax
+        if (object.AcceptRanges !== undefined) res.setHeader("accept-ranges", object.AcceptRanges);
+        if (object.LastModified !== undefined)
+            res.setHeader("last-modified", object.LastModified.toUTCString());
+        if (object.ContentLength !== undefined)
+            res.setHeader("content-length", object.ContentLength);
+        if (object.ETag !== undefined) res.setHeader("etag", object.ETag);
+        if (object.CacheControl !== undefined) res.setHeader("cache-control", object.CacheControl);
+        if (object.ContentDisposition !== undefined)
+            res.setHeader("content-disposition", object.ContentDisposition);
+        if (object.ContentEncoding !== undefined)
+            res.setHeader("content-encoding", object.ContentEncoding);
+        if (object.ContentLanguage !== undefined)
+            res.setHeader("content-language", object.ContentLanguage);
+        if (object.ContentRange !== undefined) res.setHeader("content-range", object.ContentRange);
+        if (object.ContentType !== undefined) res.setHeader("content-type", object.ContentType);
+        if (object.ExpiresString !== undefined) res.setHeader("expires", object.ExpiresString);
 
-    assert(object.Body instanceof ReadableStream);
-    await finished(object.Body.pipe(res));
+        assert(object.Body instanceof ReadableStream);
+        await finished(object.Body.pipe(res));
+    } catch (error) {
+        if (isCloudflareR2NoSuchKeyError(error)) {
+            res.writeHead(404, {"content-type": "text/plain"});
+            res.end("404 Not Found");
+        } else {
+            throw error;
+        }
+    }
 }

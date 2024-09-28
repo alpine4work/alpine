@@ -21,6 +21,7 @@ import {
     isFilePreviewImageResizeWidth,
 } from "~/shared/files/get_file_preview_image_resize_width.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -562,6 +563,18 @@ async function handleFetch(
                 // browser wouldn't send session cookies to the subdomain. We use signed URLs
                 // to authorize file requests, we don't need cookies.
                 case "File": {
+                    // Can't forward a request to upgrade to a WebSocket connection to
+                    // `FileUploadService`. All WebSocket connection routes are enumerated above.
+                    if (request.headers.has("upgrade")) {
+                        return new Response(
+                            "400 Bad Request: Can't upgrade to WebSocket connection",
+                            {
+                                status: 400,
+                                headers: {"content-type": "text/plain"},
+                            },
+                        );
+                    }
+
                     return handleFileFetch(
                         executionContext,
                         sharedResources,
@@ -641,15 +654,6 @@ async function handleFileFetch(
     span: TracerSpan,
     route: {spaceId: SpaceId; fileId: FileId; variant: "preview" | null},
 ) {
-    // Can't forward a request to upgrade to a WebSocket connection to
-    // `FileUploadService`. All WebSocket connection routes are enumerated above.
-    if (request.headers.has("upgrade")) {
-        return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
-            status: 400,
-            headers: {"content-type": "text/plain"},
-        });
-    }
-
     try {
         const fileUploadServiceHostname = sharedResources.env.FILE_UPLOAD_SERVICE_HOSTNAME;
         if (!fileUploadServiceHostname)
@@ -664,13 +668,8 @@ async function handleFileFetch(
         const widthString = signedUrl.searchParams.get("width");
         signedUrl.searchParams.delete("width");
 
-        // NOCOMMIT: Allow not including width search param.
-        if (!widthString) {
-            throw new InvalidArgumentError('Missing required "width" search param');
-        }
-
-        const width = parseInt(widthString, 10);
-        if (!isFilePreviewImageResizeWidth(width)) {
+        const width = widthString !== null ? parseInt(widthString, 10) : null;
+        if (width !== null && !isFilePreviewImageResizeWidth(width)) {
             throw new InvalidArgumentError(
                 `Search param "width" is not a valid resize width, the nearest valid resize width is ${getFilePreviewImageResizeWidth(
                     width,
@@ -680,7 +679,16 @@ async function handleFileFetch(
 
         // Make sure the user is allowed to access this file by verifying the signed
         // URL. If the user tampered with the URL then we'll throw an error.
-        await tokenAgent.publicSide.verifyUrl(signedUrl);
+        try {
+            await tokenAgent.publicSide.verifyUrl(signedUrl);
+        } catch (error) {
+            if (error instanceof PermissionDeniedError) {
+                return new Response("401 Unauthorized", {
+                    status: 401,
+                    headers: {"content-type": "text/plain"},
+                });
+            }
+        }
 
         const headers = new Headers(request.headers);
         addTracerPropagationContextHeader(headers, span);
@@ -696,10 +704,13 @@ async function handleFileFetch(
         );
         headers.set("authorization", `bearer ${token}`);
 
+        const fileIdWithVariant =
+            route.fileId + (route.variant !== null ? `-${route.variant}` : "");
+
         const subrequest = new Request(
-            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${route.fileId}${
-                route.variant ? `-${route.variant}` : ""
-            }?width=${width}`,
+            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${fileIdWithVariant}${
+                width !== null ? `?width=${width}` : ""
+            }`,
             {
                 method: request.method,
                 headers,
@@ -747,8 +758,54 @@ async function handleFileFetch(
             });
         }
 
-        // eslint-disable-next-line no-global-fetch
-        const response = await fetch(subrequest);
+        let response: Response;
+
+        // If a `width` search param wasn't provided then we return the file as-is
+        // without resizing. So if `width` is non null then execute our resize
+        // request against file upload service. Otherwise directly read the file
+        // from R2.
+        //
+        // We use the resize request as a cache key regardless of whether we actually
+        // need to execute the resize.
+        if (width !== null) {
+            // eslint-disable-next-line no-global-fetch
+            response = await fetch(subrequest);
+        } else {
+            const object = await sharedResources.env.FilesBucket.get(
+                `${route.spaceId}/${fileIdWithVariant}`,
+            );
+            if (!object) {
+                response = new Response("404 Not Found", {
+                    status: 404,
+                    headers: {"content-type": "text/plain"},
+                });
+            } else {
+                response = new Response(object.body, {
+                    status: 200,
+                    // We need to return the same headers between here and `resizeFile()` in
+                    // `server/files/upload`. If you add a header here you should also add a
+                    // header there.
+                    headers: {
+                        "content-type": assertExists(object.httpMetadata?.contentType),
+                        "content-length": String(object.size),
+                        // After resizing, the result should be cached.
+                        //
+                        // - `private`: A user can only see files they have access to. Don't store
+                        //   files in a shared cache since an attacker may be able to see a file they
+                        //   don't have access to.
+                        //
+                        // - `immutable`: Files are immutable after they've been uploaded. While
+                        //   hitting this route will resize the file on demand causing the bytes to not
+                        //   be strictly the same over time, the perceived result to the end user will
+                        //   never change so it's safe to cache this response as an immutable value.
+                        //
+                        // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
+                        //   the file after that and request again if needed.
+                        "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
+                    },
+                });
+            }
+        }
 
         // Replace the `private` `cache-control` directive with `public`. It's safe to
         // cache files in `filesCache` since in order to access `filesCache` you must
@@ -772,10 +829,7 @@ async function handleFileFetch(
         let statusCode;
         let statusMessage;
 
-        if (error instanceof PermissionDeniedError) {
-            statusCode = 401;
-            statusMessage = "Unauthorized";
-        } else if (!isSystemError(error)) {
+        if (!isSystemError(error)) {
             statusCode = 400;
             statusMessage = "Bad Request";
         } else {

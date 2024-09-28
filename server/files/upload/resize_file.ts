@@ -15,7 +15,12 @@ import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
-import {InvalidArgumentError, PermissionDeniedError, UnknownError} from "~/shared/error/error.js";
+import {
+    InvalidArgumentError,
+    NotFoundError,
+    PermissionDeniedError,
+    UnknownError,
+} from "~/shared/error/error.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -140,6 +145,8 @@ export async function resizeFile(
             await parentSpan.withSpan("FFmpeg resize image", async span => {
                 span.addData({common: {width}});
 
+                // NOCOMMIT: Have resize crop as well for images beyond the aspect ratio limit?
+                // Also generate placeholder only in the aspect ratio limits.
                 const subprocess = spawn(
                     ffmpegExecutablePath,
                     [
@@ -210,12 +217,24 @@ export async function resizeFile(
                 });
 
                 await waitForProcessExit(subprocess).catch(error => {
+                    let ErrorClass: typeof UnknownError | typeof NotFoundError = UnknownError;
+
+                    if (
+                        /^\[in#0[^\]]*\] Error opening input: Server returned 404 Not Found$$/m.test(
+                            stderr,
+                        )
+                    ) {
+                        res.writeHead(404, {"content-type": "text/plain"});
+                        res.end("404 Not Found");
+                        ErrorClass = NotFoundError;
+                    }
+
                     // We include the stderr in error messages even in production since it shouldn't
                     // contain sensitive user data. It may contain the file's duration and other
                     // metadata but it shouldn't be harmful for a developer to read that.
                     //
                     // However, including the stderr will really help us debug any issues.
-                    throw new UnknownError(
+                    throw new ErrorClass(
                         `${
                             error instanceof Error ? error.message : String(error)
                         }\n\nstderr:\n${stderr.trim()}`,
@@ -232,6 +251,8 @@ export async function resizeFile(
                 });
             });
 
+            // We need to return the same headers between here and `handleFileFetch()` in
+            // `server/edge`. If you add a header here you should also add a header there.
             res.writeHead(200, {
                 "content-type": "image/avif",
                 "content-length": (await fs.stat(outputPath)).size,
