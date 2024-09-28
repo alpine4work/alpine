@@ -3,9 +3,13 @@ import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {
-    layoutContentFileFloat,
-    layoutContentFileRow,
-} from "~/client/content/internal/layout_content_file.js";
+    layoutContentFile,
+    layoutContentFileParent,
+} from "~/client/content/internal/content_file_layout.js";
+import {
+    computeContentFileFloatLayout,
+    computeContentFileRowLayout,
+} from "~/client/content/internal/content_file_layout_computations.js";
 import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
@@ -19,9 +23,10 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
     RecursiveReadonlyArray,
@@ -40,6 +45,7 @@ import {Store} from "~/shared/store/store.js";
 export function renderContentToHtmlStore(
     content: ContentWithReferences,
     options: {
+        spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
@@ -67,6 +73,7 @@ export function renderContentToHtmlStore(
 export function renderContentFragmentToHtmlStore(
     content: ContentWithReferences,
     {
+        spaceId,
         accountStore,
         currentAccount,
         screenWidth,
@@ -76,6 +83,7 @@ export function renderContentFragmentToHtmlStore(
         decorations,
         shouldHighlightComment,
     }: {
+        spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         currentAccount: AccountModel | null;
         screenWidth: number;
@@ -312,24 +320,16 @@ export function renderContentFragmentToHtmlStore(
 
                     assert(html instanceof HtmlElementGenerator);
 
-                    const layout = layoutContentFileRow(
-                        node.content.content.map(childNode => {
-                            assert(childNode.type.name === "file");
-                            const fileId: FileId | null = childNode.attrs.fileId;
-                            if (!fileId) return null;
-                            return content.references.fileById.get(fileId)?.file ?? null;
-                        }),
-                        {
-                            screenWidth,
-                            isMobile,
-                        },
-                    );
+                    const layouts = layoutContentFileParent(content.references, node, {
+                        screenWidth,
+                        isMobile,
+                    });
 
                     html.setAttribute(
                         "style",
                         [
-                            `height: ${Math.max(...layout.map(({height}) => height))}px`,
-                            `grid-template-columns: ${layout
+                            `height: ${Math.max(...layouts.map(({height}) => height))}px`,
+                            `grid-template-columns: ${layouts
                                 .map(({widthFr}) => `${widthFr}fr`)
                                 .join(" ")}`,
                         ].join("; "),
@@ -349,19 +349,17 @@ export function renderContentFragmentToHtmlStore(
 
                     const childNode = node.content.content[0]!;
                     assert(childNode.type.name === "file");
-                    const fileId: FileId | null = childNode.attrs.fileId;
-                    const file = fileId
-                        ? content.references.fileById.get(fileId)?.file ?? null
-                        : null;
 
-                    const layout = layoutContentFileFloat(node.attrs.direction, file, {
+                    const layouts = layoutContentFileParent(content.references, node, {
                         screenWidth,
                         isMobile,
                     });
 
                     html.setAttribute(
                         "style",
-                        [`width: ${layout.width}px`, `height: ${layout.height}px`].join("; "),
+                        [`width: ${layouts[0]!.width}px`, `height: ${layouts[0]!.height}px`].join(
+                            "; ",
+                        ),
                     );
 
                     return {
@@ -369,11 +367,23 @@ export function renderContentFragmentToHtmlStore(
                         contentHtml,
                     };
                 },
-                file: node => {
+                file: (node, pos) => {
                     const fileId: FileId | null = node.attrs.fileId;
-                    const file = fileId ? content.references.fileById.get(fileId)?.file : undefined;
+                    const fileReference = fileId
+                        ? content.references.fileById.get(fileId)
+                        : undefined;
 
-                    const html = renderContentFilePreview(node, file);
+                    const layout = layoutContentFile(content.references, content.doc, pos, node, {
+                        screenWidth,
+                        isMobile,
+                    });
+
+                    const html = renderContentFilePreview(
+                        assertExists(spaceId),
+                        node,
+                        fileReference,
+                        layout,
+                    );
                     return {html};
                 },
 

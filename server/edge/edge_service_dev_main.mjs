@@ -36,6 +36,8 @@ async function main() {
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             tokenAgentSecret: tokenAgentSecretPath,
             fileUploadServiceHostname,
+            cacheLocalDataPath,
+            cloudflareR2LocalDataPath,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
         },
@@ -51,6 +53,8 @@ async function main() {
             edgeServiceFamilyPrivateKey: {type: "string"},
             tokenAgentSecret: {type: "string"},
             fileUploadServiceHostname: {type: "string"},
+            cacheLocalDataPath: {type: "string"},
+            cloudflareR2LocalDataPath: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
         },
@@ -74,6 +78,8 @@ async function main() {
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
     if (!tokenAgentSecretPath) throw new Error("Missing `tokenAgentSecret` arg");
     if (!fileUploadServiceHostname) throw new Error("Missing `fileUploadServiceHostname` arg");
+    if (!cacheLocalDataPath) throw new Error("Missing `cacheLocalDataPath` arg");
+    if (!cloudflareR2LocalDataPath) throw new Error("Missing `cloudflareR2LocalDataPath` arg");
 
     const [
         appServicePublicKey,
@@ -109,6 +115,8 @@ async function main() {
         scriptPath: joinPath(runfilesPath, "cyberworlds/server/edge/edge_service_bundle.js"),
         wranglerConfigPath: joinPath(runfilesPath, "cyberworlds/server/edge/wrangler.toml"),
         upstream: appServiceUrl,
+        cachePersist: cacheLocalDataPath,
+        r2Persist: cloudflareR2LocalDataPath,
         bindings: {
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,

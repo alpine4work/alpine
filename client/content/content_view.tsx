@@ -411,6 +411,7 @@ export function ContentView({
 
             htmlStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
                 renderContentFragmentToHtmlStore(content, {
+                    spaceId: spaceContext?.space.id ?? null,
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth ?? clientInfo.screenWidth,
@@ -438,6 +439,7 @@ export function ContentView({
             });
 
             htmlStore = renderContentFragmentToHtmlStore(content, {
+                spaceId: spaceContext?.space.id ?? null,
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth ?? clientInfo.screenWidth,
@@ -464,8 +466,9 @@ export function ContentView({
         content,
         initialCodeBlockDecorations,
         id,
-        accountStore,
+        spaceContext?.space.id,
         spaceContext?.currentAccount,
+        accountStore,
         fileLayoutScreenWidth,
         clientInfo.screenWidth,
         isMobile,

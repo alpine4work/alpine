@@ -1,16 +1,16 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {layoutContentFileFloat} from "~/client/content/internal/layout_content_file.js";
+import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/internal/content_editor_file_node_view.js";
+import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
+import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getIsMobileWithoutListening,
     subscribeToIsMobileChange,
 } from "~/client/remix/use_is_mobile.js";
 import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {FileId} from "~/shared/id/types/id_types.js";
 
 export function createContentEditorFileFloatNodeViewConstructor({
     subscribeToReferencesUpdate,
@@ -30,34 +30,21 @@ export function createContentEditorFileFloatNodeViewConstructor({
         dom.contentEditable = "false";
 
         let isDestroyed = false;
-        let lastIsMobile: boolean | null = null;
         let lastDirection: "left" | "right" | null = null;
-        let lastFile: FileModel | null | "Uninitialized" = "Uninitialized";
+        let lastLayouts: ReadonlyArray<ContentFileLayout> | null = null;
 
         const update = () => {
             assert(!isDestroyed);
 
             const isMobile = getIsMobileWithoutListening();
-            const references = getContentEditorReferences(view.state).references;
+            const {references} = getContentEditorReferences(view.state);
 
             const direction = node.attrs.direction;
 
-            const childNode = node.content.content[0]!;
-            assert(childNode.type.name === "file");
-            const fileId: FileId | null = childNode.attrs.fileId;
-            const file = fileId ? references.fileById.get(fileId)?.file ?? null : null;
-
-            if (
-                lastIsMobile === isMobile &&
-                lastFile &&
-                direction === lastDirection &&
-                file === lastFile
-            ) {
-                return;
-            }
-
             // Swap CSS classes if direction changes.
-            if (direction !== lastDirection) {
+            if (lastDirection !== direction) {
+                lastDirection = direction;
+
                 if (direction === "left") {
                     dom.classList.remove(fileFloatRightClassName);
                     dom.classList.add(fileFloatLeftClassName);
@@ -67,17 +54,17 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 }
             }
 
-            lastIsMobile = isMobile;
-            lastDirection = direction;
-            lastFile = file;
-
-            const layout = layoutContentFileFloat(direction, file, {
+            const layouts = layoutContentFileParent(references, node, {
                 screenWidth: getClientInfo().screenWidth,
                 isMobile,
             });
 
-            dom.style.width = `${layout.width}px`;
-            dom.style.height = `${layout.height}px`;
+            if (lastLayouts !== layouts) {
+                lastLayouts = layouts;
+
+                dom.style.width = `${layouts[0]!.width}px`;
+                dom.style.height = `${layouts[0]!.height}px`;
+            }
         };
 
         update();
@@ -93,6 +80,13 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
                 node = newNode;
                 update();
+
+                for (const childNode of dom.childNodes) {
+                    if (childNode instanceof Element) {
+                        dispatchUpdatedContentEditorFileParentEvent(childNode);
+                    }
+                }
+
                 return true;
             },
             destroy: () => {

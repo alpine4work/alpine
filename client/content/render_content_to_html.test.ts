@@ -65,6 +65,7 @@ test("will properly number list items", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    spaceId: null,
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
                     screenWidth: 1920,
@@ -153,6 +154,7 @@ test("will properly number list items with indentation", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    spaceId: null,
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
                     screenWidth: 1920,
@@ -199,6 +201,7 @@ test("will properly number list items in quote blocks", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    spaceId: null,
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
                     screenWidth: 1920,
@@ -250,6 +253,7 @@ test("will render code block", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    spaceId: null,
                     accountStore: getAccountClientStoreForClient(generateId()),
                     currentAccount: null,
                     screenWidth: 1920,

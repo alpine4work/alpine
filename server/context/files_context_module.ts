@@ -9,7 +9,7 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
  * Manages the URLs we need to load file content from Cloudflare R2.
  *
  * File content is returned from the `EdgeService` route
- * `/s/:spaceId/files/:fileId`. We use signed URLs to authorize access to this
+ * `/files/:spaceId/:fileId`. We use signed URLs to authorize access to this
  * route. So `AppService` signs a URL in advance, sends it to the client, then
  * the client uses the URL to load the file from `EdgeService`. This is good
  * for performance since `EdgeService` doesn't need to make a round trip to
@@ -56,7 +56,7 @@ export class FilesContextModule extends FilesContextModuleBase {
         return this._tokenAgent.privateSide.dangerouslySignShortLivedUrl(
             "EdgeService",
             new URL(
-                `https://cyberworlds.dev/s/${spaceId}/files/${fileId}${
+                `https://cyberworlds.dev/files/${spaceId}/${fileId}${
                     file.hasPreview.hasContent ? "-preview" : ""
                 }`,
             ),
@@ -87,7 +87,7 @@ export class TestFilesContextModule extends FilesContextModuleBase {
         if (file.hasPreview?.type !== "Image") return null;
 
         return new URL(
-            `https://cyberworlds.dev/s/${spaceId}/files/${fileId}${
+            `https://cyberworlds.dev/files/${spaceId}/${fileId}${
                 file.hasPreview.hasContent ? "-preview" : ""
             }`,
         );

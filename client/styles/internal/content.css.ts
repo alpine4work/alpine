@@ -106,6 +106,10 @@ const highlightClassNameByColor = mapObjectValues(
 //   writing:
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
+// We've optimized file preview image resize widths (see
+// `getFilePreviewImageResizeWidth()`) to align with our content max width.
+// Specifically we depend on `blockMaxWidth` being 600px on desktop. If you
+// adjust this value, consider also adjusting file preview image resize widths.
 const contentMaxWidthSpacing = "160";
 export {contentMaxWidthSpacing as contentMaxWidth};
 const contentMaxWidth = spacing[contentMaxWidthSpacing];

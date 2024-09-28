@@ -802,24 +802,28 @@ export function reduceContentReferencesShared<References extends ContentReferenc
             return {...references, accountById: newAccountById};
         }
         case "SetFile": {
-            const oldFile = references.fileById.get(action.file.id);
+            const oldFileReference = references.fileById.get(action.file.id);
 
             // Prefer `oldFile` in `FileModel.minLoadingCount()` to avoid unnecessary
             // re-renders.
-            const newFile = oldFile
-                ? FileModel.minLoadingCount(oldFile.file, action.file)
+            const newFile = oldFileReference
+                ? FileModel.minLoadingCount(oldFileReference.file, action.file)
                 : action.file;
 
             // Pick the `previewUrlSearch` that expires later.
             const newPreviewUrlSearch =
-                oldFile?.previewUrlSearch &&
+                oldFileReference?.previewUrlSearch &&
                 action.previewUrlSearch &&
-                getContentReferencesFileSignedUrlExpirationTime(oldFile.previewUrlSearch) >=
-                    getContentReferencesFileSignedUrlExpirationTime(action.previewUrlSearch)
-                    ? oldFile.previewUrlSearch
+                getContentReferencesFileSignedUrlExpirationTime(
+                    oldFileReference.previewUrlSearch,
+                ) >= getContentReferencesFileSignedUrlExpirationTime(action.previewUrlSearch)
+                    ? oldFileReference.previewUrlSearch
                     : action.previewUrlSearch;
 
-            if (oldFile?.file === newFile && oldFile.previewUrlSearch === newPreviewUrlSearch)
+            if (
+                oldFileReference?.file === newFile &&
+                oldFileReference.previewUrlSearch === newPreviewUrlSearch
+            )
                 return references;
 
             const newFileById = new Map(references.fileById);

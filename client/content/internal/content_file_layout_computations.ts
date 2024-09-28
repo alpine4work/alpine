@@ -2,6 +2,7 @@ import * as kiwi from "@lume/kiwi";
 import {contentStyles} from "~/client/styles/styles.js";
 import {remPxByPlatform, screenPaddingXRem} from "~/shared/design/spacing.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
@@ -73,6 +74,12 @@ function round6(n: number) {
     return Math.round(n * 10 ** 6) / 10 ** 6;
 }
 
+export type ContentFileLayout = {
+    readonly width: number;
+    readonly widthFr: number;
+    readonly height: number;
+};
+
 /**
  * Layout the files in a file row. Uses the [Cassowary algorithm][1]
  * (specifically the [`@lume/kiwi`][2] JavaScript implementation) to determine
@@ -96,10 +103,13 @@ function round6(n: number) {
  * [2]: https://github.com/lume/kiwi
  * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
-export function layoutContentFileRow<Files extends Array<FileModel | null>>(
+export function computeContentFileRowLayout<Files extends Array<FileModel | null>>(
     files: Files,
     {screenWidth, isMobile}: {screenWidth: number; isMobile: boolean},
-): {[Key in keyof Files]: {width: number; widthFr: number; height: number}} {
+): {[Key in keyof Files]: ContentFileLayout} {
+    assert(files.length >= 1);
+    assert(files.length <= 3);
+
     const remPx = remPxByPlatform[isMobile ? "mobile" : "desktop"];
 
     const solver = new kiwi.Solver();
@@ -310,11 +320,11 @@ export function layoutContentFileRow<Files extends Array<FileModel | null>>(
  * [2]: https://github.com/lume/kiwi
  * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
-export function layoutContentFileFloat(
+export function computeContentFileFloatLayout(
     direction: "left" | "right",
     file: FileModel | null,
     {screenWidth, isMobile}: {screenWidth: number; isMobile: boolean},
-) {
+): ContentFileLayout {
     const remPx = remPxByPlatform[isMobile ? "mobile" : "desktop"];
     const {width, height} = getFilePreviewSize(file);
 
@@ -486,6 +496,7 @@ export function layoutContentFileFloat(
 
     return {
         width: round3(widthSolution),
+        widthFr: 1,
         height: round3(heightSolution),
     };
 }

@@ -8,13 +8,16 @@ import net from "net";
 import {join as joinPath} from "path";
 import sharp from "sharp";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
 import {getFileAsUploader} from "~/server/files/data/files_table.js";
 import {createFileUploadService} from "~/server/files/upload/file_upload_service.js";
 import {ffprobeExecutablePath} from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
+import {
+    filesBindingName,
+    filesBucketName,
+} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
@@ -26,7 +29,6 @@ import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
@@ -51,7 +53,7 @@ beforeAll(async () => {
     port = await getPort();
 
     const r2Storage = new FileStorage(
-        joinPath(context.getTemporaryDirectoryPath(), "r2", filesBucketName),
+        joinPath(context.getTemporaryDirectoryPath(), "r2", filesBindingName),
     );
     const r2Bucket = new R2Bucket(r2Storage);
     const r2ContextModule = new CloudflareR2ContextModule(
@@ -839,7 +841,7 @@ test("can upload image", async () => {
     );
 });
 
-test.only("can't resize an image with a session actor", async () => {
+test("can't resize an image with a session actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -896,7 +898,7 @@ test.only("can't resize an image with a session actor", async () => {
     expect(await resizeResponse.text()).toEqual("400 Bad Request");
 });
 
-test.only("can't resize an image with a token that's not from edge service", async () => {
+test("can't resize an image with a token that's not from edge service", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -953,7 +955,7 @@ test.only("can't resize an image with a token that's not from edge service", asy
     expect(await resizeResponse.text()).toEqual("400 Bad Request");
 });
 
-test.only("can resize a JPEG image", async () => {
+test("can resize a JPEG image", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1088,7 +1090,7 @@ test.only("can resize a JPEG image", async () => {
     }
 });
 
-test.only("can resize a PNG image", async () => {
+test("can resize a PNG image", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1199,7 +1201,7 @@ test.only("can resize a PNG image", async () => {
 });
 
 // TODO(calebmer, #files): Make sure animated GIFs work.
-test.only("can resize a GIF image", async () => {
+test("can resize a GIF image", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1405,7 +1407,7 @@ test.only("can resize a GIF image", async () => {
     }
 });
 
-test.only("can resize an AVIF image", async () => {
+test("can resize an AVIF image", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 

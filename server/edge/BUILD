@@ -16,6 +16,7 @@ ts_project(
         "//server/tasks/notes_collaboration",
         "//server/tasks/router",
         "//server/tracer",
+        "//shared/files",
         "//shared/helpers",
         "//shared/schema",
         "//shared/tracer/dev",

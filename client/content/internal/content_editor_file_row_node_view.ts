@@ -1,16 +1,15 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {layoutContentFileRow} from "~/client/content/internal/layout_content_file.js";
+import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/internal/content_editor_file_node_view.js";
+import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
+import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getIsMobileWithoutListening,
     subscribeToIsMobileChange,
 } from "~/client/remix/use_is_mobile.js";
-import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
-import {FileId} from "~/shared/id/types/id_types.js";
 
 export function createContentEditorFileRowNodeViewConstructor({
     subscribeToReferencesUpdate,
@@ -30,34 +29,27 @@ export function createContentEditorFileRowNodeViewConstructor({
         dom.contentEditable = "false";
 
         let isDestroyed = false;
-        let lastIsMobile: boolean | null = null;
-        let lastFiles: Array<FileModel | null> | null = null;
+        let lastLayouts: ReadonlyArray<ContentFileLayout> | null = null;
 
         const update = () => {
             assert(!isDestroyed);
 
             const isMobile = getIsMobileWithoutListening();
-            const references = getContentEditorReferences(view.state).references;
+            const {references} = getContentEditorReferences(view.state);
 
-            const files = node.content.content.map(childNode => {
-                assert(childNode.type.name === "file");
-                const fileId: FileId | null = childNode.attrs.fileId;
-                if (!fileId) return null;
-                return references.fileById.get(fileId)?.file ?? null;
-            });
-
-            if (lastIsMobile === isMobile && lastFiles && isShallowEqual(files, lastFiles)) return;
-
-            lastIsMobile = isMobile;
-            lastFiles = files;
-
-            const layout = layoutContentFileRow(files, {
+            const layouts = layoutContentFileParent(references, node, {
                 screenWidth: getClientInfo().screenWidth,
                 isMobile,
             });
 
-            dom.style.height = `${Math.max(...layout.map(({height}) => height))}px`;
-            dom.style.gridTemplateColumns = layout.map(({widthFr}) => `${widthFr}fr`).join(" ");
+            if (lastLayouts !== layouts) {
+                lastLayouts = layouts;
+
+                dom.style.height = `${Math.max(...layouts.map(({height}) => height))}px`;
+                dom.style.gridTemplateColumns = layouts
+                    .map(({widthFr}) => `${widthFr}fr`)
+                    .join(" ");
+            }
         };
 
         update();
@@ -73,6 +65,13 @@ export function createContentEditorFileRowNodeViewConstructor({
 
                 node = newNode;
                 update();
+
+                for (const childNode of dom.childNodes) {
+                    if (childNode instanceof Element) {
+                        dispatchUpdatedContentEditorFileParentEvent(childNode);
+                    }
+                }
+
                 return true;
             },
             destroy: () => {

@@ -9,7 +9,6 @@ import {extname, join as joinPath} from "path";
 import sharp from "sharp";
 import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestTokenAgents} from "~/server/dynamo/test_helpers/create_test_token_agent.js";
@@ -19,6 +18,10 @@ import {
     ffmpegExecutablePath,
     ffprobeExecutablePath,
 } from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
+import {
+    filesBindingName,
+    filesBucketName,
+} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -99,7 +102,7 @@ export function testFileProcessorContentTypes(
         port = await getPort();
 
         const r2Storage = new FileStorage(
-            joinPath(context.getTemporaryDirectoryPath(), "r2", filesBucketName),
+            joinPath(context.getTemporaryDirectoryPath(), "r2", filesBindingName),
         );
         r2Bucket = new R2Bucket(r2Storage);
         const r2ContextModule = new CloudflareR2ContextModule(

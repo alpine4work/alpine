@@ -1,11 +1,14 @@
 import {Node} from "prosemirror-model";
+import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
+import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToCssDataUrl} from "~/shared/helpers/html/convert_svg_to_css_data_url.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
 /**
@@ -14,8 +17,10 @@ import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_pro
  * `<ContentView>`.
  */
 export function renderContentFilePreview(
+    spaceId: SpaceId,
     node: Node,
-    file: FileModel | undefined,
+    reference: {previewUrlSearch: string | null; file: FileModel} | undefined,
+    layout: ContentFileLayout,
 ): HtmlElementGenerator {
     assert(node.type.name === "file");
 
@@ -23,16 +28,16 @@ export function renderContentFilePreview(
 
     assert(html instanceof HtmlElementGenerator);
 
-    if (process.env.NODE_ENV !== "production" && file) {
-        html.setAttribute("data-testid", `ContentFile:${file.contentType}`);
+    if (process.env.NODE_ENV !== "production" && reference) {
+        html.setAttribute("data-testid", `ContentFile:${reference.file.contentType}`);
     }
 
-    if (!file) {
+    if (!reference) {
         // TODO(calebmer, #files): Implement
-    } else if (!file.preview) {
+    } else if (!reference.file.preview) {
         // TODO(calebmer, #files): Implement
     } else {
-        switch (file.preview.type) {
+        switch (reference.file.preview.type) {
             case "Audio": {
                 // TODO(calebmer, #files): Implement
                 break;
@@ -43,17 +48,17 @@ export function renderContentFilePreview(
             }
             case "Image": {
                 if (
-                    (!file.preview.isProcessing && !file.preview.ok) ||
-                    file.preview.placeholder === "Processing" ||
-                    file.preview.size === "Processing"
+                    (!reference.file.preview.isProcessing && !reference.file.preview.ok) ||
+                    reference.file.preview.placeholder === "Processing" ||
+                    reference.file.preview.size === "Processing"
                 ) {
                     // TODO(calebmer, #files): Implement
                     break;
                 }
 
                 const svg = renderFileImagePreviewPlaceholder(
-                    file.preview.size,
-                    file.preview.placeholder,
+                    reference.file.preview.size,
+                    reference.file.preview.placeholder,
                 );
 
                 html.setAttribute(
@@ -65,13 +70,43 @@ export function renderContentFilePreview(
                     ].join("; "),
                 );
 
-                if (typeof file.preview.videoDuration === "number") {
+                // NOCOMMIT: Don't resize if file is less than width
+
+                const imageSourcePathname = `/files/${spaceId}/${reference.file.id}${
+                    reference.file.preview.content !== undefined ? "-preview" : ""
+                }`;
+
+                // NOCOMMIT: If `fileReference.previewUrlSearch` is expired we need to request
+                // a new one
+                const image1xSource = `${imageSourcePathname}${
+                    reference.previewUrlSearch
+                }&width=${getFilePreviewImageResizeWidth(layout.width)}`;
+
+                const image2xSource = `${imageSourcePathname}${
+                    reference.previewUrlSearch
+                }&width=${getFilePreviewImageResizeWidth(layout.width * 2)}`;
+
+                const image3xSource = `${imageSourcePathname}${
+                    reference.previewUrlSearch
+                }&width=${getFilePreviewImageResizeWidth(layout.width * 3)}`;
+
+                // NOCOMMIT: Save and reuse image HTML DOM elements?
+                const imageHtml = new HtmlElementGenerator("img");
+                imageHtml.setAttribute("src", image1xSource);
+                imageHtml.setAttribute(
+                    "srcset",
+                    `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`,
+                );
+
+                html.appendChild(imageHtml);
+
+                if (typeof reference.file.preview.videoDuration === "number") {
                     // TODO(calebmer, #files): Implement
                 }
                 break;
             }
             default:
-                throw exhaustive(file.preview);
+                throw exhaustive(reference.file.preview);
         }
     }
 

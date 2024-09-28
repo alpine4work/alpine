@@ -369,7 +369,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--ensureLocalCachePath=${ensureLocalCachePath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
-                `--cloudflareR2LocalPath=${cloudflareR2LocalDataPath}`,
+                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--temporaryDirectoryPath=${fileUploadServiceTemporaryDirectoryPath}`,
             ],
             {

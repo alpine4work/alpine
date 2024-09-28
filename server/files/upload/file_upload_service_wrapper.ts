@@ -66,7 +66,10 @@ export async function run({
 
     const server = createFileUploadService(processContext, {
         tokenAgent,
-        temporaryDirectoryPath: assertExists("`temporaryDirectoryPath` option is required"),
+        temporaryDirectoryPath: assertExists(
+            options.temporaryDirectoryPath,
+            "`temporaryDirectoryPath` option is required",
+        ),
     });
 
     registerGracefulServerShutdown(shutdownManager, server);

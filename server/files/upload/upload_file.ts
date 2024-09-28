@@ -2,7 +2,6 @@ import {IncomingMessage, ServerResponse} from "http";
 import prettyBytes from "pretty-bytes";
 import sharp from "sharp";
 import {Readable as ReadableStream} from "stream";
-import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
     FileUploader,
     startUploadingAndProcessingFile,
@@ -25,6 +24,7 @@ import {createFileWebSafeVideoProcessor} from "~/server/files/upload/processors/
 import {createFileWebUnsafeAudioProcessor} from "~/server/files/upload/processors/file_web_unsafe_audio_processor.js";
 import {createFileWebUnsafeImageProcessor} from "~/server/files/upload/processors/file_web_unsafe_image_processor.js";
 import {createFileWebUnsafeVideoProcessor} from "~/server/files/upload/processors/file_web_unsafe_video_processor.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";

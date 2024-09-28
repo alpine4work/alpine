@@ -5,12 +5,12 @@ import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";
 import {join as joinPath} from "path";
 import {finished} from "stream/promises";
-import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {FileUploadServiceActionContext} from "~/server/files/upload/file_upload_service_context.js";
 import {
     ffmpegExecutablePath,
     parseFfmpegStderrInputCodecNames,
 } from "~/server/files/upload/processors/file_video_and_audio_processor_base.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
@@ -105,6 +105,8 @@ export async function resizeFile(
     },
 ): Promise<void> {
     parentSpan.addPropagatedData({context: {fileId}});
+
+    if (req.method !== "GET") throw new InvalidArgumentError("Invalid HTTP request method");
 
     // Make sure we've been proxied through `EdgeService` when uploading a file. We
     // don't support resizing from other services like `JobQueueService`.
@@ -233,6 +235,20 @@ export async function resizeFile(
             res.writeHead(200, {
                 "content-type": "image/avif",
                 "content-length": (await fs.stat(outputPath)).size,
+                // After resizing, the result should be cached.
+                //
+                // - `private`: A user can only see files they have access to. Don't store
+                //   files in a shared cache since an attacker may be able to see a file they
+                //   don't have access to.
+                //
+                // - `immutable`: Files are immutable after they've been uploaded. While
+                //   hitting this route will resize the file on demand causing the bytes to not
+                //   be strictly the same over time, the perceived result to the end user will
+                //   never change so it's safe to cache this response as an immutable value.
+                //
+                // - `max-age`: Keep our response cached for 30 days. It's fine to get rid of
+                //   the file after that and request again if needed.
+                "cache-control": `private, immutable, max-age=${60 * 60 * 24 * 30}`,
             });
             await finished(fsSync.createReadStream(outputPath).pipe(res));
         },

@@ -29,7 +29,7 @@ export const ContentReferencesSchema = Schema.object({
      * Also includes the search part of the preview URL we'll need to render in
      * `previewUrlSearch`. We only include the search part since the path and
      * domain can be easily generated on the client. The path pattern is
-     * `/s/:spaceId/files/:fileId`. You won't find a Remix route for this path
+     * `/files/:spaceId/:fileId`. You won't find a Remix route for this path
      * since it's handled by `EdgeService`.
      */
     // TODO(calebmer, #files): Right now files are only allowed in document content
@@ -98,22 +98,32 @@ export function mergeContentReferences(
 
     // Merge files together...
     //
-    // Prefer `existingFile` in `FileModel.minLoadingCount()` to avoid unnecessary
-    // re-renders. Pick the `previewUrlSearch` that expires later.
+    // Prefer `existingFileReference` in `FileModel.minLoadingCount()` to avoid
+    // unnecessary re-renders. Pick the `previewUrlSearch` that expires later.
     for (const [fileId, file] of concatIterables(references1.fileById, references2.fileById)) {
-        const existingFile = fileById.get(fileId);
-        fileById.set(fileId, {
+        const existingFileReference = fileById.get(fileId);
+
+        const newFileReference = {
             previewUrlSearch:
-                existingFile?.previewUrlSearch &&
+                existingFileReference?.previewUrlSearch &&
                 file.previewUrlSearch &&
-                getContentReferencesFileSignedUrlExpirationTime(existingFile.previewUrlSearch) >=
-                    getContentReferencesFileSignedUrlExpirationTime(file.previewUrlSearch)
-                    ? existingFile.previewUrlSearch
+                getContentReferencesFileSignedUrlExpirationTime(
+                    existingFileReference.previewUrlSearch,
+                ) >= getContentReferencesFileSignedUrlExpirationTime(file.previewUrlSearch)
+                    ? existingFileReference.previewUrlSearch
                     : file.previewUrlSearch,
-            file: existingFile
-                ? FileModel.minLoadingCount(existingFile.file, file.file)
+            file: existingFileReference
+                ? FileModel.minLoadingCount(existingFileReference.file, file.file)
                 : file.file,
-        });
+        };
+
+        if (
+            !existingFileReference ||
+            newFileReference.previewUrlSearch !== existingFileReference.previewUrlSearch ||
+            newFileReference.file !== existingFileReference.file
+        ) {
+            fileById.set(fileId, newFileReference);
+        }
     }
 
     return {

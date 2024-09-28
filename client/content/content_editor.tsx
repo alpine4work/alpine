@@ -903,6 +903,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     },
                 }),
                 file: createContentEditorFileNodeViewConstructor({
+                    getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                     subscribeToReferencesUpdate: listener => {
                         referencesUpdateEmitterRef.current ??= new EventEmitter();
                         return referencesUpdateEmitterRef.current.subscribe(listener);

@@ -74,6 +74,9 @@ type TracerEventHttpHeaderNameMap = {
     "cf-ipcountry": true;
     "cdn-loop": true;
     "cf-worker": true;
+    // Cloudflare cache status header
+    // https://developers.cloudflare.com/cache/concepts/cache-responses
+    "cf-cache-status": true;
     // APNs headers
     // https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns
     // https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns#Understand-error-codes
@@ -147,6 +150,7 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "cf-ipcountry": true,
     "cdn-loop": true,
     "cf-worker": true,
+    "cf-cache-status": true,
     "apns-push-type": true,
     "apns-id": true,
     "apns-expiration": true,

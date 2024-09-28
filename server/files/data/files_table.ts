@@ -1,6 +1,5 @@
 import prettyBytes from "pretty-bytes";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {filesBucketName} from "~/server/cloudflare/r2/files_bucket_name.js";
 import {
     ServerActionContext,
     ServerActionContextModules,
@@ -15,6 +14,7 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
