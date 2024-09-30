@@ -3,7 +3,6 @@ import {Node} from "prosemirror-model";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
-import {reduceContentReferencesShared} from "~/client/content/content_editor_state.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {
@@ -36,8 +35,9 @@ import {
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {
+    ContentReferences,
     ContentWithReferences,
-    getContentReferencesFileSignedUrlExpirationTime,
+    mergeContentReferencesFileById,
 } from "~/shared/content/content_references.js";
 import {fileClassName, linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
@@ -47,7 +47,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
@@ -268,25 +267,23 @@ export function ContentView({
     const [filePreviewExpirationTimers] = useState<ContentFilePreviewExpirationTimers | undefined>(
         () => (fileAttachmentTarget ? new ContentFilePreviewExpirationTimers() : undefined),
     );
-    const [updatedFilePreviewUrlSearchByFileId, setUpdatedFilePreviewUrlSearchByFileId] =
-        useState<ReadonlyMap<FileId, string | null> | null>(null);
+    const [updatedContentReferencesFileById, setUpdatedContentReferencesFileById] = useState<
+        ContentReferences["fileById"] | null
+    >(null);
 
     const updatedContentReferences = useMemo(() => {
-        if (!updatedFilePreviewUrlSearchByFileId) return contentFromProps.references;
+        if (!updatedContentReferencesFileById) return contentFromProps.references;
 
-        // Merge all our updated file preview URLs into the content references from
-        // props. So we can render with the new content references.
-        return reduceIterable(
-            updatedFilePreviewUrlSearchByFileId,
-            (references, [fileId, previewUrlSearch]) =>
-                reduceContentReferencesShared(references, {
-                    type: "SetFilePreviewUrlSearch",
-                    fileId,
-                    previewUrlSearch,
-                }),
-            contentFromProps.references,
+        const newFileById = mergeContentReferencesFileById(
+            contentFromProps.references.fileById,
+            updatedContentReferencesFileById,
         );
-    }, [contentFromProps.references, updatedFilePreviewUrlSearchByFileId]);
+
+        if (newFileById === contentFromProps.references.fileById)
+            return contentFromProps.references;
+
+        return {...contentFromProps.references, fileById: newFileById};
+    }, [contentFromProps.references, updatedContentReferencesFileById]);
 
     const content = useMemo(
         () => ({doc: contentFromProps.doc, references: updatedContentReferences}),
@@ -868,37 +865,24 @@ export function ContentView({
                         reference: fileReference,
                         attachmentTarget: assertExists(fileAttachmentTarget),
                         expirationTimers: assertExists(filePreviewExpirationTimers),
-                        onPreviewUrlSearchRefresh: previewUrlSearch => {
-                            setUpdatedFilePreviewUrlSearchByFileId(filePreviewUrlSearchByFileId => {
-                                if (!fileId) return filePreviewUrlSearchByFileId;
-
-                                const oldPreviewUrlSearch =
-                                    filePreviewUrlSearchByFileId?.get(fileId);
-
-                                // Pick the `previewUrlSearch` that expires later.
-                                const newPreviewUrlSearch =
-                                    oldPreviewUrlSearch &&
-                                    previewUrlSearch &&
-                                    getContentReferencesFileSignedUrlExpirationTime(
-                                        oldPreviewUrlSearch,
-                                    ) >=
-                                        getContentReferencesFileSignedUrlExpirationTime(
-                                            previewUrlSearch,
-                                        )
-                                        ? oldPreviewUrlSearch
-                                        : previewUrlSearch;
-
-                                if (oldPreviewUrlSearch === newPreviewUrlSearch) {
-                                    return filePreviewUrlSearchByFileId;
-                                }
-
-                                const newFilePreviewUrlSearchByFileId = new Map(
-                                    filePreviewUrlSearchByFileId,
+                        isOurEditorUploading: false,
+                        onUpdate: (file, previewUrlSearch) => {
+                            setUpdatedContentReferencesFileById(fileById => {
+                                return mergeContentReferencesFileById(
+                                    fileById ?? new Map(),
+                                    new Map([[file.id, {previewUrlSearch, file}]]),
                                 );
+                            });
+                        },
+                        onPreviewUrlSearchRefresh: (fileId, previewUrlSearch) => {
+                            setUpdatedContentReferencesFileById(fileById => {
+                                const oldFile = content.references.fileById.get(fileId);
+                                if (!oldFile) return fileById;
 
-                                newFilePreviewUrlSearchByFileId.set(fileId, newPreviewUrlSearch);
-
-                                return newFilePreviewUrlSearchByFileId;
+                                return mergeContentReferencesFileById(
+                                    fileById ?? new Map(),
+                                    new Map([[fileId, {previewUrlSearch, file: oldFile.file}]]),
+                                );
                             });
                         },
                     },

@@ -30,7 +30,6 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {
-    ContentEditorReferencesSetFilePreviewUrlSearchAction,
     ContentEditorState,
     getContentEditorFloaterState,
     getContentEditorReferences,
@@ -104,7 +103,6 @@ import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.
 import {UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -117,7 +115,7 @@ import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {Id, generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
@@ -827,8 +825,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             : undefined;
         filePreviewExpirationTimers?.play();
 
-        let scheduledFilePreviewUrlSearchRefreshActions: Array<ContentEditorReferencesSetFilePreviewUrlSearchAction> | null =
-            null;
+        let uploadingFileIds: Set<FileId> | undefined;
 
         const view = new EditorView(rootElement, {
             state: initialState,
@@ -946,35 +943,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         referencesUpdateEmitterRef.current ??= new EventEmitter();
                         return referencesUpdateEmitterRef.current.subscribe(listener);
                     },
-                    onPreviewUrlSearchRefresh: (fileId, previewUrlSearch) => {
-                        // Wait a macrotask to collect all refreshed URLs in case multiple preview URLs
-                        // were refreshed at once. We want to run one `view.dispatch()` for all
-                        // updates.
-                        if (scheduledFilePreviewUrlSearchRefreshActions === null) {
-                            scheduledFilePreviewUrlSearchRefreshActions = [];
-                            scheduleMacrotask(() => {
-                                if (!scheduledFilePreviewUrlSearchRefreshActions) return;
-                                const actions = scheduledFilePreviewUrlSearchRefreshActions;
-                                scheduledFilePreviewUrlSearchRefreshActions = null;
-
-                                if (view.isDestroyed) return;
-
-                                view.dispatch(
-                                    actions.reduce(
-                                        (transaction, action) =>
-                                            updateContentEditorReferences(transaction, action),
-                                        view.state.tr,
-                                    ),
-                                );
-                            });
-                        }
-
-                        scheduledFilePreviewUrlSearchRefreshActions.push({
-                            type: "SetFilePreviewUrlSearch",
-                            fileId,
-                            previewUrlSearch,
-                        });
-                    },
+                    isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
                 }),
             },
 
@@ -1135,6 +1104,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         process.env.NODE_ENV === "development"
                     ) {
                         runPromiseWithoutAwaiting(async () => {
+                            let uploadingFileId: FileId | undefined;
                             let unsubscribeFromFileStore: (() => void) | undefined;
 
                             // TODO(calebmer, #files): Error handling
@@ -1145,6 +1115,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     assertExists(fileItem.getAsFile()),
                                     {
                                         onAttach: ({previewUrlSearch, fileStore}) => {
+                                            const initialFile = fileStore.getSnapshot();
+                                            uploadingFileId = initialFile.id;
+                                            (uploadingFileIds ??= new Set()).add(initialFile.id);
+
                                             // Whenever the file changes during the upload, make sure to update it in
                                             // our content references. We unsubscribe once the upload has finished since
                                             // after that the file should be immutable.
@@ -1157,8 +1131,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                     }),
                                                 );
                                             });
-
-                                            const initialFile = fileStore.getSnapshot();
 
                                             const transaction = view.state.tr;
 
@@ -1198,6 +1170,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     },
                                 );
                             } finally {
+                                if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
                                 unsubscribeFromFileStore?.();
                             }
                         });
@@ -3170,9 +3143,6 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Implement scroll while dragging.
 
-// TODO(calebmer, #files): Poll while file isn't fully available. In both
-// `<ContentEditor>` and `<ContentView>`!
-
 // TODO(calebmer, #files): Drag to move files.
 
 // TODO(calebmer, #files): Copy/paste files.
@@ -3182,6 +3152,11 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): If the last node in a document is an empty paragraph
 // maybe don't show drop indicator before and after empty paragraph.
+
+// TODO(calebmer, #files): Arrow up and down appear to be broken?
+
+// TODO(calebmer, #files): Images with alpha does placeholder show through? We
+// probably need some fade animation.
 
 /**
  * Get the targets for dropping a file into our document around some top block

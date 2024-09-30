@@ -11,6 +11,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 // - Floating files
 // - Comments on file rows and floating files
 // - File toolbar
+// - Other file can see dropped file in realtime (also check document `/view`)
 
 const {context, services} = createTestServices();
 

@@ -86,7 +86,6 @@ export function mergeContentReferences(
     if (isEmptyContentReferences(references2)) return references1;
 
     const accountById = new Map<ContentMentionAccountId, AccountModel>();
-    const fileById = new Map<FileId, {previewUrlSearch: string | null; file: FileModel}>();
 
     // Merge accounts together...
     for (const [accountId, account] of concatIterables(
@@ -97,40 +96,51 @@ export function mergeContentReferences(
         accountById.set(accountId, existingAccount ? existingAccount.merge(account) : account);
     }
 
+    return {
+        accountById,
+        fileById: mergeContentReferencesFileById(references1.fileById, references2.fileById),
+    };
+}
+
+export function mergeContentReferencesFileById(
+    fileById1: ContentReferences["fileById"],
+    fileById2: ContentReferences["fileById"],
+): ContentReferences["fileById"] {
+    let newFileById: Map<FileId, {previewUrlSearch: string | null; file: FileModel}> | undefined;
+
     // Merge files together...
     //
     // Prefer `existingFileReference` in `FileModel.minLoadingCount()` to avoid
     // unnecessary re-renders. Pick the `previewUrlSearch` that expires later.
-    for (const [fileId, file] of concatIterables(references1.fileById, references2.fileById)) {
-        const existingFileReference = fileById.get(fileId);
+    for (const [fileId2, file2] of fileById2) {
+        const fileReference1 = fileById1.get(fileId2);
 
         const newFileReference = {
             previewUrlSearch:
-                existingFileReference?.previewUrlSearch &&
-                file.previewUrlSearch &&
-                getContentReferencesFileSignedUrlExpirationTime(
-                    existingFileReference.previewUrlSearch,
-                ) >= getContentReferencesFileSignedUrlExpirationTime(file.previewUrlSearch)
-                    ? existingFileReference.previewUrlSearch
-                    : file.previewUrlSearch,
-            file: existingFileReference
-                ? FileModel.minLoadingCount(existingFileReference.file, file.file)
-                : file.file,
+                fileReference1?.previewUrlSearch &&
+                file2.previewUrlSearch &&
+                getContentReferencesFileSignedUrlExpirationTime(fileReference1.previewUrlSearch) >=
+                    getContentReferencesFileSignedUrlExpirationTime(file2.previewUrlSearch)
+                    ? fileReference1.previewUrlSearch
+                    : file2.previewUrlSearch,
+            file: fileReference1
+                ? FileModel.minLoadingCount(fileReference1.file, file2.file)
+                : file2.file,
         };
 
         if (
-            !existingFileReference ||
-            newFileReference.previewUrlSearch !== existingFileReference.previewUrlSearch ||
-            newFileReference.file !== existingFileReference.file
+            !fileReference1 ||
+            newFileReference.previewUrlSearch !== fileReference1.previewUrlSearch ||
+            newFileReference.file !== fileReference1.file
         ) {
-            fileById.set(fileId, newFileReference);
+            newFileById ??= new Map(fileById1);
+            newFileById.set(fileId2, newFileReference);
         }
     }
 
-    return {
-        accountById,
-        fileById,
-    };
+    // If there's nothing new in `fileById2` then `newFileById` won't have been
+    // initialized.
+    return newFileById ?? fileById1;
 }
 
 /**

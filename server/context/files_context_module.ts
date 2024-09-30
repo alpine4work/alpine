@@ -63,12 +63,12 @@ export class FilesContextModule extends FilesContextModuleBase {
             // Expire the signed URL after two full days, 24 hours.
             //
             // When a file is about to expire the client needs to execute the RPC
-            // `getFilePreviewUrl()` and update the `<img>` element rendering the file with
-            // the new URL (this is done in `render_content_file_preview.ts`). Otherwise
-            // the user may end up seeing broken images. We set an expiration time of 24
-            // hours to make this client URL refreshing rare in practice. Since when we
-            // refresh a file's URL the browser needs to go fetch the new file from our
-            // servers.
+            // `getFilePreviewUrlFromAttachment()` and update the `<img>` element rendering
+            // the file with the new URL (this is done in
+            // `render_content_file_preview.ts`). Otherwise the user may end up seeing
+            // broken images. We set an expiration time of 24 hours to make this client URL
+            // refreshing rare in practice. Since when we refresh a file's URL the browser
+            // needs to go fetch the new file from our servers.
             //
             // We need an expiration time so that if a user loses access to the entity the
             // file is attached to then they'll also lose access to the file (since they
@@ -85,8 +85,8 @@ export class FilesContextModule extends FilesContextModuleBase {
             // If the user added a file to their post draft then `localStorage` will
             // contain the signed `previewUrlSearch` property. If the user opens their
             // draft three days later then the `previewUrlSearch` has long expired. So the
-            // client will call `getFilePreviewUrl()` to get an updated signed URL for the
-            // file.
+            // client will call `getFilePreviewUrlFromAttachment()` to get an updated
+            // signed URL for the file.
             //
             // ### Thinking through the security implications of a long expiration time
             //

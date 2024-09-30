@@ -17,7 +17,10 @@ import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {getFilePreviewUrl} from "~/shared/rpc/files_rpc_definitions.js";
+import {
+    getFileFromAttachment,
+    getFilePreviewUrlFromAttachment,
+} from "~/shared/rpc/files_rpc_definitions.js";
 import {falseStore, trueStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -363,10 +366,11 @@ export function addContentFilePreviewBehavior(
     element: HTMLElement,
     {
         spaceId,
-        node,
         reference,
         attachmentTarget,
         expirationTimers,
+        isOurEditorUploading,
+        onUpdate,
         onPreviewUrlSearchRefresh,
     }: {
         spaceId: SpaceId;
@@ -374,7 +378,9 @@ export function addContentFilePreviewBehavior(
         reference: {previewUrlSearch: string | null; file: FileModel} | undefined;
         attachmentTarget: FileAttachmentTarget;
         expirationTimers: ContentFilePreviewExpirationTimers;
-        onPreviewUrlSearchRefresh: (previewUrlSearch: string | null) => void;
+        isOurEditorUploading: ((fileId: FileId) => boolean) | false;
+        onUpdate: (file: FileModel, previewUrlSearch: string | null) => void;
+        onPreviewUrlSearchRefresh: (fileId: FileId, previewUrlSearch: string | null) => void;
     },
 ): () => void {
     assert(element.classList.contains(fileClassName));
@@ -382,22 +388,89 @@ export function addContentFilePreviewBehavior(
     // Make sure `play()` was called on the expiration timers object.
     assert(!expirationTimers.isPaused());
 
-    const fileId: FileId | null = node.attrs.fileId;
-    let unsubscribeFromShouldRefreshStore: (() => void) | null = null;
+    let pollTimeout: Timeout | null = null;
+    let unsubscribeFromRefreshTimer: (() => void) | null = null;
+
+    // While our file is loading, poll for updates.
+    if (reference?.file && reference.file.isLoading()) {
+        let pollCount = 0;
+        let pollErrorCount = 0;
+
+        const schedulePoll = () => {
+            assert(pollTimeout === null);
+
+            // Increase the poll duration exponentially until we're polling every ~5s.
+            pollTimeout = createTimeout(poll, 500 + 2 ** Math.min(pollCount, 12));
+        };
+
+        const poll = () => {
+            pollTimeout = null;
+            pollCount++;
+
+            // Don't poll if our editor is the one uploading the file. Then we'll have a
+            // connection to `FileUploadService` which will push update events as different
+            // parts of the file finish uploading. We still want the poll timers to run so
+            // that if our editor stops uploading the file (e.g. if the HTTP request times
+            // out) then polling will kick in to update the file.
+            if (isOurEditorUploading !== false && isOurEditorUploading(reference.file.id)) {
+                schedulePoll();
+                return;
+            }
+
+            getFileFromAttachment(getContext(), {
+                spaceId,
+                fileId: reference.file.id,
+                target: attachmentTarget,
+                withPreviewUrl: !reference.previewUrlSearch,
+            }).then(
+                ({file: newFile, previewUrlSearch: newPreviewUrlSearch}) => {
+                    onUpdate(
+                        newFile,
+                        // We only generate a new signed preview URL when we don't have one
+                        // (`reference.previewUrlSearch` is null). So only use the new preview URL
+                        // then.
+                        !reference.previewUrlSearch
+                            ? newPreviewUrlSearch
+                            : reference.previewUrlSearch,
+                    );
+
+                    if (newFile.isLoading()) {
+                        schedulePoll();
+                    }
+                },
+                error => {
+                    pollErrorCount++;
+
+                    if (pollErrorCount < 3) {
+                        schedulePoll();
+                    } else {
+                        getContext()
+                            .tracer.getRoot()
+                            .logUncaughtException(
+                                "Polling for file that hasn't finished loading failed",
+                                error,
+                            );
+                    }
+                },
+            );
+        };
+
+        schedulePoll();
+    }
 
     // If we have a preview URL then schedule a timer for the future when our file
     // URL needs to be refreshed.
-    if (fileId && reference?.previewUrlSearch) {
+    if (reference?.previewUrlSearch) {
         const refreshTimerStore = expirationTimers.getRefreshTimerStore(reference.previewUrlSearch);
 
         const refresh = () => {
-            getFilePreviewUrl(getContext(), {
+            getFilePreviewUrlFromAttachment(getContext(), {
                 spaceId,
-                fileId,
-                fromAttachmentTarget: attachmentTarget,
+                fileId: reference.file.id,
+                target: attachmentTarget,
             }).then(
                 output => {
-                    onPreviewUrlSearchRefresh(output.previewUrlSearch);
+                    onPreviewUrlSearchRefresh(reference.file.id, output.previewUrlSearch);
                 },
                 error => {
                     // TODO(calebmer, #files): Should we present this error to the user somehow?
@@ -415,11 +488,11 @@ export function addContentFilePreviewBehavior(
         if (refreshTimerStore.getSnapshot()) {
             refresh();
         } else {
-            unsubscribeFromShouldRefreshStore = refreshTimerStore.subscribe(() => {
+            unsubscribeFromRefreshTimer = refreshTimerStore.subscribe(() => {
                 if (!refreshTimerStore.getSnapshot()) return;
 
-                unsubscribeFromShouldRefreshStore?.();
-                unsubscribeFromShouldRefreshStore = null;
+                unsubscribeFromRefreshTimer?.();
+                unsubscribeFromRefreshTimer = null;
 
                 refresh();
             });
@@ -427,7 +500,10 @@ export function addContentFilePreviewBehavior(
     }
 
     return () => {
-        unsubscribeFromShouldRefreshStore?.();
-        unsubscribeFromShouldRefreshStore = null;
+        pollTimeout?.clear();
+        pollTimeout = null;
+
+        unsubscribeFromRefreshTimer?.();
+        unsubscribeFromRefreshTimer = null;
     };
 }

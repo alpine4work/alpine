@@ -853,12 +853,10 @@ async function handleFileFetch(
             );
         }
 
-        return new Response(cachedResponse.body, {
-            ...cachedResponse,
+        return new Response(response.body, {
+            ...response,
             headers: responseHeaders,
         });
-
-        return response;
     } catch (error) {
         span.addException(error);
 

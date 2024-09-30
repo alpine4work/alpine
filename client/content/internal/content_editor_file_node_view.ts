@@ -1,6 +1,10 @@
 import {NodeSelection} from "prosemirror-state";
-import {NodeViewConstructor} from "prosemirror-view";
-import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
+import {EditorView, NodeViewConstructor} from "prosemirror-view";
+import {
+    ContentEditorReferencesSetFilePreviewUrlSearchAction,
+    getContentEditorReferences,
+    updateContentEditorReferences,
+} from "~/client/content/content_editor_state.js";
 import {withDisableContentEditorFileToolbarInitialAnimation} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {layoutContentFile} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
@@ -17,6 +21,7 @@ import {
 } from "~/client/remix/use_is_mobile.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -34,20 +39,24 @@ export function dispatchUpdatedContentEditorFileParentEvent(element: Element) {
     updatedContentEditorFileParentEventEmitterByElement?.get(element)?.emit();
 }
 
+let scheduledFilePreviewUrlSearchRefreshActionsByView:
+    | WeakMap<EditorView, Array<ContentEditorReferencesSetFilePreviewUrlSearchAction>>
+    | undefined;
+
 export function createContentEditorFileNodeViewConstructor({
     getContext,
     getSpaceId,
     getAttachmentTarget,
     getExpirationTimers,
     subscribeToReferencesUpdate,
-    onPreviewUrlSearchRefresh,
+    isOurEditorUploading,
 }: {
     getContext: () => AppContext;
     getSpaceId: () => SpaceId;
     getAttachmentTarget: () => FileAttachmentTarget;
     getExpirationTimers: () => ContentFilePreviewExpirationTimers;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
-    onPreviewUrlSearchRefresh: (fileId: FileId, previewUrlSearch: string | null) => void;
+    isOurEditorUploading: (fileId: FileId) => boolean;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
         let dom = null as HTMLElement | null;
@@ -116,10 +125,50 @@ export function createContentEditorFileNodeViewConstructor({
                     reference: fileReference,
                     attachmentTarget: getAttachmentTarget(),
                     expirationTimers: getExpirationTimers(),
-                    onPreviewUrlSearchRefresh: previewUrlSearch => {
-                        if (fileId) {
-                            onPreviewUrlSearchRefresh(fileId, previewUrlSearch);
-                        }
+                    // If we're currently uploading this `FileId` then disable polling.
+                    // `FileUploadService` will push us updates immediately when they're available.
+                    isOurEditorUploading,
+                    onUpdate: (file, previewUrlSearch) => {
+                        view.dispatch(
+                            updateContentEditorReferences(view.state.tr, {
+                                type: "SetFile",
+                                file,
+                                previewUrlSearch,
+                            }),
+                        );
+                    },
+                    onPreviewUrlSearchRefresh: (fileId, previewUrlSearch) => {
+                        // Wait a macrotask to collect all updated URLs and update the view with one
+                        // bulk transaction. Often we'll need to refresh all preview URLs in the
+                        // document at once because we generated their signed URLs at the same time.
+                        const scheduledFilePreviewUrlSearchRefreshActions = getOrSetDefaultMapValue(
+                            (scheduledFilePreviewUrlSearchRefreshActionsByView ??= new WeakMap()),
+                            view,
+                            () => {
+                                const actions: Array<ContentEditorReferencesSetFilePreviewUrlSearchAction> =
+                                    [];
+
+                                scheduleMacrotask(() => {
+                                    scheduledFilePreviewUrlSearchRefreshActionsByView?.delete(view);
+                                    if (view.isDestroyed) return;
+
+                                    view.dispatch(
+                                        actions.reduce(
+                                            updateContentEditorReferences,
+                                            view.state.tr,
+                                        ),
+                                    );
+                                });
+
+                                return actions;
+                            },
+                        );
+
+                        scheduledFilePreviewUrlSearchRefreshActions.push({
+                            type: "SetFilePreviewUrlSearch",
+                            fileId,
+                            previewUrlSearch,
+                        });
                     },
                 });
 

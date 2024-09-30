@@ -95,6 +95,13 @@ export class FileModel extends Model(
     }
 
     /**
+     * Is there a component of this file that's still loading?
+     */
+    public isLoading(): boolean {
+        return this._getLoadingCount() > 0;
+    }
+
+    /**
      * Count the number of components in the `FileModel` that are currently
      * loading. Given `FileModel`s are immutable we use this to determine which of
      * two `FileModel`s is "newer". The number of loading components should always
