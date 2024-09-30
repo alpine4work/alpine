@@ -32,8 +32,8 @@ const currentDateForTest = import.meta.jest
     : null;
 
 /**
- * Return the current time rounded to 10 minutes. This hook will update and re
- * render the component every 10 minutes.
+ * Return the current time rounded to 10 minutes. This hook will update and
+ * re-render the component every 10 minutes.
  *
  * Works with server-side rendering. The initial time comes from the server.
  */

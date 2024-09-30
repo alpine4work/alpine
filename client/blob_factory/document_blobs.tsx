@@ -8,7 +8,7 @@ import {
 } from "~/client/blob_factory/internal/draw_blob_factory.js";
 import {useDevConsoleSettingsObject} from "~/client/dev/dev_console.js";
 import {useColorScheme} from "~/client/helpers/color_scheme.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {documentBlobsStyles, sprinkles} from "~/client/styles/styles.js";

@@ -39,7 +39,7 @@ import {
     textInputTypes,
 } from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useLocalStorage} from "~/client/helpers/use_local_storage.js";

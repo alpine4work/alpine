@@ -15,9 +15,9 @@ import {Id, generateId} from "~/shared/id/id.js";
  * when the application mounts you want client side React to take over.
  */
 export function useIsInitialAppRender(): boolean {
-    const initialAppRenderId = useContext(AppInitialRenderContext);
+    const initialAppRender = useContext(AppInitialRenderContext);
 
-    if (initialAppRenderId === null) {
+    if (initialAppRender === null) {
         // In Jest tests, act like we are not in the initial render unless an
         // `<AppInitialRenderContextProvider>` is explicitly used.
         if (import.meta.jest) return false;
@@ -25,7 +25,7 @@ export function useIsInitialAppRender(): boolean {
         throw new InternalError("Must be rendered in an `<AppInitialRenderContextProvider>`");
     }
 
-    return initialAppRenderId !== false;
+    return initialAppRender !== false;
 }
 
 /**
@@ -44,9 +44,9 @@ export function useIsInitialAppRender(): boolean {
  * DOM they need to be the same.
  */
 export function useInitialAppRenderId(): Id | null {
-    const initialAppRenderId = useContext(AppInitialRenderContext);
+    const initialAppRender = useContext(AppInitialRenderContext);
 
-    if (initialAppRenderId === null) {
+    if (initialAppRender === null) {
         // In Jest tests, act like we are not in the initial render unless an
         // `useAppInitialRenderContextProvider()` is explicitly used.
         if (import.meta.jest) return null;
@@ -54,11 +54,55 @@ export function useInitialAppRenderId(): Id | null {
         throw new InternalError("Must be rendered in an `useAppInitialRenderContextProvider()`");
     }
 
-    return initialAppRenderId !== false ? (initialAppRenderId as Id) : null;
+    return initialAppRender !== false ? (initialAppRender.id as Id) : null;
+}
+
+/**
+ * If this is the initial app render then returns the initial app render time.
+ * This is useful if you need a time that's shared across the client and
+ * server so you don't have hydration issues.
+ *
+ * If non-null it's the initial app render. If null it's not the initial app
+ * render.
+ */
+export function useInitialAppRenderTime(): Date | null {
+    const initialAppRender = useContext(AppInitialRenderContext);
+
+    if (initialAppRender === null) {
+        // In Jest tests, act like we are not in the initial render unless an
+        // `useAppInitialRenderContextProvider()` is explicitly used.
+        if (import.meta.jest) return null;
+
+        throw new InternalError("Must be rendered in an `useAppInitialRenderContextProvider()`");
+    }
+
+    return initialAppRender !== false ? initialAppRender.time : null;
+}
+
+let isInitialAppRender = true;
+
+/**
+ * Is this the initial render of our application? Generally you should prefer
+ * using `useIsInitialAppRender()` since your component will re-render when
+ * it's no longer the initial app render but if it's useful to know whether
+ * we're either on the server or on the client in the initial app render
+ * outside of React code then you may call this.
+ *
+ * Always returns true on the server. Returns true on the client during React's
+ * initial hydration then switches to false once the app is ready to go.
+ *
+ * This function implies that initial app render is global state. There can't
+ * be two separate React apps in the same realm with independent initial render
+ * states. Since the server can't run React effects the server is always in
+ * initial render mode.
+ */
+export function getIsInitialAppRenderWithoutListening(): boolean {
+    return isInitialAppRender;
 }
 
 export function useAppInitialRenderContextProvider(
-    initialAppRenderIdProp: Id | undefined,
+    initialAppRenderTime: Date,
+    initialAppRenderId: Id | undefined,
     children: ReactNode,
 ): ReactElement {
     // There should only be one `<AppInitialRenderContextProvider>` at the root of
@@ -66,16 +110,20 @@ export function useAppInitialRenderContextProvider(
     const parentIsInitialAppRender = useContext(AppInitialRenderContext);
     assert(parentIsInitialAppRender === null);
 
-    const [initialAppRenderId, setInitialAppRenderId] = useState<Id | false>(
-        () => initialAppRenderIdProp ?? generateId(),
-    );
+    const [initialAppRender, setInitialAppRender] = useState<{time: Date; id: Id} | false>(() => ({
+        time: initialAppRenderTime,
+        id: initialAppRenderId ?? generateId(),
+    }));
 
     useEffect(() => {
-        setInitialAppRenderId(false);
+        assert(typeof window !== "undefined" && isInitialAppRender);
+        isInitialAppRender = false;
+
+        setInitialAppRender(false);
     }, []);
 
     return (
-        <AppInitialRenderContext.Provider value={initialAppRenderId}>
+        <AppInitialRenderContext.Provider value={initialAppRender}>
             {children}
         </AppInitialRenderContext.Provider>
     );

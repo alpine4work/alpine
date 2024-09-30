@@ -33,7 +33,7 @@ import {
 } from "~/client/helpers/color_scheme.js";
 import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
-import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useClientInfoContextProvider} from "~/client/remix/client_info_context.js";
@@ -501,7 +501,11 @@ export default function Root() {
     );
 
     const wrappedChildren = useGlobalContextProvider(
-        useAppInitialRenderContextProvider(loaderData?.initialAppRenderId, wrappedChildren2),
+        useAppInitialRenderContextProvider(
+            initialTime,
+            loaderData?.initialAppRenderId,
+            wrappedChildren2,
+        ),
     );
 
     return (

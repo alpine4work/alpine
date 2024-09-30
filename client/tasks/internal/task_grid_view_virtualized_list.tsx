@@ -32,8 +32,8 @@ import {maintainTextInputVisibility} from "~/client/design/use_text_input_visibi
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useInitialAppRenderId} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";

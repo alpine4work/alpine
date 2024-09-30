@@ -21,7 +21,7 @@ import {
     PostCreatorChannelSelectorInput,
     PostCreatorChannelSelectorInputRef,
 } from "~/client/forum/internal/post_creator_channel_selector_input.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useSessionStorage} from "~/client/helpers/use_local_storage.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";

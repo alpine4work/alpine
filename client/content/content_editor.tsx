@@ -81,7 +81,7 @@ import {textInputVisibilityMaintainerMarginYRem} from "~/client/design/use_text_
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {flushSyncIfNotRendering} from "~/client/helpers/flush_sync_if_not_rendering.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";

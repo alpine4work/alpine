@@ -16,7 +16,7 @@ import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {fontSizes, sprinkles, tasksStyles} from "~/client/styles/styles.js";
 import {taskDetailViewTitleFontSize} from "~/client/styles/tasks_shared_styles.js";

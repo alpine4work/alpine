@@ -7,7 +7,7 @@ import {
 } from "~/client/design/error_display_message_renderer.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";

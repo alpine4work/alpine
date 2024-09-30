@@ -30,9 +30,9 @@ import {
     useScrollbar,
 } from "~/client/design/scrollbar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {

@@ -4,7 +4,7 @@ import {ServerRoute} from "@remix-run/server-runtime";
 import {useContext} from "react";
 import {resolvePath} from "react-router";
 import {Box} from "~/client/design/box.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {InboxMobileView} from "~/client/inbox/inbox_mobile_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
