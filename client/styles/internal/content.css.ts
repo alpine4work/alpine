@@ -318,10 +318,19 @@ export const mobileLayoutTitlePaddingTop = addRemLengths(
     spacing[desktopNavigationBarHeight],
 );
 
+const titleLetterSpacingFactor = 0.6;
+
 globalStyle(titleClassName, {
     ...blockStyles,
     ...fontStyles["bold"],
     ...desktopTitleFontSize,
+    // Use a bolder font weight for titles than `bold` but `extra-bold` is too
+    // much. Find something visually pleasing between that which helps titles
+    // really stand out.
+    fontWeight: 650,
+    // The letter spacing is too tight for bold text at this font size. Ease up
+    // a bit on the letter spacing.
+    letterSpacing: `calc(${desktopTitleFontSize.letterSpacing} * ${titleLetterSpacingFactor})`,
     paddingTop: `calc(${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
@@ -333,6 +342,7 @@ globalStyle(titleClassName, {
 
 globalStyle(`${withMobileLayoutDocClassName} ${titleClassName}`, {
     ...mobileTitleFontSize,
+    letterSpacing: `calc(${mobileTitleFontSize.letterSpacing} * ${titleLetterSpacingFactor})`,
     paddingTop: `calc(${mobileLayoutTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
     minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileLayoutTitlePaddingTop})`,
 });
