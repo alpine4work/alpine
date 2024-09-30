@@ -1649,7 +1649,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // What this code is doing is it penalizes horizontal distance (compared to
                     // vertical distance) when you're out of a narrow range right on top of the drop
                     // target.
-                    if (dx > contentStyles.fileRowGapWidthRem * remPx) {
+                    //
+                    // We choose `spacing["5"]` as the margin in which horizontal drop targets will
+                    // apply since that's the smallest size of an `<IconButton>`. Since we consider
+                    // an `xs` `<IconButton>` to have a sufficient hit target we consider the hit
+                    // target sufficient here too.
+                    if (dx > convertRemLengthToPx(spacing["5"], remPx)) {
                         dx += viewWidth;
                     }
 
@@ -3163,8 +3168,6 @@ type ContentEditorFileDropTarget = {
           };
 };
 
-// TODO(calebmer, #files): Keyboard shortcut tests?
-
 // TODO(calebmer, #files): Implement scroll while dragging.
 
 // TODO(calebmer, #files): Poll while file isn't fully available. In both
@@ -3176,6 +3179,9 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Dragging into an empty paragraph maybe should
 // replace the paragraph? Useful in an empty document for example.
+
+// TODO(calebmer, #files): If the last node in a document is an empty paragraph
+// maybe don't show drop indicator before and after empty paragraph.
 
 /**
  * Get the targets for dropping a file into our document around some top block
@@ -3395,7 +3401,9 @@ function getContentEditorFileDropTargets(
                         : element;
 
                 const dropTargetX =
-                    fileRowLeftElement.offsetLeft - (contentStyles.fileRowGapWidthRem * remPx) / 2;
+                    element.offsetLeft +
+                    fileRowLeftElement.offsetLeft -
+                    (contentStyles.fileRowGapWidthRem * remPx) / 2;
 
                 dropTargets.push({
                     offsetParent: element.offsetParent,
@@ -3419,9 +3427,11 @@ function getContentEditorFileDropTargets(
 
                 if (fileRowLeftElement instanceof HTMLElement) {
                     const dropTargetX =
+                        element.offsetLeft +
                         fileRowLeftElement.offsetLeft +
                         fileRowLeftElement.offsetWidth +
-                        (contentStyles.fileRowGapWidthRem * remPx) / 2;
+                        (contentStyles.fileRowGapWidthRem * remPx) / 2 -
+                        1;
 
                     dropTargets.push({
                         offsetParent: element.offsetParent,
@@ -3447,6 +3457,7 @@ function getContentEditorFileDropTargets(
                         : element;
 
                 const dropTargetX =
+                    element.offsetLeft +
                     fileRowRightElement.offsetLeft +
                     fileRowRightElement.offsetWidth +
                     (contentStyles.fileRowGapWidthRem * remPx) / 2;
