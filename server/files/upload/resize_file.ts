@@ -145,7 +145,8 @@ export async function resizeFile(
             await parentSpan.withSpan("FFmpeg resize image", async span => {
                 span.addData({common: {width}});
 
-                // NOCOMMIT: Have resize crop as well for images beyond the aspect ratio limit?
+                // TODO(calebmer, #files): Have resize crop as well for images beyond the
+                // aspect ratio limit?
                 // Also generate placeholder only in the aspect ratio limits.
                 const subprocess = spawn(
                     ffmpegExecutablePath,

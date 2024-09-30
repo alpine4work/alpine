@@ -1612,6 +1612,10 @@ export function DocumentContentEditor({
                                 withoutMobileKeyboardToolbar={sidebarState.isOpen}
                                 className={documentContentStyles.documentContentClassName}
                                 phantomSelections={phantomSelections}
+                                fileAttachmentTarget={useMemo(
+                                    () => ({type: "Document", documentId}),
+                                    [documentId],
+                                )}
                                 openCommentThread={openCommentThread}
                                 onCommentThreadPressedChange={(commentThreadId, isHovered) => {
                                     setPressedCommentThreadId(pressedCommentThreadId => {

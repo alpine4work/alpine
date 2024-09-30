@@ -4,15 +4,24 @@ import {EditorView} from "prosemirror-view";
 import {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     DocumentWithoutTitleContent,
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget: FileAttachmentTarget = markMemoIfNotRendering({
+    type: "Document",
+    documentId: generateId(),
+});
 
 function TestContentEditor({
     initialContent = emptyDocumentWithoutTitleContent,
@@ -31,6 +40,7 @@ function TestContentEditor({
             withMobileLayout={false}
             state={state}
             onChange={setState}
+            fileAttachmentTarget={fileAttachmentTarget}
         />
     );
 }

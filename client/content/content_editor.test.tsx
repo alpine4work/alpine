@@ -8,12 +8,21 @@ import {useCallback, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget: FileAttachmentTarget = markMemoIfNotRendering({
+    type: "Document",
+    documentId: generateId(),
+});
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>
@@ -67,6 +76,7 @@ test("renders an empty document", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -90,6 +100,7 @@ test("renders an initial editor state", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -116,6 +127,7 @@ test("rerenders with a changed document", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -127,6 +139,7 @@ test("rerenders with a changed document", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -178,6 +191,7 @@ test("won't ever commit optimistic update if it doesn't match props", () => {
                 withMobileLayout={false}
                 state={state}
                 onChange={useCallback(() => {}, [])}
+                fileAttachmentTarget={fileAttachmentTarget}
             />
         );
     }

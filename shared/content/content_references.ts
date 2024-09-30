@@ -28,9 +28,10 @@ export const ContentReferencesSchema = Schema.object({
      *
      * Also includes the search part of the preview URL we'll need to render in
      * `previewUrlSearch`. We only include the search part since the path and
-     * domain can be easily generated on the client. The path pattern is
-     * `/files/:spaceId/:fileId`. You won't find a Remix route for this path
-     * since it's handled by `EdgeService`.
+     * domain can be easily generated on the client so might as well save some
+     * bytes over the network. The path pattern is `/files/:spaceId/:fileId`.
+     * You won't find a Remix route for this path since it's handled by
+     * `EdgeService`.
      */
     // TODO(calebmer, #files): Right now files are only allowed in document content
     // but eventually all content will need to support files. Which is why we have
@@ -139,5 +140,5 @@ export function getContentReferencesFileSignedUrlExpirationTime(previewUrlSearch
     const searchParams = new URLSearchParams(previewUrlSearch.split("?", 2)[1]);
     const expirationTime = parseInt(searchParams.get("exp") ?? "", 10);
     assert(Number.isInteger(expirationTime));
-    return expirationTime;
+    return expirationTime * 1000;
 }

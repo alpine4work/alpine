@@ -35,7 +35,11 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
-import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    FileId,
+} from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
@@ -700,10 +704,14 @@ function contentEditorReferencesPlugin<References extends ContentReferences>(
         state: {
             init: (config, state) => ({doc: state.doc, references: initialReferences}),
             apply: (transaction, oldPluginState, oldState, newState) => {
-                const action: ContentEditorReferencesAction<References> | undefined =
-                    transaction.getMeta(contentEditorReferencesPluginKey);
+                const action:
+                    | ContentEditorReferencesAction<References>
+                    | Array<ContentEditorReferencesAction<References>>
+                    | undefined = transaction.getMeta(contentEditorReferencesPluginKey);
 
-                const newReferences = action
+                const newReferences = Array.isArray(action)
+                    ? action.reduce(reduceReferences, oldPluginState.references)
+                    : action
                     ? reduceReferences(oldPluginState.references, action)
                     : oldPluginState.references;
 
@@ -730,7 +738,14 @@ export function updateContentEditorReferences<References extends ContentReferenc
     transaction: Transaction,
     action: ContentEditorReferencesAction<References>,
 ): Transaction {
-    return transaction.setMeta(contentEditorReferencesPluginKey, action);
+    const actions = transaction.getMeta(contentEditorReferencesPluginKey);
+    if (!actions) {
+        return transaction.setMeta(contentEditorReferencesPluginKey, action);
+    } else if (!Array.isArray(actions)) {
+        return transaction.setMeta(contentEditorReferencesPluginKey, [actions, action]);
+    } else {
+        return transaction.setMeta(contentEditorReferencesPluginKey, [...actions, action]);
+    }
 }
 
 export function hasContentEditorReferencesUpdate(transaction: Transaction): boolean {
@@ -741,6 +756,7 @@ export type ContentEditorReferencesAction<References extends ContentReferences> 
     | ContentEditorReferencesMergeAction<References>
     | ContentEditorReferencesSetAccountAction
     | ContentEditorReferencesSetFileAction
+    | ContentEditorReferencesSetFilePreviewUrlSearchAction
     | ContentEditorReferencesUpdateDocumentCommentThreadAction;
 
 export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
@@ -757,6 +773,12 @@ export type ContentEditorReferencesSetFileAction = {
     readonly type: "SetFile";
     readonly previewUrlSearch: string | null;
     readonly file: FileModel;
+};
+
+export type ContentEditorReferencesSetFilePreviewUrlSearchAction = {
+    readonly type: "SetFilePreviewUrlSearch";
+    readonly fileId: FileId;
+    readonly previewUrlSearch: string | null;
 };
 
 /**
@@ -789,7 +811,10 @@ export function reduceContentReferences(
 
 export function reduceContentReferencesShared<References extends ContentReferences>(
     references: References,
-    action: ContentEditorReferencesSetAccountAction | ContentEditorReferencesSetFileAction,
+    action:
+        | ContentEditorReferencesSetAccountAction
+        | ContentEditorReferencesSetFileAction
+        | ContentEditorReferencesSetFilePreviewUrlSearchAction,
 ): Replace<References, ContentReferences> {
     switch (action.type) {
         case "SetAccount": {
@@ -823,11 +848,37 @@ export function reduceContentReferencesShared<References extends ContentReferenc
             if (
                 oldFileReference?.file === newFile &&
                 oldFileReference.previewUrlSearch === newPreviewUrlSearch
-            )
+            ) {
                 return references;
+            }
 
             const newFileById = new Map(references.fileById);
             newFileById.set(newFile.id, {previewUrlSearch: newPreviewUrlSearch, file: newFile});
+            return {...references, fileById: newFileById};
+        }
+        case "SetFilePreviewUrlSearch": {
+            const oldFileReference = references.fileById.get(action.fileId);
+            if (!oldFileReference) return references;
+
+            // Pick the `previewUrlSearch` that expires later.
+            const newPreviewUrlSearch =
+                oldFileReference?.previewUrlSearch &&
+                action.previewUrlSearch &&
+                getContentReferencesFileSignedUrlExpirationTime(
+                    oldFileReference.previewUrlSearch,
+                ) >= getContentReferencesFileSignedUrlExpirationTime(action.previewUrlSearch)
+                    ? oldFileReference.previewUrlSearch
+                    : action.previewUrlSearch;
+
+            if (oldFileReference.previewUrlSearch === newPreviewUrlSearch) {
+                return references;
+            }
+
+            const newFileById = new Map(references.fileById);
+            newFileById.set(action.fileId, {
+                ...oldFileReference,
+                previewUrlSearch: newPreviewUrlSearch,
+            });
             return {...references, fileById: newFileById};
         }
         default:

@@ -95,10 +95,11 @@ export async function getContentReferences(
 
                 // If there was an error while processing then don't generate a preview URL
                 // since the client will render an error message, not a preview.
+                //
+                // It's ok to generate a signed URL here since `getFileFromAttachment()`
+                // authorizes that the actor has access to the file.
                 if (file.preview && (!("ok" in file.preview) || file.preview.ok === true)) {
                     previewUrl =
-                        // It's ok to generate a signed URL since `getFileFromAttachment()` authorizes
-                        // that the actor has access to the file.
                         await context.files.dangerouslySignFilePreviewUrlWithoutAuthorization(
                             spaceId,
                             fileId,

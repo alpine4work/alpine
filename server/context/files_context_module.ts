@@ -60,8 +60,44 @@ export class FilesContextModule extends FilesContextModuleBase {
                     file.hasPreview.hasContent ? "-preview" : ""
                 }`,
             ),
-            // Expire the signed URL in 10 minutes instead of the default, 2.
-            {expirationMinutes: 10},
+            // Expire the signed URL after two full days, 24 hours.
+            //
+            // When a file is about to expire the client needs to execute the RPC
+            // `getFilePreviewUrl()` and update the `<img>` element rendering the file with
+            // the new URL (this is done in `render_content_file_preview.ts`). Otherwise
+            // the user may end up seeing broken images. We set an expiration time of 24
+            // hours to make this client URL refreshing rare in practice. Since when we
+            // refresh a file's URL the browser needs to go fetch the new file from our
+            // servers.
+            //
+            // We need an expiration time so that if a user loses access to the entity the
+            // file is attached to then they'll also lose access to the file (since they
+            // won't be able to get a new signed URL from our servers). Setting an
+            // expiration time also prevents Alpine from being used as a CDN for the
+            // user's files.
+            //
+            // ### An edge case where URL refreshing will often happen
+            //
+            // For post drafts we save `ContentReferences` to `localStorage`. So when the
+            // user opens their draft back up we don't need to refetch all their
+            // references. This is currently implemented in `post_creator.tsx`.
+            //
+            // If the user added a file to their post draft then `localStorage` will
+            // contain the signed `previewUrlSearch` property. If the user opens their
+            // draft three days later then the `previewUrlSearch` has long expired. So the
+            // client will call `getFilePreviewUrl()` to get an updated signed URL for the
+            // file.
+            //
+            // ### Thinking through the security implications of a long expiration time
+            //
+            // Let's say an attacker is temporarily granted access to a document. They grab
+            // a file URL before an admin immediately revokes the attacker's document
+            // access. The attacker will be able to download the file URL for 24 hours.
+            // This is fine, they could have downloaded the file when they were given
+            // access to the document. Also file's are immutable so the attacker doesn't
+            // get access to any future changes of the file (since the file doesn't
+            // change).
+            {expirationMinutes: 60 * 24},
         );
     }
 

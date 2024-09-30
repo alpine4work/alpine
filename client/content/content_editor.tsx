@@ -14,6 +14,7 @@ import {
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
+    Memo,
     PropsWithoutRef,
     ReactElement,
     Ref,
@@ -29,6 +30,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {
+    ContentEditorReferencesSetFilePreviewUrlSearchAction,
     ContentEditorState,
     getContentEditorFloaterState,
     getContentEditorReferences,
@@ -59,6 +61,7 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {uploadFileFromContentEditor} from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
@@ -99,7 +102,9 @@ import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design
 import {ThemeColor, defaultThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -330,6 +335,23 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     withoutMobileDualModality?: boolean;
 
     /**
+     * If the content editor supports files then you must pass in
+     * `FileAttachmentTarget`. This prop is used:
+     *
+     * 1. Before adding a file to content we need to call either
+     *    `attachFileAsUploader()` or `attachFileFromAttachment()` to make sure
+     *    everyone who has access to the attachment target has access to the file.
+     *    We use the attachment target to create the correct link.
+     *
+     * 2. When refreshing expired signed preview URLs we need the attachment target
+     *    so we can prove the current account has access to the file.
+     *
+     * An error will be thrown if your content supports files but doesn't provide
+     * `fileAttachmentTarget`.
+     */
+    fileAttachmentTarget?: Memo<FileAttachmentTarget>;
+
+    /**
      * Event fired when the user focuses the content editor.
      */
     onFocus?: (event: FocusEvent<HTMLDivElement>) => void;
@@ -463,6 +485,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     containerClassName: customContainerClassName,
+    fileAttachmentTarget,
     editorRef,
 }: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>}) {
     useImperativeHandle(
@@ -536,6 +559,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 className={className}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
+                fileAttachmentTarget={fileAttachmentTarget}
                 // Highlight all comments on initial render of `<ContentEditor>` since we'll
                 // highlight them all when we re-render.
                 shouldHighlightComment={useCallback(() => true, [])}
@@ -573,6 +597,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         onFocusCapture,
         onBlur,
         phantomSelections,
+        fileAttachmentTarget,
     } = props;
 
     const context = useAppContextIfExists();
@@ -627,6 +652,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isDualModalityRef = useRef(isDualModality);
     const navigateRef = useRef(navigate);
     const reporterRef = useRef(reporter);
+    const contextRef = useRef(context);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
     const spaceContext = useSpaceContextIfExists();
@@ -639,6 +665,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         isDualModalityRef.current = isDualModality;
         navigateRef.current = navigate;
         reporterRef.current = reporter;
+        contextRef.current = context;
         spaceContextRef.current = spaceContext;
     });
 
@@ -795,6 +822,14 @@ function ContentEditor<Content extends ContentWithReferences>(
             return lastScrollMargin;
         };
 
+        const filePreviewExpirationTimers = schema.nodes.file
+            ? new ContentFilePreviewExpirationTimers()
+            : undefined;
+        filePreviewExpirationTimers?.play();
+
+        let scheduledFilePreviewUrlSearchRefreshActions: Array<ContentEditorReferencesSetFilePreviewUrlSearchAction> | null =
+            null;
+
         const view = new EditorView(rootElement, {
             state: initialState,
 
@@ -903,10 +938,42 @@ function ContentEditor<Content extends ContentWithReferences>(
                     },
                 }),
                 file: createContentEditorFileNodeViewConstructor({
+                    getContext: () => assertExists(contextRef.current),
                     getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                    getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
+                    getExpirationTimers: () => assertExists(filePreviewExpirationTimers),
                     subscribeToReferencesUpdate: listener => {
                         referencesUpdateEmitterRef.current ??= new EventEmitter();
                         return referencesUpdateEmitterRef.current.subscribe(listener);
+                    },
+                    onPreviewUrlSearchRefresh: (fileId, previewUrlSearch) => {
+                        // Wait a macrotask to collect all refreshed URLs in case multiple preview URLs
+                        // were refreshed at once. We want to run one `view.dispatch()` for all
+                        // updates.
+                        if (scheduledFilePreviewUrlSearchRefreshActions === null) {
+                            scheduledFilePreviewUrlSearchRefreshActions = [];
+                            scheduleMacrotask(() => {
+                                if (!scheduledFilePreviewUrlSearchRefreshActions) return;
+                                const actions = scheduledFilePreviewUrlSearchRefreshActions;
+                                scheduledFilePreviewUrlSearchRefreshActions = null;
+
+                                if (view.isDestroyed) return;
+
+                                view.dispatch(
+                                    actions.reduce(
+                                        (transaction, action) =>
+                                            updateContentEditorReferences(transaction, action),
+                                        view.state.tr,
+                                    ),
+                                );
+                            });
+                        }
+
+                        scheduledFilePreviewUrlSearchRefreshActions.push({
+                            type: "SetFilePreviewUrlSearch",
+                            fileId,
+                            previewUrlSearch,
+                        });
                     },
                 }),
             },
@@ -1680,6 +1747,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         return () => {
             document.removeEventListener("selectionchange", handleDocumentSelectionChange);
+            filePreviewExpirationTimers?.pause();
             view.destroy();
         };
 
@@ -2450,6 +2518,11 @@ function ContentEditor<Content extends ContentWithReferences>(
     useContentEditorDebugTools(viewRef);
 
     const unwrappedState = unwrap(state);
+
+    assert(
+        !unwrappedState.schema.nodes.file || fileAttachmentTarget,
+        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
+    );
 
     const [mobileLinkModalState, setMobileLinkModalState] =
         useState<ContentEditorMobileLinkModalState | null>(null);

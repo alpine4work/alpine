@@ -20,6 +20,7 @@ import {
 } from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -136,6 +137,11 @@ export function DocumentCommentThreadPreview({
         setShowMarkRemovedWarning(shouldShowMarkRemovedWarning);
     }
 
+    const fileAttachmentTarget = useMemo(
+        (): FileAttachmentTarget => ({type: "Document", documentId: commentThread.documentId}),
+        [commentThread.documentId],
+    );
+
     return (
         <FocusRing offset="border">
             <Box
@@ -208,6 +214,7 @@ export function DocumentCommentThreadPreview({
                                     (fileLayoutScreenWidthRem / documentCommentThreadPreviewScale) *
                                     remPx
                                 }
+                                fileAttachmentTarget={fileAttachmentTarget}
                             />
                         )}
                     </Box>

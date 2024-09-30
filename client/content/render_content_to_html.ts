@@ -7,10 +7,9 @@ import {
     layoutContentFileParent,
 } from "~/client/content/internal/content_file_layout.js";
 import {
-    computeContentFileFloatLayout,
-    computeContentFileRowLayout,
-} from "~/client/content/internal/content_file_layout_computations.js";
-import {renderContentFilePreview} from "~/client/content/internal/render_content_file_preview.js";
+    ContentFilePreviewExpirationTimers,
+    renderContentFilePreview,
+} from "~/client/content/internal/render_content_file_preview.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
@@ -51,6 +50,7 @@ export function renderContentToHtmlStore(
         screenWidth: number;
         isMobile: boolean;
         placeholder?: string;
+        filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
 ): Store<string> {
     return renderContentFragmentToHtmlStore(content, options).map(fragmentHtml => {
@@ -82,6 +82,7 @@ export function renderContentFragmentToHtmlStore(
         isInert,
         decorations,
         shouldHighlightComment,
+        filePreviewExpirationTimers,
     }: {
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
@@ -92,6 +93,7 @@ export function renderContentFragmentToHtmlStore(
         isInert?: boolean;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
+        filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
 ): Store<string> {
     return computeStore(get => {
@@ -378,12 +380,19 @@ export function renderContentFragmentToHtmlStore(
                         isMobile,
                     });
 
-                    const html = renderContentFilePreview(
-                        assertExists(spaceId),
+                    const html = renderContentFilePreview(get, {
+                        spaceId: assertExists(spaceId),
                         node,
-                        fileReference,
+                        reference: fileReference,
                         layout,
-                    );
+                        expirationTimers: assertExists(filePreviewExpirationTimers),
+                    });
+
+                    // Include the position of this file so our when we attach behavior to the file
+                    // element in `<ContentView>` we know which node in the document it corresponds
+                    // to.
+                    html.setAttribute("data-pos", pos);
+
                     return {html};
                 },
 

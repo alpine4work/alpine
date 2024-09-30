@@ -9,6 +9,7 @@ import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {listItemIndentationVar} from "~/shared/content/content_styles.js";
@@ -16,9 +17,17 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget: FileAttachmentTarget = markMemoIfNotRendering({
+    type: "Document",
+    documentId: generateId(),
+});
 
 const blockTestCases: Array<{
     name: string;
@@ -174,6 +183,7 @@ for (const blockTestCase of blockTestCases) {
                     references: emptyContentReferences,
                 })}
                 onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
             />,
         );
 
@@ -205,6 +215,7 @@ for (const blockTestCase of blockTestCases) {
                     references: emptyContentReferences,
                 })}
                 onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
             />,
         );
 
@@ -240,6 +251,7 @@ for (const blockTestCase of blockTestCases) {
                         references: emptyContentReferences,
                     })}
                     onChange={() => {}}
+                    fileAttachmentTarget={fileAttachmentTarget}
                 />,
             );
 
@@ -270,6 +282,7 @@ for (const inlineTestCase of inlineTestCases) {
                     references: emptyContentReferences,
                 })}
                 onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
             />,
         );
 
@@ -310,6 +323,7 @@ function expectClipboardRoundtripToWork() {
                 withMobileLayout={false}
                 state={state}
                 onChange={setState}
+                fileAttachmentTarget={fileAttachmentTarget}
             />
         );
     }
@@ -349,6 +363,7 @@ test("heading cannot have a level lower than 1", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -365,6 +380,7 @@ test("heading cannot have a level lower than 1", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -383,6 +399,7 @@ test("heading cannot have a level greater than 3", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -399,6 +416,7 @@ test("heading cannot have a level greater than 3", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -417,6 +435,7 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -433,6 +452,7 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -449,6 +469,7 @@ test("heading cannot be the wrong type", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -467,6 +488,7 @@ test("heading is converted into an integer", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -492,6 +514,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -514,6 +537,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -532,6 +556,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                 references: emptyContentReferences,
             })}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -562,6 +587,7 @@ test("bullet list with multiple items", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -582,6 +608,7 @@ test("ordered list with multiple items", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -614,6 +641,7 @@ test("check list with multiple items", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -651,6 +679,7 @@ test("bullet list with sub-list", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -688,6 +717,7 @@ test("ordered list with sub-list", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -725,6 +755,7 @@ test("check list with sub-list", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -762,6 +793,7 @@ test("bullet list with sub-list of another type", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -799,6 +831,7 @@ test("ordered list with sub-list of another type", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -836,6 +869,7 @@ test("check list with sub-list of another type", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -858,6 +892,7 @@ test("can put hard breaks inside paragraphs", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -882,6 +917,7 @@ test("can put hard breaks inside list items", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 
@@ -903,6 +939,7 @@ test("can put multiple paragraphs inside list items", () => {
             withMobileLayout={false}
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
+            fileAttachmentTarget={fileAttachmentTarget}
         />,
     );
 

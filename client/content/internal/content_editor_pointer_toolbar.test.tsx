@@ -10,16 +10,25 @@ import {ContentEditor, getEditorViewForTest} from "~/client/content/content_edit
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 
 import.meta.jest.useFakeTimers();
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget: FileAttachmentTarget = markMemoIfNotRendering({
+    type: "Document",
+    documentId: generateId(),
+});
 
 function TestContentEditor({initialContent}: {initialContent?: Node}) {
     const [state, setState] = useState(() =>
@@ -36,6 +45,7 @@ function TestContentEditor({initialContent}: {initialContent?: Node}) {
                     withMobileLayout={false}
                     state={state}
                     onChange={setState}
+                    fileAttachmentTarget={fileAttachmentTarget}
                 />
             </TooltipCoordinationContextProvider>
         </OverlayScopeContextProvider>

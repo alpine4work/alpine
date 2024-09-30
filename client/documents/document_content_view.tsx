@@ -1,3 +1,4 @@
+import {useMemo} from "react";
 import {ContentView} from "~/client/content/content_view.js";
 import {documentContentStyles} from "~/client/styles/styles.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
@@ -21,6 +22,10 @@ export function DocumentContentView({
             // en dash (https://graphemica.com/2013)
             // Represents no content
             placeholder={"\u2013"}
+            fileAttachmentTarget={useMemo(
+                () => ({type: "Document", documentId: document.id}),
+                [document],
+            )}
         />
     );
 }

@@ -3,10 +3,16 @@ import {Node} from "prosemirror-model";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {reduceContentReferencesShared} from "~/client/content/content_editor_state.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {
+    ContentFilePreviewExpirationTimers,
+    addContentFilePreviewBehavior,
+} from "~/client/content/internal/render_content_file_preview.js";
 import {renderContentFragmentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
+import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
@@ -29,17 +35,22 @@ import {
     createContentCodeBlockHtmlSerializationDecorationsStore,
 } from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
-import {linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
+import {
+    ContentWithReferences,
+    getContentReferencesFileSignedUrlExpirationTime,
+} from "~/shared/content/content_references.js";
+import {fileClassName, linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {Store} from "~/shared/store/store.js";
@@ -78,7 +89,7 @@ declare global {
  */
 export function ContentView({
     withMobileLayout,
-    content,
+    content: contentFromProps,
     contentUpdatedTime,
     placeholder,
     className,
@@ -90,6 +101,7 @@ export function ContentView({
     isExtraCompact = false,
     isEditorInitialAppRender = false,
     isBackgroundColorGrey5 = false,
+    fileAttachmentTarget,
     shouldHighlightComment,
     withUserSelectNone = false,
     onSeeMoreContent,
@@ -169,6 +181,23 @@ export function ContentView({
     isBackgroundColorGrey5?: boolean;
 
     /**
+     * If the content editor supports files then you must pass in
+     * `FileAttachmentTarget`. This prop is used:
+     *
+     * 1. Before adding a file to content we need to call either
+     *    `attachFileAsUploader()` or `attachFileFromAttachment()` to make sure
+     *    everyone who has access to the attachment target has access to the file.
+     *    We use the attachment target to create the correct link.
+     *
+     * 2. When refreshing expired signed preview URLs we need the attachment target
+     *    so we can prove the current account has access to the file.
+     *
+     * An error will be thrown if your content supports files but doesn't provide
+     * `fileAttachmentTarget`.
+     */
+    fileAttachmentTarget?: Memo<FileAttachmentTarget>;
+
+    /**
      * Should we highlight the provided comment thread? By default the content view
      * renders no comment highlights.
      */
@@ -201,6 +230,11 @@ export function ContentView({
      */
     fileLayoutScreenWidth?: number;
 }) {
+    assert(
+        !contentFromProps.doc.type.schema.nodes.file || fileAttachmentTarget,
+        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
+    );
+
     const clientInfo = useClientInfo();
     const isMobile = useIsMobile();
     const isInitialAppRender = useIsInitialAppRender();
@@ -210,6 +244,7 @@ export function ContentView({
 
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
+    const context = useAppContextIfExists();
     const spaceContext = useSpaceContextIfExists();
 
     const id = useId();
@@ -229,6 +264,34 @@ export function ContentView({
         onSeeMoreContent: onSeeMoreContent ?? noop,
         onSeeLessContent: onSeeLessContent ?? noop,
     });
+
+    const [filePreviewExpirationTimers] = useState<ContentFilePreviewExpirationTimers | undefined>(
+        () => (fileAttachmentTarget ? new ContentFilePreviewExpirationTimers() : undefined),
+    );
+    const [updatedFilePreviewUrlSearchByFileId, setUpdatedFilePreviewUrlSearchByFileId] =
+        useState<ReadonlyMap<FileId, string | null> | null>(null);
+
+    const updatedContentReferences = useMemo(() => {
+        if (!updatedFilePreviewUrlSearchByFileId) return contentFromProps.references;
+
+        // Merge all our updated file preview URLs into the content references from
+        // props. So we can render with the new content references.
+        return reduceIterable(
+            updatedFilePreviewUrlSearchByFileId,
+            (references, [fileId, previewUrlSearch]) =>
+                reduceContentReferencesShared(references, {
+                    type: "SetFilePreviewUrlSearch",
+                    fileId,
+                    previewUrlSearch,
+                }),
+            contentFromProps.references,
+        );
+    }, [contentFromProps.references, updatedFilePreviewUrlSearchByFileId]);
+
+    const content = useMemo(
+        () => ({doc: contentFromProps.doc, references: updatedContentReferences}),
+        [contentFromProps.doc, updatedContentReferences],
+    );
 
     const [initialCodeBlockDecorationsState, setInitialCodeBlockDecorationsState] = useState<{
         readonly doc: Node;
@@ -420,6 +483,7 @@ export function ContentView({
                     isInert,
                     decorations: [decorations, codeBlockDecorations],
                     shouldHighlightComment,
+                    filePreviewExpirationTimers,
                 }).map(html => ({
                     html,
                     codeBlockDecorations,
@@ -448,6 +512,7 @@ export function ContentView({
                 isInert,
                 decorations: [decorations, initialCodeBlockDecorations],
                 shouldHighlightComment,
+                filePreviewExpirationTimers,
             }).map(html => ({
                 html,
                 codeBlockDecorations: initialCodeBlockDecorations!,
@@ -475,6 +540,7 @@ export function ContentView({
         placeholder,
         isInert,
         shouldHighlightComment,
+        filePreviewExpirationTimers,
     ]);
 
     const {html, codeBlockDecorations} = useStore(htmlStore);
@@ -523,6 +589,13 @@ export function ContentView({
     }, []);
 
     useEffect(() => {
+        filePreviewExpirationTimers?.play();
+        return () => {
+            filePreviewExpirationTimers?.pause();
+        };
+    }, [filePreviewExpirationTimers]);
+
+    useEffect(() => {
         if (isInert) return;
 
         // Re-run this effect whenever the HTML changes.
@@ -534,7 +607,7 @@ export function ContentView({
         const cleanupFunctions: Array<() => void> = [];
 
         for (const element of parentElement.querySelectorAll(
-            `.${linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentStyles.codeBlockCopyButtonClassName}`,
+            `.${linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentStyles.codeBlockCopyButtonClassName}, .${fileClassName}`,
         )) {
             if (!(element instanceof HTMLElement)) continue;
 
@@ -772,6 +845,67 @@ export function ContentView({
                     }
                 });
             }
+
+            if (element.classList.contains(fileClassName)) {
+                const posString = element.dataset.pos;
+                assert(posString);
+                const pos = parseInt(posString, 10);
+                assert(!isNaN(pos));
+
+                const $pos = content.doc.resolve(pos);
+                assert($pos.nodeAfter?.type.name === "file");
+                const node = $pos.nodeAfter;
+
+                const fileId: FileId | null = node.attrs.fileId;
+                const fileReference = fileId ? content.references.fileById.get(fileId) : undefined;
+
+                const cleanup = addContentFilePreviewBehavior(
+                    () => assertExists(context),
+                    element,
+                    {
+                        spaceId: assertExists(spaceContext).space.id,
+                        node,
+                        reference: fileReference,
+                        attachmentTarget: assertExists(fileAttachmentTarget),
+                        expirationTimers: assertExists(filePreviewExpirationTimers),
+                        onPreviewUrlSearchRefresh: previewUrlSearch => {
+                            setUpdatedFilePreviewUrlSearchByFileId(filePreviewUrlSearchByFileId => {
+                                if (!fileId) return filePreviewUrlSearchByFileId;
+
+                                const oldPreviewUrlSearch =
+                                    filePreviewUrlSearchByFileId?.get(fileId);
+
+                                // Pick the `previewUrlSearch` that expires later.
+                                const newPreviewUrlSearch =
+                                    oldPreviewUrlSearch &&
+                                    previewUrlSearch &&
+                                    getContentReferencesFileSignedUrlExpirationTime(
+                                        oldPreviewUrlSearch,
+                                    ) >=
+                                        getContentReferencesFileSignedUrlExpirationTime(
+                                            previewUrlSearch,
+                                        )
+                                        ? oldPreviewUrlSearch
+                                        : previewUrlSearch;
+
+                                if (oldPreviewUrlSearch === newPreviewUrlSearch) {
+                                    return filePreviewUrlSearchByFileId;
+                                }
+
+                                const newFilePreviewUrlSearchByFileId = new Map(
+                                    filePreviewUrlSearchByFileId,
+                                );
+
+                                newFilePreviewUrlSearchByFileId.set(fileId, newPreviewUrlSearch);
+
+                                return newFilePreviewUrlSearchByFileId;
+                            });
+                        },
+                    },
+                );
+
+                cleanupFunctions.push(cleanup);
+            }
         }
 
         return () => {
@@ -793,6 +927,9 @@ export function ContentView({
         handleCodeBlockCopyButtonPress,
         reporter,
         isBackgroundColorGrey5,
+        context,
+        fileAttachmentTarget,
+        filePreviewExpirationTimers,
     ]);
 
     useEffect(() => {

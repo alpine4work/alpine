@@ -1,16 +1,162 @@
 import {Node} from "prosemirror-model";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
+import {AppContext} from "~/client/context/app_context.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {getContentReferencesFileSignedUrlExpirationTime} from "~/shared/content/content_references.js";
+import {fileClassName} from "~/shared/content/content_styles.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToCssDataUrl} from "~/shared/helpers/html/convert_svg_to_css_data_url.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {getFilePreviewUrl} from "~/shared/rpc/files_rpc_definitions.js";
+import {falseStore, trueStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
+import {ValueStore} from "~/shared/store/value_store.js";
+
+const contentFilePreviewUrlEagerExpirationDurationMs = 1000 * 20;
+const contentFilePreviewUrlRefreshDurationMs =
+    contentFilePreviewUrlEagerExpirationDurationMs + 1000 * 20;
+
+export class ContentFilePreviewExpirationTimers {
+    private _isPaused = true;
+    private readonly _storeByTime = new Map<
+        number,
+        {timeout: Timeout | null; readonly store: ValueStore<boolean>}
+    >();
+
+    public isPaused() {
+        return this._isPaused;
+    }
+
+    /**
+     * Pause all timers in this object. Any stores that are currently false
+     * (e.g. `getExpiredTimerStore()`) won't be updated to true while this object
+     * is paused since all timeouts have been cancelled. If you call `play()` all
+     * timers will be re-scheduled.
+     *
+     * You should call this function when your component that renders file previews
+     * unmounts in order to prevent memory leaks. Otherwise we'll keep accumulating
+     * hour long timers that are never cancelled even if the user doesn't care
+     * about them anymore.
+     */
+    public pause(): void {
+        assert(!this._isPaused);
+        this._isPaused = true;
+
+        for (const entry of this._storeByTime.values()) {
+            entry.timeout?.clear();
+            entry.timeout = null;
+        }
+    }
+
+    /**
+     * Resume all paused timers in this object.
+     *
+     * If any timers should have been fired while the object was paused then we'll
+     * fire those timers basically immediately after play has been called.
+     *
+     * This object starts in a paused state so you must call play to start
+     * registering timers.
+     */
+    public play(): void {
+        assert(this._isPaused);
+        this._isPaused = false;
+
+        for (const [time, entry] of this._storeByTime) {
+            if (!entry.store.getSnapshot()) {
+                entry.timeout ??= createTimeout(() => {
+                    entry.store.finalSet(true);
+
+                    // New signed URLs shouldn't have this expiration time. Delete from our map to
+                    // prevent memory leaks.
+                    this._storeByTime.delete(time);
+                }, Math.max(0, time - Date.now()));
+            }
+        }
+    }
+
+    /**
+     * Return a store which will switch to true ~20-40 seconds before the preview
+     * URL actually expires. Generally returns return the same referentially equal
+     * store for the same expiration time in the preview URL.
+     */
+    public getExpiredTimerStore(previewUrlSearch: string): Store<boolean> {
+        // If we're on the server then always return false so we don't create
+        // unnecessary timers on the server. This shouldn't realistically create issues
+        // with SSR hydration since signed URLs should be generated at the start of an
+        // SSR request and last much much longer (e.g. 1 hour) than an SSR request
+        // should reasonably take (e.g. 1 second).
+        if (typeof window === "undefined") return falseStore;
+
+        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(previewUrlSearch);
+
+        // Round to the nearest 20 seconds so we end up creating fewer stores.
+        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 20)) * (1000 * 20);
+
+        const eagerExpirationTime =
+            roundedExpirationTime - contentFilePreviewUrlEagerExpirationDurationMs;
+
+        return this._getStore(eagerExpirationTime);
+    }
+
+    /**
+     * Return a store which will switch to true ~40-60 seconds before the preview
+     * URL expires. Generally returns the same referentially equal store for the
+     * same expiration time in the preview URL.
+     */
+    public getRefreshTimerStore(previewUrlSearch: string): Store<boolean> {
+        // If we're on the server then always return false so we don't create
+        // unnecessary timers on the server. This shouldn't realistically create issues
+        // with SSR hydration since signed URLs should be generated at the start of an
+        // SSR request and last much much longer (e.g. 1 hour) than an SSR request
+        // should reasonably take (e.g. 1 second).
+        if (typeof window === "undefined") return falseStore;
+
+        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(previewUrlSearch);
+
+        // Round to the nearest 20 seconds so we end up creating fewer stores.
+        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 20)) * (1000 * 20);
+
+        const refreshTime = roundedExpirationTime - contentFilePreviewUrlRefreshDurationMs;
+
+        return this._getStore(refreshTime);
+    }
+
+    private _getStore(time: number) {
+        // Make sure this isn't run on the server since we don't want to register a
+        // bunch of unnecessary timeouts. The `getIsInitialAppRenderWithoutListening()`
+        // check should handle this so this assertion is an extra precaution.
+        assert(typeof window !== "undefined");
+
+        const durationMsUntilTime = time - Date.now();
+        if (durationMsUntilTime <= 0) return trueStore;
+
+        return getOrSetDefaultMapValue(this._storeByTime, time, () => {
+            const store = new ValueStore(false);
+
+            const timeout = !this._isPaused
+                ? createTimeout(() => {
+                      store.finalSet(true);
+
+                      // New signed URLs shouldn't have this expiration time. Delete from our map to
+                      // prevent memory leaks.
+                      this._storeByTime.delete(time);
+                  }, durationMsUntilTime)
+                : null;
+
+            return {timeout, store};
+        }).store;
+    }
+}
 
 /**
  * Render the provided `file` node to an `HtmlElementGenerator`. This
@@ -20,10 +166,20 @@ import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_pro
 // TODO(calebmer, #files): Consider switching to a pure white background color
 // so files on pure white look natural.
 export function renderContentFilePreview(
-    spaceId: SpaceId,
-    node: Node,
-    reference: {previewUrlSearch: string | null; file: FileModel} | undefined,
-    layout: ContentFileLayout,
+    get: <Value>(store: Store<Value>) => Value,
+    {
+        spaceId,
+        node,
+        reference,
+        layout,
+        expirationTimers,
+    }: {
+        spaceId: SpaceId;
+        node: Node;
+        reference: {previewUrlSearch: string | null; file: FileModel} | undefined;
+        layout: ContentFileLayout;
+        expirationTimers: ContentFilePreviewExpirationTimers;
+    },
 ): HtmlElementGenerator {
     assert(node.type.name === "file");
 
@@ -73,49 +229,67 @@ export function renderContentFilePreview(
                     ].join("; "),
                 );
 
-                const imageSourcePathname = `/files/${spaceId}/${reference.file.id}${
-                    reference.file.preview.content !== undefined ? "-preview" : ""
-                }`;
+                // Render the image if we have a signed preview URL and the signature isn't
+                // expired.
+                //
+                // When the signature expires we re-render the file to remove the image from
+                // the DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
+                // signatures that haven't expired.
+                if (
+                    reference.previewUrlSearch &&
+                    !get(expirationTimers.getExpiredTimerStore(reference.previewUrlSearch))
+                ) {
+                    const imageSourcePathname = `/files/${spaceId}/${reference.file.id}${
+                        reference.file.preview.content !== undefined ? "-preview" : ""
+                    }`;
 
-                const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
-                const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
-                const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
+                    const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
+                    const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
+                    const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
 
-                // NOCOMMIT: If `fileReference.previewUrlSearch` is expired we need to request
-                // a new one
-                const image1xSource =
-                    reference.file.preview.size.width <= image1xWidth
-                        ? `${imageSourcePathname}${reference.previewUrlSearch}`
-                        : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image1xWidth}`;
+                    const image1xSource =
+                        reference.file.preview.size.width <= image1xWidth
+                            ? `${imageSourcePathname}${reference.previewUrlSearch}`
+                            : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image1xWidth}`;
 
-                const image2xSource =
-                    reference.file.preview.size.width <= image2xWidth
-                        ? `${imageSourcePathname}${reference.previewUrlSearch}`
-                        : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image2xWidth}`;
+                    const image2xSource =
+                        reference.file.preview.size.width <= image2xWidth
+                            ? `${imageSourcePathname}${reference.previewUrlSearch}`
+                            : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image2xWidth}`;
 
-                const image3xSource =
-                    reference.file.preview.size.width <= image3xWidth
-                        ? `${imageSourcePathname}${reference.previewUrlSearch}`
-                        : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image3xWidth}`;
+                    const image3xSource =
+                        reference.file.preview.size.width <= image3xWidth
+                            ? `${imageSourcePathname}${reference.previewUrlSearch}`
+                            : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image3xWidth}`;
 
-                // NOCOMMIT: Save and reuse image HTML DOM elements?
-                const imageHtml = new HtmlElementGenerator("img");
-                imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
-                imageHtml.setAttribute("style", "object-position: center top; object-fit: cover");
-                imageHtml.setAttribute("src", image1xSource);
-
-                if (image1xSource === image2xSource) {
-                    // We don't have any additional responsive image sources.
-                } else if (image2xSource === image3xSource) {
-                    imageHtml.setAttribute("srcset", `${image1xSource}, ${image2xSource} 2x`);
-                } else {
+                    const imageHtml = new HtmlElementGenerator("img");
+                    imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
                     imageHtml.setAttribute(
-                        "srcset",
-                        `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`,
+                        "style",
+                        "object-position: center top; object-fit: cover",
                     );
-                }
 
-                html.appendChild(imageHtml);
+                    // Only load the image when it enters the viewport. For long documents with a
+                    // lot of images this improves network utilization. This means our signed URL in
+                    // `src` always needs to be up-to-date since we don't know when the browser will
+                    // need it.
+                    imageHtml.setAttribute("loading", "lazy");
+
+                    imageHtml.setAttribute("src", image1xSource);
+
+                    if (image1xSource === image2xSource) {
+                        // We don't have any additional responsive image sources.
+                    } else if (image2xSource === image3xSource) {
+                        imageHtml.setAttribute("srcset", `${image1xSource}, ${image2xSource} 2x`);
+                    } else {
+                        imageHtml.setAttribute(
+                            "srcset",
+                            `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`,
+                        );
+                    }
+
+                    html.appendChild(imageHtml);
+                }
 
                 if (typeof reference.file.preview.videoDuration === "number") {
                     // TODO(calebmer, #files): Implement
@@ -182,4 +356,78 @@ function renderFileImagePreviewPlaceholder(
 
     svg += "</g></svg>";
     return svg;
+}
+
+export function addContentFilePreviewBehavior(
+    getContext: () => AppContext,
+    element: HTMLElement,
+    {
+        spaceId,
+        node,
+        reference,
+        attachmentTarget,
+        expirationTimers,
+        onPreviewUrlSearchRefresh,
+    }: {
+        spaceId: SpaceId;
+        node: Node;
+        reference: {previewUrlSearch: string | null; file: FileModel} | undefined;
+        attachmentTarget: FileAttachmentTarget;
+        expirationTimers: ContentFilePreviewExpirationTimers;
+        onPreviewUrlSearchRefresh: (previewUrlSearch: string | null) => void;
+    },
+): () => void {
+    assert(element.classList.contains(fileClassName));
+
+    // Make sure `play()` was called on the expiration timers object.
+    assert(!expirationTimers.isPaused());
+
+    const fileId: FileId | null = node.attrs.fileId;
+    let unsubscribeFromShouldRefreshStore: (() => void) | null = null;
+
+    // If we have a preview URL then schedule a timer for the future when our file
+    // URL needs to be refreshed.
+    if (fileId && reference?.previewUrlSearch) {
+        const refreshTimerStore = expirationTimers.getRefreshTimerStore(reference.previewUrlSearch);
+
+        const refresh = () => {
+            getFilePreviewUrl(getContext(), {
+                spaceId,
+                fileId,
+                fromAttachmentTarget: attachmentTarget,
+            }).then(
+                output => {
+                    onPreviewUrlSearchRefresh(output.previewUrlSearch);
+                },
+                error => {
+                    // TODO(calebmer, #files): Should we present this error to the user somehow?
+                    // Perhaps by switching to an error rendering for the file.
+                    getContext()
+                        .tracer.getRoot()
+                        .logUncaughtException(
+                            "Couldn't refresh expired file preview URL signature",
+                            error,
+                        );
+                },
+            );
+        };
+
+        if (refreshTimerStore.getSnapshot()) {
+            refresh();
+        } else {
+            unsubscribeFromShouldRefreshStore = refreshTimerStore.subscribe(() => {
+                if (!refreshTimerStore.getSnapshot()) return;
+
+                unsubscribeFromShouldRefreshStore?.();
+                unsubscribeFromShouldRefreshStore = null;
+
+                refresh();
+            });
+        }
+    }
+
+    return () => {
+        unsubscribeFromShouldRefreshStore?.();
+        unsubscribeFromShouldRefreshStore = null;
+    };
 }

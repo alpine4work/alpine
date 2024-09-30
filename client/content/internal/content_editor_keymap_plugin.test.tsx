@@ -9,6 +9,7 @@ import {useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
@@ -17,6 +18,7 @@ import {
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -30,6 +32,12 @@ import {SpaceModel} from "~/shared/spaces/space_model.js";
 window.scrollBy = () => {};
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+// eslint-disable-next-line testing-library/render-result-naming-convention
+const fileAttachmentTarget: FileAttachmentTarget = markMemoIfNotRendering({
+    type: "Document",
+    documentId: generateId(),
+});
 
 const createdTime = new Date();
 
@@ -69,6 +77,7 @@ function TestContentEditor({
                 withMobileLayout={false}
                 state={state}
                 onChange={setState}
+                fileAttachmentTarget={fileAttachmentTarget}
             />
         </TestSpaceContextProvider>
     );

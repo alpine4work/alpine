@@ -11,6 +11,7 @@ import {
     createTraceServerResponseHandleSpanName,
     traceServerResponse,
 } from "~/server/tracer/trace_server_response.js";
+import {getContentReferencesFileSignedUrlExpirationTime} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -717,6 +718,11 @@ async function handleFileFetch(
             },
         );
 
+        // We set `max-age` to a time just after our URL expires. This lets the browser
+        // know it's free to discard the file from its cache after that.
+        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(signedUrl.search);
+        const cacheControlMaxAge = Math.ceil((expirationTime - Date.now()) / 1000) + 60;
+
         // Use a cache specifically for files since we'll be saving private files to
         // this cache. We don't want to accidentally serve these files from another
         // request.
@@ -739,16 +745,19 @@ async function handleFileFetch(
         if (cachedResponse) {
             const cachedResponseHeaders = new Headers(cachedResponse.headers);
 
-            // Make sure to switch the `public` `cache-control` directive back to
-            // `private` before returning.
+            // 1. Make sure to switch the `public` `cache-control` directive back to
+            //    `private` before returning.
+            // 2. Change `max-age` to match the expiration time from our URL.
             const cacheControlResponseHeader = cachedResponseHeaders.get("cache-control");
             if (cacheControlResponseHeader) {
                 cachedResponseHeaders.set(
                     "cache-control",
-                    cacheControlResponseHeader.replace(
-                        /((?:^|,) *)public( *(?:,|$))/,
-                        "$1private$2",
-                    ),
+                    cacheControlResponseHeader
+                        .replace(/((?:^|,) *)public( *(?:,|$))/, "$1private$2")
+                        .replace(
+                            /((?:^|,) *)max-age=\d+( *(?:,|$))/,
+                            `$1max-age=${cacheControlMaxAge}$2`,
+                        ),
                 );
             }
 
@@ -812,15 +821,42 @@ async function handleFileFetch(
         // have a valid signed URL when accessing this endpoint. We'll only generate
         // signed URLs when the user actually has access to a file.
         cachedResponse = response.clone();
-        const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
+
+        executionContext.waitUntil(
+            (async () => {
+                const cacheControlResponseHeader = cachedResponse.headers.get("cache-control");
+                if (cacheControlResponseHeader) {
+                    cachedResponse.headers.set(
+                        "cache-control",
+                        cacheControlResponseHeader.replace(
+                            /((?:^|,) *)private( *(?:,|$))/,
+                            "$1public$2",
+                        ),
+                    );
+                }
+
+                await filesCache.put(subrequest, cachedResponse);
+            })(),
+        );
+
+        const responseHeaders = new Headers(cachedResponse.headers);
+
+        // Change `max-age` to match the expiration time from our URL.
+        const cacheControlResponseHeader = responseHeaders.get("cache-control");
         if (cacheControlResponseHeader) {
-            cachedResponse.headers.set(
+            responseHeaders.set(
                 "cache-control",
-                cacheControlResponseHeader.replace(/((?:^|,) *)private( *(?:,|$))/, "$1public$2"),
+                cacheControlResponseHeader.replace(
+                    /((?:^|,) *)max-age=\d+( *(?:,|$))/,
+                    `$1max-age=${cacheControlMaxAge}$2`,
+                ),
             );
         }
 
-        executionContext.waitUntil(filesCache.put(subrequest, cachedResponse));
+        return new Response(cachedResponse.body, {
+            ...cachedResponse,
+            headers: responseHeaders,
+        });
 
         return response;
     } catch (error) {
