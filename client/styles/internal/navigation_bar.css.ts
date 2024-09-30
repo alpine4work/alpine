@@ -30,10 +30,10 @@ export const navigationBarBackgroundFadeOutAnimationClassName = style({
 
 const navigationBarTitleFadeOutKeyframes = keyframes({
     from: {opacity: 1, transform: "translateY(0rem)"},
-    to: {opacity: 0, transform: "translateY(-0.375rem)"},
+    to: {opacity: 0, transform: "translateY(-0.5rem)"},
 });
 
 export const navigationBarTitleFadeOutAnimationClassName = style({
     transformOrigin: "top center",
-    animation: `${navigationBarTitleFadeOutKeyframes} 500ms ${easeOutQuart.cubicBezier} forwards`,
+    animation: `${navigationBarTitleFadeOutKeyframes} 250ms ${easeOutQuart.cubicBezier} forwards`,
 });
