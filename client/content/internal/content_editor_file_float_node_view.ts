@@ -10,6 +10,7 @@ import {
     subscribeToIsMobileChange,
 } from "~/client/remix/use_is_mobile.js";
 import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export function createContentEditorFileFloatNodeViewConstructor({
@@ -81,11 +82,16 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 node = newNode;
                 update();
 
-                for (const childNode of dom.childNodes) {
-                    if (childNode instanceof Element) {
-                        dispatchUpdatedContentEditorFileParentEvent(childNode);
+                // Run update after a microtask since when deleting nodes ProseMirror deletes
+                // the parent node first then the children. We don't want to dispatch an update
+                // until ProseMirror gets the chance to destroy any removed child nodes.
+                scheduleMicrotask(() => {
+                    for (const childNode of dom.childNodes) {
+                        if (childNode instanceof Element) {
+                            dispatchUpdatedContentEditorFileParentEvent(childNode);
+                        }
                     }
-                }
+                });
 
                 return true;
             },
