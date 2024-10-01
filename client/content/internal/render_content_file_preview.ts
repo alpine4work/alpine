@@ -24,15 +24,15 @@ import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
     getFileFromAttachment,
-    getFilePreviewUrlFromAttachment,
+    getFileSignedUrlFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
 import {falseStore, trueStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
-const contentFilePreviewUrlEagerExpirationDurationMs = 1000 * 20;
-const contentFilePreviewUrlRefreshDurationMs =
-    contentFilePreviewUrlEagerExpirationDurationMs + 1000 * 20;
+const contentFileSignedUrlEagerExpirationDurationMs = 1000 * 20;
+const contentFileSignedUrlRefreshDurationMs =
+    contentFileSignedUrlEagerExpirationDurationMs + 1000 * 20;
 
 export class ContentFilePreviewExpirationTimers {
     private _isPaused = true;
@@ -97,7 +97,7 @@ export class ContentFilePreviewExpirationTimers {
      * URL actually expires. Generally returns return the same referentially equal
      * store for the same expiration time in the preview URL.
      */
-    public getExpiredTimerStore(previewUrlSearch: string): Store<boolean> {
+    public getExpiredTimerStore(signedUrlSearch: string): Store<boolean> {
         // If we're on the server then always return false so we don't create
         // unnecessary timers on the server. This shouldn't realistically create issues
         // with SSR hydration since signed URLs should be generated at the start of an
@@ -105,13 +105,13 @@ export class ContentFilePreviewExpirationTimers {
         // should reasonably take (e.g. 1 second).
         if (typeof window === "undefined") return falseStore;
 
-        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(previewUrlSearch);
+        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(signedUrlSearch);
 
         // Round to the nearest 20 seconds so we end up creating fewer stores.
         const roundedExpirationTime = Math.floor(expirationTime / (1000 * 20)) * (1000 * 20);
 
         const eagerExpirationTime =
-            roundedExpirationTime - contentFilePreviewUrlEagerExpirationDurationMs;
+            roundedExpirationTime - contentFileSignedUrlEagerExpirationDurationMs;
 
         return this._getStore(eagerExpirationTime);
     }
@@ -121,7 +121,7 @@ export class ContentFilePreviewExpirationTimers {
      * URL expires. Generally returns the same referentially equal store for the
      * same expiration time in the preview URL.
      */
-    public getRefreshTimerStore(previewUrlSearch: string): Store<boolean> {
+    public getRefreshTimerStore(signedUrlSearch: string): Store<boolean> {
         // If we're on the server then always return false so we don't create
         // unnecessary timers on the server. This shouldn't realistically create issues
         // with SSR hydration since signed URLs should be generated at the start of an
@@ -129,12 +129,12 @@ export class ContentFilePreviewExpirationTimers {
         // should reasonably take (e.g. 1 second).
         if (typeof window === "undefined") return falseStore;
 
-        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(previewUrlSearch);
+        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(signedUrlSearch);
 
         // Round to the nearest 20 seconds so we end up creating fewer stores.
         const roundedExpirationTime = Math.floor(expirationTime / (1000 * 20)) * (1000 * 20);
 
-        const refreshTime = roundedExpirationTime - contentFilePreviewUrlRefreshDurationMs;
+        const refreshTime = roundedExpirationTime - contentFileSignedUrlRefreshDurationMs;
 
         return this._getStore(refreshTime);
     }
@@ -184,7 +184,7 @@ export function renderContentFilePreview(
     }: {
         spaceId: SpaceId;
         node: Node;
-        reference: {previewUrlSearch: string | null; file: FileModel} | undefined;
+        reference: {signedUrlSearch: string; file: FileModel} | undefined;
         layout: ContentFileLayout;
         expirationTimers: ContentFilePreviewExpirationTimers;
     },
@@ -244,12 +244,12 @@ export function renderContentFilePreview(
                 // the DOM. `addContentFilePreviewBehavior()` is responsible for fetching new
                 // signatures that haven't expired.
                 if (
-                    reference.previewUrlSearch &&
-                    !get(expirationTimers.getExpiredTimerStore(reference.previewUrlSearch))
+                    reference &&
+                    !get(expirationTimers.getExpiredTimerStore(reference.signedUrlSearch))
                 ) {
-                    const imageSourcePathname = `/files/${spaceId}/${reference.file.id}${
-                        reference.file.preview.content !== undefined ? "-preview" : ""
-                    }`;
+                    const imageSourceBase = `/files/${spaceId}/${reference.file.id}${
+                        reference.signedUrlSearch
+                    }${reference.file.preview.content !== undefined ? "&variant=preview" : ""}`;
 
                     const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
                     const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
@@ -257,18 +257,18 @@ export function renderContentFilePreview(
 
                     const image1xSource =
                         reference.file.preview.size.width <= image1xWidth
-                            ? `${imageSourcePathname}${reference.previewUrlSearch}`
-                            : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image1xWidth}`;
+                            ? `${imageSourceBase}`
+                            : `${imageSourceBase}&width=${image1xWidth}`;
 
                     const image2xSource =
                         reference.file.preview.size.width <= image2xWidth
-                            ? `${imageSourcePathname}${reference.previewUrlSearch}`
-                            : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image2xWidth}`;
+                            ? `${imageSourceBase}`
+                            : `${imageSourceBase}&width=${image2xWidth}`;
 
                     const image3xSource =
                         reference.file.preview.size.width <= image3xWidth
-                            ? `${imageSourcePathname}${reference.previewUrlSearch}`
-                            : `${imageSourcePathname}${reference.previewUrlSearch}&width=${image3xWidth}`;
+                            ? `${imageSourceBase}`
+                            : `${imageSourceBase}&width=${image3xWidth}`;
 
                     const imageHtml = new HtmlElementGenerator("img");
                     imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
@@ -376,18 +376,18 @@ export function addContentFilePreviewBehavior(
         expirationTimers,
         isOurEditorUploading,
         onUpdate,
-        onPreviewUrlSearchRefresh,
+        onSignedUrlRefresh,
         onShiftMouseDown,
         onLongPress,
     }: {
         spaceId: SpaceId;
         node: Node;
-        reference: {previewUrlSearch: string | null; file: FileModel} | undefined;
+        reference: {signedUrlSearch: string; file: FileModel} | undefined;
         attachmentTarget: FileAttachmentTarget;
         expirationTimers: ContentFilePreviewExpirationTimers;
         isOurEditorUploading: ((fileId: FileId) => boolean) | false;
-        onUpdate: (file: FileModel, previewUrlSearch: string | null) => void;
-        onPreviewUrlSearchRefresh: (fileId: FileId, previewUrlSearch: string | null) => void;
+        onUpdate: (file: FileModel, signedUrlSearch: string) => void;
+        onSignedUrlRefresh: (fileId: FileId, signedUrlSearch: string) => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
         onLongPress?: () => void;
     },
@@ -430,18 +430,9 @@ export function addContentFilePreviewBehavior(
                 spaceId,
                 fileId: reference.file.id,
                 target: attachmentTarget,
-                withPreviewUrl: !reference.previewUrlSearch,
             }).then(
-                ({file: newFile, previewUrlSearch: newPreviewUrlSearch}) => {
-                    onUpdate(
-                        newFile,
-                        // We only generate a new signed preview URL when we don't have one
-                        // (`reference.previewUrlSearch` is null). So only use the new preview URL
-                        // then.
-                        !reference.previewUrlSearch
-                            ? newPreviewUrlSearch
-                            : reference.previewUrlSearch,
-                    );
+                ({file: newFile}) => {
+                    onUpdate(newFile, reference.signedUrlSearch);
 
                     if (newFile.isLoading()) {
                         schedulePoll();
@@ -469,17 +460,17 @@ export function addContentFilePreviewBehavior(
 
     // If we have a preview URL then schedule a timer for the future when our file
     // URL needs to be refreshed.
-    if (reference?.previewUrlSearch) {
-        const refreshTimerStore = expirationTimers.getRefreshTimerStore(reference.previewUrlSearch);
+    if (reference) {
+        const refreshTimerStore = expirationTimers.getRefreshTimerStore(reference.signedUrlSearch);
 
         const refresh = () => {
-            getFilePreviewUrlFromAttachment(getContext(), {
+            getFileSignedUrlFromAttachment(getContext(), {
                 spaceId,
                 fileId: reference.file.id,
                 target: attachmentTarget,
             }).then(
                 output => {
-                    onPreviewUrlSearchRefresh(reference.file.id, output.previewUrlSearch);
+                    onSignedUrlRefresh(reference.file.id, output.signedUrlSearch);
                 },
                 error => {
                     // TODO(calebmer, #files): Should we present this error to the user somehow?

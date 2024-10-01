@@ -872,22 +872,22 @@ export function ContentView({
                         attachmentTarget: assertExists(fileAttachmentTarget),
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                         isOurEditorUploading: false,
-                        onUpdate: (file, previewUrlSearch) => {
+                        onUpdate: (file, signedUrlSearch) => {
                             setUpdatedContentReferencesFileById(fileById => {
                                 return mergeContentReferencesFileById(
                                     fileById ?? new Map(),
-                                    new Map([[file.id, {previewUrlSearch, file}]]),
+                                    new Map([[file.id, {signedUrlSearch, file}]]),
                                 );
                             });
                         },
-                        onPreviewUrlSearchRefresh: (fileId, previewUrlSearch) => {
+                        onSignedUrlRefresh: (fileId, signedUrlSearch) => {
                             setUpdatedContentReferencesFileById(fileById => {
                                 const oldFile = content.references.fileById.get(fileId);
                                 if (!oldFile) return fileById;
 
                                 return mergeContentReferencesFileById(
                                     fileById ?? new Map(),
-                                    new Map([[fileId, {previewUrlSearch, file: oldFile.file}]]),
+                                    new Map([[fileId, {signedUrlSearch, file: oldFile.file}]]),
                                 );
                             });
                         },

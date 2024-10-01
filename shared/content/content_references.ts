@@ -27,7 +27,7 @@ export const ContentReferencesSchema = Schema.object({
      * Files attached to the content.
      *
      * Also includes the search part of the preview URL we'll need to render in
-     * `previewUrlSearch`. We only include the search part since the path and
+     * `signedUrlSearch`. We only include the search part since the path and
      * domain can be easily generated on the client so might as well save some
      * bytes over the network. The path pattern is `/files/:spaceId/:fileId`.
      * You won't find a Remix route for this path since it's handled by
@@ -39,7 +39,7 @@ export const ContentReferencesSchema = Schema.object({
     fileById: Schema.map(
         Schema.id<FileId>(),
         Schema.object({
-            previewUrlSearch: Schema.string.nullable(),
+            signedUrlSearch: Schema.string,
             file: FileModel.schema(),
         }),
     ),
@@ -106,23 +106,22 @@ export function mergeContentReferencesFileById(
     fileById1: ContentReferences["fileById"],
     fileById2: ContentReferences["fileById"],
 ): ContentReferences["fileById"] {
-    let newFileById: Map<FileId, {previewUrlSearch: string | null; file: FileModel}> | undefined;
+    let newFileById: Map<FileId, {signedUrlSearch: string; file: FileModel}> | undefined;
 
     // Merge files together...
     //
     // Prefer `existingFileReference` in `FileModel.minLoadingCount()` to avoid
-    // unnecessary re-renders. Pick the `previewUrlSearch` that expires later.
+    // unnecessary re-renders. Pick the `signedUrlSearch` that expires later.
     for (const [fileId2, file2] of fileById2) {
         const fileReference1 = fileById1.get(fileId2);
 
         const newFileReference = {
-            previewUrlSearch:
-                fileReference1?.previewUrlSearch &&
-                file2.previewUrlSearch &&
-                getContentReferencesFileSignedUrlExpirationTime(fileReference1.previewUrlSearch) >=
-                    getContentReferencesFileSignedUrlExpirationTime(file2.previewUrlSearch)
-                    ? fileReference1.previewUrlSearch
-                    : file2.previewUrlSearch,
+            signedUrlSearch:
+                fileReference1 &&
+                getContentReferencesFileSignedUrlExpirationTime(fileReference1.signedUrlSearch) >=
+                    getContentReferencesFileSignedUrlExpirationTime(file2.signedUrlSearch)
+                    ? fileReference1.signedUrlSearch
+                    : file2.signedUrlSearch,
             file: fileReference1
                 ? FileModel.minLoadingCount(fileReference1.file, file2.file)
                 : file2.file,
@@ -130,7 +129,7 @@ export function mergeContentReferencesFileById(
 
         if (
             !fileReference1 ||
-            newFileReference.previewUrlSearch !== fileReference1.previewUrlSearch ||
+            newFileReference.signedUrlSearch !== fileReference1.signedUrlSearch ||
             newFileReference.file !== fileReference1.file
         ) {
             newFileById ??= new Map(fileById1);
@@ -144,10 +143,10 @@ export function mergeContentReferencesFileById(
 }
 
 /**
- * Get the expiration time from a JWT token in `ContentReferences` for a file.
+ * Get the expiration time from a signed URL in `ContentReferences` for a file.
  */
-export function getContentReferencesFileSignedUrlExpirationTime(previewUrlSearch: string): number {
-    const searchParams = new URLSearchParams(previewUrlSearch.split("?", 2)[1]);
+export function getContentReferencesFileSignedUrlExpirationTime(signedUrlSearch: string): number {
+    const searchParams = new URLSearchParams(signedUrlSearch.split("?", 2)[1]);
     const expirationTime = parseInt(searchParams.get("exp") ?? "", 10);
     assert(Number.isInteger(expirationTime));
     return expirationTime * 1000;

@@ -18,7 +18,7 @@ export const UploadFileEventSchema = Schema.union({
         fileId: Schema.id<FileId>(),
         hasAlternative: Schema.boolean,
         hasPreview: FileHasPreviewSchema.nullable(),
-        previewUrlSearch: Schema.string.nullable(),
+        signedUrlSearch: Schema.string,
     }),
     Finish: Schema.object({
         type: Schema.value("Finish"),

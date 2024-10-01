@@ -1,7 +1,6 @@
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {FileHasPreview} from "~/shared/files/file_preview.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -29,11 +28,10 @@ export abstract class FilesContextModuleBase
      * Files with an image preview will either load the file's image preview
      * content or the file itself if the file is a web safe image.
      */
-    public abstract dangerouslySignFilePreviewUrlWithoutAuthorization(
+    public abstract dangerouslySignFileUrlWithoutAuthorization(
         spaceId: SpaceId,
         fileId: FileId,
-        file: {hasPreview: FileHasPreview | null},
-    ): Promise<URL | null>;
+    ): Promise<URL>;
 
     public abstract fork(): FilesContextModuleBase;
 }
@@ -46,24 +44,17 @@ export class FilesContextModule extends FilesContextModuleBase {
         this._tokenAgent = tokenAgent;
     }
 
-    public override async dangerouslySignFilePreviewUrlWithoutAuthorization(
+    public override async dangerouslySignFileUrlWithoutAuthorization(
         spaceId: SpaceId,
         fileId: FileId,
-        file: {hasPreview: FileHasPreview | null},
-    ): Promise<URL | null> {
-        if (file.hasPreview?.type !== "Image") return null;
-
+    ): Promise<URL> {
         return this._tokenAgent.privateSide.dangerouslySignShortLivedUrl(
             "EdgeService",
-            new URL(
-                `https://cyberworlds.dev/files/${spaceId}/${fileId}${
-                    file.hasPreview.hasContent ? "-preview" : ""
-                }`,
-            ),
+            new URL(`https://cyberworlds.dev/files/${spaceId}/${fileId}`),
             // Expire the signed URL after two full days, 24 hours.
             //
             // When a file is about to expire the client needs to execute the RPC
-            // `getFilePreviewUrlFromAttachment()` and update the `<img>` element rendering
+            // `getFileSignedUrlFromAttachment()` and update the `<img>` element rendering
             // the file with the new URL (this is done in
             // `render_content_file_preview.ts`). Otherwise the user may end up seeing
             // broken images. We set an expiration time of 24 hours to make this client URL
@@ -87,9 +78,9 @@ export class FilesContextModule extends FilesContextModuleBase {
             // references. This is currently implemented in `post_creator.tsx`.
             //
             // If the user added a file to their post draft then `localStorage` will
-            // contain the signed `previewUrlSearch` property. If the user opens their
-            // draft three days later then the `previewUrlSearch` has long expired. So the
-            // client will call `getFilePreviewUrlFromAttachment()` to get an updated
+            // contain the signed `signedUrlSearch` property. If the user opens their
+            // draft three days later then the `signedUrlSearch` has long expired. So the
+            // client will call `getFileSignedUrlFromAttachment()` to get an updated
             // signed URL for the file.
             //
             // ### Thinking through the security implications of a long expiration time
@@ -119,18 +110,11 @@ export class TestFilesContextModule extends FilesContextModuleBase {
         assert(process.env.NODE_ENV === "test");
     }
 
-    public override async dangerouslySignFilePreviewUrlWithoutAuthorization(
+    public override async dangerouslySignFileUrlWithoutAuthorization(
         spaceId: SpaceId,
         fileId: FileId,
-        file: {hasPreview: FileHasPreview | null},
-    ): Promise<URL | null> {
-        if (file.hasPreview?.type !== "Image") return null;
-
-        return new URL(
-            `https://cyberworlds.dev/files/${spaceId}/${fileId}${
-                file.hasPreview.hasContent ? "-preview" : ""
-            }`,
-        );
+    ): Promise<URL> {
+        return new URL(`https://cyberworlds.dev/files/${spaceId}/${fileId}`);
     }
 
     public fork() {

@@ -1117,7 +1117,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     spaceContext.space.id,
                                     assertExists(fileItem.getAsFile()),
                                     {
-                                        onAttach: ({previewUrlSearch, fileStore}) => {
+                                        onAttach: ({signedUrlSearch, fileStore}) => {
                                             const initialFile = fileStore.getSnapshot();
                                             uploadingFileId = initialFile.id;
                                             (uploadingFileIds ??= new Set()).add(initialFile.id);
@@ -1129,7 +1129,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                 view.dispatch(
                                                     updateContentEditorReferences(view.state.tr, {
                                                         type: "SetFile",
-                                                        previewUrlSearch,
+                                                        signedUrlSearch,
                                                         file: fileStore.getSnapshot(),
                                                     }),
                                                 );
@@ -1232,7 +1232,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                             updateContentEditorReferences(transaction, {
                                                 type: "SetFile",
-                                                previewUrlSearch,
+                                                signedUrlSearch,
                                                 file: initialFile,
                                             });
 

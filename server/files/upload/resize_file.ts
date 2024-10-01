@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import {IncomingMessage, ServerResponse} from "http";
 import {join as joinPath} from "path";
 import {finished} from "stream/promises";
+import {getFileIfExistsAsUploader} from "~/server/files/data/files_table.js";
 import {FileUploadServiceActionContext} from "~/server/files/upload/file_upload_service_context.js";
 import {
     ffmpegExecutablePath,
@@ -16,11 +17,14 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {
+    FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
     UnknownError,
 } from "~/shared/error/error.js";
+import {FileContentType, isFileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -99,13 +103,11 @@ export async function resizeFile(
         url,
         spaceId,
         fileId,
-        variant,
         temporaryDirectoryPath: parentTemporaryDirectoryPath,
     }: {
         url: URL;
         spaceId: SpaceId;
         fileId: FileId;
-        variant: "preview" | undefined;
         temporaryDirectoryPath: string;
     },
 ): Promise<void> {
@@ -129,7 +131,14 @@ export async function resizeFile(
     if (!/^\d+$/.test(widthString) || !Number.isInteger(width) || width <= 0)
         throw new InvalidArgumentError('"width" URL search param must be a positive integer');
 
+    const variant = url.searchParams.get("variant");
+    if (variant !== null && variant !== "preview" && variant !== "alternative") {
+        throw new InvalidArgumentError(`Search param "variant" is not a valid file variant`);
+    }
+
     parentSpan.addData({common: {width}});
+
+    const filePromise = getFileIfExistsAsUploader(context, spaceId, fileId);
 
     await withTemporaryDirectory(
         parentTemporaryDirectoryPath,
@@ -139,8 +148,71 @@ export async function resizeFile(
 
             const inputUrl = await context.r2.getGetObjectSignedUrl(addMinutes(new Date(), 10), {
                 Bucket: filesBucketName,
-                Key: `${spaceId}/${fileId}${variant ? `-${variant}` : ""}`,
+                Key: `${spaceId}/${fileId}${variant !== null ? `-${variant}` : ""}`,
             });
+
+            const file = await filePromise;
+            if (!file) {
+                res.writeHead(404, {"content-type": "text/plain"});
+                res.end("404 Not Found");
+                throw new NotFoundError("File not found");
+            }
+
+            let contentType: FileContentType;
+
+            if (variant === "preview") {
+                if (file.preview?.type !== "Image") {
+                    throw new FailedPreconditionError(
+                        "File preview variants only exist for files with an image preview",
+                    );
+                }
+
+                if (file.preview.content === undefined) {
+                    throw new FailedPreconditionError("File preview variant doesn't exist");
+                }
+
+                if (typeof file.preview.content === "string") {
+                    throw new FailedPreconditionError(
+                        quote`File preview variant isn't accessible because image preview is in ${file.preview.content} state`,
+                    );
+                }
+
+                contentType = file.preview.content.contentType;
+            } else if (variant === "alternative") {
+                if (file.alternative === null) {
+                    throw new FailedPreconditionError("File alternative variant doesn't exist");
+                }
+
+                if (file.alternative.isProcessing) {
+                    throw new FailedPreconditionError(
+                        "File alternative variant isn't accessible because it's processing",
+                    );
+                }
+
+                // A Cloudflare object won't exist with the suffix `-alternative` if the file's
+                // alternative is backed by image preview content.
+                if (file.alternative.isImagePreviewContent) {
+                    throw new FailedPreconditionError(
+                        'File alternative is stored as the file\'s image preview content, you must use a variant of "preview" instead',
+                    );
+                }
+
+                contentType = file.alternative.contentType;
+            } else {
+                contentType = file.contentType;
+            }
+
+            if (!isFileWebSafeImageContentType(contentType)) {
+                throw new FailedPreconditionError(
+                    quote`Can only resize web safe image but instead got content type ${contentType}`,
+                );
+            }
+
+            if (contentType === "image/svg+xml") {
+                throw new FailedPreconditionError(
+                    quote`Content type ${contentType} is a vector format, resizing is pointless`,
+                );
+            }
 
             await parentSpan.withSpan("FFmpeg resize image", async span => {
                 span.addData({common: {width}});
@@ -218,24 +290,12 @@ export async function resizeFile(
                 });
 
                 await waitForProcessExit(subprocess).catch(error => {
-                    let ErrorClass: typeof UnknownError | typeof NotFoundError = UnknownError;
-
-                    if (
-                        /^\[in#0[^\]]*\] Error opening input: Server returned 404 Not Found$$/m.test(
-                            stderr,
-                        )
-                    ) {
-                        res.writeHead(404, {"content-type": "text/plain"});
-                        res.end("404 Not Found");
-                        ErrorClass = NotFoundError;
-                    }
-
                     // We include the stderr in error messages even in production since it shouldn't
                     // contain sensitive user data. It may contain the file's duration and other
                     // metadata but it shouldn't be harmful for a developer to read that.
                     //
                     // However, including the stderr will really help us debug any issues.
-                    throw new ErrorClass(
+                    throw new UnknownError(
                         `${
                             error instanceof Error ? error.message : String(error)
                         }\n\nstderr:\n${stderr.trim()}`,
@@ -274,5 +334,10 @@ export async function resizeFile(
             });
             await finished(fsSync.createReadStream(outputPath).pipe(res));
         },
-    );
+    ).catch(async error => {
+        // Make sure we wait for `filePromise` to finish even if it's an error.
+        await filePromise;
+
+        throw error;
+    });
 }

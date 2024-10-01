@@ -52,7 +52,6 @@ export type FileUploadServiceRoute =
           readonly type: "Resize";
           readonly spaceId: SpaceId;
           readonly fileId: FileId;
-          readonly variant: "preview" | undefined;
       }
     | {
           readonly type: "InternalMiniflareGetObject";
@@ -91,15 +90,15 @@ export function createFileUploadService(
                 return ["/:spaceId/upload", {type: "Upload", spaceId}];
             }
 
-            if (pathnameParts.length === 3 && pathnameParts[1] === "resize") {
-                const [fileId = "", variant] = pathnameParts[2]!.split("-", 2);
-
-                if (isId<FileId>(fileId) && (variant === undefined || variant === "preview")) {
-                    return [
-                        `/:spaceId/resize/:fileId${variant ? `-${variant}` : ""}`,
-                        {type: "Resize", spaceId, fileId, variant},
-                    ];
-                }
+            if (
+                pathnameParts.length === 3 &&
+                pathnameParts[1] === "resize" &&
+                isId<FileId>(pathnameParts[2]!)
+            ) {
+                return [
+                    "/:spaceId/resize/:fileId",
+                    {type: "Resize", spaceId, fileId: pathnameParts[2]},
+                ];
             }
         }
 
@@ -159,7 +158,6 @@ export function createFileUploadService(
                         url,
                         spaceId: route.spaceId,
                         fileId: route.fileId,
-                        variant: route.variant,
                         temporaryDirectoryPath,
                     });
                 default:

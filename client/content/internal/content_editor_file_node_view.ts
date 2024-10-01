@@ -1,7 +1,7 @@
 import {NodeSelection} from "prosemirror-state";
 import {EditorView, NodeViewConstructor} from "prosemirror-view";
 import {
-    ContentEditorReferencesSetFilePreviewUrlSearchAction,
+    ContentEditorReferencesSetFileSignedUrlSearchAction,
     getContentEditorReferences,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
@@ -42,8 +42,8 @@ export function dispatchUpdatedContentEditorFileParentEvent(element: Element) {
     updatedContentEditorFileParentEventEmitterByElement?.get(element)?.emit();
 }
 
-let scheduledFilePreviewUrlSearchRefreshActionsByView:
-    | WeakMap<EditorView, Array<ContentEditorReferencesSetFilePreviewUrlSearchAction>>
+let scheduledFileSignedUrlRefreshActionsByView:
+    | WeakMap<EditorView, Array<ContentEditorReferencesSetFileSignedUrlSearchAction>>
     | undefined;
 
 export function createContentEditorFileNodeViewConstructor({
@@ -66,10 +66,7 @@ export function createContentEditorFileNodeViewConstructor({
 
         let isDestroyed = false;
         let lastLayout: ContentFileLayout | undefined | null = null;
-        let lastFileReference:
-            | {previewUrlSearch: string | null; file: FileModel}
-            | undefined
-            | null = null;
+        let lastFileReference: {signedUrlSearch: string; file: FileModel} | undefined | null = null;
         let lastHtml: HtmlElementGenerator | null = null;
         let cleanup: (() => void) | null = null;
 
@@ -94,7 +91,7 @@ export function createContentEditorFileNodeViewConstructor({
             // need to also check if `node` changed.
             //
             // We do need to check if `fileReference` changed since if
-            // `fileReference.previewUrlSearch` changes we need to re-render the file with
+            // `fileReference.signedUrlSearch` changes we need to re-render the file with
             // the new URL.
             if (lastLayout !== layout || lastFileReference !== fileReference) {
                 lastLayout = layout;
@@ -138,28 +135,28 @@ export function createContentEditorFileNodeViewConstructor({
                     // If we're currently uploading this `FileId` then disable polling.
                     // `FileUploadService` will push us updates immediately when they're available.
                     isOurEditorUploading,
-                    onUpdate: (file, previewUrlSearch) => {
+                    onUpdate: (file, signedUrlSearch) => {
                         view.dispatch(
                             updateContentEditorReferences(view.state.tr, {
                                 type: "SetFile",
                                 file,
-                                previewUrlSearch,
+                                signedUrlSearch,
                             }),
                         );
                     },
-                    onPreviewUrlSearchRefresh: (fileId, previewUrlSearch) => {
+                    onSignedUrlRefresh: (fileId, signedUrlSearch) => {
                         // Wait a macrotask to collect all updated URLs and update the view with one
                         // bulk transaction. Often we'll need to refresh all preview URLs in the
                         // document at once because we generated their signed URLs at the same time.
-                        const scheduledFilePreviewUrlSearchRefreshActions = getOrSetDefaultMapValue(
-                            (scheduledFilePreviewUrlSearchRefreshActionsByView ??= new WeakMap()),
+                        const scheduledFileSignedUrlRefreshActions = getOrSetDefaultMapValue(
+                            (scheduledFileSignedUrlRefreshActionsByView ??= new WeakMap()),
                             view,
                             () => {
-                                const actions: Array<ContentEditorReferencesSetFilePreviewUrlSearchAction> =
+                                const actions: Array<ContentEditorReferencesSetFileSignedUrlSearchAction> =
                                     [];
 
                                 scheduleMacrotask(() => {
-                                    scheduledFilePreviewUrlSearchRefreshActionsByView?.delete(view);
+                                    scheduledFileSignedUrlRefreshActionsByView?.delete(view);
                                     if (view.isDestroyed) return;
 
                                     view.dispatch(
@@ -174,10 +171,10 @@ export function createContentEditorFileNodeViewConstructor({
                             },
                         );
 
-                        scheduledFilePreviewUrlSearchRefreshActions.push({
-                            type: "SetFilePreviewUrlSearch",
+                        scheduledFileSignedUrlRefreshActions.push({
+                            type: "SetFileSignedUrlSearch",
                             fileId,
-                            previewUrlSearch,
+                            signedUrlSearch,
                         });
                     },
                     onShiftMouseDown: event => {

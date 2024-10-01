@@ -328,8 +328,7 @@ export function testFileProcessorContentTypes(
                                     ? {type: "Code"}
                                     : null,
                             fileId: expect.any(String),
-                            previewUrlSearch:
-                                !!expectedImagePreviewSize || !!expectedPreviewError ? "" : null,
+                            signedUrlSearch: "",
                         },
                         ...(expectedImagePreviewSize
                             ? [

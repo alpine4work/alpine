@@ -39,6 +39,10 @@ type TracerEventHttpSearchParamNameMap = {
     // notification banner at the top of the page. So the user can dismiss the
     // notification without opening the inbox again.
     inbox: true;
+    // `variant` and `width` are used by our file endpoint to select which file
+    // variant to return and to resize the file to a specific size.
+    variant: true;
+    width: true;
 };
 
 const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
@@ -51,6 +55,8 @@ const tracerEventHttpSearchParamNameMap: TracerEventHttpSearchParamNameMap = {
     comment: true,
     comments: true,
     inbox: true,
+    variant: true,
+    width: true,
 };
 
 /**
@@ -66,8 +72,6 @@ export const tracerEventHttpSearchParamNames: ReadonlySet<string> = new Set(
  * Search params may have different meanings for each service. So we only want
  * to record search params that are relevant to each service and don't contain
  * sensitive data for that service.
- *
- * Right now, only `AppService` really uses search params.
  */
 export const tracerEventHttpSearchParamNameByServiceName: {
     [Key in TracerServiceName]?: ReadonlySet<TracerEventHttpSearchParamName>;
@@ -83,4 +87,6 @@ export const tracerEventHttpSearchParamNameByServiceName: {
         "comments",
         "inbox",
     ]),
+    EdgeService: new Set(["variant", "width"]),
+    FileUploadService: new Set(["variant", "width"]),
 };

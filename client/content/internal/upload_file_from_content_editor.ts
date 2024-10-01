@@ -27,7 +27,7 @@ export async function uploadFileFromContentEditor(
     {
         onAttach,
     }: {
-        onAttach: (options: {previewUrlSearch: string | null; fileStore: Store<FileModel>}) => void;
+        onAttach: (options: {signedUrlSearch: string; fileStore: Store<FileModel>}) => void;
     },
 ) {
     // Get the file's content type. We prefer determining the content type based on
@@ -107,7 +107,7 @@ export async function uploadFileFromContentEditor(
             // definitely have an assignment to `state` in our switch statement. The
             // `cast()` function works around TypeScript's literal assignment logic.
             let state = cast<{
-                previewUrlSearch: string | null;
+                signedUrlSearch: string;
                 fileStore: ValueStore<FileModel>;
             } | null>(null);
 
@@ -164,7 +164,7 @@ export async function uploadFileFromContentEditor(
                         }
 
                         state = {
-                            previewUrlSearch: event.previewUrlSearch,
+                            signedUrlSearch: event.signedUrlSearch,
                             fileStore: new ValueStore(
                                 new FileModel({
                                     id: event.fileId,

@@ -756,7 +756,7 @@ export type ContentEditorReferencesAction<References extends ContentReferences> 
     | ContentEditorReferencesMergeAction<References>
     | ContentEditorReferencesSetAccountAction
     | ContentEditorReferencesSetFileAction
-    | ContentEditorReferencesSetFilePreviewUrlSearchAction
+    | ContentEditorReferencesSetFileSignedUrlSearchAction
     | ContentEditorReferencesUpdateDocumentCommentThreadAction;
 
 export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
@@ -771,14 +771,14 @@ export type ContentEditorReferencesSetAccountAction = {
 
 export type ContentEditorReferencesSetFileAction = {
     readonly type: "SetFile";
-    readonly previewUrlSearch: string | null;
+    readonly signedUrlSearch: string;
     readonly file: FileModel;
 };
 
-export type ContentEditorReferencesSetFilePreviewUrlSearchAction = {
-    readonly type: "SetFilePreviewUrlSearch";
+export type ContentEditorReferencesSetFileSignedUrlSearchAction = {
+    readonly type: "SetFileSignedUrlSearch";
     readonly fileId: FileId;
-    readonly previewUrlSearch: string | null;
+    readonly signedUrlSearch: string;
 };
 
 /**
@@ -814,7 +814,7 @@ export function reduceContentReferencesShared<References extends ContentReferenc
     action:
         | ContentEditorReferencesSetAccountAction
         | ContentEditorReferencesSetFileAction
-        | ContentEditorReferencesSetFilePreviewUrlSearchAction,
+        | ContentEditorReferencesSetFileSignedUrlSearchAction,
 ): Replace<References, ContentReferences> {
     switch (action.type) {
         case "SetAccount": {
@@ -835,49 +835,45 @@ export function reduceContentReferencesShared<References extends ContentReferenc
                 ? FileModel.minLoadingCount(oldFileReference.file, action.file)
                 : action.file;
 
-            // Pick the `previewUrlSearch` that expires later.
-            const newPreviewUrlSearch =
-                oldFileReference?.previewUrlSearch &&
-                action.previewUrlSearch &&
-                getContentReferencesFileSignedUrlExpirationTime(
-                    oldFileReference.previewUrlSearch,
-                ) >= getContentReferencesFileSignedUrlExpirationTime(action.previewUrlSearch)
-                    ? oldFileReference.previewUrlSearch
-                    : action.previewUrlSearch;
+            // Pick the `signedUrlSearch` that expires later.
+            const newSignedUrlSearch =
+                oldFileReference &&
+                getContentReferencesFileSignedUrlExpirationTime(oldFileReference.signedUrlSearch) >=
+                    getContentReferencesFileSignedUrlExpirationTime(action.signedUrlSearch)
+                    ? oldFileReference.signedUrlSearch
+                    : action.signedUrlSearch;
 
             if (
                 oldFileReference?.file === newFile &&
-                oldFileReference.previewUrlSearch === newPreviewUrlSearch
+                oldFileReference.signedUrlSearch === newSignedUrlSearch
             ) {
                 return references;
             }
 
             const newFileById = new Map(references.fileById);
-            newFileById.set(newFile.id, {previewUrlSearch: newPreviewUrlSearch, file: newFile});
+            newFileById.set(newFile.id, {signedUrlSearch: newSignedUrlSearch, file: newFile});
             return {...references, fileById: newFileById};
         }
-        case "SetFilePreviewUrlSearch": {
+        case "SetFileSignedUrlSearch": {
             const oldFileReference = references.fileById.get(action.fileId);
             if (!oldFileReference) return references;
 
-            // Pick the `previewUrlSearch` that expires later.
-            const newPreviewUrlSearch =
-                oldFileReference?.previewUrlSearch &&
-                action.previewUrlSearch &&
-                getContentReferencesFileSignedUrlExpirationTime(
-                    oldFileReference.previewUrlSearch,
-                ) >= getContentReferencesFileSignedUrlExpirationTime(action.previewUrlSearch)
-                    ? oldFileReference.previewUrlSearch
-                    : action.previewUrlSearch;
+            // Pick the `signedUrlSearch` that expires later.
+            const newSignedUrlSearch =
+                oldFileReference &&
+                getContentReferencesFileSignedUrlExpirationTime(oldFileReference.signedUrlSearch) >=
+                    getContentReferencesFileSignedUrlExpirationTime(action.signedUrlSearch)
+                    ? oldFileReference.signedUrlSearch
+                    : action.signedUrlSearch;
 
-            if (oldFileReference.previewUrlSearch === newPreviewUrlSearch) {
+            if (oldFileReference.signedUrlSearch === newSignedUrlSearch) {
                 return references;
             }
 
             const newFileById = new Map(references.fileById);
             newFileById.set(action.fileId, {
                 ...oldFileReference,
-                previewUrlSearch: newPreviewUrlSearch,
+                signedUrlSearch: newSignedUrlSearch,
             });
             return {...references, fileById: newFileById};
         }

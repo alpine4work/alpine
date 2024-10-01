@@ -314,10 +314,9 @@ async function uploadAndProcessFile(
     // The client won't be able to use the preview URL until the preview has
     // finished processing. But given the URL expires in 10 minutes processing
     // should finish before the URL expires.
-    const previewUrl = await context.files.dangerouslySignFilePreviewUrlWithoutAuthorization(
+    const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
         spaceId,
         fileUploader.fileId,
-        {hasPreview: fileProcessor.hasPreview},
     );
 
     sendEvent({
@@ -325,7 +324,7 @@ async function uploadAndProcessFile(
         fileId: fileUploader.fileId,
         hasAlternative: !!fileProcessor.hasAlternative,
         hasPreview: fileProcessor.hasPreview,
-        previewUrlSearch: previewUrl?.search ?? null,
+        signedUrlSearch: signedUrl.search,
     });
 
     // Make sure the stream hasn't started outputting data yet. See:

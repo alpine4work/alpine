@@ -10,22 +10,20 @@ export const getFileFromAttachment = defineRpc({
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
-        withPreviewUrl: Schema.boolean.optional(),
     },
     output: {
         file: FileModel.schema(),
-        previewUrlSearch: Schema.string.nullable(),
     },
 });
 
-export const getFilePreviewUrlFromAttachment = defineRpc({
-    name: "getFilePreviewUrlFromAttachment",
+export const getFileSignedUrlFromAttachment = defineRpc({
+    name: "getFileSignedUrlFromAttachment",
     input: {
         spaceId: Schema.id<SpaceId>(),
         fileId: Schema.id<FileId>(),
         target: FileAttachmentTargetSchema,
     },
     output: {
-        previewUrlSearch: Schema.string.nullable(),
+        signedUrlSearch: Schema.string,
     },
 });

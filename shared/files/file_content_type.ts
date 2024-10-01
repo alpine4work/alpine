@@ -42,6 +42,22 @@ export type FileWebSafeImageContentType =
     | "image/svg+xml"
     | "image/webp";
 
+const fileWebSafeImageContentTypes: {[Key in FileWebSafeImageContentType]: true} = {
+    "image/apng": true,
+    "image/avif": true,
+    "image/gif": true,
+    "image/jpeg": true,
+    "image/png": true,
+    "image/svg+xml": true,
+    "image/webp": true,
+};
+
+export function isFileWebSafeImageContentType(
+    contentType: FileContentType,
+): contentType is FileWebSafeImageContentType {
+    return contentType in fileWebSafeImageContentTypes;
+}
+
 /**
  * Somewhat popular image types that don't have broad web browser support. We
  * need to convert these images into a format with better web browser support.

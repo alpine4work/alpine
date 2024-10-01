@@ -198,19 +198,18 @@ async function handleFetch(
         | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
         | {type: "TaskRealtimeService"; spaceId: SpaceId}
         | {type: "UploadFile"; spaceId: SpaceId}
-        | {type: "File"; spaceId: SpaceId; fileId: FileId; variant: "preview" | null} =
-        "AppService";
+        | {type: "File"; spaceId: SpaceId; fileId: FileId} = "AppService";
 
     if (url.pathname.startsWith("/files/")) {
         const pathSegments = url.pathname.slice(7).split("/");
 
-        if (pathSegments.length === 2 && isId<SpaceId>(pathSegments[0]!)) {
-            const [fileId, variant] = pathSegments[1]!.split("-", 2);
-
-            if (isId<FileId>(fileId!) && (variant === "preview" || variant === undefined)) {
-                routeString = `/files/:spaceId/:fileId${variant ? `-${variant}` : ""}`;
-                route = {type: "File", spaceId: pathSegments[0], fileId, variant: variant ?? null};
-            }
+        if (
+            pathSegments.length === 2 &&
+            isId<SpaceId>(pathSegments[0]!) &&
+            isId<FileId>(pathSegments[1]!)
+        ) {
+            routeString = "/files/:spaceId/:fileId";
+            route = {type: "File", spaceId: pathSegments[0], fileId: pathSegments[1]};
         }
     } else if (!url.pathname.startsWith("/api/")) {
         // Route to `AppService`...
@@ -653,7 +652,7 @@ async function handleFileFetch(
     request: Request,
     url: URL,
     span: TracerSpan,
-    route: {spaceId: SpaceId; fileId: FileId; variant: "preview" | null},
+    route: {spaceId: SpaceId; fileId: FileId},
 ) {
     try {
         const fileUploadServiceHostname = sharedResources.env.FILE_UPLOAD_SERVICE_HOSTNAME;
@@ -664,10 +663,12 @@ async function handleFileFetch(
 
         const signedUrl = new URL(url);
 
-        // Don't include the `width` search parameter in the signed URL verification.
-        // Clients are allowed to vary this argument.
+        // Don't include the `width` and `variant` search parameters in the signed URL
+        // verification. Clients are allowed to vary this argument.
         const widthString = signedUrl.searchParams.get("width");
+        const variant = signedUrl.searchParams.get("variant");
         signedUrl.searchParams.delete("width");
+        signedUrl.searchParams.delete("variant");
 
         const width = widthString !== null ? parseInt(widthString, 10) : null;
         if (width !== null && !isFilePreviewImageResizeWidth(width)) {
@@ -676,6 +677,10 @@ async function handleFileFetch(
                     width,
                 )}`,
             );
+        }
+
+        if (variant !== null && variant !== "preview" && variant !== "alternative") {
+            throw new InvalidArgumentError(`Search param "variant" is not a valid file variant`);
         }
 
         // Make sure the user is allowed to access this file by verifying the signed
@@ -705,18 +710,17 @@ async function handleFileFetch(
         );
         headers.set("authorization", `bearer ${token}`);
 
-        const fileIdWithVariant =
-            route.fileId + (route.variant !== null ? `-${route.variant}` : "");
-
-        const subrequest = new Request(
-            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${fileIdWithVariant}${
-                width !== null ? `?width=${width}` : ""
-            }`,
-            {
-                method: request.method,
-                headers,
-            },
+        const subrequestUrl = new URL(
+            `http://${fileUploadServiceHostname}/${route.spaceId}/resize/${route.fileId}`,
         );
+
+        if (variant !== null) subrequestUrl.searchParams.set("variant", variant);
+        if (width !== null) subrequestUrl.searchParams.set("width", String(width));
+
+        const subrequest = new Request(subrequestUrl, {
+            method: request.method,
+            headers,
+        });
 
         // We set `max-age` to a time just after our URL expires. This lets the browser
         // know it's free to discard the file from its cache after that.
@@ -781,7 +785,7 @@ async function handleFileFetch(
             response = await fetch(subrequest);
         } else {
             const object = await sharedResources.env.FilesBucket.get(
-                `${route.spaceId}/${fileIdWithVariant}`,
+                `${route.spaceId}/${route.fileId}${variant !== null ? `-${variant}` : ""}`,
             );
             if (!object) {
                 response = new Response("404 Not Found", {

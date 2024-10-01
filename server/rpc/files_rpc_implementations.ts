@@ -39,57 +39,29 @@ export default implementRpcs(definitions, {
                 getFileAttachmentTargetAuthorizer(input.target),
             );
 
-            let previewUrl: URL | null = null;
-
-            // If there was an error while processing then don't generate a preview URL
-            // since the client will render an error message, not a preview.
-            //
-            // It's ok to generate a signed URL here since `getFileFromAttachment()`
-            // authorizes that the actor has access to the file.
-            if (
-                input.withPreviewUrl &&
-                file.preview &&
-                (!("ok" in file.preview) || file.preview.ok === true)
-            ) {
-                previewUrl = await context.files.dangerouslySignFilePreviewUrlWithoutAuthorization(
-                    input.spaceId,
-                    input.fileId,
-                    file,
-                );
-            }
-
             return {
                 file,
-                previewUrlSearch: previewUrl?.search ?? null,
             };
         },
     },
-    getFilePreviewUrlFromAttachment: {
+    getFileSignedUrlFromAttachment: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const file = await getFileFromAttachment(
+            await getFileFromAttachment(
                 context,
                 input.spaceId,
                 input.fileId,
                 getFileAttachmentTargetAuthorizer(input.target),
             );
 
-            let previewUrl: URL | null = null;
-
-            // If there was an error while processing then don't generate a preview URL
-            // since the client will render an error message, not a preview.
-            //
             // It's ok to generate a signed URL here since `getFileFromAttachment()`
             // authorizes that the actor has access to the file.
-            if (file.preview && (!("ok" in file.preview) || file.preview.ok === true)) {
-                previewUrl = await context.files.dangerouslySignFilePreviewUrlWithoutAuthorization(
-                    input.spaceId,
-                    input.fileId,
-                    file,
-                );
-            }
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
 
-            return {previewUrlSearch: previewUrl?.search ?? null};
+            return {signedUrlSearch: signedUrl.search};
         },
     },
 });

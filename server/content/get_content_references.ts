@@ -91,23 +91,12 @@ export async function getContentReferences(
                     });
                 }
 
-                let previewUrl: URL | null = null;
+                const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                    spaceId,
+                    fileId,
+                );
 
-                // If there was an error while processing then don't generate a preview URL
-                // since the client will render an error message, not a preview.
-                //
-                // It's ok to generate a signed URL here since `getFileFromAttachment()`
-                // authorizes that the actor has access to the file.
-                if (file.preview && (!("ok" in file.preview) || file.preview.ok === true)) {
-                    previewUrl =
-                        await context.files.dangerouslySignFilePreviewUrlWithoutAuthorization(
-                            spaceId,
-                            fileId,
-                            file,
-                        );
-                }
-
-                return {previewUrlSearch: previewUrl?.search ?? null, file};
+                return {signedUrlSearch: signedUrl.search, file};
             }),
         ),
     ]);
