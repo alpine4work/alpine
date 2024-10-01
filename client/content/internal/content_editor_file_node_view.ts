@@ -25,6 +25,7 @@ import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -67,6 +68,7 @@ export function createContentEditorFileNodeViewConstructor({
             | {previewUrlSearch: string | null; file: FileModel}
             | undefined
             | null = null;
+        let lastHtml: HtmlElementGenerator | null = null;
         let cleanup: (() => void) | null = null;
 
         const update = () => {
@@ -110,13 +112,19 @@ export function createContentEditorFileNodeViewConstructor({
                 );
 
                 if (dom === null) {
-                    dom = htmlStore.getSnapshot().generateNode();
+                    const nextHtml = htmlStore.getSnapshot();
+                    dom = nextHtml.generateNode();
+                    lastHtml = nextHtml;
                 } else {
-                    assert(htmlStore.getSnapshot().patchNode(dom));
+                    const nextHtml = htmlStore.getSnapshot();
+                    assert(nextHtml.patchNode(lastHtml, dom));
+                    lastHtml = nextHtml;
                 }
 
                 const unsubscribeFromStore = htmlStore.subscribe(() => {
-                    assert(htmlStore.getSnapshot().patchNode(assertExists(dom)));
+                    const nextHtml = htmlStore.getSnapshot();
+                    assert(nextHtml.patchNode(lastHtml, assertExists(dom)));
+                    lastHtml = nextHtml;
                 });
 
                 const cleanupBehavior = addContentFilePreviewBehavior(getContext, dom, {

@@ -2,6 +2,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {
     HtmlElementGenerator,
     HtmlFragmentGenerator,
+    HtmlGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 
@@ -55,7 +56,7 @@ test("can generate and patch an HTML element", () => {
         html3.appendChild(html4);
 
         html = html1.generateHtml();
-        expect(html1.patchNode(node)).toEqual(true);
+        expect(html1.patchNode(null, node)).toEqual(true);
     }
 
     expect(node.outerHTML).toEqual(
@@ -92,7 +93,7 @@ test("can generate and patch an HTML element", () => {
         html3.appendChild(html4);
 
         html = html1.generateHtml();
-        expect(html1.patchNode(node)).toEqual(true);
+        expect(html1.patchNode(null, node)).toEqual(true);
     }
 
     expect(html).toEqual('<div data-hello="world">barfoo<em>qux</em></div>');
@@ -133,7 +134,7 @@ test("can generate and patch an HTML element", () => {
         html5.appendChild(html6);
 
         html = html1.generateHtml();
-        expect(html1.patchNode(node)).toEqual(true);
+        expect(html1.patchNode(null, node)).toEqual(true);
     }
 
     expect(html).toEqual('<div data-hello="world">foobar<em>qux</em><span>wow</span></div>');
@@ -170,7 +171,7 @@ test("can generate and patch an HTML element", () => {
         html3.appendChild(html4);
 
         html = html1.generateHtml();
-        expect(html1.patchNode(node)).toEqual(true);
+        expect(html1.patchNode(null, node)).toEqual(true);
     }
 
     expect(html).toEqual('<div data-hello="world">foobar<em>qux</em></div>');
@@ -395,7 +396,7 @@ test("can generate and patch an HTML element using fragments (element root)", ()
         }
 
         html = generator.generateHtml();
-        expect(generator.patchNode(node)).toEqual(true);
+        expect(generator.patchNode(null, node)).toEqual(true);
     }
 
     expect(html).toEqual(
@@ -623,7 +624,7 @@ test("can generate and patch an HTML element using fragments (document fragment 
         }
 
         html = generator.generateHtml();
-        expect(generator.patchNode(node)).toEqual(true);
+        expect(generator.patchNode(null, node)).toEqual(true);
     }
 
     expect(html).toEqual(
@@ -648,4 +649,134 @@ test("can generate and patch an HTML element using fragments (document fragment 
         "<span>k</span>",
     );
     expect(deepNodeB2).not.toBe(deepNodeA2);
+});
+
+test("can preserve class names while patching HTML element", () => {
+    let node: Node;
+    let html: string;
+    let previousHtml: HtmlGenerator;
+    {
+        const html1 = new HtmlElementGenerator("div");
+        html1.setAttribute("class", "c1 c2");
+
+        const html2 = new HtmlTextGenerator("foobar");
+        html1.appendChild(html2);
+
+        const html3 = new HtmlElementGenerator("strong");
+        html1.appendChild(html3);
+
+        html3.setAttribute("class", "c3 c4");
+
+        const html4 = new HtmlTextGenerator("qux");
+        html3.appendChild(html4);
+
+        html = html1.generateHtml();
+        node = html1.generateNode();
+        previousHtml = html1;
+    }
+
+    assert(node instanceof HTMLElement);
+
+    expect(node.outerHTML).toEqual(
+        '<div class="c1 c2">foobar<strong class="c3 c4">qux</strong></div>',
+    );
+    expect(html).toEqual('<div class="c1 c2">foobar<strong class="c3 c4">qux</strong></div>');
+
+    const nodeA = node;
+    const nodeA_1 = node.childNodes[0];
+    const nodeA_2 = node.childNodes[1];
+    const nodeA_2_1 = node.childNodes[1]!.childNodes[0];
+
+    expect(nodeA).toBeInstanceOf(HTMLElement);
+    expect(nodeA_1).toBeInstanceOf(Text);
+    expect(nodeA_2).toBeInstanceOf(HTMLElement);
+    expect(nodeA_2_1).toBeInstanceOf(Text);
+
+    {
+        const html1 = new HtmlElementGenerator("div");
+        html1.setAttribute("class", "c2");
+
+        const html2 = new HtmlTextGenerator("foobar");
+        html1.appendChild(html2);
+
+        const html3 = new HtmlElementGenerator("strong");
+        html1.appendChild(html3);
+
+        html3.setAttribute("class", "c5 c3 c4");
+
+        const html4 = new HtmlTextGenerator("qux");
+        html3.appendChild(html4);
+
+        html = html1.generateHtml();
+        expect(html1.patchNode(previousHtml, node)).toEqual(true);
+        previousHtml = html1;
+    }
+
+    expect(node.outerHTML).toEqual(
+        '<div class="c2">foobar<strong class="c3 c4 c5">qux</strong></div>',
+    );
+    expect(html).toEqual('<div class="c2">foobar<strong class="c5 c3 c4">qux</strong></div>');
+
+    const nodeB = node;
+    const nodeB_1 = node.childNodes[0];
+    const nodeB_2 = node.childNodes[1];
+    const nodeB_2_1 = node.childNodes[1]!.childNodes[0];
+
+    expect(nodeB).toBeInstanceOf(HTMLElement);
+    expect(nodeB_1).toBeInstanceOf(Text);
+    expect(nodeB_2).toBeInstanceOf(HTMLElement);
+    expect(nodeB_2_1).toBeInstanceOf(Text);
+
+    expect(nodeB).toBe(nodeA);
+    expect(nodeB_1).toBe(nodeA_1);
+    expect(nodeB_2).toBe(nodeA_2);
+    expect(nodeB_2_1).toBe(nodeA_2_1);
+
+    nodeB.classList.add("other1");
+    (nodeB_2 as HTMLElement).classList.add("other2");
+
+    expect(node.outerHTML).toEqual(
+        '<div class="c2 other1">foobar<strong class="c3 c4 c5 other2">qux</strong></div>',
+    );
+    expect(html).toEqual('<div class="c2">foobar<strong class="c5 c3 c4">qux</strong></div>');
+
+    {
+        const html1 = new HtmlElementGenerator("div");
+        html1.setAttribute("class", "c2 c6");
+
+        const html2 = new HtmlTextGenerator("foobar");
+        html1.appendChild(html2);
+
+        const html3 = new HtmlElementGenerator("strong");
+        html1.appendChild(html3);
+
+        html3.setAttribute("class", "c5 c4");
+
+        const html4 = new HtmlTextGenerator("qux");
+        html3.appendChild(html4);
+
+        html = html1.generateHtml();
+        expect(html1.patchNode(previousHtml, node)).toEqual(true);
+        previousHtml = html1;
+    }
+
+    expect(node.outerHTML).toEqual(
+        '<div class="c2 other1 c6">foobar<strong class="c4 c5 other2">qux</strong></div>',
+    );
+    expect(html).toEqual('<div class="c2 c6">foobar<strong class="c5 c4">qux</strong></div>');
+
+    const nodeC = node;
+    const nodeC_1 = node.childNodes[0];
+    const nodeC_2 = node.childNodes[1];
+    const nodeC_2_1 = node.childNodes[1]!.childNodes[0];
+
+    expect(nodeC).toBeInstanceOf(HTMLElement);
+    expect(nodeC_1).toBeInstanceOf(Text);
+    expect(nodeC_2).toBeInstanceOf(HTMLElement);
+    expect(nodeC_2_1).toBeInstanceOf(Text);
+
+    expect(nodeC).toBe(nodeB);
+    expect(nodeC_1).toBe(nodeB_1);
+    expect(nodeC_2).toBe(nodeB_2);
+    expect(nodeC_2_1).toBe(nodeB_2_1);
 });

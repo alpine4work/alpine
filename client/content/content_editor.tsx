@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {history, redoDepth, undoDepth} from "prosemirror-history";
-import {Node, Slice} from "prosemirror-model";
+import {Fragment, Node, Slice} from "prosemirror-model";
 import {
     AllSelection,
     Command,
@@ -1136,14 +1136,74 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                             switch (dropTarget.action.type) {
                                                 case "InsertFileRow": {
-                                                    transaction.insert(
-                                                        dropTarget.action.pos,
+                                                    const fileRowNode =
                                                         schema.nodes.fileRow!.create(null, [
                                                             schema.nodes.file!.create({
                                                                 fileId: initialFile.id,
                                                             }),
-                                                        ]),
+                                                        ]);
+
+                                                    const $pos = transaction.doc.resolve(
+                                                        dropTarget.action.pos,
                                                     );
+
+                                                    if (
+                                                        $pos.nodeAfter?.type.name === "paragraph" &&
+                                                        $pos.nodeAfter.content.size === 0
+                                                    ) {
+                                                        transaction.replace(
+                                                            dropTarget.action.pos,
+                                                            dropTarget.action.pos + 2,
+                                                            new Slice(
+                                                                Fragment.from(fileRowNode),
+                                                                0,
+                                                                0,
+                                                            ),
+                                                        );
+
+                                                        transaction.setSelection(
+                                                            new NodeSelection(
+                                                                transaction.doc.resolve(
+                                                                    dropTarget.action.pos + 1,
+                                                                ),
+                                                            ),
+                                                        );
+                                                    } else if (
+                                                        $pos.nodeBefore?.type.name ===
+                                                            "paragraph" &&
+                                                        $pos.nodeBefore.content.size === 0
+                                                    ) {
+                                                        transaction.replace(
+                                                            dropTarget.action.pos - 2,
+                                                            dropTarget.action.pos,
+                                                            new Slice(
+                                                                Fragment.from(fileRowNode),
+                                                                0,
+                                                                0,
+                                                            ),
+                                                        );
+
+                                                        transaction.setSelection(
+                                                            new NodeSelection(
+                                                                transaction.doc.resolve(
+                                                                    dropTarget.action.pos - 1,
+                                                                ),
+                                                            ),
+                                                        );
+                                                    } else {
+                                                        transaction.insert(
+                                                            dropTarget.action.pos,
+                                                            fileRowNode,
+                                                        );
+
+                                                        transaction.setSelection(
+                                                            new NodeSelection(
+                                                                transaction.doc.resolve(
+                                                                    dropTarget.action.pos + 1,
+                                                                ),
+                                                            ),
+                                                        );
+                                                    }
                                                     break;
                                                 }
                                                 case "InsertFileIntoRow": {
@@ -1152,6 +1212,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                                                         schema.nodes.file!.create({
                                                             fileId: initialFile.id,
                                                         }),
+                                                    );
+
+                                                    transaction.setSelection(
+                                                        new NodeSelection(
+                                                            transaction.doc.resolve(
+                                                                dropTarget.action.pos,
+                                                            ),
+                                                        ),
                                                     );
                                                     break;
                                                 }
@@ -3147,12 +3215,6 @@ type ContentEditorFileDropTarget = {
 // TODO(calebmer, #files): Drag to move files.
 
 // TODO(calebmer, #files): Copy/paste files.
-
-// TODO(calebmer, #files): Dragging into an empty paragraph maybe should
-// replace the paragraph? Useful in an empty document for example.
-
-// TODO(calebmer, #files): If the last node in a document is an empty paragraph
-// maybe don't show drop indicator before and after empty paragraph.
 
 // TODO(calebmer, #files): Arrow up and down appear to be broken?
 
