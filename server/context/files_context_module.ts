@@ -76,6 +76,10 @@ export class FilesContextModule extends FilesContextModuleBase {
             // expiration time also prevents Alpine from being used as a CDN for the
             // user's files.
             //
+            // Also, having a long expiration time is great for implementing copy/paste
+            // across products. You can copy in Alpine, then paste in another product, and
+            // the image should be reliably pasted in given the generous expiration time.
+            //
             // ### An edge case where URL refreshing will often happen
             //
             // For post drafts we save `ContentReferences` to `localStorage`. So when the

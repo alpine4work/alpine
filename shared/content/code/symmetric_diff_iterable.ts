@@ -49,6 +49,8 @@ export type IterableChange<Value> = {
  * but being mathematically sound isn't relevant for our current uses of this
  * function.
  */
+// NOTE(calebmer, #interview): Implementing this function could make for a good
+// algorithmic interview question.
 export function symmetricDiffIterable<Value>(
     oldIterable: Iterable<Value>,
     newIterable: Iterable<Value>,

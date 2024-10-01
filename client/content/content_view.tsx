@@ -21,6 +21,7 @@ import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointe
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -42,7 +43,9 @@ import {
 import {fileClassName, linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {defaultThemeColor} from "~/shared/design/theme_colors.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -953,6 +956,144 @@ export function ContentView({
         );
     }, [id, contentUpdatedTime]);
 
+    // Apply a class to the content editor/view while the user is dragging from a text
+    // element. This way we can change cursor styles like a file's cursor. Normally
+    // files have a pointer cursor but while dragging to select text we want files
+    // elements in the editor/view to inherit the text cursor. Otherwise a user may be
+    // confused as to why while they're dragging the file appears to be clickable.
+    //
+    // IMPORTANT: The same effect (more or less) exists in `<ContentEditor>`. If you
+    // make an update here you'll need to make an update there as well.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const element = assertExists(ref.current);
+
+        let isPointerDownFromSelectableElement = false;
+        let isPointerDownFromSelectableElementAndMoved = false;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement =
+                event.target instanceof Element &&
+                getComputedStyle(event.target).userSelect !== "none";
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handlePointerMove = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElementAndMoved = isPointerDownFromSelectableElement;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handleResetState = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement = false;
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    element.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    element.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("pointermove", handlePointerMove, true);
+        document.addEventListener("pointerup", handleResetState, true);
+        document.addEventListener("pointercancel", handleResetState, true);
+        document.addEventListener("dragstart", handleResetState, true);
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("pointermove", handlePointerMove, true);
+            document.removeEventListener("pointerup", handleResetState, true);
+            document.removeEventListener("pointercancel", handleResetState, true);
+            document.removeEventListener("dragstart", handleResetState, true);
+        };
+    }, []);
+
+    // If the user selects some text on the page then we want to highlight any
+    // files within that selection. We have similar code in `<ContentEditor>`
+    // that's based on decorations and ProseMirror's `EditorState`.
+    useEffect(() => {
+        // Recompute selected elements if the content changes. Since we may be
+        // rendering a different set of files within the text selection.
+        //
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        content.doc;
+
+        const element = assertExists(ref.current);
+
+        // TODO(calebmer): When theme is configurable we should use the configured
+        // theme here instead of `defaultThemeColor`.
+        const selectionFileClassName =
+            contentStyles.selectionFileClassNameByColor[defaultThemeColor];
+
+        let previousFileElements: ReadonlySet<Element> = emptySet;
+
+        const handleSelectionChange = () => {
+            const nextFileElements = getElementsWithClassNameInParentInSelection(
+                element,
+                fileClassName,
+            );
+
+            for (const nextFileElement of nextFileElements) {
+                if (previousFileElements.has(nextFileElement)) continue;
+                nextFileElement.classList.add(selectionFileClassName);
+            }
+
+            for (const previousFileElement of previousFileElements) {
+                if (nextFileElements.has(previousFileElement)) continue;
+                previousFileElement.classList.remove(selectionFileClassName);
+            }
+
+            previousFileElements = nextFileElements;
+        };
+
+        handleSelectionChange();
+
+        document.addEventListener("selectionchange", handleSelectionChange);
+        return () => {
+            document.removeEventListener("selectionchange", handleSelectionChange);
+
+            for (const previousFileElement of previousFileElements) {
+                previousFileElement.classList.remove(selectionFileClassName);
+            }
+
+            previousFileElements = emptySet;
+        };
+    }, [content.doc]);
+
     return (
         <>
             <div
@@ -1033,4 +1174,184 @@ export function ContentView({
             )}
         </>
     );
+}
+
+// NOTE(calebmer, #interview): Implementing this function could make for a good
+// algorithmic interview question.
+function getElementsWithClassNameInParentInSelection(
+    parentElement: Element,
+    className: string,
+): ReadonlySet<Element> {
+    const selection = document.getSelection();
+    if (!selection || !selection.anchorNode || !selection.focusNode || selection.isCollapsed)
+        return emptySet;
+
+    // Protect against detached elements. This also guarantees the common parent
+    // of the anchor node and focus node is at least `document`.
+    if (!document.contains(selection.anchorNode)) return emptySet;
+    if (!document.contains(selection.focusNode)) return emptySet;
+
+    const anchorParentNodes: Array<globalThis.Node> = [];
+    const focusParentNodes: Array<globalThis.Node> = [];
+
+    {
+        let anchorParentNode: globalThis.Node | null = selection.anchorNode;
+        while (anchorParentNode) {
+            anchorParentNodes.push(anchorParentNode);
+            anchorParentNode = anchorParentNode.parentNode;
+        }
+    }
+
+    {
+        let focusParentNode: globalThis.Node | null = selection.focusNode;
+        while (focusParentNode) {
+            focusParentNodes.push(focusParentNode);
+            focusParentNode = focusParentNode.parentNode;
+        }
+    }
+
+    let commonParentReverseIndex = 1;
+    const minParentNodesLength = Math.min(anchorParentNodes.length, focusParentNodes.length);
+
+    for (let reverseIndex = 1; reverseIndex <= minParentNodesLength; reverseIndex++) {
+        if (
+            anchorParentNodes[anchorParentNodes.length - reverseIndex] !==
+            focusParentNodes[focusParentNodes.length - reverseIndex]
+        ) {
+            break;
+        }
+
+        commonParentReverseIndex = reverseIndex;
+    }
+
+    const commonParentNode =
+        anchorParentNodes[anchorParentNodes.length - commonParentReverseIndex]!;
+
+    // In this case, one of the following is true:
+    //
+    // 1. Anchor node and focus node are the same
+    // 2. Anchor node contains focus node
+    // 3. Focus node contains anchor node
+    //
+    // If anchor node and focus node are text nodes then cases 2 and 3 are
+    // impossible because text nodes can't have children. And for case 1 since
+    // text nodes can't have children the result of this function is an empty
+    // array.
+    //
+    // If anchor node or focus node aren't text nodes then cases 2 and 3 are
+    // ambiguous as to which direction the selection is in. Let's say in case
+    // 2, are we selecting from the beginning of anchor node to focus node? Or
+    // are we selecting from focus node to the end of anchor node?
+    //
+    // Going to assume anchor node and focus node are always text nodes for now and
+    // ignore cases 2 and 3.
+    if (commonParentReverseIndex === minParentNodesLength) {
+        return emptySet;
+    }
+
+    const anchorCommonParentChildNode =
+        anchorParentNodes[anchorParentNodes.length - (commonParentReverseIndex + 1)]!;
+
+    const focusCommonParentChildNode =
+        focusParentNodes[focusParentNodes.length - (commonParentReverseIndex + 1)]!;
+
+    let start: "Anchor" | "Focus" | null = null;
+
+    for (const commonParentChildNode of commonParentNode.childNodes) {
+        if (commonParentChildNode === anchorCommonParentChildNode) {
+            start = "Anchor";
+            break;
+        }
+
+        if (commonParentChildNode === focusCommonParentChildNode) {
+            start = "Focus";
+            break;
+        }
+    }
+
+    let startNode = start === "Anchor" ? selection.anchorNode : selection.focusNode;
+    let endNode = start === "Anchor" ? selection.focusNode : selection.anchorNode;
+
+    if (parentElement.contains(startNode)) {
+        if (parentElement.contains(endNode)) {
+            // Selection is entirely within parent element.
+        } else {
+            // Selection starts inside the parent element but ends outside of it.
+            endNode = parentElement;
+        }
+    } else {
+        if (parentElement.contains(endNode)) {
+            // Selection starts outside the parent element but ends inside of it.
+            startNode = parentElement;
+        } else {
+            const startCommonParentChildNode =
+                start === "Anchor" ? anchorCommonParentChildNode : focusCommonParentChildNode;
+            const endCommonParentChildNode =
+                start === "Anchor" ? focusCommonParentChildNode : anchorCommonParentChildNode;
+
+            let containsParentElement = false;
+            let commonParentChildNode: globalThis.Node | null = startCommonParentChildNode;
+            while (commonParentChildNode) {
+                if (commonParentChildNode.contains(parentElement)) {
+                    containsParentElement = true;
+                }
+                if (commonParentChildNode === endCommonParentChildNode) {
+                    break;
+                }
+                commonParentChildNode = commonParentChildNode.nextSibling;
+            }
+
+            // If neither start or end node are in the parent element then either:
+            //
+            // 1. The selection is outside the parent element
+            // 2. The selection fully encompasses the parent element and more
+            //
+            // In case 2 we need to return all elements matching the provided class name.
+            if (!containsParentElement) {
+                return emptySet;
+            } else {
+                return new Set(parentElement.getElementsByClassName(className));
+            }
+        }
+    }
+
+    const elements = new Set<Element>();
+
+    const enter = (node: globalThis.Node): boolean => {
+        if (node instanceof Element && node.classList.contains(className)) {
+            elements.add(node);
+        }
+
+        for (const childNode of node.childNodes) {
+            if (enter(childNode)) {
+                return true;
+            }
+        }
+
+        return node === endNode;
+    };
+
+    const exit = (node: globalThis.Node): boolean => {
+        if (node === endNode) {
+            return true;
+        } else if (node.nextSibling) {
+            return enterAndExit(node.nextSibling);
+        } else if (node.parentNode) {
+            return exit(node.parentNode);
+        } else {
+            return false;
+        }
+    };
+
+    const enterAndExit = (node: globalThis.Node): boolean => {
+        if (enter(node)) {
+            return true;
+        }
+
+        return exit(node);
+    };
+
+    enterAndExit(startNode);
+
+    return elements;
 }

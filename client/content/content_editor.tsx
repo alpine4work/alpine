@@ -1881,8 +1881,9 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 // Highlight any selected files.
                 //
-                // TODO(calebmer, #files): `<ContentView>` should have something like this too?
-                // So there's a text cursor over images while selecting them.
+                // We have similar code in `<ContentView>` that watches for the
+                // `selectionchange` event and applies the class to elements within
+                // `document.getSelection()`.
                 if (!(state.selection instanceof NodeSelection)) {
                     state.doc.nodesBetween(
                         state.selection.from,
@@ -2407,14 +2408,14 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, []);
 
-    // Apply a class to the content editor while the user is dragging from a text
+    // Apply a class to the content editor/view while the user is dragging from a text
     // element. This way we can change cursor styles like a file's cursor. Normally
     // files have a pointer cursor but while dragging to select text we want files
-    // elements in the editor to inherit the text cursor. Otherwise a user may be
+    // elements in the editor/view to inherit the text cursor. Otherwise a user may be
     // confused as to why while they're dragging the file appears to be clickable.
     //
-    // TODO(calebmer, #files): `<ContentView>` should have something like this too?
-    // So there's a text cursor over images while selecting them.
+    // IMPORTANT: The same effect (more or less) exists in `<ContentEditor>`. If you
+    // make an update here you'll need to make an update there as well.
     useLayoutEffect(() => {
         const view = assertExists(viewRef.current);
 
