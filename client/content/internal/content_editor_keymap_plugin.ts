@@ -1758,7 +1758,7 @@ export function buildContentEditorKeymapPlugin(
                         if (posResult !== null) {
                             let nextSelection = Selection.near(
                                 state.doc.resolve(posResult.pos),
-                                -1,
+                                -dir,
                             );
 
                             // If moving vertically kept us in the same `fileRow` then try searching for a
@@ -1785,7 +1785,10 @@ export function buildContentEditorKeymapPlugin(
                             // If your selection is in 1 then the coordinate below 1 will be between 2 and
                             // 3. So a bias of -1 selects 2.
                             if (nextSelection.$anchor.parent === selection.$anchor.parent) {
-                                nextSelection = Selection.near(state.doc.resolve(posResult.pos), 1);
+                                nextSelection = Selection.near(
+                                    state.doc.resolve(posResult.pos),
+                                    dir,
+                                );
                             }
 
                             if (
@@ -1828,7 +1831,7 @@ export function buildContentEditorKeymapPlugin(
                     nextSelection.node.type.name === "file" &&
                     nextSelection.$anchor.parent.type.name === "fileRow"
                 ) {
-                    const coords = view.coordsAtPos($side.pos, -1);
+                    const coords = view.coordsAtPos($side.pos);
 
                     // Make sure coords exist and isn't entirely zeroed out which ProseMirror may
                     // return when it doesn't have layout information.
@@ -1847,7 +1850,7 @@ export function buildContentEditorKeymapPlugin(
                                 ? fileRowElement.getBoundingClientRect()
                                 : null;
 
-                        const posResult = view.posAtCoords({
+                        const posCoords = {
                             left: coordX,
                             top:
                                 dir > 0
@@ -1865,16 +1868,22 @@ export function buildContentEditorKeymapPlugin(
                                           spacing[contentStyles.defaultParagraphMargin],
                                           getRemPxWithoutListening(),
                                       ),
-                        });
+                        };
+
+                        const posResult = view.posAtCoords(posCoords);
 
                         if (posResult !== null) {
                             // Save the last arrow navigation coord we used.
                             setLastArrowNavigationCoordState(coordX);
 
-                            const nextSelection = Selection.near(
-                                state.doc.resolve(posResult.pos),
-                                -1,
-                            );
+                            const $pos = state.doc.resolve(posResult.pos);
+
+                            const nextSelection =
+                                $pos.nodeAfter?.type.name === "file"
+                                    ? new NodeSelection($pos)
+                                    : $pos.nodeBefore?.type.name === "file"
+                                    ? new NodeSelection(state.doc.resolve($pos.pos - 1))
+                                    : Selection.near(state.doc.resolve(posResult.pos), dir);
 
                             view.dispatch(state.tr.setSelection(nextSelection).scrollIntoView());
                             return true;

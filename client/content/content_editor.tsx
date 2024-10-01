@@ -3216,10 +3216,10 @@ type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Copy/paste files.
 
-// TODO(calebmer, #files): Arrow up and down appear to be broken?
-
 // TODO(calebmer, #files): Images with alpha does placeholder show through? We
 // probably need some fade animation.
+
+// TODO(calebmer, #files): Don't show file focus while dragging file.
 
 /**
  * Get the targets for dropping a file into our document around some top block
