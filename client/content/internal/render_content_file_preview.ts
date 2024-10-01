@@ -1,7 +1,12 @@
 import {Node} from "prosemirror-model";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
+import {
+    addParentScrollWhenPointerDownAndOverListener,
+    removeParentScrollWhenPointerDownAndOverListener,
+} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {AppContext} from "~/client/context/app_context.js";
-import {sprinkles} from "~/client/styles/styles.js";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {getContentReferencesFileSignedUrlExpirationTime} from "~/shared/content/content_references.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -372,6 +377,8 @@ export function addContentFilePreviewBehavior(
         isOurEditorUploading,
         onUpdate,
         onPreviewUrlSearchRefresh,
+        onShiftMouseDown,
+        onLongPress,
     }: {
         spaceId: SpaceId;
         node: Node;
@@ -381,6 +388,8 @@ export function addContentFilePreviewBehavior(
         isOurEditorUploading: ((fileId: FileId) => boolean) | false;
         onUpdate: (file: FileModel, previewUrlSearch: string | null) => void;
         onPreviewUrlSearchRefresh: (fileId: FileId, previewUrlSearch: string | null) => void;
+        onShiftMouseDown?: (event: PointerEvent) => void;
+        onLongPress?: () => void;
     },
 ): () => void {
     assert(element.classList.contains(fileClassName));
@@ -499,7 +508,93 @@ export function addContentFilePreviewBehavior(
         }
     }
 
+    let isPointerDownAndOver = false;
+    let longPressTimeout: Timeout | null = null;
+
+    const handlePointerDown = (event: PointerEvent) => {
+        isPointerDownAndOver = event.button === 0 && !isModifiedPointerEvent(event);
+
+        if (isPointerDownAndOver) {
+            // Normally ProseMirror sets `element.draggable = true` on node selection
+            // ([source][1]). But since we don't select our node until after a long press
+            // let's start our `pointerdown` event by setting `element.draggable = true`.
+            //
+            // [1]: https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
+            element.draggable = true;
+
+            element.classList.add(contentStyles.pressedFileClassName);
+        } else {
+            element.classList.remove(contentStyles.pressedFileClassName);
+        }
+        element.classList.remove(contentStyles.longPressedFileClassName);
+
+        longPressTimeout?.clear();
+        longPressTimeout = null;
+
+        // If the mouse performs a shift or alt click then we select the node instead
+        // of opening the file viewer. This interaction is not obvious. You can also
+        // use keyboard shortcuts or right click to select a file. The user should be
+        // able to figure out one of these three methods.
+        if (event.pointerType === "mouse" && (event.altKey || event.shiftKey)) {
+            onShiftMouseDown?.(event);
+        } else if (isPointerDownAndOver && onLongPress) {
+            // Emulate a `UILongPressGestureRecognizer` on iOS. Which [waits for a touch to
+            // last 0.5 seconds][1] before firing.
+            //
+            // [1]: https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            longPressTimeout = createTimeout(() => {
+                longPressTimeout = null;
+                onLongPress();
+            }, 500);
+        }
+    };
+
+    const resetPointerState = () => {
+        isPointerDownAndOver = false;
+
+        // We set `element.draggable = true` on `pointerdown` and ProseMirror sets
+        // `element.draggable = true` on node selection ([source][1]). So if the node
+        // is selected, let ProseMirror set `element.draggable = false` instead of us.
+        //
+        // [1]: https://github.com/ProseMirror/prosemirror-view/blob/17b508f618c944c54776f8ddac45edcb49970796/src/viewdesc.ts#L838-L850
+        if (!element.classList.contains("ProseMirror-selectednode")) element.draggable = false;
+
+        element.classList.remove(contentStyles.pressedFileClassName);
+        element.classList.remove(contentStyles.longPressedFileClassName);
+
+        longPressTimeout?.clear();
+        longPressTimeout = null;
+    };
+
+    const handlePointerUp = resetPointerState;
+    const handlePointerLeave = resetPointerState;
+    const handlePointerCancel = resetPointerState;
+    const handleDragStart = resetPointerState;
+    const handleParentScrollWhenPointerDownAndOver = resetPointerState;
+
+    element.addEventListener("pointerdown", handlePointerDown);
+    element.addEventListener("pointerup", handlePointerUp);
+    element.addEventListener("pointerleave", handlePointerLeave);
+    element.addEventListener("pointercancel", handlePointerCancel);
+    element.addEventListener("dragstart", handleDragStart);
+    addParentScrollWhenPointerDownAndOverListener(
+        element,
+        handleParentScrollWhenPointerDownAndOver,
+    );
+
     return () => {
+        element.removeEventListener("pointerdown", handlePointerDown);
+        element.removeEventListener("pointerup", handlePointerUp);
+        element.removeEventListener("pointerleave", handlePointerLeave);
+        element.removeEventListener("pointercancel", handlePointerCancel);
+        element.removeEventListener("dragstart", handleDragStart);
+        removeParentScrollWhenPointerDownAndOverListener(
+            element,
+            handleParentScrollWhenPointerDownAndOver,
+        );
+
+        resetPointerState();
+
         pollTimeout?.clear();
         pollTimeout = null;
 

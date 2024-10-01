@@ -59,7 +59,10 @@ import {
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
-import {dispatchParentScrollWhenPointerDownAndOverEvent} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {
+    dispatchParentScrollWhenPointerDownAndOverEvent,
+    parentScrollWhenPointerDownAndOverClassNames,
+} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {uploadFileFromContentEditor} from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
@@ -95,7 +98,7 @@ import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styl
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {commentClassName, linkClassName} from "~/shared/content/content_styles.js";
+import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {ThemeColor, defaultThemeColor} from "~/shared/design/theme_colors.js";
@@ -1271,6 +1274,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return false;
             },
 
+            handleClick: (view, pos, event) => {
+                // Don't perform the default ProseMirror behavior when clicking a file.
+                //
+                // We have pointer event listeners in `content_editor_file_node_view.ts` that
+                // implements selecting the file on shift click and opening the attachment
+                // viewer otherwise.
+                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
+                    return true;
+                }
+            },
+
             // ProseMirror provides its own triple click selection support. This is good,
             // the browser's triple click support doesn't work well with
             // `contenteditable="false"` children. e.g. A mention in a paragraph (the
@@ -1286,7 +1300,12 @@ function ContentEditor<Content extends ContentWithReferences>(
             // browser default with `event.preventDefault()` means the browser won't move
             // the selection during a drag. So we reimplement dragging the selection after
             // a triple click here.
-            handleTripleClick: () => {
+            handleTripleClick: (view, pos, event) => {
+                // Don't perform the default ProseMirror behavior when clicking a file.
+                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
+                    return true;
+                }
+
                 tripleClickSelectionDragRef.current?.done();
                 tripleClickSelectionDragRef.current = null;
 
@@ -2380,11 +2399,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 let parentElement: HTMLElement | null = event.target as HTMLElement;
                 while (parentElement) {
                     if (
-                        parentElement.classList.contains(
-                            contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
-                        ) ||
-                        parentElement.classList.contains(linkClassName) ||
-                        parentElement.classList.contains(commentClassName)
+                        parentScrollWhenPointerDownAndOverClassNames.some(className =>
+                            parentElement!.classList.contains(className),
+                        )
                     ) {
                         hasPointerDownAndOverParentScrollReceiverParent = true;
                         break;
@@ -2428,9 +2445,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             isPointerDownAndOverParentScrollReceiver = false;
 
             for (const element of view.dom.querySelectorAll(
-                // `linkClassName` and `commentClassName` are inherently receivers of this
-                // event.
-                `.${contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName}, .${linkClassName}, .${commentClassName}`,
+                parentScrollWhenPointerDownAndOverClassNames
+                    .map(className => `.${className}`)
+                    .join(", "),
             )) {
                 dispatchParentScrollWhenPointerDownAndOverEvent(element);
             }

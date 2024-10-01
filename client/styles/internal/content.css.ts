@@ -200,8 +200,6 @@ export const extraCompactDocClassName = style({
     },
 });
 
-export const parentScrollWhenPointerDownAndOverReceiverClassName = style({});
-
 const blockStyles = {
     width: "100%",
     maxWidth: blockMaxWidthVar,
@@ -1067,8 +1065,11 @@ globalStyle(
 export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, color =>
     style({
         selectors: {
+            // We use `&::after` to avoid competing with the `&::before` selector for
+            // `pressedFileClassName`.
             "&::after": {
                 content: '""',
+                zIndex: "20",
                 position: "absolute",
                 top: "0",
                 bottom: "0",
@@ -1080,6 +1081,30 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
         },
     }),
 );
+
+export const pressedFileClassName = style({
+    selectors: {
+        // We use `&::before` to avoid competing with the `&::after` selector for
+        // `selectionFileClassNameByColor`.
+        "&::before": {
+            content: '""',
+            zIndex: "20",
+            position: "absolute",
+            top: "0",
+            bottom: "0",
+            left: "0",
+            right: "0",
+            backgroundColor: colorSchemeVars["grey-100-const"],
+            opacity: buttonPressedOverlayOpacity / 2,
+        },
+    },
+});
+
+// After a long press releasing won't open the attachment viewer. So set cursor to
+// `default` to communicate this.
+export const longPressedFileClassName = style({
+    cursor: "default",
+});
 
 // Our code doesn't have a background color! This is an intentional design
 // decision but also has some technical justification.

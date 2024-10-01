@@ -213,10 +213,7 @@ export function addUnfocusableButtonBehaviorToElement(
     const hoverClassList = hoverClassName.length > 0 ? hoverClassName.split(" ") : [];
     const pressClassList = pressClassName.length > 0 ? pressClassName.split(" ") : [];
 
-    element.classList.add(
-        contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
-        ...defaultClassList,
-    );
+    element.classList.add(...defaultClassList);
 
     let isPointerOver = false;
     let isPointerDownAndOver = false;
@@ -341,12 +338,7 @@ export function addUnfocusableButtonBehaviorToElement(
     addTriggeredOverlayCloseEventListener(element, handleTriggeredOverlayClose);
 
     return () => {
-        element.classList.remove(
-            contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
-            ...defaultClassList,
-            ...hoverClassList,
-            ...pressClassList,
-        );
+        element.classList.remove(...defaultClassList, ...hoverClassList, ...pressClassList);
 
         element.removeEventListener("pointerdown", handlePointerDown);
         element.removeEventListener("pointerup", handlePointerUp);

@@ -15,10 +15,12 @@ import {
 } from "~/client/content/internal/render_content_file_preview.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     getIsMobileWithoutListening,
     subscribeToIsMobileChange,
 } from "~/client/remix/use_is_mobile.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
@@ -60,7 +62,7 @@ export function createContentEditorFileNodeViewConstructor({
     isOurEditorUploading: (fileId: FileId) => boolean;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
-        let dom = null as HTMLElement | null;
+        let dom: HTMLElement;
 
         let isDestroyed = false;
         let lastLayout: ContentFileLayout | undefined | null = null;
@@ -111,7 +113,7 @@ export function createContentEditorFileNodeViewConstructor({
                     }),
                 );
 
-                if (dom === null) {
+                if (dom === undefined) {
                     const nextHtml = htmlStore.getSnapshot();
                     dom = nextHtml.generateNode();
                     lastHtml = nextHtml;
@@ -178,6 +180,30 @@ export function createContentEditorFileNodeViewConstructor({
                             previewUrlSearch,
                         });
                     },
+                    onShiftMouseDown: event => {
+                        event.preventDefault();
+
+                        view.dispatch(
+                            view.state.tr.setSelection(
+                                new NodeSelection(view.state.doc.resolve(getPos())),
+                            ),
+                        );
+
+                        if (!view.hasFocus()) view.focus();
+                    },
+                    onLongPress: () => {
+                        dom.classList.add(contentStyles.longPressedFileClassName);
+
+                        view.dispatch(
+                            view.state.tr.setSelection(
+                                new NodeSelection(view.state.doc.resolve(getPos())),
+                            ),
+                        );
+
+                        if (!view.hasFocus()) view.focus();
+
+                        NativeMobileBridge?.haptic.playMediumImpact();
+                    },
                 });
 
                 cleanup = () => {
@@ -185,34 +211,13 @@ export function createContentEditorFileNodeViewConstructor({
                     cleanupBehavior();
                 };
             }
+
+            return dom;
         };
 
-        update();
-        assert(dom);
+        dom = update();
 
-        // TODO(calebmer, #files): Long press should also select file instead of
-        // opening file viewer.
-        const handlePointerDown = (event: PointerEvent) => {
-            // The browser default behavior when clicking on a file is to move focus to the
-            // nearest position in the document's text. Don't do this.
-            //
-            // TODO(calebmer, #files): Should open file viewer.
-            event.preventDefault();
-
-            // If the mouse performs a shift or alt click then we select the node instead
-            // of opening the file viewer. This interaction is not obvious. You can also
-            // use keyboard shortcuts or right click to select a file. The user should be
-            // able to figure out one of these three methods.
-            if (event.pointerType === "mouse" && (event.altKey || event.shiftKey)) {
-                view.dispatch(
-                    view.state.tr.setSelection(new NodeSelection(view.state.doc.resolve(getPos()))),
-                );
-
-                if (!view.hasFocus()) view.focus();
-            }
-        };
-
-        const handleContextMenu = () => {
+        dom.addEventListener("contextmenu", () => {
             // Make sure `<ContentEditorFileToolbar>` doesn't animate in then immediately
             // animate out. Since by setting selection here we'll render
             // `<ContentEditorFileToolbar>`. Then once this event finishes processing
@@ -230,7 +235,7 @@ export function createContentEditorFileNodeViewConstructor({
 
                 if (!view.hasFocus()) view.focus();
             });
-        };
+        });
 
         const unsubscribeFromIsMobileChange = subscribeToIsMobileChange(update);
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(update);
@@ -240,9 +245,6 @@ export function createContentEditorFileNodeViewConstructor({
             dom,
             () => new EventEmitter(),
         ).subscribe(update);
-
-        dom.addEventListener("pointerdown", handlePointerDown);
-        dom.addEventListener("contextmenu", handleContextMenu);
 
         return {
             dom,

@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {DOMSerializer, Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
 import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
@@ -6,14 +5,6 @@ import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointe
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {contentStyles} from "~/client/styles/styles.js";
-
-const {
-    checkListItemCheckboxClassName,
-    checkListItemCheckboxContainerClassName,
-    checkListItemCheckboxPressedClassName,
-    checkListItemCheckboxIconClassName,
-    checkListItemContentClassName,
-} = contentStyles;
 
 export function createContentEditorCheckListItemNodeView(
     node: Node,
@@ -24,19 +15,18 @@ export function createContentEditorCheckListItemNodeView(
 
     const checkboxContainerDom = document.createElement("div");
     dom.appendChild(checkboxContainerDom);
-    checkboxContainerDom.className = classNames(
-        checkListItemCheckboxContainerClassName,
-        contentStyles.parentScrollWhenPointerDownAndOverReceiverClassName,
-    );
+    checkboxContainerDom.className = contentStyles.checkListItemCheckboxContainerClassName;
 
     const checkboxDom = document.createElement("div");
     checkboxContainerDom.appendChild(checkboxDom);
-    checkboxDom.className = checkListItemCheckboxClassName;
-    checkboxDom.innerHTML = checkIconSvg({className: checkListItemCheckboxIconClassName});
+    checkboxDom.className = contentStyles.checkListItemCheckboxClassName;
+    checkboxDom.innerHTML = checkIconSvg({
+        className: contentStyles.checkListItemCheckboxIconClassName,
+    });
 
     const contentDom = document.createElement("div");
     dom.appendChild(contentDom);
-    contentDom.className = checkListItemContentClassName;
+    contentDom.className = contentStyles.checkListItemContentClassName;
 
     let isPointerDownAndOver = false;
 
@@ -50,7 +40,7 @@ export function createContentEditorCheckListItemNodeView(
         event.stopPropagation();
 
         isPointerDownAndOver = true;
-        checkboxDom.classList.add(checkListItemCheckboxPressedClassName);
+        checkboxDom.classList.add(contentStyles.checkListItemCheckboxPressedClassName);
     });
 
     checkboxContainerDom.addEventListener("pointerup", () => {
@@ -58,7 +48,7 @@ export function createContentEditorCheckListItemNodeView(
         isPointerDownAndOver = false;
 
         if (wasPointerDownAndOver) {
-            checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
+            checkboxDom.classList.remove(contentStyles.checkListItemCheckboxPressedClassName);
 
             view.dispatch(
                 view.state.tr.setNodeMarkup(getPos(), null, {
@@ -77,7 +67,7 @@ export function createContentEditorCheckListItemNodeView(
         isPointerDownAndOver = false;
 
         if (wasPointerDownAndOver) {
-            checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
+            checkboxDom.classList.remove(contentStyles.checkListItemCheckboxPressedClassName);
         }
     });
 
@@ -86,7 +76,7 @@ export function createContentEditorCheckListItemNodeView(
         isPointerDownAndOver = false;
 
         if (wasPointerDownAndOver) {
-            checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
+            checkboxDom.classList.remove(contentStyles.checkListItemCheckboxPressedClassName);
         }
     });
 
@@ -95,7 +85,7 @@ export function createContentEditorCheckListItemNodeView(
         isPointerDownAndOver = false;
 
         if (wasPointerDownAndOver) {
-            checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
+            checkboxDom.classList.remove(contentStyles.checkListItemCheckboxPressedClassName);
         }
     });
 
@@ -104,7 +94,7 @@ export function createContentEditorCheckListItemNodeView(
         isPointerDownAndOver = false;
 
         if (wasPointerDownAndOver) {
-            checkboxDom.classList.remove(checkListItemCheckboxPressedClassName);
+            checkboxDom.classList.remove(contentStyles.checkListItemCheckboxPressedClassName);
         }
     });
 
