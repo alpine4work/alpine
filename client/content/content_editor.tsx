@@ -2719,8 +2719,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 viewRef={viewRef}
                 floaterState={floaterState}
                 selectedNodeElement={selectedNodeElement}
+                hasFileDropTarget={!!fileDropTarget}
             />
-            {selectedNodeElement && (
+            {!fileDropTarget && selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />
             )}
             {phantomSelections?.map(phantomSelection => (
@@ -3219,8 +3220,6 @@ type ContentEditorFileDropTarget = {
 // TODO(calebmer, #files): Images with alpha does placeholder show through? We
 // probably need some fade animation.
 
-// TODO(calebmer, #files): Don't show file focus while dragging file.
-
 /**
  * Get the targets for dropping a file into our document around some top block
  * index. For performance, we only generate drop targets immediately around the
@@ -3432,6 +3431,8 @@ function getContentEditorFileDropTargets(
         // which'll allow you to create a gallery when dropping a file to the left or
         // right.
         if (node.type.name === "fileRow" && node.childCount < 3) {
+            const elementRect = element.getBoundingClientRect();
+
             {
                 const fileRowLeftElement =
                     element.firstElementChild instanceof HTMLElement
@@ -3440,7 +3441,15 @@ function getContentEditorFileDropTargets(
 
                 const dropTargetX =
                     element.offsetLeft +
-                    fileRowLeftElement.offsetLeft -
+                    // `fileRowLeftElement.offsetLeft` also works here instead of looking at
+                    // `fileRowLeftElement.getBoundingClientRect()`. However, `offsetLeft` rounds
+                    // positions to integers. For precisely rendering our drop target in the center
+                    // of two files we need the fractional position which `getBoundingClientRect()`
+                    // returns. Otherwise in some edge cases the drop target looks off center.
+                    //
+                    // We subtract `elementRect.left` so we get a position relative to
+                    // `element.offsetLeft`.
+                    (fileRowLeftElement.getBoundingClientRect().left - elementRect.left) -
                     (contentStyles.fileRowGapWidthRem * remPx) / 2;
 
                 dropTargets.push({
@@ -3466,10 +3475,17 @@ function getContentEditorFileDropTargets(
                 if (fileRowLeftElement instanceof HTMLElement) {
                     const dropTargetX =
                         element.offsetLeft +
-                        fileRowLeftElement.offsetLeft +
-                        fileRowLeftElement.offsetWidth +
-                        (contentStyles.fileRowGapWidthRem * remPx) / 2 -
-                        1;
+                        // `fileRowLeftElement.offsetLeft + fileRowLeftElement.offsetWidth` also works
+                        // here instead of looking at `fileRowLeftElement.getBoundingClientRect()`.
+                        // However, `offsetLeft` and `offsetWidth` round positions to integers. For
+                        // precisely rendering our drop target in the center of two files we need the
+                        // fractional position which `getBoundingClientRect()` returns. Otherwise in
+                        // some edge cases the drop target looks off center.
+                        //
+                        // We subtract `elementRect.left` so we get a position relative to
+                        // `element.offsetLeft`.
+                        (fileRowLeftElement.getBoundingClientRect().right - elementRect.left) +
+                        (contentStyles.fileRowGapWidthRem * remPx) / 2;
 
                     dropTargets.push({
                         offsetParent: element.offsetParent,
@@ -3496,8 +3512,16 @@ function getContentEditorFileDropTargets(
 
                 const dropTargetX =
                     element.offsetLeft +
-                    fileRowRightElement.offsetLeft +
-                    fileRowRightElement.offsetWidth +
+                    // `fileRowRightElement.offsetLeft + fileRowRightElement.offsetWidth` also works
+                    // here instead of looking at `fileRowRightElement.getBoundingClientRect()`.
+                    // However, `offsetLeft` and `offsetWidth` round positions to integers. For
+                    // precisely rendering our drop target in the center of two files we need the
+                    // fractional position which `getBoundingClientRect()` returns. Otherwise in
+                    // some edge cases the drop target looks off center.
+                    //
+                    // We subtract `elementRect.left` so we get a position relative to
+                    // `element.offsetLeft`.
+                    (fileRowRightElement.getBoundingClientRect().right - elementRect.left) +
                     (contentStyles.fileRowGapWidthRem * remPx) / 2;
 
                 dropTargets.push({

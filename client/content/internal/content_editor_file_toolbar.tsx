@@ -51,11 +51,13 @@ export function ContentEditorFileToolbarController({
     viewRef,
     floaterState,
     selectedNodeElement,
+    hasFileDropTarget,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
     floaterState: ContentEditorFloaterState;
     selectedNodeElement: HTMLElement | null;
+    hasFileDropTarget: boolean;
 }) {
     const [fileToolbar, setFileToolbar] = useState<{
         key: string;
@@ -69,7 +71,8 @@ export function ContentEditorFileToolbarController({
         !!selectedNodeElement &&
         floaterState.type === "PointerToolbar" &&
         state.selection instanceof NodeSelection &&
-        state.selection.node.type.name === "file";
+        state.selection.node.type.name === "file" &&
+        !hasFileDropTarget;
 
     if (
         isFileToolbarVisible &&
