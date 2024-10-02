@@ -9,9 +9,13 @@ exports[`bold 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <strong>
+    <strong
+      class="content_bold"
+    >
       world
     </strong>
     !
@@ -151,10 +155,13 @@ exports[`bullet list plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Hello world!
     </p>
   </div>
@@ -203,26 +210,35 @@ exports[`bullet list with multiple items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -269,34 +285,46 @@ exports[`bullet list with sub-list 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -313,37 +341,49 @@ exports[`bullet list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -438,10 +478,13 @@ exports[`can put hard breaks inside list items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Hello…
       <br />
       …world!
@@ -475,7 +518,9 @@ exports[`can put hard breaks inside paragraphs 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello…
     <br />
     …world!
@@ -505,13 +550,18 @@ exports[`can put multiple paragraphs inside list items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_unorderedListItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Hello…
     </p>
-    <p>
+    <p
+      class="content_paragraph"
+    >
       …world!
     </p>
   </div>
@@ -687,8 +737,9 @@ exports[`check list (checked) plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
@@ -713,7 +764,9 @@ exports[`check list (checked) plain 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Hello world!
       </p>
     </div>
@@ -905,8 +958,9 @@ exports[`check list (unchecked) plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
@@ -931,7 +985,9 @@ exports[`check list (unchecked) plain 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Hello world!
       </p>
     </div>
@@ -989,8 +1045,9 @@ exports[`check list with multiple items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
@@ -1015,14 +1072,17 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 1
       </p>
     </div>
   </div>
   <div
+    class="content_listItem"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
@@ -1047,14 +1107,17 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 2
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
@@ -1079,7 +1142,9 @@ exports[`check list with multiple items 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 3
       </p>
     </div>
@@ -1141,8 +1206,9 @@ exports[`check list with sub-list 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
@@ -1167,14 +1233,17 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Test
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
@@ -1199,14 +1268,17 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 1
       </p>
     </div>
   </div>
   <div
+    class="content_listItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
@@ -1231,14 +1303,17 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 2
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
@@ -1263,7 +1338,9 @@ exports[`check list with sub-list 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 3
       </p>
     </div>
@@ -1281,8 +1358,9 @@ exports[`check list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
     <div>
       <div>
@@ -1307,35 +1385,46 @@ exports[`check list with sub-list of another type 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Test
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -1643,26 +1732,45 @@ exports[`code (multiline) plain 1`] = `
   translate="no"
 >
   <pre
+    class="content_codeBlockWrapper"
     data-scrollbar="false"
   >
-    <code>
-      <div>
-        <div>
+    <code
+      class="content_codeBlock"
+    >
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           Hello world!
         </div>
       </div>
-      <div>
-        <div>
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           <br />
         </div>
       </div>
-      <div>
-        <div>
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
             Hello world!
         </div>
       </div>
-      <div>
-        <div>
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           Hello world!
         </div>
       </div>
@@ -1742,9 +1850,13 @@ exports[`code 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <code>
+    <code
+      class="content_code"
+    >
       world
     </code>
     !
@@ -1842,11 +1954,18 @@ exports[`code plain 1`] = `
   translate="no"
 >
   <pre
+    class="content_codeBlockWrapper"
     data-scrollbar="false"
   >
-    <code>
-      <div>
-        <div>
+    <code
+      class="content_codeBlock"
+    >
+      <div
+        class="content_codeBlockLine"
+      >
+        <div
+          class="content_codeBlockLineContent"
+        >
           Hello world!
         </div>
       </div>
@@ -1906,7 +2025,9 @@ exports[`divider empty 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <hr />
+  <hr
+    class="content_divider"
+  />
 </div>
 `;
 
@@ -2011,7 +2132,9 @@ exports[`heading 1 plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <h2>
+  <h2
+    class="content_headingLevel1"
+  >
     Hello world!
   </h2>
 </div>
@@ -2134,7 +2257,9 @@ exports[`heading 2 plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <h3>
+  <h3
+    class="content_headingLevel2"
+  >
     Hello world!
   </h3>
 </div>
@@ -2257,7 +2382,9 @@ exports[`heading 3 plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <h4>
+  <h4
+    class="content_headingLevel3"
+  >
     Hello world!
   </h4>
 </div>
@@ -2296,9 +2423,12 @@ exports[`highlight 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
     <mark
+      class="content_highlightGreen"
       data-highlight-color="green"
     >
       world
@@ -2333,9 +2463,13 @@ exports[`italic 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <em>
+    <em
+      class="content_italic"
+    >
       world
     </em>
     !
@@ -2366,9 +2500,12 @@ exports[`link (XSS vulnerability) 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
     <a
+      class="content_link"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -2389,9 +2526,12 @@ exports[`link 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
     <a
+      class="content_link"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"
@@ -2539,11 +2679,14 @@ exports[`ordered list plain 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Hello world!
     </p>
   </div>
@@ -2592,29 +2735,38 @@ exports[`ordered list with multiple items 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -2661,38 +2813,50 @@ exports[`ordered list with sub-list 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 1
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 2
     </p>
   </div>
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="1"
     data-list-number="0"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Item 3
     </p>
   </div>
@@ -2709,17 +2873,21 @@ exports[`ordered list with sub-list of another type 1`] = `
   translate="no"
 >
   <div
+    class="content_listItem content_orderedListItem"
     data-list-indent="0"
     data-list-number="0"
-    style="--list-item-indent: 0;"
+    style="--content_listItemIndentation:0"
   >
-    <p>
+    <p
+      class="content_paragraph"
+    >
       Test
     </p>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
@@ -2744,14 +2912,17 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 1
       </p>
     </div>
   </div>
   <div
+    class="content_listItem"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
@@ -2776,14 +2947,17 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 2
       </p>
     </div>
   </div>
   <div
+    class="content_listItem content_checkListItemChecked"
     data-list-indent="1"
-    style="--list-item-indent: 1;"
+    style="--content_listItemIndentation:1"
   >
     <div>
       <div>
@@ -2808,7 +2982,9 @@ exports[`ordered list with sub-list of another type 1`] = `
       </div>
     </div>
     <div>
-      <p>
+      <p
+        class="content_paragraph"
+      >
         Item 3
       </p>
     </div>
@@ -3001,7 +3177,9 @@ exports[`paragraph plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello world!
   </p>
 </div>
@@ -3136,8 +3314,12 @@ exports[`quote plain 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <blockquote>
-    <p>
+  <blockquote
+    class="content_quoteBlock"
+  >
+    <p
+      class="content_paragraph"
+    >
       Hello world!
     </p>
   </blockquote>
@@ -3181,9 +3363,13 @@ exports[`strike 1`] = `
   spellcheck="false"
   translate="no"
 >
-  <p>
+  <p
+    class="content_paragraph"
+  >
     Hello 
-    <del>
+    <del
+      class="content_strike"
+    >
       world
     </del>
     !

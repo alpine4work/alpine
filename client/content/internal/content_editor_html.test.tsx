@@ -12,13 +12,15 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {listItemIndentationVar} from "~/shared/content/content_styles.js";
+import * as contentClassNameByName from "~/shared/content/content_styles.js";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
@@ -134,13 +136,29 @@ const inlineTestCases: Array<{
     },
 ];
 
+const contentClassNameAndVars = new Set<string>(
+    concatIterables(
+        Object.values(omitObject(contentClassNameByName, ["highlightClassNameByColor"])),
+        Object.values(contentClassNameByName.highlightClassNameByColor),
+    ),
+);
+
 // CSS classes and variable names may change after minor modifications to our
 // vanilla extract CSS. So remove them from the HTML so we assert against so
-// our test doesn't keep breaking.
+// our test doesn't keep breaking. We keep any class names declared in
+// `content_styles.ts` since those stay constant.
 function stripHtml(originalElement: HTMLElement): HTMLElement {
     const element = originalElement.cloneNode(true) as HTMLElement;
 
-    element.removeAttribute("class");
+    for (const className of [...element.classList]) {
+        if (!contentClassNameAndVars.has(className)) {
+            element.classList.remove(className);
+        }
+    }
+
+    if (element.classList.length === 0) {
+        element.removeAttribute("class");
+    }
 
     // Remove code block toolbars from the DOM since they contribute the text of
     // their language picker button label.
@@ -151,20 +169,32 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
     }
 
     for (const childElement of element.querySelectorAll("[class]")) {
-        childElement.removeAttribute("class");
+        for (const className of [...childElement.classList]) {
+            if (!contentClassNameAndVars.has(className)) {
+                childElement.classList.remove(className);
+            }
+        }
+
+        if (childElement.classList.length === 0) {
+            childElement.removeAttribute("class");
+        }
     }
 
     for (const childElement of element.querySelectorAll("[style]")) {
         assert(childElement instanceof HTMLElement);
 
+        const removeProperties: Array<string> = [];
+
         for (let i = 0; i < childElement.style.length; i++) {
             const property = childElement.style[i]!;
-            if (`var(${property})` !== listItemIndentationVar) continue;
 
-            const propertyValue = childElement.style.getPropertyValue(property);
+            if (property.startsWith("--") && !contentClassNameAndVars.has(`var(${property})`)) {
+                removeProperties.push(property);
+            }
+        }
+
+        for (const property of removeProperties) {
             childElement.style.removeProperty(property);
-            childElement.style.setProperty("--list-item-indent", propertyValue);
-            break;
         }
     }
 

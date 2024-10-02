@@ -1,14 +1,24 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {listItemIndentationVar} from "~/shared/content/content_styles.js";
+import * as contentClassNameByName from "~/shared/content/content_styles.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
+
+const contentClassNameAndVars = new Set<string>(
+    concatIterables(
+        Object.values(omitObject(contentClassNameByName, ["highlightClassNameByColor"])),
+        Object.values(contentClassNameByName.highlightClassNameByColor),
+    ),
+);
 
 // CSS classes and variable names may change after minor modifications to our
 // vanilla extract CSS. So remove them from the HTML so we assert against so
-// our test doesn't keep breaking.
+// our test doesn't keep breaking. We keep any class names declared in
+// `content_styles.ts` since those stay constant.
 function stripHtml(html: string): string {
     const element = document.createElement("div");
     element.innerHTML = html;
@@ -20,14 +30,18 @@ function stripHtml(html: string): string {
     for (const childElement of element.querySelectorAll("[style]")) {
         assert(childElement instanceof HTMLElement);
 
+        const removeProperties: Array<string> = [];
+
         for (let i = 0; i < childElement.style.length; i++) {
             const property = childElement.style[i]!;
-            if (`var(${property})` !== listItemIndentationVar) continue;
 
-            const propertyValue = childElement.style.getPropertyValue(property);
+            if (property.startsWith("--") && !contentClassNameAndVars.has(`var(${property})`)) {
+                removeProperties.push(property);
+            }
+        }
+
+        for (const property of removeProperties) {
             childElement.style.removeProperty(property);
-            childElement.style.setProperty("--list-item-indent", propertyValue);
-            break;
         }
     }
 
@@ -74,7 +88,7 @@ test("will properly number list items", () => {
             ).getSnapshot(),
         ),
     ).toEqual(
-        '<div><p>test1</p><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test2</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="2"><p>test3</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="3"><p>test4</p></div><p>test5</p><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test6</p></div><p>test7</p><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test8</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="2"><p>test9</p></div></div>',
+        '<div><p>test1</p><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="1"><p>test2</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="2"><p>test3</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="3"><p>test4</p></div><p>test5</p><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="1"><p>test6</p></div><p>test7</p><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="1"><p>test8</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="2"><p>test9</p></div></div>',
     );
 });
 
@@ -163,7 +177,7 @@ test("will properly number list items with indentation", () => {
             ).getSnapshot(),
         ),
     ).toEqual(
-        '<div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test1</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="2"><p>test2</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="3"><p>test3</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="1"><p>test4</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="2"><p>test5</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="3"><p>test6</p></div><div style="--list-item-indent: 2;" data-list-indent="2" data-list-number="1"><p>test7</p></div><div style="--list-item-indent: 2;" data-list-indent="2" data-list-number="2"><p>test8</p></div><div style="--list-item-indent: 2;" data-list-indent="2" data-list-number="3"><p>test9</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="4"><p>test10</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="5"><p>test11</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="6"><p>test12</p></div><div style="--list-item-indent: 2;" data-list-indent="2" data-list-number="1"><p>test13</p></div><div style="--list-item-indent: 2;" data-list-indent="2" data-list-number="2"><p>test14</p></div><div style="--list-item-indent: 2;" data-list-indent="2" data-list-number="3"><p>test15</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="1"><p>test16</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="2"><p>test17</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="3"><p>test18</p></div><div style="--list-item-indent: 2;" data-list-indent="2" data-list-number="1"><p>test19</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="4"><p>test20</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="5"><p>test21</p></div><div style="--list-item-indent: 1;" data-list-indent="1" data-list-number="6"><p>test22</p></div></div>',
+        '<div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="1"><p>test1</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="2"><p>test2</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="3"><p>test3</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="1"><p>test4</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="2"><p>test5</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="3"><p>test6</p></div><div style="--content_listItemIndentation:2" data-list-indent="2" data-list-number="1"><p>test7</p></div><div style="--content_listItemIndentation:2" data-list-indent="2" data-list-number="2"><p>test8</p></div><div style="--content_listItemIndentation:2" data-list-indent="2" data-list-number="3"><p>test9</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="4"><p>test10</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="5"><p>test11</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="6"><p>test12</p></div><div style="--content_listItemIndentation:2" data-list-indent="2" data-list-number="1"><p>test13</p></div><div style="--content_listItemIndentation:2" data-list-indent="2" data-list-number="2"><p>test14</p></div><div style="--content_listItemIndentation:2" data-list-indent="2" data-list-number="3"><p>test15</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="1"><p>test16</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="2"><p>test17</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="3"><p>test18</p></div><div style="--content_listItemIndentation:2" data-list-indent="2" data-list-number="1"><p>test19</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="4"><p>test20</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="5"><p>test21</p></div><div style="--content_listItemIndentation:1" data-list-indent="1" data-list-number="6"><p>test22</p></div></div>',
     );
 });
 
@@ -210,7 +224,7 @@ test("will properly number list items in quote blocks", () => {
             ).getSnapshot(),
         ),
     ).toEqual(
-        '<div><blockquote><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test2</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="2"><p>test3</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="3"><p>test4</p></div></blockquote><blockquote><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test6</p></div></blockquote><blockquote><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="1"><p>test8</p></div><div style="--list-item-indent: 0;" data-list-indent="0" data-list-number="2"><p>test9</p></div></blockquote></div>',
+        '<div><blockquote><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="1"><p>test2</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="2"><p>test3</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="3"><p>test4</p></div></blockquote><blockquote><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="1"><p>test6</p></div></blockquote><blockquote><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="1"><p>test8</p></div><div style="--content_listItemIndentation:0" data-list-indent="0" data-list-number="2"><p>test9</p></div></blockquote></div>',
     );
 });
 

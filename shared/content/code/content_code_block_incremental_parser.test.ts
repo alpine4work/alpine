@@ -10,13 +10,15 @@ import {
     setMockedHighlightTreeForTest,
 } from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {listItemIndentationVar} from "~/shared/content/content_styles.js";
+import * as contentClassNameByName from "~/shared/content/content_styles.js";
 import {
     DocumentContentProsemirrorSchema as schema,
     DocumentContentStepSchema as stepSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 const doc1 = schema.nodeFromJSON({
     type: "doc",
@@ -417,17 +419,33 @@ function createView(doc: Node = doc1) {
     });
 }
 
+const contentClassNameAndVars = new Set<string>(
+    concatIterables(
+        Object.values(omitObject(contentClassNameByName, ["highlightClassNameByColor"])),
+        Object.values(contentClassNameByName.highlightClassNameByColor),
+    ),
+);
+
 // CSS classes and variable names may change after minor modifications to our
 // vanilla extract CSS. So remove them from the HTML so we assert against so
-// our test doesn't keep breaking.
+// our test doesn't keep breaking. We keep any class names declared in
+// `content_styles.ts` since those stay constant.
 function stripHtml(originalElement: HTMLElement): HTMLElement {
     const element = originalElement.cloneNode(true) as HTMLElement;
 
-    element.removeAttribute("class");
+    for (const className of [...element.classList]) {
+        if (!contentClassNameAndVars.has(className)) {
+            element.classList.remove(className);
+        }
+
+        if (element.classList.length === 0) {
+            element.removeAttribute("class");
+        }
+    }
 
     for (const childElement of element.querySelectorAll("[class]")) {
         for (const className of [...childElement.classList]) {
-            if (!className.startsWith("tok-")) {
+            if (!contentClassNameAndVars.has(className) && !className.startsWith("tok-")) {
                 childElement.classList.remove(className);
             }
         }
@@ -440,14 +458,18 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
     for (const childElement of element.querySelectorAll("[style]")) {
         assert(childElement instanceof HTMLElement);
 
+        const removeProperties: Array<string> = [];
+
         for (let i = 0; i < childElement.style.length; i++) {
             const property = childElement.style[i]!;
-            if (`var(${property})` !== listItemIndentationVar) continue;
 
-            const propertyValue = childElement.style.getPropertyValue(property);
+            if (property.startsWith("--") && !contentClassNameAndVars.has(`var(${property})`)) {
+                removeProperties.push(property);
+            }
+        }
+
+        for (const property of removeProperties) {
             childElement.style.removeProperty(property);
-            childElement.style.setProperty("--list-item-indent", propertyValue);
-            break;
         }
     }
 

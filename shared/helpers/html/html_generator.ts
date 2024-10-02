@@ -273,6 +273,10 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
                         node.classList.add(newClassItem);
                     }
                 }
+
+                if (node.classList.length === 0) {
+                    node.removeAttribute("class");
+                }
                 continue;
             }
 
