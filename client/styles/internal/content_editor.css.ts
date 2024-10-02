@@ -107,11 +107,6 @@ globalStyle(`${shiftKeyOrAltKeyDownClassName} ${fileClassName}`, {
     cursor: "default",
 });
 
-// TODO(calebmer): I feel like we should have some kind of style here to make
-// it clear where the end of the mention is? Or modify the mention logic so we
-// are less forgiving of spaces and arrow key movements.
-export const inlineMentionInputClassName = style({});
-
 // Mentions must be selected all at once when in an editor. You may not select
 // in the middle of a mention.
 globalStyle(`${containerClassName} ${mentionClassName}`, {

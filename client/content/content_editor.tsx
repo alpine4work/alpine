@@ -60,6 +60,10 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {
+    ContentEditorFileDropTarget,
+    getContentEditorFileDropTargets,
+} from "~/client/content/internal/get_content_editor_file_drop_targets.js";
+import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
@@ -581,6 +585,10 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
 function ContentEditor<Content extends ContentWithReferences>(
     props: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>},
 ) {
+    /* ========================================================================== *\
+     *                                   Props                                    *
+    \* ========================================================================== */
+
     const {
         editorRef,
         state,
@@ -600,6 +608,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         phantomSelections,
         fileAttachmentTarget,
     } = props;
+
+    /* ========================================================================== *\
+     *                                  Context                                   *
+    \* ========================================================================== */
 
     const context = useAppContextIfExists();
     const navigate = useNavigate();
@@ -636,6 +648,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     //   than a laptop.
     const isDualModality = !canPrimaryInputHover && !withoutMobileDualModality;
 
+    /* ========================================================================== *\
+     *                                 Prop refs                                  *
+    \* ========================================================================== */
+
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to
     // imperatively access props.
@@ -670,6 +686,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         spaceContextRef.current = spaceContext;
     });
 
+    /* ========================================================================== *\
+     *                                    Refs                                    *
+    \* ========================================================================== */
+
     const viewRef = useRef<EditorView | null>(null);
     const lastTransactionRef = useRef<Transaction | null>(null);
     const referencesUpdateEmitterRef = useRef<EventEmitter | null>(null);
@@ -677,6 +697,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         selection: Selection | null;
         done: () => void;
     } | null>(null);
+
+    /* ========================================================================== *\
+     *                               Component ref                                *
+    \* ========================================================================== */
 
     useImperativeHandle(
         editorRef,
@@ -747,7 +771,11 @@ function ContentEditor<Content extends ContentWithReferences>(
         [],
     );
 
-    const [isFocused, setIsFocused] = useState(false);
+    /* ========================================================================== *\
+     *                         ProseMirror initialization                         *
+    \* ========================================================================== */
+
+    const [fileDropTarget, setFileDropTarget] = useState<ContentEditorFileDropTarget | null>(null);
 
     // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
     // docs say only CSS-in-JS libraries should use it.
@@ -871,18 +899,10 @@ function ContentEditor<Content extends ContentWithReferences>(
             },
 
             domParser: ContentEditorDomParser.fromSchema(schema),
-            clipboardSerializer:
-                ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
-                    schema,
-                    () => assertExists(spaceContextRef.current).space.id,
-                    () => propsRef.current.state.getContent().references,
-                ),
-            clipboardTextSerializer: slice =>
-                contentEditorTextClipboardSerializer(
-                    slice,
-                    () => assertExists(spaceContextRef.current).space.id,
-                    () => propsRef.current.state.getContent().references,
-                ),
+
+            /* ========================================================================== *\
+             *                            Node and mark views                             *
+            \* ========================================================================== */
 
             // IMPORTANT: If you have a custom view in `nodeViews` here you should also
             // have a matching custom renderer in `nodeRenderers` in
@@ -1023,62 +1043,133 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }),
             },
 
-            handlePaste,
+            /* ========================================================================== *\
+             *                                Click events                                *
+            \* ========================================================================== */
 
-            handleKeyDown: (_view, event) => {
-                const {isAppleDevice} = getClientInfo();
+            handleClick: (view, pos, event) => {
+                // Don't perform the default ProseMirror behavior when clicking a file.
+                //
+                // We have pointer event listeners in `content_editor_file_node_view.ts` that
+                // implements selecting the file on shift click and opening the attachment
+                // viewer otherwise.
+                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
+                    return true;
+                }
+            },
 
-                // Implement keyboard shortcuts when the mention floater is open:
-                const floaterState = getContentEditorFloaterState(view.state);
-                if (floaterState.type === "Mention") {
-                    floaterState.handleKeyDownRef.current?.(event);
-                    if (event.defaultPrevented) return true;
+            // ProseMirror provides its own triple click selection support. This is good,
+            // the browser's triple click support doesn't work well with
+            // `contenteditable="false"` children. e.g. A mention in a paragraph (the
+            // mention is `contenteditable="false"`). The browser default won't select the
+            // whole paragraph on triple click. Or a paragraph followed by a `fileFloat` or
+            // `fileRow` (which are also `contenteditable="false"`). A triple click for
+            // paragraphs followed by files moves the cursor to the start of the paragraph
+            // instead of selecting the paragraph.
+            //
+            // ProseMirror's triple click support works consistently unlike the browser.
+            // However, ProseMirror doesn't implement dragging the mouse after a triple
+            // click to move the selection like the browser does. And preventing the
+            // browser default with `event.preventDefault()` means the browser won't move
+            // the selection during a drag. So we reimplement dragging the selection after
+            // a triple click here.
+            handleTripleClick: (view, pos, event) => {
+                // Don't perform the default ProseMirror behavior when clicking a file.
+                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
+                    return true;
                 }
 
-                if (
-                    typeof propsRef.current.onModEnter === "function" &&
-                    event.key === "Enter" &&
-                    !event.altKey &&
-                    !event.shiftKey &&
-                    // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
-                ) {
-                    propsRef.current.onModEnter(event);
-                    if (event.defaultPrevented) return true;
-                }
+                tripleClickSelectionDragRef.current?.done();
+                tripleClickSelectionDragRef.current = null;
 
-                if (
-                    typeof propsRef.current.onEnterFromPhysicalKeyboard === "function" &&
-                    event.key === "Enter" &&
-                    !event.altKey &&
-                    !event.shiftKey &&
-                    // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                    (!isAppleDevice || !event.ctrlKey) &&
-                    // Cmd+Enter on MacOS platforms should trigger the callback
-                    (isAppleDevice || !event.metaKey) &&
-                    // On a physical keyboard where the user has access to Shift+Enter we sometimes
-                    // want enter to send the message or otherwise save what's being edited. On a
-                    // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter
-                    // to insert a newline and have the user submit their message with a
-                    // button press.
-                    !isVirtualKeyboardEvent(event)
-                ) {
-                    propsRef.current.onEnterFromPhysicalKeyboard(event);
-                    if (event.defaultPrevented) return true;
-                }
+                const done = () => {
+                    document.removeEventListener("mousemove", move);
+                    document.removeEventListener("mouseup", done);
+                    document.removeEventListener("dragstart", done);
+                };
 
-                if (typeof propsRef.current.onEscape === "function" && event.key === "Escape") {
-                    propsRef.current.onEscape(event);
-                    if (event.defaultPrevented) return true;
-                }
+                // TODO(calebmer, #files): If the user's cursor is near the top or bottom of the
+                // screen then we should start scrolling. I want to implement this at the same
+                // time as I'm scrolling for file drags.
+                const move = (event: MouseEvent) => {
+                    if (event.buttons === 0 || !tripleClickSelectionDragRef.current) {
+                        done();
+                        return;
+                    }
 
-                if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
-                    propsRef.current.onArrowUp(event);
-                    if (event.defaultPrevented) return true;
-                }
+                    // We expect the selection to be updated by ProseMirror's default triple click
+                    // support synchronously after `handleTripleClick` is called. So
+                    // `originalSelection` shouldn't be null. Silently ignore event if it is null.
+                    const {selection: originalSelection} = tripleClickSelectionDragRef.current;
+                    if (!originalSelection) return;
+
+                    const posResult = view.posAtCoords({
+                        top: event.clientY,
+                        left: event.clientX,
+                    });
+                    if (!posResult) return;
+
+                    const $pos = view.state.doc.resolve(posResult.pos);
+
+                    let selection: Selection;
+                    if ($pos.pos < originalSelection.from) {
+                        selection = TextSelection.between(originalSelection.$to, $pos, -1);
+                    } else if ($pos.pos > originalSelection.to) {
+                        selection = TextSelection.between(originalSelection.$from, $pos, 1);
+                    } else if (view.state.selection.$anchor === originalSelection.$from) {
+                        selection = TextSelection.between(
+                            originalSelection.$from,
+                            originalSelection.$to,
+                            -1,
+                        );
+                    } else {
+                        selection = TextSelection.between(
+                            originalSelection.$to,
+                            originalSelection.$from,
+                            1,
+                        );
+                    }
+
+                    if (!selection.eq(view.state.selection)) {
+                        view.dispatch(view.state.tr.setSelection(selection));
+                    }
+                };
+
+                document.addEventListener("mousemove", move);
+                document.addEventListener("mouseup", done);
+                document.addEventListener("dragstart", done);
+
+                tripleClickSelectionDragRef.current = {
+                    selection: null,
+                    done,
+                };
 
                 return false;
             },
+
+            /* ========================================================================== *\
+             *                                 Copy/paste                                 *
+            \* ========================================================================== */
+
+            clipboardSerializer:
+                ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                    schema,
+                    () => assertExists(spaceContextRef.current).space.id,
+                    () => propsRef.current.state.getContent().references,
+                ),
+
+            clipboardTextSerializer: slice =>
+                contentEditorTextClipboardSerializer(
+                    slice,
+                    () => assertExists(spaceContextRef.current).space.id,
+                    () => propsRef.current.state.getContent().references,
+                ),
+
+            handlePaste,
+
+            /* ========================================================================== *\
+             *                       Drag and drop events (part 1)                        *
+            \* ========================================================================== */
 
             handleDrop: (_view, event, slice) => {
                 // Handle the user dropping files from their operating system. Not dragging
@@ -1253,6 +1344,65 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return false;
             },
 
+            /* ========================================================================== *\
+             *                                Misc events                                 *
+            \* ========================================================================== */
+
+            handleKeyDown: (_view, event) => {
+                const {isAppleDevice} = getClientInfo();
+
+                // Implement keyboard shortcuts when the mention floater is open:
+                const floaterState = getContentEditorFloaterState(view.state);
+                if (floaterState.type === "Mention") {
+                    floaterState.handleKeyDownRef.current?.(event);
+                    if (event.defaultPrevented) return true;
+                }
+
+                if (
+                    typeof propsRef.current.onModEnter === "function" &&
+                    event.key === "Enter" &&
+                    !event.altKey &&
+                    !event.shiftKey &&
+                    // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
+                ) {
+                    propsRef.current.onModEnter(event);
+                    if (event.defaultPrevented) return true;
+                }
+
+                if (
+                    typeof propsRef.current.onEnterFromPhysicalKeyboard === "function" &&
+                    event.key === "Enter" &&
+                    !event.altKey &&
+                    !event.shiftKey &&
+                    // Ctrl+Enter on non-MacOS platforms should trigger the callback
+                    (!isAppleDevice || !event.ctrlKey) &&
+                    // Cmd+Enter on MacOS platforms should trigger the callback
+                    (isAppleDevice || !event.metaKey) &&
+                    // On a physical keyboard where the user has access to Shift+Enter we sometimes
+                    // want enter to send the message or otherwise save what's being edited. On a
+                    // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter
+                    // to insert a newline and have the user submit their message with a
+                    // button press.
+                    !isVirtualKeyboardEvent(event)
+                ) {
+                    propsRef.current.onEnterFromPhysicalKeyboard(event);
+                    if (event.defaultPrevented) return true;
+                }
+
+                if (typeof propsRef.current.onEscape === "function" && event.key === "Escape") {
+                    propsRef.current.onEscape(event);
+                    if (event.defaultPrevented) return true;
+                }
+
+                if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
+                    propsRef.current.onArrowUp(event);
+                    if (event.defaultPrevented) return true;
+                }
+
+                return false;
+            },
+
             handleScrollToSelection: () => {
                 // Before scrolling to selection, synchronously flush scrollbar resizes. When
                 // the user is deleting content, our custom scrollbar from `scrollbar.tsx`'s
@@ -1274,105 +1424,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return false;
             },
 
-            handleClick: (view, pos, event) => {
-                // Don't perform the default ProseMirror behavior when clicking a file.
-                //
-                // We have pointer event listeners in `content_editor_file_node_view.ts` that
-                // implements selecting the file on shift click and opening the attachment
-                // viewer otherwise.
-                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
-                    return true;
-                }
-            },
-
-            // ProseMirror provides its own triple click selection support. This is good,
-            // the browser's triple click support doesn't work well with
-            // `contenteditable="false"` children. e.g. A mention in a paragraph (the
-            // mention is `contenteditable="false"`). The browser default won't select the
-            // whole paragraph on triple click. Or a paragraph followed by a `fileFloat` or
-            // `fileRow` (which are also `contenteditable="false"`). A triple click for
-            // paragraphs followed by files moves the cursor to the start of the paragraph
-            // instead of selecting the paragraph.
-            //
-            // ProseMirror's triple click support works consistently unlike the browser.
-            // However, ProseMirror doesn't implement dragging the mouse after a triple
-            // click to move the selection like the browser does. And preventing the
-            // browser default with `event.preventDefault()` means the browser won't move
-            // the selection during a drag. So we reimplement dragging the selection after
-            // a triple click here.
-            handleTripleClick: (view, pos, event) => {
-                // Don't perform the default ProseMirror behavior when clicking a file.
-                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
-                    return true;
-                }
-
-                tripleClickSelectionDragRef.current?.done();
-                tripleClickSelectionDragRef.current = null;
-
-                const done = () => {
-                    document.removeEventListener("mousemove", move);
-                    document.removeEventListener("mouseup", done);
-                    document.removeEventListener("dragstart", done);
-                };
-
-                // TODO(calebmer, #files): If the user's cursor is near the top or bottom of the
-                // screen then we should start scrolling. I want to implement this at the same
-                // time as I'm scrolling for file drags.
-                const move = (event: MouseEvent) => {
-                    if (event.buttons === 0 || !tripleClickSelectionDragRef.current) {
-                        done();
-                        return;
-                    }
-
-                    // We expect the selection to be updated by ProseMirror's default triple click
-                    // support synchronously after `handleTripleClick` is called. So
-                    // `originalSelection` shouldn't be null. Silently ignore event if it is null.
-                    const {selection: originalSelection} = tripleClickSelectionDragRef.current;
-                    if (!originalSelection) return;
-
-                    const posResult = view.posAtCoords({
-                        top: event.clientY,
-                        left: event.clientX,
-                    });
-                    if (!posResult) return;
-
-                    const $pos = view.state.doc.resolve(posResult.pos);
-
-                    let selection: Selection;
-                    if ($pos.pos < originalSelection.from) {
-                        selection = TextSelection.between(originalSelection.$to, $pos, -1);
-                    } else if ($pos.pos > originalSelection.to) {
-                        selection = TextSelection.between(originalSelection.$from, $pos, 1);
-                    } else if (view.state.selection.$anchor === originalSelection.$from) {
-                        selection = TextSelection.between(
-                            originalSelection.$from,
-                            originalSelection.$to,
-                            -1,
-                        );
-                    } else {
-                        selection = TextSelection.between(
-                            originalSelection.$to,
-                            originalSelection.$from,
-                            1,
-                        );
-                    }
-
-                    if (!selection.eq(view.state.selection)) {
-                        view.dispatch(view.state.tr.setSelection(selection));
-                    }
-                };
-
-                document.addEventListener("mousemove", move);
-                document.addEventListener("mouseup", done);
-                document.addEventListener("dragstart", done);
-
-                tripleClickSelectionDragRef.current = {
-                    selection: null,
-                    done,
-                };
-
-                return false;
-            },
+            /* ========================================================================== *\
+             *                 ProseMirror/React reconciliation (part 1)                  *
+            \* ========================================================================== */
 
             dispatchTransaction(transaction) {
                 const oldState = view.state;
@@ -1413,6 +1467,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 });
             },
         });
+
+        /* ========================================================================== *\
+         *                         Dual input modality events                         *
+        \* ========================================================================== */
 
         if (isMobileWebKit) {
             // NOTE(calebmer, #mobile-webkit-weirdness): This is a fix for what I consider
@@ -1597,6 +1655,10 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             document.addEventListener("selectionchange", handleDocumentSelectionChange);
         }
+
+        /* ========================================================================== *\
+         *                       Drag and drop events (part 2)                        *
+        \* ========================================================================== */
 
         // Manage the file drag interaction. While the user is dragging we'll update
         // our `fileDropTarget` state with the rendered drop target. When the user
@@ -1822,6 +1884,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         // dependency array.
     }, []);
 
+    /* ========================================================================== *\
+     *                 ProseMirror/React reconciliation (part 2)                  *
+    \* ========================================================================== */
+
+    const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
+
     // Reconcile our imperative `EditorView` state with state from React. If this
     // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
     // then this should be flushed synchronously given this is a layout effect.
@@ -1944,6 +2012,12 @@ function ContentEditor<Content extends ContentWithReferences>(
         }
     }, [state]);
 
+    /* ========================================================================== *\
+     *               Decorations setup + dual input modality setup                *
+    \* ========================================================================== */
+
+    const [isFocused, setIsFocused] = useState(false);
+
     const [decorationCallbacks, setDecorationCallbacks] = useState<
         ReadonlySet<(decorationSet: DecorationSet, state: EditorState) => DecorationSet>
     >(() => new Set());
@@ -2000,6 +2074,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         });
     }, [decorationCallbacks, isDualModality, isFocused]);
 
+    /* ========================================================================== *\
+     *                              View attributes                               *
+    \* ========================================================================== */
+
     // Apply `className`s from our `className` prop. Take care to make sure class
     // names added by ProseMirror or other effects continue to be applied.
     useLayoutEffect(() => {
@@ -2019,69 +2097,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             viewElement.classList.remove(...classList);
         };
     }, [className, isCompact, isExtraCompact, withMobileLayout]);
-
-    // Apply a class to the view element depending on whether the shift key is
-    // down or not.
-    useLayoutEffect(() => {
-        assert(viewRef.current);
-        const viewElement = viewRef.current.dom;
-
-        let isShiftKeyDown = false;
-        let isAltKeyDown = false;
-        let isShiftKeyOrAltKeyDown = false;
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Shift") {
-                isShiftKeyDown = true;
-            }
-
-            if (event.key === "Alt") {
-                isAltKeyDown = true;
-            }
-
-            if ((isShiftKeyDown || isAltKeyDown) && !isShiftKeyOrAltKeyDown) {
-                isShiftKeyOrAltKeyDown = true;
-                viewElement.classList.add(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
-            }
-        };
-
-        const handleKeyUp = (event: KeyboardEvent) => {
-            if (event.key === "Shift") {
-                isShiftKeyDown = false;
-            }
-
-            if (event.key === "Alt") {
-                isAltKeyDown = false;
-            }
-
-            if (!isShiftKeyDown && !isAltKeyDown && isShiftKeyOrAltKeyDown) {
-                isShiftKeyOrAltKeyDown = false;
-                viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
-            }
-        };
-
-        // If we shift-right click to open the native context menu it appears that in
-        // Chrome we won't get a shift `keyup` event. So cancel our shift/alt keydown
-        // state when the context menu opens.
-        const handleContextMenu = () => {
-            isShiftKeyDown = false;
-            isAltKeyDown = false;
-
-            if (!isShiftKeyDown && !isAltKeyDown && isShiftKeyOrAltKeyDown) {
-                isShiftKeyOrAltKeyDown = false;
-                viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
-            }
-        };
-
-        window.addEventListener("keydown", handleKeyDown, true);
-        window.addEventListener("keyup", handleKeyUp, true);
-        window.addEventListener("contextmenu", handleContextMenu, true);
-        return () => {
-            window.removeEventListener("keydown", handleKeyDown, true);
-            window.removeEventListener("keyup", handleKeyUp, true);
-            window.removeEventListener("contextmenu", handleContextMenu, true);
-        };
-    }, []);
 
     // Keep various attributes on the editor element up to date.
     useLayoutEffect(() => {
@@ -2175,6 +2190,167 @@ function ContentEditor<Content extends ContentWithReferences>(
             };
         }
     }, [isBodyEmpty, isTitleEmpty, placeholder]);
+
+    /* ========================================================================== *\
+     *                         Shift or alt keydown class                         *
+    \* ========================================================================== */
+
+    // Apply a class to the view element depending on whether the shift key is
+    // down or not.
+    useLayoutEffect(() => {
+        assert(viewRef.current);
+        const viewElement = viewRef.current.dom;
+
+        let isShiftKeyDown = false;
+        let isAltKeyDown = false;
+        let isShiftKeyOrAltKeyDown = false;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Shift") {
+                isShiftKeyDown = true;
+            }
+
+            if (event.key === "Alt") {
+                isAltKeyDown = true;
+            }
+
+            if ((isShiftKeyDown || isAltKeyDown) && !isShiftKeyOrAltKeyDown) {
+                isShiftKeyOrAltKeyDown = true;
+                viewElement.classList.add(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
+            }
+        };
+
+        const handleKeyUp = (event: KeyboardEvent) => {
+            if (event.key === "Shift") {
+                isShiftKeyDown = false;
+            }
+
+            if (event.key === "Alt") {
+                isAltKeyDown = false;
+            }
+
+            if (!isShiftKeyDown && !isAltKeyDown && isShiftKeyOrAltKeyDown) {
+                isShiftKeyOrAltKeyDown = false;
+                viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
+            }
+        };
+
+        // If we shift-right click to open the native context menu it appears that in
+        // Chrome we won't get a shift `keyup` event. So cancel our shift/alt keydown
+        // state when the context menu opens.
+        const handleContextMenu = () => {
+            isShiftKeyDown = false;
+            isAltKeyDown = false;
+
+            if (!isShiftKeyDown && !isAltKeyDown && isShiftKeyOrAltKeyDown) {
+                isShiftKeyOrAltKeyDown = false;
+                viewElement.classList.remove(contentEditorStyles.shiftKeyOrAltKeyDownClassName);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown, true);
+        window.addEventListener("keyup", handleKeyUp, true);
+        window.addEventListener("contextmenu", handleContextMenu, true);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown, true);
+            window.removeEventListener("keyup", handleKeyUp, true);
+            window.removeEventListener("contextmenu", handleContextMenu, true);
+        };
+    }, []);
+
+    /* ========================================================================== *\
+     *                          Selection dragging class                          *
+    \* ========================================================================== */
+
+    // Apply a class to the content editor/view while the user is dragging from a text
+    // element. This way we can change cursor styles like a file's cursor. Normally
+    // files have a pointer cursor but while dragging to select text we want files
+    // elements in the editor/view to inherit the text cursor. Otherwise a user may be
+    // confused as to why while they're dragging the file appears to be clickable.
+    //
+    // IMPORTANT: The same effect (more or less) exists in `<ContentEditor>`. If you
+    // make an update here you'll need to make an update there as well.
+    useLayoutEffect(() => {
+        const view = assertExists(viewRef.current);
+
+        let isPointerDownFromSelectableElement = false;
+        let isPointerDownFromSelectableElementAndMoved = false;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement =
+                event.target instanceof Element &&
+                getComputedStyle(event.target).userSelect !== "none";
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handlePointerMove = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElementAndMoved = isPointerDownFromSelectableElement;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        const handleResetState = () => {
+            const wasPointerDownFromSelectableElementAndMoved =
+                isPointerDownFromSelectableElementAndMoved;
+
+            isPointerDownFromSelectableElement = false;
+            isPointerDownFromSelectableElementAndMoved = false;
+
+            if (
+                wasPointerDownFromSelectableElementAndMoved !==
+                isPointerDownFromSelectableElementAndMoved
+            ) {
+                if (isPointerDownFromSelectableElementAndMoved) {
+                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
+                } else {
+                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
+                }
+            }
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("pointermove", handlePointerMove, true);
+        document.addEventListener("pointerup", handleResetState, true);
+        document.addEventListener("pointercancel", handleResetState, true);
+        document.addEventListener("dragstart", handleResetState, true);
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("pointermove", handlePointerMove, true);
+            document.removeEventListener("pointerup", handleResetState, true);
+            document.removeEventListener("pointercancel", handleResetState, true);
+            document.removeEventListener("dragstart", handleResetState, true);
+        };
+    }, []);
+
+    /* ========================================================================== *\
+     *                  Unfocused floater selection decorations                   *
+    \* ========================================================================== */
 
     // When the content editor is unfocused and there's a floater give the editor's
     // selection some style so the user knows what the floater is editing.
@@ -2277,7 +2453,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, []);
 
-    const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
+    /* ========================================================================== *\
+     *                       Phantom selection decorations                        *
+    \* ========================================================================== */
 
     // Highlights the selection of all our phantom text selections using the
     // ProseMirror decoration feature. We render `phantomSelections` in two
@@ -2342,35 +2520,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, [phantomSelections]);
 
-    const floaterState = state.getFloaterState();
-
-    // If we have a mention floater, we also want to decorate the text the user is
-    // typing in so they know the boundaries of the mention.
-    useLayoutEffect(() => {
-        if (floaterState.type !== "Mention") return;
-
-        const decorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
-            return decorationSet.add(state.doc, [
-                Decoration.inline(floaterState.range.from, floaterState.range.to, {
-                    class: contentEditorStyles.inlineMentionInputClassName,
-                }),
-            ]);
-        };
-
-        setDecorationCallbacks(decorationCallbacks => {
-            const newDecorationCallbacks = new Set(decorationCallbacks);
-            newDecorationCallbacks.add(decorationCallback);
-            return newDecorationCallbacks;
-        });
-
-        return () => {
-            setDecorationCallbacks(decorationCallbacks => {
-                const newDecorationCallbacks = new Set(decorationCallbacks);
-                newDecorationCallbacks.delete(decorationCallback);
-                return newDecorationCallbacks;
-            });
-        };
-    }, [floaterState]);
+    /* ========================================================================== *\
+     *                          Scroll press cancelling                           *
+    \* ========================================================================== */
 
     // Watch all parent elements of our content editor for scroll events. When a
     // scroll event occurs we want to call `onParentScrollSymbol` on link mark
@@ -2493,91 +2645,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         };
     }, []);
 
-    // Apply a class to the content editor/view while the user is dragging from a text
-    // element. This way we can change cursor styles like a file's cursor. Normally
-    // files have a pointer cursor but while dragging to select text we want files
-    // elements in the editor/view to inherit the text cursor. Otherwise a user may be
-    // confused as to why while they're dragging the file appears to be clickable.
-    //
-    // IMPORTANT: The same effect (more or less) exists in `<ContentEditor>`. If you
-    // make an update here you'll need to make an update there as well.
-    useLayoutEffect(() => {
-        const view = assertExists(viewRef.current);
-
-        let isPointerDownFromSelectableElement = false;
-        let isPointerDownFromSelectableElementAndMoved = false;
-
-        const handlePointerDown = (event: PointerEvent) => {
-            const wasPointerDownFromSelectableElementAndMoved =
-                isPointerDownFromSelectableElementAndMoved;
-
-            isPointerDownFromSelectableElement =
-                event.target instanceof Element &&
-                getComputedStyle(event.target).userSelect !== "none";
-            isPointerDownFromSelectableElementAndMoved = false;
-
-            if (
-                wasPointerDownFromSelectableElementAndMoved !==
-                isPointerDownFromSelectableElementAndMoved
-            ) {
-                if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
-                } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
-                }
-            }
-        };
-
-        const handlePointerMove = () => {
-            const wasPointerDownFromSelectableElementAndMoved =
-                isPointerDownFromSelectableElementAndMoved;
-
-            isPointerDownFromSelectableElementAndMoved = isPointerDownFromSelectableElement;
-
-            if (
-                wasPointerDownFromSelectableElementAndMoved !==
-                isPointerDownFromSelectableElementAndMoved
-            ) {
-                if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
-                } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
-                }
-            }
-        };
-
-        const handleResetState = () => {
-            const wasPointerDownFromSelectableElementAndMoved =
-                isPointerDownFromSelectableElementAndMoved;
-
-            isPointerDownFromSelectableElement = false;
-            isPointerDownFromSelectableElementAndMoved = false;
-
-            if (
-                wasPointerDownFromSelectableElementAndMoved !==
-                isPointerDownFromSelectableElementAndMoved
-            ) {
-                if (isPointerDownFromSelectableElementAndMoved) {
-                    view.dom.classList.add(contentStyles.selectionChangeDraggingClassName);
-                } else {
-                    view.dom.classList.remove(contentStyles.selectionChangeDraggingClassName);
-                }
-            }
-        };
-
-        document.addEventListener("pointerdown", handlePointerDown, true);
-        document.addEventListener("pointermove", handlePointerMove, true);
-        document.addEventListener("pointerup", handleResetState, true);
-        document.addEventListener("pointercancel", handleResetState, true);
-        document.addEventListener("dragstart", handleResetState, true);
-        return () => {
-            document.removeEventListener("pointerdown", handlePointerDown, true);
-            document.removeEventListener("pointermove", handlePointerMove, true);
-            document.removeEventListener("pointerup", handleResetState, true);
-            document.removeEventListener("pointercancel", handleResetState, true);
-            document.removeEventListener("dragstart", handleResetState, true);
-        };
-    }, []);
+    /* ========================================================================== *\
+     *                           Misc render variables                            *
+    \* ========================================================================== */
 
     useContentEditorDebugTools(viewRef);
 
@@ -2588,11 +2658,21 @@ function ContentEditor<Content extends ContentWithReferences>(
         "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
     );
 
+    const floaterState = state.getFloaterState();
+
+    /* ========================================================================== *\
+     *                          Mobile link modal state                           *
+    \* ========================================================================== */
+
     const [mobileLinkModalState, setMobileLinkModalState] =
         useState<ContentEditorMobileLinkModalState | null>(null);
     if (!(isMobile && !withoutMobileKeyboardToolbar) && mobileLinkModalState) {
         setMobileLinkModalState(null);
     }
+
+    /* ========================================================================== *\
+     *                         Mobile comment input state                         *
+    \* ========================================================================== */
 
     const [isMobileCommentInputOpen, setIsMobileCommentInputOpen] = useState(false);
     if (
@@ -2602,16 +2682,16 @@ function ContentEditor<Content extends ContentWithReferences>(
         setIsMobileCommentInputOpen(false);
     }
 
-    const setSelectionAfterCommentInputOpenRef = useRef<Selection | null>(null);
+    const setSelectionAfterMobileCommentInputOpenRef = useRef<Selection | null>(null);
 
     useLayoutEffect(() => {
         if (!isMobileCommentInputOpen) return;
 
         const view = assertExists(viewRef.current);
 
-        if (setSelectionAfterCommentInputOpenRef.current) {
-            const selection = setSelectionAfterCommentInputOpenRef.current;
-            setSelectionAfterCommentInputOpenRef.current = null;
+        if (setSelectionAfterMobileCommentInputOpenRef.current) {
+            const selection = setSelectionAfterMobileCommentInputOpenRef.current;
+            setSelectionAfterMobileCommentInputOpenRef.current = null;
 
             // Can't call `view.dispatch()` in an effect since it'll call `flushSync()`. So
             // schedule a microtask.
@@ -2642,6 +2722,10 @@ function ContentEditor<Content extends ContentWithReferences>(
             });
         };
     }, [isMobileCommentInputOpen, setDecorationCallbacks, viewRef]);
+
+    /* ========================================================================== *\
+     *                          Code block toolbar state                          *
+    \* ========================================================================== */
 
     const [codeBlockLanguagePickerState, setCodeBlockLanguagePickerState] = useState<{
         readonly key: Id;
@@ -2703,7 +2787,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         setCodeBlockCopyButtonTooltipState(null);
     }
 
-    const [fileDropTarget, setFileDropTarget] = useState<ContentEditorFileDropTarget | null>(null);
+    /* ========================================================================== *\
+     *                                   Render                                   *
+    \* ========================================================================== */
 
     return (
         <div
@@ -2758,7 +2844,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     onLinkModalOpen={setMobileLinkModalState}
                     onCommentInputOpen={setSelection => {
                         if (setSelection) {
-                            setSelectionAfterCommentInputOpenRef.current = setSelection;
+                            setSelectionAfterMobileCommentInputOpenRef.current = setSelection;
                         }
 
                         setIsMobileCommentInputOpen(true);
@@ -3206,390 +3292,4 @@ function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
             {key: "sentenceBreak"},
         ),
     ]);
-}
-
-type ContentEditorFileDropTarget = {
-    readonly offsetParent: Element | null;
-    readonly indicator: "Top" | "Left" | "Right";
-    readonly rect: {
-        readonly left: number;
-        readonly right: number;
-        readonly top: number;
-        readonly bottom: number;
-    };
-    readonly action:
-        | {
-              readonly type: "InsertFileRow";
-              readonly pos: number;
-          }
-        | {
-              readonly type: "InsertFileIntoRow";
-              readonly pos: number;
-          };
-};
-
-// TODO(calebmer, #files): Implement scroll while dragging.
-
-// TODO(calebmer, #files): Drag to move files.
-
-// TODO(calebmer, #files): Copy/paste files.
-
-// TODO(calebmer, #files): Images with alpha does placeholder show through? We
-// probably need some fade animation.
-
-/**
- * Get the targets for dropping a file into our document around some top block
- * index. For performance, we only generate drop targets immediately around the
- * provided top block index. That way there's fewer drop targets to rank when
- * deciding collision.
- *
- * ## Design notes
- *
- * When the user is hovering over a drop target, we should a line between the
- * margins of where the file will go. We do not shift the layout of the
- * document around. Shifting the layout of the document around can be very
- * disruptive while the user is moving their mouse a long distance. It also
- * breaks the user's understanding of where to move their mouse to put the file
- * in a certain position since as the layout changes based on their mouse
- * movement they need to either understand (based on technical implementation)
- * either: 1) the position BEFORE layout shift they need to go to or 2)
- * remember the position AFTER the layout shift since when they move their
- * mouse everything shifts to a new state.
- *
- * A layout shifting design implementation is also challenging to build
- * technically.
- *
- * I (@calebmer) worked on [Airtable's Interface Designer][1] product where we
- * built a layout shifting drop target implementation. It felt wonderful when
- * it worked but there were certainly common annoyances where you'd be dragging
- * to add a small element to a page and you had a difficult time getting it to
- * the right position while the entire page was shifting around you.
- *
- * [1]: https://www.airtable.com/platform/interface-designer
- */
-function getContentEditorFileDropTargets(
-    view: EditorView,
-    aroundIndex: number,
-): Array<ContentEditorFileDropTarget> {
-    const dropTargets: Array<ContentEditorFileDropTarget> = [];
-
-    const {doc} = view.state;
-    const {schema} = doc.type;
-    if (!schema.nodes.fileRow) return dropTargets;
-
-    const remPx = getRemPxWithoutListening();
-    const nodeCount = doc.content.content.length;
-    let seekBackwardsCount = 1;
-    let seekForwardsCount = 2;
-
-    let startIndex = aroundIndex;
-    if (seekBackwardsCount > 0) {
-        for (let i = aroundIndex - 1; i >= 0; i--) {
-            const node = doc.content.content[i]!;
-
-            // Ignore floating files. They're not positioned normally in the document so
-            // cause drop targets to be rendered in weird positions.
-            if (node.type.name === "fileFloat") continue;
-
-            seekBackwardsCount--;
-
-            if (seekBackwardsCount <= 0) {
-                startIndex = i;
-                break;
-            }
-        }
-    }
-
-    const defaultDropTargetOffsetY =
-        convertRemLengthToPx(spacing[contentStyles.defaultParagraphMargin], remPx) / 2;
-    let previousDropTargetOffsetY = defaultDropTargetOffsetY;
-
-    let nextPos = 0;
-    let element: HTMLElement | null = null;
-    const previousFileFloats: Array<{node: Node; pos: number}> = [];
-
-    for (let i = 0; i < nodeCount; i++) {
-        const node = doc.content.content[i]!;
-
-        const pos = nextPos;
-        nextPos += node.nodeSize;
-
-        // Ignore floating files. They're not positioned normally in the document so
-        // cause drop targets to be rendered in weird positions.
-        if (node.type.name === "fileFloat") {
-            previousFileFloats.push({node, pos});
-            continue;
-        }
-
-        // We need the element before `startIndex` but let's not run `view.nodeDOM()`
-        // for any other elements.
-        if (i < startIndex - 1) continue;
-
-        // If we're past `aroundIndex` then decrement `seekForwardsCount` until we
-        // reach 0.
-        if (i > aroundIndex) {
-            if (seekForwardsCount <= 0) break;
-            seekForwardsCount--;
-        }
-
-        const currentElement = view.nodeDOM(pos);
-        if (!(currentElement instanceof HTMLElement)) continue;
-        const lastElement = element;
-        element = currentElement;
-
-        if (i < startIndex) continue;
-
-        if (doc.canReplaceWith(i, i, schema.nodes.fileRow)) {
-            previousDropTargetOffsetY = lastElement
-                ? (element.offsetTop - (lastElement.offsetTop + lastElement.offsetHeight)) / 2
-                : defaultDropTargetOffsetY;
-
-            // If heading is at the end of the document and a file is dragged below it,
-            // let's use paragraph margin for the drop target offset instead of the
-            // heading's margin from above.
-            if (node.type.name === "heading") {
-                previousDropTargetOffsetY = Math.min(
-                    previousDropTargetOffsetY,
-                    defaultDropTargetOffsetY,
-                );
-            }
-
-            let dropTargetY: number;
-
-            // If we are dropping above a `fileRow` then always use the file row gap to
-            // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-            // since this adjustment may not make sense for the last block in our doc.
-            if (node.type.name === "fileRow") {
-                dropTargetY = element.offsetTop - (contentStyles.fileRowGapWidthRem * remPx) / 2;
-            }
-            // If we are dropping below a `fileRow` then always use the file row gap to
-            // offset our drop target rect. Don't save this in `lastDropTargetOffsetY`
-            // since this adjustment may not make sense for the last block in our doc.
-            else if (lastElement && doc.content.content[i - 1]!.type.name === "fileRow") {
-                dropTargetY =
-                    lastElement.offsetTop +
-                    lastElement.offsetHeight +
-                    (contentStyles.fileRowGapWidthRem * remPx) / 2;
-            }
-            // If we are dropping above a `heading` then add `lastDropTargetOffsetY` to the
-            // last top block element's bottom instead of subtracting it from this top block
-            // element's top. Since the heading creates a new section the dropped file
-            // should appear to logically be a part of the previous section.
-            else if (lastElement && node.type.name === "heading") {
-                dropTargetY =
-                    lastElement.offsetTop + lastElement.offsetHeight + previousDropTargetOffsetY;
-            } else {
-                dropTargetY = element.offsetTop - previousDropTargetOffsetY;
-            }
-
-            let dropTargetLeft = element.offsetLeft;
-            let dropTargetRight = element.offsetLeft + element.offsetWidth;
-
-            // Scan through the `fileFloat`s above us. Check to see our drop target
-            // overlaps with any of them. If there is an overlap then update our drop
-            // target left/right so we don't draw a drop target over a `fileFloat`. This
-            // search takes advantage of a couple facts:
-            //
-            // - The order of `fileFloat`s in the document represents their same vertical
-            //   order on screen. So if `j < k` then we know
-            //   `previousFileFloats[j].offsetTop + previousFileFloats[j].offsetHeight <= previousFileFloats[k].offsetTop`.
-            //
-            // - You can't have two `fileFloat`s at the same X position because all
-            //   `fileFloat`s have the CSS `clear: both`.
-            for (let j = previousFileFloats.length - 1; j >= 0; j--) {
-                const previousFileFloat = previousFileFloats[j]!;
-                const fileFloatElement = view.nodeDOM(previousFileFloat.pos);
-
-                if (fileFloatElement instanceof HTMLElement) {
-                    // If this float is above the drop target then all other `previousFileFloats`
-                    // will similarly be over the drop target. So we can end iteration.
-                    if (fileFloatElement.offsetTop + fileFloatElement.offsetHeight < dropTargetY) {
-                        break;
-                    }
-
-                    if (fileFloatElement.offsetTop < dropTargetY) {
-                        if (previousFileFloat.node.attrs.direction === "right") {
-                            dropTargetRight = Math.min(
-                                dropTargetRight,
-                                fileFloatElement.offsetLeft,
-                            );
-                        } else if (previousFileFloat.node.attrs.direction === "left") {
-                            dropTargetLeft = Math.max(
-                                dropTargetLeft,
-                                fileFloatElement.offsetLeft + fileFloatElement.offsetWidth,
-                            );
-                        }
-
-                        // Two `fileFloat`s aren't allowed to be at the same X position. Since we set
-                        // `clear: "both"` on all `fileFloat`s. So if we find one `fileFloat` that
-                        // intersects our drop target we know there won't be any more.
-                        break;
-                    }
-                }
-            }
-
-            dropTargets.push({
-                offsetParent: element.offsetParent,
-                indicator: "Top",
-                rect: {
-                    left: dropTargetLeft,
-                    right: dropTargetRight,
-                    top: dropTargetY,
-                    bottom: dropTargetY,
-                },
-                action: {
-                    type: "InsertFileRow",
-                    pos,
-                },
-            });
-        }
-
-        // If we're dragging near a file row then also create vertical drop indicators
-        // which'll allow you to create a gallery when dropping a file to the left or
-        // right.
-        if (node.type.name === "fileRow" && node.childCount < 3) {
-            const elementRect = element.getBoundingClientRect();
-
-            {
-                const fileRowLeftElement =
-                    element.firstElementChild instanceof HTMLElement
-                        ? element.firstElementChild
-                        : element;
-
-                const dropTargetX =
-                    element.offsetLeft +
-                    // `fileRowLeftElement.offsetLeft` also works here instead of looking at
-                    // `fileRowLeftElement.getBoundingClientRect()`. However, `offsetLeft` rounds
-                    // positions to integers. For precisely rendering our drop target in the center
-                    // of two files we need the fractional position which `getBoundingClientRect()`
-                    // returns. Otherwise in some edge cases the drop target looks off center.
-                    //
-                    // We subtract `elementRect.left` so we get a position relative to
-                    // `element.offsetLeft`.
-                    (fileRowLeftElement.getBoundingClientRect().left - elementRect.left) -
-                    (contentStyles.fileRowGapWidthRem * remPx) / 2;
-
-                dropTargets.push({
-                    offsetParent: element.offsetParent,
-                    indicator: "Right",
-                    rect: {
-                        left: 0,
-                        right: dropTargetX,
-                        top: element.offsetTop,
-                        bottom: element.offsetTop + element.offsetHeight,
-                    },
-
-                    action: {
-                        type: "InsertFileIntoRow",
-                        pos: pos + 1,
-                    },
-                });
-            }
-
-            if (node.type.name === "fileRow" && node.childCount === 2) {
-                const fileRowLeftElement = element.firstElementChild;
-
-                if (fileRowLeftElement instanceof HTMLElement) {
-                    const dropTargetX =
-                        element.offsetLeft +
-                        // `fileRowLeftElement.offsetLeft + fileRowLeftElement.offsetWidth` also works
-                        // here instead of looking at `fileRowLeftElement.getBoundingClientRect()`.
-                        // However, `offsetLeft` and `offsetWidth` round positions to integers. For
-                        // precisely rendering our drop target in the center of two files we need the
-                        // fractional position which `getBoundingClientRect()` returns. Otherwise in
-                        // some edge cases the drop target looks off center.
-                        //
-                        // We subtract `elementRect.left` so we get a position relative to
-                        // `element.offsetLeft`.
-                        (fileRowLeftElement.getBoundingClientRect().right - elementRect.left) +
-                        (contentStyles.fileRowGapWidthRem * remPx) / 2;
-
-                    dropTargets.push({
-                        offsetParent: element.offsetParent,
-                        indicator: "Right",
-                        rect: {
-                            left: dropTargetX,
-                            right: dropTargetX,
-                            top: element.offsetTop,
-                            bottom: element.offsetTop + element.offsetHeight,
-                        },
-                        action: {
-                            type: "InsertFileIntoRow",
-                            pos: pos + 2,
-                        },
-                    });
-                }
-            }
-
-            {
-                const fileRowRightElement =
-                    element.lastElementChild instanceof HTMLElement
-                        ? element.lastElementChild
-                        : element;
-
-                const dropTargetX =
-                    element.offsetLeft +
-                    // `fileRowRightElement.offsetLeft + fileRowRightElement.offsetWidth` also works
-                    // here instead of looking at `fileRowRightElement.getBoundingClientRect()`.
-                    // However, `offsetLeft` and `offsetWidth` round positions to integers. For
-                    // precisely rendering our drop target in the center of two files we need the
-                    // fractional position which `getBoundingClientRect()` returns. Otherwise in
-                    // some edge cases the drop target looks off center.
-                    //
-                    // We subtract `elementRect.left` so we get a position relative to
-                    // `element.offsetLeft`.
-                    (fileRowRightElement.getBoundingClientRect().right - elementRect.left) +
-                    (contentStyles.fileRowGapWidthRem * remPx) / 2;
-
-                dropTargets.push({
-                    offsetParent: element.offsetParent,
-                    indicator: "Left",
-                    rect: {
-                        left: dropTargetX,
-                        right: element.offsetParent?.clientWidth ?? dropTargetX,
-                        top: element.offsetTop,
-                        bottom: element.offsetTop + element.offsetHeight,
-                    },
-                    action: {
-                        type: "InsertFileIntoRow",
-                        pos: pos + node.nodeSize - 1,
-                    },
-                });
-            }
-        }
-    }
-
-    if (
-        seekForwardsCount > 0 &&
-        element &&
-        doc.canReplaceWith(nodeCount, nodeCount, schema.nodes.fileRow)
-    ) {
-        seekForwardsCount--;
-
-        const dropTargetY =
-            element.offsetTop +
-            element.offsetHeight +
-            // Reuse the offset between the last two blocks we've seen for the last drop
-            // target. e.g. If the last block was a paragraph then we may be using the
-            // paragraph's margins. Otherwise the rect (and so droppable indicator) touch
-            // the end of the last block which looks weird.
-            previousDropTargetOffsetY;
-
-        dropTargets.push({
-            offsetParent: element.offsetParent,
-            indicator: "Top",
-            rect: {
-                left: element.offsetLeft,
-                right: element.offsetLeft + element.offsetWidth,
-                top: dropTargetY,
-                bottom: dropTargetY,
-            },
-            action: {
-                type: "InsertFileRow",
-                pos: nextPos,
-            },
-        });
-    }
-
-    return dropTargets;
 }
