@@ -11,7 +11,7 @@ import {
     TextSelection,
     Transaction,
 } from "prosemirror-state";
-import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
+import {Decoration, DecorationSet, DirectEditorProps, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
     Memo,
@@ -822,6 +822,46 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const initialIsDualModality = isDualModalityRef.current;
 
+        const viewProps: DirectEditorProps = {
+            state: initialState,
+
+            // On mobile devices we implement dual interaction modality. Before any
+            // interaction the content is read-only. Tapping on links follows the link
+            // instead of editing the content. Tapping on text switches to an editing
+            // modality where tapping on a link instead edits the text.
+            editable: () => !initialIsDualModality,
+
+            attributes: {
+                // Native spellcheck is often more distracting then it's worth. It puts a red
+                // squiggly under names, nouns, industry terms, and oddly sometimes
+                // contractions (like "they're", maybe has to do with curly quotes?).
+                //
+                // It's also inconsistent with `<input>`s which don't have spellcheck on by
+                // default.
+                //
+                // In iOS, however, the native spellchecker is _essential_ for proper
+                // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
+                // spell check results show up inline instead of requiring a right click (which
+                // we override).
+                //
+                // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
+                // spellchecker.
+                //
+                // NOTE(calebmer, 2023-02-19): Re-enabling this is now even harder now that we
+                // have custom right-click menus. On desktop you right click to see the correct
+                // spellings. But if we have our own right-click menu we can't show the correct
+                // spellings there so we only show a permanent red squiggle which is bad. I
+                // think the best answer here is to build our own spellchecker eventually.
+                ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
+            },
+
+            domParser: ContentEditorDomParser.fromSchema(schema),
+        };
+
+        /* ========================================================================== *\
+         *                               Scroll margin                                *
+        \* ========================================================================== */
+
         let lastRemPx: number | null = null;
         let lastScrollMargin: {top: number; left: number; right: number; bottom: number} | null =
             null;
@@ -877,10 +917,268 @@ function ContentEditor<Content extends ContentWithReferences>(
             return lastScrollMargin;
         };
 
+        Object.defineProperty(viewProps, "scrollThreshold", {
+            get: getScrollMargin,
+        });
+
+        Object.defineProperty(viewProps, "scrollMargin", {
+            get: getScrollMargin,
+        });
+
+        /* ========================================================================== *\
+         *                            Node and mark views                             *
+        \* ========================================================================== */
+
         const filePreviewExpirationTimers = schema.nodes.file
             ? new ContentFilePreviewExpirationTimers()
             : undefined;
         filePreviewExpirationTimers?.play();
+
+        // IMPORTANT: If you have a custom view in `nodeViews` here you should also
+        // have a matching custom renderer in `nodeRenderers` in
+        // `renderContentToHtml()`.
+        viewProps.nodeViews = {
+            orderedListItem: createContentEditorOrderedListItemNodeView,
+            checkListItem: createContentEditorCheckListItemNodeView,
+            codeBlock: createContentEditorCodeBlockNodeViewConstructor({
+                getReporter: () => reporterRef.current,
+                onCodeBlockLanguagePickerOpen: ({targetElement, languageId, getPos}) =>
+                    setCodeBlockLanguagePickerState({
+                        key: generateId(),
+                        targetElement,
+                        languageId,
+                        getPos,
+                        isVisible: true,
+                    }),
+                onCodeBlockCopyButtonHoverStart: targetElement =>
+                    setCodeBlockCopyButtonTooltipState({
+                        key: generateId(),
+                        targetElement,
+                        wasPressed: false,
+                    }),
+                onCodeBlockCopyButtonHoverEnd: () => {
+                    // We intentionally do not remove our tooltip state when the hover ends. Since
+                    // we need to wait until the tooltip fades out on its own.
+                },
+                onCodeBlockCopyButtonPress: targetElement => {
+                    codeBlockCopyButtonTooltipRef.current?.skipTooltipHoverDelayAndAnimation();
+
+                    setCodeBlockCopyButtonTooltipState(state =>
+                        state?.targetElement === targetElement && !state?.wasPressed
+                            ? {...state, wasPressed: true}
+                            : state,
+                    );
+                },
+            }),
+            mention: createContentEditorMentionNodeViewConstructor({
+                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getCurrentAccountIfExists: () => spaceContextRef.current?.currentAccount ?? null,
+            }),
+            fileRow: createContentEditorFileRowNodeViewConstructor({
+                subscribeToReferencesUpdate: listener => {
+                    referencesUpdateEmitterRef.current ??= new EventEmitter();
+                    return referencesUpdateEmitterRef.current.subscribe(listener);
+                },
+            }),
+            fileFloat: createContentEditorFileFloatNodeViewConstructor({
+                subscribeToReferencesUpdate: listener => {
+                    referencesUpdateEmitterRef.current ??= new EventEmitter();
+                    return referencesUpdateEmitterRef.current.subscribe(listener);
+                },
+            }),
+            file: createContentEditorFileNodeViewConstructor({
+                getContext: () => assertExists(contextRef.current),
+                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
+                getExpirationTimers: () => assertExists(filePreviewExpirationTimers),
+                subscribeToReferencesUpdate: listener => {
+                    referencesUpdateEmitterRef.current ??= new EventEmitter();
+                    return referencesUpdateEmitterRef.current.subscribe(listener);
+                },
+                isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
+            }),
+        };
+
+        // IMPORTANT: If you have a custom view in `markViews` here you should also
+        // have a matching custom renderer in `markRenderers` in
+        // `renderContentToHtml()`.
+        viewProps.markViews = {
+            link: createContentEditorLinkMarkViewConstructor({
+                canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
+
+                onPointerEnterAfterDelay: ({mark, range, wasPointerDown}) => {
+                    // We don't want to open floaters on mobile.
+                    if (isMobileRef.current) return;
+
+                    // Don't open the pointer link floater if the pointer was down when it entered
+                    // the link. Since the user is probably trying to drag to select some text.
+                    if (wasPointerDown) return;
+
+                    const floaterState = getContentEditorFloaterState(view.state);
+
+                    // Don't open pointer link preview if the current floater is a comment
+                    // input floater.
+                    if (floaterState.type !== "CommentInput") {
+                        view.dispatch(
+                            setContentEditorFloaterState(view.state.tr, {
+                                type: "PointerLink",
+                                key: generateId(),
+                                mark,
+                                range,
+                                hasPointerLeftMark: false,
+                            }),
+                        );
+                    }
+                },
+                onPointerEnter: mark => {
+                    const floaterState = getContentEditorFloaterState(view.state);
+
+                    if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
+                        view.dispatch(
+                            setContentEditorFloaterState(view.state.tr, {
+                                ...floaterState,
+                                hasPointerLeftMark: false,
+                            }),
+                        );
+                    }
+                },
+                onPointerLeave: mark => {
+                    const floaterState = getContentEditorFloaterState(view.state);
+
+                    if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
+                        view.dispatch(
+                            setContentEditorFloaterState(view.state.tr, {
+                                ...floaterState,
+                                hasPointerLeftMark: true,
+                            }),
+                        );
+                    }
+                },
+                onNavigate: to => navigateRef.current(to),
+            }),
+
+            // We don't have a `<ContentView>` implementation of this yet. Unclear how we
+            // should support comments in `<ContentView>` at this moment.
+            comment: createContentEditorCommentMarkViewConstructor({
+                withMobileLayout: () => withMobileLayoutRef.current,
+                canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
+
+                openCommentThread: async commentThreadId => {
+                    await propsRef.current.openCommentThread?.(commentThreadId);
+                },
+                onCommentThreadPressedChange: (commentThreadId, isHovered) => {
+                    propsRef.current.onCommentThreadPressedChange?.(commentThreadId, isHovered);
+                },
+            }),
+        };
+
+        /* ========================================================================== *\
+         *                                Click events                                *
+        \* ========================================================================== */
+
+        viewProps.handleClick = (view, pos, event) => {
+            // Don't perform the default ProseMirror behavior when clicking a file.
+            //
+            // We have pointer event listeners in `content_editor_file_node_view.ts` that
+            // implements selecting the file on shift click and opening the attachment
+            // viewer otherwise.
+            if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
+                return true;
+            }
+        };
+
+        // ProseMirror provides its own triple click selection support. This is good,
+        // the browser's triple click support doesn't work well with
+        // `contenteditable="false"` children. e.g. A mention in a paragraph (the
+        // mention is `contenteditable="false"`). The browser default won't select the
+        // whole paragraph on triple click. Or a paragraph followed by a `fileFloat` or
+        // `fileRow` (which are also `contenteditable="false"`). A triple click for
+        // paragraphs followed by files moves the cursor to the start of the paragraph
+        // instead of selecting the paragraph.
+        //
+        // ProseMirror's triple click support works consistently unlike the browser.
+        // However, ProseMirror doesn't implement dragging the mouse after a triple
+        // click to move the selection like the browser does. And preventing the
+        // browser default with `event.preventDefault()` means the browser won't move
+        // the selection during a drag. So we reimplement dragging the selection after
+        // a triple click here.
+        viewProps.handleTripleClick = (view, pos, event) => {
+            // Don't perform the default ProseMirror behavior when clicking a file.
+            if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
+                return true;
+            }
+
+            tripleClickSelectionDragRef.current?.done();
+            tripleClickSelectionDragRef.current = null;
+
+            const done = () => {
+                document.removeEventListener("mousemove", move);
+                document.removeEventListener("mouseup", done);
+                document.removeEventListener("dragstart", done);
+            };
+
+            // TODO(calebmer, #files): If the user's cursor is near the top or bottom of the
+            // screen then we should start scrolling. I want to implement this at the same
+            // time as I'm scrolling for file drags.
+            const move = (event: MouseEvent) => {
+                if (event.buttons === 0 || !tripleClickSelectionDragRef.current) {
+                    done();
+                    return;
+                }
+
+                // We expect the selection to be updated by ProseMirror's default triple click
+                // support synchronously after `handleTripleClick` is called. So
+                // `originalSelection` shouldn't be null. Silently ignore event if it is null.
+                const {selection: originalSelection} = tripleClickSelectionDragRef.current;
+                if (!originalSelection) return;
+
+                const posResult = view.posAtCoords({
+                    top: event.clientY,
+                    left: event.clientX,
+                });
+                if (!posResult) return;
+
+                const $pos = view.state.doc.resolve(posResult.pos);
+
+                let selection: Selection;
+                if ($pos.pos < originalSelection.from) {
+                    selection = TextSelection.between(originalSelection.$to, $pos, -1);
+                } else if ($pos.pos > originalSelection.to) {
+                    selection = TextSelection.between(originalSelection.$from, $pos, 1);
+                } else if (view.state.selection.$anchor === originalSelection.$from) {
+                    selection = TextSelection.between(
+                        originalSelection.$from,
+                        originalSelection.$to,
+                        -1,
+                    );
+                } else {
+                    selection = TextSelection.between(
+                        originalSelection.$to,
+                        originalSelection.$from,
+                        1,
+                    );
+                }
+
+                if (!selection.eq(view.state.selection)) {
+                    view.dispatch(view.state.tr.setSelection(selection));
+                }
+            };
+
+            document.addEventListener("mousemove", move);
+            document.addEventListener("mouseup", done);
+            document.addEventListener("dragstart", done);
+
+            tripleClickSelectionDragRef.current = {
+                selection: null,
+                done,
+            };
+
+            return false;
+        };
+
+        /* ========================================================================== *\
+         *                                 Copy/paste                                 *
+        \* ========================================================================== */
 
         let uploadingFileIds: Set<FileId> | undefined;
 
@@ -900,1155 +1198,832 @@ function ContentEditor<Content extends ContentWithReferences>(
               >
             | undefined;
 
-        const view = new EditorView(rootElement, {
-            state: initialState,
+        viewProps.clipboardSerializer =
+            ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                schema,
+                () => assertExists(spaceContextRef.current).space.id,
+                () => propsRef.current.state.getContent().references,
+                () => assertExists(propsRef.current.fileAttachmentTarget),
+            );
 
-            // On mobile devices we implement dual interaction modality. Before any
-            // interaction the content is read-only. Tapping on links follows the link
-            // instead of editing the content. Tapping on text switches to an editing
-            // modality where tapping on a link instead edits the text.
-            editable: () => !initialIsDualModality,
+        viewProps.clipboardTextSerializer = slice =>
+            contentEditorTextClipboardSerializer(
+                slice,
+                () => assertExists(spaceContextRef.current).space.id,
+                () => propsRef.current.state.getContent().references,
+            );
 
-            attributes: {
-                // Native spellcheck is often more distracting then it's worth. It puts a red
-                // squiggly under names, nouns, industry terms, and oddly sometimes
-                // contractions (like "they're", maybe has to do with curly quotes?).
-                //
-                // It's also inconsistent with `<input>`s which don't have spellcheck on by
-                // default.
-                //
-                // In iOS, however, the native spellchecker is _essential_ for proper
-                // document editing. Since typos abound on mobile keyboards. Unlike on web, iOS
-                // spell check results show up inline instead of requiring a right click (which
-                // we override).
-                //
-                // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
-                // spellchecker.
-                //
-                // NOTE(calebmer, 2023-02-19): Re-enabling this is now even harder now that we
-                // have custom right-click menus. On desktop you right click to see the correct
-                // spellings. But if we have our own right-click menu we can't show the correct
-                // spellings there so we only show a permanent red squiggle which is bad. I
-                // think the best answer here is to build our own spellchecker eventually.
-                ...(!isMobileWebKit ? {spellcheck: "false"} : undefined),
-            },
+        viewProps.transformPasted = slice => {
+            // When pasting a slice that starts with a heading and has some other nodes,
+            // make sure we always use an `openStart` of 0 so the heading doesn't merge
+            // with the previous node.
+            if (
+                slice.content.firstChild?.type.name === "heading" &&
+                slice.content.childCount > 1 &&
+                slice.openStart !== 0
+            ) {
+                slice = new Slice(slice.content, 0, slice.openEnd);
+            }
 
-            get scrollThreshold() {
-                return getScrollMargin();
-            },
-            get scrollMargin() {
-                return getScrollMargin();
-            },
+            // If the slice is a `codeBlock` with a single line then instead of trying to
+            // paste a code block, instead paste the individual text nodes with code
+            // styling.
+            if (
+                slice.content.childCount === 1 &&
+                slice.content.firstChild!.type.name === "codeBlock" &&
+                slice.content.firstChild!.childCount === 1
+            ) {
+                slice = new Slice(
+                    Fragment.from(
+                        slice.content.firstChild!.firstChild!.content.content.map(node =>
+                            node.mark(schema.mark("code").addToSet(node.marks)),
+                        ),
+                    ),
+                    0,
+                    0,
+                );
+            }
 
-            domParser: ContentEditorDomParser.fromSchema(schema),
-
-            /* ========================================================================== *\
-             *                            Node and mark views                             *
-            \* ========================================================================== */
-
-            // IMPORTANT: If you have a custom view in `nodeViews` here you should also
-            // have a matching custom renderer in `nodeRenderers` in
-            // `renderContentToHtml()`.
-            nodeViews: {
-                orderedListItem: createContentEditorOrderedListItemNodeView,
-                checkListItem: createContentEditorCheckListItemNodeView,
-                codeBlock: createContentEditorCodeBlockNodeViewConstructor({
-                    getReporter: () => reporterRef.current,
-                    onCodeBlockLanguagePickerOpen: ({targetElement, languageId, getPos}) =>
-                        setCodeBlockLanguagePickerState({
-                            key: generateId(),
-                            targetElement,
-                            languageId,
-                            getPos,
-                            isVisible: true,
-                        }),
-                    onCodeBlockCopyButtonHoverStart: targetElement =>
-                        setCodeBlockCopyButtonTooltipState({
-                            key: generateId(),
-                            targetElement,
-                            wasPressed: false,
-                        }),
-                    onCodeBlockCopyButtonHoverEnd: () => {
-                        // We intentionally do not remove our tooltip state when the hover ends. Since
-                        // we need to wait until the tooltip fades out on its own.
-                    },
-                    onCodeBlockCopyButtonPress: targetElement => {
-                        codeBlockCopyButtonTooltipRef.current?.skipTooltipHoverDelayAndAnimation();
-
-                        setCodeBlockCopyButtonTooltipState(state =>
-                            state?.targetElement === targetElement && !state?.wasPressed
-                                ? {...state, wasPressed: true}
-                                : state,
-                        );
-                    },
-                }),
-                mention: createContentEditorMentionNodeViewConstructor({
-                    getSpaceId: () => assertExists(spaceContextRef.current).space.id,
-                    getCurrentAccountIfExists: () =>
-                        spaceContextRef.current?.currentAccount ?? null,
-                }),
-                fileRow: createContentEditorFileRowNodeViewConstructor({
-                    subscribeToReferencesUpdate: listener => {
-                        referencesUpdateEmitterRef.current ??= new EventEmitter();
-                        return referencesUpdateEmitterRef.current.subscribe(listener);
-                    },
-                }),
-                fileFloat: createContentEditorFileFloatNodeViewConstructor({
-                    subscribeToReferencesUpdate: listener => {
-                        referencesUpdateEmitterRef.current ??= new EventEmitter();
-                        return referencesUpdateEmitterRef.current.subscribe(listener);
-                    },
-                }),
-                file: createContentEditorFileNodeViewConstructor({
-                    getContext: () => assertExists(contextRef.current),
-                    getSpaceId: () => assertExists(spaceContextRef.current).space.id,
-                    getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
-                    getExpirationTimers: () => assertExists(filePreviewExpirationTimers),
-                    subscribeToReferencesUpdate: listener => {
-                        referencesUpdateEmitterRef.current ??= new EventEmitter();
-                        return referencesUpdateEmitterRef.current.subscribe(listener);
-                    },
-                    isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
-                }),
-            },
-
-            // IMPORTANT: If you have a custom view in `markViews` here you should also
-            // have a matching custom renderer in `markRenderers` in
-            // `renderContentToHtml()`.
-            markViews: {
-                link: createContentEditorLinkMarkViewConstructor({
-                    canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
-
-                    onPointerEnterAfterDelay: ({mark, range, wasPointerDown}) => {
-                        // We don't want to open floaters on mobile.
-                        if (isMobileRef.current) return;
-
-                        // Don't open the pointer link floater if the pointer was down when it entered
-                        // the link. Since the user is probably trying to drag to select some text.
-                        if (wasPointerDown) return;
-
-                        const floaterState = getContentEditorFloaterState(view.state);
-
-                        // Don't open pointer link preview if the current floater is a comment
-                        // input floater.
-                        if (floaterState.type !== "CommentInput") {
-                            view.dispatch(
-                                setContentEditorFloaterState(view.state.tr, {
-                                    type: "PointerLink",
-                                    key: generateId(),
-                                    mark,
-                                    range,
-                                    hasPointerLeftMark: false,
-                                }),
-                            );
-                        }
-                    },
-                    onPointerEnter: mark => {
-                        const floaterState = getContentEditorFloaterState(view.state);
-
-                        if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
-                            view.dispatch(
-                                setContentEditorFloaterState(view.state.tr, {
-                                    ...floaterState,
-                                    hasPointerLeftMark: false,
-                                }),
-                            );
-                        }
-                    },
-                    onPointerLeave: mark => {
-                        const floaterState = getContentEditorFloaterState(view.state);
-
-                        if (floaterState.type === "PointerLink" && floaterState.mark.eq(mark)) {
-                            view.dispatch(
-                                setContentEditorFloaterState(view.state.tr, {
-                                    ...floaterState,
-                                    hasPointerLeftMark: true,
-                                }),
-                            );
-                        }
-                    },
-                    onNavigate: to => navigateRef.current(to),
-                }),
-
-                // We don't have a `<ContentView>` implementation of this yet. Unclear how we
-                // should support comments in `<ContentView>` at this moment.
-                comment: createContentEditorCommentMarkViewConstructor({
-                    withMobileLayout: () => withMobileLayoutRef.current,
-                    canPrimaryInputHover: () => canPrimaryInputHoverRef.current,
-
-                    openCommentThread: async commentThreadId => {
-                        await propsRef.current.openCommentThread?.(commentThreadId);
-                    },
-                    onCommentThreadPressedChange: (commentThreadId, isHovered) => {
-                        propsRef.current.onCommentThreadPressedChange?.(commentThreadId, isHovered);
-                    },
-                }),
-            },
-
-            /* ========================================================================== *\
-             *                                Click events                                *
-            \* ========================================================================== */
-
-            handleClick: (view, pos, event) => {
-                // Don't perform the default ProseMirror behavior when clicking a file.
-                //
-                // We have pointer event listeners in `content_editor_file_node_view.ts` that
-                // implements selecting the file on shift click and opening the attachment
-                // viewer otherwise.
-                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
-                    return true;
-                }
-            },
-
-            // ProseMirror provides its own triple click selection support. This is good,
-            // the browser's triple click support doesn't work well with
-            // `contenteditable="false"` children. e.g. A mention in a paragraph (the
-            // mention is `contenteditable="false"`). The browser default won't select the
-            // whole paragraph on triple click. Or a paragraph followed by a `fileFloat` or
-            // `fileRow` (which are also `contenteditable="false"`). A triple click for
-            // paragraphs followed by files moves the cursor to the start of the paragraph
-            // instead of selecting the paragraph.
-            //
-            // ProseMirror's triple click support works consistently unlike the browser.
-            // However, ProseMirror doesn't implement dragging the mouse after a triple
-            // click to move the selection like the browser does. And preventing the
-            // browser default with `event.preventDefault()` means the browser won't move
-            // the selection during a drag. So we reimplement dragging the selection after
-            // a triple click here.
-            handleTripleClick: (view, pos, event) => {
-                // Don't perform the default ProseMirror behavior when clicking a file.
-                if (event.target instanceof Element && event.target.closest(`.${fileClassName}`)) {
-                    return true;
-                }
-
-                tripleClickSelectionDragRef.current?.done();
-                tripleClickSelectionDragRef.current = null;
-
-                const done = () => {
-                    document.removeEventListener("mousemove", move);
-                    document.removeEventListener("mouseup", done);
-                    document.removeEventListener("dragstart", done);
-                };
-
-                // TODO(calebmer, #files): If the user's cursor is near the top or bottom of the
-                // screen then we should start scrolling. I want to implement this at the same
-                // time as I'm scrolling for file drags.
-                const move = (event: MouseEvent) => {
-                    if (event.buttons === 0 || !tripleClickSelectionDragRef.current) {
-                        done();
-                        return;
-                    }
-
-                    // We expect the selection to be updated by ProseMirror's default triple click
-                    // support synchronously after `handleTripleClick` is called. So
-                    // `originalSelection` shouldn't be null. Silently ignore event if it is null.
-                    const {selection: originalSelection} = tripleClickSelectionDragRef.current;
-                    if (!originalSelection) return;
-
-                    const posResult = view.posAtCoords({
-                        top: event.clientY,
-                        left: event.clientX,
-                    });
-                    if (!posResult) return;
-
-                    const $pos = view.state.doc.resolve(posResult.pos);
-
-                    let selection: Selection;
-                    if ($pos.pos < originalSelection.from) {
-                        selection = TextSelection.between(originalSelection.$to, $pos, -1);
-                    } else if ($pos.pos > originalSelection.to) {
-                        selection = TextSelection.between(originalSelection.$from, $pos, 1);
-                    } else if (view.state.selection.$anchor === originalSelection.$from) {
-                        selection = TextSelection.between(
-                            originalSelection.$from,
-                            originalSelection.$to,
-                            -1,
-                        );
-                    } else {
-                        selection = TextSelection.between(
-                            originalSelection.$to,
-                            originalSelection.$from,
-                            1,
-                        );
-                    }
-
-                    if (!selection.eq(view.state.selection)) {
-                        view.dispatch(view.state.tr.setSelection(selection));
-                    }
-                };
-
-                document.addEventListener("mousemove", move);
-                document.addEventListener("mouseup", done);
-                document.addEventListener("dragstart", done);
-
-                tripleClickSelectionDragRef.current = {
-                    selection: null,
-                    done,
-                };
-
-                return false;
-            },
-
-            /* ========================================================================== *\
-             *                                 Copy/paste                                 *
-            \* ========================================================================== */
-
-            clipboardSerializer:
-                ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
-                    schema,
-                    () => assertExists(spaceContextRef.current).space.id,
-                    () => propsRef.current.state.getContent().references,
-                    () => assertExists(propsRef.current.fileAttachmentTarget),
-                ),
-
-            clipboardTextSerializer: slice =>
-                contentEditorTextClipboardSerializer(
-                    slice,
-                    () => assertExists(spaceContextRef.current).space.id,
-                    () => propsRef.current.state.getContent().references,
-                ),
-
-            transformPasted: slice => {
-                // When pasting a slice that starts with a heading and has some other nodes,
-                // make sure we always use an `openStart` of 0 so the heading doesn't merge
-                // with the previous node.
-                if (
-                    slice.content.firstChild?.type.name === "heading" &&
-                    slice.content.childCount > 1 &&
-                    slice.openStart !== 0
-                ) {
+            // If your slice starts (or ends) with a `codeBlock` then set `openStart` (or
+            // `openEnd`) to 0 so we don't inline any of the code block's content (instead
+            // maintaining the code block's structure) with whatever we're pasting against.
+            {
+                if (slice.content.firstChild?.type.name === "codeBlock" && slice.openStart !== 0) {
                     slice = new Slice(slice.content, 0, slice.openEnd);
                 }
 
-                // If the slice is a `codeBlock` with a single line then instead of trying to
-                // paste a code block, instead paste the individual text nodes with code
-                // styling.
-                if (
-                    slice.content.childCount === 1 &&
-                    slice.content.firstChild!.type.name === "codeBlock" &&
-                    slice.content.firstChild!.childCount === 1
-                ) {
-                    slice = new Slice(
-                        Fragment.from(
-                            slice.content.firstChild!.firstChild!.content.content.map(node =>
-                                node.mark(schema.mark("code").addToSet(node.marks)),
-                            ),
-                        ),
-                        0,
-                        0,
-                    );
+                if (slice.content.lastChild?.type.name === "codeBlock" && slice.openEnd !== 0) {
+                    slice = new Slice(slice.content, slice.openStart, 0);
                 }
+            }
 
-                // If your slice starts (or ends) with a `codeBlock` then set `openStart` (or
-                // `openEnd`) to 0 so we don't inline any of the code block's content (instead
-                // maintaining the code block's structure) with whatever we're pasting against.
-                {
-                    if (
-                        slice.content.firstChild?.type.name === "codeBlock" &&
-                        slice.openStart !== 0
-                    ) {
-                        slice = new Slice(slice.content, 0, slice.openEnd);
-                    }
+            return slice;
+        };
 
-                    if (slice.content.lastChild?.type.name === "codeBlock" && slice.openEnd !== 0) {
-                        slice = new Slice(slice.content, slice.openStart, 0);
-                    }
-                }
+        viewProps.transformPastedDOM = element => {
+            let currentUrl: URL | undefined;
 
-                return slice;
-            },
-
-            transformPastedDOM: element => {
-                let currentUrl: URL | undefined;
-
-                // File copy/pasting is tricky. In the content itself a file is represented as
-                // a node with only a `FileId`. Data about the file is available on the side
-                // in `ContentReferences` and often needs to be loaded from the server.
-                //
-                // The format of pasted content is HTML. We generate HTML when copying files
-                // that should be compatible with a broad range of applications. For example,
-                // file nodes become `<img>` elements.
-                //
-                // We can be receiving pasted files that:
-                //
-                // 1. Was copied in Alpine; OR
-                // 2. Was copied from a different application
-                //
-                // In case 1 we already have the file uploaded to our servers. What we want to
-                // do here is create another file attachment link from wherever the file is
-                // coming from (which we store in a `data-cy-attached` attribute) to the
-                // `FileAttachmentTarget` of our content editor.
-                //
-                // In case 2 we want to download the file from its URL and upload it to our
-                // servers. We also do this for files from different spaces since file storage
-                // is scoped to a space.
-                //
-                // There's a bit of juggling we need to do in this code. `handlePaste` is where
-                // we implement asynchronous pastes. However, `handlePaste` receives a
-                // ProseMirror `Slice` that only contains file nodes with their `FileId`s.
-                // Knowledge about whether we're in case 1 or case 2 and the source URL of
-                // files we're pasting is available only in the HTML here in
-                // `transformPastedDOM`. We bridge this gap with `temporaryPastedFileInfoById`.
-                // `transformPastedDOM` adds additional information about each file we're
-                // pasting in `temporaryPastedFileInfoById` and `handlePaste` reads from this
-                // map for each `FileId` it found in the pasted ProseMirror `Slice`. Not very
-                // elegant but it gets the job done.
-                for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
-                    const urlString =
-                        fileElement instanceof HTMLImageElement
-                            ? fileElement.src || null
-                            : fileElement instanceof HTMLVideoElement ||
-                              fileElement instanceof HTMLAudioElement
-                            ? fileElement.src ||
-                              findMapIterable(fileElement.childNodes, fileChildElement =>
-                                  fileChildElement instanceof HTMLSourceElement
-                                      ? fileChildElement.src
-                                      : undefined,
-                              ) ||
-                              null
-                            : fileElement instanceof HTMLObjectElement
-                            ? fileElement.data || null
-                            : null;
-
-                    if (urlString === null) {
-                        const temporaryFileElement = fileElement.ownerDocument.createElement("div");
-                        temporaryFileElement.setAttribute("data-cy-tmp-file", "null");
-                        fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
-                        continue;
-                    }
-
-                    currentUrl ??= new URL(window.location.href);
-
-                    let url: URL;
-                    try {
-                        url = new URL(urlString, currentUrl);
-                    } catch {
-                        // Ignore any URL parsing errors.
-                        continue;
-                    }
-
-                    // Ignore non-HTTP protocols for now. It's probably reasonable to support
-                    // `data://` URLs at some point.
-                    if (url.protocol !== "http:" && url.protocol !== "https:") {
-                        continue;
-                    }
-
-                    // If:
-                    //
-                    // 1. The file is hosted on the same domain we're currently on; AND
-                    // 2. The file matches the route `/files/:spaceId/:fileId`; AND
-                    // 3. The file is in the same space that we're in right now; AND
-                    // 4. The file element has a valid `data-cy-attached` attribute
-                    //
-                    // Then the file already exists for this space. Instead of uploading a new file
-                    // to our backend instead we can create a new attachment for the file that
-                    // already exists.
-                    if (currentUrl.host === url.host) {
-                        const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
-                        if (
-                            pathnameMatch &&
-                            isId<SpaceId>(pathnameMatch[1]!) &&
-                            isId<FileId>(pathnameMatch[2]!) &&
-                            pathnameMatch[1] === spaceContextRef.current?.space.id
-                        ) {
-                            const spaceId = pathnameMatch[1];
-                            const fileId = pathnameMatch[2];
-
-                            const targetString = fileElement.getAttribute("data-cy-attached");
-                            let target: FileAttachmentTarget | undefined;
-
-                            try {
-                                if (targetString) {
-                                    target = deserializeFileAttachmentTargetString(targetString);
-                                }
-                            } catch (error) {
-                                // This error is almost imperceivable to the user since we'll try
-                                // downloading/uploading the file as a fallback. But it might be a sign that
-                                // there's a bug somewhere in `data-cy-attached` generation so let's log it.
-                                contextRef.current?.tracer
-                                    .getRoot()
-                                    .logUncaughtException(
-                                        'Couldn\'t parse "data-cy-attached" attribute',
-                                        error,
-                                    );
-                            }
-
-                            if (target) {
-                                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                                // use this map synchronously after `transformPastedDOM`.
-                                if (temporaryPastedFileInfoById === undefined) {
-                                    temporaryPastedFileInfoById = new Map();
-                                    scheduleMicrotask(() => {
-                                        temporaryPastedFileInfoById = undefined;
-                                    });
-                                }
-
-                                temporaryPastedFileInfoById.set(fileId, {
-                                    type: "AttachmentInSpace",
-                                    spaceId,
-                                    fileId,
-                                    target,
-                                });
-
-                                const temporaryFileElement =
-                                    fileElement.ownerDocument.createElement("div");
-                                temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                                fileElement.parentNode?.replaceChild(
-                                    temporaryFileElement,
-                                    fileElement,
-                                );
-                                continue;
-                            }
-                        }
-                    }
-
-                    // Make sure to use the synchronized clock if it's available so there's no error
-                    // when the server checks the time is close to the actual time.
-                    const fileId = generateChronologicalIdWithTime<FileId>(
-                        Math.round(
-                            (
-                                getSynchronizedSystemClock().getStateWithoutListening().value ??
-                                unsynchronizedSystemClock
-                            ).now(),
-                        ),
-                    );
-
-                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                    // use this map synchronously after `transformPastedDOM`.
-                    if (temporaryPastedFileInfoById === undefined) {
-                        temporaryPastedFileInfoById = new Map();
-                        scheduleMicrotask(() => {
-                            temporaryPastedFileInfoById = undefined;
-                        });
-                    }
-
-                    temporaryPastedFileInfoById.set(fileId, {
-                        type: "Foreign",
-                        url,
-                    });
-
-                    const temporaryFileElement = fileElement.ownerDocument.createElement("div");
-                    temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                    fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
-                }
-            },
-
-            // TODO(calebmer, #files): Handle directly pasting content type (e.g.
-            // `image/png` from Figma).
+            // File copy/pasting is tricky. In the content itself a file is represented as
+            // a node with only a `FileId`. Data about the file is available on the side
+            // in `ContentReferences` and often needs to be loaded from the server.
             //
-            // TODO(calebmer, #files): I think we should be using basically the same code
-            // for drag and drop.
-            handlePaste: (view, event, slice) => {
-                let selection = view.state.selection;
+            // The format of pasted content is HTML. We generate HTML when copying files
+            // that should be compatible with a broad range of applications. For example,
+            // file nodes become `<img>` elements.
+            //
+            // We can be receiving pasted files that:
+            //
+            // 1. Was copied in Alpine; OR
+            // 2. Was copied from a different application
+            //
+            // In case 1 we already have the file uploaded to our servers. What we want to
+            // do here is create another file attachment link from wherever the file is
+            // coming from (which we store in a `data-cy-attached` attribute) to the
+            // `FileAttachmentTarget` of our content editor.
+            //
+            // In case 2 we want to download the file from its URL and upload it to our
+            // servers. We also do this for files from different spaces since file storage
+            // is scoped to a space.
+            //
+            // There's a bit of juggling we need to do in this code. `handlePaste` is where
+            // we implement asynchronous pastes. However, `handlePaste` receives a
+            // ProseMirror `Slice` that only contains file nodes with their `FileId`s.
+            // Knowledge about whether we're in case 1 or case 2 and the source URL of
+            // files we're pasting is available only in the HTML here in
+            // `transformPastedDOM`. We bridge this gap with `temporaryPastedFileInfoById`.
+            // `transformPastedDOM` adds additional information about each file we're
+            // pasting in `temporaryPastedFileInfoById` and `handlePaste` reads from this
+            // map for each `FileId` it found in the pasted ProseMirror `Slice`. Not very
+            // elegant but it gets the job done.
+            for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
+                const urlString =
+                    fileElement instanceof HTMLImageElement
+                        ? fileElement.src || null
+                        : fileElement instanceof HTMLVideoElement ||
+                          fileElement instanceof HTMLAudioElement
+                        ? fileElement.src ||
+                          findMapIterable(fileElement.childNodes, fileChildElement =>
+                              fileChildElement instanceof HTMLSourceElement
+                                  ? fileChildElement.src
+                                  : undefined,
+                          ) ||
+                          null
+                        : fileElement instanceof HTMLObjectElement
+                        ? fileElement.data || null
+                        : null;
 
-                // If the selection starts in our title, then shift the selection out of the
-                // title. That way if we paste a paragraph in the title the paragraph doesn't
-                // become the title. Making a 50 word paragraph the title just feels broken.
-                //
-                // If the first child we're pasting is a heading then leave the selection as it
-                // is. We want headings to fill the title.
-                if (selection.$from.parent.type.name === "title") {
-                    if (slice.content.firstChild?.type.name !== "heading") {
-                        selection = TextSelection.between(
-                            view.state.doc.resolve(selection.$from.after()),
-                            selection.$to.parent.type.name === "title"
-                                ? view.state.doc.resolve(selection.$to.after())
-                                : selection.$to,
-                        );
-                    } else {
-                        // Make sure if we're pasting a `heading` node into a `title` node the
-                        // `openStart` is always at least 1 so the heading can fill the title instead
-                        // of creating a new block below.
-                        if (slice.openStart < 1) {
-                            slice = new Slice(slice.content, 1, slice.openEnd);
-                        }
-
-                        // If we're pasting a `heading` node into a `title` node and we have another
-                        // block node besides the first `heading` node and the node after the `title`
-                        // node is an empty paragraph then let's have our selection include the
-                        // paragraph.
-                        //
-                        // This way if the user pastes into an empty document they won't have a
-                        // trailing paragraph at the end.
-                        if (
-                            selection.$from.pos === selection.$to.pos &&
-                            selection.$from.parentOffset === selection.$from.parent.content.size &&
-                            iterableFind(sliceIterable(slice.content.content, 1), childNode =>
-                                childNode.type.groups.includes("block"),
-                            )
-                        ) {
-                            const nextNode = selection.$from
-                                .node(selection.$from.depth - 1)
-                                .maybeChild(selection.$from.indexAfter(selection.$from.depth - 1));
-
-                            if (
-                                nextNode?.type.name === "paragraph" &&
-                                nextNode.content.size === 0
-                            ) {
-                                selection = TextSelection.between(
-                                    selection.$from,
-                                    view.state.doc.resolve(selection.$from.after() + 2),
-                                );
-                            }
-                        }
-                    }
+                if (urlString === null) {
+                    const temporaryFileElement = fileElement.ownerDocument.createElement("div");
+                    temporaryFileElement.setAttribute("data-cy-tmp-file", "null");
+                    fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                    continue;
                 }
 
-                const referencedIds = getContentReferencedIdsForSlice(slice);
+                currentUrl ??= new URL(window.location.href);
 
-                // Implement the same logic as ProseMirror's `doPaste` function. First we need
-                // to call our synchronous `handlePaste` override and if that returns false
-                // then we need to perform the same default paste handling that ProseMirror
-                // implements.
+                let url: URL;
+                try {
+                    url = new URL(urlString, currentUrl);
+                } catch {
+                    // Ignore any URL parsing errors.
+                    continue;
+                }
+
+                // Ignore non-HTTP protocols for now. It's probably reasonable to support
+                // `data://` URLs at some point.
+                if (url.protocol !== "http:" && url.protocol !== "https:") {
+                    continue;
+                }
+
+                // If:
                 //
-                // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
-                const actuallyHandlePaste = (
-                    selection: Selection,
-                    createTransaction: () => Transaction,
-                ) => {
+                // 1. The file is hosted on the same domain we're currently on; AND
+                // 2. The file matches the route `/files/:spaceId/:fileId`; AND
+                // 3. The file is in the same space that we're in right now; AND
+                // 4. The file element has a valid `data-cy-attached` attribute
+                //
+                // Then the file already exists for this space. Instead of uploading a new file
+                // to our backend instead we can create a new attachment for the file that
+                // already exists.
+                if (currentUrl.host === url.host) {
+                    const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
                     if (
-                        handlePaste(
-                            view.state.doc,
-                            selection,
-                            createTransaction,
-                            transaction => view.dispatch(transaction),
-                            event,
-                            slice,
-                        )
+                        pathnameMatch &&
+                        isId<SpaceId>(pathnameMatch[1]!) &&
+                        isId<FileId>(pathnameMatch[2]!) &&
+                        pathnameMatch[1] === spaceContextRef.current?.space.id
                     ) {
-                        return;
+                        const spaceId = pathnameMatch[1];
+                        const fileId = pathnameMatch[2];
+
+                        const targetString = fileElement.getAttribute("data-cy-attached");
+                        let target: FileAttachmentTarget | undefined;
+
+                        try {
+                            if (targetString) {
+                                target = deserializeFileAttachmentTargetString(targetString);
+                            }
+                        } catch (error) {
+                            // This error is almost imperceivable to the user since we'll try
+                            // downloading/uploading the file as a fallback. But it might be a sign that
+                            // there's a bug somewhere in `data-cy-attached` generation so let's log it.
+                            contextRef.current?.tracer
+                                .getRoot()
+                                .logUncaughtException(
+                                    'Couldn\'t parse "data-cy-attached" attribute',
+                                    error,
+                                );
+                        }
+
+                        if (target) {
+                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                            // use this map synchronously after `transformPastedDOM`.
+                            if (temporaryPastedFileInfoById === undefined) {
+                                temporaryPastedFileInfoById = new Map();
+                                scheduleMicrotask(() => {
+                                    temporaryPastedFileInfoById = undefined;
+                                });
+                            }
+
+                            temporaryPastedFileInfoById.set(fileId, {
+                                type: "AttachmentInSpace",
+                                spaceId,
+                                fileId,
+                                target,
+                            });
+
+                            const temporaryFileElement =
+                                fileElement.ownerDocument.createElement("div");
+                            temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
+                            fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                            continue;
+                        }
                     }
-
-                    const transaction = createTransaction();
-
-                    const singleNode =
-                        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
-                            ? slice.content.firstChild
-                            : null;
-
-                    if (singleNode) {
-                        selection.replaceWith(transaction, singleNode);
-                    } else {
-                        selection.replace(transaction, slice);
-                    }
-
-                    view.dispatch(
-                        transaction
-                            .scrollIntoView()
-                            .setMeta("paste", true)
-                            .setMeta("uiEvent", "paste"),
-                    );
-                };
-
-                // If there's some references in the paste then let's perform an asynchronous
-                // paste where we load all requisite data first.
-                if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
-                    actuallyHandlePaste(selection, () => view.state.tr);
-                    return true;
                 }
 
-                const context = assertExists(contextRef.current);
-                const reporter = assertExists(reporterRef.current);
-                const spaceId = assertExists(spaceContextRef.current).space.id;
-
-                let rememberedSelection: {getSelection: () => Selection | null} = {
-                    getSelection: () => selection,
-                };
-
-                // TODO(calebmer, #global-loading-indicator): Show a "pasting" indicator if
-                // we're waiting for a data fetch before applying a paste.
-                const promise = context.tracer.withSpan(
-                    "Content editor paste with references",
-                    handlePasteWithReferences,
+                // Make sure to use the synchronized clock if it's available so there's no error
+                // when the server checks the time is close to the actual time.
+                const fileId = generateChronologicalIdWithTime<FileId>(
+                    Math.round(
+                        (
+                            getSynchronizedSystemClock().getStateWithoutListening().value ??
+                            unsynchronizedSystemClock
+                        ).now(),
+                    ),
                 );
 
-                rememberedSelection = rememberContentEditorSelectionWhileLoading(
-                    view,
-                    selection,
-                    promise,
-                );
+                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                // use this map synchronously after `transformPastedDOM`.
+                if (temporaryPastedFileInfoById === undefined) {
+                    temporaryPastedFileInfoById = new Map();
+                    scheduleMicrotask(() => {
+                        temporaryPastedFileInfoById = undefined;
+                    });
+                }
 
-                promise.catch(error => {
-                    reporter.displayError("Couldn’t paste", error);
+                temporaryPastedFileInfoById.set(fileId, {
+                    type: "Foreign",
+                    url,
                 });
 
-                return true;
+                const temporaryFileElement = fileElement.ownerDocument.createElement("div");
+                temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
+                fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+            }
+        };
 
-                async function handlePasteWithReferences(context: AppContext) {
-                    let hasPasted = false;
-                    const promiseWaiter = new PromiseWaiter();
+        // TODO(calebmer, #files): Handle directly pasting content type (e.g.
+        // `image/png` from Figma).
+        //
+        // TODO(calebmer, #files): I think we should be using basically the same code
+        // for drag and drop.
+        viewProps.handlePaste = (view, event, slice) => {
+            let selection = view.state.selection;
 
-                    const accountsPromise =
-                        referencedIds.accountIds.size > 0
-                            ? getAccountsIfExist(context, {
-                                  spaceId,
-                                  accountIds: referencedIds.accountIds,
-                              }).then(({accounts}) => accounts)
-                            : emptyArray;
+            // If the selection starts in our title, then shift the selection out of the
+            // title. That way if we paste a paragraph in the title the paragraph doesn't
+            // become the title. Making a 50 word paragraph the title just feels broken.
+            //
+            // If the first child we're pasting is a heading then leave the selection as it
+            // is. We want headings to fill the title.
+            if (selection.$from.parent.type.name === "title") {
+                if (slice.content.firstChild?.type.name !== "heading") {
+                    selection = TextSelection.between(
+                        view.state.doc.resolve(selection.$from.after()),
+                        selection.$to.parent.type.name === "title"
+                            ? view.state.doc.resolve(selection.$to.after())
+                            : selection.$to,
+                    );
+                } else {
+                    // Make sure if we're pasting a `heading` node into a `title` node the
+                    // `openStart` is always at least 1 so the heading can fill the title instead
+                    // of creating a new block below.
+                    if (slice.openStart < 1) {
+                        slice = new Slice(slice.content, 1, slice.openEnd);
+                    }
 
-                    const pasteFile = async (fileId: FileId) => {
-                        const temporaryPastedFileInfo = temporaryPastedFileInfoById?.get(fileId);
-                        if (!temporaryPastedFileInfo) return null;
+                    // If we're pasting a `heading` node into a `title` node and we have another
+                    // block node besides the first `heading` node and the node after the `title`
+                    // node is an empty paragraph then let's have our selection include the
+                    // paragraph.
+                    //
+                    // This way if the user pastes into an empty document they won't have a
+                    // trailing paragraph at the end.
+                    if (
+                        selection.$from.pos === selection.$to.pos &&
+                        selection.$from.parentOffset === selection.$from.parent.content.size &&
+                        iterableFind(sliceIterable(slice.content.content, 1), childNode =>
+                            childNode.type.groups.includes("block"),
+                        )
+                    ) {
+                        const nextNode = selection.$from
+                            .node(selection.$from.depth - 1)
+                            .maybeChild(selection.$from.indexAfter(selection.$from.depth - 1));
 
-                        switch (temporaryPastedFileInfo.type) {
-                            case "AttachmentInSpace": {
-                                const fromTarget = temporaryPastedFileInfo.target;
-                                const toTarget = assertExists(
-                                    propsRef.current.fileAttachmentTarget,
-                                );
-
-                                // If the file is already in our view's references that means it's already
-                                // been loaded and we have the requisite permissions for it. No file loading
-                                // needed.
-                                if (
-                                    getContentEditorReferences(view.state).references.fileById.has(
-                                        fileId,
-                                    )
-                                ) {
-                                    return null;
-                                }
-                                // If we're trying to attach the file to the same attachment target it's from
-                                // then we don't need to perform another attach mutation. Instead, all we need
-                                // to do is load the file (since it's not in our references).
-                                else if (isDeepEqual(fromTarget, toTarget)) {
-                                    return getFileFromAttachment(context, {
-                                        spaceId: temporaryPastedFileInfo.spaceId,
-                                        fileId: temporaryPastedFileInfo.fileId,
-                                        target: toTarget,
-                                    });
-                                }
-                                // Otherwise, let's attach the file to its new attachment target.
-                                else {
-                                    return attachFileFromAttachment(context, {
-                                        spaceId: temporaryPastedFileInfo.spaceId,
-                                        fileId: temporaryPastedFileInfo.fileId,
-                                        fromTarget,
-                                        toTarget,
-                                    });
-                                }
-                            }
-                            case "Foreign": {
-                                const fileReferencePromiseResolver = createPromiseResolver<{
-                                    signedUrlSearch: string;
-                                    fileStore: Store<FileModel>;
-                                }>();
-
-                                promiseWaiter.waitUntil(async () => {
-                                    let uploadingFileId: FileId | undefined;
-                                    let unsubscribeFromFileStore: (() => void) | undefined;
-
-                                    // TODO(calebmer, #files): Error handling
-                                    try {
-                                        await uploadFileFromContentEditor(context, {
-                                            spaceId,
-                                            // Use the `FileId` generated by the client and used in the pasted `Slice`
-                                            // instead of generating a new `FileId` on the server.
-                                            fileId,
-                                            attachmentTarget: assertExists(
-                                                propsRef.current.fileAttachmentTarget,
-                                            ),
-                                            input: {
-                                                type: "Url",
-                                                url: temporaryPastedFileInfo.url,
-                                            },
-                                            onAttach: ({signedUrlSearch, fileStore}) => {
-                                                const initialFile = fileStore.getSnapshot();
-                                                uploadingFileId = initialFile.id;
-                                                (uploadingFileIds ??= new Set()).add(
-                                                    initialFile.id,
-                                                );
-
-                                                // Whenever the file changes during the upload, make sure to update it in
-                                                // our content references. We unsubscribe once the upload has finished since
-                                                // after that the file should be immutable.
-                                                unsubscribeFromFileStore = fileStore.subscribe(
-                                                    () => {
-                                                        // Before we paste the file won't exist in our content so there's no point in
-                                                        // updating content editor references.
-                                                        if (!hasPasted) return;
-
-                                                        view.dispatch(
-                                                            updateContentEditorReferences(
-                                                                view.state.tr,
-                                                                {
-                                                                    type: "SetFile",
-                                                                    signedUrlSearch,
-                                                                    file: fileStore.getSnapshot(),
-                                                                },
-                                                            ),
-                                                        );
-                                                    },
-                                                );
-
-                                                fileReferencePromiseResolver.resolve({
-                                                    signedUrlSearch,
-                                                    fileStore,
-                                                });
-                                            },
-                                        });
-                                    } finally {
-                                        if (uploadingFileId)
-                                            uploadingFileIds?.delete(uploadingFileId);
-                                        unsubscribeFromFileStore?.();
-                                    }
-                                });
-
-                                const {signedUrlSearch, fileStore} =
-                                    await fileReferencePromiseResolver.promise;
-
-                                return () => ({
-                                    signedUrlSearch,
-                                    file: fileStore.getSnapshot(),
-                                });
-                            }
-                            default:
-                                throw exhaustive(temporaryPastedFileInfo);
+                        if (nextNode?.type.name === "paragraph" && nextNode.content.size === 0) {
+                            selection = TextSelection.between(
+                                selection.$from,
+                                view.state.doc.resolve(selection.$from.after() + 2),
+                            );
                         }
-                    };
-
-                    const [accounts, fileReferences] = await runAllPromises([
-                        accountsPromise,
-                        runAllPromises(mapIterable(referencedIds.fileIds, pasteFile)),
-                    ]);
-
-                    // Get the selection remembered by our editor state. Not the view's current
-                    // selection. The view selection might have moved while we were pasting.
-                    const selection = rememberedSelection.getSelection();
-                    if (!selection) return;
-
-                    // Any new paste transaction should start by updating content references with
-                    // the data we just asynchronously fetched.
-                    const createTransaction = () =>
-                        updateContentEditorReferences(
-                            view.state.tr,
-                            Array.from(
-                                concatIterables<ContentEditorReferencesSharedAction>(
-                                    filterMapIterable(accounts, account => {
-                                        if (!account) return;
-                                        return {type: "SetAccount", account};
-                                    }),
-                                    filterMapIterable(fileReferences, fileReference => {
-                                        if (!fileReference) return;
-
-                                        if (typeof fileReference === "function")
-                                            fileReference = fileReference();
-
-                                        return {
-                                            type: "SetFile",
-                                            signedUrlSearch: fileReference.signedUrlSearch,
-                                            file: fileReference.file,
-                                        };
-                                    }),
-                                ),
-                            ),
-                        );
-
-                    actuallyHandlePaste(selection, createTransaction);
-                    hasPasted = true;
-
-                    await promiseWaiter.wait();
+                    }
                 }
-            },
+            }
 
-            /* ========================================================================== *\
-             *                       Drag and drop events (part 1)                        *
-            \* ========================================================================== */
+            const referencedIds = getContentReferencedIdsForSlice(slice);
 
-            handleDrop: (_view, event, slice) => {
-                const context = contextRef.current;
-                const spaceContext = spaceContextRef.current;
-
-                // Handle the user dropping files from their operating system. Not dragging
-                // some slice of ProseMirror content around.
+            // Implement the same logic as ProseMirror's `doPaste` function. First we need
+            // to call our synchronous `handlePaste` override and if that returns false
+            // then we need to perform the same default paste handling that ProseMirror
+            // implements.
+            //
+            // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
+            const actuallyHandlePaste = (
+                selection: Selection,
+                createTransaction: () => Transaction,
+            ) => {
                 if (
-                    schema.nodes.file &&
-                    schema.nodes.fileRow &&
-                    context !== null &&
-                    spaceContext !== null &&
-                    slice.size === 0 &&
-                    event.dataTransfer &&
-                    iterableSome(event.dataTransfer.items, item => item.kind === "file")
+                    handlePaste(
+                        view.state.doc,
+                        selection,
+                        createTransaction,
+                        transaction => view.dispatch(transaction),
+                        event,
+                        slice,
+                    )
                 ) {
-                    const dropTarget = getMouseEventFileDropTarget(event);
+                    return;
+                }
 
-                    // TODO(calebmer, #files): Support dropping multiple files at once.
-                    const fileItem = iterableFind(
-                        event.dataTransfer.items,
-                        item => item.kind === "file",
+                const transaction = createTransaction();
+
+                const singleNode =
+                    slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
+                        ? slice.content.firstChild
+                        : null;
+
+                if (singleNode) {
+                    selection.replaceWith(transaction, singleNode);
+                } else {
+                    selection.replace(transaction, slice);
+                }
+
+                view.dispatch(
+                    transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"),
+                );
+            };
+
+            // If there's some references in the paste then let's perform an asynchronous
+            // paste where we load all requisite data first.
+            if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
+                actuallyHandlePaste(selection, () => view.state.tr);
+                return true;
+            }
+
+            const context = assertExists(contextRef.current);
+            const reporter = assertExists(reporterRef.current);
+            const spaceId = assertExists(spaceContextRef.current).space.id;
+
+            let rememberedSelection: {getSelection: () => Selection | null} = {
+                getSelection: () => selection,
+            };
+
+            // TODO(calebmer, #global-loading-indicator): Show a "pasting" indicator if
+            // we're waiting for a data fetch before applying a paste.
+            const promise = context.tracer.withSpan(
+                "Content editor paste with references",
+                handlePasteWithReferences,
+            );
+
+            rememberedSelection = rememberContentEditorSelectionWhileLoading(
+                view,
+                selection,
+                promise,
+            );
+
+            promise.catch(error => {
+                reporter.displayError("Couldn’t paste", error);
+            });
+
+            return true;
+
+            async function handlePasteWithReferences(context: AppContext) {
+                let hasPasted = false;
+                const promiseWaiter = new PromiseWaiter();
+
+                const accountsPromise =
+                    referencedIds.accountIds.size > 0
+                        ? getAccountsIfExist(context, {
+                              spaceId,
+                              accountIds: referencedIds.accountIds,
+                          }).then(({accounts}) => accounts)
+                        : emptyArray;
+
+                const pasteFile = async (fileId: FileId) => {
+                    const temporaryPastedFileInfo = temporaryPastedFileInfoById?.get(fileId);
+                    if (!temporaryPastedFileInfo) return null;
+
+                    switch (temporaryPastedFileInfo.type) {
+                        case "AttachmentInSpace": {
+                            const fromTarget = temporaryPastedFileInfo.target;
+                            const toTarget = assertExists(propsRef.current.fileAttachmentTarget);
+
+                            // If the file is already in our view's references that means it's already
+                            // been loaded and we have the requisite permissions for it. No file loading
+                            // needed.
+                            if (
+                                getContentEditorReferences(view.state).references.fileById.has(
+                                    fileId,
+                                )
+                            ) {
+                                return null;
+                            }
+                            // If we're trying to attach the file to the same attachment target it's from
+                            // then we don't need to perform another attach mutation. Instead, all we need
+                            // to do is load the file (since it's not in our references).
+                            else if (isDeepEqual(fromTarget, toTarget)) {
+                                return getFileFromAttachment(context, {
+                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                    fileId: temporaryPastedFileInfo.fileId,
+                                    target: toTarget,
+                                });
+                            }
+                            // Otherwise, let's attach the file to its new attachment target.
+                            else {
+                                return attachFileFromAttachment(context, {
+                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                    fileId: temporaryPastedFileInfo.fileId,
+                                    fromTarget,
+                                    toTarget,
+                                });
+                            }
+                        }
+                        case "Foreign": {
+                            const fileReferencePromiseResolver = createPromiseResolver<{
+                                signedUrlSearch: string;
+                                fileStore: Store<FileModel>;
+                            }>();
+
+                            promiseWaiter.waitUntil(async () => {
+                                let uploadingFileId: FileId | undefined;
+                                let unsubscribeFromFileStore: (() => void) | undefined;
+
+                                // TODO(calebmer, #files): Error handling
+                                try {
+                                    await uploadFileFromContentEditor(context, {
+                                        spaceId,
+                                        // Use the `FileId` generated by the client and used in the pasted `Slice`
+                                        // instead of generating a new `FileId` on the server.
+                                        fileId,
+                                        attachmentTarget: assertExists(
+                                            propsRef.current.fileAttachmentTarget,
+                                        ),
+                                        input: {
+                                            type: "Url",
+                                            url: temporaryPastedFileInfo.url,
+                                        },
+                                        onAttach: ({signedUrlSearch, fileStore}) => {
+                                            const initialFile = fileStore.getSnapshot();
+                                            uploadingFileId = initialFile.id;
+                                            (uploadingFileIds ??= new Set()).add(initialFile.id);
+
+                                            // Whenever the file changes during the upload, make sure to update it in
+                                            // our content references. We unsubscribe once the upload has finished since
+                                            // after that the file should be immutable.
+                                            unsubscribeFromFileStore = fileStore.subscribe(() => {
+                                                // Before we paste the file won't exist in our content so there's no point in
+                                                // updating content editor references.
+                                                if (!hasPasted) return;
+
+                                                view.dispatch(
+                                                    updateContentEditorReferences(view.state.tr, {
+                                                        type: "SetFile",
+                                                        signedUrlSearch,
+                                                        file: fileStore.getSnapshot(),
+                                                    }),
+                                                );
+                                            });
+
+                                            fileReferencePromiseResolver.resolve({
+                                                signedUrlSearch,
+                                                fileStore,
+                                            });
+                                        },
+                                    });
+                                } finally {
+                                    if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
+                                    unsubscribeFromFileStore?.();
+                                }
+                            });
+
+                            const {signedUrlSearch, fileStore} =
+                                await fileReferencePromiseResolver.promise;
+
+                            return () => ({
+                                signedUrlSearch,
+                                file: fileStore.getSnapshot(),
+                            });
+                        }
+                        default:
+                            throw exhaustive(temporaryPastedFileInfo);
+                    }
+                };
+
+                const [accounts, fileReferences] = await runAllPromises([
+                    accountsPromise,
+                    runAllPromises(mapIterable(referencedIds.fileIds, pasteFile)),
+                ]);
+
+                // Get the selection remembered by our editor state. Not the view's current
+                // selection. The view selection might have moved while we were pasting.
+                const selection = rememberedSelection.getSelection();
+                if (!selection) return;
+
+                // Any new paste transaction should start by updating content references with
+                // the data we just asynchronously fetched.
+                const createTransaction = () =>
+                    updateContentEditorReferences(
+                        view.state.tr,
+                        Array.from(
+                            concatIterables<ContentEditorReferencesSharedAction>(
+                                filterMapIterable(accounts, account => {
+                                    if (!account) return;
+                                    return {type: "SetAccount", account};
+                                }),
+                                filterMapIterable(fileReferences, fileReference => {
+                                    if (!fileReference) return;
+
+                                    if (typeof fileReference === "function")
+                                        fileReference = fileReference();
+
+                                    return {
+                                        type: "SetFile",
+                                        signedUrlSearch: fileReference.signedUrlSearch,
+                                        file: fileReference.file,
+                                    };
+                                }),
+                            ),
+                        ),
                     );
 
-                    if (
-                        dropTarget &&
-                        fileItem &&
-                        // TODO(calebmer, #files): Remove this when ready to deploy to production.
-                        process.env.NODE_ENV === "development"
-                    ) {
-                        runPromiseWithoutAwaiting(async () => {
-                            let uploadingFileId: FileId | undefined;
-                            let unsubscribeFromFileStore: (() => void) | undefined;
+                actuallyHandlePaste(selection, createTransaction);
+                hasPasted = true;
 
-                            // TODO(calebmer, #files): Error handling
-                            try {
-                                await uploadFileFromContentEditor(context, {
-                                    spaceId: spaceContext.space.id,
-                                    attachmentTarget: assertExists(
-                                        propsRef.current.fileAttachmentTarget,
-                                    ),
-                                    input: {
-                                        type: "File",
-                                        file: assertExists(fileItem.getAsFile()),
-                                    },
-                                    onAttach: ({signedUrlSearch, fileStore}) => {
-                                        const initialFile = fileStore.getSnapshot();
-                                        uploadingFileId = initialFile.id;
-                                        (uploadingFileIds ??= new Set()).add(initialFile.id);
+                await promiseWaiter.wait();
+            }
+        };
 
-                                        // Whenever the file changes during the upload, make sure to update it in
-                                        // our content references. We unsubscribe once the upload has finished since
-                                        // after that the file should be immutable.
-                                        unsubscribeFromFileStore = fileStore.subscribe(() => {
-                                            view.dispatch(
-                                                updateContentEditorReferences(view.state.tr, {
-                                                    type: "SetFile",
-                                                    signedUrlSearch,
-                                                    file: fileStore.getSnapshot(),
+        /* ========================================================================== *\
+         *                       Drag and drop events (part 1)                        *
+        \* ========================================================================== */
+
+        viewProps.handleDrop = (_view, event, slice) => {
+            const context = contextRef.current;
+            const spaceContext = spaceContextRef.current;
+
+            // Handle the user dropping files from their operating system. Not dragging
+            // some slice of ProseMirror content around.
+            if (
+                schema.nodes.file &&
+                schema.nodes.fileRow &&
+                context !== null &&
+                spaceContext !== null &&
+                slice.size === 0 &&
+                event.dataTransfer &&
+                iterableSome(event.dataTransfer.items, item => item.kind === "file")
+            ) {
+                const dropTarget = getMouseEventFileDropTarget(event);
+
+                // TODO(calebmer, #files): Support dropping multiple files at once.
+                const fileItem = iterableFind(
+                    event.dataTransfer.items,
+                    item => item.kind === "file",
+                );
+
+                if (
+                    dropTarget &&
+                    fileItem &&
+                    // TODO(calebmer, #files): Remove this when ready to deploy to production.
+                    process.env.NODE_ENV === "development"
+                ) {
+                    runPromiseWithoutAwaiting(async () => {
+                        let uploadingFileId: FileId | undefined;
+                        let unsubscribeFromFileStore: (() => void) | undefined;
+
+                        // TODO(calebmer, #files): Error handling
+                        try {
+                            await uploadFileFromContentEditor(context, {
+                                spaceId: spaceContext.space.id,
+                                attachmentTarget: assertExists(
+                                    propsRef.current.fileAttachmentTarget,
+                                ),
+                                input: {
+                                    type: "File",
+                                    file: assertExists(fileItem.getAsFile()),
+                                },
+                                onAttach: ({signedUrlSearch, fileStore}) => {
+                                    const initialFile = fileStore.getSnapshot();
+                                    uploadingFileId = initialFile.id;
+                                    (uploadingFileIds ??= new Set()).add(initialFile.id);
+
+                                    // Whenever the file changes during the upload, make sure to update it in
+                                    // our content references. We unsubscribe once the upload has finished since
+                                    // after that the file should be immutable.
+                                    unsubscribeFromFileStore = fileStore.subscribe(() => {
+                                        view.dispatch(
+                                            updateContentEditorReferences(view.state.tr, {
+                                                type: "SetFile",
+                                                signedUrlSearch,
+                                                file: fileStore.getSnapshot(),
+                                            }),
+                                        );
+                                    });
+
+                                    const transaction = view.state.tr;
+
+                                    switch (dropTarget.action.type) {
+                                        case "InsertFileRow": {
+                                            const fileRowNode = schema.nodes.fileRow!.create(null, [
+                                                schema.nodes.file!.create({
+                                                    fileId: initialFile.id,
                                                 }),
+                                            ]);
+
+                                            const $pos = transaction.doc.resolve(
+                                                dropTarget.action.pos,
                                             );
-                                        });
 
-                                        const transaction = view.state.tr;
-
-                                        switch (dropTarget.action.type) {
-                                            case "InsertFileRow": {
-                                                const fileRowNode = schema.nodes.fileRow!.create(
-                                                    null,
-                                                    [
-                                                        schema.nodes.file!.create({
-                                                            fileId: initialFile.id,
-                                                        }),
-                                                    ],
-                                                );
-
-                                                const $pos = transaction.doc.resolve(
+                                            if (
+                                                $pos.nodeAfter?.type.name === "paragraph" &&
+                                                $pos.nodeAfter.content.size === 0
+                                            ) {
+                                                transaction.replace(
                                                     dropTarget.action.pos,
-                                                );
-
-                                                if (
-                                                    $pos.nodeAfter?.type.name === "paragraph" &&
-                                                    $pos.nodeAfter.content.size === 0
-                                                ) {
-                                                    transaction.replace(
-                                                        dropTarget.action.pos,
-                                                        dropTarget.action.pos + 2,
-                                                        new Slice(Fragment.from(fileRowNode), 0, 0),
-                                                    );
-
-                                                    transaction.setSelection(
-                                                        new NodeSelection(
-                                                            transaction.doc.resolve(
-                                                                dropTarget.action.pos + 1,
-                                                            ),
-                                                        ),
-                                                    );
-                                                } else if (
-                                                    $pos.nodeBefore?.type.name === "paragraph" &&
-                                                    $pos.nodeBefore.content.size === 0
-                                                ) {
-                                                    transaction.replace(
-                                                        dropTarget.action.pos - 2,
-                                                        dropTarget.action.pos,
-                                                        new Slice(Fragment.from(fileRowNode), 0, 0),
-                                                    );
-
-                                                    transaction.setSelection(
-                                                        new NodeSelection(
-                                                            transaction.doc.resolve(
-                                                                dropTarget.action.pos - 1,
-                                                            ),
-                                                        ),
-                                                    );
-                                                } else {
-                                                    transaction.insert(
-                                                        dropTarget.action.pos,
-                                                        fileRowNode,
-                                                    );
-
-                                                    transaction.setSelection(
-                                                        new NodeSelection(
-                                                            transaction.doc.resolve(
-                                                                dropTarget.action.pos + 1,
-                                                            ),
-                                                        ),
-                                                    );
-                                                }
-                                                break;
-                                            }
-                                            case "InsertFileIntoRow": {
-                                                transaction.insert(
-                                                    dropTarget.action.pos,
-                                                    schema.nodes.file!.create({
-                                                        fileId: initialFile.id,
-                                                    }),
+                                                    dropTarget.action.pos + 2,
+                                                    new Slice(Fragment.from(fileRowNode), 0, 0),
                                                 );
 
                                                 transaction.setSelection(
                                                     new NodeSelection(
                                                         transaction.doc.resolve(
-                                                            dropTarget.action.pos,
+                                                            dropTarget.action.pos + 1,
                                                         ),
                                                     ),
                                                 );
-                                                break;
+                                            } else if (
+                                                $pos.nodeBefore?.type.name === "paragraph" &&
+                                                $pos.nodeBefore.content.size === 0
+                                            ) {
+                                                transaction.replace(
+                                                    dropTarget.action.pos - 2,
+                                                    dropTarget.action.pos,
+                                                    new Slice(Fragment.from(fileRowNode), 0, 0),
+                                                );
+
+                                                transaction.setSelection(
+                                                    new NodeSelection(
+                                                        transaction.doc.resolve(
+                                                            dropTarget.action.pos - 1,
+                                                        ),
+                                                    ),
+                                                );
+                                            } else {
+                                                transaction.insert(
+                                                    dropTarget.action.pos,
+                                                    fileRowNode,
+                                                );
+
+                                                transaction.setSelection(
+                                                    new NodeSelection(
+                                                        transaction.doc.resolve(
+                                                            dropTarget.action.pos + 1,
+                                                        ),
+                                                    ),
+                                                );
                                             }
-                                            default:
-                                                throw exhaustive(dropTarget.action);
+                                            break;
                                         }
+                                        case "InsertFileIntoRow": {
+                                            transaction.insert(
+                                                dropTarget.action.pos,
+                                                schema.nodes.file!.create({
+                                                    fileId: initialFile.id,
+                                                }),
+                                            );
 
-                                        updateContentEditorReferences(transaction, {
-                                            type: "SetFile",
-                                            signedUrlSearch,
-                                            file: initialFile,
-                                        });
+                                            transaction.setSelection(
+                                                new NodeSelection(
+                                                    transaction.doc.resolve(dropTarget.action.pos),
+                                                ),
+                                            );
+                                            break;
+                                        }
+                                        default:
+                                            throw exhaustive(dropTarget.action);
+                                    }
 
-                                        view.dispatch(transaction);
-                                    },
-                                });
-                            } finally {
-                                if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
-                                unsubscribeFromFileStore?.();
-                            }
-                        });
-                    }
+                                    updateContentEditorReferences(transaction, {
+                                        type: "SetFile",
+                                        signedUrlSearch,
+                                        file: initialFile,
+                                    });
 
-                    return true;
+                                    view.dispatch(transaction);
+                                },
+                            });
+                        } finally {
+                            if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
+                            unsubscribeFromFileStore?.();
+                        }
+                    });
                 }
 
-                return false;
-            },
+                return true;
+            }
 
-            /* ========================================================================== *\
-             *                                Misc events                                 *
-            \* ========================================================================== */
+            return false;
+        };
 
-            handleKeyDown: (_view, event) => {
-                const {isAppleDevice} = getClientInfo();
+        /* ========================================================================== *\
+         *                                Misc events                                 *
+        \* ========================================================================== */
 
-                // Implement keyboard shortcuts when the mention floater is open:
-                const floaterState = getContentEditorFloaterState(view.state);
-                if (floaterState.type === "Mention") {
-                    floaterState.handleKeyDownRef.current?.(event);
-                    if (event.defaultPrevented) return true;
-                }
+        viewProps.handleKeyDown = (_view, event) => {
+            const {isAppleDevice} = getClientInfo();
 
-                if (
-                    typeof propsRef.current.onModEnter === "function" &&
-                    event.key === "Enter" &&
-                    !event.altKey &&
-                    !event.shiftKey &&
-                    // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
-                    (isAppleDevice ? event.metaKey : event.ctrlKey)
-                ) {
-                    propsRef.current.onModEnter(event);
-                    if (event.defaultPrevented) return true;
-                }
+            // Implement keyboard shortcuts when the mention floater is open:
+            const floaterState = getContentEditorFloaterState(view.state);
+            if (floaterState.type === "Mention") {
+                floaterState.handleKeyDownRef.current?.(event);
+                if (event.defaultPrevented) return true;
+            }
 
-                if (
-                    typeof propsRef.current.onEnterFromPhysicalKeyboard === "function" &&
-                    event.key === "Enter" &&
-                    !event.altKey &&
-                    !event.shiftKey &&
-                    // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                    (!isAppleDevice || !event.ctrlKey) &&
-                    // Cmd+Enter on MacOS platforms should trigger the callback
-                    (isAppleDevice || !event.metaKey) &&
-                    // On a physical keyboard where the user has access to Shift+Enter we sometimes
-                    // want enter to send the message or otherwise save what's being edited. On a
-                    // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter
-                    // to insert a newline and have the user submit their message with a
-                    // button press.
-                    !isVirtualKeyboardEvent(event)
-                ) {
-                    propsRef.current.onEnterFromPhysicalKeyboard(event);
-                    if (event.defaultPrevented) return true;
-                }
+            if (
+                typeof propsRef.current.onModEnter === "function" &&
+                event.key === "Enter" &&
+                !event.altKey &&
+                !event.shiftKey &&
+                // Cmd+Enter triggers this on MacOS and Ctrl+Enter triggers this elsewhere
+                (isAppleDevice ? event.metaKey : event.ctrlKey)
+            ) {
+                propsRef.current.onModEnter(event);
+                if (event.defaultPrevented) return true;
+            }
 
-                if (typeof propsRef.current.onEscape === "function" && event.key === "Escape") {
-                    propsRef.current.onEscape(event);
-                    if (event.defaultPrevented) return true;
-                }
+            if (
+                typeof propsRef.current.onEnterFromPhysicalKeyboard === "function" &&
+                event.key === "Enter" &&
+                !event.altKey &&
+                !event.shiftKey &&
+                // Ctrl+Enter on non-MacOS platforms should trigger the callback
+                (!isAppleDevice || !event.ctrlKey) &&
+                // Cmd+Enter on MacOS platforms should trigger the callback
+                (isAppleDevice || !event.metaKey) &&
+                // On a physical keyboard where the user has access to Shift+Enter we sometimes
+                // want enter to send the message or otherwise save what's being edited. On a
+                // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter
+                // to insert a newline and have the user submit their message with a
+                // button press.
+                !isVirtualKeyboardEvent(event)
+            ) {
+                propsRef.current.onEnterFromPhysicalKeyboard(event);
+                if (event.defaultPrevented) return true;
+            }
 
-                if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
-                    propsRef.current.onArrowUp(event);
-                    if (event.defaultPrevented) return true;
-                }
+            if (typeof propsRef.current.onEscape === "function" && event.key === "Escape") {
+                propsRef.current.onEscape(event);
+                if (event.defaultPrevented) return true;
+            }
 
-                return false;
-            },
+            if (typeof propsRef.current.onArrowUp === "function" && event.key === "ArrowUp") {
+                propsRef.current.onArrowUp(event);
+                if (event.defaultPrevented) return true;
+            }
 
-            handleScrollToSelection: () => {
-                // Before scrolling to selection, synchronously flush scrollbar resizes. When
-                // the user is deleting content, our custom scrollbar from `scrollbar.tsx`'s
-                // height will shrink once `ResizeObserver` or `MutationObserver` call their
-                // callbacks. However, ProseMirror will call its `scrollRectIntoView()`
-                // function BEFORE these callbacks are called. Leading to an incorrect scroll
-                // because the parent element's scroll height is larger than it should be given
-                // our custom scrollbar from `scrollbar.tsx` hasn't updated its height yet.
-                //
-                // The fix is to make sure we synchronously flush scrollbar resizes before
-                // `scrollRectIntoView()` is called.
-                //
-                // You can see a bug this fixes [here][1]. Notice how in the bad example when
-                // deleting the document underneath scrolls! Which shouldn't happen.
-                //
-                // [1]: https://gist.github.com/calebmer/7ac49a81c466b14cf3bac987e7bb65a9
-                flushScrollbarResizeSync(view.dom);
+            return false;
+        };
 
-                return false;
-            },
+        viewProps.handleScrollToSelection = () => {
+            // Before scrolling to selection, synchronously flush scrollbar resizes. When
+            // the user is deleting content, our custom scrollbar from `scrollbar.tsx`'s
+            // height will shrink once `ResizeObserver` or `MutationObserver` call their
+            // callbacks. However, ProseMirror will call its `scrollRectIntoView()`
+            // function BEFORE these callbacks are called. Leading to an incorrect scroll
+            // because the parent element's scroll height is larger than it should be given
+            // our custom scrollbar from `scrollbar.tsx` hasn't updated its height yet.
+            //
+            // The fix is to make sure we synchronously flush scrollbar resizes before
+            // `scrollRectIntoView()` is called.
+            //
+            // You can see a bug this fixes [here][1]. Notice how in the bad example when
+            // deleting the document underneath scrolls! Which shouldn't happen.
+            //
+            // [1]: https://gist.github.com/calebmer/7ac49a81c466b14cf3bac987e7bb65a9
+            flushScrollbarResizeSync(view.dom);
 
-            /* ========================================================================== *\
-             *                 ProseMirror/React reconciliation (part 1)                  *
-            \* ========================================================================== */
+            return false;
+        };
 
-            dispatchTransaction(transaction) {
-                const oldState = view.state;
+        /* ========================================================================== *\
+         *                 ProseMirror/React reconciliation (part 1)                  *
+        \* ========================================================================== */
 
-                // By default, applying a transaction will clear the editor's stored
-                // marks. We don't want that behavior! Instead we want to preserve stored marks
-                // until a user either explicitly toggles them off or moves their selection
-                // somewhere else in the document.
-                const shouldResetStoredMarks = !transaction.docChanged && transaction.selectionSet;
-                if (
-                    !shouldResetStoredMarks &&
-                    oldState.storedMarks &&
-                    !transaction.storedMarksSet
-                ) {
-                    transaction.setStoredMarks(oldState.storedMarks);
-                }
+        viewProps.dispatchTransaction = transaction => {
+            const oldState = view.state;
 
-                const newState = oldState.apply(transaction);
+            // By default, applying a transaction will clear the editor's stored
+            // marks. We don't want that behavior! Instead we want to preserve stored marks
+            // until a user either explicitly toggles them off or moves their selection
+            // somewhere else in the document.
+            const shouldResetStoredMarks = !transaction.docChanged && transaction.selectionSet;
+            if (!shouldResetStoredMarks && oldState.storedMarks && !transaction.storedMarksSet) {
+                transaction.setStoredMarks(oldState.storedMarks);
+            }
 
-                lastTransactionRef.current = transaction;
+            const newState = oldState.apply(transaction);
 
-                // Always call the change handler through a ref. By using a ref we can avoid
-                // destroying and recreating an editor when the function changes.
-                //
-                // We also must flush synchronously. Since ProseMirror preserves local DOM
-                // state when we call `updateState()` synchronously but won't otherwise.
-                //
-                // See the "Efficient updating" section in the [editor view guide][1].
-                // If we don't synchronously apply the transaction it is considered
-                // cancelled. A quote from the guide:
-                //
-                // > When such a transaction is canceled or modified somehow, the view
-                // > will undo the DOM change...
-                //
-                // [1]: https://prosemirror.net/docs/guide/#view
-                flushSync(() => {
-                    propsRef.current.onChange(wrap(newState), transaction);
-                });
-            },
-        });
+            lastTransactionRef.current = transaction;
+
+            // Always call the change handler through a ref. By using a ref we can avoid
+            // destroying and recreating an editor when the function changes.
+            //
+            // We also must flush synchronously. Since ProseMirror preserves local DOM
+            // state when we call `updateState()` synchronously but won't otherwise.
+            //
+            // See the "Efficient updating" section in the [editor view guide][1].
+            // If we don't synchronously apply the transaction it is considered
+            // cancelled. A quote from the guide:
+            //
+            // > When such a transaction is canceled or modified somehow, the view
+            // > will undo the DOM change...
+            //
+            // [1]: https://prosemirror.net/docs/guide/#view
+            flushSync(() => {
+                propsRef.current.onChange(wrap(newState), transaction);
+            });
+        };
+
+        const view = new EditorView(rootElement, viewProps);
 
         /* ========================================================================== *\
          *                         Dual input modality events                         *
