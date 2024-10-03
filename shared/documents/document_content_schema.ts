@@ -476,16 +476,6 @@ const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             content: "text*",
             marks: "",
             toDOM: () => ["h1", {class: titleClassName}, 0],
-            // Try to parse as a `heading`. If we can't (because it's the first position in
-            // a document) then parse as a title.
-            parseDOM: [
-                {tag: "h1", priority: 40},
-                {tag: "h2", priority: 40},
-                {tag: "h3", priority: 40},
-                {tag: "h4", priority: 40},
-                {tag: "h5", priority: 40},
-                {tag: "h6", priority: 40},
-            ],
         },
     },
     marks: {

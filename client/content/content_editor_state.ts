@@ -1149,8 +1149,11 @@ let nextContentEditorRememberSelectionWhileLoadingPluginStateKey = 1;
 
 export function rememberContentEditorSelectionWhileLoading(
     view: EditorView,
+    selection: Selection,
     promise: PromiseLike<unknown>,
 ): {getSelection: () => Selection | null} {
+    assert(selection.$anchor.doc === view.state.doc);
+
     const key = nextContentEditorRememberSelectionWhileLoadingPluginStateKey;
     nextContentEditorRememberSelectionWhileLoadingPluginStateKey++;
 
@@ -1161,7 +1164,7 @@ export function rememberContentEditorSelectionWhileLoading(
             key,
             value: {
                 promise,
-                selection: view.state.selection,
+                selection,
             },
         },
     );

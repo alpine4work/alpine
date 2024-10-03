@@ -132,6 +132,7 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -1201,6 +1202,56 @@ function ContentEditor<Content extends ContentWithReferences>(
                     () => propsRef.current.state.getContent().references,
                 ),
 
+            transformPasted: slice => {
+                // When pasting a slice that starts with a heading and has some other nodes,
+                // make sure we always use an `openStart` of 0 so the heading doesn't merge
+                // with the previous node.
+                if (
+                    slice.content.firstChild?.type.name === "heading" &&
+                    slice.content.childCount > 1 &&
+                    slice.openStart !== 0
+                ) {
+                    slice = new Slice(slice.content, 0, slice.openEnd);
+                }
+
+                // If the slice is a `codeBlock` with a single line then instead of trying to
+                // paste a code block, instead paste the individual text nodes with code
+                // styling.
+                if (
+                    slice.content.childCount === 1 &&
+                    slice.content.firstChild!.type.name === "codeBlock" &&
+                    slice.content.firstChild!.childCount === 1
+                ) {
+                    slice = new Slice(
+                        Fragment.from(
+                            slice.content.firstChild!.firstChild!.content.content.map(node =>
+                                node.mark(schema.mark("code").addToSet(node.marks)),
+                            ),
+                        ),
+                        0,
+                        0,
+                    );
+                }
+
+                // If your slice starts (or ends) with a `codeBlock` then set `openStart` (or
+                // `openEnd`) to 0 so we don't inline any of the code block's content (instead
+                // maintaining the code block's structure) with whatever we're pasting against.
+                {
+                    if (
+                        slice.content.firstChild?.type.name === "codeBlock" &&
+                        slice.openStart !== 0
+                    ) {
+                        slice = new Slice(slice.content, 0, slice.openEnd);
+                    }
+
+                    if (slice.content.lastChild?.type.name === "codeBlock" && slice.openEnd !== 0) {
+                        slice = new Slice(slice.content, slice.openStart, 0);
+                    }
+                }
+
+                return slice;
+            },
+
             transformPastedDOM: element => {
                 let currentUrl: URL | undefined;
 
@@ -1364,28 +1415,121 @@ function ContentEditor<Content extends ContentWithReferences>(
             // TODO(calebmer, #files): Handle directly pasting content type (e.g.
             // `image/png` from Figma).
             handlePaste: (view, event, slice) => {
+                let selection = view.state.selection;
+
+                // If the selection starts in our title, then shift the selection out of the
+                // title. That way if we paste a paragraph in the title the paragraph doesn't
+                // become the title. Making a 50 word paragraph the title just feels broken.
+                //
+                // If the first child we're pasting is a heading then leave the selection as it
+                // is. We want headings to fill the title.
+                if (selection.$from.parent.type.name === "title") {
+                    if (slice.content.firstChild?.type.name !== "heading") {
+                        selection = TextSelection.between(
+                            view.state.doc.resolve(selection.$from.after()),
+                            selection.$to.parent.type.name === "title"
+                                ? view.state.doc.resolve(selection.$to.after())
+                                : selection.$to,
+                        );
+                    } else {
+                        // Make sure if we're pasting a `heading` node into a `title` node the
+                        // `openStart` is always at least 1 so the heading can fill the title instead
+                        // of creating a new block below.
+                        if (slice.openStart < 1) {
+                            slice = new Slice(slice.content, 1, slice.openEnd);
+                        }
+
+                        // If we're pasting a `heading` node into a `title` node and we have another
+                        // block node besides the first `heading` node and the node after the `title`
+                        // node is an empty paragraph then let's have our selection include the
+                        // paragraph.
+                        //
+                        // This way if the user pastes into an empty document they won't have a
+                        // trailing paragraph at the end.
+                        if (
+                            selection.$from.pos === selection.$to.pos &&
+                            selection.$from.parentOffset === selection.$from.parent.content.size &&
+                            iterableFind(sliceIterable(slice.content.content, 1), childNode =>
+                                childNode.type.groups.includes("block"),
+                            )
+                        ) {
+                            const nextNode = selection.$from
+                                .node(selection.$from.depth - 1)
+                                .maybeChild(selection.$from.indexAfter(selection.$from.depth - 1));
+
+                            if (
+                                nextNode?.type.name === "paragraph" &&
+                                nextNode.content.size === 0
+                            ) {
+                                selection = TextSelection.between(
+                                    selection.$from,
+                                    view.state.doc.resolve(selection.$from.after() + 2),
+                                );
+                            }
+                        }
+                    }
+                }
+
                 const referencedIds = getContentReferencedIdsForSlice(slice);
+
+                // Implement the same logic as ProseMirror's `doPaste` function. First we need
+                // to call our synchronous `handlePaste` override and if that returns false
+                // then we need to perform the same default paste handling that ProseMirror
+                // implements.
+                //
+                // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
+                const actuallyHandlePaste = (
+                    selection: Selection,
+                    createTransaction: () => Transaction,
+                ) => {
+                    if (
+                        handlePaste(
+                            view.state.doc,
+                            selection,
+                            createTransaction,
+                            transaction => view.dispatch(transaction),
+                            event,
+                            slice,
+                        )
+                    ) {
+                        return;
+                    }
+
+                    const transaction = createTransaction();
+
+                    const singleNode =
+                        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
+                            ? slice.content.firstChild
+                            : null;
+
+                    if (singleNode) {
+                        selection.replaceWith(transaction, singleNode);
+                    } else {
+                        selection.replace(transaction, slice);
+                    }
+
+                    view.dispatch(
+                        transaction
+                            .scrollIntoView()
+                            .setMeta("paste", true)
+                            .setMeta("uiEvent", "paste"),
+                    );
+                };
 
                 // If there's some references in the paste then let's perform an asynchronous
                 // paste where we load all requisite data first.
                 if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
-                    return handlePaste(
-                        view.state.doc,
-                        view.state.selection,
-                        () => view.state.tr,
-                        transaction => view.dispatch(transaction),
-                        event,
-                        slice,
-                    );
+                    actuallyHandlePaste(selection, () => view.state.tr);
+                    return true;
                 }
 
                 const context = assertExists(contextRef.current);
                 const reporter = assertExists(reporterRef.current);
                 const spaceId = assertExists(spaceContextRef.current).space.id;
 
-                // We do reassign this variable. Looks like there's a bug in eslint.
-                // eslint-disable-next-line prefer-const
-                let rememberedSelection: {getSelection: () => Selection | null} | undefined;
+                let rememberedSelection: {getSelection: () => Selection | null} = {
+                    getSelection: () => selection,
+                };
 
                 // TODO(calebmer, #global-loading-indicator): Show a "pasting" indicator if
                 // we're waiting for a data fetch before applying a paste.
@@ -1456,8 +1600,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                         // Get the selection remembered by our editor state. Not the view's current
                         // selection. The view selection might have moved while we were pasting.
-                        const selection =
-                            rememberedSelection?.getSelection() ?? view.state.selection;
+                        const selection = rememberedSelection.getSelection();
+                        if (!selection) return;
 
                         // Any new paste transaction should start by updating content references with
                         // the data we just asynchronously fetched.
@@ -1482,50 +1626,15 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 ),
                             );
 
-                        // Once we've finished loading data, implement the same logic as ProseMirror's
-                        // `doPaste` function. First we need to call our synchronous `handlePaste`
-                        // function again and if that returns false then we need to perform the same
-                        // default paste handling that ProseMirror implements.
-                        //
-                        // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
-                        if (
-                            handlePaste(
-                                view.state.doc,
-                                selection,
-                                createTransaction,
-                                transaction => view.dispatch(transaction),
-                                event,
-                                slice,
-                            )
-                        ) {
-                            return;
-                        }
-
-                        const transaction = createTransaction();
-
-                        const singleNode =
-                            slice.openStart == 0 &&
-                            slice.openEnd == 0 &&
-                            slice.content.childCount == 1
-                                ? slice.content.firstChild
-                                : null;
-
-                        if (singleNode) {
-                            selection.replaceWith(transaction, singleNode);
-                        } else {
-                            selection.replace(transaction, slice);
-                        }
-
-                        view.dispatch(
-                            transaction
-                                .scrollIntoView()
-                                .setMeta("paste", true)
-                                .setMeta("uiEvent", "paste"),
-                        );
+                        actuallyHandlePaste(selection, createTransaction);
                     },
                 );
 
-                rememberedSelection = rememberContentEditorSelectionWhileLoading(view, promise);
+                rememberedSelection = rememberContentEditorSelectionWhileLoading(
+                    view,
+                    selection,
+                    promise,
+                );
 
                 promise.catch(error => {
                     reporter.displayError("Couldn’t paste", error);
@@ -2414,31 +2523,6 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 decorationSet = addEmojiDecorations(decorationSet, state.doc);
 
-                // Highlight any selected files.
-                //
-                // We have similar code in `<ContentView>` that watches for the
-                // `selectionchange` event and applies the class to elements within
-                // `document.getSelection()`.
-                if (!(state.selection instanceof NodeSelection)) {
-                    state.doc.nodesBetween(
-                        state.selection.from,
-                        state.selection.to,
-                        (node, pos) => {
-                            if (node.type.name === "file") {
-                                decorationSet = decorationSet.add(state.doc, [
-                                    Decoration.node(pos, pos + 1, {
-                                        // TODO(calebmer): When theme is configurable we should use the configured
-                                        // theme here instead of `defaultThemeColor`.
-                                        class: contentStyles.selectionFileClassNameByColor[
-                                            defaultThemeColor
-                                        ],
-                                    }),
-                                ]);
-                            }
-                        },
-                    );
-                }
-
                 for (const decorationCallback of decorationCallbacks) {
                     decorationSet = decorationCallback(decorationSet, state);
                 }
@@ -2737,6 +2821,31 @@ function ContentEditor<Content extends ContentWithReferences>(
         const view = viewRef.current;
         const viewElement = view.dom;
 
+        const focusDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
+            // Highlight any selected files.
+            //
+            // We have similar code in `<ContentView>` that watches for the
+            // `selectionchange` event and applies the class to elements within
+            // `document.getSelection()`.
+            if (!(state.selection instanceof NodeSelection)) {
+                state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
+                    if (node.type.name === "file") {
+                        decorationSet = decorationSet.add(state.doc, [
+                            Decoration.node(pos, pos + 1, {
+                                // TODO(calebmer): When theme is configurable we should use the configured
+                                // theme here instead of `defaultThemeColor`.
+                                class: contentStyles.selectionFileClassNameByColor[
+                                    defaultThemeColor
+                                ],
+                            }),
+                        ]);
+                    }
+                });
+            }
+
+            return decorationSet;
+        };
+
         const blurDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
             const floaterState = getContentEditorFloaterState(state);
 
@@ -2780,6 +2889,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 setDecorationCallbacks(decorationCallbacks => {
                     const newDecorationCallbacks = new Set(decorationCallbacks);
+                    newDecorationCallbacks.add(focusDecorationCallback);
                     newDecorationCallbacks.delete(blurDecorationCallback);
                     return newDecorationCallbacks;
                 });
@@ -2798,6 +2908,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 setDecorationCallbacks(decorationCallbacks => {
                     const newDecorationCallbacks = new Set(decorationCallbacks);
+                    newDecorationCallbacks.delete(focusDecorationCallback);
                     newDecorationCallbacks.add(blurDecorationCallback);
                     return newDecorationCallbacks;
                 });
@@ -2819,8 +2930,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             viewElement.addEventListener("blur", handleBlur);
 
             setDecorationCallbacks(decorationCallbacks => {
-                if (!decorationCallbacks.has(blurDecorationCallback)) return decorationCallbacks;
                 const newDecorationCallbacks = new Set(decorationCallbacks);
+                newDecorationCallbacks.delete(focusDecorationCallback);
                 newDecorationCallbacks.delete(blurDecorationCallback);
                 return newDecorationCallbacks;
             });
@@ -3422,39 +3533,12 @@ function handlePaste(
     // entire slice content instead of the content determined by `Slice.maxOpen()`.
     if (
         selection.$from.depth === 1 &&
-        selection.$from.node().type.name === "paragraph" &&
-        selection.$from.node().nodeSize === 2 &&
+        selection.$from.parent.type.name === "paragraph" &&
+        selection.$from.parent.nodeSize === 2 &&
         selection.$from.pos === selection.$to.pos
     ) {
         const transaction = createTransaction();
-        selection.replace(transaction, new Slice(slice.content, 0, 0));
-        dispatch(transaction);
-        return true;
-    }
-
-    // When pasting a `codeBlock` or a `codeBlockLine` if we're pasting in the
-    // middle of a paragraph then the code block's content will be converted to
-    // plain text. We want to style that text with the `code` mark so after we
-    // paste, try adding the mark to the entire range of the pasted content. If
-    // the range is a `codeBlock` adding the mark will be a noop. But if we
-    // converted the code block to paragraph text then the mark will be added.
-    if (
-        slice.content.firstChild?.type.name === "codeBlock" ||
-        slice.content.firstChild?.type.name === "codeBlockLine"
-    ) {
-        const {from, to} = selection;
-        const transaction = createTransaction();
-        selection.replace(transaction, slice);
-
-        const mappedFrom = transaction.mapping.map(from, -1);
-        const mappedTo = transaction.mapping.map(to, 1);
-
-        transaction.addMark(
-            mappedFrom,
-            mappedTo,
-            slice.content.firstChild.type.schema.mark("code"),
-        );
-
+        selection.replace(transaction, new Slice(slice.content, 0, slice.openEnd));
         dispatch(transaction);
         return true;
     }
