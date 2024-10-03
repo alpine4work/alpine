@@ -27,8 +27,6 @@ export const parentScrollWhenPointerDownAndOverClassNames = [
  * For the element to receive these events it must have one of the class names
  * in `parentScrollWhenPointerDownAndOverClassNames`.
  */
-// TODO(calebmer, #files): Right now we only call this in `<ContentEditor>` but
-// we also probably need to call this in `<ContentView>` too.
 export function dispatchParentScrollWhenPointerDownAndOverEvent(element: Element) {
     parentScrollWhenPointerDownAndOverEventEmitterByElement?.get(element)?.emit();
 }

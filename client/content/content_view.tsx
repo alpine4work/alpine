@@ -1,10 +1,25 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
-import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {
+    Memo,
+    useCallback,
+    useEffect,
+    useId,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {
+    addParentScrollWhenPointerDownAndOverListener,
+    dispatchParentScrollWhenPointerDownAndOverEvent,
+    parentScrollWhenPointerDownAndOverClassNames,
+    removeParentScrollWhenPointerDownAndOverListener,
+} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {
     ContentFilePreviewExpirationTimers,
     addContentFilePreviewBehavior,
@@ -692,17 +707,31 @@ export function ContentView({
                     maybeUpdateStyle();
                 };
 
+                const handleParentScrollWhenPointerDownAndOver = () => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
+
                 element.addEventListener("click", handleClick);
                 element.addEventListener("pointerdown", handlePointerDown);
                 element.addEventListener("pointerup", handlePointerUp);
                 element.addEventListener("pointerleave", handlePointerLeave);
                 element.addEventListener("dragstart", handleDragStart);
+                addParentScrollWhenPointerDownAndOverListener(
+                    element,
+                    handleParentScrollWhenPointerDownAndOver,
+                );
+
                 cleanupFunctions.push(() => {
                     element.removeEventListener("click", handleClick);
                     element.removeEventListener("pointerdown", handlePointerDown);
                     element.removeEventListener("pointerup", handlePointerUp);
                     element.removeEventListener("pointerleave", handlePointerLeave);
                     element.removeEventListener("dragstart", handleDragStart);
+                    removeParentScrollWhenPointerDownAndOverListener(
+                        element,
+                        handleParentScrollWhenPointerDownAndOver,
+                    );
                 });
             }
 
@@ -774,11 +803,21 @@ export function ContentView({
                     maybeUpdateStyle();
                 };
 
+                const handleParentScrollWhenPointerDownAndOver = () => {
+                    isPointerDownAndOver = false;
+                    maybeUpdateStyle();
+                };
+
                 element.addEventListener("click", handleClick);
                 element.addEventListener("pointerdown", handlePointerDown);
                 element.addEventListener("pointerup", handlePointerUp);
                 element.addEventListener("pointerleave", handlePointerLeave);
                 element.addEventListener("dragstart", handleDragStart);
+                addParentScrollWhenPointerDownAndOverListener(
+                    element,
+                    handleParentScrollWhenPointerDownAndOver,
+                );
+
                 cleanupFunctions.push(() => {
                     element.removeEventListener("click", handleClick);
                     element.removeEventListener("pointerdown", handlePointerDown);
@@ -786,6 +825,10 @@ export function ContentView({
                     element.removeEventListener("pointerleave", handlePointerLeave);
                     element.removeEventListener("dragstart", handleDragStart);
                 });
+                removeParentScrollWhenPointerDownAndOverListener(
+                    element,
+                    handleParentScrollWhenPointerDownAndOver,
+                );
             }
 
             if (element.classList.contains(contentStyles.codeBlockCopyButtonClassName)) {
@@ -922,6 +965,136 @@ export function ContentView({
         fileAttachmentTarget,
         filePreviewExpirationTimers,
     ]);
+
+    // Watch all parent elements of our content editor for scroll events. When a
+    // scroll event occurs we want to call
+    // `dispatchParentScrollWhenPointerDownAndOverEvent()` on any pressable
+    // elements.
+    //
+    // This replicates the behavior in `@react-aria/interactions` where a press is
+    // cancelled when a parent element scrolls. This behavior is important for
+    // mobile since the user must press somewhere on the screen to scroll. Normally
+    // `pointercancel` should be dispatched when the user scrolls while pressing on
+    // some element but when the CSS `touch-action: manipulation` is set the press
+    // is not cancelled.
+    //
+    // We can't add listeners to parent scroll elements in our link/mark view code
+    // because ProseMirror does not offer us a cleanup hook for mark views! So we
+    // add listeners at this level and call
+    // `dispatchParentScrollWhenPointerDownAndOverEvent()`.
+    //
+    // IMPORTANT: This is based off of code in `<ContentEditor>`. While this is
+    // necessary for `<ContentEditor>` because custom mark views don't get a
+    // cleanup handler it's not necessary here since we add behavior for our mark
+    // views in an effect which has a cleanup function. Though since we have
+    // reusable behavior code across custom mark/node views in `<ContentEditor>`
+    // and here (e.g. `addContentFilePreviewBehavior()`) it's useful to standardize
+    // this behavior across `<ContentEditor>` and `<ContentView>`.
+    useLayoutEffect(() => {
+        const element = assertExists(ref.current);
+
+        let isPointerDownAndOverParentScrollReceiver = false;
+
+        const handlePointerDown = (event: PointerEvent) => {
+            let hasPointerDownAndOverParentScrollReceiverParent = false;
+
+            {
+                let parentElement: HTMLElement | null = event.target as HTMLElement;
+                while (parentElement) {
+                    if (
+                        parentScrollWhenPointerDownAndOverClassNames.some(className =>
+                            parentElement!.classList.contains(className),
+                        )
+                    ) {
+                        hasPointerDownAndOverParentScrollReceiverParent = true;
+                        break;
+                    }
+
+                    parentElement =
+                        parentElement.parentElement !== element
+                            ? parentElement.parentElement
+                            : null;
+                }
+            }
+
+            isPointerDownAndOverParentScrollReceiver =
+                hasPointerDownAndOverParentScrollReceiverParent;
+        };
+
+        const handlePointerUp = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        const handlePointerLeave = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        const handlePointerCancel = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        const handleDragStart = () => {
+            isPointerDownAndOverParentScrollReceiver = false;
+        };
+
+        element.addEventListener("pointerdown", handlePointerDown);
+        element.addEventListener("pointerup", handlePointerUp);
+        element.addEventListener("pointerleave", handlePointerLeave);
+        element.addEventListener("pointercancel", handlePointerCancel);
+        element.addEventListener("dragstart", handleDragStart);
+
+        const handleScroll = () => {
+            if (!isPointerDownAndOverParentScrollReceiver) return;
+            isPointerDownAndOverParentScrollReceiver = false;
+
+            for (const childElement of element.querySelectorAll(
+                parentScrollWhenPointerDownAndOverClassNames
+                    .map(className => `.${className}`)
+                    .join(", "),
+            )) {
+                dispatchParentScrollWhenPointerDownAndOverEvent(childElement);
+            }
+        };
+
+        const scrollEventTargets: Array<EventTarget> = [window];
+
+        {
+            let parentElement = element.parentElement;
+            while (parentElement) {
+                const {overflowX, overflowY} = getComputedStyle(parentElement);
+
+                if (
+                    overflowX === "auto" ||
+                    overflowX === "scroll" ||
+                    overflowY === "auto" ||
+                    overflowY === "scroll"
+                ) {
+                    scrollEventTargets.push(parentElement);
+                }
+
+                parentElement =
+                    parentElement.parentElement !== document.body
+                        ? parentElement.parentElement
+                        : null;
+            }
+        }
+
+        for (const scrollEventTarget of scrollEventTargets) {
+            scrollEventTarget.addEventListener("scroll", handleScroll, true);
+        }
+
+        return () => {
+            element.removeEventListener("pointerdown", handlePointerDown);
+            element.removeEventListener("pointerup", handlePointerUp);
+            element.removeEventListener("pointerleave", handlePointerLeave);
+            element.removeEventListener("pointercancel", handlePointerCancel);
+            element.removeEventListener("dragstart", handleDragStart);
+
+            for (const scrollEventTarget of scrollEventTargets) {
+                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         const element = assertExists(ref.current);

@@ -3128,8 +3128,9 @@ function ContentEditor<Content extends ContentWithReferences>(
     \* ========================================================================== */
 
     // Watch all parent elements of our content editor for scroll events. When a
-    // scroll event occurs we want to call `onParentScrollSymbol` on link mark
-    // elements and comment mark elements.
+    // scroll event occurs we want to call
+    // `dispatchParentScrollWhenPointerDownAndOverEvent()` on any pressable
+    // elements.
     //
     // This replicates the behavior in `@react-aria/interactions` where a press is
     // cancelled when a parent element scrolls. This behavior is important for

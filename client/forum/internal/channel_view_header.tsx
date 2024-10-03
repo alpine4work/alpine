@@ -45,15 +45,8 @@ export function ChannelViewHeader({
             {withMobileLayout &&
                 (channelHeader.isEditingDescription ||
                     !isContentEmpty(channelHeader.channel.description.doc)) && (
-                    <Box paddingX={{desktop: "3", mobile: "1"}}>
-                        <h3
-                            className={sprinkles({
-                                paddingX: "2",
-                                color: "grey-50",
-                            })}
-                        >
-                            About
-                        </h3>
+                    <Box paddingX={{desktop: "5", mobile: "3"}}>
+                        <h3 className={sprinkles({color: "grey-50"})}>About</h3>
                         {!channelHeader.isEditingDescription ? (
                             <ChannelViewHeaderMobileDescription
                                 description={channelHeader.channel.description}

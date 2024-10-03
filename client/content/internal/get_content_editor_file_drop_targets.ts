@@ -28,8 +28,6 @@ export type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Drag to move files.
 
-// TODO(calebmer, #files): Copy/paste files.
-
 // TODO(calebmer, #files): Images with alpha does placeholder show through? We
 // probably need some fade animation.
 
