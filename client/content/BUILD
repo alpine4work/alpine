@@ -37,6 +37,7 @@ ts_project(
         "//client/helpers",
         "//client/spaces",
         "//client/styles",
+        "//client/tracer",
         "//shared/content",
         "//shared/content/code",
         "//shared/design",

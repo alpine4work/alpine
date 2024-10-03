@@ -1,11 +1,7 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
-import {
-    FileAuthorizer,
-    getFileFromAttachment,
-    getFileIfExistsFromAttachment,
-} from "~/server/files/data/files_table.js";
+import {FileAuthorizer, getFileIfExistsFromAttachment} from "~/server/files/data/files_table.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     ContentReferencedIds,

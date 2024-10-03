@@ -2,11 +2,7 @@ import {Fragment, Node, Slice} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {
-    ContentMentionAccountId,
-    DocumentCommentThreadId,
-    FileId,
-} from "~/shared/id/types/id_types.js";
+import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorFragment,

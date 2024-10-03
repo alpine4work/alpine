@@ -26,6 +26,12 @@ import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
+declare global {
+    interface RequestInit {
+        duplex?: "half";
+    }
+}
+
 export type UploadFileFromContentEditorInput =
     | {
           readonly type: "File";

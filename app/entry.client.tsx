@@ -15,7 +15,6 @@ import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Schema} from "~/shared/schema/schema.js";
 

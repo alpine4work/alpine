@@ -9,13 +9,11 @@ import {
     DocumentModel,
     DocumentPreviewModel,
 } from "~/shared/documents/document_model.js";
-import {FileAttachmentTargetSchema} from "~/shared/files/file_attachment_target.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
-    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";

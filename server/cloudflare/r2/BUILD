@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@miniflare/storage-file",
         "//:node_modules/@smithy/types",
         "//:node_modules/undici",
+        "//server/helpers",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

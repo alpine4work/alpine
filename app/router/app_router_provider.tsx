@@ -196,7 +196,7 @@ export function AppRouterProvider({
                 NativeMobileBridge?.navigation.prepareReplaceWithPushAnimation();
             }
         }
-    }, [state.historyAction, state.location.key]);
+    }, [router, state.historyAction, state.location]);
 
     // 2. Run navigation animation after we paint our new screen
     useLayoutEffectWithoutServerSideWarning(() => {
