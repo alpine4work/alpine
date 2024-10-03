@@ -1451,7 +1451,6 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
         });
     },
     "image/gif": () => {
-        // TODO(calebmer, #files): Make sure animated GIFs work.
         test("can resize a GIF image", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();

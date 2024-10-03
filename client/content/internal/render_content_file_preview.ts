@@ -259,22 +259,27 @@ export function renderContentFilePreview(
                         reference.signedUrlSearch
                     }${reference.file.preview.content !== undefined ? "&variant=preview" : ""}`;
 
+                    // Don't resize vector images. They're already infinitely resizable.
+                    const isVectorImage =
+                        (reference.file.preview.content?.contentType ??
+                            reference.file.contentType) === "image/svg+xml";
+
                     const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
                     const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
                     const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
 
                     const image1xSource =
-                        reference.file.preview.size.width <= image1xWidth
+                        reference.file.preview.size.width <= image1xWidth || isVectorImage
                             ? `${imageSourceBase}`
                             : `${imageSourceBase}&width=${image1xWidth}`;
 
                     const image2xSource =
-                        reference.file.preview.size.width <= image2xWidth
+                        reference.file.preview.size.width <= image2xWidth || isVectorImage
                             ? `${imageSourceBase}`
                             : `${imageSourceBase}&width=${image2xWidth}`;
 
                     const image3xSource =
-                        reference.file.preview.size.width <= image3xWidth
+                        reference.file.preview.size.width <= image3xWidth || isVectorImage
                             ? `${imageSourceBase}`
                             : `${imageSourceBase}&width=${image3xWidth}`;
 

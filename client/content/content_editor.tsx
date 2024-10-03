@@ -3649,16 +3649,27 @@ function handlePaste(
         return true;
 
     // If we're pasting into an empty paragraph at the top level, then paste the
-    // entire slice content instead of the content determined by `Slice.maxOpen()`.
+    // entire slice content with `openStart` 0 to avoid losing our first node's
+    // styling and attempt to replace the paragraph.
+    //
+    // This matters when:
+    //
+    // - You're pasting content that starts with a heading in an empty paragraph
+    // - You're pasting a file in an empty paragraph (the file should replace the
+    //   paragraph)
     if (
         selection.$from.depth === 1 &&
         selection.$from.parent.type.name === "paragraph" &&
         selection.$from.parent.nodeSize === 2 &&
         selection.$from.pos === selection.$to.pos
     ) {
-        const transaction = createTransaction();
-        selection.replace(transaction, new Slice(slice.content, 0, slice.openEnd));
-        dispatch(transaction);
+        dispatch(
+            createTransaction().replace(
+                selection.$from.pos - 1,
+                selection.$from.pos + 1,
+                new Slice(slice.content, 0, slice.openEnd),
+            ),
+        );
         return true;
     }
 

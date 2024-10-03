@@ -65,12 +65,6 @@ export async function getContentReferences(
         ),
         runAllPromises(
             mapIterable(referencedIds.fileIds, async fileId => {
-                // TODO(calebmer, #files): This will break if you copy some content from a
-                // different space then paste. Ideally we'd allow copying a file from a
-                // different space. How do we make this work? Should we reference the file in
-                // its "home" space? Should we copy the file into the new space? I kinda like
-                // referencing the file in the home space? The home space could delete the file
-                // but that's the risk you run.
                 let file = await getFileIfExistsFromAttachment(
                     context,
                     spaceId,
