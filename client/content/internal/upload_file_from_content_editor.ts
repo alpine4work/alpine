@@ -1,5 +1,7 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     FileContentType,
@@ -8,68 +10,219 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FilePreview} from "~/shared/files/file_preview.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {attachFileAsUploader} from "~/shared/rpc/files_rpc_definitions.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
+export type UploadFileFromContentEditorInput =
+    | {
+          readonly type: "File";
+          readonly file: File;
+      }
+    | {
+          readonly type: "Url";
+          readonly url: URL;
+      };
+
 // TODO(calebmer, #files): Loading spinner before file is attached
 export function uploadFileFromContentEditor(
     context: AppContext,
-    spaceId: SpaceId,
-    attachmentTarget: FileAttachmentTarget,
-    inputFile: File,
     options: {
+        spaceId: SpaceId;
+        fileId?: FileId;
+        attachmentTarget: FileAttachmentTarget;
+        input: UploadFileFromContentEditorInput;
         onAttach: (options: {signedUrlSearch: string; fileStore: Store<FileModel>}) => void;
     },
 ) {
-    return context.tracer.withSpan("Content editor upload file", context =>
-        actuallyUploadFileFromContentEditor(context, spaceId, attachmentTarget, inputFile, options),
-    );
+    return context.tracer.withSpan("Content editor upload file", (context, span) => {
+        span.addData({common: {type: `${options.input.type}Input`}});
+        return actuallyUploadFileFromContentEditor(context, options);
+    });
 }
 
 async function actuallyUploadFileFromContentEditor(
     context: AppContext,
-    spaceId: SpaceId,
-    attachmentTarget: FileAttachmentTarget,
-    inputFile: File,
     {
+        spaceId,
+        fileId,
+        attachmentTarget,
+        input,
         onAttach,
     }: {
+        spaceId: SpaceId;
+        fileId?: FileId;
+        attachmentTarget: FileAttachmentTarget;
+        input: UploadFileFromContentEditorInput;
         onAttach: (options: {signedUrlSearch: string; fileStore: Store<FileModel>}) => void;
     },
 ) {
-    // Get the file's content type. We prefer determining the content type based on
-    // the file extension. That way if the operating system disagrees with us on
-    // what the type of a file should be (based on file extension) our
-    // determination will win.
-    const contentType: FileContentType =
-        getPathFileContentTypeIfExists(inputFile.name) ??
-        canonicalizeFileContentTypeIfExists(inputFile.type) ??
-        "application/octet-stream";
+    const uploadUrl = new URL(`/api/files/${spaceId}/upload`, window.location.href);
+    if (fileId) uploadUrl.searchParams.set("id", fileId);
 
-    const contentLength = inputFile.size;
+    let contentType: FileContentType | undefined;
+    let contentLength: number | undefined;
+    let body: BodyInit | undefined;
+    let extraPromise: Promise<unknown> | undefined;
 
-    await fetchWithTracer(
+    switch (input.type) {
+        case "File": {
+            // Get the file's content type. We prefer determining the content type based on
+            // the file extension. That way if the operating system disagrees with us on
+            // what the type of a file should be (based on file extension) our
+            // determination will win.
+            contentType =
+                getPathFileContentTypeIfExists(input.file.name) ??
+                canonicalizeFileContentTypeIfExists(input.file.type) ??
+                "application/octet-stream";
+
+            contentLength = input.file.size;
+
+            body = input.file;
+            break;
+        }
+        case "Url": {
+            const readyPromiseResolver = createPromiseResolver();
+
+            const getErrorDisplayMessage = () => {
+                const contentTypeNoun = getFileContentTypeNoun(
+                    contentType ?? "application/octet-stream",
+                );
+
+                const linkSegment = errorDisplayMessage.link(
+                    `${input.url.protocol}//${input.url.host}`,
+                    `${input.url.protocol}//${input.url.host}`,
+                );
+
+                return errorDisplayMessage`Can’t add ${contentTypeNoun} from ${linkSegment} because the ${contentTypeNoun} is in an incorrect format. Try adding a different ${contentTypeNoun}.`;
+            };
+
+            extraPromise = fetchWithTracer(
+                context.tracer.getTracer(),
+                new URL(
+                    `/files/cors-proxy/${encodeURIComponent(input.url.toString())}`,
+                    window.location.href,
+                ),
+                {
+                    serviceName: "EdgeService",
+                    route: "/files/cors-proxy/:url",
+                    method: "GET",
+                },
+                async response => {
+                    const responseContentLengthString = response.headers.get("content-length");
+                    const responseContentType = response.headers.get("content-type");
+
+                    // When requesting a file from some URL, use the `Content-Type` set by the HTTP
+                    // server if it exists. Otherwise fallback to looking for a file extension in
+                    // the path.
+                    contentType =
+                        (responseContentType !== null
+                            ? canonicalizeFileContentTypeIfExists(responseContentType)
+                            : null) ??
+                        getPathFileContentTypeIfExists(input.url.pathname) ??
+                        "application/octet-stream";
+
+                    const responseContentLength =
+                        responseContentLengthString !== null
+                            ? parseInt(responseContentLengthString, 10)
+                            : null;
+
+                    if (
+                        responseContentLengthString !== null &&
+                        (!/^[0-9]+$/.test(responseContentLengthString) ||
+                            !Number.isSafeInteger(responseContentLength))
+                    ) {
+                        throw new InvalidArgumentError("Invalid `Content-Length` header", {
+                            displayMessage: getErrorDisplayMessage(),
+                        });
+                    }
+
+                    if (
+                        // Unfortunately, if the request did not provide a `Content-Length` header then
+                        // we need to load the entire file into memory to get its byte length. Then we
+                        // can start an upload.
+                        responseContentLength === null ||
+                        // Also unfortunately, `ReadableStream` stream bodies are only available over
+                        // HTTP/2 and HTTP/3. In development we use HTTP/1 and we don't even use HTTPS.
+                        // So for now, in development, we need to fallback to loading the full file
+                        // into memory.
+                        //
+                        // We test for the `https://` protocol to check if we're in development. If we
+                        // ever switch our development server to use HTTPS instead of HTTP then we
+                        // should also switch our development server to use HTTP/2.
+                        //
+                        // TODO(calebmer, #files): Test that streaming works in production?
+                        uploadUrl.protocol !== "https:"
+                    ) {
+                        body = await response.arrayBuffer();
+                        contentLength = body.byteLength;
+                        readyPromiseResolver.resolve();
+                    }
+                    // If we got a `Content-Length` header we can immediately start streaming the
+                    // result of our fetch into `FileUploadService`. Nice.
+                    else {
+                        const [responseBody1, responseBody2] = (
+                            response.body ??
+                            new ReadableStream({start: controller => controller.close()})
+                        ).tee();
+
+                        contentLength = responseContentLength;
+                        body = responseBody1;
+                        readyPromiseResolver.resolve();
+
+                        // Wait until we've finished downloading the response body to resolve this
+                        // `fetchWithTracer()` span.
+                        await responseBody2.pipeTo(new WritableStream());
+                    }
+                },
+            ).catch(error => {
+                if (!(error instanceof ErrorBase)) {
+                    error = new UnavailableError(
+                        error instanceof Error ? error.message : String(error),
+                        {displayMessage: getErrorDisplayMessage()},
+                    );
+                }
+
+                readyPromiseResolver.reject(error);
+                throw error;
+            });
+
+            // No unhandled promise exception warnings. Exceptions will be handled by the
+            // `runAllPromises()` call below which includes this promise.
+            extraPromise.catch(() => {});
+
+            await readyPromiseResolver.promise;
+            break;
+        }
+        default:
+            throw exhaustive(input);
+    }
+
+    const uploadPromise = fetchWithTracer(
         context.tracer.getTracer(),
-        `/api/files/${spaceId}/upload`,
+        uploadUrl,
         {
             serviceName: "FileUploadService",
             method: "POST",
             route: "/api/files/:spaceId/upload",
             headers: {
-                "content-type": contentType,
-                "content-length": String(contentLength),
+                "content-type": assertExists(contentType),
+                "content-length": String(assertExists(contentLength)),
             },
-            body: inputFile,
+            duplex: "half",
+            body: assertExists(body),
         },
         async response => {
             const decoder = new TextDecoder();
@@ -141,6 +294,10 @@ async function actuallyUploadFileFromContentEditor(
                     case "Start": {
                         assert(!state);
 
+                        if (fileId) {
+                            assert(event.fileId === fileId);
+                        }
+
                         let preview: FilePreview | null = null;
                         if (event.hasPreview) {
                             switch (event.hasPreview.type) {
@@ -185,8 +342,8 @@ async function actuallyUploadFileFromContentEditor(
                             fileStore: new ValueStore(
                                 new FileModel({
                                     id: event.fileId,
-                                    contentType,
-                                    contentLength,
+                                    contentType: assertExists(contentType),
+                                    contentLength: assertExists(contentLength),
                                     isUploading: true,
                                     alternative: event.hasAlternative ? {isProcessing: true} : null,
                                     preview,
@@ -488,4 +645,6 @@ async function actuallyUploadFileFromContentEditor(
             }
         },
     );
+
+    await runAllPromises([extraPromise, uploadPromise]);
 }

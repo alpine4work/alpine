@@ -91,7 +91,7 @@ export type ContentProsemirrorSchema = ProsemirrorSchema<
 
 export const paragraphParseRulePriority = 50;
 
-const paragraphParseRules = [
+export const paragraphParseRules = [
     {tag: "p", priority: paragraphParseRulePriority},
     {
         tag: "div",

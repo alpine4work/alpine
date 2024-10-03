@@ -384,6 +384,15 @@ export type TracerEventData = {
      */
     readonly common?: {
         /**
+         * Some type string associated with this span. Should be low cardinality
+         * (recommended below 10 values) to be useful for grouping/filtering. Often the
+         * `type` property of an object we perform an `exhaustive()` switch on.
+         *
+         * Should be an identifier (should pass `isIdentifier()`).
+         */
+        readonly type?: string;
+
+        /**
          * A count of something related to the span. You should be able to tell what
          * the count is referring to by the span name.
          */

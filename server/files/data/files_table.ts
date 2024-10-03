@@ -19,6 +19,7 @@ import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {
+    FailedPreconditionError,
     InternalError,
     NotFoundError,
     PermissionDeniedError,
@@ -46,7 +47,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {If} from "~/shared/helpers/types/if.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
 import {
     AccountId,
     ChannelId,
@@ -427,12 +428,14 @@ export async function startUploadingAndProcessingFile(
     context: ServerSessionActionContext,
     {
         spaceId,
+        fileId: providedFileId = null,
         contentType,
         contentLength,
         hasAlternative,
         hasPreview,
     }: {
         spaceId: SpaceId;
+        fileId?: FileId | null;
         contentType: FileContentType;
         contentLength: number;
         hasAlternative: boolean;
@@ -441,7 +444,23 @@ export async function startUploadingAndProcessingFile(
 ): Promise<FileUploader> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const fileId = generateChronologicalId<FileId>();
+    let fileId: FileId;
+    if (providedFileId === null) {
+        fileId = generateChronologicalId();
+    } else {
+        const time = getChronologicalIdTime(providedFileId);
+        const currentTime = Date.now();
+
+        // Make sure the time provided by the client is reasonable so our files table
+        // is still roughly sorted by creation time.
+        if (Math.abs(time - currentTime) > 1000 * 60 * 2) {
+            throw new FailedPreconditionError(
+                "Provided `FileId` must be within a 4 minute window of the current time",
+            );
+        }
+
+        fileId = providedFileId;
+    }
 
     return context.dynamo.retryTransaction(async context => {
         const fileTotalsItem = (await FilesTable.getItemIfExists(context, {
@@ -519,7 +538,10 @@ export async function startUploadingAndProcessingFile(
                 count: fileTotalsItem.count + 1,
                 contentLength: fileTotalsItem.contentLength + contentLength,
             }),
-            FilesTable.transactionCreateOrReplaceItem(fileItem),
+            // Don't allow creating duplicate files when providing a `FileId`.
+            providedFileId
+                ? FilesTable.transactionCreateItem(fileItem)
+                : FilesTable.transactionCreateOrReplaceItem(fileItem),
         ]);
 
         return new FileUploader(fileItem);

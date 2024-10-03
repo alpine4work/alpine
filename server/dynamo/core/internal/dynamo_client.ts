@@ -400,13 +400,14 @@ export class DynamoClient {
                 try {
                     await runAllPromises(promises);
                 } catch (entryError) {
+                    const entryErrorPriority = getAggregateErrorPriority(entryError);
+
                     if (!hasError) {
                         hasError = true;
+                        errorPriority = entryErrorPriority;
                         error = entryError;
-                    } else if (
-                        (isSystemError(entryError) && !isSystemError(error)) ||
-                        (entryError instanceof CancelledError && !(error instanceof CancelledError))
-                    ) {
+                    } else if (entryErrorPriority > errorPriority) {
+                        errorPriority = entryErrorPriority;
                         error = entryError;
                     }
                 }
@@ -487,10 +488,14 @@ export class DynamoClient {
                 try {
                     await runAllPromises(promises);
                 } catch (entryError) {
+                    const entryErrorPriority = getAggregateErrorPriority(entryError);
+
                     if (!hasError) {
                         hasError = true;
+                        errorPriority = entryErrorPriority;
                         error = entryError;
-                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                    } else if (entryErrorPriority > errorPriority) {
+                        errorPriority = entryErrorPriority;
                         error = entryError;
                     }
                 }

@@ -188,7 +188,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                         displayMessage:
                             // If we're in a web browser, if we failed to make a request it's probably the
                             // user's internet connection and they should look into a fix.
-                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                            typeof window !== "undefined" && !navigator.onLine
+                                ? offlineErrorDisplayMessage
+                                : undefined,
                     },
                 );
             }
@@ -219,7 +221,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                         displayMessage:
                             // If we're in a web browser, if we failed to make a request it's probably the
                             // user's internet connection and they should look into a fix.
-                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                            typeof window !== "undefined" && !navigator.onLine
+                                ? offlineErrorDisplayMessage
+                                : undefined,
                     },
                 );
             }
@@ -253,7 +257,9 @@ function makeDataRouteThrowUnavailableError(route: DataRouteObject) {
                         displayMessage:
                             // If we're in a web browser, if we failed to make a request it's probably the
                             // user's internet connection and they should look into a fix.
-                            typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                            typeof window !== "undefined" && !navigator.onLine
+                                ? offlineErrorDisplayMessage
+                                : undefined,
                     },
                 );
             }

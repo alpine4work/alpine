@@ -24,7 +24,12 @@ import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    FailedPreconditionError,
+    InvalidArgumentError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -34,7 +39,10 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {
+    generateChronologicalId,
+    generateChronologicalIdWithTime,
+} from "~/shared/id/chronological_id.js";
 import {assertId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
@@ -839,6 +847,221 @@ test("can upload image", async () => {
                 placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
+    );
+});
+
+test("can upload image with a provided id", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const providedFileId = generateChronologicalId<FileId>();
+
+    const response = await fetch(
+        `http://localhost:${port}/${space.id}/upload?id=${providedFileId}`,
+        {
+            method: "POST",
+            headers: {
+                authorization: await authorization(session),
+                "content-type": "image/jpeg",
+            },
+            body: await fs.readFile(jpegTestFixturePath),
+        },
+    );
+    const responseText = await response.text();
+
+    expect(response.status).toEqual(200);
+    expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+    const events = parseJsonEvents(responseText);
+    expect(events).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: providedFileId,
+            signedUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+        {type: "Finish"},
+    ]);
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, providedFileId)).toEqual(
+        new FileModel({
+            id: providedFileId,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 500, height: 375, scale: 1},
+                placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+        }),
+    );
+});
+
+test("can't upload image with the same provided id twice", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const providedFileId = generateChronologicalId<FileId>();
+
+    {
+        const response = await fetch(
+            `http://localhost:${port}/${space.id}/upload?id=${providedFileId}`,
+            {
+                method: "POST",
+                headers: {
+                    authorization: await authorization(session),
+                    "content-type": "image/jpeg",
+                },
+                body: await fs.readFile(jpegTestFixturePath),
+            },
+        );
+        const responseText = await response.text();
+
+        expect(response.status).toEqual(200);
+        expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+        const events = parseJsonEvents(responseText);
+        expect(events).toEqual([
+            {
+                type: "Start",
+                hasAlternative: false,
+                hasPreview: {
+                    type: "Image",
+                    hasContent: false,
+                    hasVideoDuration: false,
+                },
+                fileId: providedFileId,
+                signedUrlSearch: "",
+            },
+            {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+            {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
+            {type: "Finish"},
+        ]);
+    }
+
+    expect(await getFileAsUploader(space.systemAction(), space.id, providedFileId)).toEqual(
+        new FileModel({
+            id: providedFileId,
+            contentType: "image/jpeg",
+            contentLength: 33102,
+            isUploading: false,
+            alternative: null,
+            preview: {
+                type: "Image",
+                isProcessing: false,
+                ok: true,
+                size: {width: 500, height: 375, scale: 1},
+                placeholder: expect.any(FileImagePreviewPlaceholder),
+            },
+        }),
+    );
+
+    {
+        const response = await fetch(
+            `http://localhost:${port}/${space.id}/upload?id=${providedFileId}`,
+            {
+                method: "POST",
+                headers: {
+                    authorization: await authorization(session),
+                    "content-type": "image/jpeg",
+                },
+                body: await fs.readFile(jpegTestFixturePath),
+            },
+        );
+        const responseText = await response.text();
+
+        expect(response.status).toEqual(400);
+        expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+        const events = parseJsonEvents(responseText);
+        expect(events).toEqual([
+            {
+                type: "Error",
+                error: new FailedPreconditionError(
+                    "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]",
+                ),
+            },
+        ]);
+    }
+});
+
+test("can upload image with a provided that has a time way before the current time", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const providedFileId = generateChronologicalIdWithTime<FileId>(Date.now() + 1000 * 60 * 10);
+
+    const response = await fetch(
+        `http://localhost:${port}/${space.id}/upload?id=${providedFileId}`,
+        {
+            method: "POST",
+            headers: {
+                authorization: await authorization(session),
+                "content-type": "image/jpeg",
+            },
+            body: await fs.readFile(jpegTestFixturePath),
+        },
+    );
+    const responseText = await response.text();
+
+    expect(response.status).toEqual(400);
+    expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+    const events = parseJsonEvents(responseText);
+    expect(events).toEqual([
+        {
+            type: "Error",
+            error: new FailedPreconditionError(
+                "Provided `FileId` must be within a 4 minute window of the current time",
+            ),
+        },
+    ]);
+
+    await expect(getFileAsUploader(space.systemAction(), space.id, providedFileId)).rejects.toThrow(
+        new NotFoundError("File not found"),
+    );
+});
+
+test("can upload image with a provided that has a time way after the current time", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const providedFileId = generateChronologicalIdWithTime<FileId>(Date.now() - 1000 * 60 * 10);
+
+    const response = await fetch(
+        `http://localhost:${port}/${space.id}/upload?id=${providedFileId}`,
+        {
+            method: "POST",
+            headers: {
+                authorization: await authorization(session),
+                "content-type": "image/jpeg",
+            },
+            body: await fs.readFile(jpegTestFixturePath),
+        },
+    );
+    const responseText = await response.text();
+
+    expect(response.status).toEqual(400);
+    expect(massageHeaders(response.headers)).toEqual({"content-type": "application/x-ndjson"});
+    const events = parseJsonEvents(responseText);
+    expect(events).toEqual([
+        {
+            type: "Error",
+            error: new FailedPreconditionError(
+                "Provided `FileId` must be within a 4 minute window of the current time",
+            ),
+        },
+    ]);
+
+    await expect(getFileAsUploader(space.systemAction(), space.id, providedFileId)).rejects.toThrow(
+        new NotFoundError("File not found"),
     );
 });
 

@@ -72,7 +72,7 @@ import {
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {uploadFileFromContentEditor} from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
-import {useAppContextIfExists} from "~/client/context/app_context.js";
+import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -101,6 +101,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
+import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {getContentReferencedIdsForSlice} from "~/shared/content/content_referenced_ids.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
@@ -115,11 +116,15 @@ import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -135,7 +140,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
@@ -145,6 +150,7 @@ import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
+import {Store} from "~/shared/store/store.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -1321,6 +1327,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                         continue;
                     }
 
+                    // Ignore non-HTTP protocols for now. It's probably reasonable to support
+                    // `data://` URLs at some point.
+                    if (url.protocol !== "http:" && url.protocol !== "https:") {
+                        continue;
+                    }
+
                     // If:
                     //
                     // 1. The file is hosted on the same domain we're currently on; AND
@@ -1390,7 +1402,16 @@ function ContentEditor<Content extends ContentWithReferences>(
                         }
                     }
 
-                    const temporaryFileId = generateChronologicalId<FileId>();
+                    // Make sure to use the synchronized clock if it's available so there's no error
+                    // when the server checks the time is close to the actual time.
+                    const fileId = generateChronologicalIdWithTime<FileId>(
+                        Math.round(
+                            (
+                                getSynchronizedSystemClock().getStateWithoutListening().value ??
+                                unsynchronizedSystemClock
+                            ).now(),
+                        ),
+                    );
 
                     // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
                     // use this map synchronously after `transformPastedDOM`.
@@ -1401,19 +1422,22 @@ function ContentEditor<Content extends ContentWithReferences>(
                         });
                     }
 
-                    temporaryPastedFileInfoById.set(temporaryFileId, {
+                    temporaryPastedFileInfoById.set(fileId, {
                         type: "Foreign",
                         url,
                     });
 
                     const temporaryFileElement = fileElement.ownerDocument.createElement("div");
-                    temporaryFileElement.setAttribute("data-cy-tmp-file", temporaryFileId);
+                    temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
                     fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
                 }
             },
 
             // TODO(calebmer, #files): Handle directly pasting content type (e.g.
             // `image/png` from Figma).
+            //
+            // TODO(calebmer, #files): I think we should be using basically the same code
+            // for drag and drop.
             handlePaste: (view, event, slice) => {
                 let selection = view.state.selection;
 
@@ -1535,99 +1559,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // we're waiting for a data fetch before applying a paste.
                 const promise = context.tracer.withSpan(
                     "Content editor paste with references",
-                    async context => {
-                        const [accounts, fileReferences] = await runAllPromises([
-                            referencedIds.accountIds.size > 0
-                                ? getAccountsIfExist(context, {
-                                      spaceId,
-                                      accountIds: referencedIds.accountIds,
-                                  }).then(({accounts}) => accounts)
-                                : emptyArray,
-
-                            runAllPromises(
-                                mapIterable(referencedIds.fileIds, async fileId => {
-                                    const temporaryPastedFileInfo =
-                                        temporaryPastedFileInfoById?.get(fileId);
-                                    if (!temporaryPastedFileInfo) return null;
-
-                                    switch (temporaryPastedFileInfo.type) {
-                                        case "AttachmentInSpace": {
-                                            const fromTarget = temporaryPastedFileInfo.target;
-                                            const toTarget = assertExists(
-                                                propsRef.current.fileAttachmentTarget,
-                                            );
-
-                                            // If the file is already in our view's references that means it's already
-                                            // been loaded and we have the requisite permissions for it. No file loading
-                                            // needed.
-                                            if (
-                                                getContentEditorReferences(
-                                                    view.state,
-                                                ).references.fileById.has(fileId)
-                                            ) {
-                                                return null;
-                                            }
-                                            // If we're trying to attach the file to the same attachment target it's from
-                                            // then we don't need to perform another attach mutation. Instead, all we need
-                                            // to do is load the file (since it's not in our references).
-                                            else if (isDeepEqual(fromTarget, toTarget)) {
-                                                return getFileFromAttachment(context, {
-                                                    spaceId: temporaryPastedFileInfo.spaceId,
-                                                    fileId: temporaryPastedFileInfo.fileId,
-                                                    target: toTarget,
-                                                });
-                                            }
-                                            // Otherwise, let's attach the file to its new attachment target.
-                                            else {
-                                                return attachFileFromAttachment(context, {
-                                                    spaceId: temporaryPastedFileInfo.spaceId,
-                                                    fileId: temporaryPastedFileInfo.fileId,
-                                                    fromTarget,
-                                                    toTarget,
-                                                });
-                                            }
-                                        }
-                                        case "Foreign": {
-                                            // NOCOMMIT: Implement and test!
-                                            return null;
-                                        }
-                                        default:
-                                            throw exhaustive(temporaryPastedFileInfo);
-                                    }
-                                }),
-                            ),
-                        ]);
-
-                        // Get the selection remembered by our editor state. Not the view's current
-                        // selection. The view selection might have moved while we were pasting.
-                        const selection = rememberedSelection.getSelection();
-                        if (!selection) return;
-
-                        // Any new paste transaction should start by updating content references with
-                        // the data we just asynchronously fetched.
-                        const createTransaction = () =>
-                            updateContentEditorReferences(
-                                view.state.tr,
-                                Array.from(
-                                    concatIterables<ContentEditorReferencesSharedAction>(
-                                        filterMapIterable(accounts, account => {
-                                            if (!account) return;
-                                            return {type: "SetAccount", account};
-                                        }),
-                                        filterMapIterable(fileReferences, fileReference => {
-                                            if (!fileReference) return;
-                                            return {
-                                                type: "SetFile",
-                                                signedUrlSearch: fileReference.signedUrlSearch,
-                                                file: fileReference.file,
-                                            };
-                                        }),
-                                    ),
-                                ),
-                            );
-
-                        actuallyHandlePaste(selection, createTransaction);
-                    },
+                    handlePasteWithReferences,
                 );
 
                 rememberedSelection = rememberContentEditorSelectionWhileLoading(
@@ -1641,6 +1573,181 @@ function ContentEditor<Content extends ContentWithReferences>(
                 });
 
                 return true;
+
+                async function handlePasteWithReferences(context: AppContext) {
+                    let hasPasted = false;
+                    const promiseWaiter = new PromiseWaiter();
+
+                    const accountsPromise =
+                        referencedIds.accountIds.size > 0
+                            ? getAccountsIfExist(context, {
+                                  spaceId,
+                                  accountIds: referencedIds.accountIds,
+                              }).then(({accounts}) => accounts)
+                            : emptyArray;
+
+                    const pasteFile = async (fileId: FileId) => {
+                        const temporaryPastedFileInfo = temporaryPastedFileInfoById?.get(fileId);
+                        if (!temporaryPastedFileInfo) return null;
+
+                        switch (temporaryPastedFileInfo.type) {
+                            case "AttachmentInSpace": {
+                                const fromTarget = temporaryPastedFileInfo.target;
+                                const toTarget = assertExists(
+                                    propsRef.current.fileAttachmentTarget,
+                                );
+
+                                // If the file is already in our view's references that means it's already
+                                // been loaded and we have the requisite permissions for it. No file loading
+                                // needed.
+                                if (
+                                    getContentEditorReferences(view.state).references.fileById.has(
+                                        fileId,
+                                    )
+                                ) {
+                                    return null;
+                                }
+                                // If we're trying to attach the file to the same attachment target it's from
+                                // then we don't need to perform another attach mutation. Instead, all we need
+                                // to do is load the file (since it's not in our references).
+                                else if (isDeepEqual(fromTarget, toTarget)) {
+                                    return getFileFromAttachment(context, {
+                                        spaceId: temporaryPastedFileInfo.spaceId,
+                                        fileId: temporaryPastedFileInfo.fileId,
+                                        target: toTarget,
+                                    });
+                                }
+                                // Otherwise, let's attach the file to its new attachment target.
+                                else {
+                                    return attachFileFromAttachment(context, {
+                                        spaceId: temporaryPastedFileInfo.spaceId,
+                                        fileId: temporaryPastedFileInfo.fileId,
+                                        fromTarget,
+                                        toTarget,
+                                    });
+                                }
+                            }
+                            case "Foreign": {
+                                const fileReferencePromiseResolver = createPromiseResolver<{
+                                    signedUrlSearch: string;
+                                    fileStore: Store<FileModel>;
+                                }>();
+
+                                promiseWaiter.waitUntil(async () => {
+                                    let uploadingFileId: FileId | undefined;
+                                    let unsubscribeFromFileStore: (() => void) | undefined;
+
+                                    // TODO(calebmer, #files): Error handling
+                                    try {
+                                        await uploadFileFromContentEditor(context, {
+                                            spaceId,
+                                            // Use the `FileId` generated by the client and used in the pasted `Slice`
+                                            // instead of generating a new `FileId` on the server.
+                                            fileId,
+                                            attachmentTarget: assertExists(
+                                                propsRef.current.fileAttachmentTarget,
+                                            ),
+                                            input: {
+                                                type: "Url",
+                                                url: temporaryPastedFileInfo.url,
+                                            },
+                                            onAttach: ({signedUrlSearch, fileStore}) => {
+                                                const initialFile = fileStore.getSnapshot();
+                                                uploadingFileId = initialFile.id;
+                                                (uploadingFileIds ??= new Set()).add(
+                                                    initialFile.id,
+                                                );
+
+                                                // Whenever the file changes during the upload, make sure to update it in
+                                                // our content references. We unsubscribe once the upload has finished since
+                                                // after that the file should be immutable.
+                                                unsubscribeFromFileStore = fileStore.subscribe(
+                                                    () => {
+                                                        // Before we paste the file won't exist in our content so there's no point in
+                                                        // updating content editor references.
+                                                        if (!hasPasted) return;
+
+                                                        view.dispatch(
+                                                            updateContentEditorReferences(
+                                                                view.state.tr,
+                                                                {
+                                                                    type: "SetFile",
+                                                                    signedUrlSearch,
+                                                                    file: fileStore.getSnapshot(),
+                                                                },
+                                                            ),
+                                                        );
+                                                    },
+                                                );
+
+                                                fileReferencePromiseResolver.resolve({
+                                                    signedUrlSearch,
+                                                    fileStore,
+                                                });
+                                            },
+                                        });
+                                    } finally {
+                                        if (uploadingFileId)
+                                            uploadingFileIds?.delete(uploadingFileId);
+                                        unsubscribeFromFileStore?.();
+                                    }
+                                });
+
+                                const {signedUrlSearch, fileStore} =
+                                    await fileReferencePromiseResolver.promise;
+
+                                return () => ({
+                                    signedUrlSearch,
+                                    file: fileStore.getSnapshot(),
+                                });
+                            }
+                            default:
+                                throw exhaustive(temporaryPastedFileInfo);
+                        }
+                    };
+
+                    const [accounts, fileReferences] = await runAllPromises([
+                        accountsPromise,
+                        runAllPromises(mapIterable(referencedIds.fileIds, pasteFile)),
+                    ]);
+
+                    // Get the selection remembered by our editor state. Not the view's current
+                    // selection. The view selection might have moved while we were pasting.
+                    const selection = rememberedSelection.getSelection();
+                    if (!selection) return;
+
+                    // Any new paste transaction should start by updating content references with
+                    // the data we just asynchronously fetched.
+                    const createTransaction = () =>
+                        updateContentEditorReferences(
+                            view.state.tr,
+                            Array.from(
+                                concatIterables<ContentEditorReferencesSharedAction>(
+                                    filterMapIterable(accounts, account => {
+                                        if (!account) return;
+                                        return {type: "SetAccount", account};
+                                    }),
+                                    filterMapIterable(fileReferences, fileReference => {
+                                        if (!fileReference) return;
+
+                                        if (typeof fileReference === "function")
+                                            fileReference = fileReference();
+
+                                        return {
+                                            type: "SetFile",
+                                            signedUrlSearch: fileReference.signedUrlSearch,
+                                            file: fileReference.file,
+                                        };
+                                    }),
+                                ),
+                            ),
+                        );
+
+                    actuallyHandlePaste(selection, createTransaction);
+                    hasPasted = true;
+
+                    await promiseWaiter.wait();
+                }
             },
 
             /* ========================================================================== *\
@@ -1682,135 +1789,130 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                             // TODO(calebmer, #files): Error handling
                             try {
-                                await uploadFileFromContentEditor(
-                                    context,
-                                    spaceContext.space.id,
-                                    assertExists(propsRef.current.fileAttachmentTarget),
-                                    assertExists(fileItem.getAsFile()),
-                                    {
-                                        onAttach: ({signedUrlSearch, fileStore}) => {
-                                            const initialFile = fileStore.getSnapshot();
-                                            uploadingFileId = initialFile.id;
-                                            (uploadingFileIds ??= new Set()).add(initialFile.id);
+                                await uploadFileFromContentEditor(context, {
+                                    spaceId: spaceContext.space.id,
+                                    attachmentTarget: assertExists(
+                                        propsRef.current.fileAttachmentTarget,
+                                    ),
+                                    input: {
+                                        type: "File",
+                                        file: assertExists(fileItem.getAsFile()),
+                                    },
+                                    onAttach: ({signedUrlSearch, fileStore}) => {
+                                        const initialFile = fileStore.getSnapshot();
+                                        uploadingFileId = initialFile.id;
+                                        (uploadingFileIds ??= new Set()).add(initialFile.id);
 
-                                            // Whenever the file changes during the upload, make sure to update it in
-                                            // our content references. We unsubscribe once the upload has finished since
-                                            // after that the file should be immutable.
-                                            unsubscribeFromFileStore = fileStore.subscribe(() => {
-                                                view.dispatch(
-                                                    updateContentEditorReferences(view.state.tr, {
-                                                        type: "SetFile",
-                                                        signedUrlSearch,
-                                                        file: fileStore.getSnapshot(),
-                                                    }),
-                                                );
-                                            });
+                                        // Whenever the file changes during the upload, make sure to update it in
+                                        // our content references. We unsubscribe once the upload has finished since
+                                        // after that the file should be immutable.
+                                        unsubscribeFromFileStore = fileStore.subscribe(() => {
+                                            view.dispatch(
+                                                updateContentEditorReferences(view.state.tr, {
+                                                    type: "SetFile",
+                                                    signedUrlSearch,
+                                                    file: fileStore.getSnapshot(),
+                                                }),
+                                            );
+                                        });
 
-                                            const transaction = view.state.tr;
+                                        const transaction = view.state.tr;
 
-                                            switch (dropTarget.action.type) {
-                                                case "InsertFileRow": {
-                                                    const fileRowNode =
-                                                        schema.nodes.fileRow!.create(null, [
-                                                            schema.nodes.file!.create({
-                                                                fileId: initialFile.id,
-                                                            }),
-                                                        ]);
-
-                                                    const $pos = transaction.doc.resolve(
-                                                        dropTarget.action.pos,
-                                                    );
-
-                                                    if (
-                                                        $pos.nodeAfter?.type.name === "paragraph" &&
-                                                        $pos.nodeAfter.content.size === 0
-                                                    ) {
-                                                        transaction.replace(
-                                                            dropTarget.action.pos,
-                                                            dropTarget.action.pos + 2,
-                                                            new Slice(
-                                                                Fragment.from(fileRowNode),
-                                                                0,
-                                                                0,
-                                                            ),
-                                                        );
-
-                                                        transaction.setSelection(
-                                                            new NodeSelection(
-                                                                transaction.doc.resolve(
-                                                                    dropTarget.action.pos + 1,
-                                                                ),
-                                                            ),
-                                                        );
-                                                    } else if (
-                                                        $pos.nodeBefore?.type.name ===
-                                                            "paragraph" &&
-                                                        $pos.nodeBefore.content.size === 0
-                                                    ) {
-                                                        transaction.replace(
-                                                            dropTarget.action.pos - 2,
-                                                            dropTarget.action.pos,
-                                                            new Slice(
-                                                                Fragment.from(fileRowNode),
-                                                                0,
-                                                                0,
-                                                            ),
-                                                        );
-
-                                                        transaction.setSelection(
-                                                            new NodeSelection(
-                                                                transaction.doc.resolve(
-                                                                    dropTarget.action.pos - 1,
-                                                                ),
-                                                            ),
-                                                        );
-                                                    } else {
-                                                        transaction.insert(
-                                                            dropTarget.action.pos,
-                                                            fileRowNode,
-                                                        );
-
-                                                        transaction.setSelection(
-                                                            new NodeSelection(
-                                                                transaction.doc.resolve(
-                                                                    dropTarget.action.pos + 1,
-                                                                ),
-                                                            ),
-                                                        );
-                                                    }
-                                                    break;
-                                                }
-                                                case "InsertFileIntoRow": {
-                                                    transaction.insert(
-                                                        dropTarget.action.pos,
+                                        switch (dropTarget.action.type) {
+                                            case "InsertFileRow": {
+                                                const fileRowNode = schema.nodes.fileRow!.create(
+                                                    null,
+                                                    [
                                                         schema.nodes.file!.create({
                                                             fileId: initialFile.id,
                                                         }),
+                                                    ],
+                                                );
+
+                                                const $pos = transaction.doc.resolve(
+                                                    dropTarget.action.pos,
+                                                );
+
+                                                if (
+                                                    $pos.nodeAfter?.type.name === "paragraph" &&
+                                                    $pos.nodeAfter.content.size === 0
+                                                ) {
+                                                    transaction.replace(
+                                                        dropTarget.action.pos,
+                                                        dropTarget.action.pos + 2,
+                                                        new Slice(Fragment.from(fileRowNode), 0, 0),
                                                     );
 
                                                     transaction.setSelection(
                                                         new NodeSelection(
                                                             transaction.doc.resolve(
-                                                                dropTarget.action.pos,
+                                                                dropTarget.action.pos + 1,
                                                             ),
                                                         ),
                                                     );
-                                                    break;
+                                                } else if (
+                                                    $pos.nodeBefore?.type.name === "paragraph" &&
+                                                    $pos.nodeBefore.content.size === 0
+                                                ) {
+                                                    transaction.replace(
+                                                        dropTarget.action.pos - 2,
+                                                        dropTarget.action.pos,
+                                                        new Slice(Fragment.from(fileRowNode), 0, 0),
+                                                    );
+
+                                                    transaction.setSelection(
+                                                        new NodeSelection(
+                                                            transaction.doc.resolve(
+                                                                dropTarget.action.pos - 1,
+                                                            ),
+                                                        ),
+                                                    );
+                                                } else {
+                                                    transaction.insert(
+                                                        dropTarget.action.pos,
+                                                        fileRowNode,
+                                                    );
+
+                                                    transaction.setSelection(
+                                                        new NodeSelection(
+                                                            transaction.doc.resolve(
+                                                                dropTarget.action.pos + 1,
+                                                            ),
+                                                        ),
+                                                    );
                                                 }
-                                                default:
-                                                    throw exhaustive(dropTarget.action);
+                                                break;
                                             }
+                                            case "InsertFileIntoRow": {
+                                                transaction.insert(
+                                                    dropTarget.action.pos,
+                                                    schema.nodes.file!.create({
+                                                        fileId: initialFile.id,
+                                                    }),
+                                                );
 
-                                            updateContentEditorReferences(transaction, {
-                                                type: "SetFile",
-                                                signedUrlSearch,
-                                                file: initialFile,
-                                            });
+                                                transaction.setSelection(
+                                                    new NodeSelection(
+                                                        transaction.doc.resolve(
+                                                            dropTarget.action.pos,
+                                                        ),
+                                                    ),
+                                                );
+                                                break;
+                                            }
+                                            default:
+                                                throw exhaustive(dropTarget.action);
+                                        }
 
-                                            view.dispatch(transaction);
-                                        },
+                                        updateContentEditorReferences(transaction, {
+                                            type: "SetFile",
+                                            signedUrlSearch,
+                                            file: initialFile,
+                                        });
+
+                                        view.dispatch(transaction);
                                     },
-                                );
+                                });
                             } finally {
                                 if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
                                 unsubscribeFromFileStore?.();

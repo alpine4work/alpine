@@ -16,10 +16,8 @@ import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.j
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {
-    getAggregateErrorPriority,
-    runAllPromises,
-} from "~/shared/helpers/async/run_all_promises.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -114,7 +112,7 @@ export async function loadTaskRealtimeQueries(
     const backfillAuthorizedCollectionSet = new Set<TaskCollectionIndexDoc>();
     const backfillUnauthorizedCollectionIds = new Set<TaskCollectionId>();
 
-    let promises: Array<Promise<void>> = [];
+    const promiseWaiter = new PromiseWaiter();
     const loadTaskPromiseById = new Map<TaskId, Promise<void>>();
     const loadCollectionPromiseById = new Map<TaskCollectionId, Promise<void>>();
 
@@ -151,8 +149,7 @@ export async function loadTaskRealtimeQueries(
             })();
 
             loadTaskPromiseById.set(parentTaskId, promise);
-            promises.push(promise);
-            context.process.waitUntil(promise);
+            promiseWaiter.waitUntil(promise);
         }
 
         for (const {collectionId} of task.collections.raw.collections.getArray()) {
@@ -182,8 +179,7 @@ export async function loadTaskRealtimeQueries(
             })();
 
             loadCollectionPromiseById.set(collectionId, promise);
-            promises.push(promise);
-            context.process.waitUntil(promise);
+            promiseWaiter.waitUntil(promise);
         }
     };
 
@@ -345,37 +341,7 @@ export async function loadTaskRealtimeQueries(
 
     const extraQueries = await runAllPromises(extraQueryPromises);
 
-    let hasError = false;
-    let errorPriority = 0;
-    let error: unknown;
-
-    // Wait for all discovered promises to resolve before returning.
-    //
-    // Even if there's an error. Only throw our error at the very end.
-    while (promises.length > 0) {
-        const currentPromises = promises;
-        promises = [];
-
-        try {
-            await runAllPromises(currentPromises);
-        } catch (newError) {
-            const newErrorPriority = getAggregateErrorPriority(newError);
-
-            if (!hasError) {
-                hasError = true;
-                errorPriority = newErrorPriority;
-                error = newError;
-            }
-            // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-            // just the first one. Probably by using an `AggregateError`.
-            else if (newErrorPriority > errorPriority) {
-                errorPriority = newErrorPriority;
-                error = newError;
-            }
-        }
-    }
-
-    if (hasError) throw error;
+    await promiseWaiter.wait();
 
     const accountIds = new Set<AccountId>();
 

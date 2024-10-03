@@ -1,7 +1,11 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
-import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
+import {
+    FileAuthorizer,
+    getFileFromAttachment,
+    getFileIfExistsFromAttachment,
+} from "~/server/files/data/files_table.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     ContentReferencedIds,
@@ -71,9 +75,15 @@ export async function getContentReferences(
                 // its "home" space? Should we copy the file into the new space? I kinda like
                 // referencing the file in the home space? The home space could delete the file
                 // but that's the risk you run.
-                let file = await getFileFromAttachment(context, spaceId, fileId, fileAuthorizer, {
-                    consistency: "Eventual",
-                });
+                let file = await getFileIfExistsFromAttachment(
+                    context,
+                    spaceId,
+                    fileId,
+                    fileAuthorizer,
+                    {
+                        consistency: "Eventual",
+                    },
+                );
 
                 // The client (in `uploadFileFromContentEditor()`) will not attach a file to
                 // content until the preview is at least partially available. So if we see an
@@ -85,11 +95,19 @@ export async function getContentReferences(
                 // correct size changing the document's layout. We're ok with showing a
                 // partially available preview since at least the layout will be stable even if
                 // we don't have e.g. the image preview's placeholder.
-                if (file.getAttachReadiness() !== "PreviewUnavailable") {
-                    file = await getFileFromAttachment(context, spaceId, fileId, fileAuthorizer, {
-                        consistency: "Strong",
-                    });
+                if (!file || file.getAttachReadiness() !== "PreviewUnavailable") {
+                    file = await getFileIfExistsFromAttachment(
+                        context,
+                        spaceId,
+                        fileId,
+                        fileAuthorizer,
+                        {
+                            consistency: "Strong",
+                        },
+                    );
                 }
+
+                if (!file) return null;
 
                 const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
                     spaceId,

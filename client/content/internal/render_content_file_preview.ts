@@ -252,7 +252,8 @@ export function renderContentFilePreview(
                 // signatures that haven't expired.
                 if (
                     reference &&
-                    !get(expirationTimers.getExpiredTimerStore(reference.signedUrlSearch))
+                    !get(expirationTimers.getExpiredTimerStore(reference.signedUrlSearch)) &&
+                    reference.file.preview.content !== "Processing"
                 ) {
                     const imageSourceBase = `/files/${spaceId}/${reference.file.id}${
                         reference.signedUrlSearch

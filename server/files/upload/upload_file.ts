@@ -49,7 +49,8 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 // Make sure we're using our custom `sharp` `libvips` build built from
@@ -133,6 +134,7 @@ async function actuallyUploadFile(
     req: IncomingMessage,
     sendEvent: (event: UploadFileEvent) => void,
     {
+        url,
         spaceId,
         headers,
         temporaryDirectoryPath,
@@ -147,6 +149,11 @@ async function actuallyUploadFile(
     // don't support uploading directly from other services like `JobQueueService`.
     if (originalContext.actor.serviceName !== "EdgeService")
         throw new PermissionDeniedError("Only `EdgeService` can upload a file");
+
+    const providedFileId = url.searchParams.get("id");
+    if (providedFileId !== null && !isId<FileId>(providedFileId)) {
+        throw new InvalidArgumentError('Invalid "id" URL search param');
+    }
 
     const context = originalContext.actor.authorizeSession();
 
@@ -253,6 +260,7 @@ async function actuallyUploadFile(
     try {
         const fileUploader = await startUploadingAndProcessingFile(context, {
             spaceId,
+            fileId: providedFileId,
             contentType,
             contentLength,
             hasAlternative: !!fileProcessor.hasAlternative,

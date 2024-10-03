@@ -8,6 +8,7 @@ import {
     createListItemParseRule,
     createProsemirrorSchemaSpec,
     paragraphParseRulePriority,
+    paragraphParseRules,
     toDebugStringWithIndent,
 } from "~/shared/content/content_schema.js";
 import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
@@ -138,37 +139,23 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
             // `marks` definition should stay only in `document_content_schema.ts`.
             marks: "comment",
             toDOM: () => ["div", {class: fileRowClassName}, 0],
-            parseDOM: [
-                {
-                    // A `<div>` with a style attribute including `display: flex` and at least one
-                    // child that has a `data-cy-tmp-file` attribute is parsed as a `fileRow`.
-                    //
-                    // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
-                    // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
-                    // `transformPastedDOM` converts those elements into a `<div>` with a
-                    // `data-cy-tmp-file` attribute.
-                    tag: "div[style*=flex]",
-                    // Make sure this is higher priority than our paragraph `div` parse rule.
-                    priority: paragraphParseRulePriority + 50,
-                    getAttrs: node => {
-                        if (!(node instanceof HTMLElement)) return false;
-
-                        if (node.style.display !== "flex") return false;
-
-                        for (const childNode of node.childNodes) {
-                            if (
-                                childNode instanceof HTMLElement &&
-                                childNode.tagName === "DIV" &&
-                                childNode.hasAttribute("data-cy-tmp-file")
-                            ) {
-                                return {};
-                            }
-                        }
-
-                        return false;
-                    },
+            // A `<div>` or `<p>` with a direct child that has a `data-cy-tmp-file`
+            // attribute is parsed as a `fileRow`.
+            //
+            // The clipboard serializer converts files into `<img>`, `<video>`, `<audio>`,
+            // or `<object>` tags on copy. Then on paste `<ContentEditor>`'s
+            // `transformPastedDOM` converts those elements into a `<div>` with a
+            // `data-cy-tmp-file` attribute.
+            parseDOM: paragraphParseRules.map(paragraphParseRule => ({
+                ...paragraphParseRule,
+                // Make sure this is higher priority than our paragraph `div` parse rule.
+                priority: paragraphParseRule.priority + 50,
+                getAttrs: node => {
+                    if (!(node instanceof HTMLElement)) return false;
+                    if (!node.querySelector(":scope > [data-cy-tmp-file]")) return false;
+                    return {};
                 },
-            ],
+            })),
         },
 
         /**
@@ -232,8 +219,9 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                     // `transformPastedDOM` converts those elements into a `<div>` with a
                     // `data-cy-tmp-file` attribute.
                     tag: "div[style*=float]",
-                    // Make sure this is higher priority than our paragraph `div` parse rule.
-                    priority: paragraphParseRulePriority + 50,
+                    // Make sure this is higher priority than our paragraph `div` parse rule. Also
+                    // our `fileRow` `div` parse rule.
+                    priority: paragraphParseRulePriority + 100,
                     getAttrs: node => {
                         if (!(node instanceof HTMLElement)) return false;
 

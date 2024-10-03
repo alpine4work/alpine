@@ -195,15 +195,17 @@ export async function fetchWithTracer<ResponseData>(
             // If the user is offline then we use a `FailedPreconditionError` since it's a
             // user error (no internet connection) not a system error. System errors show a
             // red error icon.
-            throw (
+            throw new (
                 typeof window !== "undefined" && !navigator.onLine
                     ? FailedPreconditionError
                     : UnavailableError
-            ).from(error, undefined, {
+            )(error instanceof Error ? error.message : String(error), {
                 displayMessage:
                     // If we're in a web browser, if we failed to make a request it's probably the
                     // user's internet connection and they should look into a fix.
-                    typeof window !== "undefined" ? offlineErrorDisplayMessage : undefined,
+                    typeof window !== "undefined" && !navigator.onLine
+                        ? offlineErrorDisplayMessage
+                        : undefined,
             });
         });
 
