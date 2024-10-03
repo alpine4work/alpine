@@ -70,7 +70,10 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
-import {uploadFileFromContentEditor} from "~/client/content/internal/upload_file_from_content_editor.js";
+import {
+    UploadFileFromContentEditorInput,
+    uploadFileFromContentEditor,
+} from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -1186,11 +1189,11 @@ function ContentEditor<Content extends ContentWithReferences>(
             | Map<
                   FileId,
                   | {
-                        type: "Foreign";
-                        url: URL;
+                        type: "UploadFile";
+                        input: UploadFileFromContentEditorInput;
                     }
                   | {
-                        type: "AttachmentInSpace";
+                        type: "AttachFile";
                         spaceId: SpaceId;
                         fileId: FileId;
                         target: FileAttachmentTarget;
@@ -1260,6 +1263,17 @@ function ContentEditor<Content extends ContentWithReferences>(
             return slice;
         };
 
+        // When using a client generated `FileId` the server expects the `FileId` to be
+        // within a 4 minute window of the current time. To prevent issues with clock
+        // skew let's use our synchronized clock to generate the `FileId`.
+        const generateFileIdWithSynchronizedClock = () => {
+            const clock =
+                getSynchronizedSystemClock().getStateWithoutListening().value ??
+                unsynchronizedSystemClock;
+
+            return generateChronologicalIdWithTime<FileId>(Math.round(clock.now()));
+        };
+
         viewProps.transformPastedDOM = element => {
             let currentUrl: URL | undefined;
 
@@ -1295,149 +1309,179 @@ function ContentEditor<Content extends ContentWithReferences>(
             // pasting in `temporaryPastedFileInfoById` and `handlePaste` reads from this
             // map for each `FileId` it found in the pasted ProseMirror `Slice`. Not very
             // elegant but it gets the job done.
-            for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
-                const urlString =
-                    fileElement instanceof HTMLImageElement
-                        ? fileElement.src || null
-                        : fileElement instanceof HTMLVideoElement ||
-                          fileElement instanceof HTMLAudioElement
-                        ? fileElement.src ||
-                          findMapIterable(fileElement.childNodes, fileChildElement =>
-                              fileChildElement instanceof HTMLSourceElement
-                                  ? fileChildElement.src
-                                  : undefined,
-                          ) ||
-                          null
-                        : fileElement instanceof HTMLObjectElement
-                        ? fileElement.data || null
-                        : null;
+            if (schema.nodes.file) {
+                for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
+                    const urlString =
+                        fileElement instanceof HTMLImageElement
+                            ? fileElement.src || null
+                            : fileElement instanceof HTMLVideoElement ||
+                              fileElement instanceof HTMLAudioElement
+                            ? fileElement.src ||
+                              findMapIterable(fileElement.childNodes, fileChildElement =>
+                                  fileChildElement instanceof HTMLSourceElement
+                                      ? fileChildElement.src
+                                      : undefined,
+                              ) ||
+                              null
+                            : fileElement instanceof HTMLObjectElement
+                            ? fileElement.data || null
+                            : null;
 
-                if (urlString === null) {
-                    const temporaryFileElement = fileElement.ownerDocument.createElement("div");
-                    temporaryFileElement.setAttribute("data-cy-tmp-file", "null");
-                    fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
-                    continue;
-                }
+                    if (urlString === null) {
+                        const temporaryFileElement = fileElement.ownerDocument.createElement("div");
+                        temporaryFileElement.setAttribute("data-cy-tmp-file", "null");
+                        fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                        continue;
+                    }
 
-                currentUrl ??= new URL(window.location.href);
+                    currentUrl ??= new URL(window.location.href);
 
-                let url: URL;
-                try {
-                    url = new URL(urlString, currentUrl);
-                } catch {
-                    // Ignore any URL parsing errors.
-                    continue;
-                }
+                    let url: URL;
+                    try {
+                        url = new URL(urlString, currentUrl);
+                    } catch {
+                        // Ignore any URL parsing errors.
+                        continue;
+                    }
 
-                // Ignore non-HTTP protocols for now. It's probably reasonable to support
-                // `data://` URLs at some point.
-                if (url.protocol !== "http:" && url.protocol !== "https:") {
-                    continue;
-                }
+                    // Ignore non-HTTP protocols for now. It's probably reasonable to support
+                    // `data://` URLs at some point.
+                    if (url.protocol !== "http:" && url.protocol !== "https:") {
+                        continue;
+                    }
 
-                // If:
-                //
-                // 1. The file is hosted on the same domain we're currently on; AND
-                // 2. The file matches the route `/files/:spaceId/:fileId`; AND
-                // 3. The file is in the same space that we're in right now; AND
-                // 4. The file element has a valid `data-cy-attached` attribute
-                //
-                // Then the file already exists for this space. Instead of uploading a new file
-                // to our backend instead we can create a new attachment for the file that
-                // already exists.
-                if (currentUrl.host === url.host) {
-                    const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
-                    if (
-                        pathnameMatch &&
-                        isId<SpaceId>(pathnameMatch[1]!) &&
-                        isId<FileId>(pathnameMatch[2]!) &&
-                        pathnameMatch[1] === spaceContextRef.current?.space.id
-                    ) {
-                        const spaceId = pathnameMatch[1];
-                        const fileId = pathnameMatch[2];
+                    // If:
+                    //
+                    // 1. The file is hosted on the same domain we're currently on; AND
+                    // 2. The file matches the route `/files/:spaceId/:fileId`; AND
+                    // 3. The file is in the same space that we're in right now; AND
+                    // 4. The file element has a valid `data-cy-attached` attribute
+                    //
+                    // Then the file already exists for this space. Instead of uploading a new file
+                    // to our backend instead we can create a new attachment for the file that
+                    // already exists.
+                    if (currentUrl.host === url.host) {
+                        const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
+                        if (
+                            pathnameMatch &&
+                            isId<SpaceId>(pathnameMatch[1]!) &&
+                            isId<FileId>(pathnameMatch[2]!) &&
+                            pathnameMatch[1] === spaceContextRef.current?.space.id
+                        ) {
+                            const spaceId = pathnameMatch[1];
+                            const fileId = pathnameMatch[2];
 
-                        const targetString = fileElement.getAttribute("data-cy-attached");
-                        let target: FileAttachmentTarget | undefined;
+                            const targetString = fileElement.getAttribute("data-cy-attached");
+                            let target: FileAttachmentTarget | undefined;
 
-                        try {
-                            if (targetString) {
-                                target = deserializeFileAttachmentTargetString(targetString);
+                            try {
+                                if (targetString) {
+                                    target = deserializeFileAttachmentTargetString(targetString);
+                                }
+                            } catch (error) {
+                                // This error is almost imperceivable to the user since we'll try
+                                // downloading/uploading the file as a fallback. But it might be a sign that
+                                // there's a bug somewhere in `data-cy-attached` generation so let's log it.
+                                contextRef.current?.tracer
+                                    .getRoot()
+                                    .logUncaughtException(
+                                        'Couldn\'t parse "data-cy-attached" attribute',
+                                        error,
+                                    );
                             }
-                        } catch (error) {
-                            // This error is almost imperceivable to the user since we'll try
-                            // downloading/uploading the file as a fallback. But it might be a sign that
-                            // there's a bug somewhere in `data-cy-attached` generation so let's log it.
-                            contextRef.current?.tracer
-                                .getRoot()
-                                .logUncaughtException(
-                                    'Couldn\'t parse "data-cy-attached" attribute',
-                                    error,
-                                );
-                        }
 
-                        if (target) {
-                            // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                            // use this map synchronously after `transformPastedDOM`.
-                            if (temporaryPastedFileInfoById === undefined) {
-                                temporaryPastedFileInfoById = new Map();
-                                scheduleMicrotask(() => {
-                                    temporaryPastedFileInfoById = undefined;
+                            if (target) {
+                                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                                // use this map synchronously after `transformPastedDOM`.
+                                if (temporaryPastedFileInfoById === undefined) {
+                                    temporaryPastedFileInfoById = new Map();
+                                    scheduleMicrotask(() => {
+                                        temporaryPastedFileInfoById = undefined;
+                                    });
+                                }
+
+                                temporaryPastedFileInfoById.set(fileId, {
+                                    type: "AttachFile",
+                                    spaceId,
+                                    fileId,
+                                    target,
                                 });
+
+                                const temporaryFileElement =
+                                    fileElement.ownerDocument.createElement("div");
+                                temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
+                                fileElement.parentNode?.replaceChild(
+                                    temporaryFileElement,
+                                    fileElement,
+                                );
+                                continue;
                             }
-
-                            temporaryPastedFileInfoById.set(fileId, {
-                                type: "AttachmentInSpace",
-                                spaceId,
-                                fileId,
-                                target,
-                            });
-
-                            const temporaryFileElement =
-                                fileElement.ownerDocument.createElement("div");
-                            temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                            fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
-                            continue;
                         }
                     }
-                }
 
-                // Make sure to use the synchronized clock if it's available so there's no error
-                // when the server checks the time is close to the actual time.
-                const fileId = generateChronologicalIdWithTime<FileId>(
-                    Math.round(
-                        (
-                            getSynchronizedSystemClock().getStateWithoutListening().value ??
-                            unsynchronizedSystemClock
-                        ).now(),
-                    ),
-                );
+                    const fileId = generateFileIdWithSynchronizedClock();
 
-                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
-                // use this map synchronously after `transformPastedDOM`.
-                if (temporaryPastedFileInfoById === undefined) {
-                    temporaryPastedFileInfoById = new Map();
-                    scheduleMicrotask(() => {
-                        temporaryPastedFileInfoById = undefined;
+                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                    // use this map synchronously after `transformPastedDOM`.
+                    if (temporaryPastedFileInfoById === undefined) {
+                        temporaryPastedFileInfoById = new Map();
+                        scheduleMicrotask(() => {
+                            temporaryPastedFileInfoById = undefined;
+                        });
+                    }
+
+                    temporaryPastedFileInfoById.set(fileId, {
+                        type: "UploadFile",
+                        input: {type: "Url", url},
                     });
+
+                    const temporaryFileElement = fileElement.ownerDocument.createElement("div");
+                    temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
+                    fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
                 }
-
-                temporaryPastedFileInfoById.set(fileId, {
-                    type: "Foreign",
-                    url,
-                });
-
-                const temporaryFileElement = fileElement.ownerDocument.createElement("div");
-                temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
-                fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
             }
         };
 
-        // TODO(calebmer, #files): Handle directly pasting content type (e.g.
-        // `image/png` from Figma).
-        //
         // TODO(calebmer, #files): I think we should be using basically the same code
         // for drag and drop.
         viewProps.handlePaste = (view, event, slice) => {
+            // If we're pasting an empty slice that means ProseMirror couldn't parse the
+            // data in `event.clipboardData`. If `event.clipboardData` has any files then
+            // let's use `FileUploadService` to attach the file to our content.
+            if (
+                schema.nodes.file &&
+                schema.nodes.fileRow &&
+                slice.size === 0 &&
+                event.clipboardData
+            ) {
+                for (const item of event.clipboardData.items) {
+                    if (item.kind !== "file") continue;
+
+                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                    // use this map synchronously.
+                    if (temporaryPastedFileInfoById === undefined) {
+                        temporaryPastedFileInfoById = new Map();
+                        scheduleMicrotask(() => {
+                            temporaryPastedFileInfoById = undefined;
+                        });
+                    }
+
+                    const fileId = generateFileIdWithSynchronizedClock();
+
+                    temporaryPastedFileInfoById.set(fileId, {
+                        type: "UploadFile",
+                        input: {type: "File", file: assertExists(item.getAsFile())},
+                    });
+
+                    slice = new Slice(
+                        Fragment.from(schema.node("fileRow", {}, [schema.node("file", {fileId})])),
+                        0,
+                        0,
+                    );
+                    break;
+                }
+            }
+
             let selection = view.state.selection;
 
             // If the selection starts in our title, then shift the selection out of the
@@ -1584,7 +1628,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     if (!temporaryPastedFileInfo) return null;
 
                     switch (temporaryPastedFileInfo.type) {
-                        case "AttachmentInSpace": {
+                        case "AttachFile": {
                             const fromTarget = temporaryPastedFileInfo.target;
                             const toTarget = assertExists(propsRef.current.fileAttachmentTarget);
 
@@ -1618,7 +1662,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 });
                             }
                         }
-                        case "Foreign": {
+                        case "UploadFile": {
                             const fileReferencePromiseResolver = createPromiseResolver<{
                                 signedUrlSearch: string;
                                 fileStore: Store<FileModel>;
@@ -1638,10 +1682,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         attachmentTarget: assertExists(
                                             propsRef.current.fileAttachmentTarget,
                                         ),
-                                        input: {
-                                            type: "Url",
-                                            url: temporaryPastedFileInfo.url,
-                                        },
+                                        input: temporaryPastedFileInfo.input,
                                         onAttach: ({signedUrlSearch, fileStore}) => {
                                             const initialFile = fileStore.getSnapshot();
                                             uploadingFileId = initialFile.id;

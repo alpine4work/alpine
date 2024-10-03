@@ -12,6 +12,9 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 // - Comments on file rows and floating files
 // - File toolbar
 // - Other file can see dropped file in realtime (also check document `/view`)
+// - Copy/paste file from another space
+// - Copy/paste file from another domain? e.g. Start a Node.js server and host
+//   a file from that?
 
 const {context, services} = createTestServices();
 
