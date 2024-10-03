@@ -1,5 +1,94 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`account long mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <span>
+      <span>
+        <span>
+          @
+        </span>
+        <span>
+          Sara Smith
+        </span>
+      </span>
+    </span>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`account long mention: clipboard 1`] = `
+<div>
+  <p>
+    <span
+      data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
+    >
+      @Sara Smith
+    </span>
+  </p>
+</div>
+`;
+
+exports[`account long mention: clipboard text 1`] = `"@Sara Smith"`;
+
+exports[`account short mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <span>
+      <span>
+        <span>
+          @
+        </span>
+        <span>
+          Sara
+        </span>
+      </span>
+    </span>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`account short mention: clipboard 1`] = `
+<div>
+  <p>
+    <span
+      data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
+      data-cy-mention-short=""
+    >
+      @Sara
+    </span>
+  </p>
+</div>
+`;
+
+exports[`account short mention: clipboard text 1`] = `"@Sara"`;
+
 exports[`bold 1`] = `
 <div
   aria-label="Test"
@@ -36,6 +125,78 @@ exports[`bold: clipboard 1`] = `
 `;
 
 exports[`bold: clipboard text 1`] = `"Hello world!"`;
+
+exports[`breaks inside list items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_listItem content_unorderedListItem"
+    data-list-indent="0"
+    style="--content_listItemIndentation:0"
+  >
+    <p
+      class="content_paragraph"
+    >
+      Hello…
+      <br />
+      …world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`breaks inside list items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello…
+        <br />
+        …world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`breaks inside list items: clipboard text 1`] = `"Hello……world!"`;
+
+exports[`breaks inside paragraphs 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    Hello…
+    <br />
+    …world!
+  </p>
+</div>
+`;
+
+exports[`breaks inside paragraphs: clipboard 1`] = `
+<div>
+  <p>
+    Hello…
+    <br />
+    …world!
+  </p>
+</div>
+`;
+
+exports[`breaks inside paragraphs: clipboard text 1`] = `"Hello……world!"`;
 
 exports[`bullet list bold: clipboard 1`] = `
 <div>
@@ -466,127 +627,6 @@ Item 1
 Item 2
 
 Item 3"
-`;
-
-exports[`can put hard breaks inside list items 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <div
-    class="content_listItem content_unorderedListItem"
-    data-list-indent="0"
-    style="--content_listItemIndentation:0"
-  >
-    <p
-      class="content_paragraph"
-    >
-      Hello…
-      <br />
-      …world!
-    </p>
-  </div>
-</div>
-`;
-
-exports[`can put hard breaks inside list items: clipboard 1`] = `
-<div>
-  <ul>
-    <li>
-      <p>
-        Hello…
-        <br />
-        …world!
-      </p>
-    </li>
-  </ul>
-</div>
-`;
-
-exports[`can put hard breaks inside list items: clipboard text 1`] = `"Hello……world!"`;
-
-exports[`can put hard breaks inside paragraphs 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <p
-    class="content_paragraph"
-  >
-    Hello…
-    <br />
-    …world!
-  </p>
-</div>
-`;
-
-exports[`can put hard breaks inside paragraphs: clipboard 1`] = `
-<div>
-  <p>
-    Hello…
-    <br />
-    …world!
-  </p>
-</div>
-`;
-
-exports[`can put hard breaks inside paragraphs: clipboard text 1`] = `"Hello……world!"`;
-
-exports[`can put multiple paragraphs inside list items 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <div
-    class="content_listItem content_unorderedListItem"
-    data-list-indent="0"
-    style="--content_listItemIndentation:0"
-  >
-    <p
-      class="content_paragraph"
-    >
-      Hello…
-    </p>
-    <p
-      class="content_paragraph"
-    >
-      …world!
-    </p>
-  </div>
-</div>
-`;
-
-exports[`can put multiple paragraphs inside list items: clipboard 1`] = `
-<div>
-  <ul>
-    <li>
-      <p>
-        Hello…
-      </p>
-      <p>
-        …world!
-      </p>
-    </li>
-  </ul>
-</div>
-`;
-
-exports[`can put multiple paragraphs inside list items: clipboard text 1`] = `
-"Hello…
-
-…world!"
 `;
 
 exports[`check list (checked) bold: clipboard 1`] = `
@@ -2016,7 +2056,7 @@ exports[`code: clipboard 1`] = `
 
 exports[`code: clipboard text 1`] = `"Hello world!"`;
 
-exports[`divider empty 1`] = `
+exports[`divider 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
@@ -2031,13 +2071,409 @@ exports[`divider empty 1`] = `
 </div>
 `;
 
-exports[`divider empty: clipboard 1`] = `
+exports[`divider: clipboard 1`] = `
 <div>
   <hr />
 </div>
 `;
 
-exports[`divider empty: clipboard text 1`] = `""`;
+exports[`divider: clipboard text 1`] = `""`;
+
+exports[`file float (left direction) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileFloat content_fileFloatLeft"
+    style="width: 203.4px; height: 191.4px;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+  </div>
+</div>
+`;
+
+exports[`file float (left direction): clipboard 1`] = `
+<div>
+  <div
+    style="float: left; clear: both; margin-bottom: 10px; margin-right: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="191"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4sk2v7sxcrpdd9qdxxx78?exp=1727963748&sig=test-image"
+      style="display: block;"
+      width="203"
+    />
+  </div>
+</div>
+`;
+
+exports[`file float (left direction): clipboard text 1`] = `""`;
+
+exports[`file float (right direction) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileFloat content_fileFloatRight"
+    style="width: 195.4px; height: 191.4px;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+  </div>
+</div>
+`;
+
+exports[`file float (right direction): clipboard 1`] = `
+<div>
+  <div
+    style="float: right; clear: both; margin-bottom: 10px; margin-left: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="191"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4v4se8v5pxdk7j5adnecm?exp=1727963751&sig=test-image"
+      style="display: block;"
+      width="195"
+    />
+  </div>
+</div>
+`;
+
+exports[`file float (right direction): clipboard text 1`] = `""`;
+
+exports[`file row (one file) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 512px; grid-template-columns: 0.853333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="512"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
+      style="display: block;"
+      width="512"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file): clipboard text 1`] = `""`;
+
+exports[`file row (one file, audio type) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 100px; grid-template-columns: 0.388889fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:audio/mp4"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, audio type): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <audio
+      controls=""
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdt0nc1d3zr0vh2j2jrtvg?exp=1727880774&sig=test-audio"
+      style="display: block; width: 233px; height: 100px;"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, audio type): clipboard text 1`] = `""`;
+
+exports[`file row (one file, image type) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 512px; grid-template-columns: 0.853333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, image type): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="512"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vd0kf4fdbwb7f1jqtzgt7g?exp=1727880757&sig=test-image"
+      style="display: block;"
+      width="512"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, image type): clipboard text 1`] = `""`;
+
+exports[`file row (one file, null reference) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 400px; grid-template-columns: 1fr;"
+  >
+    <div
+      class="content_file"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, null reference): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <object
+      height="400"
+      style="display: block;"
+      width="600"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, null reference): clipboard text 1`] = `""`;
+
+exports[`file row (one file, video type) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 512px; grid-template-columns: 0.853333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:video/mp4"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, video type): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <video
+      controls=""
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="512"
+      style="display: block;"
+      width="512"
+    >
+      <source
+        src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694vdm01x4ngm31kmm41wsg3m?exp=1727880767&sig=test-video"
+      />
+    </video>
+  </div>
+</div>
+`;
+
+exports[`file row (one file, video type): clipboard text 1`] = `""`;
+
+exports[`file row (three files) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 193.333px; grid-template-columns: 0.333333fr 0.333333fr 0.333333fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/heif"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/png"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (three files): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="193"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4nwky4vgc8ep46mzz5th8?exp=1727963706&sig=test-image"
+      style="display: block;"
+      width="193"
+    />
+    <object
+      data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4phegz57116pce7eg5j30?exp=1727963711&sig=test-image"
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="193"
+      style="display: block;"
+      type="image/heif"
+      width="193"
+    />
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="193"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4q3yh9765742w7305p0fg?exp=1727963716&sig=test-image"
+      style="display: block;"
+      width="193"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (three files): clipboard text 1`] = `""`;
+
+exports[`file row (two files) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRow"
+    style="height: 295px; grid-template-columns: 0.5fr 0.5fr;"
+  >
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/jpeg"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+    <div
+      class="content_file"
+      data-testid="ContentFile:image/heif"
+      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='171.429' /></filter><g filter='url(%23blur)'><rect x='-342.857' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='-342.857' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='285.714' width='628.571' height='628.571' fill='%23ff0000' /><rect x='-342.857' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='285.714' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /><rect x='914.286' y='914.286' width='628.571' height='628.571' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (two files): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 10px;"
+  >
+    <img
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="295"
+      src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
+      style="display: block;"
+      width="295"
+    />
+    <object
+      data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4myryc3289pwhcnwt7f7r?exp=1727963629&sig=test-image"
+      data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+      height="295"
+      style="display: block;"
+      type="image/heif"
+      width="295"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (two files): clipboard text 1`] = `""`;
 
 exports[`heading 1 bold: clipboard 1`] = `
 <div>
@@ -2560,6 +2996,55 @@ exports[`link: clipboard 1`] = `
 `;
 
 exports[`link: clipboard text 1`] = `"Hello world!"`;
+
+exports[`multiple paragraphs inside list items 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_listItem content_unorderedListItem"
+    data-list-indent="0"
+    style="--content_listItemIndentation:0"
+  >
+    <p
+      class="content_paragraph"
+    >
+      Hello…
+    </p>
+    <p
+      class="content_paragraph"
+    >
+      …world!
+    </p>
+  </div>
+</div>
+`;
+
+exports[`multiple paragraphs inside list items: clipboard 1`] = `
+<div>
+  <ul>
+    <li>
+      <p>
+        Hello…
+      </p>
+      <p>
+        …world!
+      </p>
+    </li>
+  </ul>
+</div>
+`;
+
+exports[`multiple paragraphs inside list items: clipboard text 1`] = `
+"Hello…
+
+…world!"
+`;
 
 exports[`ordered list bold: clipboard 1`] = `
 <div>
@@ -3390,3 +3875,48 @@ exports[`strike: clipboard 1`] = `
 `;
 
 exports[`strike: clipboard text 1`] = `"Hello world!"`;
+
+exports[`unknown account mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <span>
+      <span>
+        <span>
+          @
+        </span>
+        <span>
+          Unknown
+        </span>
+      </span>
+    </span>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`unknown account mention: clipboard 1`] = `
+<div>
+  <p>
+    <span
+      data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
+      data-cy-mention-short=""
+    >
+      @Unknown
+    </span>
+  </p>
+</div>
+`;
+
+exports[`unknown account mention: clipboard text 1`] = `"@Unknown"`;

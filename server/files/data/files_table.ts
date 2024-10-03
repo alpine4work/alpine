@@ -1577,6 +1577,10 @@ export async function getFileIfExistsFromAttachment(
         throw new PermissionDeniedError("File isn't attached to target");
     }
 
+    return createFileModelFromItem(item);
+}
+
+function createFileModelFromItem(item: FileItem) {
     return new FileModel({
         id: item.fileId,
         contentType: item.contentType,
@@ -1632,10 +1636,23 @@ export async function attachFileAsUploader(
     spaceId: SpaceId,
     fileId: FileId,
     fileAuthorizer: FileAuthorizer,
-) {
-    await runAllPromises([
+): Promise<FileModel> {
+    const [file] = await runAllPromises([
         // Make sure the file exists and our actor is the uploader.
-        getFileAsUploader(context, spaceId, fileId),
+        //
+        // If we can't read the file with eventual consistency then retry with strong
+        // consistency in case the file was just created and we're observing an
+        // eventual consistency lag.
+        (async () => {
+            const file = await getFileIfExistsAsUploader(context, spaceId, fileId, {
+                consistency: "Eventual",
+            });
+            if (file) return file;
+
+            return getFileAsUploader(context, spaceId, fileId, {
+                consistency: "Strong",
+            });
+        })(),
         // Make sure we have access to the new file authorizer.
         fileAuthorizer.authorizeTargetAccess(context, "Edit"),
     ]);
@@ -1644,6 +1661,8 @@ export async function attachFileAsUploader(
         ...getFileAttachmentTargetItemKey(spaceId, fileId, fileAuthorizer.target),
         createdTime: new Date(),
     });
+
+    return file;
 }
 
 /**
@@ -1659,8 +1678,8 @@ export async function attachFileFromAttachment(
     spaceId: SpaceId,
     fileId: FileId,
     {from: fromFileAuthorizer, to: toFileAuthorizer}: {from: FileAuthorizer; to: FileAuthorizer},
-) {
-    await runAllPromises([
+): Promise<FileModel> {
+    const [file] = await runAllPromises([
         // Make sure the file exists and our actor is the uploader.
         getFileFromAttachment(context, spaceId, fileId, fromFileAuthorizer),
         // Make sure we have access to the new file authorizer.
@@ -1671,4 +1690,6 @@ export async function attachFileFromAttachment(
         ...getFileAttachmentTargetItemKey(spaceId, fileId, toFileAuthorizer.target),
         createdTime: new Date(),
     });
+
+    return file;
 }

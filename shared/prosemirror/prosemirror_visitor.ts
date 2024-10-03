@@ -1,4 +1,4 @@
-import {Mark, Node} from "prosemirror-model";
+import {Fragment, Mark, Node, Slice} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
@@ -33,7 +33,14 @@ export function visitProsemirrorNode(rootNode: Node, visitor: ProsemirrorVisitor
         visitor.visitMark?.(mark);
     }
 
-    rootNode.descendants(node => {
+    visitProsemirrorFragment(rootNode.content, visitor);
+}
+
+/**
+ * Call the visitor for all relevant objects in the provided fragment.
+ */
+export function visitProsemirrorFragment(rootFragment: Fragment, visitor: ProsemirrorVisitor) {
+    rootFragment.descendants(node => {
         const shouldVisitChildren = visitor.visitNode?.(node) ?? true;
         if (!shouldVisitChildren) return false;
 
@@ -41,6 +48,13 @@ export function visitProsemirrorNode(rootNode: Node, visitor: ProsemirrorVisitor
             visitor.visitMark?.(mark);
         }
     });
+}
+
+/**
+ * Call the visitor for all relevant objects in the provided slice.
+ */
+export function visitProsemirrorSlice(slice: Slice, visitor: ProsemirrorVisitor) {
+    visitProsemirrorFragment(slice.content, visitor);
 }
 
 /**
@@ -70,10 +84,7 @@ export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor
         }
         case "replace":
         case "replaceAround": {
-            step.slice.content.descendants(node => {
-                visitProsemirrorNode(node, visitor);
-                return false;
-            });
+            visitProsemirrorSlice(step.slice, visitor);
             break;
         }
         default:

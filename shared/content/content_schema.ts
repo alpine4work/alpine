@@ -89,11 +89,13 @@ export type ContentProsemirrorSchema = ProsemirrorSchema<
     keyof (typeof contentBaseProsemirrorSchemaSpec)["marks"]
 >;
 
+export const paragraphParseRulePriority = 50;
+
 const paragraphParseRules = [
-    {tag: "p", priority: 50},
+    {tag: "p", priority: paragraphParseRulePriority},
     {
         tag: "div",
-        priority: 50,
+        priority: paragraphParseRulePriority,
         getAttrs: node => {
             if (!(node instanceof HTMLElement)) return {};
 
@@ -436,12 +438,12 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             toDOM: () => ["span", {}, ""],
             parseDOM: [
                 {
-                    tag: "span",
+                    tag: "span[data-cy-mention]",
                     getAttrs: node => {
                         if (!(node instanceof HTMLElement)) return false;
 
-                        const accountId = node.dataset.mentionAccount;
-                        const isShort = node.dataset.mentionShort === "true";
+                        const accountId = node.getAttribute("data-cy-mention");
+                        const isShort = node.getAttribute("data-cy-mention-short") !== null;
 
                         if (!accountId || !isId<AccountId>(accountId)) return false;
 
@@ -804,7 +806,7 @@ function createCodeBlockParseRules(): Array<ParseRule> {
                 if (node.childElementCount !== 1) return {language: "text"};
                 if (node.firstElementChild?.tagName !== "CODE") return {language: "text"};
 
-                const language = node.firstElementChild.getAttribute("data-language");
+                const language = node.firstElementChild.getAttribute("data-cy-language");
                 if (!language) return {language: "text"};
                 if (!isContentCodeBlockLanguageId(language)) return {language: "text"};
 

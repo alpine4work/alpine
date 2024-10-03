@@ -30,9 +30,11 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {
+    ContentEditorReferencesSharedAction,
     ContentEditorState,
     getContentEditorFloaterState,
     getContentEditorReferences,
+    rememberContentEditorSelectionWhileLoading,
     setContentEditorFloaterState,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
@@ -100,6 +102,7 @@ import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {getContentReferencedIdsForSlice} from "~/shared/content/content_referenced_ids.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
@@ -108,7 +111,12 @@ import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design
 import {ThemeColor, defaultThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {
+    FileAttachmentTarget,
+    deserializeFileAttachmentTargetString,
+} from "~/shared/files/file_attachment_target.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -116,15 +124,26 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
-import {Id, generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {Id, generateId, isId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {
+    attachFileFromAttachment,
+    getFileFromAttachment,
+} from "~/shared/rpc/files_rpc_definitions.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -858,6 +877,22 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         let uploadingFileIds: Set<FileId> | undefined;
 
+        let temporaryPastedFileInfoById:
+            | Map<
+                  FileId,
+                  | {
+                        type: "Foreign";
+                        url: URL;
+                    }
+                  | {
+                        type: "AttachmentInSpace";
+                        spaceId: SpaceId;
+                        fileId: FileId;
+                        target: FileAttachmentTarget;
+                    }
+              >
+            | undefined;
+
         const view = new EditorView(rootElement, {
             state: initialState,
 
@@ -1156,6 +1191,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     schema,
                     () => assertExists(spaceContextRef.current).space.id,
                     () => propsRef.current.state.getContent().references,
+                    () => assertExists(propsRef.current.fileAttachmentTarget),
                 ),
 
             clipboardTextSerializer: slice =>
@@ -1165,13 +1201,347 @@ function ContentEditor<Content extends ContentWithReferences>(
                     () => propsRef.current.state.getContent().references,
                 ),
 
-            handlePaste,
+            transformPastedDOM: element => {
+                let currentUrl: URL | undefined;
+
+                // File copy/pasting is tricky. In the content itself a file is represented as
+                // a node with only a `FileId`. Data about the file is available on the side
+                // in `ContentReferences` and often needs to be loaded from the server.
+                //
+                // The format of pasted content is HTML. We generate HTML when copying files
+                // that should be compatible with a broad range of applications. For example,
+                // file nodes become `<img>` elements.
+                //
+                // We can be receiving pasted files that:
+                //
+                // 1. Was copied in Alpine; OR
+                // 2. Was copied from a different application
+                //
+                // In case 1 we already have the file uploaded to our servers. What we want to
+                // do here is create another file attachment link from wherever the file is
+                // coming from (which we store in a `data-cy-attached` attribute) to the
+                // `FileAttachmentTarget` of our content editor.
+                //
+                // In case 2 we want to download the file from its URL and upload it to our
+                // servers. We also do this for files from different spaces since file storage
+                // is scoped to a space.
+                //
+                // There's a bit of juggling we need to do in this code. `handlePaste` is where
+                // we implement asynchronous pastes. However, `handlePaste` receives a
+                // ProseMirror `Slice` that only contains file nodes with their `FileId`s.
+                // Knowledge about whether we're in case 1 or case 2 and the source URL of
+                // files we're pasting is available only in the HTML here in
+                // `transformPastedDOM`. We bridge this gap with `temporaryPastedFileInfoById`.
+                // `transformPastedDOM` adds additional information about each file we're
+                // pasting in `temporaryPastedFileInfoById` and `handlePaste` reads from this
+                // map for each `FileId` it found in the pasted ProseMirror `Slice`. Not very
+                // elegant but it gets the job done.
+                for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
+                    const urlString =
+                        fileElement instanceof HTMLImageElement
+                            ? fileElement.src || null
+                            : fileElement instanceof HTMLVideoElement ||
+                              fileElement instanceof HTMLAudioElement
+                            ? fileElement.src ||
+                              findMapIterable(fileElement.childNodes, fileChildElement =>
+                                  fileChildElement instanceof HTMLSourceElement
+                                      ? fileChildElement.src
+                                      : undefined,
+                              ) ||
+                              null
+                            : fileElement instanceof HTMLObjectElement
+                            ? fileElement.data || null
+                            : null;
+
+                    if (urlString === null) {
+                        const temporaryFileElement = fileElement.ownerDocument.createElement("div");
+                        temporaryFileElement.setAttribute("data-cy-tmp-file", "null");
+                        fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                        continue;
+                    }
+
+                    currentUrl ??= new URL(window.location.href);
+
+                    let url: URL;
+                    try {
+                        url = new URL(urlString, currentUrl);
+                    } catch {
+                        // Ignore any URL parsing errors.
+                        continue;
+                    }
+
+                    // If:
+                    //
+                    // 1. The file is hosted on the same domain we're currently on; AND
+                    // 2. The file matches the route `/files/:spaceId/:fileId`; AND
+                    // 3. The file is in the same space that we're in right now; AND
+                    // 4. The file element has a valid `data-cy-attached` attribute
+                    //
+                    // Then the file already exists for this space. Instead of uploading a new file
+                    // to our backend instead we can create a new attachment for the file that
+                    // already exists.
+                    if (currentUrl.host === url.host) {
+                        const pathnameMatch = url.pathname.match(/^\/files\/([^/]+)\/([^/]+)$/);
+                        if (
+                            pathnameMatch &&
+                            isId<SpaceId>(pathnameMatch[1]!) &&
+                            isId<FileId>(pathnameMatch[2]!) &&
+                            pathnameMatch[1] === spaceContextRef.current?.space.id
+                        ) {
+                            const spaceId = pathnameMatch[1];
+                            const fileId = pathnameMatch[2];
+
+                            const targetString = fileElement.getAttribute("data-cy-attached");
+                            let target: FileAttachmentTarget | undefined;
+
+                            try {
+                                if (targetString) {
+                                    target = deserializeFileAttachmentTargetString(targetString);
+                                }
+                            } catch (error) {
+                                // This error is almost imperceivable to the user since we'll try
+                                // downloading/uploading the file as a fallback. But it might be a sign that
+                                // there's a bug somewhere in `data-cy-attached` generation so let's log it.
+                                contextRef.current?.tracer
+                                    .getRoot()
+                                    .logUncaughtException(
+                                        'Couldn\'t parse "data-cy-attached" attribute',
+                                        error,
+                                    );
+                            }
+
+                            if (target) {
+                                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                                // use this map synchronously after `transformPastedDOM`.
+                                if (temporaryPastedFileInfoById === undefined) {
+                                    temporaryPastedFileInfoById = new Map();
+                                    scheduleMicrotask(() => {
+                                        temporaryPastedFileInfoById = undefined;
+                                    });
+                                }
+
+                                temporaryPastedFileInfoById.set(fileId, {
+                                    type: "AttachmentInSpace",
+                                    spaceId,
+                                    fileId,
+                                    target,
+                                });
+
+                                const temporaryFileElement =
+                                    fileElement.ownerDocument.createElement("div");
+                                temporaryFileElement.setAttribute("data-cy-tmp-file", fileId);
+                                fileElement.parentNode?.replaceChild(
+                                    temporaryFileElement,
+                                    fileElement,
+                                );
+                                continue;
+                            }
+                        }
+                    }
+
+                    const temporaryFileId = generateChronologicalId<FileId>();
+
+                    // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                    // use this map synchronously after `transformPastedDOM`.
+                    if (temporaryPastedFileInfoById === undefined) {
+                        temporaryPastedFileInfoById = new Map();
+                        scheduleMicrotask(() => {
+                            temporaryPastedFileInfoById = undefined;
+                        });
+                    }
+
+                    temporaryPastedFileInfoById.set(temporaryFileId, {
+                        type: "Foreign",
+                        url,
+                    });
+
+                    const temporaryFileElement = fileElement.ownerDocument.createElement("div");
+                    temporaryFileElement.setAttribute("data-cy-tmp-file", temporaryFileId);
+                    fileElement.parentNode?.replaceChild(temporaryFileElement, fileElement);
+                }
+            },
+
+            // TODO(calebmer, #files): Handle directly pasting content type (e.g.
+            // `image/png` from Figma).
+            handlePaste: (view, event, slice) => {
+                const referencedIds = getContentReferencedIdsForSlice(slice);
+
+                // If there's some references in the paste then let's perform an asynchronous
+                // paste where we load all requisite data first.
+                if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
+                    return handlePaste(
+                        view.state.doc,
+                        view.state.selection,
+                        () => view.state.tr,
+                        transaction => view.dispatch(transaction),
+                        event,
+                        slice,
+                    );
+                }
+
+                const context = assertExists(contextRef.current);
+                const reporter = assertExists(reporterRef.current);
+                const spaceId = assertExists(spaceContextRef.current).space.id;
+
+                // We do reassign this variable. Looks like there's a bug in eslint.
+                // eslint-disable-next-line prefer-const
+                let rememberedSelection: {getSelection: () => Selection | null} | undefined;
+
+                // TODO(calebmer, #global-loading-indicator): Show a "pasting" indicator if
+                // we're waiting for a data fetch before applying a paste.
+                const promise = context.tracer.withSpan(
+                    "Content editor paste with references",
+                    async context => {
+                        const [accounts, fileReferences] = await runAllPromises([
+                            referencedIds.accountIds.size > 0
+                                ? getAccountsIfExist(context, {
+                                      spaceId,
+                                      accountIds: referencedIds.accountIds,
+                                  }).then(({accounts}) => accounts)
+                                : emptyArray,
+
+                            runAllPromises(
+                                mapIterable(referencedIds.fileIds, async fileId => {
+                                    const temporaryPastedFileInfo =
+                                        temporaryPastedFileInfoById?.get(fileId);
+                                    if (!temporaryPastedFileInfo) return null;
+
+                                    switch (temporaryPastedFileInfo.type) {
+                                        case "AttachmentInSpace": {
+                                            const fromTarget = temporaryPastedFileInfo.target;
+                                            const toTarget = assertExists(
+                                                propsRef.current.fileAttachmentTarget,
+                                            );
+
+                                            // If the file is already in our view's references that means it's already
+                                            // been loaded and we have the requisite permissions for it. No file loading
+                                            // needed.
+                                            if (
+                                                getContentEditorReferences(
+                                                    view.state,
+                                                ).references.fileById.has(fileId)
+                                            ) {
+                                                return null;
+                                            }
+                                            // If we're trying to attach the file to the same attachment target it's from
+                                            // then we don't need to perform another attach mutation. Instead, all we need
+                                            // to do is load the file (since it's not in our references).
+                                            else if (isDeepEqual(fromTarget, toTarget)) {
+                                                return getFileFromAttachment(context, {
+                                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                                    fileId: temporaryPastedFileInfo.fileId,
+                                                    target: toTarget,
+                                                });
+                                            }
+                                            // Otherwise, let's attach the file to its new attachment target.
+                                            else {
+                                                return attachFileFromAttachment(context, {
+                                                    spaceId: temporaryPastedFileInfo.spaceId,
+                                                    fileId: temporaryPastedFileInfo.fileId,
+                                                    fromTarget,
+                                                    toTarget,
+                                                });
+                                            }
+                                        }
+                                        case "Foreign": {
+                                            // NOCOMMIT: Implement and test!
+                                            return null;
+                                        }
+                                        default:
+                                            throw exhaustive(temporaryPastedFileInfo);
+                                    }
+                                }),
+                            ),
+                        ]);
+
+                        // Get the selection remembered by our editor state. Not the view's current
+                        // selection. The view selection might have moved while we were pasting.
+                        const selection =
+                            rememberedSelection?.getSelection() ?? view.state.selection;
+
+                        // Any new paste transaction should start by updating content references with
+                        // the data we just asynchronously fetched.
+                        const createTransaction = () =>
+                            updateContentEditorReferences(
+                                view.state.tr,
+                                Array.from(
+                                    concatIterables<ContentEditorReferencesSharedAction>(
+                                        filterMapIterable(accounts, account => {
+                                            if (!account) return;
+                                            return {type: "SetAccount", account};
+                                        }),
+                                        filterMapIterable(fileReferences, fileReference => {
+                                            if (!fileReference) return;
+                                            return {
+                                                type: "SetFile",
+                                                signedUrlSearch: fileReference.signedUrlSearch,
+                                                file: fileReference.file,
+                                            };
+                                        }),
+                                    ),
+                                ),
+                            );
+
+                        // Once we've finished loading data, implement the same logic as ProseMirror's
+                        // `doPaste` function. First we need to call our synchronous `handlePaste`
+                        // function again and if that returns false then we need to perform the same
+                        // default paste handling that ProseMirror implements.
+                        //
+                        // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
+                        if (
+                            handlePaste(
+                                view.state.doc,
+                                selection,
+                                createTransaction,
+                                transaction => view.dispatch(transaction),
+                                event,
+                                slice,
+                            )
+                        ) {
+                            return;
+                        }
+
+                        const transaction = createTransaction();
+
+                        const singleNode =
+                            slice.openStart == 0 &&
+                            slice.openEnd == 0 &&
+                            slice.content.childCount == 1
+                                ? slice.content.firstChild
+                                : null;
+
+                        if (singleNode) {
+                            selection.replaceWith(transaction, singleNode);
+                        } else {
+                            selection.replace(transaction, slice);
+                        }
+
+                        view.dispatch(
+                            transaction
+                                .scrollIntoView()
+                                .setMeta("paste", true)
+                                .setMeta("uiEvent", "paste"),
+                        );
+                    },
+                );
+
+                rememberedSelection = rememberContentEditorSelectionWhileLoading(view, promise);
+
+                promise.catch(error => {
+                    reporter.displayError("Couldn’t paste", error);
+                });
+
+                return true;
+            },
 
             /* ========================================================================== *\
              *                       Drag and drop events (part 1)                        *
             \* ========================================================================== */
 
             handleDrop: (_view, event, slice) => {
+                const context = contextRef.current;
+                const spaceContext = spaceContextRef.current;
+
                 // Handle the user dropping files from their operating system. Not dragging
                 // some slice of ProseMirror content around.
                 if (
@@ -1206,6 +1576,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 await uploadFileFromContentEditor(
                                     context,
                                     spaceContext.space.id,
+                                    assertExists(propsRef.current.fileAttachmentTarget),
                                     assertExists(fileItem.getAsFile()),
                                     {
                                         onAttach: ({signedUrlSearch, fileStore}) => {
@@ -1882,6 +2253,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         // breaking. (Though I'm not entirely sure.) Child components may be written
         // assuming a constant view. Make sure this is always an empty
         // dependency array.
+        //
+        // Don't ignore `react-hooks/exhaustive-deps` ESLint warnings! Instead remove
+        // whatever's causing the warning.
     }, []);
 
     /* ========================================================================== *\
@@ -3025,19 +3399,36 @@ export const getEditorViewForTest = import.meta.jest
       }
     : null;
 
-function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boolean {
-    if (handleLinkPasteWithSelection(view, event)) return true;
-    if (handleLinkPasteWithoutSelection(view, event)) return true;
+// You shouldn't use `EditorState.selection` or `Transaction.replaceSelection`
+// (which implicitly uses `EditorState.selection`) in this function. If we're
+// performing an asynchronous paste then the selection we're pasting on top of
+// (the `selection` argument) may be different than the user's current
+// selection (what's in `EditorState.selection`). Which is why we decompose
+// `EditorView` here into just the bits we need.
+function handlePaste(
+    doc: Node,
+    selection: Selection,
+    createTransaction: () => Transaction,
+    dispatch: (transaction: Transaction) => void,
+    event: ClipboardEvent,
+    slice: Slice,
+): boolean {
+    if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event))
+        return true;
+    if (handleLinkPasteWithoutSelection(doc, selection, createTransaction, dispatch, event))
+        return true;
 
     // If we're pasting into an empty paragraph at the top level, then paste the
     // entire slice content instead of the content determined by `Slice.maxOpen()`.
     if (
-        view.state.selection.$from.depth === 1 &&
-        view.state.selection.$from.node().type.name === "paragraph" &&
-        view.state.selection.$from.node().nodeSize === 2 &&
-        view.state.selection.$from.pos === view.state.selection.$to.pos
+        selection.$from.depth === 1 &&
+        selection.$from.node().type.name === "paragraph" &&
+        selection.$from.node().nodeSize === 2 &&
+        selection.$from.pos === selection.$to.pos
     ) {
-        view.dispatch(view.state.tr.replaceSelection(new Slice(slice.content, 0, 0)));
+        const transaction = createTransaction();
+        selection.replace(transaction, new Slice(slice.content, 0, 0));
+        dispatch(transaction);
         return true;
     }
 
@@ -3051,8 +3442,9 @@ function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boo
         slice.content.firstChild?.type.name === "codeBlock" ||
         slice.content.firstChild?.type.name === "codeBlockLine"
     ) {
-        const {from, to} = view.state.selection;
-        const transaction = view.state.tr.replaceSelection(slice);
+        const {from, to} = selection;
+        const transaction = createTransaction();
+        selection.replace(transaction, slice);
 
         const mappedFrom = transaction.mapping.map(from, -1);
         const mappedTo = transaction.mapping.map(to, 1);
@@ -3063,7 +3455,7 @@ function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boo
             slice.content.firstChild.type.schema.mark("code"),
         );
 
-        view.dispatch(transaction);
+        dispatch(transaction);
         return true;
     }
 
@@ -3074,32 +3466,44 @@ function handlePaste(view: EditorView, event: ClipboardEvent, slice: Slice): boo
  * If the user has selected some text and they paste a link then we want to
  * convert the selected text to a link instead of replacing the text.
  */
-function handleLinkPasteWithSelection(view: EditorView, event: ClipboardEvent): boolean {
+function handleLinkPasteWithSelection(
+    doc: Node,
+    selection: Selection,
+    createTransaction: () => Transaction,
+    dispatch: (transaction: Transaction) => void,
+    event: ClipboardEvent,
+): boolean {
     // 1. Only perform a link paste if we've selected some text.
-    const {state} = view;
-    if (state.selection.from === state.selection.to) {
+    if (selection.from === selection.to) {
         return false;
     }
 
     // 2. Make sure the URL starts with an allowed protocol.
     const url = event.clipboardData?.getData("text/plain");
-    if (url && (!startsWithSafeUrlProtocol(url) || /\s/.test(url))) {
+    if (!url || !startsWithSafeUrlProtocol(url) || /\s/.test(url)) {
         return false;
     }
 
     // 3. Instead of replacing the selected text with the replaced text we instead
     // add a link mark to the selection.
-    const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
-    view.dispatch(state.tr.addMark(range.from, range.to, state.schema.mark("link", {url})));
+    const range = trimSpacesFromProsemirrorRange(doc, selection);
+    dispatch(
+        createTransaction().addMark(range.from, range.to, doc.type.schema.mark("link", {url})),
+    );
     return true;
 }
 
-function handleLinkPasteWithoutSelection(view: EditorView, event: ClipboardEvent): boolean {
-    const {state} = view;
-    const {from} = state.selection;
+function handleLinkPasteWithoutSelection(
+    doc: Node,
+    selection: Selection,
+    createTransaction: () => Transaction,
+    dispatch: (transaction: Transaction) => void,
+    event: ClipboardEvent,
+): boolean {
+    const {from} = selection;
 
     // 1. Check if current selection is empty
-    if (!state.selection.empty) {
+    if (!selection.empty) {
         return false;
     }
 
@@ -3110,10 +3514,10 @@ function handleLinkPasteWithoutSelection(view: EditorView, event: ClipboardEvent
     }
 
     // 3. Insert URL text and apply link mark
-    const tr = state.tr;
-    tr.insertText(url, from);
-    tr.addMark(from, from + url.length, state.schema.mark("link", {url}));
-    view.dispatch(tr);
+    const transaction = createTransaction();
+    transaction.insertText(url, from);
+    transaction.addMark(from, from + url.length, doc.type.schema.mark("link", {url}));
+    dispatch(transaction);
     return true;
 }
 

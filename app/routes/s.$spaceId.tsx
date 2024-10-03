@@ -34,6 +34,7 @@ import {
 } from "~/client/dev/dev_console.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {disableMobileWebKitDefaultScroll} from "~/client/helpers/disable_mobile_web_kit_default_scroll.js";
+import {isNodeBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {
     isTextInputElement,
     textInputTypes,
@@ -870,32 +871,6 @@ function handleHomeOrEndKeyDownForTextInputElement(event: KeyboardEvent) {
             }
         }
     }
-}
-
-/**
- * Does this element a [block level][1] display type?
- *
- * [1]: https://drafts.csswg.org/css-display/#the-display-properties
- */
-function isNodeBlockLevel(node: Node | null): boolean {
-    return node instanceof HTMLElement && isHtmlElementBlockLevel(node);
-}
-
-/**
- * Does this element a [block level][1] display type?
- *
- * [1]: https://drafts.csswg.org/css-display/#the-display-properties
- */
-function isHtmlElementBlockLevel(element: HTMLElement): boolean {
-    const {display} = getComputedStyle(element);
-
-    return (
-        display === "block" ||
-        display === "flow-root" ||
-        display === "flex" ||
-        display === "grid" ||
-        display === "table"
-    );
 }
 
 /**

@@ -18,7 +18,7 @@ import {generateId} from "~/shared/id/id.js";
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const fileAttachmentTarget: FileAttachmentTarget = markMemoIfNotRendering({
+const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
     type: "Document",
     documentId: generateId(),
 });

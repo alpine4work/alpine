@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47d1ba098a159b1de6cdccf845c7f68ec8a05e44 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..286f662eaaf848aa41a2b882d240b7047d23f005 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -46,7 +46,20 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47d1ba098a159b1de6cdccf845c7f68e
    }
  }
  
-@@ -3888,9 +3912,33 @@ handlers.focus = function (view) {
+@@ -2967,6 +2991,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+       html = f(html);
+     });
+     dom = readHTML(html);
++    // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
++    // it is to transform pasted HTML elements. Since if you have to transform an
++    // HTML string you need to perform your own HTML parsing.
++    view.someProp("transformPastedDOM", function (f) {
++      dom = f(dom) || dom;
++    });
+     if (webkit) restoreReplacedSpaces(dom);
+   }
+ 
+@@ -3888,9 +3918,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -83,7 +96,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47d1ba098a159b1de6cdccf845c7f68e
    }
  };
  
-@@ -5392,6 +5440,8 @@ var EditorView = function () {
+@@ -5392,6 +5446,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -92,7 +105,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47d1ba098a159b1de6cdccf845c7f68e
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5842,6 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5848,6 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
@@ -100,10 +113,21 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..47d1ba098a159b1de6cdccf845c7f68e
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +exports.serializeForClipboard = serializeForClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..1f85b45afccc6fc0091ca8dbffdd2c5eec2c0e60 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..0e895164a85e2d9d5558c70d2d76f939ca56d7ca 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -831,6 +831,17 @@ interface DirectEditorProps extends EditorProps {
+@@ -674,6 +674,10 @@ interface EditorProps<P = any> {
+     for example to clean it up.
+     */
+     transformPastedHTML?: (this: P, html: string) => string;
++    // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
++    // it is to transform pasted HTML elements. Since if you have to transform an
++    // HTML string you need to perform your own HTML parsing.
++    transformPastedDOM?: (this: P, dom: Element) => Element | void;
+     /**
+     The [parser](https://prosemirror.net/docs/ref/#model.DOMParser) to use when reading content from
+     the clipboard. When not given, the value of the
+@@ -831,6 +835,17 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -122,7 +146,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..1f85b45afccc6fc0091ca8dbffdd2c5e
 +    text: string;
 +};
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..6a70e4bea94983c67ef46006776d62d2e3238555 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ef073325972bb85b0b88ff61dae4fc100228e1b5 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -179,7 +203,18 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..6a70e4bea94983c67ef46006776d62d2
              break;
      }
  }
-@@ -3460,10 +3482,34 @@ handlers.focus = view => {
+@@ -2589,6 +2611,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+     else {
+         view.someProp("transformPastedHTML", f => { html = f(html); });
+         dom = readHTML(html);
++        // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
++        // it is to transform pasted HTML elements. Since if you have to transform an
++        // HTML string you need to perform your own HTML parsing.
++        view.someProp("transformPastedDOM", f => { dom = f(dom) || dom; });
+         if (webkit)
+             restoreReplacedSpaces(dom);
+     }
+@@ -3460,10 +3486,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -218,7 +253,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..6a70e4bea94983c67ef46006776d62d2
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4879,6 +4925,8 @@ class EditorView {
+@@ -4879,6 +4929,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -227,13 +262,28 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..6a70e4bea94983c67ef46006776d62d2
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5352,6 @@ function checkStateComponent(plugin) {
+@@ -5304,3 +5356,6 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
 +
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +export { serializeForClipboard };
+diff --git a/src/clipboard.ts b/src/clipboard.ts
+index 2f0f8f415b999bffd29c3164d80cd970f4f4f209..825dce61ebc82e1d5a1e927ea862dc1dfc429a9c 100644
+--- a/src/clipboard.ts
++++ b/src/clipboard.ts
+@@ -61,6 +61,10 @@ export function parseFromClipboard(view: EditorView, text: string, html: string
+   } else {
+     view.someProp("transformPastedHTML", f => { html = f(html!) })
+     dom = readHTML(html!)
++    // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
++    // it is to transform pasted HTML elements. Since if you have to transform an
++    // HTML string you need to perform your own HTML parsing.
++    view.someProp("transformPastedDOM", f => { dom = f(dom) || dom })
+     if (browser.webkit) restoreReplacedSpaces(dom)
+   }
+ 
 diff --git a/src/domcoords.ts b/src/domcoords.ts
 index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a11d10deb 100644
 --- a/src/domcoords.ts
@@ -293,7 +343,7 @@ index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a
  }
  
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..e6262cf2d5f958031a1b1ef07ef499410685a99e 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..1ef8dbfe51771325e61b87c5a45be7daf6dda385 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
@@ -324,7 +374,19 @@ index f28002967d6ff175430efdd8c2389924211c35ce..e6262cf2d5f958031a1b1ef07ef49941
    }
  
    /// An editable DOM node containing the document. (You probably
-@@ -734,4 +741,9 @@ export interface DirectEditorProps extends EditorProps {
+@@ -614,6 +621,11 @@ export interface EditorProps<P = any> {
+   /// for example to clean it up.
+   transformPastedHTML?: (this: P, html: string) => string
+ 
++  // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
++  // it is to transform pasted HTML elements. Since if you have to transform an
++  // HTML string you need to perform your own HTML parsing.
++  transformPastedDOM?: (this: P, dom: Element) => Element | void
++
+   /// The [parser](#model.DOMParser) to use when reading content from
+   /// the clipboard. When not given, the value of the
+   /// [`domParser`](#view.EditorProps.domParser) prop is used.
+@@ -734,4 +746,9 @@ export interface DirectEditorProps extends EditorProps {
    /// [applied](#state.EditorState.apply). The callback will be bound to have
    /// the view instance as its `this` binding.
    dispatchTransaction?: (tr: Transaction) => void

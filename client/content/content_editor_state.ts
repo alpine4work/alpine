@@ -32,7 +32,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
 import {
@@ -75,8 +77,9 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorQuickUndoPlugin(),
         contentEditorRetypedInputRulePlugin(),
         contentEditorIsContinuouslyTypingPlugin(),
-        sharedContentEditorTrackSelectionWithinPlugin(),
+        contentEditorRememberSelectionWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
+        sharedContentEditorTrackSelectionWithinPlugin(),
     ];
 }
 
@@ -736,15 +739,20 @@ export function getContentEditorReferences(state: EditorState): ContentWithRefer
 
 export function updateContentEditorReferences<References extends ContentReferences>(
     transaction: Transaction,
-    action: ContentEditorReferencesAction<References>,
+    action:
+        | ContentEditorReferencesAction<References>
+        | Array<ContentEditorReferencesAction<References>>,
 ): Transaction {
-    const actions = transaction.getMeta(contentEditorReferencesPluginKey);
-    if (!actions) {
+    if (Array.isArray(action) && action.length === 0) return transaction;
+
+    const previousActions = transaction.getMeta(contentEditorReferencesPluginKey);
+    if (!previousActions) {
         return transaction.setMeta(contentEditorReferencesPluginKey, action);
-    } else if (!Array.isArray(actions)) {
-        return transaction.setMeta(contentEditorReferencesPluginKey, [actions, action]);
     } else {
-        return transaction.setMeta(contentEditorReferencesPluginKey, [...actions, action]);
+        return transaction.setMeta(contentEditorReferencesPluginKey, [
+            ...(Array.isArray(previousActions) ? previousActions : [previousActions]),
+            ...(Array.isArray(action) ? action : [action]),
+        ]);
     }
 }
 
@@ -758,6 +766,11 @@ export type ContentEditorReferencesAction<References extends ContentReferences> 
     | ContentEditorReferencesSetFileAction
     | ContentEditorReferencesSetFileSignedUrlSearchAction
     | ContentEditorReferencesUpdateDocumentCommentThreadAction;
+
+export type ContentEditorReferencesSharedAction =
+    | ContentEditorReferencesSetAccountAction
+    | ContentEditorReferencesSetFileAction
+    | ContentEditorReferencesSetFileSignedUrlSearchAction;
 
 export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
     readonly type: "Merge";
@@ -811,10 +824,7 @@ export function reduceContentReferences(
 
 export function reduceContentReferencesShared<References extends ContentReferences>(
     references: References,
-    action:
-        | ContentEditorReferencesSetAccountAction
-        | ContentEditorReferencesSetFileAction
-        | ContentEditorReferencesSetFileSignedUrlSearchAction,
+    action: ContentEditorReferencesSharedAction,
 ): Replace<References, ContentReferences> {
     switch (action.type) {
         case "SetAccount": {
@@ -1073,6 +1083,116 @@ function contentEditorIsContinuouslyTypingPlugin() {
 
 export function isContinuouslyTypingInContentEditor(state: EditorState): boolean {
     return !!contentEditorIsContinuouslyTypingPluginKey.getState(state);
+}
+
+// Use an `ImmutableMap` since we'll need to `set()` every selection in the map
+// very often and we'll need to `get()` results from the map very rarely.
+type ContentEditorRememberSelectionWhileLoadingPluginState = ImmutableMap<
+    number,
+    {readonly promise: Promise<unknown>; readonly selection: Selection}
+>;
+
+const contentEditorRememberSelectionWhileLoadingPluginKey =
+    new PluginKey<ContentEditorRememberSelectionWhileLoadingPluginState>(
+        "contentEditorRememberSelectionWhileLoading",
+    );
+
+/**
+ * Sometimes the user triggers an action, we need to asynchronously process
+ * some data, then we can perform the action. For example, pasting some content
+ * that contains mentions (we need to fetch mention data) or dropping a file
+ * (we need to upload the file). In these cases frequently we want to perform
+ * the action on the user's selection when they triggered the action. So if the
+ * user triggers an action, then moves their selection, we apply the action
+ * result to their original selection.
+ *
+ * This plugin gives us this capability. It allows us to register a promise we
+ * want to keep track of. Whenever the document changes we map the selection
+ * keeping it relative to the current document node. When the promise resolves
+ * or rejects we remove the promise from our state. At any point between
+ * registering the promise and the promise resolving you may get the mapped
+ * selection for the promise representing the original position of the user's
+ * action.
+ */
+function contentEditorRememberSelectionWhileLoadingPlugin() {
+    return new Plugin<ContentEditorRememberSelectionWhileLoadingPluginState>({
+        key: contentEditorRememberSelectionWhileLoadingPluginKey,
+        state: {
+            init: () => ImmutableMap.empty(),
+            apply: (transaction, pluginState) => {
+                const action = transaction.getMeta(
+                    contentEditorRememberSelectionWhileLoadingPluginKey,
+                );
+                if (action) {
+                    if (action.type === "add") {
+                        pluginState = pluginState.set(action.key, action.value);
+                    } else if (action.type === "delete") {
+                        pluginState = pluginState.delete(action.key);
+                    } else {
+                        throw new InternalError(quote`Unrecognized action type ${action.type}`);
+                    }
+                }
+
+                if (!transaction.docChanged) return pluginState;
+
+                return pluginState.updateEvery(entry => {
+                    const newSelection = entry.selection.map(transaction.doc, transaction.mapping);
+                    if (newSelection === entry.selection) return entry;
+                    return {promise: entry.promise, selection: newSelection};
+                });
+            },
+        },
+    });
+}
+
+let nextContentEditorRememberSelectionWhileLoadingPluginStateKey = 1;
+
+export function rememberContentEditorSelectionWhileLoading(
+    view: EditorView,
+    promise: PromiseLike<unknown>,
+): {getSelection: () => Selection | null} {
+    const key = nextContentEditorRememberSelectionWhileLoadingPluginStateKey;
+    nextContentEditorRememberSelectionWhileLoadingPluginStateKey++;
+
+    let initialTransaction: Transaction | null = view.state.tr.setMeta(
+        contentEditorRememberSelectionWhileLoadingPluginKey,
+        {
+            type: "add",
+            key,
+            value: {
+                promise,
+                selection: view.state.selection,
+            },
+        },
+    );
+
+    const handleFinally = () => {
+        // In case we're dealing with a `PromiseImmediate` that's already resolved.
+        if (initialTransaction !== null) {
+            initialTransaction = null;
+            return;
+        }
+
+        view.dispatch(
+            view.state.tr.setMeta(contentEditorRememberSelectionWhileLoadingPluginKey, {
+                type: "delete",
+                key,
+            }),
+        );
+    };
+
+    promise.then(handleFinally, handleFinally);
+
+    if (initialTransaction !== null) {
+        view.dispatch(initialTransaction);
+        initialTransaction = null;
+    }
+
+    return {
+        getSelection: () =>
+            contentEditorRememberSelectionWhileLoadingPluginKey.getState(view.state)?.get(key)
+                ?.selection ?? null,
+    };
 }
 
 type ContentEditorCodeBlockStateValue = {

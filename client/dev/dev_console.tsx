@@ -9,11 +9,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const devConsole = {
     generateId,
+    generateChronologicalId,
     toggleColorScheme,
 };
 

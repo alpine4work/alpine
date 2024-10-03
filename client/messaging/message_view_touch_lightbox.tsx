@@ -382,7 +382,7 @@ export function MessageViewTouchLightbox<
                 onPress: async () => {
                     assert(message.payload.type === "Content");
 
-                    await writeContentToClipboard(space.id, message.payload.content);
+                    await writeContentToClipboard(space.id, message.payload.content, null);
                 },
             });
         }

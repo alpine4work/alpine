@@ -1,5 +1,6 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
@@ -15,14 +16,30 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {attachFileAsUploader} from "~/shared/rpc/files_rpc_definitions.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 // TODO(calebmer, #files): Loading spinner before file is attached
-export async function uploadFileFromContentEditor(
+export function uploadFileFromContentEditor(
     context: AppContext,
     spaceId: SpaceId,
+    attachmentTarget: FileAttachmentTarget,
+    inputFile: File,
+    options: {
+        onAttach: (options: {signedUrlSearch: string; fileStore: Store<FileModel>}) => void;
+    },
+) {
+    return context.tracer.withSpan("Content editor upload file", context =>
+        actuallyUploadFileFromContentEditor(context, spaceId, attachmentTarget, inputFile, options),
+    );
+}
+
+async function actuallyUploadFileFromContentEditor(
+    context: AppContext,
+    spaceId: SpaceId,
+    attachmentTarget: FileAttachmentTarget,
     inputFile: File,
     {
         onAttach,
@@ -176,6 +193,55 @@ export async function uploadFileFromContentEditor(
                                 }),
                             ),
                         };
+
+                        // Once the file has been created, attach it to our attachment target.
+                        // `FileUploadService` will continue to process the file while the client waits
+                        // for this RPC. By waiting here we also make sure we won't call `onAttach`
+                        // until after this RPC completes.
+                        //
+                        // We don't pass `attachmentTarget` as an argument to our upload route and
+                        // attach in `FileUploadService` because for security purposes
+                        // `FileUploadService` doesn't have access to any tables other than the files
+                        // table. And we need other tables to authorize the actor has access to the
+                        // attachment target (e.g. we need the document table to authorize the actor
+                        // has access to the document).
+                        //
+                        // We attach the file before persisting any changes to our content (e.g.
+                        // persisting document steps or saving a newly created post). This is important
+                        // since if other accounts are watching the attachment target in realtime then
+                        // the attachment needs to exist for them to be able to see the file. However,
+                        // by attaching early here it means we may successfully attach a file but fail
+                        // to persist the content changes.
+                        //
+                        // We should consider building a file garbage collector that looks at all
+                        // attachments and if they're still valid. Any attachments that aren't valid
+                        // should get cleaned up.
+                        //
+                        // ## Implementation gotcha for documents
+                        //
+                        // We don't currently detach files from documents. Once a file is attached to a
+                        // document it's there forever. Because even if you delete a file from a
+                        // document's content you can still go into version history and bring an old
+                        // version of the document back. Or you can see the file in a resolved document
+                        // comment thread's preview snippet. This is the same behavior as text added to
+                        // a document. Once you add text to a document it can be recovered at any point
+                        // by a document editor. This isn't great for our security posture. Some
+                        // thoughts:
+                        //
+                        // 1. We should add document deletion. Once a document is deleted then it's
+                        //    safe to cleanup all its files.
+                        //
+                        // 2. We could consider changing permissions so that if a file is removed from
+                        //    a document you need at least comment access to see it (comment access
+                        //    lets you see it in a comment thread snippet, edit access lets you restore
+                        //    from a previous version). However, if we give view-only users the ability
+                        //    to look at a document's version history then view-only users still need
+                        //    to see files that have been removed from the document.
+                        await attachFileAsUploader(context, {
+                            spaceId,
+                            fileId: event.fileId,
+                            target: attachmentTarget,
+                        });
                         break;
                     }
                     case "Finish": {

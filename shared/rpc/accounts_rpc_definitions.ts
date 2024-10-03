@@ -1,5 +1,5 @@
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -24,6 +24,17 @@ export const getAccounts = defineRpc({
     },
     output: {
         accounts: Schema.array(AccountModel.schema),
+    },
+});
+
+export const getAccountsIfExist = defineRpc({
+    name: "getAccountsIfExist",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        accountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    },
+    output: {
+        accounts: Schema.array(AccountModel.schema.nullable()),
     },
 });
 

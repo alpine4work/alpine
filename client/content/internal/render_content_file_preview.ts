@@ -23,12 +23,19 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
-    getFileFromAttachment,
     getFileSignedUrlFromAttachment,
+    getFileWithoutSignedUrlFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
 import {falseStore, trueStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
+
+let isContentFilePreviewSignedUrlRefreshDisabledForTest = false;
+
+export function disableContentFilePreviewSignedUrlRefreshForTest() {
+    assert(import.meta.jest);
+    isContentFilePreviewSignedUrlRefreshDisabledForTest = true;
+}
 
 const contentFileSignedUrlEagerExpirationDurationMs = 1000 * 20;
 const contentFileSignedUrlRefreshDurationMs =
@@ -93,7 +100,7 @@ export class ContentFilePreviewExpirationTimers {
     }
 
     /**
-     * Return a store which will switch to true ~20-40 seconds before the preview
+     * Return a store which will switch to true ~20-30 seconds before the preview
      * URL actually expires. Generally returns return the same referentially equal
      * store for the same expiration time in the preview URL.
      */
@@ -107,8 +114,8 @@ export class ContentFilePreviewExpirationTimers {
 
         const expirationTime = getContentReferencesFileSignedUrlExpirationTime(signedUrlSearch);
 
-        // Round to the nearest 20 seconds so we end up creating fewer stores.
-        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 20)) * (1000 * 20);
+        // Round to the nearest 10 seconds so we end up creating fewer stores.
+        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 10)) * (1000 * 10);
 
         const eagerExpirationTime =
             roundedExpirationTime - contentFileSignedUrlEagerExpirationDurationMs;
@@ -117,7 +124,7 @@ export class ContentFilePreviewExpirationTimers {
     }
 
     /**
-     * Return a store which will switch to true ~40-60 seconds before the preview
+     * Return a store which will switch to true ~40-50 seconds before the preview
      * URL expires. Generally returns the same referentially equal store for the
      * same expiration time in the preview URL.
      */
@@ -131,8 +138,8 @@ export class ContentFilePreviewExpirationTimers {
 
         const expirationTime = getContentReferencesFileSignedUrlExpirationTime(signedUrlSearch);
 
-        // Round to the nearest 20 seconds so we end up creating fewer stores.
-        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 20)) * (1000 * 20);
+        // Round to the nearest 10 seconds so we end up creating fewer stores.
+        const roundedExpirationTime = Math.floor(expirationTime / (1000 * 10)) * (1000 * 10);
 
         const refreshTime = roundedExpirationTime - contentFileSignedUrlRefreshDurationMs;
 
@@ -400,7 +407,10 @@ export function addContentFilePreviewBehavior(
     let pollTimeout: Timeout | null = null;
     let unsubscribeFromRefreshTimer: (() => void) | null = null;
 
-    // While our file is loading, poll for updates.
+    /* ========================================================================== *\
+     *                             Poll loading file                              *
+    \* ========================================================================== */
+
     if (reference?.file && reference.file.isLoading()) {
         let pollCount = 0;
         let pollErrorCount = 0;
@@ -426,7 +436,7 @@ export function addContentFilePreviewBehavior(
                 return;
             }
 
-            getFileFromAttachment(getContext(), {
+            getFileWithoutSignedUrlFromAttachment(getContext(), {
                 spaceId,
                 fileId: reference.file.id,
                 target: attachmentTarget,
@@ -458,9 +468,11 @@ export function addContentFilePreviewBehavior(
         schedulePoll();
     }
 
-    // If we have a preview URL then schedule a timer for the future when our file
-    // URL needs to be refreshed.
-    if (reference) {
+    /* ========================================================================== *\
+     *                             Refresh signed URL                             *
+    \* ========================================================================== */
+
+    if (!isContentFilePreviewSignedUrlRefreshDisabledForTest && reference) {
         const refreshTimerStore = expirationTimers.getRefreshTimerStore(reference.signedUrlSearch);
 
         const refresh = () => {
@@ -498,6 +510,10 @@ export function addContentFilePreviewBehavior(
             });
         }
     }
+
+    /* ========================================================================== *\
+     *                                Press event                                 *
+    \* ========================================================================== */
 
     let isPointerDownAndOver = false;
     let longPressTimeout: Timeout | null = null;

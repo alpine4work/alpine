@@ -5,6 +5,8 @@ import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/con
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -13,6 +15,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 export async function writeContentToClipboard(
     spaceId: SpaceId,
     content: ContentWithReferences,
+    fileAttachmentTarget: FileAttachmentTarget | null,
     slice: Slice = content.doc.slice(0),
 ) {
     const state = ContentEditorState.create(content)._getInternalState();
@@ -25,6 +28,7 @@ export async function writeContentToClipboard(
             schema,
             () => spaceId,
             () => content.references,
+            () => assertExists(fileAttachmentTarget),
         ),
         clipboardTextSerializer: slice =>
             contentEditorTextClipboardSerializer(

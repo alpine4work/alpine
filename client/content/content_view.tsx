@@ -830,6 +830,7 @@ export function ContentView({
                         writeContentToClipboard(
                             assertExists(spaceContext).space.id,
                             content,
+                            fileAttachmentTarget ?? null,
                             content.doc.slice(pos, pos + node.nodeSize),
                         ).catch(error => {
                             reporter.displayError("Couldn’t copy code", error);

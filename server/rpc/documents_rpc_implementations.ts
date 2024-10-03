@@ -21,14 +21,11 @@ import {
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
-import {attachFileAsUploader, attachFileFromAttachment} from "~/server/files/data/files_table.js";
-import {getFileAttachmentTargetAuthorizer} from "~/server/rpc/files_rpc_implementations.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {emptyDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -286,46 +283,6 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: (context, input) => {
             return getResolvedDocumentCommentThreadRanges(context, input);
-        },
-    },
-
-    attachFilesToDocument: {
-        visibility: ["DocumentCollaborationService"],
-        execute: async (context, input) => {
-            const {spaceId} = await authorizeDocumentAccess(context, input.documentId);
-
-            await runAllPromises(
-                input.files.map(async inputFile => {
-                    switch (inputFile.source.type) {
-                        case "Uploader": {
-                            await attachFileAsUploader(
-                                context,
-                                spaceId,
-                                inputFile.fileId,
-                                FileDocumentAuthorizer.bind({
-                                    type: "Document",
-                                    documentId: input.documentId,
-                                }),
-                            );
-                            break;
-                        }
-                        case "Attachment": {
-                            await attachFileFromAttachment(context, spaceId, inputFile.fileId, {
-                                from: getFileAttachmentTargetAuthorizer(inputFile.source.target),
-                                to: FileDocumentAuthorizer.bind({
-                                    type: "Document",
-                                    documentId: input.documentId,
-                                }),
-                            });
-                            break;
-                        }
-                        default:
-                            throw exhaustive(inputFile.source);
-                    }
-                }),
-            );
-
-            return {};
         },
     },
 });

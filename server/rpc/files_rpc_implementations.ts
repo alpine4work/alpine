@@ -1,6 +1,11 @@
 import {FileChatAuthorizer} from "~/server/chat/data/chat_table.js";
 import {FileDocumentAuthorizer} from "~/server/documents/data/documents_table.js";
-import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
+import {
+    FileAuthorizer,
+    attachFileAsUploader,
+    attachFileFromAttachment,
+    getFileFromAttachment,
+} from "~/server/files/data/files_table.js";
 import {FileChannelAuthorizer, FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
@@ -39,11 +44,36 @@ export default implementRpcs(definitions, {
                 getFileAttachmentTargetAuthorizer(input.target),
             );
 
+            // It's ok to generate a signed URL here since `getFileFromAttachment()`
+            // authorizes that the actor has access to the file.
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
+
+            return {
+                signedUrlSearch: signedUrl.search,
+                file,
+            };
+        },
+    },
+
+    getFileWithoutSignedUrlFromAttachment: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const file = await getFileFromAttachment(
+                context,
+                input.spaceId,
+                input.fileId,
+                getFileAttachmentTargetAuthorizer(input.target),
+            );
+
             return {
                 file,
             };
         },
     },
+
     getFileSignedUrlFromAttachment: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
@@ -62,6 +92,42 @@ export default implementRpcs(definitions, {
             );
 
             return {signedUrlSearch: signedUrl.search};
+        },
+    },
+
+    attachFileAsUploader: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await attachFileAsUploader(
+                context,
+                input.spaceId,
+                input.fileId,
+                getFileAttachmentTargetAuthorizer(input.target),
+            );
+
+            return {};
+        },
+    },
+
+    attachFileFromAttachment: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const file = await attachFileFromAttachment(context, input.spaceId, input.fileId, {
+                from: getFileAttachmentTargetAuthorizer(input.fromTarget),
+                to: getFileAttachmentTargetAuthorizer(input.toTarget),
+            });
+
+            // It's ok to generate a signed URL here since `attachFileFromAttachment()`
+            // authorizes that the actor has access to the file.
+            const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+                input.spaceId,
+                input.fileId,
+            );
+
+            return {
+                signedUrlSearch: signedUrl.search,
+                file,
+            };
         },
     },
 });

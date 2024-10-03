@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "content",
-    test_deps = ["//:node_modules/@testing-library/react"],
+    test_deps = [
+        "//:node_modules/@testing-library/react",
+        "//shared/tracer/dev",
+    ],
     visibility = [
         "//admin/eslint:__pkg__",
         "//app:__subpackages__",

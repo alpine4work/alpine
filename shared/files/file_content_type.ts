@@ -319,6 +319,18 @@ export type FileMp4AudioContentType = "audio/mp4";
 
 export type FileWebUnsafeAudioContentType = "audio/ogg";
 
+const fileWebSafeAudioContentTypes: {[Key in FileWebSafeAudioContentType]: true} = {
+    "audio/mpeg": true,
+    "audio/wav": true,
+    "audio/webm": true,
+};
+
+export function isFileWebSafeAudioContentType(
+    contentType: FileContentType,
+): contentType is FileWebSafeAudioContentType {
+    return contentType in fileWebSafeAudioContentTypes;
+}
+
 /**
  * Content types representing code. Code files are considered to be text based
  * and rendered with a UTF-8 character encoding.

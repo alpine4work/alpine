@@ -1,11 +1,17 @@
-import {Node} from "prosemirror-model";
+import {Fragment, Node, Slice} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
+import {
+    ContentMentionAccountId,
+    DocumentCommentThreadId,
+    FileId,
+} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorVisitor,
+    visitProsemirrorFragment,
     visitProsemirrorNode,
+    visitProsemirrorSlice,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -36,6 +42,18 @@ export function isEmptyContentReferencedIds(referencedIds: ContentReferencedIds)
 export function getContentReferencedIdsForNode(node: Node): ContentReferencedIds {
     return collectContentReferencedIds(visitor => {
         visitProsemirrorNode(node, visitor);
+    });
+}
+
+export function getContentReferencedIdsForFragment(fragment: Fragment): ContentReferencedIds {
+    return collectContentReferencedIds(visitor => {
+        visitProsemirrorFragment(fragment, visitor);
+    });
+}
+
+export function getContentReferencedIdsForSlice(slice: Slice): ContentReferencedIds {
+    return collectContentReferencedIds(visitor => {
+        visitProsemirrorSlice(slice, visitor);
     });
 }
 

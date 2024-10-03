@@ -1,0 +1,62 @@
+import {
+    FileAttachmentTarget,
+    deserializeFileAttachmentTargetString,
+    serializeFileAttachmentTargetString,
+} from "~/shared/files/file_attachment_target.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.js";
+import {generateId} from "~/shared/id/id.js";
+
+const fileAttachmentTargetByType: {
+    [Key in FileAttachmentTarget["type"]]: FileAttachmentTarget & {type: Key};
+} = {
+    ChatMessage: {
+        type: "ChatMessage",
+        chatId: generateId(),
+        messageIndex: 42,
+    },
+    ChannelDescription: {
+        type: "ChannelDescription",
+        channelId: generateId(),
+    },
+    Document: {
+        type: "Document",
+        documentId: generateId(),
+    },
+    DocumentComment: {
+        type: "DocumentComment",
+        documentId: generateId(),
+        commentThreadId: generateId(),
+        commentIndex: 42,
+    },
+    Post: {
+        type: "Post",
+        postId: generateId(),
+    },
+    PostComment: {
+        type: "PostComment",
+        postId: generateId(),
+        commentIndex: 42,
+    },
+    TaskNotes: {
+        type: "TaskNotes",
+        taskId: generateId(),
+    },
+    TaskComment: {
+        type: "TaskComment",
+        taskId: generateId(),
+        commentIndex: 42,
+    },
+};
+
+for (const [type, target] of Object.entries(fileAttachmentTargetByType)) {
+    test(`can serialize attachment target type "${type}" to base64 string and back`, () => {
+        expect(target.type).toEqual(type);
+
+        const targetString = serializeFileAttachmentTargetString(target);
+
+        // Make sure the string is base64.
+        decodeBase64(targetString, "Rfc4648Url");
+
+        expect(deserializeFileAttachmentTargetString(targetString)).toEqual(target);
+    });
+}

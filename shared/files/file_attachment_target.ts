@@ -1,3 +1,8 @@
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
 import {
     ChannelId,
     ChatId,
@@ -84,3 +89,208 @@ export const FileAttachmentTargetSchema: Schema<FileAttachmentTarget> = Schema.u
         commentIndex: Schema.integer,
     }),
 });
+
+export function serializeFileAttachmentTargetString(target: FileAttachmentTarget): string {
+    const bytes = serializeFileAttachmentTargetBytes(target);
+    return encodeBase64(bytes, "Rfc4648Url");
+}
+
+export function deserializeFileAttachmentTargetString(targetString: string): FileAttachmentTarget {
+    const bytes = decodeBase64(targetString, "Rfc4648Url");
+    return deserializeFileAttachmentTargetBytes(bytes);
+}
+
+function serializeFileAttachmentTargetBytes(target: FileAttachmentTarget): Uint8Array {
+    switch (target.type) {
+        case "ChatMessage": {
+            const bytes = new Uint8Array(1 + idByteLength + 8);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 1;
+            byteOffset += 1;
+
+            decodeIdInto(target.chatId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.messageIndex));
+            byteOffset += 8;
+
+            return bytes;
+        }
+        case "ChannelDescription": {
+            const bytes = new Uint8Array(1 + idByteLength);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 2;
+            byteOffset += 1;
+
+            decodeIdInto(target.channelId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return bytes;
+        }
+        case "Document": {
+            const bytes = new Uint8Array(1 + idByteLength);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 3;
+            byteOffset += 1;
+
+            decodeIdInto(target.documentId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return bytes;
+        }
+        case "DocumentComment": {
+            const bytes = new Uint8Array(1 + idByteLength + idByteLength + 8);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 4;
+            byteOffset += 1;
+
+            decodeIdInto(target.documentId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            decodeIdInto(target.commentThreadId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.commentIndex));
+            byteOffset += 8;
+
+            return bytes;
+        }
+        case "Post": {
+            const bytes = new Uint8Array(1 + idByteLength);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 5;
+            byteOffset += 1;
+
+            decodeIdInto(target.postId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return bytes;
+        }
+        case "PostComment": {
+            const bytes = new Uint8Array(1 + idByteLength + 8);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 6;
+            byteOffset += 1;
+
+            decodeIdInto(target.postId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.commentIndex));
+            byteOffset += 8;
+
+            return bytes;
+        }
+        case "TaskNotes": {
+            const bytes = new Uint8Array(1 + idByteLength);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 7;
+            byteOffset += 1;
+
+            decodeIdInto(target.taskId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return bytes;
+        }
+        case "TaskComment": {
+            const bytes = new Uint8Array(1 + idByteLength + 8);
+            let byteOffset = 0;
+
+            bytes[byteOffset] = 8;
+            byteOffset += 1;
+
+            decodeIdInto(target.taskId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            new DataView(bytes.buffer).setBigInt64(byteOffset, BigInt(target.commentIndex));
+            byteOffset += 8;
+
+            return bytes;
+        }
+        default:
+            throw exhaustive(target);
+    }
+}
+
+function deserializeFileAttachmentTargetBytes(bytes: Uint8Array): FileAttachmentTarget {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let byteOffset = 0;
+
+    const firstByte = bytes[0];
+    byteOffset += 1;
+    if (firstByte === undefined) throw new InvalidArgumentError("Empty bytes");
+
+    switch (firstByte) {
+        case 1: {
+            const chatId = encodeId<ChatId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const messageIndex = Number(view.getBigInt64(byteOffset));
+            byteOffset += 8;
+
+            return {type: "ChatMessage", chatId, messageIndex};
+        }
+        case 2: {
+            const channelId = encodeId<ChannelId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return {type: "ChannelDescription", channelId};
+        }
+        case 3: {
+            const documentId = encodeId<DocumentId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return {type: "Document", documentId};
+        }
+        case 4: {
+            const documentId = encodeId<DocumentId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const commentThreadId = encodeId<DocumentCommentThreadId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const commentIndex = Number(view.getBigInt64(byteOffset));
+            byteOffset += 8;
+
+            return {type: "DocumentComment", documentId, commentThreadId, commentIndex};
+        }
+        case 5: {
+            const postId = encodeId<PostId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return {type: "Post", postId};
+        }
+        case 6: {
+            const postId = encodeId<PostId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const commentIndex = Number(view.getBigInt64(byteOffset));
+            byteOffset += 8;
+
+            return {type: "PostComment", postId, commentIndex};
+        }
+        case 7: {
+            const taskId = encodeId<TaskId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            return {type: "TaskNotes", taskId};
+        }
+        case 8: {
+            const taskId = encodeId<TaskId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const commentIndex = Number(view.getBigInt64(byteOffset));
+            byteOffset += 8;
+
+            return {type: "TaskComment", taskId, commentIndex};
+        }
+        default:
+            throw new InvalidArgumentError(quote`Invalid first byte: ${firstByte}`);
+    }
+}

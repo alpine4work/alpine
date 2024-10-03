@@ -49,16 +49,7 @@ async function main() {
     const context: AppContext = Context.new({
         tracer: new TracerContextModule(tracer),
         rpc: new ClientRpcContextModule(),
-        react: new ReactContextModule({
-            reportRenderedError: (tracer, error) => {
-                // Log after a microtask so we don't get the React component trace in the error
-                // log. The trace will always point to our error message renderer which
-                // isn't useful.
-                scheduleMicrotask(() => {
-                    tracer.getRoot().logUncaughtException("Rendered error", error);
-                });
-            },
-        }),
+        react: ReactContextModule.newForClient(),
     });
 
     // Don't block the browser's main thread with the initial render.

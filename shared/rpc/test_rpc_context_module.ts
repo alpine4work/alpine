@@ -53,8 +53,11 @@ export class TestRpcContextModule extends RpcContextModuleBase {
 
     public static getExecutions<Input, Output>(
         definition: RpcDefinition<Input, Output>,
-    ): ReadonlyArray<Input> {
-        return (testRpcExecutions.get(definition) ?? []).map(execution => execution.input);
+    ): ReadonlyArray<{
+        readonly input: Input;
+        readonly outputPromiseResolver: PromiseResolver<Output>;
+    }> {
+        return testRpcExecutions.get(definition) ?? [];
     }
 
     public static resolveLastExecution<Input, Output>(

@@ -275,23 +275,3 @@ export const getResolvedDocumentCommentThreadRanges = defineRpc({
         ranges: Schema.array(AddMarksAfterRemoveAllStepRangeSchema),
     },
 });
-
-export const attachFilesToDocument = defineRpc({
-    name: "attachFilesToDocument",
-    input: {
-        documentId: Schema.id<DocumentId>(),
-        files: Schema.array(
-            Schema.object({
-                fileId: Schema.id<FileId>(),
-                source: Schema.union({
-                    Uploader: Schema.object({type: Schema.value("Uploader")}),
-                    Attachment: Schema.object({
-                        type: Schema.value("Attachment"),
-                        target: FileAttachmentTargetSchema,
-                    }),
-                }),
-            }),
-        ),
-    },
-    output: {},
-});

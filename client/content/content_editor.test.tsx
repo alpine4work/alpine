@@ -19,7 +19,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 
 // eslint-disable-next-line testing-library/render-result-naming-convention
-const fileAttachmentTarget: FileAttachmentTarget = markMemoIfNotRendering({
+const fileAttachmentTarget = markMemoIfNotRendering<FileAttachmentTarget>({
     type: "Document",
     documentId: generateId(),
 });
