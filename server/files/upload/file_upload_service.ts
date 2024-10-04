@@ -226,11 +226,15 @@ export function createFileUploadService(
 
                     res.writeHead(statusCode, {"content-type": "text/plain"});
 
-                    if (process.env.NODE_ENV !== "development" || !(error instanceof Error)) {
+                    if (process.env.NODE_ENV !== "development") {
                         res.end(`${statusCode} ${statusMessage}`);
                     } else {
                         res.end(
-                            `${statusCode} ${statusMessage}\n\n${error.stack ?? error.message}`,
+                            `${statusCode} ${statusMessage}\n\n${
+                                error instanceof Error
+                                    ? error.stack ?? error.message
+                                    : String(error)
+                            }`,
                         );
                     }
                 }

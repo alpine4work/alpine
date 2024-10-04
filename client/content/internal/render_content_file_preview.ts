@@ -14,6 +14,10 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
+import {
+    maxFilePreviewAspectRatio,
+    minFilePreviewAspectRatio,
+} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -259,29 +263,69 @@ export function renderContentFilePreview(
                         reference.signedUrlSearch
                     }${reference.file.preview.content !== undefined ? "&variant=preview" : ""}`;
 
+                    let image1xSource: string;
+                    let image2xSource: string;
+                    let image3xSource: string;
+
                     // Don't resize vector images. They're already infinitely resizable.
                     const isVectorImage =
                         (reference.file.preview.content?.contentType ??
                             reference.file.contentType) === "image/svg+xml";
 
-                    const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
-                    const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
-                    const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
+                    if (isVectorImage) {
+                        image1xSource = imageSourceBase;
+                        image2xSource = imageSourceBase;
+                        image3xSource = imageSourceBase;
+                    } else {
+                        const image1xWidth = getFilePreviewImageResizeWidth(layout.width);
+                        const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
+                        const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
 
-                    const image1xSource =
-                        reference.file.preview.size.width <= image1xWidth || isVectorImage
-                            ? `${imageSourceBase}`
-                            : `${imageSourceBase}&width=${image1xWidth}`;
+                        // If we're outside the aspect ratio range then we always want to resize our
+                        // file. Since resizing will also crop the file to our aspect ratio range. This
+                        // will result in a smaller file to download.
+                        const aspectRatio =
+                            reference.file.preview.size.width / reference.file.preview.size.height;
+                        const isOutsideAspectRatioRange =
+                            aspectRatio < minFilePreviewAspectRatio ||
+                            aspectRatio > maxFilePreviewAspectRatio;
 
-                    const image2xSource =
-                        reference.file.preview.size.width <= image2xWidth || isVectorImage
-                            ? `${imageSourceBase}`
-                            : `${imageSourceBase}&width=${image2xWidth}`;
+                        if (!isOutsideAspectRatioRange) {
+                            image1xSource =
+                                reference.file.preview.size.width <= image1xWidth
+                                    ? imageSourceBase
+                                    : `${imageSourceBase}&width=${image1xWidth}`;
 
-                    const image3xSource =
-                        reference.file.preview.size.width <= image3xWidth || isVectorImage
-                            ? `${imageSourceBase}`
-                            : `${imageSourceBase}&width=${image3xWidth}`;
+                            image2xSource =
+                                reference.file.preview.size.width <= image2xWidth
+                                    ? imageSourceBase
+                                    : `${imageSourceBase}&width=${image2xWidth}`;
+
+                            image3xSource =
+                                reference.file.preview.size.width <= image3xWidth
+                                    ? imageSourceBase
+                                    : `${imageSourceBase}&width=${image3xWidth}`;
+                        } else {
+                            const defaultWidth = getFilePreviewImageResizeWidth(
+                                reference.file.preview.size.width,
+                            );
+
+                            image1xSource =
+                                reference.file.preview.size.width <= image1xWidth
+                                    ? `${imageSourceBase}&width=${defaultWidth}`
+                                    : `${imageSourceBase}&width=${image1xWidth}`;
+
+                            image2xSource =
+                                reference.file.preview.size.width <= image2xWidth
+                                    ? `${imageSourceBase}&width=${defaultWidth}`
+                                    : `${imageSourceBase}&width=${image2xWidth}`;
+
+                            image3xSource =
+                                reference.file.preview.size.width <= image3xWidth
+                                    ? `${imageSourceBase}&width=${defaultWidth}`
+                                    : `${imageSourceBase}&width=${image3xWidth}`;
+                        }
+                    }
 
                     const imageHtml = new HtmlElementGenerator("img");
                     imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));

@@ -24,6 +24,10 @@ import {
     UnknownError,
 } from "~/shared/error/error.js";
 import {FileContentType, isFileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
+import {
+    maxFilePreviewAspectRatio,
+    minFilePreviewAspectRatio,
+} from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -84,6 +88,9 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * which is great for when a seekable input is required! We can provide a
  * presigned Cloudflare R2 URL to FFmpeg and it'll efficiently load the data
  * it needs.
+ *
+ * Also `sharp` only supports still images. So to resize animated GIFs and keep
+ * the animation we need to use FFmpeg.
  *
  * [1]: https://medium.com/@julienetienne/why-you-should-use-avif-over-jpeg-webp-png-and-gif-in-2024-5603ac9d8781
  * [2]: https://jakearchibald.com/2020/avif-has-landed
@@ -217,9 +224,26 @@ export async function resizeFile(
             await parentSpan.withSpan("FFmpeg resize image", async span => {
                 span.addData({common: {width}});
 
-                // TODO(calebmer, #files): Have resize crop as well for images beyond the
-                // aspect ratio limit?
-                // Also generate placeholder only in the aspect ratio limits.
+                const filter = [
+                    // Crop the image so it doesn't exceed our min/max aspect ratio. We render the
+                    // resized image in a preview so generating extra image that won't be displayed
+                    // in the preview box is wasteful since we'd need to send those bytes to the
+                    // client only to crop them out.
+                    //
+                    // We position the cropped image as if `object-position: center top` is set.
+                    //
+                    // https://ffmpeg.org/ffmpeg-filters.html#crop
+                    `crop='h=min(ih,iw/${minFilePreviewAspectRatio})':'w=min(iw,ih*${maxFilePreviewAspectRatio})':y=0:x=iw/2-ow/2`,
+                    // Actually perform the resize! Some notes:
+                    //
+                    // - Maintain the aspect ratio by setting -1 for height
+                    // - Avoid upscaling with the `min()` expression
+                    //
+                    // https://trac.ffmpeg.org/wiki/Scaling
+                    `scale='min(${width},iw)':-1`,
+                ].join(",");
+
+                // TODO(calebmer, #files): Generate placeholder only in the aspect ratio limits.
                 const subprocess = spawn(
                     ffmpegExecutablePath,
                     [
@@ -231,6 +255,47 @@ export async function resizeFile(
                         // in `FileUploadService`.
                         "-threads",
                         "2",
+                        // Dealing with the `.avif` format in FFmpeg is annoying. A transparent `.avif`
+                        // image has two streams, a grayscale alpha channel stream and an color
+                        // stream. Whereas a transparent `.png` image has just one RGBA color stream.
+                        //
+                        // So for any transparent image we need to make sure we have two streams that
+                        // go into the `.avif` encoder. The first being the color stream and the second
+                        // being the alpha stream.
+                        //
+                        // - `.jpeg` files don't have transparency so we apply the filter to the one
+                        //   stream and that's it
+                        //
+                        // - `.avif` files with transparency have two streams. The first is their alpha
+                        //   grayscale stream and the second is their color stream. We need to flip the
+                        //   order of these streams before passing them into our `.avif` encoder.
+                        //
+                        // - Any file type that's not `.avif` (e.g. `.png`) we create a second stream
+                        //   with the `alphaextract` filter to just get the alpha part of the image.
+                        //   Then we pass those two streams to our `.avif` encoder.
+                        //
+                        //
+                        // NOTE(calebmer, 2024-10-04): Animated AVIF files I've found have four
+                        // streams. The first two streams appear to be still screenshots and the second
+                        // two streams are the animated grayscale/color streams. So I'm not sure if
+                        // non-animated AVIFs are consistently 2 streams in the order grayscale, color
+                        // in FFmpeg or just what I've tested with. Likewise I'm not sure if animated
+                        // AVIFs are consistently 4 streams in a predictable order. Hopefully, FFmpeg
+                        // always returns AVIF streams in a consistent order. If not we'll need to use
+                        // `ffprobe` to figure out the right streams to use. But that's annoying since
+                        // we don't have the input file data available in memory.
+                        ...(contentType === "image/jpeg"
+                            ? ["-vf", filter]
+                            : contentType === "image/avif"
+                            ? ["-map", "0:v:1?", "-map", "0:v:0", "-vf", filter]
+                            : [
+                                  "-filter_complex",
+                                  `[0:v]${filter}[out];[0:v]alphaextract,${filter}[out_alpha]`,
+                                  "-map",
+                                  "[out]",
+                                  "-map",
+                                  "[out_alpha]",
+                              ]),
                         // Output file is in `.avif` format.
                         //
                         // AVIF is our preferred format for generating preview images ([source][1],
@@ -259,14 +324,6 @@ export async function resizeFile(
                         // https://trac.ffmpeg.org/wiki/Encode/AV1#ControllingSpeedQuality
                         "-cpu-used",
                         "6",
-                        // Actually perform the resize! Some notes:
-                        //
-                        // - Maintain the aspect ratio by setting -1 for height
-                        // - Avoid upscaling with the `min()` expression
-                        //
-                        // https://trac.ffmpeg.org/wiki/Scaling
-                        "-vf",
-                        `scale='min(${width},iw)':-1`,
                         // We must output to a file. We can't output to stdout when taking a screenshot
                         // or else we get the error "[avif] muxer does not support non seekable
                         // output".

@@ -4,6 +4,7 @@ import fsWithoutPromises from "fs";
 import fs from "fs/promises";
 import getPort from "get-port";
 import {Server} from "http";
+import looksSame from "looks-same";
 import net from "net";
 import {join as joinPath} from "path";
 import sharp from "sharp";
@@ -26,6 +27,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {
     FailedPreconditionError,
+    InternalError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
@@ -35,8 +37,10 @@ import {FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {
@@ -50,6 +54,8 @@ const jpegTestFixturePath = joinPath(
     runfilesPath,
     "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
 );
+
+const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR));
 
 let serverTokenAgent: TokenAgent;
 let tokenAgent: TokenAgent;
@@ -1293,7 +1299,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     format: "heif",
                     size: expect.any(Number),
                     width: 400,
-                    height: 300,
+                    height: 299,
                     space: "srgb",
                     channels: 3,
                     depth: "uchar",
@@ -1323,7 +1329,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     format: "heif",
                     size: expect.any(Number),
                     width: 500,
-                    height: 375,
+                    height: 374,
                     space: "srgb",
                     channels: 3,
                     depth: "uchar",
@@ -1408,14 +1414,14 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     width: 200,
                     height: 150,
                     space: "srgb",
-                    channels: 3,
+                    channels: 4,
                     depth: "uchar",
                     isProgressive: false,
                     pages: 1,
                     pagePrimary: 0,
                     compression: "av1",
                     hasProfile: false,
-                    hasAlpha: false,
+                    hasAlpha: true,
                 });
             }
 
@@ -1438,14 +1444,14 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     width: 336,
                     height: 252,
                     space: "srgb",
-                    channels: 3,
+                    channels: 4,
                     depth: "uchar",
                     isProgressive: false,
                     pages: 1,
                     pagePrimary: 0,
                     compression: "av1",
                     hasProfile: false,
-                    hasAlpha: false,
+                    hasAlpha: true,
                 });
             }
         });
@@ -1539,6 +1545,27 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 height: 200,
                                 start_time: "0.000000",
                                 avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 200,
+                                height: 200,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gray",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 200,
+                                height: 200,
+                                start_time: "0.000000",
+                                avg_frame_rate: "50/3",
+                                pix_fmt: "gbrp",
                             }),
                             expect.objectContaining({
                                 codec_name: "av1",
@@ -1548,6 +1575,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 start_time: "0.000000",
                                 duration: "1.980000",
                                 avg_frame_rate: "50/3",
+                                pix_fmt: "gray",
                             }),
                         ],
                     }),
@@ -1591,6 +1619,27 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 height: 300,
                                 start_time: "0.000000",
                                 avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 300,
+                                height: 300,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gray",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 300,
+                                height: 300,
+                                start_time: "0.000000",
+                                avg_frame_rate: "50/3",
+                                pix_fmt: "gbrp",
                             }),
                             expect.objectContaining({
                                 codec_name: "av1",
@@ -1600,6 +1649,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 start_time: "0.000000",
                                 duration: "1.980000",
                                 avg_frame_rate: "50/3",
+                                pix_fmt: "gray",
                             }),
                         ],
                     }),
@@ -1643,6 +1693,27 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 height: 400,
                                 start_time: "0.000000",
                                 avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 400,
+                                height: 400,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gray",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 400,
+                                height: 400,
+                                start_time: "0.000000",
+                                avg_frame_rate: "50/3",
+                                pix_fmt: "gbrp",
                             }),
                             expect.objectContaining({
                                 codec_name: "av1",
@@ -1652,6 +1723,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 start_time: "0.000000",
                                 duration: "1.980000",
                                 avg_frame_rate: "50/3",
+                                pix_fmt: "gray",
                             }),
                         ],
                     }),
@@ -1748,6 +1820,27 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 height: 40,
                                 start_time: "0.000000",
                                 avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 40,
+                                height: 40,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gray",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 40,
+                                height: 40,
+                                start_time: "0.000000",
+                                avg_frame_rate: "40/3",
+                                pix_fmt: "gbrp",
                             }),
                             expect.objectContaining({
                                 codec_name: "av1",
@@ -1757,6 +1850,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 start_time: "0.000000",
                                 duration: "1.500000",
                                 avg_frame_rate: "40/3",
+                                pix_fmt: "gray",
                             }),
                         ],
                     }),
@@ -1800,6 +1894,27 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 height: 80,
                                 start_time: "0.000000",
                                 avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 80,
+                                height: 80,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gray",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 80,
+                                height: 80,
+                                start_time: "0.000000",
+                                avg_frame_rate: "40/3",
+                                pix_fmt: "gbrp",
                             }),
                             expect.objectContaining({
                                 codec_name: "av1",
@@ -1809,6 +1924,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 start_time: "0.000000",
                                 duration: "1.500000",
                                 avg_frame_rate: "40/3",
+                                pix_fmt: "gray",
                             }),
                         ],
                     }),
@@ -1852,6 +1968,27 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 height: 100,
                                 start_time: "0.000000",
                                 avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 100,
+                                height: 100,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gray",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 100,
+                                height: 100,
+                                start_time: "0.000000",
+                                avg_frame_rate: "40/3",
+                                pix_fmt: "gbrp",
                             }),
                             expect.objectContaining({
                                 codec_name: "av1",
@@ -1861,6 +1998,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                                 start_time: "0.000000",
                                 duration: "1.500000",
                                 avg_frame_rate: "40/3",
+                                pix_fmt: "gray",
                             }),
                         ],
                     }),
@@ -2010,6 +2148,153 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 });
             }
         });
+
+        test("can resize an AVIF image with transparency", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+                method: "POST",
+                headers: {
+                    authorization: await authorization(session),
+                    "content-type": "image/avif",
+                },
+                body: await fs.readFile(
+                    joinPath(
+                        runfilesPath,
+                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.avif",
+                    ),
+                ),
+            });
+            const uploadResponseText = await uploadResponse.text();
+
+            expect(uploadResponse.status).toEqual(200);
+            expect(massageHeaders(uploadResponse.headers)).toEqual({
+                "content-type": "application/x-ndjson",
+            });
+            const uploadEvents = parseJsonEvents(uploadResponseText);
+            expect(
+                uploadEvents.filter(
+                    event => event.type === "Start" || event.type === "ImagePreviewSize",
+                ),
+            ).toEqual([
+                {
+                    type: "Start",
+                    hasAlternative: false,
+                    hasPreview: {
+                        type: "Image",
+                        hasContent: false,
+                        hasVideoDuration: false,
+                    },
+                    fileId: expect.any(String),
+                    signedUrlSearch: "",
+                },
+                {type: "ImagePreviewSize", size: {width: 336, height: 252, scale: 1}},
+            ]);
+
+            const fileId = assertExists(
+                iterableFirst(
+                    filterMapIterable(uploadEvents, event =>
+                        event.type === "Start" ? event.fileId : undefined,
+                    ),
+                ),
+            );
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                expect(await sharp(resizeBody).metadata()).toEqual({
+                    format: "heif",
+                    size: expect.any(Number),
+                    width: 200,
+                    height: 150,
+                    space: "srgb",
+                    channels: 4,
+                    depth: "uchar",
+                    isProgressive: false,
+                    pages: 1,
+                    pagePrimary: 0,
+                    compression: "av1",
+                    hasProfile: false,
+                    hasAlpha: true,
+                });
+            }
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                expect(await sharp(resizeBody).metadata()).toEqual({
+                    format: "heif",
+                    size: expect.any(Number),
+                    width: 336,
+                    height: 252,
+                    space: "srgb",
+                    channels: 4,
+                    depth: "uchar",
+                    isProgressive: false,
+                    pages: 1,
+                    pagePrimary: 0,
+                    compression: "av1",
+                    hasProfile: false,
+                    hasAlpha: true,
+                });
+            }
+        });
+
+        test("can resize an animated AVIF image", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+                method: "POST",
+                headers: {
+                    authorization: await authorization(session),
+                    "content-type": "image/avif",
+                },
+                body: await fs.readFile(
+                    joinPath(
+                        runfilesPath,
+                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_bouncing_beach_ball.avif",
+                    ),
+                ),
+            });
+            const uploadResponseText = await uploadResponse.text();
+
+            expect(uploadResponse.status).toEqual(200);
+            expect(massageHeaders(uploadResponse.headers)).toEqual({
+                "content-type": "application/x-ndjson",
+            });
+            const uploadEvents = parseJsonEvents(uploadResponseText);
+
+            // TODO(calebmer): Support animated `.avif` files. `sharp` doesn't support
+            // animated `.avif` files. So we'll need a separate image processor
+            // implementation that uses FFmpeg.
+            expect(
+                findMapIterable(uploadEvents, event =>
+                    event.type === "Error" ? event.error : undefined,
+                ),
+            ).toEqual(new InvalidArgumentError("Input buffer contains unsupported image format"));
+        });
     },
     "image/webp": () => {
         test("can resize a WEBP image", async () => {
@@ -2082,14 +2367,14 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     width: 200,
                     height: 150,
                     space: "srgb",
-                    channels: 3,
+                    channels: 4,
                     depth: "uchar",
                     isProgressive: false,
                     pages: 1,
                     pagePrimary: 0,
                     compression: "av1",
                     hasProfile: false,
-                    hasAlpha: false,
+                    hasAlpha: true,
                 });
             }
 
@@ -2112,14 +2397,14 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     width: 400,
                     height: 300,
                     space: "srgb",
-                    channels: 3,
+                    channels: 4,
                     depth: "uchar",
                     isProgressive: false,
                     pages: 1,
                     pagePrimary: 0,
                     compression: "av1",
                     hasProfile: false,
-                    hasAlpha: false,
+                    hasAlpha: true,
                 });
             }
 
@@ -2142,14 +2427,14 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     width: 500,
                     height: 375,
                     space: "srgb",
-                    channels: 3,
+                    channels: 4,
                     depth: "uchar",
                     isProgressive: false,
                     pages: 1,
                     pagePrimary: 0,
                     compression: "av1",
                     hasProfile: false,
-                    hasAlpha: false,
+                    hasAlpha: true,
                 });
             }
         });
@@ -2227,7 +2512,7 @@ for (const tests of Object.values(testsByFileWebSafeImageContentType)) {
     tests();
 }
 
-test("can resize a HEIC image", async () => {
+test("can resize a HEIC image's preview", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2377,6 +2662,333 @@ test("can resize a HEIC image", async () => {
             compression: "av1",
             hasProfile: false,
             hasAlpha: false,
+        });
+    }
+});
+
+test("will crop when resizing an image beyond our vertical aspect ratio limit", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/avif",
+        },
+        body: await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying.avif",
+            ),
+        ),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(
+        uploadEvents.filter(event => event.type === "Start" || event.type === "ImagePreviewSize"),
+    ).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            signedUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 400, height: 4778, scale: 1}},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=100`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 100,
+            height: 238,
+            space: "srgb",
+            channels: 4,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: true,
+        });
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=300`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+
+        const actualContents = Buffer.from(resizeBody);
+
+        const expectedPath = joinPath(
+            runfilesPath,
+            "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying_cropped.avif",
+        );
+
+        const result = await looksSame(actualContents, expectedPath, {
+            tolerance: 35,
+            createDiffImage: true,
+        });
+
+        if (!result.equal) {
+            const testlogsOutputDirectoryPath = joinPath(
+                testlogsPath,
+                "file_resize_vertical_aspect_ratio_limit",
+            );
+
+            await fs.mkdir(testlogsOutputDirectoryPath, {recursive: true});
+
+            await runAllPromises([
+                fs.copyFile(expectedPath, joinPath(testlogsOutputDirectoryPath, "expected.avif")),
+                fs.writeFile(joinPath(testlogsOutputDirectoryPath, "actual.avif"), actualContents),
+                result.diffImage.save(joinPath(testlogsOutputDirectoryPath, "diff.avif")),
+            ]);
+
+            throw new InternalError(
+                "Actual resized image doesn't look like expected resized image, diff image saved to `bazel-testlogs`",
+            );
+        }
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=500`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 400,
+            height: 952,
+            space: "srgb",
+            channels: 4,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: true,
+        });
+    }
+});
+
+test("will crop when resizing an image beyond our horizontal aspect ratio limit", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+        method: "POST",
+        headers: {
+            authorization: await authorization(session),
+            "content-type": "image/avif",
+        },
+        body: await fs.readFile(
+            joinPath(
+                runfilesPath,
+                "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying_rotated.avif",
+            ),
+        ),
+    });
+    const uploadResponseText = await uploadResponse.text();
+
+    expect(uploadResponse.status).toEqual(200);
+    expect(massageHeaders(uploadResponse.headers)).toEqual({
+        "content-type": "application/x-ndjson",
+    });
+    const uploadEvents = parseJsonEvents(uploadResponseText);
+    expect(
+        uploadEvents.filter(event => event.type === "Start" || event.type === "ImagePreviewSize"),
+    ).toEqual([
+        {
+            type: "Start",
+            hasAlternative: false,
+            hasPreview: {
+                type: "Image",
+                hasContent: false,
+                hasVideoDuration: false,
+            },
+            fileId: expect.any(String),
+            signedUrlSearch: "",
+        },
+        {type: "ImagePreviewSize", size: {width: 4778, height: 400, scale: 1}},
+    ]);
+
+    const fileId = assertExists(
+        iterableFirst(
+            filterMapIterable(uploadEvents, event =>
+                event.type === "Start" ? event.fileId : undefined,
+            ),
+        ),
+    );
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 600,
+            height: 252,
+            space: "srgb",
+            channels: 4,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: true,
+        });
+
+        const actualContents = Buffer.from(resizeBody);
+
+        const expectedPath = joinPath(
+            runfilesPath,
+            "cyberworlds/server/files/upload/test_fixtures/cooksmarts_guide_to_stir_frying_rotated_cropped.avif",
+        );
+
+        const result = await looksSame(actualContents, expectedPath, {
+            tolerance: 35,
+            createDiffImage: true,
+        });
+
+        if (!result.equal) {
+            const testlogsOutputDirectoryPath = joinPath(
+                testlogsPath,
+                "file_resize_horizontal_aspect_ratio_limit",
+            );
+
+            await fs.mkdir(testlogsOutputDirectoryPath, {recursive: true});
+
+            await runAllPromises([
+                fs.copyFile(expectedPath, joinPath(testlogsOutputDirectoryPath, "expected.avif")),
+                fs.writeFile(joinPath(testlogsOutputDirectoryPath, "actual.avif"), actualContents),
+                result.diffImage.save(joinPath(testlogsOutputDirectoryPath, "diff.avif")),
+            ]);
+
+            throw new InternalError(
+                "Actual resized image doesn't look like expected resized image, diff image saved to `bazel-testlogs`",
+            );
+        }
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=800`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 800,
+            height: 336,
+            space: "srgb",
+            channels: 4,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: true,
+        });
+    }
+
+    {
+        const resizeResponse = await fetch(
+            `http://localhost:${port}/${space.id}/resize/${fileId}?width=1200`,
+            {
+                method: "GET",
+                headers: {authorization: await authorization(space)},
+            },
+        );
+
+        expect(resizeResponse.status).toEqual(200);
+        expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+        const resizeBody = await resizeResponse.arrayBuffer();
+        expect(await sharp(resizeBody).metadata()).toEqual({
+            format: "heif",
+            size: expect.any(Number),
+            width: 952,
+            height: 400,
+            space: "srgb",
+            channels: 4,
+            depth: "uchar",
+            isProgressive: false,
+            pages: 1,
+            pagePrimary: 0,
+            compression: "av1",
+            hasProfile: false,
+            hasAlpha: true,
         });
     }
 });
