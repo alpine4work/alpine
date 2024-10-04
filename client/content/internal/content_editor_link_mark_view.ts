@@ -188,8 +188,6 @@ export function createContentEditorLinkMarkViewConstructor({
         });
 
         dom.addEventListener("pointerleave", () => {
-            console.log("pointerleave");
-
             isPointerDownAndOver = false;
             maybeUpdateStyle();
 
@@ -202,8 +200,6 @@ export function createContentEditorLinkMarkViewConstructor({
         });
 
         dom.addEventListener("pointercancel", () => {
-            console.log("pointercancel");
-
             isPointerDownAndOver = false;
             maybeUpdateStyle();
 
@@ -212,8 +208,6 @@ export function createContentEditorLinkMarkViewConstructor({
         });
 
         dom.addEventListener("dragstart", () => {
-            console.log("dragstart");
-
             isPointerDownAndOver = false;
             maybeUpdateStyle();
 
@@ -222,8 +216,6 @@ export function createContentEditorLinkMarkViewConstructor({
         });
 
         addParentScrollWhenPointerDownAndOverListener(dom, () => {
-            console.log("parentScrollWhenPointerDownAndOver");
-
             isPointerDownAndOver = false;
             maybeUpdateStyle();
 
