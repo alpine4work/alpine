@@ -1,5 +1,5 @@
 import {AppContext} from "~/client/context/app_context.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -630,7 +630,10 @@ async function actuallyUploadFileFromContentEditor(
                                 } catch (error) {
                                     scheduleUncaughtError(error);
                                 }
-                            }, delayLoadingIndicatorLimitMs);
+
+                                // Use the screen transition delay since attaching a file is a big layout
+                                // shift. Ideally we'd have the data we need to render a good preview.
+                            }, delayScreenTransitionLoadingIndicatorLimitMs);
                             break;
                         }
                         case "Ready": {

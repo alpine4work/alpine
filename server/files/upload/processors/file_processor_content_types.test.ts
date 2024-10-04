@@ -38,8 +38,8 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+                7,
+                "xNDUx9LWy9TYzdbaztfazdbYy9TX2N7g3ePl3+Xo3+Xn3+Pm4OTn3+Pmy8rEwr+6y8jH2tnY4eHd0M7LxcS/trWwo6KdtLKux8TDysjEtLGroJ2Vna2xma2ynrK3ora5p7a6rbu+sLu9",
             ]),
         },
         {
@@ -58,8 +58,35 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
+                7,
+                "xNDUx9LVy9TYzdbaztfazdXZy9TY2N7g3ePm3+Xo3+Xn3+Pm4OXo3+Tmy8rEwr+7y8jH2trZ4eHe0M/LxcTAtrWwo6Kds7OuxcTDysjEtLGsop2Vna2xm62ynrK3ora7p7a6rbu+sLu9",
+            ]),
+        },
+        {
+            path: "wikimedia_png_transparency_demonstration.avif",
+            imagePreviewSize: {width: 336, height: 252},
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                true,
+                7,
+                "AAAAAEpT3m48UPGUALm5CyuzO4BQuVNJAAAAAAAAAAB1f+iedlzL6stdapRYlDfiFrAxewAAAAAAAAABAAAAAM9NVIvbTVX/0FdXlQAAAAD/AP8BqqpVAwAAAADDfVdJu3xO9M6FVVQAAAAAqqpVAwAAAAAAAAAAublFC5zAQkGJxDoNAAAAAAAAAAA=",
+            ]),
+        },
+        {
+            path: "cooksmarts_guide_to_stir_frying.avif",
+            imagePreviewSize: {width: 400, height: 4778},
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                true,
                 5,
-                "yNTYy9bbz9jcztfbzdba1tnZ2tzd3+Pj4uTl3d7fuLSvtLKt0M7L0M3IsK2klaerlqqun7C1o7K1p7K0",
+                "50wt/+hYO//WPiH/yTYb/804G//USC7/2l9D/9ZVOv/YX0b/zkEl/9R4Zf/Qdmb/z3hm/8JqWf/bfWv/5+vp/+Xn5v/p4OL/3+Hg/+ju7P/q5N7/7eXg//Pd2P/u6un/6efl/+jRzv/r19T/7O7r/+Lazf/cz7j/5dDN/+ja2P/o7fb/5tjA/+TLof/l5+j/3N/i/9zc3f/b4ef/6u/3/8q7tP/R1tr/8PHz/9S3sf/g1dT/4N/f/9TU1f/Z2t7/6uTk//Hv7//s6+7/3dze/9HNxf/r7Oz//P3+/9fo4P/b5eL/8+vc/+Tf1v/q6+7/",
+            ]),
+        },
+        {
+            path: "cooksmarts_guide_to_stir_frying_rotated.avif",
+            imagePreviewSize: {width: 4778, height: 400},
+            imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
+                true,
+                12,
+                "3Onl/+Lh3f/Sz8D/6uru/+Hh5P/g4OP/4ODj/+Li5f/h4eT/4eHk/93d3f/p6er/wtvS/9TTyP+8t5T/4ODm/+rq7v/n5+v/6ent/+Tk5//p6e3/5ufq/+fn5//p6ez/1ObW/97d4v/j5O7/6ens/+Lh3f/g4N7/4uHe/9/h3//m5eX/5eTj//X19v/s7O7/1eri/+zr3//V2Zz/9vb+/8O/oP+5uaD/vcCq/7nGr//QzcL/zsi8//X1+f/m5ur/3Ozo/+7x6P/H4LX/9vX5/+Tj3//l5eP/5uXi/+fm5f/o5+f/6efm//X19//w8PL/",
             ]),
         },
     ],
@@ -69,8 +96,8 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "x9TY/8vW2//O2Nv/ztfa/83W2v/W2dn/2Nzd/97j5f/i5OX/3d7f/7a0rv+0saz/0M7L/9DNyP+xrKX/laer/5aprf+fr7T/o7K1/6eytf8=",
+                7,
+                "xNDU/8jR1v/K1Nj/zdfa/87W2v/L1dn/y9TY/9je4P/c4uX/3+Xo/9/k5//f4+b/4OTn/9/j5v/LysT/wr+6/8rJx//Z2tj/4eHd/9DOy//FxL//trWw/6Oinf+zsq7/xcXD/8nIxP+0sav/oJ2V/52tsf+ZrbL/nrK3/6O0uf+ntrr/rbu+/6+7vv8=",
             ]),
         },
         {
@@ -89,8 +116,8 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "x9LXytXaztfbztfay9bY19rb3N/g3+Ll4OPm3+HhtrKssq+q0M3L0c3Jsaymna2vm62xp7a6qra6q7O0",
+                7,
+                "xNDVx9TXytTYzdbaztfbzdbYy9TY2N7g3ePm3+Xo3+Xn3uPm3+Tn3+TmzczGxcLAzczK29rZ4+Lf1dPRysnFtbOvoJ+ZsrCtxcXDy8rFtrGrn5uTpbS2orK2p7e9qru+rbu/tL7CtL2+",
             ]),
         },
     ],
@@ -100,8 +127,8 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+                7,
+                "xNDUx9LWy9TYzdbaztfazdbYy9TX2N7g3ePl3+Xo3+Xn3+Pm4OTn3+Pmy8rEwr+6y8jH2tnY4eHd0M7LxcS/trWwo6KdtLKux8TDysjEtLGroJ2Vna2xma2ynrK3ora5p7a6rbu+sLu9",
             ]),
         },
         {
@@ -109,8 +136,8 @@ const testCases: {
             imagePreviewSize: {width: 336, height: 252},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "bGzYIUpW8Jo1f6owN7k9fFq0WhFupv8Xj2bAsLxTYc9jkTinAOsTDQAAAADTXDYvy2hP8t1gYD0AAAAAAAAAAJ+/fwiltkw/jcY4CQAAAAA=",
+                7,
+                "AAAAAEpU4G08UPGUALm5CyuzO4BQuVNJAAAAAAAAAAB1f+iedl3K6s1eapRZljfiFrAzewAAAAAAAAABAAAAAM9NVIvbTVX/0FdYlQAAAAD/AP8BqqpVAwAAAADDgVdJu31O9M6FW1QAAAAAqqpVAwAAAAAAAAAAudBFC6TAQkGcxDoNAAAAAAAAAAA=",
             ]),
         },
         {
@@ -129,8 +156,8 @@ const testCases: {
             imagePreviewSize: {width: 732, height: 619},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "VVVVA2hWeVd3YrucAAAAAAAAAAAAAAAAaFz/DVZY/70AAAAAAAAAAAAAAAAAAAAALSxEowAAAAAAAAAAAAAAAAAAAABEO0+JAAAAAAAAAAA=",
+                6,
+                "AAAAAFpNaFuJZYGdf2POKAAAAAAAAAAAAAAAAP///wFoYv+tXV7/mgAAAAAAAAAAAAAAAAAAAAA7PINoPTuAlwAAAAAAAAAAAAAAAAAAAAAsLEJULS1GfwAAAAAAAAAAPj9SEDs8YBFFO1NZTzxUgTs8YBE+P1IQ",
             ]),
         },
         {
@@ -149,8 +176,8 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "yNTXzdba0Njc0Njcztfa297e3uLj4uXl4uTl3+Hhr62nq6mjxsXDysfCp6Sdoa+yorK2qbm7rru9sru9",
+                7,
+                "xNDUx9LWy9TYzdbazdfazdXZy9TX2d/i3ePm4OXo4OXo3+Pm4OTn3uPlysnDwL65ysnF2dnY4N/d0dDOx8bCt7WypKOds7KuxcXDy8rHtLCrn5uUna2xm620nrK3ora5pLa5rLm9r7u8",
             ]),
         },
     ],
@@ -160,8 +187,8 @@ const testCases: {
             imagePreviewSize: {width: 250, height: 188},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+                7,
+                "xNDUx9LWy9TYzdbazdfazdXZy9TX2d/i3ePm4OXo4OXo3+Pm4OTn3uPlysnDwL65ysnF2dnY4N/d0dDOx8bCt7WypKOds7KuxcXDy8rHtLCrn5uUna2xm620nrK3ora5pLa5rLm9r7u8",
             ]),
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
@@ -222,8 +249,8 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+                7,
+                "xNDUx9LWy9TYzdbaztfazdbYy9TX2N7g3ePl3+Xo3+Xn3+Pm4OTn3+Pmy8rEwr+6y8jH2tnY4eHd0M7LxcS/trWwo6KdtLKux8TDysjEtLGroJ2Vna2xma2ynrK3ora5p7a6rbu+sLu9",
             ]),
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
@@ -236,8 +263,8 @@ const testCases: {
             imagePreviewSize: {width: 336, height: 252},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "bGzYIUpX8Jo1f6owN7Q9fFq0WhFupv8Xj2bAsLxTYc9kjzanAOsTDQAAAADTXDYvymlP8t1gYD0AAAAAAAAAAJ+/fwilskQ/japVCQAAAAA=",
+                7,
+                "AAAAAEpU4G04UO+UALm5CyuzO4BQuVNJAAAAAAAAAAB1f+iedlzL6steapRYlDfiErAxewAAAAAAAAABAAAAAM9NVIvbTVX/0FdYlQAAAAD/AP8BqqpVAwAAAADDfVdJu3xO9M6FVVQAAAAAqqpVAwAAAAAAAAAAublFC5zAQkGJxDoNAAAAAAAAAAA=",
             ]),
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
@@ -252,8 +279,8 @@ const testCases: {
             imagePreviewSize: {width: 640, height: 426},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "udnfm7i+hZ+ki7fChdTrxbafTR8QVyoZglxHfnlzyZBivoFT3J5p7qdq4ZVY",
+                8,
+                "sNDYq9PeqNvpoNzrkM3cgsvddcPbY7jWyeDeu9LQg4J9c3BshIF7k5+dn9zplt7u6vXfjHBdOgIANwIAVCoedUIsZ1ZPam5u5rKCqGA0iE4sn25KxIhZ1JJdxoBNxH9LxJRt2qV39LZ++7l9/LZ5+7R2/bV276hr",
             ]),
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
@@ -266,8 +293,8 @@ const testCases: {
             imagePreviewSize: {width: 500, height: 375},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                5,
-                "yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0",
+                7,
+                "xNDUx9LWy9TYzdbaztfazdbYy9TY2N7g3eLl3+Xo3+Xn3+Pm4OTn3+Pmy8rEwr+6ysnH2dnZ4eHe0M7LxcTAtrWwo6Kds7KuxcTDysjEtLGroJ2Vna2xma2ynrK3ora5p7a6rbu+sLu9",
             ]),
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
@@ -280,8 +307,8 @@ const testCases: {
             imagePreviewSize: {width: 480, height: 640},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
-                4,
-                "R4zOX5TLVoa7dpW+farYor3ikrLafqTRfZu2cZKsVHyfP2+YUG5/QWd2GEdWHEZTW3+MV3+KM2RvGFRi",
+                5,
+                "RI3SRIjIOni5aJPEbI67UY7KlLbdhafPXoq9jajKh7HakbLZpL3fmLnebZvOjKrDiKa7aZCyQnKbQXSgOFlsMFRiIkpZEDlGG0BNco+fbY2aS3eKHlZmIlhqRW56SW93QmtyKFlgFU9X",
             ]),
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
@@ -294,8 +321,8 @@ const testCases: {
             imagePreviewSize: {width: 336, height: 252},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "XFy5IUNMzZo1aoowOZo5fEuWSxFYkP8XfFypsKNMWM9aezWnAJwTDQAAAACtSzAvs19J8sRbVz0AAAAAAAAAAH9/XwiNlTw/jY1VCQAAAAA=",
+                7,
+                "AAAAAEZIu205RcyTAIuLCy+VOYBMnUlJAAAAAAAAAABocM6eaVO06qxUYJRRgDXhH5EvewAAAAD/AAABAAAAALBFS4vESlD/t1JQlQAAAAD/AP8BqlVVAwAAAACqalFIpm1I9LZzUVQAAAAAqlVVAwAAAAAAAAAAi6IuC4WZM0F1nCcNAAAAAAAAAAA=",
             ]),
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
@@ -316,8 +343,8 @@ const testCases: {
             imagePreviewSize: {width: 1224, height: 1584, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "8gAA/+sAAP/7+/v//////8YAAv++AAD///////////////////////////////////////////////////////////////////////////8=",
+                5,
+                "8gAA/+sAAP/19fX/9/f3///////GAAL/vgAA////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -329,8 +356,8 @@ const testCases: {
             imagePreviewSize: {width: 1192, height: 1684, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "//////////+5tIj/2dnT//39/f/8/Pz/trqF/7W8gv8FBQX/AAAA/wAAAP8FBQT/ODg4/w0NDf8ODg7/QkJC/5OTk/+ioqL///////////8=",
+                5,
+                "+/v7//n5+f////////////////////////////////+5tIj/2dnT//n5+f/x8fH/8fHx/7K2gf+zu4D/FBQU/wAAAP8AAAD/AAAA/xIRD/8jIyP/AAAA/wAAAP8AAAD/Jycn/9PT0/+mpqb/////////////////xcXF/4mJif////////////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -342,8 +369,8 @@ const testCases: {
             imagePreviewSize: {width: 1190, height: 1684, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "JSUl/wcHB/9DQ0P//////wAAAP/X19f/mpqa//////80NDT/R0dH//Hx8f////////////////////////////////////////////////8=",
+                5,
+                "l5eX/yMjI/9ERET/vLy8//////8TExP/AQEB/x0dHf+wsLD//////wkJCf/V1dX/gYGB////////////iYmJ/05OTv/MzMz///////////////////////////////////////////////////////////////////////////////////////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -362,8 +389,8 @@ const testCases: {
             imagePreviewSize: {width: 1190, height: 1684, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "//////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
+                5,
+                "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -375,8 +402,8 @@ const testCases: {
             imagePreviewSize: {width: 1190, height: 1684, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "//////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
+                5,
+                "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -388,8 +415,8 @@ const testCases: {
             imagePreviewSize: {width: 672, height: 504, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "7u77/46R7f/i6u//l9SZ//r9+v/39/3/tpzS/9eAhf+buYP/9fv1///////25eL/zXJi//Xb2P////////////7+/v/h4r7//f38//////8=",
+                7,
+                "/////7Cx8v+dn/P/+vz7/6LXof/O7M7///////////+nqO3/iG/R/+Ckp/96o17/is6L/////////////P3+/9+VmP/UaWj/4JmV//z9/P/////////////////v2sz/xYhl/+7Twv///////////////////////f37/+npz//7+/f///////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -411,8 +438,8 @@ const testCases: {
             imagePreviewSize: {width: 4760, height: 6736, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "//////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
+                5,
+                "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",

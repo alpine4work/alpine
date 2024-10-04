@@ -28,8 +28,8 @@ const testCases: {
             imagePreviewSize: {width: 1190, height: 1684, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "//////39/f/9/f3///////////////////////////+IiIj/MTEx/+np6f//////xsbG///SAP//FgD/8vLy/+vr6///0gD//9IA//X19f8=",
+                5,
+                "//////v7+//4+Pj//f39////////////////////////////////////////////////////////////vLy8/y0tLf+JiYn////////////W1tb/tLS0/7S0tP/Gxsb///////j4+P//0gD//9IA///RAP///////////8jIyP+9vb3/1tbW//////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -51,8 +51,8 @@ const testCases: {
             imagePreviewSize: {width: 1190, height: 1684, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                4,
-                "//////39/f/9/f3///////j4+P////////////////9/f3//RUVF/+fn5////////9IA///SAP/DwsH///////8UAP//FAD/3t7e//////8=",
+                5,
+                "//////v7+//4+Pj//f39//////////////////////////////////b29v/9/f3/////////////////qamp/xkZGf96enr///////////+0tLT/srKy/7Ozs//8/Pz///////8UAP//0gD//9EA//n5+f//////6Ojo/9DQ0P/e3t7///////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -119,8 +119,8 @@ const testCases: {
             imagePreviewSize: {width: 1440, height: 1080, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "8vLy//X19f/+/v7/9/f3//Hx8f/z8/P/9vb2///////+/v7///////X19f/39/f/+vv8//39/f/+/v7/9fb2//j39//5+vz//Pz///7+/v8=",
+                7,
+                "+fn5/+zs7P/6+vr//Pz8//n5+f/v7+//8/Pz//r6+v/q6ur/+/v7/////////////v7+//7+/v/7+/v/8PDw//r6+v/+/v7//v7///7+/v/+/v7/+vr6//Hx8f/6+vn/9/j7//z9/v/+/v7//v7+//r6+v/x8fH/+vr6//j6/P/7/P///v7+//3+/v8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -140,8 +140,8 @@ const testCases: {
             imagePreviewSize: {width: 420, height: 94, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "9PT0//T09P/5+fn/9PT0//7+/v8=",
+                12,
+                "/v7+///////T09P/3d3d//////////////////7+/v//////8fHx/9bW1v/5+fn////////////j4+P/5ubm//////////////////7+/v//////9PT0/97e3v/6+vr//v7+///////Nzc3/zc3N//////////////////7+/v//////8vLy/8fHx//v7+/////////////g4OD/4uLi//////////////////7+/v//////9vb2/93d3f/39/f//v7+///////X19f/1tbW//////////////////7+/v//////8/Pz/9LS0v/y8vL/",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -163,8 +163,8 @@ const testCases: {
             imagePreviewSize: {width: 1588, height: 1190, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "09PT//Dw8P/19fX/8vPz/9DV1v/a2tr/9fX1//j4+P/19fX/2tra/9fX1//z8/P/9fX1//Pz8//X19f/t7e3/8/Pz//S0tL/z8/P/7e3t/8=",
+                7,
+                "wMS7/97h2f/u8ur/7/Pr/+7y6v/X6eP/x8rI/9HR0f/z8/P/9vb2//f39//29vb/8/Pz/9DQ0P/Q0ND/8/Pz//b29v/39/f/9vb2//Pz8//Q0ND/zMzM/+/v7//z8/P/9fX1//T09P/v7+//zMzM/6urq//FxcX/ysrK/8zMzP/Kysr/xcXF/6urq/8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -186,8 +186,8 @@ const testCases: {
             imagePreviewSize: {width: 1588, height: 1190, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "09PT//Dw8P/19fX/8vPz/9DV1v/a2tr/9fX1//j4+P/19fX/2tra/9fX1//z8/P/9fX1//Pz8//X19f/t7e3/8/Pz//S0tL/z8/P/7e3t/8=",
+                7,
+                "wMS7/97h2f/u8ur/7/Pr/+7y6v/X6eP/x8rI/9HR0f/z8/P/9vb2//f39//29vb/8/Pz/9DQ0P/Q0ND/8/Pz//b29v/39/f/9vb2//Pz8//Q0ND/zMzM/+/v7//z8/P/9fX1//T09P/v7+//zMzM/6urq//FxcX/ysrK/8zMzP/Kysr/xcXF/6urq/8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
@@ -207,8 +207,8 @@ const testCases: {
             imagePreviewSize: {width: 1440, height: 1080, scale: 2},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
-                5,
-                "////////////////////////////////8PDw/+fn5//29vb///////////////////////////////////////////////////////////8=",
+                7,
+                "/////////////////////////////////////////////////////////////////////////////////Pz8/+fn5//g4OD/6+vr//////////////////////////////////////////////////////////////////////////////////////8=",
             ]),
             imagePreviewContent: {
                 contentType: "image/avif",
