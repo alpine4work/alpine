@@ -545,3 +545,11 @@ http_archive(
     strip_prefix = "opus-1.4",
     url = "https://github.com/xiph/opus/releases/download/v1.4/opus-1.4.tar.gz",
 )
+
+http_archive(
+    name = "zlib",
+    build_file = "@//admin/bazel:third_party/BUILD.zlib.bazel",
+    integrity = "sha256-mpOyt9/ax3zrpaVYpYDnRmfdb+3kWFuR7vtg8Dty3yM=",
+    strip_prefix = "zlib-1.3.1",
+    url = "https://zlib.net/zlib-1.3.1.tar.gz",
+)
