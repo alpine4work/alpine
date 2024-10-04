@@ -56,6 +56,7 @@ const blockTestCases: Array<{
     disableInlineTests?: boolean | ((inlineTestCase: (typeof inlineTestCases)[number]) => boolean);
     references?: ContentReferences;
     build: (content: Array<Node>) => Node;
+    buildPasted?: (content: Array<Node>) => Node;
 }> = [
     {
         name: "paragraph",
@@ -81,6 +82,17 @@ const blockTestCases: Array<{
         name: "code",
         disableInlineTests: inlineTestCase => inlineTestCase.name === "code",
         build: content => schema.node("codeBlock", {}, schema.node("codeBlockLine", {}, content)),
+
+        // When pasting a single line of code, we don't maintain the code block.
+        // Instead we unwrap the code block into plain text with the `code` mark. That
+        // way you can copy a single word from a code block and paste it into a
+        // paragraph without creating a new code block in the middle of the paragraph.
+        buildPasted: content =>
+            schema.node(
+                "paragraph",
+                {},
+                content.map(node => node.mark(schema.mark("code").addToSet(node.marks))),
+            ),
     },
     {
         name: "code (multiline)",
@@ -315,7 +327,11 @@ for (const blockTestCase of blockTestCases) {
 
         expect(strippedElement).toHaveTextContent("");
 
-        await expectClipboardRoundtripToWork();
+        await expectClipboardRoundtripToWork(
+            blockTestCase.buildPasted
+                ? schema.node("doc", {}, [blockTestCase.buildPasted([])])
+                : undefined,
+        );
     });
 
     test(`${blockTestCase.name} plain`, async () => {
@@ -338,7 +354,11 @@ for (const blockTestCase of blockTestCases) {
         expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
         expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
 
-        await expectClipboardRoundtripToWork();
+        await expectClipboardRoundtripToWork(
+            blockTestCase.buildPasted
+                ? schema.node("doc", {}, [blockTestCase.buildPasted([schema.text("Hello world!")])])
+                : undefined,
+        );
     });
 
     for (const inlineTestCase of inlineTestCases) {
@@ -374,7 +394,17 @@ for (const blockTestCase of blockTestCases) {
             expect(screen.getByRole("textbox")).toHaveTextContent("Hello world!");
 
             if (!inlineTestCase.disableClipboardTests) {
-                await expectClipboardRoundtripToWork();
+                await expectClipboardRoundtripToWork(
+                    blockTestCase.buildPasted
+                        ? schema.node("doc", {}, [
+                              blockTestCase.buildPasted([
+                                  schema.text("Hello "),
+                                  schema.text("world", [inlineTestCase.build()]),
+                                  schema.text("!"),
+                              ]),
+                          ])
+                        : undefined,
+                );
             }
         });
     }
@@ -411,7 +441,7 @@ for (const inlineTestCase of inlineTestCases) {
     });
 }
 
-async function expectClipboardRoundtripToWork() {
+async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
     assert(getEditorViewForTest);
     // eslint-disable-next-line testing-library/no-node-access
     const editor = getEditorViewForTest(screen.getByRole("textbox").parentNode);
@@ -500,11 +530,11 @@ async function expectClipboardRoundtripToWork() {
     // eslint-disable-next-line testing-library/no-node-access
     const pastedDoc = getEditorViewForTest((container as any).firstElementChild).state.doc;
 
-    expect(pastedDoc.toString()).toEqual(copiedDoc.toString());
+    expect(pastedDoc.toString()).toEqual((expectedPastedDoc ?? copiedDoc).toString());
 
     // The string representation of a doc doesn't include all attributes. So do a
     // full JSON equality test as well.
-    expect(pastedDoc.toJSON()).toEqual(copiedDoc.toJSON());
+    expect(pastedDoc.toJSON()).toEqual((expectedPastedDoc ?? copiedDoc).toJSON());
 
     unmount();
 }

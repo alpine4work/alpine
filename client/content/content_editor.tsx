@@ -1452,7 +1452,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
                 slice.size === 0 &&
-                event.clipboardData
+                event.clipboardData?.items
             ) {
                 for (const item of event.clipboardData.items) {
                     if (item.kind !== "file") continue;
@@ -1580,7 +1580,15 @@ function ContentEditor<Content extends ContentWithReferences>(
             // If there's some references in the paste then let's perform an asynchronous
             // paste where we load all requisite data first.
             if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
-                actuallyHandlePaste(selection, () => view.state.tr);
+                actuallyHandlePaste(selection, () => {
+                    const transaction = view.state.tr;
+
+                    if (transaction.selection !== selection) {
+                        transaction.setSelection(selection);
+                    }
+
+                    return transaction;
+                });
                 return true;
             }
 

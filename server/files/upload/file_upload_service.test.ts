@@ -345,7 +345,7 @@ Content-Length: 33102\r\n\
             .replace(/^Date: .*?\r\n/m, "")
             .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
             .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
-            .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
+            .replace(/,"placeholder":\[false,(\d+),".*?"\]/m, ',"placeholder":[false,$1,"..."]'),
     ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
@@ -359,7 +359,7 @@ chunk\r\n\
 {"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewPlaceholder","placeholder":[false,5,"..."]}\n\
+{"type":"ImagePreviewPlaceholder","placeholder":[false,7,"..."]}\n\
 \r\n\
 chunk\r\n\
 {"type":"Finish"}\n\
@@ -558,7 +558,7 @@ Content-Length: 33102\r\n\
             .replace(/^Date: .*?\r\n/m, "")
             .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
             .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
-            .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
+            .replace(/,"placeholder":\[false,(\d+),".*?"\]/m, ',"placeholder":[false,$1,"..."]'),
     ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
@@ -658,7 +658,7 @@ Content-Length: 33102\r\n\
             .replace(/^Date: .*?\r\n/m, "")
             .replace(/^[a-z0-9]+\r\n/gm, "chunk\r\n")
             .replace(/,"fileId":"[^"]*"/m, ',"fileId":"..."')
-            .replace(/,"placeholder":\[false,5,".*?"\]/m, ',"placeholder":[false,5,"..."]'),
+            .replace(/,"placeholder":\[false,(\d+),".*?"\]/m, ',"placeholder":[false,$1,"..."]'),
     ).toEqual(`\
 HTTP/1.1 200 OK\r\n\
 content-type: application/x-ndjson\r\n\
@@ -672,7 +672,7 @@ chunk\r\n\
 {"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewPlaceholder","placeholder":[false,5,"..."]}\n\
+{"type":"ImagePreviewPlaceholder","placeholder":[false,7,"..."]}\n\
 \r\n\
 chunk\r\n\
 {"type":"Finish"}\n\

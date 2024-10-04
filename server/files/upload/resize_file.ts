@@ -243,7 +243,6 @@ export async function resizeFile(
                     `scale='min(${width},iw)':-1`,
                 ].join(",");
 
-                // TODO(calebmer, #files): Generate placeholder only in the aspect ratio limits.
                 const subprocess = spawn(
                     ffmpegExecutablePath,
                     [

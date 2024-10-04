@@ -2221,7 +2221,6 @@ test("can finish file processing preview with error", async () => {
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2299,10 +2298,9 @@ test("can finish file processing preview with error after processing preview siz
                     code: ErrorCode.InvalidArgument,
                     displayMessage: errorDisplayMessage`Uh oh!`,
                 },
-                size: "Error",
+                size: {width: 100, height: 100, scale: 1},
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2360,7 +2358,6 @@ test("can't finish file with processed preview size after processing preview err
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2391,7 +2388,6 @@ test("can't finish file with processed preview size after processing preview err
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2449,7 +2445,6 @@ test("can't finish file with processed preview placeholder after processing prev
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2479,7 +2474,6 @@ test("can't finish file with processed preview placeholder after processing prev
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2537,7 +2531,6 @@ test("can't finish file with processed preview image after processing preview er
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2568,7 +2561,6 @@ test("can't finish file with processed preview image after processing preview er
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2626,7 +2618,6 @@ test("can't finish file processing preview with error twice", async () => {
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );
@@ -2656,7 +2647,6 @@ test("can't finish file processing preview with error twice", async () => {
                 size: "Error",
                 placeholder: "Error",
                 content: "Error",
-                videoDuration: "Error",
             },
         }),
     );

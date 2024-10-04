@@ -37,6 +37,7 @@ function TestContentEditor() {
             withMobileLayout={false}
             state={state}
             onChange={setState}
+            fileAttachmentTarget={fileAttachmentTarget}
         />
     );
 }
