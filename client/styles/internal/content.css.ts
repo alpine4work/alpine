@@ -952,7 +952,6 @@ globalStyle(fileRowClassName, {
     gap: fileRowGapWidth,
     minHeight: minFileSize,
     maxHeight: fileRowMaxHeight,
-    userSelect: "none",
 });
 
 globalStyle(`${fileRowClassName}:has(+ ${fileRowClassName})`, {
@@ -991,7 +990,6 @@ globalStyle(fileFloatClassName, {
     gridTemplateColumns: "100% 0",
     paddingTop: fileFloatMarginY,
     paddingBottom: fileFloatMarginY,
-    userSelect: "none",
 });
 
 // [Clearfix][1] our floated files. CSS floats used to be very popular as they
@@ -1035,6 +1033,8 @@ globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {
     marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
 });
 
+// NOTE(calebmer): Make sure we don't set `user-select: none` on files since we
+// want the `<img>` inside to get the browser's selection effect.
 globalStyle(fileClassName, {
     zIndex: "10",
     position: "relative",
@@ -1042,7 +1042,6 @@ globalStyle(fileClassName, {
     minWidth: minFileSize,
     minHeight: minFileSize,
     maxHeight: fileRowMaxHeight,
-    userSelect: "none",
     // Files have an interactive pointer cursor as a hint that when you click on a
     // file it opens up the file viewer. The file alone is not obviously
     // interactive.

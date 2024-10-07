@@ -118,7 +118,7 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/spacing.js";
-import {ThemeColor, defaultThemeColor} from "~/shared/design/theme_colors.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {
@@ -2983,31 +2983,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         const view = viewRef.current;
         const viewElement = view.dom;
 
-        const focusDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
-            // Highlight any selected files.
-            //
-            // We have similar code in `<ContentView>` that watches for the
-            // `selectionchange` event and applies the class to elements within
-            // `document.getSelection()`.
-            if (!(state.selection instanceof NodeSelection)) {
-                state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
-                    if (node.type.name === "file") {
-                        decorationSet = decorationSet.add(state.doc, [
-                            Decoration.node(pos, pos + 1, {
-                                // TODO(calebmer): When theme is configurable we should use the configured
-                                // theme here instead of `defaultThemeColor`.
-                                class: contentStyles.selectionFileClassNameByColor[
-                                    defaultThemeColor
-                                ],
-                            }),
-                        ]);
-                    }
-                });
-            }
-
-            return decorationSet;
-        };
-
         const blurDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
             const floaterState = getContentEditorFloaterState(state);
 
@@ -3051,7 +3026,6 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 setDecorationCallbacks(decorationCallbacks => {
                     const newDecorationCallbacks = new Set(decorationCallbacks);
-                    newDecorationCallbacks.add(focusDecorationCallback);
                     newDecorationCallbacks.delete(blurDecorationCallback);
                     return newDecorationCallbacks;
                 });
@@ -3070,7 +3044,6 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 setDecorationCallbacks(decorationCallbacks => {
                     const newDecorationCallbacks = new Set(decorationCallbacks);
-                    newDecorationCallbacks.delete(focusDecorationCallback);
                     newDecorationCallbacks.add(blurDecorationCallback);
                     return newDecorationCallbacks;
                 });
@@ -3092,8 +3065,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             viewElement.addEventListener("blur", handleBlur);
 
             setDecorationCallbacks(decorationCallbacks => {
+                if (!decorationCallbacks.has(blurDecorationCallback)) return decorationCallbacks;
                 const newDecorationCallbacks = new Set(decorationCallbacks);
-                newDecorationCallbacks.delete(focusDecorationCallback);
                 newDecorationCallbacks.delete(blurDecorationCallback);
                 return newDecorationCallbacks;
             });
