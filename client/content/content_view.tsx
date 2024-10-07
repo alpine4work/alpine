@@ -1,15 +1,6 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
-import {
-    Memo,
-    useCallback,
-    useEffect,
-    useId,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
@@ -1004,7 +995,7 @@ export function ContentView({
     // reusable behavior code across custom mark/node views in `<ContentEditor>`
     // and here (e.g. `addContentFilePreviewBehavior()`) it's useful to standardize
     // this behavior across `<ContentEditor>` and `<ContentView>`.
-    useLayoutEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         const element = assertExists(ref.current);
 
         let isPointerDownAndOverParentScrollReceiver = false;
