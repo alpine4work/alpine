@@ -1616,6 +1616,7 @@ export function DocumentContentEditor({
                                     () => ({type: "Document", documentId}),
                                     [documentId],
                                 )}
+                                onEnsureFileAttachmentTarget={ensureCreateDocument}
                                 openCommentThread={openCommentThread}
                                 onCommentThreadPressedChange={(commentThreadId, isHovered) => {
                                     setPressedCommentThreadId(pressedCommentThreadId => {
