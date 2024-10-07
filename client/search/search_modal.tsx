@@ -36,6 +36,7 @@ import {SearchResultView} from "~/client/search/internal/search_result_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     minSearchResultViewHeight,
     searchResultViewPaddingY,
@@ -346,7 +347,7 @@ export function SearchModal({
                         >
                             {output.isError ? (
                                 <Box
-                                    maxWidth="128"
+                                    maxWidth={peekMobileLayoutWidth}
                                     marginX="auto"
                                     padding="8"
                                     paddingTop="16"
@@ -407,7 +408,7 @@ export function SearchModal({
                         </Box>
                         <Box
                             flexShrink="0"
-                            width="128"
+                            width={peekMobileLayoutWidth}
                             height="full"
                             overflow="hidden"
                             borderLeft="grey-10"

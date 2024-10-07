@@ -71,6 +71,7 @@ import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.j
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     greyElevated1ClassName,
     wiggleAnimation,
@@ -97,7 +98,6 @@ import {
 } from "~/shared/remix/peek_path_helpers.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const peekWidth = spacing["128"];
 const peekHeight = spacing["160"];
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
@@ -849,7 +849,7 @@ function PeekStackDraggable({
                 zIndex="10"
                 style={{
                     right: `calc(${peekRightOffset} + ${-deltaXPercentage * 100}%)`,
-                    width: peekWidth,
+                    width: spacing[peekMobileLayoutWidth],
                     height: peekHeight,
                     transform: dragTransform
                         ? `translate(${dragTransform.x}px, ${dragTransform.y}px)`
@@ -1247,7 +1247,7 @@ function PeekStackOverlay({
                     backgroundColor="grey-0"
                     className={greyElevated1ClassName}
                     style={{
-                        width: peekWidth,
+                        width: spacing[peekMobileLayoutWidth],
                         height: addRemLengths(peekHeight, peekBottomBuffer),
                         paddingBottom: peekBottomBuffer,
                     }}

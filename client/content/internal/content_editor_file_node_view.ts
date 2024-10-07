@@ -14,7 +14,6 @@ import {
     renderContentFilePreview,
 } from "~/client/content/internal/render_content_file_preview.js";
 import {AppContext} from "~/client/context/app_context.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     getIsMobileWithoutListening,
@@ -47,6 +46,7 @@ let scheduledFileSignedUrlRefreshActionsByView:
     | undefined;
 
 export function createContentEditorFileNodeViewConstructor({
+    getLayoutScreenWidth,
     getContext,
     getSpaceId,
     getAttachmentTarget,
@@ -54,6 +54,7 @@ export function createContentEditorFileNodeViewConstructor({
     subscribeToReferencesUpdate,
     isOurEditorUploading,
 }: {
+    getLayoutScreenWidth: () => number;
     getContext: () => AppContext;
     getSpaceId: () => SpaceId;
     getAttachmentTarget: () => FileAttachmentTarget;
@@ -83,7 +84,7 @@ export function createContentEditorFileNodeViewConstructor({
                 : undefined;
 
             const layout = layoutContentFile(references, view.state.doc, getPos(), node, {
-                screenWidth: getClientInfo().screenWidth,
+                screenWidth: getLayoutScreenWidth(),
                 isMobile,
             });
 

@@ -103,6 +103,7 @@ import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
@@ -111,7 +112,12 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {
+    convertRemLengthToPx,
+    remPxByPlatform,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/spacing.js";
 import {ThemeColor, defaultThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -948,6 +954,16 @@ function ContentEditor<Content extends ContentWithReferences>(
             : undefined;
         filePreviewExpirationTimers?.play();
 
+        const getFileLayoutScreenWidth = () =>
+            // If this is a mobile layout on desktop then we'll use the max width of a peek
+            // as our screen width for computing layouts.
+            withMobileLayoutRef.current && !isMobileRef.current
+                ? convertRemLengthToPx(
+                      spacing[peekMobileLayoutWidth],
+                      remPxByPlatform[isMobileRef.current ? "mobile" : "desktop"],
+                  )
+                : getClientInfo().screenWidth;
+
         // IMPORTANT: If you have a custom view in `nodeViews` here you should also
         // have a matching custom renderer in `nodeRenderers` in
         // `renderContentToHtml()`.
@@ -989,18 +1005,21 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getCurrentAccountIfExists: () => spaceContextRef.current?.currentAccount ?? null,
             }),
             fileRow: createContentEditorFileRowNodeViewConstructor({
+                getLayoutScreenWidth: getFileLayoutScreenWidth,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
             }),
             fileFloat: createContentEditorFileFloatNodeViewConstructor({
+                getLayoutScreenWidth: getFileLayoutScreenWidth,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
             }),
             file: createContentEditorFileNodeViewConstructor({
+                getLayoutScreenWidth: getFileLayoutScreenWidth,
                 getContext: () => assertExists(contextRef.current),
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),

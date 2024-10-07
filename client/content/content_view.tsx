@@ -42,6 +42,7 @@ import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.j
 import {useCanPrimaryInputHover, useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
+import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
@@ -58,6 +59,7 @@ import {
 import {fileClassName, linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {convertRemLengthToPx, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
 import {defaultThemeColor} from "~/shared/design/theme_colors.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
@@ -126,7 +128,7 @@ export function ContentView({
     withUserSelectNone = false,
     onSeeMoreContent,
     onSeeLessContent,
-    fileLayoutScreenWidth,
+    fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
 }: {
     /**
      * Are we rendering with a mobile layout? True on the mobile platform and true
@@ -482,6 +484,17 @@ export function ContentView({
             codeBlockDecorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
         }>;
 
+        const fileLayoutScreenWidth =
+            fileLayoutScreenWidthFromProps ??
+            // If this is a mobile layout on desktop then we'll use the max width of a peek
+            // as our screen width for computing layouts.
+            (withMobileLayout && !isMobile
+                ? convertRemLengthToPx(
+                      spacing[peekMobileLayoutWidth],
+                      remPxByPlatform[isMobile ? "mobile" : "desktop"],
+                  )
+                : clientInfo.screenWidth);
+
         // If we have some initial code block decorations from server-side rendering
         // then use those instead of trying to compute new decorations. Since we
         // may not be able to compute new decorations given no language parsers will be
@@ -495,7 +508,7 @@ export function ContentView({
                     spaceId: spaceContext?.space.id ?? null,
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
-                    screenWidth: fileLayoutScreenWidth ?? clientInfo.screenWidth,
+                    screenWidth: fileLayoutScreenWidth,
                     isMobile,
                     placeholder,
                     isInert,
@@ -524,7 +537,7 @@ export function ContentView({
                 spaceId: spaceContext?.space.id ?? null,
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
-                screenWidth: fileLayoutScreenWidth ?? clientInfo.screenWidth,
+                screenWidth: fileLayoutScreenWidth,
                 isMobile,
                 placeholder,
                 isInert,
@@ -552,9 +565,10 @@ export function ContentView({
         spaceContext?.space.id,
         spaceContext?.currentAccount,
         accountStore,
-        fileLayoutScreenWidth,
-        clientInfo.screenWidth,
+        fileLayoutScreenWidthFromProps,
+        withMobileLayout,
         isMobile,
+        clientInfo.screenWidth,
         placeholder,
         isInert,
         shouldHighlightComment,

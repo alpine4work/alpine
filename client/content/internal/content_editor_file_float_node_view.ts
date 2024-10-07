@@ -4,7 +4,6 @@ import {getContentEditorReferences} from "~/client/content/content_editor_state.
 import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/internal/content_editor_file_node_view.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getIsMobileWithoutListening,
     subscribeToIsMobileChange,
@@ -14,8 +13,10 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export function createContentEditorFileFloatNodeViewConstructor({
+    getLayoutScreenWidth,
     subscribeToReferencesUpdate,
 }: {
+    getLayoutScreenWidth: () => number;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
     return (node, view): NodeView => {
@@ -56,7 +57,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
             }
 
             const layouts = layoutContentFileParent(references, node, {
-                screenWidth: getClientInfo().screenWidth,
+                screenWidth: getLayoutScreenWidth(),
                 isMobile,
             });
 
