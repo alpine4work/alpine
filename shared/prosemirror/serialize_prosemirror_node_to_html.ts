@@ -21,6 +21,7 @@ export type RecursiveReadonlyArray<Value> = ReadonlyArray<Value | RecursiveReado
  * [1]: https://prosemirror.net/docs/ref/#view.EditorProps
  */
 export type ProsemirrorHtmlSerializationOptions = {
+    readonly withPosAttribute?: boolean;
     readonly nodeRenderers?: {
         [nodeName: string]:
             | ((
@@ -45,6 +46,7 @@ export type ProsemirrorHtmlSerializationOptions = {
 };
 
 type ProsemirrorHtmlSerializationContext = {
+    readonly withPosAttribute: boolean;
     readonly nodeRenderers: {
         [nodeName: string]:
             | ((
@@ -158,6 +160,7 @@ export function serializeProsemirrorNodeToHtml(
     inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);
 
     const context: ProsemirrorHtmlSerializationContext = {
+        withPosAttribute: options.withPosAttribute ?? false,
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
@@ -210,6 +213,7 @@ export function serializeProsemirrorFragmentToHtml(
     inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);
 
     const context: ProsemirrorHtmlSerializationContext = {
+        withPosAttribute: options.withPosAttribute ?? false,
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
@@ -297,12 +301,14 @@ function serializeProsemirrorNode(
 
         assert(html instanceof HtmlElementGenerator);
 
-        // Mark the position of every node in the document. We use this so we can map
-        // the DOM selection back to our ProseMirror document. Only nodes get the
-        // `data-pos` attribute. So if we see `data-pos` we can be confident we have a
-        // node element not a mark element.
-        html.setAttribute("data-pos", pos - 1);
-        if (node.isInline) html.setAttribute("data-inline", "");
+        if (context.withPosAttribute && pos > 0) {
+            // Mark the position of every node in the document. We use this so we can map
+            // the DOM selection back to our ProseMirror document. Only nodes get the
+            // `data-pos` attribute. So if we see `data-pos` we can be confident we have a
+            // node element not a mark element.
+            html.setAttribute("data-pos", pos - 1);
+            if (node.isInline) html.setAttribute("data-inline", "");
+        }
 
         if (contentHtml !== undefined) {
             assert(!node.isLeaf, "Content hole not allowed in a leaf node spec");

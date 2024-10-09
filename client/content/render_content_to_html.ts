@@ -49,6 +49,7 @@ export function renderContentToHtmlStore(
         currentAccount: AccountModel | null;
         screenWidth: number;
         isMobile: boolean;
+        withPosAttribute?: boolean;
         placeholder?: string;
         filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
     },
@@ -78,8 +79,9 @@ export function renderContentFragmentToHtmlStore(
         currentAccount,
         screenWidth,
         isMobile,
-        placeholder,
+        withPosAttribute,
         isInert,
+        placeholder,
         decorations,
         shouldHighlightComment,
         filePreviewExpirationTimers,
@@ -89,8 +91,9 @@ export function renderContentFragmentToHtmlStore(
         currentAccount: AccountModel | null;
         screenWidth: number;
         isMobile: boolean;
-        placeholder?: string;
+        withPosAttribute?: boolean;
         isInert?: boolean;
+        placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
         filePreviewExpirationTimers?: ContentFilePreviewExpirationTimers;
@@ -105,6 +108,7 @@ export function renderContentFragmentToHtmlStore(
         const orderedListItemNumberByNode = new Map<Node, number>();
 
         return serializeProsemirrorFragmentToHtml(content.doc.content, {
+            withPosAttribute,
             startPos: 1,
             decorations,
 

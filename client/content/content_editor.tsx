@@ -1842,6 +1842,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
             }
 
+            let isSync = true;
+
             handlePasteOrDrop({
                 origin: "paste",
                 remember: [selection],
@@ -1852,7 +1854,15 @@ function ContentEditor<Content extends ContentWithReferences>(
                         handlePasteAfterResolvingReferences(
                             view.state.doc,
                             selection,
-                            createTransaction,
+                            () => {
+                                const transaction = createTransaction();
+
+                                if (isSync && selection !== view.state.selection) {
+                                    transaction.setSelection(selection);
+                                }
+
+                                return transaction;
+                            },
                             transaction => view.dispatch(transaction),
                             event,
                             slice,
@@ -1865,6 +1875,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
 
                     const transaction = createTransaction();
+
+                    if (isSync && selection !== view.state.selection) {
+                        transaction.setSelection(selection);
+                    }
 
                     const singleNode =
                         slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
@@ -1885,6 +1899,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     );
                 },
             });
+
+            isSync = false;
 
             // We completely override ProseMirror's paste logic and implement our own. Our
             // paste logic is derived from ProseMirror's paste logic.

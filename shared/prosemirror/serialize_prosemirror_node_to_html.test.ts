@@ -189,18 +189,18 @@ for (const {name, node, html: expectedHtml} of testCases) {
 
         const testElement = document.createElement("div");
         testElement.innerHTML = serializeProsemirrorNodeToHtml(node);
-        expect(expectedHtml).toEqual(testElement.innerHTML);
+        expect(testElement.innerHTML).toEqual(expectedHtml);
     });
 
     test(`works with ${name} (fragment)`, () => {
         const fragment = serializer.serializeFragment(node.content);
         const element = document.createElement("div");
         element.appendChild(fragment);
-        const expectedHTML = element.innerHTML;
+        const expectedHtml = element.innerHTML;
 
         const testElement = document.createElement("div");
         testElement.innerHTML = serializeProsemirrorFragmentToHtml(node.content);
-        expect(expectedHTML).toEqual(testElement.innerHTML);
+        expect(testElement.innerHTML).toEqual(expectedHtml);
     });
 }
 
