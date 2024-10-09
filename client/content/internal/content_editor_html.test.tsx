@@ -492,6 +492,10 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
     });
 
     await act(async () => {
+        // Wait for the promise microtask queue to empty so we can observe
+        // `<ContentEditor>`'s RPC executions.
+        await waitMacrotask();
+
         for (const execution of TestRpcContextModule.getExecutions(getAccountsIfExist)) {
             if (execution.outputPromiseResolver.isSettled()) continue;
 
