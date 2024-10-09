@@ -79,27 +79,6 @@ export function useInitialAppRenderTime(): Date | null {
     return initialAppRender !== false ? initialAppRender.time : null;
 }
 
-let isInitialAppRender = true;
-
-/**
- * Is this the initial render of our application? Generally you should prefer
- * using `useIsInitialAppRender()` since your component will re-render when
- * it's no longer the initial app render but if it's useful to know whether
- * we're either on the server or on the client in the initial app render
- * outside of React code then you may call this.
- *
- * Always returns true on the server. Returns true on the client during React's
- * initial hydration then switches to false once the app is ready to go.
- *
- * This function implies that initial app render is global state. There can't
- * be two separate React apps in the same realm with independent initial render
- * states. Since the server can't run React effects the server is always in
- * initial render mode.
- */
-export function getIsInitialAppRenderWithoutListening(): boolean {
-    return isInitialAppRender;
-}
-
 export function useAppInitialRenderContextProvider(
     initialAppRenderTime: Date,
     initialAppRenderId: Id | undefined,
@@ -116,9 +95,6 @@ export function useAppInitialRenderContextProvider(
     }));
 
     useEffect(() => {
-        assert(typeof window !== "undefined" && isInitialAppRender);
-        isInitialAppRender = false;
-
         setInitialAppRender(false);
     }, []);
 

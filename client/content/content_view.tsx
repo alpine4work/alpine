@@ -1,9 +1,15 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
+import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/content_editor_code_block_node_view.js";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
+import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
+import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
@@ -47,7 +53,12 @@ import {
     ContentWithReferences,
     mergeContentReferencesFileById,
 } from "~/shared/content/content_references.js";
-import {fileClassName, linkClassName, paragraphClassName} from "~/shared/content/content_styles.js";
+import {
+    codeBlockWrapperClassName,
+    fileClassName,
+    linkClassName,
+    paragraphClassName,
+} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {convertRemLengthToPx, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
@@ -257,6 +268,7 @@ export function ContentView({
     // to render a space context when testing this component.
     const context = useAppContextIfExists();
     const spaceContext = useSpaceContextIfExists();
+    const spaceId = spaceContext?.space.id ?? null;
 
     const id = useId();
     const ref = useRef<HTMLDivElement>(null);
@@ -272,6 +284,7 @@ export function ContentView({
     const shouldShowSeeLessContentButton = !!onSeeLessContent;
 
     const events = useEvents({
+        getContent: () => content,
         onSeeMoreContent: onSeeMoreContent ?? noop,
         onSeeLessContent: onSeeLessContent ?? noop,
     });
@@ -494,7 +507,7 @@ export function ContentView({
 
             htmlStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
                 renderContentFragmentToHtmlStore(content, {
-                    spaceId: spaceContext?.space.id ?? null,
+                    spaceId,
                     accountStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     screenWidth: fileLayoutScreenWidth,
@@ -523,7 +536,7 @@ export function ContentView({
             });
 
             htmlStore = renderContentFragmentToHtmlStore(content, {
-                spaceId: spaceContext?.space.id ?? null,
+                spaceId,
                 accountStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 screenWidth: fileLayoutScreenWidth,
@@ -549,15 +562,15 @@ export function ContentView({
         shouldShowSeeMoreContentButton,
         shouldShowSeeLessContentButton,
         content,
-        initialCodeBlockDecorations,
-        id,
-        spaceContext?.space.id,
-        spaceContext?.currentAccount,
-        accountStore,
         fileLayoutScreenWidthFromProps,
         withMobileLayout,
         isMobile,
         clientInfo.screenWidth,
+        initialCodeBlockDecorations,
+        id,
+        spaceId,
+        accountStore,
+        spaceContext?.currentAccount,
         placeholder,
         isInert,
         shouldHighlightComment,
@@ -864,7 +877,9 @@ export function ContentView({
                             handleCodeBlockCopyButtonHoverEnd(element);
                     },
                     onPress: () => {
-                        const posString = element.dataset.pos;
+                        const posString = element.closest<HTMLElement>(
+                            `.${codeBlockWrapperClassName}`,
+                        )?.dataset.pos;
                         assert(posString);
                         const pos = parseInt(posString, 10);
                         assert(!isNaN(pos));
@@ -1099,7 +1114,7 @@ export function ContentView({
         };
     }, []);
 
-    useEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         const element = assertExists(ref.current);
 
         const handleFocusChange = (event: FocusEvent) => {
@@ -1156,7 +1171,9 @@ export function ContentView({
 
             isPointerDownFromSelectableElement =
                 event.target instanceof Element &&
-                getComputedStyle(event.target).userSelect !== "none";
+                (getComputedStyle(event.target).userSelect ||
+                    // In Safari `user-select` is behind a vendor prefix.
+                    getComputedStyle(event.target).webkitUserSelect) !== "none";
             isPointerDownFromSelectableElementAndMoved = false;
 
             if (
@@ -1221,6 +1238,74 @@ export function ContentView({
             document.removeEventListener("dragstart", handleResetState, true);
         };
     }, []);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const element = assertExists(ref.current);
+
+        return registerClipboardSerializer(
+            element,
+            ({startNode, startOffset, endNode, endOffset}) => {
+                const content = events.getContent();
+
+                const startPos = element.contains(startNode)
+                    ? assertExists(getProsemirrorPosFromDom(element, startNode, startOffset)?.[0])
+                    : 0;
+
+                const endPos = element.contains(endNode)
+                    ? assertExists(getProsemirrorPosFromDom(element, endNode, endOffset)?.[1])
+                    : content.doc.nodeSize - 2;
+
+                const slice = content.doc.slice(startPos, endPos, true);
+
+                const state = ContentEditorState.create(content)._getInternalState();
+                const {schema} = state.doc.type;
+
+                const view = new EditorView(null, {
+                    state,
+                    domParser: ContentEditorDomParser.fromSchema(schema),
+                    clipboardSerializer:
+                        ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                            schema,
+                            () => assertExists(spaceId),
+                            () => content.references,
+                            () => assertExists(fileAttachmentTarget),
+                        ),
+                    clipboardTextSerializer: slice =>
+                        contentEditorTextClipboardSerializer(
+                            slice,
+                            () => assertExists(spaceId),
+                            () => content.references,
+                        ),
+                });
+
+                const {dom, text} = serializeForClipboard(view, slice);
+
+                let html: globalThis.Node = dom;
+
+                // If the clipboard content was wrapped in a `<div>` with no identifying
+                // characteristics then let's unwrap the wrapper `<div>` so it won't be
+                // included in the copied output.
+                if (
+                    html instanceof Element &&
+                    html.tagName === "DIV" &&
+                    !html.hasAttribute("class") &&
+                    !html.hasAttribute("style")
+                ) {
+                    const htmlFragment = document.createDocumentFragment();
+                    while (dom.firstChild) {
+                        htmlFragment.appendChild(dom.firstChild);
+                    }
+                    html = htmlFragment;
+                }
+
+                return {
+                    requiredLineBreakAroundCount: 2,
+                    text,
+                    html,
+                };
+            },
+        );
+    }, [events, fileAttachmentTarget, spaceId]);
 
     return (
         <>
@@ -1302,4 +1387,133 @@ export function ContentView({
             )}
         </>
     );
+}
+
+type DomNode = globalThis.Node;
+
+/**
+ * Get the position in a ProseMirror node from a DOM position. The DOM position
+ * typically comes from the selection API. Uses the `data-pos` attributes
+ * `serialize_prosemirror_node_to_html.ts` adds to the DOM to figure out how our DOM position
+ */
+function getProsemirrorPosFromDom(
+    parentElement: Element,
+    node: DomNode,
+    offset: number,
+): [number, number] | null {
+    if (!parentElement.contains(node)) return null;
+
+    // If our selection is not in a text node (e.g. it's in an image element) then
+    // find the nearest parent with a `data-pos` attribute. That's our position.
+    if (!(node instanceof Text)) {
+        let currentNode: DomNode | null = node;
+        while (currentNode && currentNode !== parentElement) {
+            const posString =
+                currentNode instanceof Element ? currentNode.getAttribute("data-pos") : null;
+
+            if (posString !== null) {
+                // Double check that we're still inside `parentNode`.
+                if (!parentElement.contains(currentNode)) return null;
+
+                const finalPos = parseInt(posString, 10);
+                return [finalPos, finalPos + 1];
+            }
+
+            currentNode = currentNode.parentNode;
+        }
+
+        return null;
+    }
+
+    let pos = offset;
+
+    let currentNode: DomNode | null = node;
+    while (currentNode) {
+        if (currentNode.previousSibling !== null) {
+            currentNode = currentNode.previousSibling;
+
+            const nodeSize = getProsemirrorInlineNodeSizeFromDom(currentNode);
+
+            if (nodeSize.type === "Pos") {
+                const finalPos = nodeSize.pos + pos;
+                return [finalPos, finalPos];
+            }
+
+            pos += nodeSize.nodeSize;
+        } else {
+            currentNode = currentNode.parentNode;
+
+            // `parentElement` effectively has `data-pos="0"`.
+            if (currentNode === parentElement) {
+                return [pos, pos];
+            }
+
+            if (currentNode instanceof Element) {
+                const posString = currentNode.getAttribute("data-pos");
+
+                if (posString !== null) {
+                    // Check to see if our `data-pos` element is an inline node. If it is an inline
+                    // node then discard the relative position we've been accumulating since the
+                    // true size of the node is 1.
+                    if (currentNode.hasAttribute("data-inline")) {
+                        const finalPos = parseInt(posString, 10);
+                        return [finalPos, finalPos + 1];
+                    }
+
+                    const finalPos = parseInt(posString, 10) + pos + 1;
+                    return [finalPos, finalPos];
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Get what would be the `nodeSize` of the provided DOM node if it were an
+ * inline ProseMirror node (a node where `node.isInline` is true). The size of
+ * inline nodes is equal to the size of its text data. Marks (e.g. bold) add
+ * extra elements but don't contribute to node size.
+ *
+ * If we find the absolute position of a node then we return a `Pos` object
+ * immediately that represents the absolute position at the end of this node.
+ * Since this function is ultimately used for determining the position of some
+ * selection in the DOM.
+ */
+function getProsemirrorInlineNodeSizeFromDom(
+    node: DomNode,
+): {type: "NodeSize"; nodeSize: number} | {type: "Pos"; pos: number} {
+    if (node instanceof Text) {
+        return {type: "NodeSize", nodeSize: node.data.length};
+    } else if (!(node instanceof Element)) {
+        return {type: "NodeSize", nodeSize: 0};
+    }
+
+    // If we find an element with `data-pos` then we know this element represents a
+    // ProseMirror node. We also assume this node doesn't have inline content and
+    // has a `nodeSize` of 2. If ProseMirror allows recursive text block nodes then
+    // we need to update this assumption.
+    //
+    // Immediately return the absolute position at the end of this node instead of
+    // summing up the node size.
+    const posString = node.getAttribute("data-pos");
+    if (posString !== null) {
+        return {type: "Pos", pos: parseInt(posString, 10) + 1};
+    }
+
+    let nodeSize = 0;
+
+    for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        const childNode = node.childNodes[i]!;
+        const childNodeSize = getProsemirrorInlineNodeSizeFromDom(childNode);
+
+        if (childNodeSize.type === "Pos") {
+            return {type: "Pos", pos: childNodeSize.pos + nodeSize};
+        }
+
+        nodeSize += childNodeSize.nodeSize;
+    }
+
+    return {type: "NodeSize", nodeSize};
 }

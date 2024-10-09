@@ -2902,7 +2902,9 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             isPointerDownFromSelectableElement =
                 event.target instanceof Element &&
-                getComputedStyle(event.target).userSelect !== "none";
+                (getComputedStyle(event.target).userSelect ||
+                    // In Safari `user-select` is behind a vendor prefix.
+                    getComputedStyle(event.target).webkitUserSelect) !== "none";
             isPointerDownFromSelectableElementAndMoved = false;
 
             if (
@@ -3810,6 +3812,8 @@ function createPhantomSelectionDecorations(doc: Node, selection: Selection, colo
                 newlineIndicatorElement.style.backgroundColor =
                     colorSchemeVars[`${color}-selection`];
                 newlineIndicatorElement.style.userSelect = "none";
+                // In Safari `user-select` is behind a vendor prefix.
+                newlineIndicatorElement.style.webkitUserSelect = "none";
                 newlineIndicatorElement.ariaHidden = "true";
                 return newlineIndicatorElement;
             }),

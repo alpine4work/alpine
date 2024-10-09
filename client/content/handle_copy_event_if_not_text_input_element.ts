@@ -1,0 +1,522 @@
+import {isDisplayBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {writeTextToClipboardFallback} from "~/client/helpers/write_text_to_clipboard.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
+
+export type ClipboardSerializer = (selection: {
+    startNode: Node;
+    startOffset: number;
+    endNode: Node;
+    endOffset: number;
+}) => {
+    requiredLineBreakAroundCount?: number;
+    text: string;
+    html: Node;
+};
+
+let clipboardSerializerByNode: WeakMap<Node, ClipboardSerializer> | null = null;
+
+export function registerClipboardSerializer(
+    node: Node,
+    serialize: ClipboardSerializer,
+): () => void {
+    clipboardSerializerByNode ??= new WeakMap();
+    assert(!clipboardSerializerByNode.has(node));
+    clipboardSerializerByNode.set(node, serialize);
+    return () => {
+        clipboardSerializerByNode?.delete(node);
+    };
+}
+
+/**
+ * We override the `copy` event when the selection is not entirely within a
+ * text input element. This allows us to have custom copy behavior for
+ * non-editable views. For example, we can use our content clipboard serializer
+ * when copying `<ContentView>` to match `<ContentEditor>`.
+ *
+ * By default we use a similar algorithm to HTML's `innerText` for generating
+ * copied content. This drops all CSS styling from copied content. If you want
+ * to preserve some HTML styling you must use `registerClipboardSerializer()`.
+ *
+ * While not implemented yet, we can also use this to make the result of
+ * copying content from a post view or messaging view much nicer. For example,
+ * by including text like "From Caleb Meredith at 4:00pm" before each message.
+ */
+export function handleCopyEventIfNotTextInputElement(event: ClipboardEvent) {
+    const selection = document.getSelection();
+    if (!selection || !selection.anchorNode || !selection.focusNode || selection.isCollapsed) {
+        return;
+    }
+
+    const {preventDefault, result} = getSelectionClipboardData({
+        anchorNode: selection.anchorNode,
+        anchorOffset: selection.anchorOffset,
+        focusNode: selection.focusNode,
+        focusOffset: selection.focusOffset,
+    });
+
+    if (preventDefault) event.preventDefault();
+
+    if (result) {
+        // If there is no `navigator.clipboard` (e.g. in Safari) then write text only
+        // with our fallback.
+        if (!navigator.clipboard) {
+            writeTextToClipboardFallback(result.text);
+        } else {
+            navigator.clipboard
+                .write([
+                    new ClipboardItem({
+                        "text/html": new Blob([result.html.innerHTML], {type: "text/html"}),
+                        "text/plain": new Blob([result.text], {type: "text/plain"}),
+                    }),
+                ])
+                .catch(scheduleUncaughtError);
+        }
+    }
+}
+
+export function getSelectionClipboardData(selection: {
+    anchorNode: Node;
+    anchorOffset: number;
+    focusNode: Node;
+    focusOffset: number;
+}): {preventDefault: boolean; result: {text: string; html: Element} | null} {
+    const anchorParentNodes: Array<Node> = [];
+    const focusParentNodes: Array<Node> = [];
+
+    {
+        let anchorParentNode: Node | null = selection.anchorNode;
+        while (anchorParentNode) {
+            anchorParentNodes.push(anchorParentNode);
+            anchorParentNode = anchorParentNode.parentNode;
+        }
+    }
+
+    {
+        let focusParentNode: Node | null = selection.focusNode;
+        while (focusParentNode) {
+            focusParentNodes.push(focusParentNode);
+            focusParentNode = focusParentNode.parentNode;
+        }
+    }
+
+    let commonParentReverseIndex = 1;
+    const minParentNodesLength = Math.min(anchorParentNodes.length, focusParentNodes.length);
+
+    for (let reverseIndex = 1; reverseIndex <= minParentNodesLength; reverseIndex++) {
+        if (
+            anchorParentNodes[anchorParentNodes.length - reverseIndex] !==
+            focusParentNodes[focusParentNodes.length - reverseIndex]
+        ) {
+            break;
+        }
+
+        commonParentReverseIndex = reverseIndex;
+    }
+
+    const commonParentNode =
+        commonParentReverseIndex <= minParentNodesLength
+            ? anchorParentNodes[anchorParentNodes.length - commonParentReverseIndex]!
+            : null;
+
+    // If our selection is completely inside a text input element then return
+    // without calling `event.preventDefault()`. We'll let the browser handling
+    // copying out of the text input element.
+    {
+        let currentNode: Node | null = commonParentNode;
+        while (currentNode) {
+            if (currentNode instanceof Element && isTextInputElement(currentNode)) {
+                return {preventDefault: false, result: null};
+            }
+            currentNode = currentNode.parentNode;
+        }
+    }
+
+    // Can't figure out what content is between the selection nodes if there's no
+    // common parent node.
+    if (!commonParentNode) return {preventDefault: true, result: null};
+
+    let start: "Anchor" | "Focus" | undefined;
+
+    // If `commonParentNode` is the focus node AND the anchor node then the value
+    // of `start` depends on the text offset.
+    if (commonParentNode === selection.focusNode && commonParentNode === selection.anchorNode) {
+        start = selection.anchorOffset <= selection.focusOffset ? "Anchor" : "Focus";
+    }
+    // If `commonParentNode` is the focus node OR the anchor node then the value of
+    // `start` is ambiguous. We can pick either direction. We don't believe the
+    // browser will every create a selection like this because of its ambiguity.
+    else if (
+        commonParentNode === selection.focusNode ||
+        commonParentNode === selection.anchorNode
+    ) {
+        start = "Anchor";
+    }
+    // `commonParentNode` has a child node for both the focus node and the anchor
+    // node.
+    else {
+        const anchorCommonParentChildNode =
+            anchorParentNodes[anchorParentNodes.length - (commonParentReverseIndex + 1)]!;
+
+        const focusCommonParentChildNode =
+            focusParentNodes[focusParentNodes.length - (commonParentReverseIndex + 1)]!;
+
+        for (const commonParentChildNode of commonParentNode.childNodes) {
+            if (commonParentChildNode === anchorCommonParentChildNode) {
+                start = "Anchor";
+                break;
+            }
+
+            if (commonParentChildNode === focusCommonParentChildNode) {
+                start = "Focus";
+                break;
+            }
+        }
+
+        // Must have found one of the children in `commonParentNode`.
+        assert(start !== undefined);
+    }
+
+    // For the purposes of this algorithm:
+    //
+    // - `startNode` is inclusive of its child nodes
+    // - `endNode` is not inclusive of its child nodes
+    const startNode = start === "Anchor" ? selection.anchorNode : selection.focusNode;
+    const startOffset = start === "Anchor" ? selection.anchorOffset : selection.focusOffset;
+    const startParentNodes = start === "Anchor" ? anchorParentNodes : focusParentNodes;
+    const endNode = start === "Anchor" ? selection.focusNode : selection.anchorNode;
+    const endOffset = start === "Anchor" ? selection.focusOffset : selection.anchorOffset;
+    const endParentNodes = start === "Anchor" ? focusParentNodes : anchorParentNodes;
+
+    const results: Array<
+        string | {requiredLineBreakAroundCount?: number; text: string; html: Node} | number
+    > = [];
+
+    for (
+        let i = startParentNodes.length - commonParentReverseIndex;
+        i < startParentNodes.length;
+        i++
+    ) {
+        const commonGrandParentNode = startParentNodes[i]!;
+
+        const clipboardSerializer = clipboardSerializerByNode?.get(commonGrandParentNode);
+        if (clipboardSerializer !== undefined) {
+            const result = clipboardSerializer({startNode, startOffset, endNode, endOffset});
+            results.push(result);
+            break;
+        }
+    }
+
+    // If the selection is entirely within a common grand parent node then we
+    // serialized the selection above and so have no more work to do.
+    if (results.length === 0) {
+        let startNodeWithClipboardSerializer: Node | null = null;
+        let endNodeWithClipboardSerializer: Node | null = null;
+        let endNodeClipboardSerializer: ClipboardSerializer | null = null;
+
+        for (let i = startParentNodes.length - 1; i >= 0; i--) {
+            const startParentNode = startParentNodes[i]!;
+
+            const clipboardSerializer = clipboardSerializerByNode?.get(startParentNode);
+            if (clipboardSerializer !== undefined) {
+                startNodeWithClipboardSerializer = startParentNode;
+
+                const result = clipboardSerializer({startNode, startOffset, endNode, endOffset});
+
+                results.push(result);
+
+                if (result.requiredLineBreakAroundCount)
+                    results.push(result.requiredLineBreakAroundCount);
+                break;
+            }
+        }
+
+        // If there was no clipboard serializer for the start node and we're starting
+        // in a text node then add the slice of text we have selected...
+        if (!startNodeWithClipboardSerializer && startNode instanceof Text) {
+            const parentElement = startNode.parentElement;
+            const parentComputedStyle = parentElement ? getComputedStyle(parentElement) : null;
+
+            // Same check as we have in our loop for skipping over hidden elements.
+            const isParentElementHidden =
+                (parentComputedStyle?.visibility ?? "visible") !== "visible" ||
+                // Don't look at client rects in Jest unit tests. JSDOM never lays out elements
+                // so the length will always be 0.
+                (!import.meta.jest &&
+                    parentElement &&
+                    parentElement.getClientRects().length === 0) ||
+                // Optimization: Skip descending into SVG icon children. Interestingly, `svg`
+                // element `tagName`s are not capitalized.
+                parentElement?.tagName === "svg";
+
+            if (!isParentElementHidden) {
+                results.push(
+                    startNode.data.slice(
+                        startOffset,
+                        startNode === endNode ? endOffset : undefined,
+                    ),
+                );
+            }
+        }
+
+        if (endNode !== startNode) {
+            for (let i = endParentNodes.length - 1; i >= 0; i--) {
+                const endParentNode = endParentNodes[i]!;
+
+                const clipboardSerializer = clipboardSerializerByNode?.get(endParentNode);
+                if (clipboardSerializer !== undefined) {
+                    endNodeWithClipboardSerializer = endParentNode;
+                    endNodeClipboardSerializer = clipboardSerializer;
+                    break;
+                }
+            }
+        }
+
+        // For copying we implement a version of the [HTML spec's `innerText`
+        // algorithm][1]. This discards all styles from copied content. If a developer
+        // wants styles on their element to be preserved when copying then they MUST
+        // manually register copy behavior.
+        //
+        // We copy each step of the algorithm into comments over the code implementing
+        // the step. If we modify the `innerText` algorithm then we say so in a NOTE
+        // comment.
+        //
+        // [1]: https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute
+        let visited = !!startNodeWithClipboardSerializer;
+        let node: Node | null = startNodeWithClipboardSerializer ?? startNode;
+        while (node !== null) {
+            // We've reached the end node! Stop iterating.
+            if (node === endNode || node === endNodeWithClipboardSerializer) break;
+
+            if (visited === false && node instanceof Element) {
+                const clipboardSerializer = clipboardSerializerByNode?.get(node);
+                if (clipboardSerializer) {
+                    visited = true;
+
+                    const result = clipboardSerializer({
+                        startNode,
+                        startOffset,
+                        endNode,
+                        endOffset,
+                    });
+
+                    if (result.requiredLineBreakAroundCount)
+                        results.push(result.requiredLineBreakAroundCount);
+
+                    results.push(result);
+
+                    if (result.requiredLineBreakAroundCount)
+                        results.push(result.requiredLineBreakAroundCount);
+                } else {
+                    const computedStyle = getComputedStyle(node);
+
+                    // 2. If node's computed value of 'visibility' is not 'visible', then return
+                    //    items.
+                    //
+                    // 3. If node is not being rendered, then return items. For the purpose of this
+                    //    step, the following elements must act as described if the computed value
+                    //    of the 'display' property is not 'none':
+                    //
+                    //    - `select` elements have an associated non-replaced inline CSS box whose
+                    //      child boxes include only those of `optgroup` and `option` element child
+                    //      nodes;
+                    //
+                    //    - `optgroup` elements have an associated non-replaced block-level CSS box
+                    //      whose child boxes include only those of `option` element child nodes;
+                    //      and
+                    //
+                    //    - `option` element have an associated non-replaced block-level CSS box
+                    //      whose child boxes are as normal for non-replaced block-level CSS boxes.
+                    //
+                    // NOTE(calebmer): Ignoring the instructions around `<select>`, `<optgroup>`,
+                    // and `<option>` for now.
+                    if (
+                        computedStyle.visibility !== "visible" ||
+                        // Don't look at client rects in Jest unit tests. JSDOM never lays out elements
+                        // so the length will always be 0.
+                        (!import.meta.jest && node.getClientRects().length === 0) ||
+                        // Optimization: Skip descending into SVG icon children. Interestingly, `svg`
+                        // element `tagName`s are not capitalized.
+                        node.tagName === "svg"
+                    ) {
+                        visited = true;
+                    }
+                    // NOTE(calebmer): This is an addition of ours that the `innerText` algorithm
+                    // doesn't require. Don't include text for nodes that aren't selectable when
+                    // copying.
+                    //
+                    // In Safari `user-select` is behind a vendor prefix.
+                    else if (
+                        (computedStyle.userSelect || computedStyle.webkitUserSelect) !== "none"
+                    ) {
+                        // 8. (Part 1.) If node is a `p` element, then append 2 (a required line break
+                        //    count) at the beginning and end of items.
+                        if (node.tagName === "P") {
+                            results.push(2);
+                        }
+                        // 9. (Part 1.) If node's used value of 'display' is block-level or
+                        //    'table-caption', then append 1 (a required line break count) at the
+                        //    beginning and end of items.
+                        else if (
+                            isDisplayBlockLevel(
+                                computedStyle.display ||
+                                    (htmlBlockTagNames.has(node.tagName.toLowerCase())
+                                        ? "block"
+                                        : ""),
+                            )
+                        ) {
+                            results.push(1);
+                        }
+                    }
+                }
+            }
+
+            // 1. Let items be the result of running the rendered text collection steps
+            //    with each child node of node in tree order, and then concatenating the
+            //    results to a single list.
+            if (visited === false) {
+                if (node.firstChild === null) {
+                    visited = true;
+                } else {
+                    visited = false;
+                    node = node.firstChild;
+                    continue;
+                }
+            }
+
+            // Fail-safe. If `node` contains `endNode` then we should have stopped the loop
+            // while iterating through `node`'s children. However, if we skipped visiting
+            // `node`'s children for some reason
+            // (e.g. `node.getClientRects().length === 0`) then we'll end the loop at this
+            // failsafe.
+            if (node.contains(endNode) || node.contains(endNodeWithClipboardSerializer)) {
+                break;
+            }
+
+            // 4. If node is a `Text` node, then for each CSS text box produced by node, in
+            //    content order, compute the text of the box after application of the CSS
+            //    'white-space' processing rules and 'text-transform' rules, set items to
+            //    the list of the resulting strings, and return items. The CSS
+            //    'white-space' processing rules are slightly modified: collapsible spaces
+            //    at the end of lines are always collapsed, but they are only removed if
+            //    the line is the last line of the block, or it ends with a br element.
+            //    Soft hyphens should be preserved.
+            //
+            // NOTE(calebmer): Ignoring the instructions around `white-space` and
+            // `text-transform` processing for now.
+            if (node !== startNode && node instanceof Text) {
+                const parentComputedStyle = node.parentElement
+                    ? getComputedStyle(node.parentElement)
+                    : null;
+
+                // NOTE(calebmer): This is an addition of ours that the `innerText` algorithm
+                // doesn't require. Don't include text for nodes that aren't selectable when
+                // copying.
+                //
+                // In Safari `user-select` is behind a vendor prefix.
+                if (
+                    (parentComputedStyle?.userSelect || parentComputedStyle?.webkitUserSelect) !==
+                    "none"
+                ) {
+                    results.push(node.data);
+                }
+            }
+
+            if (node instanceof Element) {
+                const computedStyle = getComputedStyle(node);
+
+                // NOTE(calebmer): This is an addition of ours that the `innerText` algorithm
+                // doesn't require. Don't include text for nodes that aren't selectable when
+                // copying.
+                //
+                // In Safari `user-select` is behind a vendor prefix.
+                if ((computedStyle.userSelect || computedStyle.webkitUserSelect) !== "none") {
+                    // 5. If node is a `br` element, then append a string containing a single
+                    //    U+000A LF code point to items.
+                    if (node.tagName === "BR") {
+                        results.push({text: "\n", html: document.createElement("br")});
+                    }
+
+                    // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box
+                    //    is not the last 'table-cell' box of its enclosing 'table-row' box, then
+                    //    append a string containing a single U+0009 TAB code point to items.
+                    //
+                    // 7. If node's computed value of 'display' is 'table-row', and node's CSS box
+                    //    is not the last 'table-row' box of the nearest ancestor 'table' box, then
+                    //    append a string containing a single U+000A LF code point to items.
+                    //
+                    // NOTE(calebmer): Ignoring these instructions for now. Tables should mostly be
+                    // rendered as content which will have its own text serializer.
+
+                    // 8. (Part 2.) If node is a `p` element, then append 2 (a required line break
+                    //    count) at the beginning and end of items.
+                    if (node.tagName === "P") {
+                        results.push(2);
+                    }
+                    // 9. (Part 2.) If node's used value of 'display' is block-level or
+                    //    'table-caption', then append 1 (a required line break count) at the
+                    //    beginning and end of items.
+                    else if (
+                        isDisplayBlockLevel(
+                            computedStyle.display ||
+                                (htmlBlockTagNames.has(node.tagName.toLowerCase()) ? "block" : ""),
+                        )
+                    ) {
+                        results.push(1);
+                    }
+                }
+            }
+
+            if (node.nextSibling !== null) {
+                visited = false;
+                node = node.nextSibling;
+            } else {
+                visited = true;
+                node = node.parentNode;
+            }
+        }
+
+        if (endNodeClipboardSerializer) {
+            const result = endNodeClipboardSerializer({startNode, startOffset, endNode, endOffset});
+
+            if (result.requiredLineBreakAroundCount)
+                results.push(result.requiredLineBreakAroundCount);
+
+            results.push(result);
+        }
+        // If there was no clipboard serializer for the end node and we're ending
+        // in a text node then add the slice of text we have selected...
+        else if (node === endNode && endNode instanceof Text && startNode !== endNode) {
+            results.push(endNode.data.slice(0, endOffset));
+        }
+    }
+
+    let text = "";
+    const html = document.createElement("div");
+
+    let lastRequiredLineBreakCount = 0;
+    for (const result of results) {
+        if (typeof result === "number") {
+            lastRequiredLineBreakCount = Math.max(result, lastRequiredLineBreakCount);
+            continue;
+        }
+
+        for (let i = 0; i < lastRequiredLineBreakCount; i++) {
+            text += "\n";
+            html.appendChild(document.createElement("br"));
+        }
+        lastRequiredLineBreakCount = 0;
+
+        if (typeof result === "string") {
+            text += result;
+            html.appendChild(document.createTextNode(result));
+        } else {
+            text += result.text;
+            html.appendChild(result.html);
+        }
+    }
+
+    return {preventDefault: true, result: {text, html}};
+}

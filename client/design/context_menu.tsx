@@ -185,7 +185,9 @@ export function ContextMenuContextProvider({children}: {children?: ReactNode}) {
                     selection &&
                     selection.anchorNode instanceof Element &&
                     selection.anchorNode === selection.focusNode
-                        ? getComputedStyle(selection.anchorNode).userSelect === "none"
+                        ? (getComputedStyle(selection.anchorNode).userSelect ||
+                              // In Safari `user-select` is behind a vendor prefix.
+                              getComputedStyle(selection.anchorNode).webkitUserSelect) === "none"
                         : false;
 
                 // If you right-click into an element with text selection disabled in a text

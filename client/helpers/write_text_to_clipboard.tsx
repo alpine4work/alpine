@@ -12,7 +12,7 @@ export async function writeTextToClipboard(text: string) {
 
 // Code adapted from:
 // https://github.com/lgarron/clipboard-polyfill/blob/c24845e280262858cf40c5fce8443abf5a8dc51b/src/clipboard-polyfill/strategies/dom.ts#L76-L103
-function writeTextToClipboardFallback(text: string) {
+export function writeTextToClipboardFallback(text: string) {
     const temporaryElement = document.createElement("div");
 
     // Setting an individual property does not support `!important`, so we set the

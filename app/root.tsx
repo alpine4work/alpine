@@ -8,7 +8,7 @@ import {
 } from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
-import {ReactElement, useCallback, useContext, useEffect, useMemo} from "react";
+import {ReactElement, useCallback, useContext, useEffect, useMemo, useRef} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
@@ -19,6 +19,7 @@ import {notFoundErrorDisplayMessage} from "~/app/helpers/not_found_error_display
 import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
+import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -34,6 +35,7 @@ import {
 import {useGlobalContextProvider} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
 import {useAppInitialRenderContextProvider} from "~/client/helpers/lifecycle/initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useClientInfoContextProvider} from "~/client/remix/client_info_context.js";
@@ -55,6 +57,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -508,8 +511,25 @@ export default function Root() {
         ),
     );
 
+    const htmlRef = useRef<HTMLHtmlElement>(null);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const htmlElement = assertExists(htmlRef.current);
+
+        const handleCopy = (event: ClipboardEvent) => {
+            if (event.defaultPrevented) return;
+            handleCopyEventIfNotTextInputElement(event);
+        };
+
+        htmlElement.addEventListener("copy", handleCopy);
+        return () => {
+            htmlElement.removeEventListener("copy", handleCopy);
+        };
+    }, []);
+
     return (
         <html
+            ref={htmlRef}
             lang="en"
             data-platform={isMobile ? "mobile" : "desktop"}
             data-color-scheme={getColorSchemeWithoutListeningIfBrowser()}

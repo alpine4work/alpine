@@ -27,7 +27,7 @@ export type ProsemirrorHtmlSerializationOptions = {
                   node: Node,
                   pos: number,
               ) => {
-                  html: HtmlGenerator;
+                  html: HtmlElementGenerator;
                   contentHtml?: HtmlElementGenerator;
               })
             | undefined;
@@ -51,7 +51,7 @@ type ProsemirrorHtmlSerializationContext = {
                   node: Node,
                   pos: number,
               ) => {
-                  html: HtmlGenerator;
+                  html: HtmlElementGenerator;
                   contentHtml?: HtmlElementGenerator;
               })
             | undefined;
@@ -294,6 +294,15 @@ function serializeProsemirrorNode(
             assert(toDOM, `Could not find renderer for node type "${node.type.name}"`);
             ({html, contentHtml} = renderProsemirrorDomOutputSpec(toDOM(node)));
         }
+
+        assert(html instanceof HtmlElementGenerator);
+
+        // Mark the position of every node in the document. We use this so we can map
+        // the DOM selection back to our ProseMirror document. Only nodes get the
+        // `data-pos` attribute. So if we see `data-pos` we can be confident we have a
+        // node element not a mark element.
+        html.setAttribute("data-pos", pos - 1);
+        if (node.isInline) html.setAttribute("data-inline", "");
 
         if (contentHtml !== undefined) {
             assert(!node.isLeaf, "Content hole not allowed in a leaf node spec");

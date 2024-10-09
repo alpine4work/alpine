@@ -12,7 +12,6 @@ import {fileClassName} from "~/shared/content/content_styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {
     maxFilePreviewAspectRatio,
@@ -152,7 +151,7 @@ export class ContentFilePreviewExpirationTimers {
 
     private _getStore(time: number) {
         // Make sure this isn't run on the server since we don't want to register a
-        // bunch of unnecessary timeouts. The `getIsInitialAppRenderWithoutListening()`
+        // bunch of unnecessary timeouts. The `typeof window === "undefined"`
         // check should handle this so this assertion is an extra precaution.
         assert(typeof window !== "undefined");
 
@@ -324,6 +323,8 @@ export function renderContentFilePreview(
                         }
                     }
 
+                    // TODO(calebmer, #files): I might want to rebuild that `<img>` pool for
+                    // Safari. Safari does end up refetching the image on remount.
                     const imageHtml = new HtmlElementGenerator("img");
                     imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
                     imageHtml.setAttribute(

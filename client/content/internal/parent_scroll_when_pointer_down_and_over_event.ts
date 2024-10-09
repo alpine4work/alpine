@@ -1,4 +1,4 @@
-import {contentStyles} from "~/client/styles/styles.js";
+import {contentStyles, contentViewStyles} from "~/client/styles/styles.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -15,6 +15,7 @@ export const parentScrollWhenPointerDownAndOverClassNames = [
     contentStyles.checkListItemCheckboxContainerClassName,
     contentStyles.codeBlockLanguagePickerClassName,
     contentStyles.codeBlockCopyButtonClassName,
+    contentViewStyles.seeButtonClassName,
 ];
 
 /**

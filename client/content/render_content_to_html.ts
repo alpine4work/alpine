@@ -180,7 +180,7 @@ export function renderContentFragmentToHtmlStore(
 
                     return {html, contentHtml};
                 },
-                codeBlock: (node, pos) => {
+                codeBlock: node => {
                     // IMPORTANT: Any change you make to this function also likely must be made to
                     // the `codeBlock` node view in `content_editor_code_block_node_view.ts`.
 
@@ -263,10 +263,6 @@ export function renderContentFragmentToHtmlStore(
                                 );
                             },
                         });
-
-                        // Include the position the code block is rendered at so our press
-                        // implementation is able to find the code block node from the HTML.
-                        copyButtonHtml.setAttribute("data-pos", pos);
                     }
 
                     return {html, contentHtml};
@@ -384,11 +380,6 @@ export function renderContentFragmentToHtmlStore(
                         layout,
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                     });
-
-                    // Include the position of this file so our when we attach behavior to the file
-                    // element in `<ContentView>` we know which node in the document it corresponds
-                    // to.
-                    html.setAttribute("data-pos", pos);
 
                     return {html};
                 },

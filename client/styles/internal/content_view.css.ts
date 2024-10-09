@@ -31,6 +31,8 @@ export const updatedNoteClassName = style({
     ...fontSizes["50"],
     color: colorSchemeVars["grey-50"],
     cursor: "default",
+    // If this is selectable, it messes with `<ContentView>` copy logic.
+    userSelect: "none",
 });
 
 export const seeButtonClassName = style({
