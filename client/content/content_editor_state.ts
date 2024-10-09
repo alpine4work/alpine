@@ -77,7 +77,7 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorQuickUndoPlugin(),
         contentEditorRetypedInputRulePlugin(),
         contentEditorIsContinuouslyTypingPlugin(),
-        contentEditorRememberSelectionWhileLoadingPlugin(),
+        contentEditorRememberPosWhileLoadingPlugin(),
         contentEditorCodeBlockPlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
@@ -1087,14 +1087,23 @@ export function isContinuouslyTypingInContentEditor(state: EditorState): boolean
 
 // Use an `ImmutableMap` since we'll need to `set()` every selection in the map
 // very often and we'll need to `get()` results from the map very rarely.
-type ContentEditorRememberSelectionWhileLoadingPluginState = ImmutableMap<
+type ContentEditorRememberPosWhileLoadingPluginState = ImmutableMap<
     number,
-    {readonly promise: Promise<unknown>; readonly selection: Selection}
+    | {
+          readonly type: "Pos";
+          readonly promise: Promise<unknown>;
+          readonly pos: number;
+      }
+    | {
+          readonly type: "Selection";
+          readonly promise: Promise<unknown>;
+          readonly selection: Selection;
+      }
 >;
 
-const contentEditorRememberSelectionWhileLoadingPluginKey =
-    new PluginKey<ContentEditorRememberSelectionWhileLoadingPluginState>(
-        "contentEditorRememberSelectionWhileLoading",
+const contentEditorRememberPosWhileLoadingPluginKey =
+    new PluginKey<ContentEditorRememberPosWhileLoadingPluginState>(
+        "contentEditorRememberPosWhileLoading",
     );
 
 /**
@@ -1114,15 +1123,13 @@ const contentEditorRememberSelectionWhileLoadingPluginKey =
  * selection for the promise representing the original position of the user's
  * action.
  */
-function contentEditorRememberSelectionWhileLoadingPlugin() {
-    return new Plugin<ContentEditorRememberSelectionWhileLoadingPluginState>({
-        key: contentEditorRememberSelectionWhileLoadingPluginKey,
+function contentEditorRememberPosWhileLoadingPlugin() {
+    return new Plugin<ContentEditorRememberPosWhileLoadingPluginState>({
+        key: contentEditorRememberPosWhileLoadingPluginKey,
         state: {
             init: () => ImmutableMap.empty(),
             apply: (transaction, pluginState) => {
-                const action = transaction.getMeta(
-                    contentEditorRememberSelectionWhileLoadingPluginKey,
-                );
+                const action = transaction.getMeta(contentEditorRememberPosWhileLoadingPluginKey);
                 if (action) {
                     if (action.type === "add") {
                         pluginState = pluginState.set(action.key, action.value);
@@ -1136,35 +1143,58 @@ function contentEditorRememberSelectionWhileLoadingPlugin() {
                 if (!transaction.docChanged) return pluginState;
 
                 return pluginState.updateEvery(entry => {
-                    const newSelection = entry.selection.map(transaction.doc, transaction.mapping);
-                    if (newSelection === entry.selection) return entry;
-                    return {promise: entry.promise, selection: newSelection};
+                    switch (entry.type) {
+                        case "Pos": {
+                            const newPos = transaction.mapping.map(entry.pos);
+                            if (newPos === entry.pos) return entry;
+                            return {
+                                type: "Pos",
+                                promise: entry.promise,
+                                pos: newPos,
+                            };
+                        }
+                        case "Selection": {
+                            const newSelection = entry.selection.map(
+                                transaction.doc,
+                                transaction.mapping,
+                            );
+                            if (newSelection === entry.selection) {
+                                return entry;
+                            }
+                            return {
+                                type: "Selection",
+                                promise: entry.promise,
+                                selection: newSelection,
+                            };
+                        }
+                        default:
+                            throw exhaustive(entry);
+                    }
                 });
             },
         },
     });
 }
 
-let nextContentEditorRememberSelectionWhileLoadingPluginStateKey = 1;
+let nextContentEditorRememberPosWhileLoadingPluginStateKey = 1;
 
-export function rememberContentEditorSelectionWhileLoading(
+export function rememberContentEditorPosWhileLoading(
     view: EditorView,
-    selection: Selection,
+    pos: number,
     promise: PromiseLike<unknown>,
-): {getSelection: () => Selection | null} {
-    assert(selection.$anchor.doc === view.state.doc);
-
-    const key = nextContentEditorRememberSelectionWhileLoadingPluginStateKey;
-    nextContentEditorRememberSelectionWhileLoadingPluginStateKey++;
+): {getPos: () => number | null} {
+    const key = nextContentEditorRememberPosWhileLoadingPluginStateKey;
+    nextContentEditorRememberPosWhileLoadingPluginStateKey++;
 
     let initialTransaction: Transaction | null = view.state.tr.setMeta(
-        contentEditorRememberSelectionWhileLoadingPluginKey,
+        contentEditorRememberPosWhileLoadingPluginKey,
         {
             type: "add",
             key,
             value: {
+                type: "Pos",
                 promise,
-                selection,
+                pos,
             },
         },
     );
@@ -1177,7 +1207,7 @@ export function rememberContentEditorSelectionWhileLoading(
         }
 
         view.dispatch(
-            view.state.tr.setMeta(contentEditorRememberSelectionWhileLoadingPluginKey, {
+            view.state.tr.setMeta(contentEditorRememberPosWhileLoadingPluginKey, {
                 type: "delete",
                 key,
             }),
@@ -1192,9 +1222,71 @@ export function rememberContentEditorSelectionWhileLoading(
     }
 
     return {
-        getSelection: () =>
-            contentEditorRememberSelectionWhileLoadingPluginKey.getState(view.state)?.get(key)
-                ?.selection ?? null,
+        getPos: () => {
+            const entry = contentEditorRememberPosWhileLoadingPluginKey
+                .getState(view.state)
+                ?.get(key);
+            if (!entry) return null;
+            assert(entry.type === "Pos");
+            return entry.pos;
+        },
+    };
+}
+
+export function rememberContentEditorSelectionWhileLoading(
+    view: EditorView,
+    selection: Selection,
+    promise: PromiseLike<unknown>,
+): {getSelection: () => Selection | null} {
+    assert(selection.$anchor.doc === view.state.doc);
+
+    const key = nextContentEditorRememberPosWhileLoadingPluginStateKey;
+    nextContentEditorRememberPosWhileLoadingPluginStateKey++;
+
+    let initialTransaction: Transaction | null = view.state.tr.setMeta(
+        contentEditorRememberPosWhileLoadingPluginKey,
+        {
+            type: "add",
+            key,
+            value: {
+                type: "Selection",
+                promise,
+                selection,
+            },
+        },
+    );
+
+    const handleFinally = () => {
+        // In case we're dealing with a `PromiseImmediate` that's already resolved.
+        if (initialTransaction !== null) {
+            initialTransaction = null;
+            return;
+        }
+
+        view.dispatch(
+            view.state.tr.setMeta(contentEditorRememberPosWhileLoadingPluginKey, {
+                type: "delete",
+                key,
+            }),
+        );
+    };
+
+    promise.then(handleFinally, handleFinally);
+
+    if (initialTransaction !== null) {
+        view.dispatch(initialTransaction);
+        initialTransaction = null;
+    }
+
+    return {
+        getSelection: () => {
+            const entry = contentEditorRememberPosWhileLoadingPluginKey
+                .getState(view.state)
+                ?.get(key);
+            if (!entry) return null;
+            assert(entry.type === "Selection");
+            return entry.selection;
+        },
     };
 }
 

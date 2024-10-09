@@ -83,7 +83,7 @@ export function layoutContentFile(
     options: {screenWidth: number; isMobile: boolean},
 ): ContentFileLayout {
     const $pos = doc.resolve(pos);
-    assert($pos.nodeAfter === node);
+    assert($pos.nodeAfter && $pos.nodeAfter.eq(node));
     const layouts = layoutContentFileParent(references, $pos.parent, options);
     return layouts[$pos.index()]!;
 }

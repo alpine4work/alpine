@@ -11,6 +11,7 @@ import {
     TextSelection,
     Transaction,
 } from "prosemirror-state";
+import {dropPoint} from "prosemirror-transform";
 import {Decoration, DecorationSet, DirectEditorProps, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -34,6 +35,7 @@ import {
     ContentEditorState,
     getContentEditorFloaterState,
     getContentEditorReferences,
+    rememberContentEditorPosWhileLoading,
     rememberContentEditorSelectionWhileLoading,
     setContentEditorFloaterState,
     updateContentEditorReferences,
@@ -130,7 +132,6 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -743,6 +744,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         selection: Selection | null;
         done: () => void;
     } | null>(null);
+    const draggingFileRef = useRef<{getPos: () => number | null} | null>(null);
 
     /* ========================================================================== *\
      *                               Component ref                                *
@@ -1029,6 +1031,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
                 isOurEditorUploading: fileId => !!uploadingFileIds?.has(fileId),
+                draggingFileRef,
             }),
         };
 
@@ -1339,6 +1342,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             // pasting in `temporaryPastedFileInfoById` and `handlePaste` reads from this
             // map for each `FileId` it found in the pasted ProseMirror `Slice`. Not very
             // elegant but it gets the job done.
+            //
+            // `handleDrop` also uses paste logic for parsing dropped content. So we need
+            // to use `temporaryPastedFileInfoById` in `handleDrop` as well!
             if (schema.nodes.file) {
                 for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
                     const urlString =
@@ -1472,19 +1478,49 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
         };
 
-        // TODO(calebmer, #files): I think we should be using basically the same code
-        // for drag and drop.
-        viewProps.handlePaste = (view, event, slice) => {
-            // If we're pasting an empty slice that means ProseMirror couldn't parse the
-            // data in `event.clipboardData`. If `event.clipboardData` has any files then
-            // let's use `FileUploadService` to attach the file to our content.
+        /**
+         * Shared function for handling paste and drop events. Paste and drop events
+         * have the following in common we want to keep consistent:
+         *
+         * - If `slice` is empty (ProseMirror couldn't parse content from `text/html`)
+         *   then we want to look in `dataTransfer` for files and paste those.
+         *
+         * - If `slice` has content references then we need to load those content
+         *   references into our editor. If some of those content references are files
+         *   then we need to attach the files to our attachment target and maybe upload
+         *   the files.
+         */
+        function handlePasteOrDrop<
+            const Remember extends ReadonlyArray<number | Selection | null>,
+        >({
+            origin,
+            remember: initialRemember,
+            slice,
+            dataTransfer,
+            action,
+        }: {
+            origin: "paste" | "drop";
+            remember: Remember;
+            slice: Slice;
+            dataTransfer: DataTransfer | null;
+            action: (
+                remember: Remember,
+                slice: Slice,
+                createTransaction: () => Transaction,
+            ) => void;
+        }) {
+            // If we're dropping or pasting an empty slice that means ProseMirror couldn't
+            // parse the data in `dataTransfer`. If `dataTransfer` has any files then let's
+            // use `FileUploadService` to attach the file to our content.
             if (
                 schema.nodes.file &&
                 schema.nodes.fileRow &&
                 slice.size === 0 &&
-                event.clipboardData?.items
+                dataTransfer?.items
             ) {
-                for (const item of event.clipboardData.items) {
+                const fileIds: Array<FileId> = [];
+
+                for (const item of dataTransfer.items) {
                     if (item.kind !== "file") continue;
 
                     // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
@@ -1503,154 +1539,82 @@ function ContentEditor<Content extends ContentWithReferences>(
                         input: {type: "File", file: assertExists(item.getAsFile())},
                     });
 
-                    slice = new Slice(
-                        Fragment.from(schema.node("fileRow", {}, [schema.node("file", {fileId})])),
-                        0,
-                        0,
-                    );
-                    break;
+                    fileIds.push(fileId);
                 }
-            }
 
-            let selection = view.state.selection;
+                if (fileIds.length > 0) {
+                    const fileIdsByRow: Array<Array<FileId>> = [[]];
 
-            // If the selection starts in our title, then shift the selection out of the
-            // title. That way if we paste a paragraph in the title the paragraph doesn't
-            // become the title. Making a 50 word paragraph the title just feels broken.
-            //
-            // If the first child we're pasting is a heading then leave the selection as it
-            // is. We want headings to fill the title.
-            if (selection.$from.parent.type.name === "title") {
-                if (slice.content.firstChild?.type.name !== "heading") {
-                    selection = TextSelection.between(
-                        view.state.doc.resolve(selection.$from.after()),
-                        selection.$to.parent.type.name === "title"
-                            ? view.state.doc.resolve(selection.$to.after())
-                            : selection.$to,
-                    );
-                } else {
-                    // Make sure if we're pasting a `heading` node into a `title` node the
-                    // `openStart` is always at least 1 so the heading can fill the title instead
-                    // of creating a new block below.
-                    if (slice.openStart < 1) {
-                        slice = new Slice(slice.content, 1, slice.openEnd);
-                    }
-
-                    // If we're pasting a `heading` node into a `title` node and we have another
-                    // block node besides the first `heading` node and the node after the `title`
-                    // node is an empty paragraph then let's have our selection include the
-                    // paragraph.
-                    //
-                    // This way if the user pastes into an empty document they won't have a
-                    // trailing paragraph at the end.
-                    if (
-                        selection.$from.pos === selection.$to.pos &&
-                        selection.$from.parentOffset === selection.$from.parent.content.size &&
-                        iterableFind(sliceIterable(slice.content.content, 1), childNode =>
-                            childNode.type.groups.includes("block"),
-                        )
-                    ) {
-                        const nextNode = selection.$from
-                            .node(selection.$from.depth - 1)
-                            .maybeChild(selection.$from.indexAfter(selection.$from.depth - 1));
-
-                        if (nextNode?.type.name === "paragraph" && nextNode.content.size === 0) {
-                            selection = TextSelection.between(
-                                selection.$from,
-                                view.state.doc.resolve(selection.$from.after() + 2),
-                            );
+                    for (const fileId of fileIds) {
+                        if (fileIdsByRow[fileIdsByRow.length - 1]!.length < 3) {
+                            fileIdsByRow[fileIdsByRow.length - 1]!.push(fileId);
+                        } else {
+                            fileIdsByRow.push([fileId]);
                         }
                     }
+
+                    slice = new Slice(
+                        Fragment.from(
+                            fileIdsByRow.map(fileIds =>
+                                schema.node(
+                                    "fileRow",
+                                    {},
+                                    fileIds.map(fileId => schema.node("file", {fileId})),
+                                ),
+                            ),
+                        ),
+                        0,
+                        0,
+                    );
                 }
             }
 
             const referencedIds = getContentReferencedIdsForSlice(slice);
 
-            // Implement the same logic as ProseMirror's `doPaste` function. First we need
-            // to call our synchronous `handlePaste` override and if that returns false
-            // then we need to perform the same default paste handling that ProseMirror
-            // implements.
-            //
-            // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
-            const actuallyHandlePaste = (
-                selection: Selection,
-                createTransaction: () => Transaction,
-            ) => {
-                if (
-                    handlePaste(
-                        view.state.doc,
-                        selection,
-                        createTransaction,
-                        transaction => view.dispatch(transaction),
-                        event,
-                        slice,
-                    )
-                ) {
-                    return;
-                }
-
-                const transaction = createTransaction();
-
-                const singleNode =
-                    slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
-                        ? slice.content.firstChild
-                        : null;
-
-                if (singleNode) {
-                    selection.replaceWith(transaction, singleNode);
-                } else {
-                    selection.replace(transaction, slice);
-                }
-
-                view.dispatch(
-                    transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"),
-                );
-            };
-
             // If there's some references in the paste then let's perform an asynchronous
             // paste where we load all requisite data first.
             if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
-                actuallyHandlePaste(selection, () => {
-                    const transaction = view.state.tr;
-
-                    if (transaction.selection !== selection) {
-                        transaction.setSelection(selection);
-                    }
-
-                    return transaction;
-                });
-                return true;
+                action(initialRemember, slice, () => view.state.tr);
+                return;
             }
 
             const context = assertExists(contextRef.current);
             const reporter = assertExists(reporterRef.current);
             const spaceId = assertExists(spaceContextRef.current).space.id;
 
-            let rememberedSelection: {getSelection: () => Selection | null} = {
-                getSelection: () => selection,
-            };
+            let rememberGetters: Array<() => number | Selection | null> = initialRemember.map(
+                item => () => item,
+            );
 
             // TODO(calebmer, #global-loading-indicator): Show a "pasting" indicator if
             // we're waiting for a data fetch before applying a paste.
             const promise = context.tracer.withSpan(
-                "Content editor paste with references",
-                handlePasteWithReferences,
+                `Content editor ${origin} with references`,
+                run,
             );
 
-            rememberedSelection = rememberContentEditorSelectionWhileLoading(
-                view,
-                selection,
-                promise,
-            );
+            rememberGetters = initialRemember.map(item => {
+                if (item === null) return () => null;
+
+                if (typeof item === "number") {
+                    const {getPos} = rememberContentEditorPosWhileLoading(view, item, promise);
+                    return getPos;
+                } else {
+                    const {getSelection} = rememberContentEditorSelectionWhileLoading(
+                        view,
+                        item,
+                        promise,
+                    );
+                    return getSelection;
+                }
+            });
 
             promise.catch(error => {
                 reporter.displayError("Couldn’t paste", error);
             });
 
-            return true;
-
-            async function handlePasteWithReferences(context: AppContext) {
-                let hasPasted = false;
+            async function run(context: AppContext) {
+                let hasCalledAction = false;
                 const promiseWaiter = new PromiseWaiter();
 
                 const accountsPromise =
@@ -1661,13 +1625,19 @@ function ContentEditor<Content extends ContentWithReferences>(
                           }).then(({accounts}) => accounts)
                         : emptyArray;
 
-                const pasteFile = async (fileId: FileId) => {
+                let ensureFileAttachmentTargetPromise: Promise<void> | null = null;
+
+                const processFile = async (fileId: FileId) => {
                     const temporaryPastedFileInfo = temporaryPastedFileInfoById?.get(fileId);
                     if (!temporaryPastedFileInfo) return null;
 
                     // Make sure `fileAttachmentTarget` actually exists before trying to attach
                     // files. Otherwise we'll get a "Document not found" error or similar.
-                    await propsRef.current.onEnsureFileAttachmentTarget?.();
+                    if (propsRef.current.onEnsureFileAttachmentTarget) {
+                        ensureFileAttachmentTargetPromise ??=
+                            propsRef.current.onEnsureFileAttachmentTarget();
+                        await ensureFileAttachmentTargetPromise;
+                    }
 
                     const toTarget = assertExists(propsRef.current.fileAttachmentTarget);
 
@@ -1735,7 +1705,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                             unsubscribeFromFileStore = fileStore.subscribe(() => {
                                                 // Before we paste the file won't exist in our content so there's no point in
                                                 // updating content editor references.
-                                                if (!hasPasted) return;
+                                                if (!hasCalledAction) return;
 
                                                 view.dispatch(
                                                     updateContentEditorReferences(view.state.tr, {
@@ -1776,13 +1746,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 const [accounts, fileReferences] = await runAllPromises([
                     accountsPromise,
-                    runAllPromises(mapIterable(referencedIds.fileIds, pasteFile)),
+                    runAllPromises(mapIterable(referencedIds.fileIds, processFile)),
                 ]);
-
-                // Get the selection remembered by our editor state. Not the view's current
-                // selection. The view selection might have moved while we were pasting.
-                const selection = rememberedSelection.getSelection();
-                if (!selection) return;
 
                 // Any new paste transaction should start by updating content references with
                 // the data we just asynchronously fetched.
@@ -1811,182 +1776,389 @@ function ContentEditor<Content extends ContentWithReferences>(
                         ),
                     );
 
-                actuallyHandlePaste(selection, createTransaction);
-                hasPasted = true;
+                action(
+                    // Get the positions and selections remembered by our editor state. We'll have
+                    // mapped these positions while waiting on our promises to resolve.
+                    rememberGetters.map(getter => getter()) as any as Remember,
+                    slice,
+                    createTransaction,
+                );
+                hasCalledAction = true;
 
                 await promiseWaiter.wait();
             }
+        }
+
+        viewProps.handlePaste = (view, event, slice) => {
+            let selection = view.state.selection;
+
+            // If the selection starts in our title, then shift the selection out of the
+            // title. That way if we paste a paragraph in the title the paragraph doesn't
+            // become the title. Making a 50 word paragraph the title just feels broken.
+            //
+            // If the first child we're pasting is a heading then leave the selection as it
+            // is. We want headings to fill the title.
+            if (selection.$from.parent.type.name === "title") {
+                if (slice.content.firstChild?.type.name !== "heading") {
+                    selection = TextSelection.between(
+                        view.state.doc.resolve(selection.$from.after()),
+                        selection.$to.parent.type.name === "title"
+                            ? view.state.doc.resolve(selection.$to.after())
+                            : selection.$to,
+                    );
+                } else {
+                    // Make sure if we're pasting a `heading` node into a `title` node the
+                    // `openStart` is always at least 1 so the heading can fill the title instead
+                    // of creating a new block below.
+                    if (slice.openStart < 1) {
+                        slice = new Slice(slice.content, 1, slice.openEnd);
+                    }
+
+                    // If we're pasting a `heading` node into a `title` node and we have another
+                    // block node besides the first `heading` node and the node after the `title`
+                    // node is an empty paragraph then let's have our selection include the
+                    // paragraph.
+                    //
+                    // This way if the user pastes into an empty document they won't have a
+                    // trailing paragraph at the end.
+                    if (
+                        selection.$from.pos === selection.$to.pos &&
+                        selection.$from.parentOffset === selection.$from.parent.content.size &&
+                        iterableFind(sliceIterable(slice.content.content, 1), childNode =>
+                            childNode.type.groups.includes("block"),
+                        )
+                    ) {
+                        const nextNode = selection.$from
+                            .node(selection.$from.depth - 1)
+                            .maybeChild(selection.$from.indexAfter(selection.$from.depth - 1));
+
+                        if (nextNode?.type.name === "paragraph" && nextNode.content.size === 0) {
+                            selection = TextSelection.between(
+                                selection.$from,
+                                view.state.doc.resolve(selection.$from.after() + 2),
+                            );
+                        }
+                    }
+                }
+            }
+
+            handlePasteOrDrop({
+                origin: "paste",
+                remember: [selection],
+                slice,
+                dataTransfer: event.clipboardData,
+                action: ([selection], slice, createTransaction) => {
+                    if (
+                        handlePasteAfterResolvingReferences(
+                            view.state.doc,
+                            selection,
+                            createTransaction,
+                            transaction => view.dispatch(transaction),
+                            event,
+                            slice,
+                        )
+                    ) {
+                        return;
+                    }
+
+                    // Implement the same logic as ProseMirror's `doPaste` function:
+                    // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L592-L601
+
+                    const transaction = createTransaction();
+
+                    const singleNode =
+                        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
+                            ? slice.content.firstChild
+                            : null;
+
+                    if (singleNode) {
+                        selection.replaceWith(transaction, singleNode);
+                    } else {
+                        selection.replace(transaction, slice);
+                    }
+
+                    view.dispatch(
+                        transaction
+                            .scrollIntoView()
+                            .setMeta("paste", true)
+                            .setMeta("uiEvent", "paste"),
+                    );
+                },
+            });
+
+            // We completely override ProseMirror's paste logic and implement our own. Our
+            // paste logic is derived from ProseMirror's paste logic.
+            return true;
         };
 
         /* ========================================================================== *\
          *                       Drag and drop events (part 1)                        *
         \* ========================================================================== */
 
-        viewProps.handleDrop = (_view, event, slice) => {
-            const context = contextRef.current;
-            const spaceContext = spaceContextRef.current;
+        viewProps.handleDrop = (_view, event, slice, move, $mouse) => {
+            // If we detected that this is a file drag then we want to use the drop target
+            // we rendered for the user instead of ProseMirror's default drop position
+            // determination logic (the `$mouse` position and `dropPoint()` function).
+            const initialFileDropTarget =
+                isDraggingFile &&
+                (slice.size === 0 ||
+                    slice.content.content.every(
+                        node => node.type.name === "fileRow" || node.type.name === "file",
+                    ))
+                    ? getMouseEventFileDropTarget(event)
+                    : null;
 
-            // Handle the user dropping files from their operating system. Not dragging
-            // some slice of ProseMirror content around.
-            if (
-                schema.nodes.file &&
-                schema.nodes.fileRow &&
-                context !== null &&
-                spaceContext !== null &&
-                slice.size === 0 &&
-                event.dataTransfer &&
-                iterableSome(event.dataTransfer.items, item => item.kind === "file")
-            ) {
-                const dropTarget = getMouseEventFileDropTarget(event);
+            // Same logic as ProseMirror for copy key modifier:
+            // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L620
+            const hasCopyKeyModifier = event[getClientInfo().isAppleDevice ? "altKey" : "ctrlKey"];
 
-                // TODO(calebmer, #files): Support dropping multiple files at once.
-                const fileItem = iterableFind(
-                    event.dataTransfer.items,
-                    item => item.kind === "file",
-                );
+            handlePasteOrDrop({
+                origin: "drop",
+                remember: [
+                    view.state.selection,
+                    initialFileDropTarget?.action.pos ?? $mouse.pos,
+                    draggingFileRef.current?.getPos() ?? null,
+                ],
+                slice,
+                dataTransfer: event.dataTransfer,
+                action: ([selection, mouse, draggingFilePos], slice, createTransaction) => {
+                    const $mouse = view.state.doc.resolve(assertExists(mouse));
 
-                if (
-                    dropTarget &&
-                    fileItem &&
-                    // TODO(calebmer, #files): Remove this when ready to deploy to production.
-                    process.env.NODE_ENV === "development"
-                ) {
-                    runPromiseWithoutAwaiting(async () => {
-                        let uploadingFileId: FileId | undefined;
-                        let unsubscribeFromFileStore: (() => void) | undefined;
+                    const fileDropTarget = initialFileDropTarget
+                        ? {
+                              ...initialFileDropTarget,
+                              action: {...initialFileDropTarget.action, pos: assertExists(mouse)},
+                          }
+                        : null;
 
-                        // TODO(calebmer, #files): Error handling
-                        try {
-                            await uploadFileFromContentEditor(context, {
-                                spaceId: spaceContext.space.id,
-                                attachmentTarget: assertExists(
-                                    propsRef.current.fileAttachmentTarget,
+                    if (fileDropTarget) {
+                        if (slice.size === 0) return;
+
+                        // Make sure every node in the slice is a `file`. `fileDropTarget` will only be
+                        // non-null if `isDraggingFile` was true when the drop started and every child
+                        // of `slice` is either a `fileRow` or a `file`.
+                        if (slice.content.content.some(node => node.type.name === "file")) {
+                            slice = new Slice(
+                                Fragment.from(
+                                    slice.content.content.map(node =>
+                                        node.type.name === "file"
+                                            ? schema.node("fileRow", {}, [node])
+                                            : node,
+                                    ),
                                 ),
-                                input: {
-                                    type: "File",
-                                    file: assertExists(fileItem.getAsFile()),
-                                },
-                                onAttach: ({signedUrlSearch, fileStore}) => {
-                                    const initialFile = fileStore.getSnapshot();
-                                    uploadingFileId = initialFile.id;
-                                    (uploadingFileIds ??= new Set()).add(initialFile.id);
+                                slice.openStart,
+                                slice.openEnd,
+                            );
+                        }
 
-                                    // Whenever the file changes during the upload, make sure to update it in
-                                    // our content references. We unsubscribe once the upload has finished since
-                                    // after that the file should be immutable.
-                                    unsubscribeFromFileStore = fileStore.subscribe(() => {
-                                        view.dispatch(
-                                            updateContentEditorReferences(view.state.tr, {
-                                                type: "SetFile",
-                                                signedUrlSearch,
-                                                file: fileStore.getSnapshot(),
-                                            }),
+                        let isDraggingFileFloat = false;
+                        const transaction = createTransaction();
+
+                        const $draggingFilePos =
+                            draggingFilePos !== null
+                                ? transaction.doc.resolve(draggingFilePos)
+                                : null;
+                        if ($draggingFilePos !== null) {
+                            if ($draggingFilePos.nodeAfter?.type.name === "file") {
+                                isDraggingFileFloat =
+                                    $draggingFilePos.parent.type.name === "fileFloat";
+
+                                // If we're moving a file then let's make sure to delete the file from our doc
+                                // before adding it back.
+                                if (!hasCopyKeyModifier) {
+                                    if ($draggingFilePos.parent.childCount === 1) {
+                                        transaction.delete(
+                                            $draggingFilePos.pos - 1,
+                                            $draggingFilePos.pos + 2,
                                         );
-                                    });
+                                    } else {
+                                        transaction.delete(
+                                            $draggingFilePos.pos,
+                                            $draggingFilePos.pos + 1,
+                                        );
+                                    }
+                                }
+                            }
+                        }
 
-                                    const transaction = view.state.tr;
+                        const pos = transaction.mapping.map(fileDropTarget.action.pos);
+                        const $pos = transaction.doc.resolve(pos);
 
-                                    switch (dropTarget.action.type) {
-                                        case "InsertFileRow": {
-                                            const fileRowNode = schema.nodes.fileRow!.create(null, [
-                                                schema.nodes.file!.create({
-                                                    fileId: initialFile.id,
-                                                }),
-                                            ]);
+                        switch (fileDropTarget.action.type) {
+                            case "InsertFileRow": {
+                                // If we're dragging a file float then preserve the file float
+                                // styling.
+                                if (
+                                    isDraggingFileFloat &&
+                                    slice.content.content.length === 1 &&
+                                    slice.content.content[0]!.type.name === "fileRow" &&
+                                    slice.content.content[0]!.content.content.length === 1
+                                ) {
+                                    slice = new Slice(
+                                        Fragment.from(
+                                            schema.node(
+                                                "fileFloat",
+                                                {
+                                                    direction:
+                                                        $draggingFilePos?.parent.attrs.direction ??
+                                                        "left",
+                                                },
+                                                slice.content.content[0]!.content,
+                                            ),
+                                        ),
+                                        slice.openStart,
+                                        slice.openEnd,
+                                    );
+                                }
 
-                                            const $pos = transaction.doc.resolve(
-                                                dropTarget.action.pos,
-                                            );
+                                if (
+                                    $pos.nodeAfter?.type.name === "paragraph" &&
+                                    $pos.nodeAfter.content.size === 0
+                                ) {
+                                    transaction.replace(pos, pos + 2, slice);
 
-                                            if (
-                                                $pos.nodeAfter?.type.name === "paragraph" &&
-                                                $pos.nodeAfter.content.size === 0
-                                            ) {
-                                                transaction.replace(
-                                                    dropTarget.action.pos,
-                                                    dropTarget.action.pos + 2,
-                                                    new Slice(Fragment.from(fileRowNode), 0, 0),
-                                                );
+                                    transaction.setSelection(
+                                        new NodeSelection(transaction.doc.resolve(pos + 1)),
+                                    );
+                                } else if (
+                                    $pos.nodeBefore?.type.name === "paragraph" &&
+                                    $pos.nodeBefore.content.size === 0
+                                ) {
+                                    transaction.replace(pos - 2, pos, slice);
 
-                                                transaction.setSelection(
-                                                    new NodeSelection(
-                                                        transaction.doc.resolve(
-                                                            dropTarget.action.pos + 1,
-                                                        ),
-                                                    ),
-                                                );
-                                            } else if (
-                                                $pos.nodeBefore?.type.name === "paragraph" &&
-                                                $pos.nodeBefore.content.size === 0
-                                            ) {
-                                                transaction.replace(
-                                                    dropTarget.action.pos - 2,
-                                                    dropTarget.action.pos,
-                                                    new Slice(Fragment.from(fileRowNode), 0, 0),
-                                                );
+                                    transaction.setSelection(
+                                        new NodeSelection(transaction.doc.resolve(pos - 1)),
+                                    );
+                                } else {
+                                    transaction.insert(pos, slice.content);
 
-                                                transaction.setSelection(
-                                                    new NodeSelection(
-                                                        transaction.doc.resolve(
-                                                            dropTarget.action.pos - 1,
-                                                        ),
-                                                    ),
-                                                );
-                                            } else {
-                                                transaction.insert(
-                                                    dropTarget.action.pos,
-                                                    fileRowNode,
-                                                );
+                                    transaction.setSelection(
+                                        new NodeSelection(transaction.doc.resolve(pos + 1)),
+                                    );
+                                }
+                                break;
+                            }
+                            case "InsertFileIntoRow": {
+                                assert(slice.size > 0);
 
-                                                transaction.setSelection(
-                                                    new NodeSelection(
-                                                        transaction.doc.resolve(
-                                                            dropTarget.action.pos + 1,
-                                                        ),
-                                                    ),
-                                                );
-                                            }
-                                            break;
+                                const fileIds: Array<FileId | null> = [];
+
+                                for (const fileRowNode of slice.content.content) {
+                                    assert(fileRowNode.type.name === "fileRow");
+
+                                    for (const fileNode of fileRowNode.content.content) {
+                                        assert(fileNode.type.name === "file");
+
+                                        fileIds.push(fileNode.attrs.fileId);
+                                    }
+                                }
+
+                                // A non-empty slice will have at least one `FileId`. If the slice is
+                                // empty then we return above.
+                                assert(fileIds.length > 0);
+
+                                transaction.insert(
+                                    pos,
+                                    schema.nodes.file!.create({
+                                        fileId: fileIds[0],
+                                    }),
+                                );
+
+                                const $newPos = transaction.doc.resolve(pos);
+
+                                transaction.setSelection(new NodeSelection($newPos));
+
+                                // If there's more than one file, then add all additional files as new rows
+                                // after the row we inserted into.
+                                if (fileIds.length > 1) {
+                                    const fileIdsByRow: Array<Array<FileId | null>> = [[]];
+
+                                    for (const fileId of fileIds.slice(1)) {
+                                        if (fileIdsByRow[fileIdsByRow.length - 1]!.length < 3) {
+                                            fileIdsByRow[fileIdsByRow.length - 1]!.push(fileId);
+                                        } else {
+                                            fileIdsByRow.push([fileId]);
                                         }
-                                        case "InsertFileIntoRow": {
-                                            transaction.insert(
-                                                dropTarget.action.pos,
-                                                schema.nodes.file!.create({
-                                                    fileId: initialFile.id,
-                                                }),
-                                            );
-
-                                            transaction.setSelection(
-                                                new NodeSelection(
-                                                    transaction.doc.resolve(dropTarget.action.pos),
-                                                ),
-                                            );
-                                            break;
-                                        }
-                                        default:
-                                            throw exhaustive(dropTarget.action);
                                     }
 
-                                    updateContentEditorReferences(transaction, {
-                                        type: "SetFile",
-                                        signedUrlSearch,
-                                        file: initialFile,
-                                    });
+                                    assert($newPos.parent.type.name === "fileRow");
 
-                                    view.dispatch(transaction);
-                                },
-                            });
-                        } finally {
-                            if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
-                            unsubscribeFromFileStore?.();
+                                    transaction.insert(
+                                        $newPos.after(),
+                                        fileIdsByRow.map(fileIds =>
+                                            schema.node(
+                                                "fileRow",
+                                                {},
+                                                fileIds.map(fileId =>
+                                                    schema.node("file", {fileId}),
+                                                ),
+                                            ),
+                                        ),
+                                    );
+                                }
+                                break;
+                            }
+                            default:
+                                throw exhaustive(fileDropTarget.action);
                         }
-                    });
-                }
 
-                return true;
-            }
+                        view.focus();
+                        view.dispatch(transaction);
+                        return;
+                    }
 
-            return false;
+                    // Implement the same logic as ProseMirror's `drop` function:
+                    // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L674-L707
+                    //
+                    // Except use `selection` which may be different than `view.state.selection` and
+                    // our re-defined `$mouse` variable since the position may have moved while we
+                    // were asynchronously processing the drop.
+
+                    let insertPos = slice
+                        ? dropPoint(view.state.doc, $mouse.pos, slice)
+                        : $mouse.pos;
+                    if (insertPos == null) insertPos = $mouse.pos;
+
+                    const transaction = createTransaction();
+                    if (move) selection.replace(transaction);
+
+                    const pos = transaction.mapping.map(insertPos);
+                    const isNode =
+                        slice.openStart === 0 &&
+                        slice.openEnd === 0 &&
+                        slice.content.childCount === 1;
+                    const beforeInsert = transaction.doc;
+                    if (isNode) transaction.replaceRangeWith(pos, pos, slice.content.firstChild!);
+                    else transaction.replaceRange(pos, pos, slice);
+                    if (transaction.doc.eq(beforeInsert)) return;
+
+                    const $pos = transaction.doc.resolve(pos);
+                    if (
+                        isNode &&
+                        NodeSelection.isSelectable(slice.content.firstChild!) &&
+                        $pos.nodeAfter &&
+                        $pos.nodeAfter.sameMarkup(slice.content.firstChild!)
+                    ) {
+                        transaction.setSelection(new NodeSelection($pos));
+                    } else {
+                        let end = transaction.mapping.map(insertPos);
+                        transaction.mapping.maps[transaction.mapping.maps.length - 1]!.forEach(
+                            (from, to, newFrom, newTo) => (end = newTo),
+                        );
+                        transaction.setSelection(
+                            view.someProp("createSelectionBetween", f =>
+                                f(view, $pos, transaction.doc.resolve(end)),
+                            ) || TextSelection.between($pos, transaction.doc.resolve(end)),
+                        );
+                    }
+                    view.focus();
+                    view.dispatch(transaction.setMeta("uiEvent", "drop"));
+                },
+            });
+
+            // We completely override ProseMirror's drop logic and implement our own. Our
+            // paste logic is derived from ProseMirror's drop logic.
+            return true;
         };
 
         /* ========================================================================== *\
@@ -2305,11 +2477,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         // Manage the file drag interaction. While the user is dragging we'll update
         // our `fileDropTarget` state with the rendered drop target. When the user
         // drops we process the drop in `handleDrop` above.
+        let isDraggingFile = false;
         let getMouseEventFileDropTarget: (event: MouseEvent) => ContentEditorFileDropTarget | null;
         {
-            let isDragging = false;
-
-            let lastDropTargets: {
+            let lastFileDropTargets: {
                 viewWidth: number;
                 viewHeight: number;
                 state: EditorState;
@@ -2317,7 +2488,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 dropTargets: Array<ContentEditorFileDropTarget>;
             } | null = null;
 
-            let lastDropTarget: {
+            let lastFileDropTarget: {
                 viewWidth: number;
                 viewHeight: number;
                 state: EditorState;
@@ -2326,9 +2497,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             } | null = null;
 
             getMouseEventFileDropTarget = (event: MouseEvent) => {
-                // TODO(calebmer, #files): Remove this when ready to deploy to production.
-                if (process.env.NODE_ENV !== "development") return null;
-
                 const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
                 if (!posResult) return null;
 
@@ -2341,17 +2509,21 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // changed that may have updated the layout of our content (e.g. `viewWidth`
                 // resizing changes how text flows).
                 if (
-                    viewWidth !== lastDropTargets?.viewWidth ||
-                    viewHeight !== lastDropTargets.viewHeight ||
-                    view.state !== lastDropTargets?.state ||
-                    topBlockIndex !== lastDropTargets?.topBlockIndex
+                    viewWidth !== lastFileDropTargets?.viewWidth ||
+                    viewHeight !== lastFileDropTargets.viewHeight ||
+                    view.state !== lastFileDropTargets?.state ||
+                    topBlockIndex !== lastFileDropTargets?.topBlockIndex
                 ) {
-                    lastDropTargets = {
+                    lastFileDropTargets = {
                         viewWidth,
                         viewHeight,
                         state: view.state,
                         topBlockIndex,
-                        dropTargets: getContentEditorFileDropTargets(view, topBlockIndex),
+                        dropTargets: getContentEditorFileDropTargets(
+                            view,
+                            topBlockIndex,
+                            draggingFileRef.current?.getPos() ?? null,
+                        ),
                     };
                 }
 
@@ -2367,12 +2539,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // so we don't need to schedule a timeout to call `setFileDropTarget()` after
                 // 100ms.
                 if (
-                    viewWidth === lastDropTarget?.viewWidth &&
-                    viewHeight === lastDropTarget.viewHeight &&
-                    view.state === lastDropTarget.state &&
-                    Date.now() - lastDropTarget.time < perceivedAsInstantLimitMs
+                    viewWidth === lastFileDropTarget?.viewWidth &&
+                    viewHeight === lastFileDropTarget.viewHeight &&
+                    view.state === lastFileDropTarget.state &&
+                    Date.now() - lastFileDropTarget.time < perceivedAsInstantLimitMs
                 ) {
-                    return lastDropTarget.dropTarget;
+                    return lastFileDropTarget.dropTarget;
                 }
 
                 let lastOffsetParent: Element | null = null;
@@ -2382,7 +2554,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     dropTarget: ContentEditorFileDropTarget;
                 } | null = null;
 
-                for (const dropTarget of lastDropTargets.dropTargets) {
+                for (const dropTarget of lastFileDropTargets.dropTargets) {
                     // If all our drop targets have the same `offsetParent` then we only need to
                     // call `getBoundingClientRect()` once.
                     const offsetParentRect: DOMRect | null =
@@ -2437,9 +2609,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const dropTarget = nearestCollision?.dropTarget ?? null;
 
                 if (!dropTarget) {
-                    lastDropTarget = null;
+                    lastFileDropTarget = null;
                 } else {
-                    lastDropTarget = {
+                    lastFileDropTarget = {
                         viewWidth,
                         viewHeight,
                         state: view.state,
@@ -2452,60 +2624,56 @@ function ContentEditor<Content extends ContentWithReferences>(
             };
 
             view.dom.addEventListener("dragenter", event => {
-                if (isDragging) return;
-                const wasDragging = isDragging;
-                isDragging = event.target instanceof Element && view.dom.contains(event.target);
-                if (wasDragging === isDragging) return;
+                if (isDraggingFile) return;
+                const wasDraggingFile = isDraggingFile;
 
-                if (
-                    event.dataTransfer &&
-                    iterableSome(event.dataTransfer.items, item => item.kind === "file")
-                ) {
+                isDraggingFile =
+                    event.target instanceof Element &&
+                    view.dom.contains(event.target) &&
+                    !!event.dataTransfer &&
+                    iterableSome(
+                        event.dataTransfer.items,
+                        item => item.kind === "file" || item.type === "text/x.cyberworlds.file",
+                    );
+
+                if (wasDraggingFile === isDraggingFile) return;
+
+                if (isDraggingFile) {
                     setFileDropTarget(getMouseEventFileDropTarget(event));
                 } else {
-                    lastDropTargets = null;
-                    lastDropTarget = null;
+                    lastFileDropTargets = null;
+                    lastFileDropTarget = null;
                     setFileDropTarget(null);
                 }
             });
 
             view.dom.addEventListener("dragleave", event => {
-                if (!isDragging) return;
-                const wasDragging = isDragging;
-                isDragging =
+                if (!isDraggingFile) return;
+                const wasDraggingFile = isDraggingFile;
+                isDraggingFile &&=
                     event.relatedTarget instanceof Element &&
                     view.dom.contains(event.relatedTarget);
-                if (wasDragging === isDragging) return;
+                if (wasDraggingFile === isDraggingFile) return;
 
-                lastDropTargets = null;
-                lastDropTarget = null;
+                lastFileDropTargets = null;
+                lastFileDropTarget = null;
                 setFileDropTarget(null);
             });
 
             // Processing the drop happens in `handleDrop` above so we don't conflict with
             // ProseMirror's drop handling. Only clear drop state here.
             view.dom.addEventListener("drop", () => {
-                if (!isDragging) return;
-                isDragging = false;
+                if (!isDraggingFile) return;
+                isDraggingFile = false;
 
-                lastDropTargets = null;
-                lastDropTarget = null;
+                lastFileDropTargets = null;
+                lastFileDropTarget = null;
                 setFileDropTarget(null);
             });
 
             view.dom.addEventListener("dragover", event => {
-                if (!isDragging) return;
-
-                if (
-                    event.dataTransfer &&
-                    iterableSome(event.dataTransfer.items, item => item.kind === "file")
-                ) {
-                    setFileDropTarget(getMouseEventFileDropTarget(event));
-                } else {
-                    lastDropTargets = null;
-                    lastDropTarget = null;
-                    setFileDropTarget(null);
-                }
+                if (!isDraggingFile) return;
+                setFileDropTarget(getMouseEventFileDropTarget(event));
             });
         }
 
@@ -3654,7 +3822,7 @@ export const getEditorViewForTest = import.meta.jest
 // (the `selection` argument) may be different than the user's current
 // selection (what's in `EditorState.selection`). Which is why we decompose
 // `EditorView` here into just the bits we need.
-function handlePaste(
+function handlePasteAfterResolvingReferences(
     doc: Node,
     selection: Selection,
     createTransaction: () => Transaction,

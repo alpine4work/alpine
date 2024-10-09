@@ -303,11 +303,7 @@ async function handleFetch(
                 route = {type: "TaskRealtimeService", spaceId};
             }
         }
-    } else if (
-        // TODO(calebmer, #files): Deploy `FileUploadService` to production.
-        process.env.NODE_ENV === "development" &&
-        url.pathname.startsWith("/api/files/")
-    ) {
+    } else if (url.pathname.startsWith("/api/files/")) {
         const pathSegments = url.pathname.slice("/api/files/".length).split("/");
         if (
             pathSegments.length === 2 &&

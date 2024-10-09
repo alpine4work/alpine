@@ -6,6 +6,7 @@
 
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
+import {TextSelection} from "prosemirror-state";
 import {ReactNode, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
@@ -483,6 +484,13 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
     const {container, unmount} = render(<TestContentEditor />);
 
     // eslint-disable-next-line testing-library/no-node-access
+    const pasteEditor = getEditorViewForTest((container as any).firstElementChild);
+
+    expect(pasteEditor.state.doc.toString()).toEqual("doc(paragraph)");
+    expect(pasteEditor.state.selection.anchor).toEqual(1);
+    expect(pasteEditor.state.selection.head).toEqual(1);
+
+    // eslint-disable-next-line testing-library/no-node-access
     fireEvent.paste((container as any).firstElementChild.firstElementChild, {
         clipboardData: {
             getData: (type: string) => {
@@ -491,48 +499,81 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
         },
     });
 
-    await act(async () => {
-        // Wait for the promise microtask queue to empty so we can observe
-        // `<ContentEditor>`'s RPC executions.
-        await waitMacrotask();
+    // Wait for the promise microtask queue to empty so we can observe
+    // `<ContentEditor>`'s RPC executions.
+    await waitMacrotask();
 
-        for (const execution of TestRpcContextModule.getExecutions(getAccountsIfExist)) {
-            if (execution.outputPromiseResolver.isSettled()) continue;
+    const isAsync =
+        TestRpcContextModule.getExecutions(getAccountsIfExist).length > 0 ||
+        TestRpcContextModule.getExecutions(attachFileFromAttachment).length > 0;
 
-            Array.from(
-                execution.input.accountIds,
-                accountId => sourceContentReferences.accountById.get(accountId) ?? null,
+    if (isAsync) {
+        // For asynchronous pastes we want to exercise that the selection is properly
+        // remembered. So insert some content and move the selection into that content.
+        // We'll delete the extra content once the paste is done.
+        //
+        // The paste should happen in the empty paragraph which is where the selection
+        // was when we fired the paste event.
+        act(() => {
+            const transaction = pasteEditor.state.tr.insert(
+                0,
+                schema.node("paragraph", {}, [schema.text("test")]),
             );
 
-            execution.outputPromiseResolver.resolve({
-                accounts: Array.from(
+            pasteEditor.dispatch(
+                transaction.setSelection(new TextSelection(transaction.doc.resolve(3))),
+            );
+        });
+
+        expect(pasteEditor.state.doc.toString()).toEqual('doc(paragraph("test"), paragraph)');
+        expect(pasteEditor.state.selection.anchor).toEqual(3);
+        expect(pasteEditor.state.selection.head).toEqual(3);
+
+        await act(async () => {
+            for (const execution of TestRpcContextModule.getExecutions(getAccountsIfExist)) {
+                if (execution.outputPromiseResolver.isSettled()) continue;
+
+                Array.from(
                     execution.input.accountIds,
                     accountId => sourceContentReferences.accountById.get(accountId) ?? null,
-                ),
-            });
-        }
+                );
 
-        for (const execution of TestRpcContextModule.getExecutions(attachFileFromAttachment)) {
-            if (execution.outputPromiseResolver.isSettled()) continue;
+                execution.outputPromiseResolver.resolve({
+                    accounts: Array.from(
+                        execution.input.accountIds,
+                        accountId => sourceContentReferences.accountById.get(accountId) ?? null,
+                    ),
+                });
+            }
 
-            const {file} = assertExists(
-                sourceContentReferences.fileById.get(execution.input.fileId),
-            );
+            for (const execution of TestRpcContextModule.getExecutions(attachFileFromAttachment)) {
+                if (execution.outputPromiseResolver.isSettled()) continue;
 
-            execution.outputPromiseResolver.resolve({
-                signedUrlSearch: "?exp=1727963390&sig=test-clipboard",
-                file,
-            });
-        }
+                const {file} = assertExists(
+                    sourceContentReferences.fileById.get(execution.input.fileId),
+                );
 
-        // Wait for the promise microtask queue to empty so we can observe
-        // `<ContentEditor>`'s update to the DOM after resolving
-        // `attachFileFromAttachment()`.
-        await waitMacrotask();
-    });
+                execution.outputPromiseResolver.resolve({
+                    signedUrlSearch: "?exp=1727963390&sig=test-clipboard",
+                    file,
+                });
+            }
 
-    // eslint-disable-next-line testing-library/no-node-access
-    const pastedDoc = getEditorViewForTest((container as any).firstElementChild).state.doc;
+            // Wait for the promise microtask queue to empty so we can observe
+            // `<ContentEditor>`'s update to the DOM after resolving
+            // `attachFileFromAttachment()`.
+            await waitMacrotask();
+        });
+
+        expect(pasteEditor.state.doc.toString()).not.toEqual('doc(paragraph("test"), paragraph)');
+        expect(pasteEditor.state.doc.toString()).toMatch(/^doc\(paragraph\("test"\),/);
+
+        act(() => {
+            pasteEditor.dispatch(pasteEditor.state.tr.delete(0, 5));
+        });
+    }
+
+    const pastedDoc = pasteEditor.state.doc;
 
     expect(pastedDoc.toString()).toEqual((expectedPastedDoc ?? copiedDoc).toString());
 

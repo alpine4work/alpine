@@ -26,8 +26,6 @@ export type ContentEditorFileDropTarget = {
 
 // TODO(calebmer, #files): Implement scroll while dragging.
 
-// TODO(calebmer, #files): Drag to move files.
-
 // TODO(calebmer, #files): Images with alpha does placeholder show through? We
 // probably need some fade animation.
 
@@ -64,12 +62,15 @@ export type ContentEditorFileDropTarget = {
 export function getContentEditorFileDropTargets(
     view: EditorView,
     aroundIndex: number,
+    draggingFilePos: number | null,
 ): Array<ContentEditorFileDropTarget> {
     const dropTargets: Array<ContentEditorFileDropTarget> = [];
 
     const {doc} = view.state;
     const {schema} = doc.type;
     if (!schema.nodes.fileRow) return dropTargets;
+
+    const $draggingFilePos = draggingFilePos !== null ? doc.resolve(draggingFilePos) : null;
 
     const remPx = getRemPxWithoutListening();
     const nodeCount = doc.content.content.length;
@@ -238,10 +239,15 @@ export function getContentEditorFileDropTargets(
             });
         }
 
+        const isDraggingFileInRow = $draggingFilePos?.parent === node;
+
         // If we're dragging near a file row then also create vertical drop indicators
         // which'll allow you to create a gallery when dropping a file to the left or
         // right.
-        if (node.type.name === "fileRow" && node.childCount < 3) {
+        if (
+            node.type.name === "fileRow" &&
+            (node.childCount < 3 || (isDraggingFileInRow && node.childCount < 4))
+        ) {
             const elementRect = element.getBoundingClientRect();
 
             {
@@ -280,7 +286,7 @@ export function getContentEditorFileDropTargets(
                 });
             }
 
-            if (node.type.name === "fileRow" && node.childCount === 2) {
+            if (node.type.name === "fileRow" && node.childCount >= 2) {
                 const fileRowLeftElement = element.firstElementChild;
 
                 if (fileRowLeftElement instanceof HTMLElement) {
@@ -310,6 +316,41 @@ export function getContentEditorFileDropTargets(
                         action: {
                             type: "InsertFileIntoRow",
                             pos: pos + 2,
+                        },
+                    });
+                }
+            }
+
+            if (node.type.name === "fileRow" && isDraggingFileInRow && node.childCount >= 3) {
+                const fileRowLeftElement = element.firstElementChild?.nextElementSibling;
+
+                if (fileRowLeftElement instanceof HTMLElement) {
+                    const dropTargetX =
+                        element.offsetLeft +
+                        // `fileRowLeftElement.offsetLeft + fileRowLeftElement.offsetWidth` also works
+                        // here instead of looking at `fileRowLeftElement.getBoundingClientRect()`.
+                        // However, `offsetLeft` and `offsetWidth` round positions to integers. For
+                        // precisely rendering our drop target in the center of two files we need the
+                        // fractional position which `getBoundingClientRect()` returns. Otherwise in
+                        // some edge cases the drop target looks off center.
+                        //
+                        // We subtract `elementRect.left` so we get a position relative to
+                        // `element.offsetLeft`.
+                        (fileRowLeftElement.getBoundingClientRect().right - elementRect.left) +
+                        (contentStyles.fileRowGapWidthRem * remPx) / 2;
+
+                    dropTargets.push({
+                        offsetParent: element.offsetParent,
+                        indicator: "Right",
+                        rect: {
+                            left: dropTargetX,
+                            right: dropTargetX,
+                            top: element.offsetTop,
+                            bottom: element.offsetTop + element.offsetHeight,
+                        },
+                        action: {
+                            type: "InsertFileIntoRow",
+                            pos: pos + 3,
                         },
                     });
                 }

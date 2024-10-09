@@ -1,8 +1,10 @@
 import {NodeSelection} from "prosemirror-state";
 import {EditorView, NodeViewConstructor} from "prosemirror-view";
+import {MutableRefObject} from "react";
 import {
     ContentEditorReferencesSetFileSignedUrlSearchAction,
     getContentEditorReferences,
+    rememberContentEditorPosWhileLoading,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
 import {withDisableContentEditorFileToolbarInitialAnimation} from "~/client/content/internal/content_editor_file_toolbar.js";
@@ -53,6 +55,7 @@ export function createContentEditorFileNodeViewConstructor({
     getExpirationTimers,
     subscribeToReferencesUpdate,
     isOurEditorUploading,
+    draggingFileRef,
 }: {
     getLayoutScreenWidth: () => number;
     getContext: () => AppContext;
@@ -61,6 +64,7 @@ export function createContentEditorFileNodeViewConstructor({
     getExpirationTimers: () => ContentFilePreviewExpirationTimers;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
     isOurEditorUploading: (fileId: FileId) => boolean;
+    draggingFileRef: MutableRefObject<{getPos: () => number | null} | null>;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
         let dom: HTMLElement;
@@ -201,6 +205,20 @@ export function createContentEditorFileNodeViewConstructor({
                         if (!view.hasFocus()) view.focus();
 
                         NativeMobileBridge?.haptic.playMediumImpact();
+                    },
+                    onDrag: dragPromise => {
+                        const ourDraggingFile = rememberContentEditorPosWhileLoading(
+                            view,
+                            getPos(),
+                            dragPromise,
+                        );
+
+                        draggingFileRef.current = ourDraggingFile;
+
+                        void dragPromise.finally(() => {
+                            if (draggingFileRef.current === ourDraggingFile)
+                                draggingFileRef.current = null;
+                        });
                     },
                 });
 

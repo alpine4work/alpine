@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..286f662eaaf848aa41a2b882d240b7047d23f005 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..596bd075cfffe27ea97229ae6a1eb22b235c2da2 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -59,7 +59,18 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..286f662eaaf848aa41a2b882d240b704
      if (webkit) restoreReplacedSpaces(dom);
    }
  
-@@ -3888,9 +3918,33 @@ handlers.focus = function (view) {
+@@ -3847,7 +3877,9 @@ editHandlers.drop = function (view, _event) {
+   var move = !!(dragging && !event[dragCopyModifier]);
+ 
+   if (view.someProp("handleDrop", function (f) {
+-    return f(view, event, slice || prosemirrorModel.Slice.empty, move);
++    // NOTE(calebmer): Add the `$mouse` position ProseMirror wants to drop the
++    // slice on.
++    return f(view, event, slice || prosemirrorModel.Slice.empty, move, $mouse);
+   })) {
+     event.preventDefault();
+     return;
+@@ -3888,9 +3920,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -96,7 +107,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..286f662eaaf848aa41a2b882d240b704
    }
  };
  
-@@ -5392,6 +5446,8 @@ var EditorView = function () {
+@@ -5392,6 +5448,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -105,7 +116,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..286f662eaaf848aa41a2b882d240b704
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5848,6 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5850,6 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
@@ -113,9 +124,18 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..286f662eaaf848aa41a2b882d240b704
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +exports.serializeForClipboard = serializeForClipboard;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..0e895164a85e2d9d5558c70d2d76f939ca56d7ca 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..bc7a1e4ee8dcdcfa945c0053e7dd599ac63c05b3 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
+@@ -649,7 +649,7 @@ interface EditorProps<P = any> {
+     true if this drop moves from the current selection (which should
+     thus be deleted).
+     */
+-    handleDrop?: (this: P, view: EditorView, event: DragEvent, slice: Slice, moved: boolean) => boolean | void;
++    handleDrop?: (this: P, view: EditorView, event: DragEvent, slice: Slice, moved: boolean, $mouse: ResolvedPos) => boolean | void;
+     /**
+     Called when the view, after updating its state, tries to scroll
+     the selection into view. A handler function may return false to
 @@ -674,6 +674,10 @@ interface EditorProps<P = any> {
      for example to clean it up.
      */
@@ -146,7 +166,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..0e895164a85e2d9d5558c70d2d76f939
 +    text: string;
 +};
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ef073325972bb85b0b88ff61dae4fc100228e1b5 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..0206c1004bed623d31ffec6b1ae1b38ceaa8d47b 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -214,7 +234,18 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ef073325972bb85b0b88ff61dae4fc10
          if (webkit)
              restoreReplacedSpaces(dom);
      }
-@@ -3460,10 +3486,34 @@ handlers.focus = view => {
+@@ -3418,7 +3444,9 @@ editHandlers.drop = (view, _event) => {
+         slice = parseFromClipboard(view, event.dataTransfer.getData(brokenClipboardAPI ? "Text" : "text/plain"), brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse);
+     }
+     let move = !!(dragging && !event[dragCopyModifier]);
+-    if (view.someProp("handleDrop", f => f(view, event, slice || Slice.empty, move))) {
++    // NOTE(calebmer): Add the `$mouse` position ProseMirror wants to drop the
++    // slice on.
++    if (view.someProp("handleDrop", f => f(view, event, slice || Slice.empty, move, $mouse))) {
+         event.preventDefault();
+         return;
+     }
+@@ -3460,10 +3488,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -253,7 +284,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ef073325972bb85b0b88ff61dae4fc10
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4879,6 +4929,8 @@ class EditorView {
+@@ -4879,6 +4931,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -262,7 +293,7 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ef073325972bb85b0b88ff61dae4fc10
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5356,6 @@ function checkStateComponent(plugin) {
+@@ -5304,3 +5358,6 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
@@ -343,7 +374,7 @@ index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a
  }
  
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..1ef8dbfe51771325e61b87c5a45be7daf6dda385 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..f0b092de6b661ec1fd54ddcb55ed1da2b624da8c 100644
 --- a/src/index.ts
 +++ b/src/index.ts
 @@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
@@ -374,6 +405,15 @@ index f28002967d6ff175430efdd8c2389924211c35ce..1ef8dbfe51771325e61b87c5a45be7da
    }
  
    /// An editable DOM node containing the document. (You probably
+@@ -592,7 +599,7 @@ export interface EditorProps<P = any> {
+   /// Called when something is dropped on the editor. `moved` will be
+   /// true if this drop moves from the current selection (which should
+   /// thus be deleted).
+-  handleDrop?: (this: P, view: EditorView, event: DragEvent, slice: Slice, moved: boolean) => boolean | void
++  handleDrop?: (this: P, view: EditorView, event: DragEvent, slice: Slice, moved: boolean, $mouse: ResolvedPos) => boolean | void
+ 
+   /// Called when the view, after updating its state, tries to scroll
+   /// the selection into view. A handler function may return false to
 @@ -614,6 +621,11 @@ export interface EditorProps<P = any> {
    /// for example to clean it up.
    transformPastedHTML?: (this: P, html: string) => string
@@ -397,10 +437,21 @@ index f28002967d6ff175430efdd8c2389924211c35ce..1ef8dbfe51771325e61b87c5a45be7da
 +  shouldUseDOMSelectionOnFocus?: boolean
  }
 diff --git a/src/input.ts b/src/input.ts
-index d5d66205262a462451dc19cb9213dab20e2ce02a..6e1ceb7002f6998b83c617a0eb48380383365eab 100644
+index d5d66205262a462451dc19cb9213dab20e2ce02a..dccb0f74883db6f804b2b23f7c25cf062a508e2f 100644
 --- a/src/input.ts
 +++ b/src/input.ts
-@@ -714,10 +714,34 @@ handlers.focus = view => {
+@@ -672,7 +672,9 @@ editHandlers.drop = (view, _event) => {
+                                brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse)
+   }
+   let move = !!(dragging && !event[dragCopyModifier])
+-  if (view.someProp("handleDrop", f => f(view, event, slice || Slice.empty, move))) {
++  // NOTE(calebmer): Add the `$mouse` position ProseMirror wants to drop the
++  // slice on.
++  if (view.someProp("handleDrop", f => f(view, event, slice || Slice.empty, move, $mouse))) {
+     event.preventDefault()
+     return
+   }
+@@ -714,10 +716,34 @@ handlers.focus = view => {
      view.dom.classList.add("ProseMirror-focused")
      view.domObserver.start()
      view.focused = true

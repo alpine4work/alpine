@@ -153,6 +153,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
             context.getTemporaryDirectoryPath(),
             "files",
         );
+        const edgeCacheLocalDataPath = joinPath(context.getTemporaryDirectoryPath(), "edge");
 
         const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
         const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
@@ -285,6 +286,8 @@ export function createTestServices(): {context: TestContext; services: TestServi
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileUploadServiceHostname=localhost:${fileUploadServicePort}`,
+                `--cacheLocalDataPath=${edgeCacheLocalDataPath}`,
+                `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
             ],
             {
                 env: process.env,

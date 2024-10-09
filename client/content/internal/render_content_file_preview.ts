@@ -1,4 +1,5 @@
 import {Node} from "prosemirror-model";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
@@ -7,7 +8,10 @@ import {
 import {AppContext} from "~/client/context/app_context.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {getContentReferencesFileSignedUrlExpirationTime} from "~/shared/content/content_references.js";
+import {
+    emptyContentReferences,
+    getContentReferencesFileSignedUrlExpirationTime,
+} from "~/shared/content/content_references.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
@@ -17,6 +21,7 @@ import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
 } from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -419,11 +424,14 @@ function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlacehol
     return svg;
 }
 
+// TODO(calebmer, #files): Copy option in context menu that both writes HTML to
+// clipboard and also downloads the full file.
 export function addContentFilePreviewBehavior(
     getContext: () => AppContext,
     element: HTMLElement,
     {
         spaceId,
+        node,
         reference,
         attachmentTarget,
         expirationTimers,
@@ -432,6 +440,7 @@ export function addContentFilePreviewBehavior(
         onSignedUrlRefresh,
         onShiftMouseDown,
         onLongPress,
+        onDrag,
     }: {
         spaceId: SpaceId;
         node: Node;
@@ -443,6 +452,7 @@ export function addContentFilePreviewBehavior(
         onSignedUrlRefresh: (fileId: FileId, signedUrlSearch: string) => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
         onLongPress?: () => void;
+        onDrag?: (dragPromise: Promise<void>) => void;
     },
 ): () => void {
     assert(element.classList.contains(fileClassName));
@@ -622,8 +632,70 @@ export function addContentFilePreviewBehavior(
     const handlePointerUp = resetPointerState;
     const handlePointerLeave = resetPointerState;
     const handlePointerCancel = resetPointerState;
-    const handleDragStart = resetPointerState;
     const handleParentScrollWhenPointerDownAndOver = resetPointerState;
+
+    const handleDragStart = (event: DragEvent) => {
+        resetPointerState();
+
+        // If we have a browser selection (whether it be `<ContentEditor>` or
+        // `<ContentView>`) that includes the file and some other stuff then we want to
+        // use ProseMirror's drag logic (or
+        // `handleDragStartEventIfNotTextInputElement()` in the case of
+        // `<ContentView>`). Otherwise we want to override ProseMirror's drag logic.
+        const selection = window.getSelection();
+        if (
+            selection?.containsNode(element) &&
+            (!element.contains(selection.anchorNode) || !element.contains(selection.focusNode))
+        ) {
+            return;
+        }
+
+        if (!reference) return;
+        if (!event.dataTransfer) return;
+
+        // Don't propagate to ProseMirror. If the user starts dragging on a file and
+        // only a file then we want `event.dataTransfer` to contain the file's HTML.
+        // Not the selection HTML which might be something different.
+        event.stopPropagation();
+
+        const clipboardSerializer =
+            ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                node.type.schema,
+                () => spaceId,
+                () => ({
+                    ...emptyContentReferences,
+                    fileById: new Map([[reference.file.id, reference]]),
+                }),
+                () => attachmentTarget,
+            );
+
+        const serializedNode = clipboardSerializer.serializeNode(node);
+        assert(serializedNode instanceof HTMLElement);
+
+        event.dataTransfer.clearData();
+        event.dataTransfer.setData("text/html", serializedNode.outerHTML);
+
+        // We check for this content type in the `dragenter` event to know if we need
+        // to show file drop targets. If this is set then it's assumed `text/html` will
+        // be parsed to `fileRow` or `file` nodes.
+        event.dataTransfer.setData("text/x.cyberworlds.file", "true");
+
+        if (onDrag) {
+            const dragPromiseResolver = createPromiseResolver();
+
+            const handleDragEnd = () => {
+                element.removeEventListener("dragend", handleDragEnd);
+                dragPromiseResolver.resolve();
+            };
+
+            // Attach `dragend` handler here since even if this content file's behavior is
+            // cleaned up (say `reference` changes) we don't want to remove our `dragend`
+            // event listener.
+            element.addEventListener("dragend", handleDragEnd);
+
+            onDrag(dragPromiseResolver.promise);
+        }
+    };
 
     element.addEventListener("pointerdown", handlePointerDown);
     element.addEventListener("pointerup", handlePointerUp);
