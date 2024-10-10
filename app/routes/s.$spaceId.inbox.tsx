@@ -88,6 +88,10 @@ export async function loader({params, context, request, serverRoutes: routes}: L
                 `/s/${spaceId}/${textDecoder.decode(decodeBase64(selectedParam, "Rfc4648Url"))}`,
             );
 
+            const searchParams = new URLSearchParams(selectedSpacePath.search);
+            searchParams.set("inbox", "show");
+            selectedSpacePath.search = searchParams.toString();
+
             return loadInitialPeekDataForServer(context, request, peekRoutes, selectedSpacePath);
         })(),
     ]);
@@ -171,7 +175,9 @@ function InboxRoute() {
 
                         const selectedSearchParam = encodeBase64(
                             textEncoder.encode(
-                                peek.initialSpacePath.replace(/^(\/s\/[^/]+\/)/, ""),
+                                peek.initialSpacePath
+                                    .replace(/^(\/s\/[^/]+\/)/, "")
+                                    .replace(/[?&]inbox=show/, ""),
                             ),
                             "Rfc4648Url",
                         );

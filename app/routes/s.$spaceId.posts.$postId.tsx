@@ -1,6 +1,6 @@
 import {useSearchParams} from "react-router-dom";
 import {PostView} from "~/client/forum/post_view.js";
-import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
+import {useInboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -110,18 +110,12 @@ export default function PostRoute({withMobileLayout = false}: {withMobileLayout?
         />
     );
 
-    if (!inboxEntry) {
-        return node;
-    } else {
-        return (
-            <InboxBannerOutletContainer
-                initialEntry={inboxEntry}
-                withMobileLayout={withMobileLayout}
-                maxWidth={contentStyles.contentMaxWidth}
-                borderBottom="grey-10"
-            >
-                {node}
-            </InboxBannerOutletContainer>
-        );
-    }
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            withMobileLayout: withMobileLayout,
+            maxWidth: contentStyles.contentMaxWidth,
+        },
+        node,
+    );
 }

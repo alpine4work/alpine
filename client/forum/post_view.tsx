@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from "react";
-import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_header.js";
 import {getPostMoreActions} from "~/client/forum/post_content_view.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
@@ -77,10 +77,7 @@ export function PostView({
         postResult = newPosts.getPostById(initialPost.model.id);
     }
 
-    const navigationBarRef = useRef<NavigationBarRef>(null);
-
     const navigationBar = useNavigationBar({
-        ref: navigationBarRef,
         withMobileLayout,
         withoutDisappearingTitle: true,
         title: (
@@ -129,7 +126,7 @@ export function PostView({
                 setPosts(posts => posts.handleEventTransaction(eventTransaction));
             }, [])}
             withMobileLayout={withMobileLayout}
-            navigationBar={{...navigationBar, navigationBarRef}}
+            navigationBar={navigationBar}
         />
     );
 }

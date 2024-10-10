@@ -180,7 +180,7 @@ if (process.env.NODE_ENV !== "development") {
                                         : "desktopNavigationBarHeight"
                                 ]
                             ],
-                            spacing["4"],
+                            spacing["2"],
                         ),
                     }}
                 >

@@ -1,11 +1,11 @@
-import {ReactElement, useCallback, useMemo, useRef, useState} from "react";
+import {ReactElement, useCallback, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {PostBasicList} from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {PostView} from "~/client/forum/post_view.js";
-import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
+import {useInboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -167,20 +167,14 @@ export default function ChannelPostsRouteWrapper({
         node = <ChannelPostsRoute withMobileLayout={withMobileLayout} />;
     }
 
-    if (!inboxEntry) {
-        return node;
-    } else {
-        return (
-            <InboxBannerOutletContainer
-                initialEntry={inboxEntry}
-                withMobileLayout={withMobileLayout}
-                maxWidth={contentStyles.contentMaxWidth}
-                borderBottom="grey-10"
-            >
-                {node}
-            </InboxBannerOutletContainer>
-        );
-    }
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            withMobileLayout: withMobileLayout,
+            maxWidth: contentStyles.contentMaxWidth,
+        },
+        node,
+    );
 }
 
 function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobileLayout: boolean}) {
@@ -241,11 +235,8 @@ function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobile
         }, [channelId, context]),
     });
 
-    const navigationBarRef = useRef<NavigationBarRef>(null);
-
     const navigationBar = useNavigationBar({
         isDisabled: !isMobile,
-        ref: navigationBarRef,
         withMobileLayout,
         title: printPrettySmallNumberSummary(totalPostCount, "new post"),
         withoutDisappearingTitle: true,
@@ -290,7 +281,7 @@ function ChannelPostsRoute({withMobileLayout: withMobileLayoutProp}: {withMobile
             onPostRealtimeEventTransaction={useCallback(({eventTransaction}) => {
                 setPosts(posts => posts.handleEventTransaction(eventTransaction));
             }, [])}
-            navigationBar={{...navigationBar, navigationBarRef}}
+            navigationBar={navigationBar}
             // Safe area inset is already accounted for on mobile thanks to the
             // `navigationBar`.
             withSafeAreaInsetTop={!isMobile}

@@ -122,8 +122,6 @@ export function ChannelViewNameEditor({
                                         runPromiseWithoutAwaiting(async () => {
                                             setIsSaving(true);
                                             try {
-                                                // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
-                                                // save has finished.
                                                 await onSave(name);
                                             } catch (error) {
                                                 reporter.displayError("Couldn’t save name", error);

@@ -94,6 +94,7 @@ import {
     contentStyles,
     documentContentStyles,
     inputPlaceholderStyles,
+    spaceLayoutStyles,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {paragraphClassName, titleClassName} from "~/shared/content/content_styles.js";
@@ -1510,6 +1511,11 @@ export function DocumentContentEditor({
         withMobileLayout,
         title: getDocumentContentTitle(content.doc),
         titleBoundaryRef,
+        titleBoundaryMarginTop: isMobile
+            ? contentStyles.mobilePlatformTitlePaddingTop
+            : withMobileLayout
+            ? contentStyles.mobileLayoutTitlePaddingTop
+            : contentStyles.desktopTitlePaddingTop,
         menuActions: [
             [
                 {
@@ -1533,6 +1539,7 @@ export function DocumentContentEditor({
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
+        desktopTitleMaxWidthCenterOffset: spaceLayoutStyles.sideBarWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
     });
@@ -2167,7 +2174,7 @@ function DocumentContentEditorSidebar({
                 </>
             )}
             {(!mobileState.isFullScreen || mobileState.animationState === "Contracting") && (
-                <Box flexShrink="0" paddingX="1.5" display="flex" alignItems="center" gap="1">
+                <Box flexShrink="0" paddingX="1.5" display="flex" alignItems="center">
                     <IconButton
                         ref={previousCommentThreadButtonRef}
                         size={isMobile ? "md" : "xs"}
@@ -2184,7 +2191,7 @@ function DocumentContentEditorSidebar({
                     </IconButton>
                     {withMobileLayout && (
                         <Box
-                            paddingX={isMobile ? "1.5" : "1"}
+                            paddingX={isMobile ? "2.5" : "2"}
                             color="grey-70"
                             textAlign="center"
                             style={{fontVariantNumeric: "tabular-nums"}}
@@ -2213,7 +2220,8 @@ function DocumentContentEditorSidebar({
                     </IconButton>
                     {!withMobileLayout && decoratedCommentThreadIndex !== null && (
                         <Box
-                            paddingX="1.5"
+                            paddingLeft="2.5"
+                            paddingRight="1.5"
                             color="grey-70"
                             style={{fontVariantNumeric: "tabular-nums"}}
                         >

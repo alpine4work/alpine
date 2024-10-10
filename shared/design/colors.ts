@@ -27,7 +27,9 @@ export type Color = keyof typeof colors;
  * [1]: https://en.wikipedia.org/wiki/HCL_color_space
  */
 export const colors = {
-    "grey-0": "#fbfbfc",
+    // Pure white background color is useful when embedding files since many files
+    // have white backgrounds and look odd on an off-white background.
+    "grey-0": "#ffffff",
     "grey-5": "#ebebf0",
     "grey-10": "#d9d9de",
     "grey-20": "#bcbcc4",

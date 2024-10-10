@@ -313,14 +313,7 @@ function InboxMobileEntryView({
                 if (isPending) return;
                 setIsPending(true);
 
-                const url = new URL(getInboxEntryPath(entry.model), window.location.href);
-                url.searchParams.set("inbox", "show");
-
-                navigate({
-                    pathname: url.pathname,
-                    search: url.search,
-                    hash: url.hash,
-                }).finally(() => {
+                navigate(getInboxEntryPath(entry.model)).finally(() => {
                     setIsPending(false);
                 });
             }}

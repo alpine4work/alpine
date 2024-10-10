@@ -3,7 +3,7 @@ import {colorSchemeVars} from "~/client/styles/internal/color_scheme.css.js";
 import {defaultParagraphMargin, paragraphFontSize} from "~/client/styles/internal/content.css.js";
 import {fontSizes, fontStyles} from "~/client/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/client/styles/internal/input_placeholder.css.js";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 export const textCursorNotInheritedClassName = style({
@@ -141,15 +141,15 @@ export const rowNumberClassName = style({
             transform: "translateY(-50%)",
             pointerEvents: "none",
             display: "block",
-            minWidth: addRemLengths(spacing["4"], spacing["0.5"]),
+            minWidth: spacing["4"],
             maxWidth: spacing["8"],
-            ...fontSizes["50"],
+            ...fontSizes["25"],
             ...fontStyles["truncate"],
             letterSpacing: "-0.1ch",
             // The right-most digits are most significant. Truncate at the start instead of
             // the end.
             direction: "rtl",
-            color: colorSchemeVars["grey-30"],
+            color: colorSchemeVars["grey-20"],
             textAlign: "right",
             fontVariantNumeric: "tabular-nums",
         },

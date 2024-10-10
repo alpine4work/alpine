@@ -13,7 +13,8 @@ import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
-    channelViewAsidePaddingY,
+    desktopLayoutChannelViewAsidePaddingY,
+    mobileLayoutChannelViewAsidePaddingY,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
 } from "~/client/styles/forum_shared_styles.js";
@@ -28,7 +29,7 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 
 export const channelViewHeaderMinHeight = addRemLengths(
-    spacing[channelViewAsidePaddingY],
+    spacing[desktopLayoutChannelViewAsidePaddingY],
     spacing[postFauxInputCreateButtonHeight],
     spacing[postContentViewOuterMarginY],
 );
@@ -61,7 +62,11 @@ export function ChannelViewHeader({
                     </Box>
                 )}
             <Box
-                paddingTop={channelViewAsidePaddingY}
+                paddingTop={
+                    withMobileLayout
+                        ? mobileLayoutChannelViewAsidePaddingY
+                        : desktopLayoutChannelViewAsidePaddingY
+                }
                 paddingBottom={postContentViewOuterMarginY}
                 paddingX={screenPaddingX}
             >

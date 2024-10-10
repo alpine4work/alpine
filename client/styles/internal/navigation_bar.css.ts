@@ -4,12 +4,7 @@ import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js
 
 // These constants are exported from `navigation_bar.tsx` for convenience.
 // Generally you'll import from there unless you need this constant in CSS.
-//
-// The desktop navigation bar height is carefully selected so that a spacing
-// `6` button can have spacing `5` margin left and spacing `5` margin top
-// within the navigation bar. This ends up looking nice when the navigation bar
-// is flat with the rest of the content.
-export const desktopNavigationBarHeight: Spacing = "16";
+export const desktopNavigationBarHeight: Spacing = "14";
 export const mobileNavigationBarHeight: Spacing = "14";
 
 export const desktopNavigationBarHeightRem = parseRemLengthNumber(
@@ -30,7 +25,7 @@ export const navigationBarBackgroundFadeOutAnimationClassName = style({
 
 const navigationBarTitleFadeOutKeyframes = keyframes({
     from: {opacity: 1, transform: "translateY(0rem)"},
-    to: {opacity: 0, transform: "translateY(-0.5rem)"},
+    to: {opacity: 0, transform: "translateY(-0.25rem)"},
 });
 
 export const navigationBarTitleFadeOutAnimationClassName = style({

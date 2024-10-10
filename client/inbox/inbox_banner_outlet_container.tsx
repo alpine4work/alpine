@@ -1,16 +1,21 @@
-import {ArrowUpRight, Check} from "phosphor-react";
-import {ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
+import {ArrowUpRight, CaretDown, CaretUp, Check} from "phosphor-react";
+import {ReactElement, ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
 import {createPath, useLocation} from "react-router";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {useDynamoGeneralRealtimeItemBase} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useStateWithOptimisticUpdates} from "~/client/helpers/use_state_with_optimistic_updates.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {InboxContextProvider} from "~/client/inbox/inbox_context.js";
+import {
+    InboxContextNavigation,
+    InboxContextProvider,
+    useInboxContext,
+} from "~/client/inbox/inbox_context.js";
 import {
     getInboxEntryDisplay,
     printInboxEntryDisplaySummaryWithoutInteractivityStore,
@@ -25,9 +30,12 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
-import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
-import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {
+    desktopLayoutInboxBannerHeight,
+    mobileLayoutInboxBannerHeight,
+} from "~/client/styles/inbox_shared_styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {Spacing, screenPaddingX, spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -35,18 +43,54 @@ import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {convertPeekPathToSpacePathParts} from "~/shared/remix/peek_path_helpers.js";
 import {getInboxEntryWithStrongReadConsistency} from "~/shared/rpc/notifications_rpc_definitions.js";
 
-export function InboxBannerOutletContainer({
+export function useInboxBannerOutletContainer<Children extends ReactNode>(
+    {
+        initialEntry,
+        ...props
+    }: {
+        initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+        withMobileLayout: boolean;
+        maxWidth: Spacing | "full";
+        sidebarRightWidth?: Spacing;
+    },
+    children: Children,
+): ReactElement | Children {
+    const inboxContext = useInboxContext();
+
+    const entry = inboxContext?.entry ?? initialEntry;
+
+    if (!entry) {
+        return children;
+    }
+
+    return (
+        <InboxBannerOutletContainer
+            {...props}
+            initialEntry={entry}
+            // Disable realtime if we have an entry from `useInboxContext()`. Our parent
+            // component is expected to keep the entry up-to-date in realtime.
+            withoutRealtime={!!inboxContext?.entry}
+            navigation={inboxContext?.navigation ?? null}
+        >
+            {children}
+        </InboxBannerOutletContainer>
+    );
+}
+
+function InboxBannerOutletContainer({
     initialEntry,
+    withoutRealtime,
+    navigation,
     withMobileLayout,
     maxWidth,
-    borderBottom,
     sidebarRightWidth,
     children,
 }: {
     initialEntry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    withoutRealtime: boolean;
+    navigation: InboxContextNavigation | null;
     withMobileLayout: boolean;
     maxWidth: Spacing | "full";
-    borderBottom: "grey-5" | "grey-10";
     sidebarRightWidth?: Spacing;
     children?: ReactNode;
 }) {
@@ -66,8 +110,18 @@ export function InboxBannerOutletContainer({
 
     const entryKey = useMemo(() => initialEntry.model.getKey(), [initialEntry.model]);
 
-    const [entry, updateEntry, updateEntryOptimistically] =
+    const [entryFromState, updateEntry, updateEntryOptimistically] =
         useStateWithOptimisticUpdates(initialEntry);
+
+    let entry = entryFromState;
+
+    // If realtime is disabled then `entry` should always be the same as
+    // `initialEntry`. If realtime is enabled then we'll resume from the last
+    // `initialEntry` we saw.
+    if (withoutRealtime && entry !== initialEntry) {
+        entry = initialEntry;
+        updateEntry(() => initialEntry);
+    }
 
     const isInboxEntryTask = entry.model.type === "Task";
 
@@ -104,18 +158,28 @@ export function InboxBannerOutletContainer({
     useDynamoGeneralRealtimeItemBase(
         {item: entry, onUpdateItem: updateEntry},
         {
-            isConnected,
+            isConnected: isConnected,
             subscribeToEvents: useCallback(
-                subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
-                [subscribeToEvents],
+                subscriber => {
+                    // The parent component is responsible for keeping `entry` up-to-date in
+                    // realtime. If `withoutRealtime` is true then noop.
+                    if (withoutRealtime) return;
+
+                    return subscribeToEvents(event => subscriber(event.eventTransaction));
+                },
+                [subscribeToEvents, withoutRealtime],
             ),
             reloadItemWithStrongReadConsistency: useCallback(async () => {
+                // The parent component is responsible for keeping `entry` up-to-date in
+                // realtime. If `withoutRealtime` is true then noop.
+                if (withoutRealtime) return;
+
                 const {entry} = await getInboxEntryWithStrongReadConsistency(context, {
                     spaceId: space.id,
                     key: entryKey,
                 });
                 return entry;
-            }, [context, entryKey, space.id]),
+            }, [context, entryKey, space.id, withoutRealtime]),
         },
     );
 
@@ -146,6 +210,13 @@ export function InboxBannerOutletContainer({
                         // Programmatically click the button to correctly handle loading and
                         // error states.
                         assertExists(doneButtonRef.current).press();
+                    } else if (navigation) {
+                        // If the entry is already archived then move to the next entry.
+                        if (navigation.nextEntry) {
+                            void navigation.selectEntry(navigation.nextEntry);
+                        } else if (navigation.previousEntry) {
+                            void navigation.selectEntry(navigation.previousEntry);
+                        }
                     } else {
                         // If the entry is already archived (e.g. because of a comment) we still want
                         // Cmd-D to close the peek so users can maintain that workflow.
@@ -164,7 +235,13 @@ export function InboxBannerOutletContainer({
                 style={{
                     // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
                     // like it.
-                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${spacing[inboxBannerHeight]})`,
+                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${
+                        spacing[
+                            withMobileLayout
+                                ? mobileLayoutInboxBannerHeight
+                                : desktopLayoutInboxBannerHeight
+                        ]
+                    })`,
                 }}
             >
                 <Box
@@ -175,16 +252,16 @@ export function InboxBannerOutletContainer({
                     backgroundColor="grey-0"
                     style={{
                         paddingTop: "var(--safe-area-inset-top-base, 0px)",
-                        // We use a box shadow to draw the border so it occupies the same space as a
-                        // `useNavigationBar()` border when scrolled all the way up. That way we don't
-                        // render double borders.
-                        boxShadow: `0 1px 0 0 ${colorSchemeVars[borderBottom]}`,
                     }}
                 >
                     <Box
                         width="full"
                         maxWidth={maxWidth}
-                        height={inboxBannerHeight}
+                        height={
+                            withMobileLayout
+                                ? mobileLayoutInboxBannerHeight
+                                : desktopLayoutInboxBannerHeight
+                        }
                         marginX="center"
                         display="flex"
                         justifyContent="center"
@@ -192,8 +269,7 @@ export function InboxBannerOutletContainer({
                     >
                         <Box
                             display="flex"
-                            paddingLeft="3"
-                            paddingRight="1.5"
+                            paddingX={screenPaddingX}
                             alignItems="center"
                             width={isInboxEntryTask ? contentStyles.contentMaxWidth : "full"}
                         >
@@ -201,13 +277,13 @@ export function InboxBannerOutletContainer({
                                 color="grey-50"
                                 fontSize="75"
                                 fontStyle="truncate"
-                                paddingRight="0.5"
+                                paddingRight={!navigation && !isMobile ? "0.5" : undefined}
                             >
                                 {isMobile
                                     ? "Notification"
                                     : `Notification: ${entryDisplaySummaryText}`}
                             </Box>
-                            {!isMobile && (
+                            {!navigation && !isMobile && (
                                 <IconButton
                                     size="xs"
                                     description="Open in inbox"
@@ -253,13 +329,50 @@ export function InboxBannerOutletContainer({
                                 </IconButton>
                             )}
                             <Box minWidth="10" flexGrow="1" />
+                            {navigation && !isMobile && (
+                                <>
+                                    <IconButton
+                                        size="xs"
+                                        description="Previous notification"
+                                        keyboardShortcutHint="↑"
+                                        isDisabled={!navigation.previousEntry}
+                                        pressErrorTitle="Can’t go to previous notification"
+                                        onPress={async () => {
+                                            if (!navigation.previousEntry) return;
+                                            await navigation.selectEntry(navigation.previousEntry);
+                                        }}
+                                    >
+                                        <CaretUp />
+                                    </IconButton>
+                                    <IconButton
+                                        size="xs"
+                                        description="Next notification"
+                                        keyboardShortcutHint="↓"
+                                        isDisabled={!navigation.nextEntry}
+                                        pressErrorTitle="Can’t go to next notification"
+                                        onPress={async () => {
+                                            if (!navigation.nextEntry) return;
+                                            await navigation.selectEntry(navigation.nextEntry);
+                                        }}
+                                    >
+                                        <CaretDown />
+                                    </IconButton>
+                                    <Spacer space="2.5" />
+                                </>
+                            )}
                             <Button
                                 ref={doneButtonRef}
                                 variant={entry.model.isArchived ? "neutral-disabled" : "neutral"}
                                 height="6"
                                 paddingX="2"
                                 icon={<Check />}
-                                keyboardShortcutHint={isAppleDevice ? "⌘+D" : "Ctrl+D"}
+                                keyboardShortcutHint={
+                                    !entry.model.isArchived
+                                        ? isAppleDevice
+                                            ? "⌘+D"
+                                            : "Ctrl+D"
+                                        : undefined
+                                }
                                 pressErrorTitle="Can’t mark as done"
                                 onPress={async () => {
                                     if (!entry.model.isArchived) {
@@ -268,9 +381,11 @@ export function InboxBannerOutletContainer({
                                             withAnimation: true,
                                         });
 
-                                        // Navigate back, if this is in a peek we'll close the peek. If this is on
-                                        // mobile we'll go back to inbox.
-                                        await navigate(-1);
+                                        if (!navigation) {
+                                            // Navigate back, if this is in a peek we'll close the peek. If this is on
+                                            // mobile we'll go back to inbox.
+                                            await navigate(-1);
+                                        }
                                     }
                                     // This button works as a toggle button. If you click it when the notification
                                     // has already been archived then we'll unarchive.
@@ -279,6 +394,16 @@ export function InboxBannerOutletContainer({
                                             entry,
                                             withAnimation: true,
                                         });
+                                    }
+
+                                    if (navigation) {
+                                        if (navigation.nextEntry) {
+                                            await navigation.selectEntry(navigation.nextEntry);
+                                        } else if (navigation.previousEntry) {
+                                            await navigation.selectEntry(navigation.previousEntry);
+                                        } else {
+                                            await navigation.selectEntry(null);
+                                        }
                                     }
                                 }}
                             >

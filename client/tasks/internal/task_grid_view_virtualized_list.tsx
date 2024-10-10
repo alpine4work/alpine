@@ -2012,20 +2012,13 @@ export function useTaskGridViewVirtualizedList({
                             key: "ColumnHeader",
                             minHeight,
                             withManualLayout: true,
-                            render: ({
-                                ref,
-                                offset,
-                                height,
-                                shouldRenderWithRelativePositioning,
-                            }) => (
+                            render: ({ref, offset, shouldRenderWithRelativePositioning}) => (
                                 <TaskGridViewColumnHeaderMemo
                                     ref={ref}
-                                    viewRef={viewRef}
                                     hasColumns={capabilities.hasColumns}
                                     columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                                     minHeight={minHeight}
                                     offset={offset}
-                                    height={height}
                                     shouldRenderWithRelativePositioning={
                                         shouldRenderWithRelativePositioning
                                     }
@@ -2470,277 +2463,143 @@ const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
 
 function TaskGridViewColumnHeader(
     {
-        viewRef,
         hasColumns,
         columnHeaderControls,
         minHeight,
         offset,
-        height,
         shouldRenderWithRelativePositioning,
     }: {
-        viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
         hasColumns: boolean;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
         offset: number;
-        height: number;
         shouldRenderWithRelativePositioning: boolean;
     },
     virtualizedItemRef: Ref<HTMLDivElement>,
 ) {
     const columnHeaderContainerRef = useRef<HTMLDivElement>(null);
-    const columnHeaderBorderTopRef = useRef<HTMLDivElement>(null);
-    const columnHeaderBorderTopStickyRef = useRef<HTMLDivElement>(null);
-    const columnHeaderBorderBottomRef = useRef<HTMLDivElement>(null);
-
-    // Update the `z-index` on our column header when it's "stuck" so we can raise
-    // the `z-index`.
-    //
-    // See [this StackOverflow question][1].
-    //
-    // [1]: https://stackoverflow.com/questions/25308823/targeting-positionsticky-elements-that-are-currently-in-a-stuck-state
-    //
-    // NOTE(calebmer, 2023-10-30): When I first built these sticky headers, I
-    // wasn't aware of this `IntersectionObserver` technique for updating styles.
-    // That may be a simpler way to implement the border style changes. However, I
-    // don't know if `IntersectionObserver` is frame perfect! It's ok if `z-index`
-    // updates aren't frame perfect but we really want border style changes to be
-    // frame perfect. I know `position: sticky` is frame perfect so leaving that as
-    // our border implementation for now.
-    useEffect(() => {
-        if (shouldRenderWithRelativePositioning) return;
-
-        const viewContentElement = assertExists(viewRef.current).getContentElement();
-        const columnHeaderContainerElement = assertExists(columnHeaderContainerRef.current);
-        const columnHeaderBorderTopElement = assertExists(columnHeaderBorderTopRef.current);
-        const columnHeaderBorderTopStickyElement = assertExists(
-            columnHeaderBorderTopStickyRef.current,
-        );
-        const columnHeaderBorderBottomElement = assertExists(columnHeaderBorderBottomRef.current);
-
-        const observer = new IntersectionObserver(
-            entries => {
-                for (const entry of entries) {
-                    if (
-                        entry.target === columnHeaderBorderTopStickyElement &&
-                        entry.intersectionRatio >= 1
-                    ) {
-                        columnHeaderContainerElement.style.zIndex = "30";
-                        columnHeaderBorderTopElement.style.zIndex = "20";
-                        columnHeaderBorderBottomElement.style.zIndex = "10";
-                    } else {
-                        // Render above overlays which are at `zIndex="50"`
-                        columnHeaderContainerElement.style.zIndex = "90";
-                        columnHeaderBorderTopElement.style.zIndex = "80";
-                        columnHeaderBorderBottomElement.style.zIndex = "70";
-                    }
-                }
-            },
-            {
-                root: viewContentElement.parentElement,
-                rootMargin: "-1px 0px 0px 0px",
-                threshold: [1],
-            },
-        );
-
-        observer.observe(columnHeaderBorderTopStickyElement);
-
-        return () => {
-            observer.disconnect();
-        };
-    }, [shouldRenderWithRelativePositioning, viewRef]);
 
     return (
-        <>
-            {!shouldRenderWithRelativePositioning && (
-                <>
-                    <Box
-                        ref={columnHeaderBorderTopRef}
-                        // `grey-5` top border that replaces `<TaskLayoutTopBar>` border when column
-                        // header overlays tasks to make it feel like column header is part of the
-                        // same material as the header.
-                        //
-                        // Also covers the `grey-10` bottom border with `grey-0` when the column header
-                        // is NOT overlaying tasks.
-                        //
-                        // When the column header "sticks" this element shifts 1px revealing its bottom
-                        // border and replacing the top border.
-                        position="absolute"
-                        left="0"
-                        right="0"
-                        bottom="0"
-                        style={{top: offset + 1}}
-                        pointerEvents="none"
-                        // Default to 20. Our `useEffect()` hook above will update the `z-index` when
-                        // the column header is stuck.
-                        zIndex="20"
-                    >
-                        <Box
-                            ref={columnHeaderBorderTopStickyRef}
-                            position="sticky"
-                            left="0"
-                            right="0"
-                            backgroundColor="grey-0"
-                            borderTop="grey-5"
-                            style={{
-                                top: 0,
-                                height: height - 2,
-                            }}
-                        />
-                    </Box>
-                    <Box
-                        ref={columnHeaderBorderBottomRef}
-                        // `grey-10` bottom border that's shown when the column header is overlaying
-                        // tasks. Will be hidden by the above element with a `grey-0` background until
-                        // it shifts because our column header is now "stuck" to the top.
-                        position="absolute"
-                        left="0"
-                        right="0"
-                        bottom="0"
-                        style={{top: offset + height - 2}}
-                        pointerEvents="none"
-                        // Default to 10. Our `useEffect()` hook above will update the `z-index` when
-                        // the column header is stuck.
-                        zIndex="10"
-                    >
-                        <Box
-                            position="sticky"
-                            left="0"
-                            right="0"
-                            borderBottom="grey-10"
-                            style={{
-                                top: height - 2,
-                                height: 1,
-                            }}
-                        />
-                    </Box>
-                </>
-            )}
+        <Box
+            ref={columnHeaderContainerRef}
+            style={
+                shouldRenderWithRelativePositioning
+                    ? {
+                          position: "relative",
+                          backgroundColor: "grey-0",
+                      }
+                    : {
+                          position: "absolute",
+                          top: offset,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                      }
+            }
+            pointerEvents="none"
+            // Default to 30. Our `useEffect()` hook above will update the `z-index` when
+            // the column header is stuck.
+            zIndex="30"
+        >
             <Box
-                ref={columnHeaderContainerRef}
-                style={
-                    shouldRenderWithRelativePositioning
-                        ? {
-                              position: "relative",
-                              backgroundColor: "grey-0",
-                          }
-                        : {
-                              position: "absolute",
-                              top: offset,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                          }
-                }
-                pointerEvents="none"
-                // Default to 30. Our `useEffect()` hook above will update the `z-index` when
-                // the column header is stuck.
-                zIndex="30"
+                ref={virtualizedItemRef}
+                // Our header is not sticky when rendered with relative positioning.
+                position={!shouldRenderWithRelativePositioning ? "sticky" : "relative"}
+                left="0"
+                right="0"
+                pointerEvents="auto"
+                style={{
+                    top: !shouldRenderWithRelativePositioning ? 0 : undefined,
+                    minHeight,
+                    paddingBottom: taskGridViewColumnHeaderExtraPaddingBottomPx,
+                }}
             >
-                <Box
-                    ref={virtualizedItemRef}
-                    // Our header is not sticky when rendered with relative positioning.
-                    position={!shouldRenderWithRelativePositioning ? "sticky" : "relative"}
-                    left="0"
-                    right="0"
-                    pointerEvents="auto"
-                    style={{
-                        top: !shouldRenderWithRelativePositioning ? 0 : undefined,
-                        minHeight,
-                        paddingBottom: taskGridViewColumnHeaderExtraPaddingBottomPx,
-                    }}
-                >
+                <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0">
                     <Box
-                        zIndex="-10"
                         position="absolute"
-                        top="0"
-                        left="0"
-                        right="0"
-                        style={{
-                            top: 0,
-                            // Render background color with an absolute positioned `<div>` so we don't
-                            // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
-                            bottom: 2,
-                        }}
-                        backgroundColor="grey-0"
+                        bottom="0"
+                        left={screenPaddingX}
+                        right={screenPaddingX}
+                        backgroundColor="grey-5"
+                        style={{height: 1}}
                     />
-                    <OverlayScopeContextProvider
-                    // Provide an overlay scope within our sticky element which has a `zIndex` that
-                    // renders over overlays.
-                    >
-                        {columnHeaderControls && (
-                            <Box style={{minHeight: columnHeaderControls.minHeight}}>
-                                {columnHeaderControls.node}
-                            </Box>
-                        )}
-                        {hasColumns && (
-                            <Box
-                                height={taskGridViewColumnHeaderHeight}
-                                paddingTop="0.5"
-                                display="flex"
-                            >
-                                <Box
-                                    flexShrink="0"
-                                    width="32"
-                                    paddingLeft="5"
-                                    paddingBottom="1"
-                                    color="grey-40"
-                                    fontSize="50"
-                                >
-                                    Name
-                                </Box>
-                                <Box flexGrow="1" />
-                                <Box
-                                    flexShrink="0"
-                                    paddingX={taskRowViewColumnPaddingX}
-                                    paddingBottom="1"
-                                    color="grey-40"
-                                    fontSize="50"
-                                    style={{
-                                        width: taskRowViewFirstColumnWidth,
-                                        paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                    }}
-                                >
-                                    Assignee
-                                </Box>
-                                <Box
-                                    flexShrink="0"
-                                    paddingX={taskRowViewColumnPaddingX}
-                                    paddingBottom="1"
-                                    color="grey-40"
-                                    fontSize="50"
-                                    style={{width: taskRowViewColumnWidth}}
-                                >
-                                    Priority
-                                </Box>
-                                <Box
-                                    flexShrink="0"
-                                    paddingX={taskRowViewColumnPaddingX}
-                                    paddingBottom="1"
-                                    color="grey-40"
-                                    fontSize="50"
-                                    style={{width: taskRowViewColumnWidth}}
-                                >
-                                    Due date
-                                </Box>
-                                <Box
-                                    flexShrink="0"
-                                    paddingLeft={taskRowViewColumnPaddingX}
-                                    paddingRight={taskRowViewLastColumnPaddingRight}
-                                    paddingBottom="1"
-                                    color="grey-40"
-                                    fontSize="50"
-                                    style={{width: taskRowViewCollectionsColumnWidth}}
-                                >
-                                    Collections
-                                </Box>
-                                <Box flexShrink="0" width="5" />
-                            </Box>
-                        )}
-                    </OverlayScopeContextProvider>
                 </Box>
+                <OverlayScopeContextProvider
+                // Provide an overlay scope within our sticky element which has a `zIndex` that
+                // renders over overlays.
+                >
+                    {columnHeaderControls && (
+                        <Box style={{minHeight: columnHeaderControls.minHeight}}>
+                            {columnHeaderControls.node}
+                        </Box>
+                    )}
+                    {hasColumns && (
+                        <Box
+                            height={taskGridViewColumnHeaderHeight}
+                            paddingTop="0.5"
+                            display="flex"
+                        >
+                            <Box
+                                flexShrink="0"
+                                width="32"
+                                paddingLeft="5"
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                            >
+                                Name
+                            </Box>
+                            <Box flexGrow="1" />
+                            <Box
+                                flexShrink="0"
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{
+                                    width: taskRowViewFirstColumnWidth,
+                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                }}
+                            >
+                                Assignee
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{width: taskRowViewColumnWidth}}
+                            >
+                                Priority
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{width: taskRowViewColumnWidth}}
+                            >
+                                Due date
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                paddingLeft={taskRowViewColumnPaddingX}
+                                paddingRight={taskRowViewLastColumnPaddingRight}
+                                paddingBottom="1"
+                                color="grey-40"
+                                fontSize="50"
+                                style={{width: taskRowViewCollectionsColumnWidth}}
+                            >
+                                Collections
+                            </Box>
+                            <Box flexShrink="0" width="5" />
+                        </Box>
+                    )}
+                </OverlayScopeContextProvider>
             </Box>
-        </>
+        </Box>
     );
 }
 

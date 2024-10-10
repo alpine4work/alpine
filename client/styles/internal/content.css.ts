@@ -33,6 +33,7 @@ import {
     desktopPlatformSelector,
     mobilePlatformSelector,
 } from "~/client/styles/internal/platform.css.js";
+import {sideBarWidth as spaceLayoutSideBarWidth} from "~/client/styles/internal/space_layout.css.js";
 import {backgroundColorVar} from "~/client/styles/internal/sprinkles.css.js";
 import * as sharedClassNames from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/colors.js";
@@ -203,8 +204,12 @@ export const extraCompactDocClassName = style({
 const blockStyles = {
     width: "100%",
     maxWidth: blockMaxWidthVar,
-    marginLeft: "auto",
-    marginRight: "auto",
+    // Visually center the document by removing `spaceLayoutSideBarWidth` from our
+    // `marginLeft`. Even though the space layout sidebar takes up space in layout,
+    // it renders as if it's floating. So in order to optically center we need less
+    // margin on the left.
+    marginLeft: `max(0px, 50% - ${blockMaxWidthVar} / 2 - ${spaceLayoutSideBarWidth} / 2)`,
+    marginRight: `max(0px, 50% - ${blockMaxWidthVar} / 2 + ${spaceLayoutSideBarWidth} / 2)`,
     // By default, all blocks are rendered below `fileFloat`. If you want your
     // block to be rendered besides `fileFloat` you must explicitly omit this
     // `clear` property.
@@ -312,7 +317,7 @@ export const mobilePlatformTitlePaddingTop = addRemLengths(
     spacing[mobileNavigationBarHeight],
 );
 export const mobileLayoutTitlePaddingTop = addRemLengths(
-    spacing["3"],
+    spacing["0"],
     spacing[desktopNavigationBarHeight],
 );
 
@@ -952,6 +957,7 @@ globalStyle(fileRowClassName, {
     gap: fileRowGapWidth,
     minHeight: minFileSize,
     maxHeight: fileRowMaxHeight,
+    userSelect: "none",
 });
 
 globalStyle(`${fileRowClassName}:has(+ ${fileRowClassName})`, {
@@ -990,6 +996,7 @@ globalStyle(fileFloatClassName, {
     gridTemplateColumns: "100% 0",
     paddingTop: fileFloatMarginY,
     paddingBottom: fileFloatMarginY,
+    userSelect: "none",
 });
 
 // [Clearfix][1] our floated files. CSS floats used to be very popular as they
@@ -1033,8 +1040,6 @@ globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {
     marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
 });
 
-// NOTE(calebmer): Make sure we don't set `user-select: none` on files since we
-// want the `<img>` inside to get the browser's selection effect.
 globalStyle(fileClassName, {
     zIndex: "10",
     position: "relative",
@@ -1046,6 +1051,13 @@ globalStyle(fileClassName, {
     // file it opens up the file viewer. The file alone is not obviously
     // interactive.
     cursor: "pointer",
+    userSelect: "none",
+});
+
+// Images need to be selectable so we get the browser's selection highlight
+// effect.
+globalStyle(`${fileClassName} img`, {
+    userSelect: "text",
 });
 
 // If the user's pointer is down and they're dragging to change the selection

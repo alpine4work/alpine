@@ -126,7 +126,7 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
                 subscriber: (
                     eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
                 ) => void,
-            ) => () => void
+            ) => (() => void) | void
         >;
 
         /**
@@ -143,7 +143,7 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
          * It's important to use strong read consistency in your reload function.
          * Eventual consistency may still miss some updates.
          */
-        reloadItemWithStrongReadConsistency: () => Promise<DynamoGeneralRealtimeItem<Model>>;
+        reloadItemWithStrongReadConsistency: () => Promise<DynamoGeneralRealtimeItem<Model> | void>;
     },
 ): {
     item: DynamoGeneralRealtimeItem<Model>;
@@ -213,6 +213,8 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
 
         reloadItemWithStrongReadConsistency().then(
             newItem => {
+                if (!newItem) return;
+
                 onUpdateItem(item => {
                     // If our event transaction has a higher versioned item of the same key then
                     // update our state.

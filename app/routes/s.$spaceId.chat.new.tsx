@@ -234,12 +234,7 @@ export default function NewChatRoute({
             display="flex"
             flexDirection="column"
         >
-            <Box
-                ref={accountPickerContainerRef}
-                flexShrink="0"
-                paddingTop="safe-area-inset"
-                borderBottom="grey-10"
-            >
+            <Box ref={accountPickerContainerRef} flexShrink="0" paddingTop="safe-area-inset">
                 {isMobile && (
                     <NavigationBarContent
                         withMobileLayout={withMobileLayout}

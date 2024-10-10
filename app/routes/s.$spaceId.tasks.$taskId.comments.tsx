@@ -3,7 +3,7 @@ import {useCallback, useEffect} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {NavigationBarContent} from "~/client/design/navigation_bar.js";
-import {InboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
+import {useInboxBannerOutletContainer} from "~/client/inbox/inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -151,13 +151,7 @@ export default function TaskCommentsRoute({
 
     const node = (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            <Box
-                flexShrink="0"
-                width="full"
-                paddingTop="safe-area-inset"
-                display="flex"
-                borderBottom="grey-10"
-            >
+            <Box flexShrink="0" width="full" paddingTop="safe-area-inset" display="flex">
                 <NavigationBarContent
                     withMobileLayout={withMobileLayout}
                     title={
@@ -205,20 +199,14 @@ export default function TaskCommentsRoute({
         </Box>
     );
 
-    if (!inboxEntry) {
-        return node;
-    } else {
-        return (
-            <InboxBannerOutletContainer
-                initialEntry={inboxEntry}
-                withMobileLayout={withMobileLayout}
-                maxWidth={contentStyles.contentMaxWidth}
-                borderBottom="grey-5"
-            >
-                {node}
-            </InboxBannerOutletContainer>
-        );
-    }
+    return useInboxBannerOutletContainer(
+        {
+            initialEntry: inboxEntry,
+            withMobileLayout: withMobileLayout,
+            maxWidth: contentStyles.contentMaxWidth,
+        },
+        node,
+    );
 }
 
 function TaskCommentsViewHeaderTitle({

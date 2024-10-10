@@ -290,7 +290,6 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
                             backgroundColor: "transparent",
                             borderTopRadius: "1.5",
                             borderBottomRadius: "none",
-                            borderBottom: "grey-10",
                         })}
                         placeholder={inputLabel}
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`

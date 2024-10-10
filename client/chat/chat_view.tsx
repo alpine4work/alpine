@@ -99,7 +99,6 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
             <Box
                 height={navigationBarHeight}
                 width="full"
-                borderBottom="grey-10"
                 display="flex"
                 justifyContent="center"
                 alignItems="center"

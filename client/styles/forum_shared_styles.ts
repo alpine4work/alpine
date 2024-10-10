@@ -11,7 +11,8 @@ import {
 } from "~/shared/design/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
-export const channelViewAsidePaddingY = "4";
+export const desktopLayoutChannelViewAsidePaddingY = "1";
+export const mobileLayoutChannelViewAsidePaddingY = "4";
 
 export const postFauxInputCreateButtonHeight = "12";
 

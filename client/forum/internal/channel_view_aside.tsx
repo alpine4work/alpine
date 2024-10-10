@@ -11,7 +11,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {channelViewAsidePaddingY} from "~/client/styles/forum_shared_styles.js";
+import {desktopLayoutChannelViewAsidePaddingY} from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {
     addRemLengths,
@@ -34,7 +34,7 @@ const channelViewAsideEditingDescriptionOffsetTop = `${
         subtractRemLengths(
             addRemLengths(
                 fontSizes[channelViewAsideSectionTitleFontSize].lineHeight,
-                spacing[channelViewAsidePaddingY],
+                spacing[desktopLayoutChannelViewAsidePaddingY],
             ),
             // Size of a `md` `<IconButton>`
             spacing["6"],
@@ -59,7 +59,7 @@ export function ChannelViewAside({
         <OverlayScopeContextProvider>
             <Box
                 position="relative"
-                paddingY={channelViewAsidePaddingY}
+                paddingY={desktopLayoutChannelViewAsidePaddingY}
                 paddingLeft="1"
                 paddingRight={screenPaddingX}
             >

@@ -50,6 +50,8 @@ import {
     RemLength,
     Spacing,
     addRemLengths,
+    convertRemLengthToPx,
+    isRemLength,
     isSpacing,
     parseRemLengthNumber,
     remPxByPlatform,
@@ -336,6 +338,12 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
     titleBoundaryRef?: RefObject<TitleBoundaryElement>;
 
     /**
+     * The title only displays once the user has scrolled this distance past the
+     * title boundary element's top.
+     */
+    titleBoundaryMarginTop?: Spacing | RemLength;
+
+    /**
      * Don't let the title disappear when the navigation bar is scrolled to the
      * top. This can lead to some cleaner designs.
      */
@@ -429,6 +437,14 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * effect of centering the title container (of this width) when set.
      */
     desktopTitleMaxWidth?: Spacing | RemLength;
+
+    /**
+     * When using `desktopTitleMaxWidth` we offset the title from the center by
+     * this much. Pushing the title to the left by half this value. It's used when
+     * your content is optically centered (disregarding the space layout sidebar
+     * width) to make sure the navigation bar title is optically centered as well.
+     */
+    desktopTitleMaxWidthCenterOffset?: Spacing | RemLength;
 
     /**
      * Font size to use for the title on desktop.
@@ -553,6 +569,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     withMobileLayout,
     title = null,
     titleBoundaryRef,
+    titleBoundaryMarginTop,
     withoutDisappearingTitle = false,
     subtitle,
     menuActions = emptyArray,
@@ -564,6 +581,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopControls = null,
     desktopMaxWidth,
     desktopTitleMaxWidth,
+    desktopTitleMaxWidthCenterOffset,
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
     desktopTitleLeftSlop,
@@ -684,6 +702,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             navigationBarRef={ref}
             title={title}
             titleBoundaryRef={titleBoundaryRef}
+            titleBoundaryMarginTop={titleBoundaryMarginTop}
             withoutDisappearingTitle={withoutDisappearingTitle}
             subtitle={subtitle}
             menuActions={menuActions}
@@ -695,6 +714,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             desktopControls={desktopControls}
             desktopMaxWidth={desktopMaxWidth}
             desktopTitleMaxWidth={desktopTitleMaxWidth}
+            desktopTitleMaxWidthCenterOffset={desktopTitleMaxWidthCenterOffset}
             desktopTitleFontSize={desktopTitleFontSize}
             desktopTitleFontWeight={desktopTitleFontWeight}
             desktopTitleLeftSlop={desktopTitleLeftSlop}
@@ -743,6 +763,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     navigationBarRef: externalNavigationBarRef,
     title,
     titleBoundaryRef,
+    titleBoundaryMarginTop,
     withoutDisappearingTitle,
     subtitle,
     menuActions,
@@ -754,6 +775,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopControls,
     desktopMaxWidth,
     desktopTitleMaxWidth,
+    desktopTitleMaxWidthCenterOffset,
     desktopTitleFontSize,
     desktopTitleFontWeight,
     desktopTitleLeftSlop,
@@ -773,6 +795,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     navigationBarRef: Ref<NavigationBarRef> | undefined;
     title: ReactNode;
     titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
+    titleBoundaryMarginTop: Spacing | RemLength | undefined;
     withoutDisappearingTitle: boolean;
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
@@ -789,6 +812,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopControls: ReactNode;
     desktopMaxWidth: Spacing | RemLength | undefined;
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
+    desktopTitleMaxWidthCenterOffset: Spacing | RemLength | undefined;
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
     desktopTitleLeftSlop: Spacing | undefined;
@@ -797,8 +821,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     onMobileCancel: (() => void) | undefined;
     isAlwaysOpaque: boolean;
 }) {
-    const {isAppleDevice, isNativeMobile} = useClientInfo();
-
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
         null,
     );
@@ -872,7 +894,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
             let scrollDebounceTimeout: Timeout | null = null;
 
-            const getTitleBoundaryOffset = (element: HTMLElement): number | null => {
+            const getTitleBoundaryOffset = (remPx: number, element: HTMLElement): number | null => {
                 navigationBarBackgroundElement ??= assertExists(navigationBarBackgroundRef.current);
                 navigationBarContent ??= assertExists(navigationBarContentRef.current);
                 navigationBarContentElement ??= navigationBarContent.getElement();
@@ -883,7 +905,15 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
 
                 let titleBoundaryOffset =
-                    titleBoundaryParentElement.offsetTop + titleBoundaryParentElement.clientHeight;
+                    titleBoundaryParentElement.offsetTop +
+                    (titleBoundaryMarginTop
+                        ? convertRemLengthToPx(
+                              isRemLength(titleBoundaryMarginTop)
+                                  ? titleBoundaryMarginTop
+                                  : spacing[titleBoundaryMarginTop],
+                              remPx,
+                          )
+                        : 0);
                 while (
                     titleBoundaryParentElement.offsetParent instanceof HTMLElement &&
                     titleBoundaryParentElement.offsetParent !== element
@@ -903,9 +933,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     navigationBarBackgroundElement.clientHeight -
                         navigationBarContentElement.clientHeight,
                 );
-
-                // Hide the title a bit after the title is actually in view.
-                titleBoundaryOffset -= 0.5 * getRemPxWithoutListening();
 
                 return titleBoundaryOffset;
             };
@@ -952,7 +979,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 const isNavigationBarOpaque = isAlwaysOpaque || scrollOffset > navigationBarHeight;
                 lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
 
-                const titleBoundaryOffset = getTitleBoundaryOffset(element);
+                const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
 
                 const isNavigationBarTitleVisible =
                     withoutDisappearingTitle ||
@@ -1130,7 +1157,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                     const isNavigationBarOpaque = isAlwaysOpaque || scrollOffset > 0;
 
-                    const titleBoundaryOffset = getTitleBoundaryOffset(element);
+                    const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
 
                     const isNavigationBarTitleVisible =
                         withoutDisappearingTitle ||
@@ -1246,7 +1273,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     const isNavigationBarOpaque =
                         isAlwaysOpaque || isNavigationBarOpaqueIfNotAlwaysOpaque;
 
-                    const titleBoundaryOffset = getTitleBoundaryOffset(element);
+                    const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
 
                     const isNavigationBarTitleVisible =
                         withoutDisappearingTitle ||
@@ -1403,7 +1430,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             nextIsNavigationBarOpaque = true;
                         }
 
-                        const titleBoundaryOffset = getTitleBoundaryOffset(element);
+                        const titleBoundaryOffset = getTitleBoundaryOffset(remPx, element);
 
                         const nextIsNavigationBarTitleVisible =
                             withoutDisappearingTitle ||
@@ -1523,6 +1550,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
             isAlwaysOpaque,
             isMobile,
             navigationBarHeightRem,
+            titleBoundaryMarginTop,
             titleBoundaryRef,
             withoutDisappearingTitle,
         ],
@@ -1662,23 +1690,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             zIndex="-10"
                             inset="0"
                             backgroundColor="grey-0"
-                            borderBottom="grey-10"
                             display="flex"
                             justifyContent="center"
                             // Initial opacity is 0. Our code will update the opacity.
                             opacity="0"
-                            style={{
-                                // In iOS Safari we want our grey border to be 1px lower than the navigation
-                                // bar so it still shows even if the navigation bar is completely scrolled up.
-                                // That's because Safari on iOS has safe area between the content and the
-                                // notch. We'd like our border to render between the content and the safe area.
-                                //
-                                // This doesn't really work if we're rendering inside of some other app's
-                                // in-app browser which shows a header. Is there a condition we can check that
-                                // we're not in an in-app browser? Maybe its fine to have a double top border
-                                // in these situations.
-                                bottom: isMobile && isAppleDevice && !isNativeMobile ? -1 : 0,
-                            }}
                         />
                         <NavigationBarContent
                             ref={navigationBarContentRef}
@@ -1694,6 +1709,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             desktopControls={desktopControls}
                             desktopMaxWidth={desktopMaxWidth}
                             desktopTitleMaxWidth={desktopTitleMaxWidth}
+                            desktopTitleMaxWidthCenterOffset={desktopTitleMaxWidthCenterOffset}
                             desktopTitleFontSize={desktopTitleFontSize}
                             desktopTitleFontWeight={desktopTitleFontWeight}
                             desktopTitleLeftSlop={desktopTitleLeftSlop}
@@ -1729,6 +1745,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopControls,
         desktopMaxWidth: desktopMaxWidthProp,
         desktopTitleMaxWidth: desktopTitleMaxWidthProp,
+        desktopTitleMaxWidthCenterOffset: desktopTitleMaxWidthCenterOffsetProp,
         desktopTitleFontSize = "200",
         desktopTitleFontWeight = "semi-bold",
         desktopTitleLeftSlop,
@@ -1753,6 +1770,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         desktopControls?: ReactNode;
         desktopMaxWidth?: Spacing | RemLength;
         desktopTitleMaxWidth?: Spacing | RemLength;
+        desktopTitleMaxWidthCenterOffset?: Spacing | RemLength;
         desktopTitleFontSize?: FontSize;
         desktopTitleFontWeight?: "semi-bold" | "bold";
         desktopTitleLeftSlop?: Spacing;
@@ -1821,6 +1839,13 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             ? isSpacing(desktopTitleMaxWidthProp)
                 ? spacing[desktopTitleMaxWidthProp]
                 : desktopTitleMaxWidthProp
+            : undefined;
+
+    const desktopTitleMaxWidthCenterOffset =
+        desktopTitleMaxWidthCenterOffsetProp !== undefined
+            ? isSpacing(desktopTitleMaxWidthCenterOffsetProp)
+                ? spacing[desktopTitleMaxWidthCenterOffsetProp]
+                : desktopTitleMaxWidthCenterOffsetProp
             : undefined;
 
     const hasLeftActions: boolean = isMobile && (!!onMobileCancel || !withoutMobileBackButton);
@@ -1897,7 +1922,14 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                               flexGrow="0"
                               flexShrink="0"
                               style={{
-                                  width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
+                                  width: `max(0px, 50% - ${
+                                      desktopTitleMaxWidthCenterOffset !== undefined
+                                          ? addRemLengths(
+                                                desktopTitleMaxWidth,
+                                                desktopTitleMaxWidthCenterOffset,
+                                            )
+                                          : desktopTitleMaxWidth
+                                  } / 2)`,
                               }}
                           />
                       )}

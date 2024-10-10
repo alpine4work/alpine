@@ -4,7 +4,6 @@ import {
     MutableRefObject,
     ReactNode,
     Ref,
-    RefObject,
     cloneElement,
     forwardRef,
     useCallback,
@@ -16,13 +15,12 @@ import {
     useState,
 } from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
-    NavigationBarRef,
     NavigationBarResult,
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeightRem,
+    desktopNavigationBarHeight,
+    mobileNavigationBarHeight,
     navigationBarHeight,
 } from "~/client/design/navigation_bar.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
@@ -277,7 +275,7 @@ function PostListView(
          * the result of `useNavigationBar()` here and the virtualized scroll view will
          * be properly configured.
          */
-        navigationBar?: NavigationBarResult & {navigationBarRef: RefObject<NavigationBarRef>};
+        navigationBar?: NavigationBarResult;
 
         /**
          * Should we make room for top safe area? False by default. If you set the
@@ -289,7 +287,6 @@ function PostListView(
 ) {
     const context = useAppContext();
     const isMobile = useIsMobile();
-    const remPx = useRemPx();
 
     const withMobileLayout = isMobile || withMobileLayoutProp;
 
@@ -297,20 +294,17 @@ function PostListView(
     const [viewContainerRef, viewSize] = useResizeObserver();
     const [asideRef, asideSize] = useResizeObserver();
 
-    const navigationBarHeightPx =
-        (isMobile ? mobileNavigationBarHeightRem : desktopNavigationBarHeightRem) * remPx;
-
     const lastScrollOffsetRef = useRef(0);
     const [scrollDirectionState, setScrollDirectionState] = useState<{
         scrollDirection: "Up" | "Down";
         asideBufferedHeight: number;
     }>({
         scrollDirection: "Down",
-        asideBufferedHeight: navigationBarHeightPx,
+        asideBufferedHeight: 0,
     });
 
     const hasAside = !withMobileLayout && !!aside;
-    const hasNavigationBar = !!navigationBar;
+    const hasNavigationBar = !!navigationBar?.navigationBar;
     const hasChannelHeader = !!channelHeader;
 
     const shouldNotShowChannelId = channelHeader
@@ -1613,9 +1607,6 @@ function PostListView(
                         const lastScrollOffset = lastScrollOffsetRef.current;
                         lastScrollOffsetRef.current = scrollOffset;
 
-                        const navigationBarVisibleHeight =
-                            navigationBar?.navigationBarRef.current?.getVisibleHeight() ?? 0;
-
                         setScrollDirectionState(scrollDirectionState => {
                             const newScrollDirection =
                                 scrollOffset > lastScrollOffset ? "Down" : "Up";
@@ -1624,7 +1615,7 @@ function PostListView(
                                 return scrollDirectionState;
 
                             const asideScrollOffset = clamp(
-                                0 - navigationBarVisibleHeight,
+                                0,
                                 scrollOffset - scrollDirectionState.asideBufferedHeight,
                                 asideHeight - viewHeight,
                             );
@@ -1641,12 +1632,10 @@ function PostListView(
                     // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
                     // some measurements. Otherwise the navigation bar among other things start to
                     // break down.
-                    extraChildrenContentHeight={
-                        asideSize ? asideSize.height + navigationBarHeightPx : 0
-                    }
+                    extraChildrenContentHeight={asideSize?.height ?? 0}
                     extraChildren={
                         <>
-                            {navigationBar && isSingleLayoutWithPinnedCommentInput
+                            {navigationBar?.navigationBar && isSingleLayoutWithPinnedCommentInput
                                 ? (() => {
                                       const navigationBarElement = navigationBar.navigationBar;
                                       if (!navigationBarElement) return null;
@@ -1710,17 +1699,13 @@ function PostListView(
                                                 ? {
                                                       top:
                                                           viewSize && asideSize
-                                                              ? viewSize.height -
-                                                                navigationBarHeightPx -
-                                                                asideSize.height
+                                                              ? viewSize.height - asideSize.height
                                                               : 0,
                                                   }
                                                 : {
                                                       bottom:
                                                           viewSize && asideSize
-                                                              ? viewSize.height -
-                                                                asideSize.height -
-                                                                navigationBarHeightPx
+                                                              ? viewSize.height - asideSize.height
                                                               : 0,
                                                   }),
                                             left: 0,
@@ -1748,12 +1733,15 @@ function PostListView(
                                         >
                                             <aside
                                                 ref={asideRef}
-                                                className={sprinkles({pointerEvents: "auto"})}
-                                                style={{
-                                                    minHeight: viewSize
-                                                        ? viewSize.height - navigationBarHeightPx
-                                                        : 0,
-                                                }}
+                                                className={sprinkles({
+                                                    pointerEvents: "auto",
+                                                    paddingTop: hasNavigationBar
+                                                        ? isMobile
+                                                            ? mobileNavigationBarHeight
+                                                            : desktopNavigationBarHeight
+                                                        : undefined,
+                                                })}
+                                                style={{minHeight: viewSize ? viewSize.height : 0}}
                                             >
                                                 {aside}
                                             </aside>

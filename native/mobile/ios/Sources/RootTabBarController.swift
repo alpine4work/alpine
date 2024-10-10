@@ -145,11 +145,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         ]
 
         appearance.backgroundColor = UIColor(named: "grey-0")!
-
-        appearance.shadowImage = UIImage(named: "RootTabBarShadow")!
-            // Must use template rendering mode for `shadowColor` to have any effect.
-            .withRenderingMode(.alwaysTemplate)
-        appearance.shadowColor = UIColor(named: "grey-10")!
+        appearance.backgroundEffect = nil
+        appearance.shadowImage = nil
+        appearance.shadowColor = nil
 
         appearance.stackedLayoutAppearance = itemAppearance
         appearance.compactInlineLayoutAppearance = itemAppearance

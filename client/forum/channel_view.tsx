@@ -1,8 +1,12 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {NavigationBarRef, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {
+    NavigationBarContent,
+    NavigationBarProps,
+    useNavigationBar,
+} from "~/client/design/navigation_bar.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
@@ -164,10 +168,7 @@ export function ChannelView({
         !withMobileLayout &&
         (!isContentEmpty(channel.description.doc) || isEditingDescriptionInline);
 
-    const navigationBarRef = useRef<NavigationBarRef>(null);
-
-    const navigationBar = useNavigationBar({
-        ref: navigationBarRef,
+    const navigationBarProps: Omit<NavigationBarProps, "ref"> = {
         withMobileLayout,
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
@@ -253,7 +254,9 @@ export function ChannelView({
                 },
             ],
         ],
-    });
+    };
+
+    const navigationBar = useNavigationBar({...navigationBarProps, isDisabled: !withMobileLayout});
 
     const channelHeader = useMemo(
         (): PostListChannelHeader & {isOnlyNavigationBar: false} => ({
@@ -279,7 +282,8 @@ export function ChannelView({
     );
 
     return (
-        <>
+        <Box flexGrow="1" display="flex" flexDirection="column" overflow="hidden" height="full">
+            {!withMobileLayout && <NavigationBarContent {...navigationBarProps} />}
             <PostListView
                 withMobileLayout={withMobileLayout}
                 channelHeader={channelHeader}
@@ -319,7 +323,7 @@ export function ChannelView({
                         />
                     )
                 }
-                navigationBar={{...navigationBar, navigationBarRef}}
+                navigationBar={navigationBar}
             />
             {editNameAndDescriptionMobileModalState && (
                 <MobileFullScreenModal
@@ -347,6 +351,6 @@ export function ChannelView({
                     )}
                 </MobileFullScreenModal>
             )}
-        </>
+        </Box>
     );
 }

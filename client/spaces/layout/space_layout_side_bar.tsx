@@ -1,27 +1,21 @@
-import {Action} from "@remix-run/router";
-import {ArrowLeft, ArrowRight, House, MagnifyingGlass, SignOut} from "phosphor-react";
-import {useEffect, useState} from "react";
-import {useLocation, useNavigationType} from "react-router";
+import {House, MagnifyingGlass, SignOut} from "phosphor-react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {RemLength} from "~/shared/design/spacing.js";
+import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-
-export const spaceLayoutSideBarWidth: RemLength = "4.5rem";
 
 export function SpaceLayoutSideBar({
     space,
@@ -47,12 +41,11 @@ export function SpaceLayoutSideBar({
             flexDirection="column"
             alignItems="center"
             backgroundColor="grey-0"
-            borderRight="grey-10"
-            style={{width: spaceLayoutSideBarWidth}}
+            style={{width: spaceLayoutStyles.sideBarWidth}}
         >
-            <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
+            <Box paddingTop="3" display="flex" flexDirection="column" alignItems="center" gap="3">
                 <SpaceLayoutSideBarSpaceButton space={space} />
-                <Box display="flex" flexDirection="column" alignItems="center" gap="3">
+                <Box display="flex" flexDirection="column" alignItems="center" gap="2">
                     <IconButton
                         size="lg"
                         description="Home"
@@ -97,96 +90,10 @@ export function SpaceLayoutSideBar({
                 display="flex"
                 flexDirection="column"
                 alignItems="center"
-                gap="2.5"
+                gap="3"
             >
                 <SpaceLayoutSideBarAccountButton />
-                <SpaceLayoutSideBarNavigationButtons />
             </Box>
-        </Box>
-    );
-}
-
-const NavigationStateSchema = Schema.object({
-    initialLocationKey: Schema.string,
-    latestLocationKey: Schema.string,
-    locationKey: Schema.string,
-    hasNextLocation: Schema.boolean,
-    hasPreviousLocation: Schema.boolean,
-});
-
-function SpaceLayoutSideBarNavigationButtons() {
-    const location = useLocation();
-    const navigationType = useNavigationType();
-    const navigate = useNavigate();
-
-    const [navigationState, setNavigationState] = useState<{
-        initialLocationKey: string;
-        latestLocationKey: string;
-        locationKey: string;
-        hasNextLocation: boolean;
-        hasPreviousLocation: boolean;
-    }>({
-        initialLocationKey: location.key,
-        latestLocationKey: location.key,
-        locationKey: location.key,
-        hasNextLocation: false,
-        hasPreviousLocation: false,
-    });
-
-    if (navigationState.locationKey !== location.key) {
-        setNavigationState({
-            initialLocationKey: navigationState.initialLocationKey,
-            latestLocationKey:
-                navigationType === Action.Push ? location.key : navigationState.latestLocationKey,
-            locationKey: location.key,
-            hasNextLocation:
-                navigationType === Action.Pop && location.key !== navigationState.latestLocationKey,
-            hasPreviousLocation:
-                navigationType === Action.Push ||
-                location.key !== navigationState.initialLocationKey,
-        });
-    }
-
-    // Read our current navigation state from `sessionStorage` and use it to
-    // initialize our component's state.
-    useEffect(() => {
-        const navigationStateString = sessionStorage.getItem("cyberworlds/navigationState");
-        if (navigationStateString) {
-            setNavigationState(
-                NavigationStateSchema.deserialize(JSON.parse(navigationStateString)),
-            );
-        }
-    }, []);
-
-    useEffect(() => {
-        sessionStorage.setItem(
-            "cyberworlds/navigationState",
-            JSON.stringify(NavigationStateSchema.serialize(navigationState)),
-        );
-    }, [navigationState]);
-
-    return (
-        <Box flexShrink="0" display="flex" justifyContent="flex-start" alignItems="center">
-            <IconButton
-                size="xs"
-                description="Go back"
-                tooltipPlacement="top"
-                isDisabled={!navigationState.hasPreviousLocation}
-                pressErrorTitle="Couldn’t go back"
-                onPress={() => navigate(-1)}
-            >
-                <ArrowLeft />
-            </IconButton>
-            <IconButton
-                size="xs"
-                description="Go forwards"
-                tooltipPlacement="top"
-                isDisabled={!navigationState.hasNextLocation}
-                pressErrorTitle="Couldn’t go forwards"
-                onPress={() => navigate(1)}
-            >
-                <ArrowRight />
-            </IconButton>
         </Box>
     );
 }

@@ -2195,22 +2195,13 @@ async function sendPushNotificationToAccountDevices(
                 newInboxEntryItem.spaceId,
                 getInboxEntryKey(newInboxEntryItem),
             );
-            const entryUrl = new URL(
-                entryPath,
-                // We'll discard the domain name before sending a notification so put anything
-                // in there.
-                "https://example.com",
-            );
-
-            // Make sure we show context for the inbox entry.
-            entryUrl.searchParams.set("inbox", "show");
 
             await runAllPromises(
                 accountDevices.map(async accountDevice => {
                     const {wasDeviceTokenUnregistered} = await sendAlert(
                         accountDevice.deviceToken,
                         {
-                            entry: `${entryUrl.pathname}${entryUrl.search}${entryUrl.hash}`,
+                            entry: entryPath,
 
                             aps: {
                                 alert: alertContent ?? undefined,

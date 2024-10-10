@@ -11,7 +11,6 @@ filegroup(
         "Colors/Contents.json",
         "Contents.json",
         "Icons/Contents.json",
-        "RootTabBarShadow.imageset",
         ":color_assets",
         ":icon_assets",
     ],
@@ -26,15 +25,6 @@ filegroup(
         exclude = ["**/.*"],
     ),
     visibility = ["//native/mobile/ios:__subpackages__"],
-)
-
-filegroup(
-    name = "RootTabBarShadow.imageset",
-    srcs = glob(
-        ["RootTabBarShadow.imageset/**/*"],
-        # Exclude dot-files like `.DS_Store` on MacOS.
-        exclude = ["**/.*"],
-    ),
 )
 
 ts_project(

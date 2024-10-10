@@ -1,6 +1,5 @@
 import {ArrowLeft, Check, SpinnerGap} from "phosphor-react";
 import {ComponentType, ReactNode, memo} from "react";
-import {useSearchParams} from "react-router-dom";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -26,9 +25,10 @@ import {
     documentCommentThreadPreviewHeight,
 } from "~/client/styles/document_shared_styles.js";
 import {
-    channelViewAsidePaddingY,
+    desktopLayoutChannelViewAsidePaddingY,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     desktopPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInputAndNavigationBar,
+    mobileLayoutChannelViewAsidePaddingY,
     mobileLayoutPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewMarginTopRemIfSingleLayoutWithPinnedCommentInput,
     mobilePlatformPostContentViewNavigationBarSpaceRemIfSingleLayoutWithPinnedCommentInput,
@@ -36,7 +36,10 @@ import {
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
 } from "~/client/styles/forum_shared_styles.js";
-import {inboxBannerHeight} from "~/client/styles/inbox_shared_styles.js";
+import {
+    desktopLayoutInboxBannerHeight,
+    mobileLayoutInboxBannerHeight,
+} from "~/client/styles/inbox_shared_styles.js";
 import {
     messageInputAccountAvatarSize,
     messageInputMinHeight,
@@ -116,34 +119,55 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * If a shimmer definition is `false` that means we show a generic fullscreen
  * loading spinner instead of a custom shimmer.
  */
-const shimmerComponentByRouteId: {
-    readonly [key: string]: ComponentType<{withMobileLayout: boolean}> | false;
+const shimmerOptionsByRouteId: {
+    readonly [key: string]:
+        | {
+              inboxBannerMaxWidth?: Spacing | "full";
+              component: ComponentType<{withMobileLayout: boolean}>;
+          }
+        | false;
 } = {
-    "routes/s.$spaceId.channels.$channelId": ChannelRouteShimmer,
-    "routes/s.$spaceId.chat.$chatId": ChatRouteShimmer,
-    "routes/s.$spaceId.chat.new": NewChatRouteShimmer,
-    "routes/s.$spaceId.chat.with.$accountId": ChatRouteShimmer,
-    "routes/s.$spaceId.create._index": CreateRouteShimmer,
-    "routes/s.$spaceId.create.more": CreateMoreRouteShimmer,
-    "routes/s.$spaceId.documents.$documentId._index": DocumentRouteShimmer,
-    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId":
-        DocumentCommentThreadRouteShimmer,
-    "routes/s.$spaceId.documents.$documentId.view": DocumentRouteShimmer,
-    "routes/s.$spaceId.inbox": InboxRouteShimmer,
-    "routes/s.$spaceId.more._index": MoreRouteShimmer,
-    "routes/s.$spaceId.more.switch-space": MoreSwitchSpaceRouteShimmer,
-    "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration":
-        ChannelPostsNotificationRouteShimmer,
-    "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration":
-        DocumentCommentThreadRouteShimmer,
-    "routes/s.$spaceId.posts.$postId": PostRouteShimmer,
-    "routes/s.$spaceId.posts.new.$draftId": NewPostRouteShimmer,
-    "routes/s.$spaceId.search": SearchRouteShimmer,
-    "routes/s.$spaceId.tasks.$taskId._index": TaskDetailRouteShimmer,
-    "routes/s.$spaceId.tasks.$taskId.comments": TaskCommentsRouteShimmer,
-    "routes/s.$spaceId.tasks._index": TaskNotepadRouteShimmer,
-    "routes/s.$spaceId.tasks.collections.$collectionId": TaskGridRouteShimmer,
-    "routes/s.$spaceId.tasks.view": TaskQueryRouteShimmer,
+    "routes/s.$spaceId.channels.$channelId": {component: ChannelRouteShimmer},
+    "routes/s.$spaceId.chat.$chatId": {
+        inboxBannerMaxWidth: messageViewMaxWidth,
+        component: ChatRouteShimmer,
+    },
+    "routes/s.$spaceId.chat.new": {component: NewChatRouteShimmer},
+    "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
+    "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
+    "routes/s.$spaceId.create.more": {component: CreateMoreRouteShimmer},
+    "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
+    "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
+        inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,
+        component: DocumentCommentThreadRouteShimmer,
+    },
+    "routes/s.$spaceId.documents.$documentId.view": {component: DocumentRouteShimmer},
+    "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
+    "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
+    "routes/s.$spaceId.more.switch-space": {component: MoreSwitchSpaceRouteShimmer},
+    "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration": {
+        inboxBannerMaxWidth: contentStyles.contentMaxWidth,
+        component: ChannelPostsNotificationRouteShimmer,
+    },
+    "routes/s.$spaceId.notifications.document-comment-threads.$documentIdAndBucketGeneration": {
+        inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,
+        component: DocumentCommentThreadRouteShimmer,
+    },
+    "routes/s.$spaceId.posts.$postId": {
+        inboxBannerMaxWidth: contentStyles.contentMaxWidth,
+        component: PostRouteShimmer,
+    },
+    "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
+    "routes/s.$spaceId.search": {component: SearchRouteShimmer},
+    // TODO: `inboxBannerMaxWidth` for this route.
+    "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
+    "routes/s.$spaceId.tasks.$taskId.comments": {
+        inboxBannerMaxWidth: contentStyles.contentMaxWidth,
+        component: TaskCommentsRouteShimmer,
+    },
+    "routes/s.$spaceId.tasks._index": {component: TaskNotepadRouteShimmer},
+    "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskGridRouteShimmer},
+    "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
 
     // TODO(calebmer): We don't currently have a design for these routes. Once we
     // implement these routes we should add appropriate shimmers.
@@ -152,7 +176,7 @@ const shimmerComponentByRouteId: {
 
 export function getRouteIdsWithDefinedShimmerForTest() {
     assert(import.meta.jest);
-    return Object.keys(shimmerComponentByRouteId);
+    return Object.keys(shimmerOptionsByRouteId);
 }
 
 const RouteShimmerMemo = memo(RouteShimmer);
@@ -161,19 +185,19 @@ export {RouteShimmerMemo as RouteShimmer};
 function RouteShimmer({
     routeId,
     withMobileLayout,
+    withInboxBanner,
 }: {
     routeId: string | null;
     withMobileLayout: boolean;
+    withInboxBanner: boolean;
 }) {
-    const [searchParams] = useSearchParams();
-
-    const ShimmerComponent = routeId
-        ? shimmerComponentByRouteId[routeId.replace(".peek.", ".")]
+    const shimmerOptions = routeId
+        ? shimmerOptionsByRouteId[routeId.replace(".peek.", ".")]
         : undefined;
 
-    const containerRef = useCoordinatedShimmerAnimations({isDisabled: !ShimmerComponent});
+    const containerRef = useCoordinatedShimmerAnimations({isDisabled: !shimmerOptions});
 
-    if (!ShimmerComponent) {
+    if (!shimmerOptions) {
         return (
             <Box
                 width="full"
@@ -192,12 +216,10 @@ function RouteShimmer({
         );
     }
 
-    const shouldShowInboxBanner = searchParams.get("inbox") === "show";
-
-    if (!shouldShowInboxBanner) {
+    if (!withInboxBanner) {
         return (
             <Box ref={containerRef} width="full" height="full" overflow="hidden">
-                <ShimmerComponent withMobileLayout={withMobileLayout} />
+                <shimmerOptions.component withMobileLayout={withMobileLayout} />
             </Box>
         );
     } else {
@@ -211,7 +233,13 @@ function RouteShimmer({
                 style={{
                     // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
                     // like it.
-                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${spacing[inboxBannerHeight]})`,
+                    "--safe-area-inset-top": `calc(var(--safe-area-inset-top-base, 0px) + ${
+                        spacing[
+                            withMobileLayout
+                                ? mobileLayoutInboxBannerHeight
+                                : desktopLayoutInboxBannerHeight
+                        ]
+                    })`,
                 }}
             >
                 <Box
@@ -220,22 +248,19 @@ function RouteShimmer({
                     right="0"
                     style={{
                         paddingTop: "var(--safe-area-inset-top-base, 0px)",
-                        // We use a box shadow to draw the border so it occupies the same space as a
-                        // `useNavigationBar()` border when scrolled all the way up. That way we don't
-                        // render double borders.
-                        boxShadow: `0 1px 0 0 ${
-                            colorSchemeVars[
-                                ShimmerComponent === ChatRouteShimmer ? "grey-5" : "grey-10"
-                            ]
-                        }`,
                     }}
                 >
                     <Box
                         display="flex"
                         alignItems="center"
-                        height={inboxBannerHeight}
-                        paddingLeft="3"
-                        paddingRight="1.5"
+                        marginX="center"
+                        maxWidth={shimmerOptions.inboxBannerMaxWidth ?? "full"}
+                        height={
+                            withMobileLayout
+                                ? mobileLayoutInboxBannerHeight
+                                : desktopLayoutInboxBannerHeight
+                        }
+                        paddingX={screenPaddingX}
                     >
                         <TextShimmer fontSize="50" width="16" />
                         <Box flexGrow="1" />
@@ -265,7 +290,7 @@ function RouteShimmer({
                     </Box>
                 </Box>
                 <Box width="full" height="full" overflow="hidden">
-                    <ShimmerComponent withMobileLayout={withMobileLayout} />
+                    <shimmerOptions.component withMobileLayout={withMobileLayout} />
                 </Box>
             </Box>
         );
@@ -292,7 +317,7 @@ function MobileBackButtonSpacer() {
     return <Spacer space="7" />;
 }
 
-function ChannelRouteShimmer() {
+function ChannelRouteShimmer({withMobileLayout}: {withMobileLayout: boolean}) {
     const isMobile = useIsMobile();
 
     return (
@@ -312,7 +337,13 @@ function ChannelRouteShimmer() {
                     />
                     {isMobile && <MobileBackButtonSpacer />}
                 </Box>
-                <Box height={channelViewAsidePaddingY} />
+                <Box
+                    height={
+                        withMobileLayout
+                            ? mobileLayoutChannelViewAsidePaddingY
+                            : desktopLayoutChannelViewAsidePaddingY
+                    }
+                />
                 <Box
                     className={pulseAnimationClassName}
                     display="flex"
@@ -358,7 +389,7 @@ function ChatRouteShimmer() {
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
             <Box flexShrink="0" paddingTop="safe-area-inset">
-                <Box position="relative" height={navigationBarHeight} borderBottom="grey-10">
+                <Box position="relative" height={navigationBarHeight}>
                     {isMobile && (
                         <Box
                             position="absolute"
@@ -408,7 +439,7 @@ function NewChatRouteShimmer() {
 
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            <Box flexShrink="0" paddingTop="safe-area-inset" borderBottom="grey-10">
+            <Box flexShrink="0" paddingTop="safe-area-inset">
                 {isMobile && (
                     <Box
                         height={navigationBarHeight}
@@ -891,9 +922,9 @@ function InboxRouteShimmer() {
     } else {
         return (
             <Box width="full" height="full" display="flex" flexDirection="column">
-                <Box flexShrink="0" height="12" borderBottom="grey-10" />
                 <Box flexGrow="1" display="flex" flexDirection="row">
                     <Box flexShrink="0" width="96" borderRight="grey-10" paddingY="1">
+                        <Box flexShrink="0" height="12" />
                         <InboxEntryShimmer titleRagRight="0" subtitleRagRight="8" />
                         <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
                         <InboxEntryShimmer titleRagRight="4" subtitleRagRight="6" />
@@ -901,7 +932,11 @@ function InboxRouteShimmer() {
                         <InboxEntryShimmer titleRagRight="6" subtitleRagRight="4" />
                     </Box>
                     <Box flexGrow="1" overflow="hidden">
-                        <ChannelPostsNotificationRouteShimmer />
+                        <RouteShimmer
+                            routeId="routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration"
+                            withMobileLayout={false}
+                            withInboxBanner={true}
+                        />
                     </Box>
                 </Box>
             </Box>
@@ -1369,7 +1404,6 @@ export function TaskCommentsViewShimmer({
                     <Box
                         position="relative"
                         height={navigationBarHeight}
-                        borderBottom="grey-10"
                         maxWidth={contentStyles.contentMaxWidth}
                     >
                         <Box

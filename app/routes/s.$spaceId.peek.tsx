@@ -123,7 +123,7 @@ export default function PeekLayout() {
             >
                 <LoadingIndicatorSpaceOutletContainer
                     routeId="routes/s.$spaceId.peek"
-                    withMobileLayout={true}
+                    withMobileLayout={peekContext.withMobileLayout}
                 >
                     <Outlet />
                 </LoadingIndicatorSpaceOutletContainer>

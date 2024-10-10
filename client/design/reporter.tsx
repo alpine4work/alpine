@@ -525,8 +525,8 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
                             position="absolute"
                             left="0"
                             bottom="0"
-                            paddingLeft="4"
-                            paddingBottom="4"
+                            paddingLeft="5"
+                            paddingBottom="5"
                             style={{
                                 animation: state.activeToast.isAnimatingOut
                                     ? toastStyles.toastAnimateOutAnimation

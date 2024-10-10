@@ -76,7 +76,6 @@ export function SpaceLayoutSideBarInboxOverlay({
                 data-testid="SpaceLayoutSideBarInboxOverlay"
                 flexShrink="0"
                 height={spaceLayoutSideBarInboxOverlayHeaderHeight}
-                borderBottom="grey-10"
                 display="flex"
                 alignItems="center"
                 paddingX="1.5"
@@ -433,25 +432,16 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                 if (isPending) return;
                 setIsPending(true);
 
-                const url = new URL(getInboxEntryPath(entry.model), window.location.href);
-                url.searchParams.set("inbox", "show");
-
-                peekStackContext
-                    .push({
-                        pathname: url.pathname,
-                        search: url.search,
-                        hash: url.hash,
-                    })
-                    .then(
-                        () => {
-                            setIsPending(false);
-                            onClose();
-                        },
-                        error => {
-                            setIsPending(false);
-                            reporter.displayError("Couldn’t open notification", error);
-                        },
-                    );
+                peekStackContext.push(getInboxEntryPath(entry.model)).then(
+                    () => {
+                        setIsPending(false);
+                        onClose();
+                    },
+                    error => {
+                        setIsPending(false);
+                        reporter.displayError("Couldn’t open notification", error);
+                    },
+                );
             }}
             onArchive={({withAnimation}) => {
                 archiveInboxEntry({

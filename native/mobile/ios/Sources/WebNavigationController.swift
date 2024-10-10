@@ -2673,7 +2673,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // appropriately.
                 + ((webView.url?.query() ?? "")
                     .contains(WebNavigationController.inboxBannerUrlQueryRegex)
-                    ? inboxBannerHeight : 0),
+                    ? mobileLayoutInboxBannerHeight : 0),
             left: safeAreaInsets.left,
             bottom: safeAreaInsets.bottom,
             right: safeAreaInsets.right

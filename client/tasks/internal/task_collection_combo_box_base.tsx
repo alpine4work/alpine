@@ -388,7 +388,7 @@ export function TaskCollectionComboBoxListBox({
                 />
             ) : (
                 createCollectionButtonItem && (
-                    <Box borderTop="grey-10" padding="1">
+                    <Box borderTop="grey-5" padding="1">
                         <TaskCollectionComboBoxCreateCollectionOption
                             comboBoxState={comboBoxState}
                             item={createCollectionButtonItem}

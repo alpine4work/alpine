@@ -146,14 +146,11 @@ export function SpaceLayoutWebMobileTabBar({
             alignItems="stretch"
             height={spaceLayoutWebMobileTabBarHeight}
             style={{
-                boxShadow: [
-                    `inset 0 1px 0 0 ${colorSchemeVars["grey-10"]}`,
-                    // This border is visible on web mobile when the keyboard opens/closes
-                    // leaving empty white space on the page while it animates. We use `box-shadow`
-                    // instead of border so it renders outside the bounds of the outlet. Usually
-                    // offscreen (with the exception of web mobile keyboarding).
-                    `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                ].join(", "),
+                // This border is visible on web mobile when the keyboard opens/closes
+                // leaving empty white space on the page while it animates. We use `box-shadow`
+                // instead of border so it renders outside the bounds of the outlet. Usually
+                // offscreen (with the exception of web mobile keyboarding).
+                boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
             }}
         >
             <ScriptBeforeAppInitialRender
