@@ -6,7 +6,6 @@ import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 
 export type ContentEditorFileDropTarget = {
     readonly offsetParent: Element | null;
-    readonly indicator: "Top" | "Left" | "Right";
     readonly rect: {
         readonly left: number;
         readonly right: number;
@@ -16,12 +15,15 @@ export type ContentEditorFileDropTarget = {
     readonly action:
         | {
               readonly type: "InsertFileRow";
+              readonly indicator: "Top" | "Left" | "Right";
               readonly pos: number;
           }
         | {
               readonly type: "InsertFileIntoRow";
+              readonly indicator: "Top" | "Left" | "Right";
               readonly pos: number;
-          };
+          }
+        | null;
 };
 
 // TODO(calebmer, #files): Implement scroll while dragging.
@@ -225,7 +227,6 @@ export function getContentEditorFileDropTargets(
 
             dropTargets.push({
                 offsetParent: element.offsetParent,
-                indicator: "Top",
                 rect: {
                     left: dropTargetLeft,
                     right: dropTargetRight,
@@ -234,19 +235,65 @@ export function getContentEditorFileDropTargets(
                 },
                 action: {
                     type: "InsertFileRow",
+                    indicator: "Top",
                     pos,
                 },
             });
         }
 
-        const isDraggingFileInRow = $draggingFilePos?.parent === node;
+        const isDraggingFileInParent = $draggingFilePos?.parent === node;
+
+        // Create some dead space with `action: null` if we're dragging the file in
+        // this node. The dead space means if the user starts dragging a file, doesn't
+        // move their mouse much, then releases the drag will be a noop. Instead of
+        // picking a drop target that moves the file above/below the row which would be
+        // the default behavior without dead space.
+        if (isDraggingFileInParent) {
+            const fileElement = element.childNodes[$draggingFilePos.index()];
+
+            if (fileElement instanceof HTMLElement) {
+                const elementRect = element.getBoundingClientRect();
+                const fileElementRect = fileElement.getBoundingClientRect();
+
+                dropTargets.push({
+                    offsetParent: element.offsetParent,
+                    rect: {
+                        // `fileElement.offsetLeft` also works here instead of looking at
+                        // `fileElement.getBoundingClientRect()`. However, `offsetLeft` rounds
+                        // positions to integers. For precisely rendering our drop target in the center
+                        // of two files we need the fractional position which `getBoundingClientRect()`
+                        // returns. Otherwise in some edge cases the drop target looks off center.
+                        //
+                        // We subtract `elementRect.left` so we get a position relative to
+                        // `element.offsetLeft`.
+                        left:
+                            element.offsetLeft +
+                            (fileElementRect.left - elementRect.left) +
+                            contentStyles.fileRowGapWidthRem * remPx,
+                        right:
+                            element.offsetLeft +
+                            (fileElementRect.right - elementRect.left) -
+                            contentStyles.fileRowGapWidthRem * remPx,
+                        top:
+                            element.offsetTop +
+                            (fileElementRect.top - elementRect.top) +
+                            contentStyles.fileRowGapWidthRem * remPx,
+                        bottom:
+                            element.offsetTop +
+                            (fileElementRect.bottom - elementRect.top) -
+                            contentStyles.fileRowGapWidthRem * remPx,
+                    },
+                    action: null,
+                });
+            }
+        }
 
         // If we're dragging near a file row then also create vertical drop indicators
         // which'll allow you to create a gallery when dropping a file to the left or
         // right.
         if (
             node.type.name === "fileRow" &&
-            (node.childCount < 3 || (isDraggingFileInRow && node.childCount < 4))
+            (node.childCount < 3 || (isDraggingFileInParent && node.childCount < 4))
         ) {
             const elementRect = element.getBoundingClientRect();
 
@@ -271,16 +318,15 @@ export function getContentEditorFileDropTargets(
 
                 dropTargets.push({
                     offsetParent: element.offsetParent,
-                    indicator: "Right",
                     rect: {
                         left: 0,
                         right: dropTargetX,
                         top: element.offsetTop,
                         bottom: element.offsetTop + element.offsetHeight,
                     },
-
                     action: {
                         type: "InsertFileIntoRow",
+                        indicator: "Right",
                         pos: pos + 1,
                     },
                 });
@@ -306,7 +352,6 @@ export function getContentEditorFileDropTargets(
 
                     dropTargets.push({
                         offsetParent: element.offsetParent,
-                        indicator: "Right",
                         rect: {
                             left: dropTargetX,
                             right: dropTargetX,
@@ -315,13 +360,14 @@ export function getContentEditorFileDropTargets(
                         },
                         action: {
                             type: "InsertFileIntoRow",
+                            indicator: "Right",
                             pos: pos + 2,
                         },
                     });
                 }
             }
 
-            if (node.type.name === "fileRow" && isDraggingFileInRow && node.childCount >= 3) {
+            if (node.type.name === "fileRow" && isDraggingFileInParent && node.childCount >= 3) {
                 const fileRowLeftElement = element.firstElementChild?.nextElementSibling;
 
                 if (fileRowLeftElement instanceof HTMLElement) {
@@ -341,7 +387,6 @@ export function getContentEditorFileDropTargets(
 
                     dropTargets.push({
                         offsetParent: element.offsetParent,
-                        indicator: "Right",
                         rect: {
                             left: dropTargetX,
                             right: dropTargetX,
@@ -350,6 +395,7 @@ export function getContentEditorFileDropTargets(
                         },
                         action: {
                             type: "InsertFileIntoRow",
+                            indicator: "Right",
                             pos: pos + 3,
                         },
                     });
@@ -378,7 +424,6 @@ export function getContentEditorFileDropTargets(
 
                 dropTargets.push({
                     offsetParent: element.offsetParent,
-                    indicator: "Left",
                     rect: {
                         left: dropTargetX,
                         right: element.offsetParent?.clientWidth ?? dropTargetX,
@@ -387,6 +432,7 @@ export function getContentEditorFileDropTargets(
                     },
                     action: {
                         type: "InsertFileIntoRow",
+                        indicator: "Left",
                         pos: pos + node.nodeSize - 1,
                     },
                 });
@@ -412,7 +458,6 @@ export function getContentEditorFileDropTargets(
 
         dropTargets.push({
             offsetParent: element.offsetParent,
-            indicator: "Top",
             rect: {
                 left: element.offsetLeft,
                 right: element.offsetLeft + element.offsetWidth,
@@ -421,6 +466,7 @@ export function getContentEditorFileDropTargets(
             },
             action: {
                 type: "InsertFileRow",
+                indicator: "Top",
                 pos: nextPos,
             },
         });

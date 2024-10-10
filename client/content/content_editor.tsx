@@ -1928,11 +1928,16 @@ function ContentEditor<Content extends ContentWithReferences>(
             // https://github.com/ProseMirror/prosemirror-view/blob/d27ff92999b2aedca18c34efaab8fa5e695dcc8f/src/input.ts#L620
             const hasCopyKeyModifier = event[getClientInfo().isAppleDevice ? "altKey" : "ctrlKey"];
 
+            // If we have a file drop target but `action` is null then this is a noop.
+            if (initialFileDropTarget && !initialFileDropTarget.action) {
+                return true;
+            }
+
             handlePasteOrDrop({
                 origin: "drop",
                 remember: [
                     view.state.selection,
-                    initialFileDropTarget?.action.pos ?? $mouse.pos,
+                    initialFileDropTarget?.action?.pos ?? $mouse.pos,
                     draggingFileRef.current?.getPos() ?? null,
                 ],
                 slice,
@@ -1943,12 +1948,16 @@ function ContentEditor<Content extends ContentWithReferences>(
                     const fileDropTarget = initialFileDropTarget
                         ? {
                               ...initialFileDropTarget,
-                              action: {...initialFileDropTarget.action, pos: assertExists(mouse)},
+                              action: initialFileDropTarget.action
+                                  ? {...initialFileDropTarget.action, pos: assertExists(mouse)}
+                                  : null,
                           }
                         : null;
 
                     if (fileDropTarget) {
                         if (slice.size === 0) return;
+
+                        assert(fileDropTarget.action);
 
                         // Make sure every node in the slice is a `file`. `fileDropTarget` will only be
                         // non-null if `isDraggingFile` was true when the drop started and every child
@@ -3764,8 +3773,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }}
                 />
             )}
-            {fileDropTarget &&
-                (fileDropTarget.indicator === "Top" ? (
+            {fileDropTarget?.action &&
+                (fileDropTarget.action.indicator === "Top" ? (
                     <Box
                         data-testid={
                             process.env.NODE_ENV !== "production"
@@ -3800,7 +3809,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             top: fileDropTarget.rect.top,
                             bottom: `calc(100% - ${fileDropTarget.rect.bottom}px)`,
                             left:
-                                fileDropTarget.indicator === "Left"
+                                fileDropTarget.action.indicator === "Left"
                                     ? fileDropTarget.rect.left - 1
                                     : fileDropTarget.rect.right - 1,
                             width: 2,
