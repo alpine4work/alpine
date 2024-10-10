@@ -1570,7 +1570,7 @@ export function DocumentContentEditor({
                     }}
                 >
                     <OverlayScopeContextProvider>
-                        <Box position="relative" className={contentEditorStyles.containerClassName}>
+                        <Box className={contentEditorStyles.containerClassName}>
                             <ContentEditor
                                 ref={editorRef}
                                 state={editorState}

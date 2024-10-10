@@ -129,6 +129,7 @@ import {
 } from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -740,10 +741,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const viewRef = useRef<EditorView | null>(null);
     const lastTransactionRef = useRef<Transaction | null>(null);
     const referencesUpdateEmitterRef = useRef<EventEmitter | null>(null);
-    const tripleClickSelectionDragRef = useRef<{
-        selection: Selection | null;
-        done: () => void;
-    } | null>(null);
+    const tripleClickDragStateRef = useRef<ContentEditorTripleClickDragState | null>(null);
     const draggingFileRef = useRef<{getPos: () => number | null} | null>(null);
 
     /* ========================================================================== *\
@@ -1144,70 +1142,16 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return true;
             }
 
-            tripleClickSelectionDragRef.current?.done();
-            tripleClickSelectionDragRef.current = null;
+            tripleClickDragStateRef.current?.dispose();
 
-            const done = () => {
-                document.removeEventListener("mousemove", move);
-                document.removeEventListener("mouseup", done);
-                document.removeEventListener("dragstart", done);
-            };
+            const state = ContentEditorTripleClickDragState.onTripleClick(event, view, {
+                onDispose: () => {
+                    if (tripleClickDragStateRef.current === state)
+                        tripleClickDragStateRef.current = null;
+                },
+            });
 
-            // TODO(calebmer, #files): If the user's cursor is near the top or bottom of the
-            // screen then we should start scrolling. I want to implement this at the same
-            // time as I'm scrolling for file drags.
-            const move = (event: MouseEvent) => {
-                if (event.buttons === 0 || !tripleClickSelectionDragRef.current) {
-                    done();
-                    return;
-                }
-
-                // We expect the selection to be updated by ProseMirror's default triple click
-                // support synchronously after `handleTripleClick` is called. So
-                // `originalSelection` shouldn't be null. Silently ignore event if it is null.
-                const {selection: originalSelection} = tripleClickSelectionDragRef.current;
-                if (!originalSelection) return;
-
-                const posResult = view.posAtCoords({
-                    top: event.clientY,
-                    left: event.clientX,
-                });
-                if (!posResult) return;
-
-                const $pos = view.state.doc.resolve(posResult.pos);
-
-                let selection: Selection;
-                if ($pos.pos < originalSelection.from) {
-                    selection = TextSelection.between(originalSelection.$to, $pos, -1);
-                } else if ($pos.pos > originalSelection.to) {
-                    selection = TextSelection.between(originalSelection.$from, $pos, 1);
-                } else if (view.state.selection.$anchor === originalSelection.$from) {
-                    selection = TextSelection.between(
-                        originalSelection.$from,
-                        originalSelection.$to,
-                        -1,
-                    );
-                } else {
-                    selection = TextSelection.between(
-                        originalSelection.$to,
-                        originalSelection.$from,
-                        1,
-                    );
-                }
-
-                if (!selection.eq(view.state.selection)) {
-                    view.dispatch(view.state.tr.setSelection(selection));
-                }
-            };
-
-            document.addEventListener("mousemove", move);
-            document.addEventListener("mouseup", done);
-            document.addEventListener("dragstart", done);
-
-            tripleClickSelectionDragRef.current = {
-                selection: null,
-                done,
-            };
+            tripleClickDragStateRef.current = state;
 
             return false;
         };
@@ -1916,12 +1860,12 @@ function ContentEditor<Content extends ContentWithReferences>(
             // we rendered for the user instead of ProseMirror's default drop position
             // determination logic (the `$mouse` position and `dropPoint()` function).
             const initialFileDropTarget =
-                isDraggingFile &&
+                fileDragState &&
                 (slice.size === 0 ||
                     slice.content.content.every(
                         node => node.type.name === "fileRow" || node.type.name === "file",
                     ))
-                    ? getMouseEventFileDropTarget(event)
+                    ? fileDragState.getDropTarget()
                     : null;
 
             // Same logic as ProseMirror for copy key modifier:
@@ -2042,24 +1986,30 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 ) {
                                     transaction.replace(pos, pos + 2, slice);
 
-                                    transaction.setSelection(
-                                        new NodeSelection(transaction.doc.resolve(pos + 1)),
-                                    );
+                                    transaction
+                                        .setSelection(
+                                            new NodeSelection(transaction.doc.resolve(pos + 1)),
+                                        )
+                                        .scrollIntoView();
                                 } else if (
                                     $pos.nodeBefore?.type.name === "paragraph" &&
                                     $pos.nodeBefore.content.size === 0
                                 ) {
                                     transaction.replace(pos - 2, pos, slice);
 
-                                    transaction.setSelection(
-                                        new NodeSelection(transaction.doc.resolve(pos - 1)),
-                                    );
+                                    transaction
+                                        .setSelection(
+                                            new NodeSelection(transaction.doc.resolve(pos - 1)),
+                                        )
+                                        .scrollIntoView();
                                 } else {
                                     transaction.insert(pos, slice.content);
 
-                                    transaction.setSelection(
-                                        new NodeSelection(transaction.doc.resolve(pos + 1)),
-                                    );
+                                    transaction
+                                        .setSelection(
+                                            new NodeSelection(transaction.doc.resolve(pos + 1)),
+                                        )
+                                        .scrollIntoView();
                                 }
                                 break;
                             }
@@ -2091,7 +2041,9 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                 const $newPos = transaction.doc.resolve(pos);
 
-                                transaction.setSelection(new NodeSelection($newPos));
+                                transaction
+                                    .setSelection(new NodeSelection($newPos))
+                                    .scrollIntoView();
 
                                 // If there's more than one file, then add all additional files as new rows
                                 // after the row we inserted into.
@@ -2502,205 +2454,21 @@ function ContentEditor<Content extends ContentWithReferences>(
         // Manage the file drag interaction. While the user is dragging we'll update
         // our `fileDropTarget` state with the rendered drop target. When the user
         // drops we process the drop in `handleDrop` above.
-        let isDraggingFile = false;
-        let getMouseEventFileDropTarget: (event: MouseEvent) => ContentEditorFileDropTarget | null;
-        {
-            let lastFileDropTargets: {
-                viewWidth: number;
-                viewHeight: number;
-                state: EditorState;
-                topBlockIndex: number;
-                dropTargets: Array<ContentEditorFileDropTarget>;
-            } | null = null;
+        let fileDragState: ContentEditorFileDragState | null = null;
 
-            let lastFileDropTarget: {
-                viewWidth: number;
-                viewHeight: number;
-                state: EditorState;
-                time: number;
-                dropTarget: ContentEditorFileDropTarget;
-            } | null = null;
+        view.dom.addEventListener("dragenter", event => {
+            if (!fileDragState) {
+                const state = ContentEditorFileDragState.onDragEnter(event, view, {
+                    getDraggingPos: () => draggingFileRef.current?.getPos() ?? null,
+                    onDropTargetChange: setFileDropTarget,
+                    onDispose: () => {
+                        if (fileDragState === state) fileDragState = null;
+                    },
+                });
 
-            getMouseEventFileDropTarget = (event: MouseEvent) => {
-                const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
-                if (!posResult) return null;
-
-                const {width: viewWidth, height: viewHeight} = view.dom.getBoundingClientRect();
-                const $pos = view.state.doc.resolve(posResult.pos);
-                const topBlockIndex = $pos.index(0);
-                const remPx = getRemPxWithoutListening();
-
-                // Recompute drop targets if the mouse moved over a new top block or anything
-                // changed that may have updated the layout of our content (e.g. `viewWidth`
-                // resizing changes how text flows).
-                if (
-                    viewWidth !== lastFileDropTargets?.viewWidth ||
-                    viewHeight !== lastFileDropTargets.viewHeight ||
-                    view.state !== lastFileDropTargets?.state ||
-                    topBlockIndex !== lastFileDropTargets?.topBlockIndex
-                ) {
-                    lastFileDropTargets = {
-                        viewWidth,
-                        viewHeight,
-                        state: view.state,
-                        topBlockIndex,
-                        dropTargets: getContentEditorFileDropTargets(
-                            view,
-                            topBlockIndex,
-                            draggingFileRef.current?.getPos() ?? null,
-                        ),
-                    };
-                }
-
-                // User experience win: Wait 100ms to update the drop target we display. That
-                // way if the user is quickly moving their cursor over the document they don't
-                // see drop indicators flashing in and out everywhere. This is especially
-                // distracting when dragging horizontally across a file row with 2 items since
-                // a drop indicator between the two images flashes in and in doing so hides the
-                // vertical drop indicator that used to be there. This is distracting but by
-                // reusing the last drop target for 100ms we improve the UX in this case.
-                //
-                // This function is called continuously during a drag by the `dragover` event
-                // so we don't need to schedule a timeout to call `setFileDropTarget()` after
-                // 100ms.
-                if (
-                    viewWidth === lastFileDropTarget?.viewWidth &&
-                    viewHeight === lastFileDropTarget.viewHeight &&
-                    view.state === lastFileDropTarget.state &&
-                    Date.now() - lastFileDropTarget.time < perceivedAsInstantLimitMs
-                ) {
-                    return lastFileDropTarget.dropTarget;
-                }
-
-                let lastOffsetParent: Element | null = null;
-                let lastOffsetParentRect: DOMRect | null = null;
-                let nearestCollision: {
-                    distance: number;
-                    dropTarget: ContentEditorFileDropTarget;
-                } | null = null;
-
-                for (const dropTarget of lastFileDropTargets.dropTargets) {
-                    // If all our drop targets have the same `offsetParent` then we only need to
-                    // call `getBoundingClientRect()` once.
-                    const offsetParentRect: DOMRect | null =
-                        lastOffsetParent !== dropTarget.offsetParent
-                            ? dropTarget.offsetParent?.getBoundingClientRect() ?? null
-                            : lastOffsetParentRect;
-                    lastOffsetParent = dropTarget.offsetParent;
-                    lastOffsetParentRect = offsetParentRect;
-
-                    const mouseX = event.clientX - (offsetParentRect?.left ?? 0);
-                    const mouseY = event.clientY - (offsetParentRect?.top ?? 0);
-
-                    // Calculate the distance between the pointer and the droppable bounding box.
-                    // https://stackoverflow.com/a/18157551/1568890
-                    let dx = Math.max(
-                        dropTarget.rect.left - mouseX,
-                        0,
-                        mouseX - dropTarget.rect.right,
-                    );
-
-                    // We want our chosen drop target to be the nearest target vertically unless
-                    // we're right on top of a horizontal target. This creates the effect of as
-                    // you're dragging a file into a document you're only seeing the vertical drop
-                    // indicators flash in/out. However, if you drag to the left or right edge of an
-                    // existing file (or into the document margins) then you'll see horizontal drop
-                    // indicators which will let you create a gallery.
-                    //
-                    // What this code is doing is it penalizes horizontal distance (compared to
-                    // vertical distance) when you're out of a narrow range right on top of the drop
-                    // target.
-                    //
-                    // We choose `spacing["5"]` as the margin in which horizontal drop targets will
-                    // apply since that's the smallest size of an `<IconButton>`. Since we consider
-                    // an `xs` `<IconButton>` to have a sufficient hit target we consider the hit
-                    // target sufficient here too.
-                    if (dx > convertRemLengthToPx(spacing["5"], remPx)) {
-                        dx += viewWidth;
-                    }
-
-                    const dy = Math.max(
-                        dropTarget.rect.top - mouseY,
-                        0,
-                        mouseY - dropTarget.rect.bottom,
-                    );
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    if (!nearestCollision || nearestCollision.distance > distance) {
-                        nearestCollision = {distance, dropTarget};
-                    }
-                }
-
-                const dropTarget = nearestCollision?.dropTarget ?? null;
-
-                if (!dropTarget) {
-                    lastFileDropTarget = null;
-                } else {
-                    lastFileDropTarget = {
-                        viewWidth,
-                        viewHeight,
-                        state: view.state,
-                        time: Date.now(),
-                        dropTarget,
-                    };
-                }
-
-                return dropTarget;
-            };
-
-            view.dom.addEventListener("dragenter", event => {
-                if (isDraggingFile) return;
-                const wasDraggingFile = isDraggingFile;
-
-                isDraggingFile =
-                    event.target instanceof Element &&
-                    view.dom.contains(event.target) &&
-                    !!event.dataTransfer &&
-                    iterableSome(
-                        event.dataTransfer.items,
-                        item => item.kind === "file" || item.type === "text/x.cyberworlds.file",
-                    );
-
-                if (wasDraggingFile === isDraggingFile) return;
-
-                if (isDraggingFile) {
-                    setFileDropTarget(getMouseEventFileDropTarget(event));
-                } else {
-                    lastFileDropTargets = null;
-                    lastFileDropTarget = null;
-                    setFileDropTarget(null);
-                }
-            });
-
-            view.dom.addEventListener("dragleave", event => {
-                if (!isDraggingFile) return;
-                const wasDraggingFile = isDraggingFile;
-                isDraggingFile &&=
-                    event.relatedTarget instanceof Element &&
-                    view.dom.contains(event.relatedTarget);
-                if (wasDraggingFile === isDraggingFile) return;
-
-                lastFileDropTargets = null;
-                lastFileDropTarget = null;
-                setFileDropTarget(null);
-            });
-
-            // Processing the drop happens in `handleDrop` above so we don't conflict with
-            // ProseMirror's drop handling. Only clear drop state here.
-            view.dom.addEventListener("drop", () => {
-                if (!isDraggingFile) return;
-                isDraggingFile = false;
-
-                lastFileDropTargets = null;
-                lastFileDropTarget = null;
-                setFileDropTarget(null);
-            });
-
-            view.dom.addEventListener("dragover", event => {
-                if (!isDraggingFile) return;
-                setFileDropTarget(getMouseEventFileDropTarget(event));
-            });
-        }
+                fileDragState = state;
+            }
+        });
 
         // Stash the editor view instance on the DOM node for debugging and tests.
         (rootElement as any)[internalEditorViewKey] = view;
@@ -2710,6 +2478,8 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             document.removeEventListener("selectionchange", handleDocumentSelectionChange);
             filePreviewExpirationTimers?.pause();
+            tripleClickDragStateRef.current?.dispose();
+            fileDragState?.dispose();
             view.destroy();
         };
 
@@ -2747,15 +2517,14 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         // If the document changes then map our triple click selection based on the
         // document changes.
-        if (tripleClickSelectionDragRef.current) {
-            if (!tripleClickSelectionDragRef.current.selection) {
-                tripleClickSelectionDragRef.current.selection = newState.selection;
+        if (tripleClickDragStateRef.current) {
+            if (!tripleClickDragStateRef.current.selection) {
+                tripleClickDragStateRef.current.selection = newState.selection;
             } else if (!transaction) {
-                tripleClickSelectionDragRef.current.done();
-                tripleClickSelectionDragRef.current = null;
+                tripleClickDragStateRef.current.dispose();
             } else if (transaction.docChanged) {
-                tripleClickSelectionDragRef.current.selection =
-                    tripleClickSelectionDragRef.current.selection.map(
+                tripleClickDragStateRef.current.selection =
+                    tripleClickDragStateRef.current.selection.map(
                         newState.doc,
                         transaction.mapping,
                     );
@@ -4124,4 +3893,457 @@ function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
             {key: "sentenceBreak"},
         ),
     ]);
+}
+
+class ContentEditorTripleClickDragState {
+    public selection: Selection | null = null;
+
+    private readonly _view: EditorView;
+    private readonly _onDispose: () => void;
+    private readonly _autoScroll: ContentEditorDragAutoScrollState;
+
+    private _isDisposed = false;
+    private _pointerX: number;
+    private _pointerY: number;
+
+    private constructor(
+        pointerX: number,
+        pointerY: number,
+        view: EditorView,
+        {onDispose}: {onDispose: () => void},
+    ) {
+        this._view = view;
+        this._onDispose = onDispose;
+
+        this._pointerX = pointerX;
+        this._pointerY = pointerY;
+
+        this._autoScroll = new ContentEditorDragAutoScrollState(view.dom, {
+            onScroll: this._move,
+        });
+
+        document.addEventListener("mousemove", this._onMouseMove);
+        document.addEventListener("mouseup", this.dispose);
+        document.addEventListener("dragstart", this.dispose);
+    }
+
+    public static onTripleClick(
+        event: MouseEvent,
+        view: EditorView,
+        options: {onDispose: () => void},
+    ) {
+        return new ContentEditorTripleClickDragState(event.clientX, event.clientY, view, options);
+    }
+
+    public readonly dispose = () => {
+        assert(!this._isDisposed);
+        this._isDisposed = true;
+
+        document.removeEventListener("mousemove", this._onMouseMove);
+        document.removeEventListener("mouseup", this.dispose);
+        document.removeEventListener("dragstart", this.dispose);
+
+        this._autoScroll.dispose();
+
+        this._onDispose();
+    };
+
+    private readonly _onMouseMove = (event: MouseEvent) => {
+        if (event.buttons === 0) {
+            this.dispose();
+            return;
+        }
+
+        this._pointerX = event.clientX;
+        this._pointerY = event.clientY;
+
+        this._move();
+
+        this._autoScroll.onPointerMove(this._pointerY);
+    };
+
+    private readonly _move = () => {
+        assert(!this._isDisposed);
+
+        // We expect the selection to be updated by ProseMirror's default triple click
+        // support synchronously after `handleTripleClick` is called. So
+        // `originalSelection` shouldn't be null. Silently ignore event if it is null.
+        const originalSelection = this.selection;
+        if (!originalSelection) return;
+
+        const posResult = this._view.posAtCoords({
+            left: this._pointerX,
+            top: this._pointerY,
+        });
+        if (!posResult) return;
+
+        const $pos = this._view.state.doc.resolve(posResult.pos);
+
+        let selection: Selection;
+        if ($pos.pos < originalSelection.from) {
+            selection = TextSelection.between(originalSelection.$to, $pos, -1);
+        } else if ($pos.pos > originalSelection.to) {
+            selection = TextSelection.between(originalSelection.$from, $pos, 1);
+        } else if (this._view.state.selection.$anchor === originalSelection.$from) {
+            selection = TextSelection.between(originalSelection.$from, originalSelection.$to, -1);
+        } else {
+            selection = TextSelection.between(originalSelection.$to, originalSelection.$from, 1);
+        }
+
+        if (!selection.eq(this._view.state.selection)) {
+            this._view.dispatch(this._view.state.tr.setSelection(selection));
+        }
+    };
+}
+
+class ContentEditorFileDragState {
+    private readonly _view: EditorView;
+    private _dropTarget: ContentEditorFileDropTarget | null = null;
+    private readonly _getDraggingPos: () => number | null;
+    private readonly _onDropTargetChange: (dropTarget: ContentEditorFileDropTarget | null) => void;
+    private readonly _onDispose: () => void;
+    private readonly _autoScroll: ContentEditorDragAutoScrollState;
+    private readonly _dragContainerElement: HTMLElement;
+
+    private _isDisposed = false;
+    private _pointerX: number;
+    private _pointerY: number;
+
+    private _lastDropTargets: {
+        viewWidth: number;
+        viewHeight: number;
+        state: EditorState;
+        topBlockIndex: number;
+        dropTargets: Array<ContentEditorFileDropTarget>;
+    } | null = null;
+
+    private _lastDropTarget: {
+        viewWidth: number;
+        viewHeight: number;
+        state: EditorState;
+        time: number;
+        dropTarget: ContentEditorFileDropTarget;
+    } | null = null;
+
+    private constructor(
+        pointerX: number,
+        pointerY: number,
+        view: EditorView,
+        {
+            getDraggingPos,
+            onDropTargetChange,
+            onDispose,
+        }: {
+            getDraggingPos: () => number | null;
+            onDropTargetChange: (dropTarget: ContentEditorFileDropTarget | null) => void;
+            onDispose: () => void;
+        },
+    ) {
+        this._view = view;
+        this._getDraggingPos = getDraggingPos;
+        this._onDropTargetChange = onDropTargetChange;
+        this._onDispose = onDispose;
+
+        this._pointerX = pointerX;
+        this._pointerY = pointerY;
+
+        this._autoScroll = new ContentEditorDragAutoScrollState(view.dom, {
+            onScroll: this._move,
+        });
+
+        // Use the scrollable element as the drag container element if we have it. This
+        // way if while dragging your mouse is over some sticky element in the scroll
+        // view (e.g. the navigation bar) we'll still auto scroll.
+        this._dragContainerElement = this._autoScroll.getScrollableElement() ?? this._view.dom;
+
+        this._dragContainerElement.addEventListener("dragleave", this._onDragLeave);
+        this._dragContainerElement.addEventListener("drop", this.dispose);
+        this._dragContainerElement.addEventListener("dragover", this._onDragOver);
+    }
+
+    public static onDragEnter(
+        event: DragEvent,
+        view: EditorView,
+        options: {
+            getDraggingPos: () => number | null;
+            onDropTargetChange: (dropTarget: ContentEditorFileDropTarget | null) => void;
+            onDispose: () => void;
+        },
+    ) {
+        const isDraggingFile =
+            event.target instanceof Element &&
+            view.dom.contains(event.target) &&
+            !!event.dataTransfer &&
+            iterableSome(
+                event.dataTransfer.items,
+                item => item.kind === "file" || item.type === "text/x.cyberworlds.file",
+            );
+        if (!isDraggingFile) return null;
+
+        const state = new ContentEditorFileDragState(event.clientX, event.clientY, view, options);
+
+        state._move();
+
+        return state;
+    }
+
+    public readonly dispose = () => {
+        assert(!this._isDisposed);
+        this._isDisposed = true;
+
+        this._dragContainerElement.removeEventListener("dragleave", this._onDragLeave);
+        this._dragContainerElement.removeEventListener("drop", this.dispose);
+        this._dragContainerElement.removeEventListener("dragover", this._onDragOver);
+
+        this._autoScroll.dispose();
+
+        this._dropTarget = null;
+        this._onDropTargetChange(null);
+
+        this._onDispose();
+    };
+
+    public getDropTarget() {
+        return this._dropTarget;
+    }
+
+    private readonly _onDragLeave = (event: DragEvent) => {
+        if (
+            event.relatedTarget instanceof Element &&
+            this._dragContainerElement.contains(event.relatedTarget)
+        ) {
+            return;
+        }
+
+        this.dispose();
+    };
+
+    private readonly _onDragOver = (event: DragEvent) => {
+        const lastPointerY = this._pointerY;
+
+        this._pointerX = event.clientX;
+        this._pointerY = event.clientY;
+
+        this._move();
+
+        if (lastPointerY !== this._pointerY) {
+            this._autoScroll.onPointerMove(this._pointerY);
+        }
+    };
+
+    private _move = () => {
+        const dropTarget = this._selectDropTarget();
+
+        if (dropTarget !== this._dropTarget) {
+            this._dropTarget = dropTarget;
+            this._onDropTargetChange(this._dropTarget);
+        }
+    };
+
+    private _selectDropTarget() {
+        const posResult = this._view.posAtCoords({left: this._pointerX, top: this._pointerY});
+        if (!posResult) return null;
+
+        const {width: viewWidth, height: viewHeight} = this._view.dom.getBoundingClientRect();
+        const $pos = this._view.state.doc.resolve(posResult.pos);
+        const topBlockIndex = $pos.index(0);
+        const remPx = getRemPxWithoutListening();
+
+        // Recompute drop targets if the mouse moved over a new top block or anything
+        // changed that may have updated the layout of our content (e.g. `viewWidth`
+        // resizing changes how text flows).
+        if (
+            viewWidth !== this._lastDropTargets?.viewWidth ||
+            viewHeight !== this._lastDropTargets.viewHeight ||
+            this._view.state !== this._lastDropTargets?.state ||
+            topBlockIndex !== this._lastDropTargets?.topBlockIndex
+        ) {
+            this._lastDropTargets = {
+                viewWidth,
+                viewHeight,
+                state: this._view.state,
+                topBlockIndex,
+                dropTargets: getContentEditorFileDropTargets(
+                    this._view,
+                    topBlockIndex,
+                    this._getDraggingPos(),
+                ),
+            };
+        }
+
+        // User experience win: Wait 100ms to update the drop target we display. That
+        // way if the user is quickly moving their cursor over the document they don't
+        // see drop indicators flashing in and out everywhere. This is especially
+        // distracting when dragging horizontally across a file row with 2 items since
+        // a drop indicator between the two images flashes in and in doing so hides the
+        // vertical drop indicator that used to be there. This is distracting but by
+        // reusing the last drop target for 100ms we improve the UX in this case.
+        //
+        // This function is called continuously during a drag by the `dragover` event
+        // so we don't need to schedule a timeout to call `setFileDropTarget()` after
+        // 100ms.
+        if (
+            viewWidth === this._lastDropTarget?.viewWidth &&
+            viewHeight === this._lastDropTarget.viewHeight &&
+            this._view.state === this._lastDropTarget.state &&
+            Date.now() - this._lastDropTarget.time < perceivedAsInstantLimitMs
+        ) {
+            return this._lastDropTarget.dropTarget;
+        }
+
+        let lastOffsetParent: Element | null = null;
+        let lastOffsetParentRect: DOMRect | null = null;
+        let nearestCollision: {
+            distance: number;
+            dropTarget: ContentEditorFileDropTarget;
+        } | null = null;
+
+        for (const dropTarget of this._lastDropTargets.dropTargets) {
+            // If all our drop targets have the same `offsetParent` then we only need to
+            // call `getBoundingClientRect()` once.
+            const offsetParentRect: DOMRect | null =
+                lastOffsetParent !== dropTarget.offsetParent
+                    ? dropTarget.offsetParent?.getBoundingClientRect() ?? null
+                    : lastOffsetParentRect;
+            lastOffsetParent = dropTarget.offsetParent;
+            lastOffsetParentRect = offsetParentRect;
+
+            const mouseX = this._pointerX - (offsetParentRect?.left ?? 0);
+            const mouseY = this._pointerY - (offsetParentRect?.top ?? 0);
+
+            // Calculate the distance between the pointer and the droppable bounding box.
+            // https://stackoverflow.com/a/18157551/1568890
+            let dx = Math.max(dropTarget.rect.left - mouseX, 0, mouseX - dropTarget.rect.right);
+
+            // We want our chosen drop target to be the nearest target vertically unless
+            // we're right on top of a horizontal target. This creates the effect of as
+            // you're dragging a file into a document you're only seeing the vertical drop
+            // indicators flash in/out. However, if you drag to the left or right edge of an
+            // existing file (or into the document margins) then you'll see horizontal drop
+            // indicators which will let you create a gallery.
+            //
+            // What this code is doing is it penalizes horizontal distance (compared to
+            // vertical distance) when you're out of a narrow range right on top of the drop
+            // target.
+            //
+            // We choose `spacing["5"]` as the margin in which horizontal drop targets will
+            // apply since that's the smallest size of an `<IconButton>`. Since we consider
+            // an `xs` `<IconButton>` to have a sufficient hit target we consider the hit
+            // target sufficient here too.
+            if (dx > convertRemLengthToPx(spacing["5"], remPx)) {
+                dx += viewWidth;
+            }
+
+            const dy = Math.max(dropTarget.rect.top - mouseY, 0, mouseY - dropTarget.rect.bottom);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (!nearestCollision || nearestCollision.distance > distance) {
+                nearestCollision = {distance, dropTarget};
+            }
+        }
+
+        const dropTarget = nearestCollision?.dropTarget ?? null;
+
+        if (!dropTarget) {
+            this._lastDropTarget = null;
+        } else {
+            this._lastDropTarget = {
+                viewWidth,
+                viewHeight,
+                state: this._view.state,
+                time: Date.now(),
+                dropTarget,
+            };
+        }
+
+        return dropTarget;
+    }
+}
+
+// Our auto scroll copies the constants and math used by `@dnd-kit/core`'s
+// `getScrollDirectionAndSpeed()` utility function and `useAutoScroller()`
+// utility hook.
+//
+// https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/utilities/scroll/getScrollDirectionAndSpeed.ts#L12-L18
+// https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/hooks/utilities/useAutoScroller.ts#L109-L179
+class ContentEditorDragAutoScrollState {
+    private readonly _scrollableElement: HTMLElement | null;
+    private readonly _onScroll: () => void;
+    private _isDisposed = false;
+    private _directionY: -1 | 1 | 0 = 0;
+    private _speedY: number = 0;
+    private _interval: Interval | null = null;
+
+    constructor(element: HTMLElement, {onScroll}: {onScroll: () => void}) {
+        let scrollableElement: Element | null = element;
+        while (scrollableElement) {
+            const {overflowY} = getComputedStyle(scrollableElement);
+
+            if (overflowY === "auto" || overflowY === "scroll") {
+                break;
+            }
+
+            scrollableElement = scrollableElement.parentElement;
+        }
+
+        this._scrollableElement =
+            scrollableElement instanceof HTMLElement ? scrollableElement : null;
+        this._onScroll = onScroll;
+
+        this._scrollableElement?.addEventListener("scroll", this._onScroll);
+    }
+
+    public dispose() {
+        assert(!this._isDisposed);
+        this._isDisposed = true;
+
+        this._scrollableElement?.removeEventListener("scroll", this._onScroll);
+        this._interval?.clear();
+        this._interval = null;
+    }
+
+    public getScrollableElement() {
+        return this._scrollableElement;
+    }
+
+    public onPointerMove(pointerY: number) {
+        assert(!this._isDisposed);
+        if (!this._scrollableElement) return;
+
+        const scrollableRect = this._scrollableElement.getBoundingClientRect();
+
+        const thresholdHeight = scrollableRect.height * 0.1;
+
+        if (pointerY !== null && pointerY < scrollableRect.top + thresholdHeight) {
+            this._directionY = -1;
+
+            // Speed calculation taken from `getScrollDirectionAndSpeed()`:
+            // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/utilities/scroll/getScrollDirectionAndSpeed.ts#L37-L41
+            this._speedY =
+                10 * Math.abs((scrollableRect.top + thresholdHeight - pointerY) / thresholdHeight);
+        } else if (pointerY !== null && pointerY > scrollableRect.bottom - thresholdHeight) {
+            this._directionY = 1;
+
+            // Speed calculation taken from `getScrollDirectionAndSpeed()`:
+            // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/utilities/scroll/getScrollDirectionAndSpeed.ts#L48-L53
+            this._speedY =
+                10 *
+                Math.abs((scrollableRect.bottom - thresholdHeight - pointerY) / thresholdHeight);
+        } else {
+            this._interval?.clear();
+            this._interval = null;
+            return;
+        }
+
+        if (this._interval === null) {
+            this._interval = createInterval(() => {
+                const deltaY = this._speedY * this._directionY;
+
+                this._scrollableElement!.scrollTop += deltaY;
+
+                // 5ms interval approach taken from `useAutoScroller()`:
+                // https://github.com/clauderic/dnd-kit/blob/e2a1776d0de657669192d3cfd1558e91905b5fad/packages/core/src/hooks/utilities/useAutoScroller.ts#L61
+            }, 5);
+        }
+    }
 }

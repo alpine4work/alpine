@@ -26,8 +26,6 @@ export type ContentEditorFileDropTarget = {
         | null;
 };
 
-// TODO(calebmer, #files): Implement scroll while dragging.
-
 // TODO(calebmer, #files): Images with alpha does placeholder show through? We
 // probably need some fade animation.
 
