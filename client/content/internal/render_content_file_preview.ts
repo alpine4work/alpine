@@ -672,6 +672,9 @@ export function addContentFilePreviewBehavior(
         const serializedNode = clipboardSerializer.serializeNode(node);
         assert(serializedNode instanceof HTMLElement);
 
+        // See https://github.com/ProseMirror/prosemirror/issues/1156
+        event.dataTransfer.effectAllowed = onDrag ? "copyMove" : "copy";
+
         event.dataTransfer.clearData();
         event.dataTransfer.setData("text/html", serializedNode.outerHTML);
 
