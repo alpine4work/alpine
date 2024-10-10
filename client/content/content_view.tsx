@@ -106,8 +106,6 @@ declare global {
  * A read-only view of content. Used as a complement to `<ContentEditor>` when
  * you want to disable editing of content and only allow reading the content.
  */
-// TODO(calebmer, #files): Drag logic for `<ContentView>` should match
-// `<ContentEditor>`.
 export function ContentView({
     withMobileLayout,
     content: contentFromProps,

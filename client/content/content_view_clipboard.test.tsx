@@ -197,12 +197,9 @@ const testDocument: DocumentContentWithReferences = {
 
 document.documentElement.addEventListener("copy", handleCopyEventIfNotTextInputElement);
 
-function massageResult({
-    result,
-}: {
-    preventDefault: boolean;
-    result: {text: string; html: Element} | null;
-}): {text: string; html: string} | null {
+function massageResult(
+    result: {text: string; html: Element} | null,
+): {text: string; html: string} | null {
     if (!result) return null;
     return {text: result.text, html: result.html.innerHTML};
 }

@@ -45,19 +45,26 @@ export function registerClipboardSerializer(
  * by including text like "From Caleb Meredith at 4:00pm" before each message.
  */
 export function handleCopyEventIfNotTextInputElement(event: ClipboardEvent) {
+    // If focus is in a text input element then we want to let the text input
+    // element handle the `copy` event. Or let the browser perform its default copy
+    // behavior.
+    if (document.activeElement && isTextInputElement(document.activeElement)) {
+        return;
+    }
+
     const selection = document.getSelection();
     if (!selection || !selection.anchorNode || !selection.focusNode || selection.isCollapsed) {
         return;
     }
 
-    const {preventDefault, result} = getSelectionClipboardData({
+    event.preventDefault();
+
+    const result = getSelectionClipboardData({
         anchorNode: selection.anchorNode,
         anchorOffset: selection.anchorOffset,
         focusNode: selection.focusNode,
         focusOffset: selection.focusOffset,
     });
-
-    if (preventDefault) event.preventDefault();
 
     if (result) {
         // If there is no `navigator.clipboard` (e.g. in Safari) then write text only
@@ -77,12 +84,15 @@ export function handleCopyEventIfNotTextInputElement(event: ClipboardEvent) {
     }
 }
 
+/**
+ * Get the data we write to the clipboard for a selection.
+ */
 export function getSelectionClipboardData(selection: {
     anchorNode: Node;
     anchorOffset: number;
     focusNode: Node;
     focusOffset: number;
-}): {preventDefault: boolean; result: {text: string; html: Element} | null} {
+}): {text: string; html: Element} | null {
     const anchorParentNodes: Array<Node> = [];
     const focusParentNodes: Array<Node> = [];
 
@@ -121,22 +131,9 @@ export function getSelectionClipboardData(selection: {
             ? anchorParentNodes[anchorParentNodes.length - commonParentReverseIndex]!
             : null;
 
-    // If our selection is completely inside a text input element then return
-    // without calling `event.preventDefault()`. We'll let the browser handling
-    // copying out of the text input element.
-    {
-        let currentNode: Node | null = commonParentNode;
-        while (currentNode) {
-            if (currentNode instanceof Element && isTextInputElement(currentNode)) {
-                return {preventDefault: false, result: null};
-            }
-            currentNode = currentNode.parentNode;
-        }
-    }
-
     // Can't figure out what content is between the selection nodes if there's no
     // common parent node.
-    if (!commonParentNode) return {preventDefault: true, result: null};
+    if (!commonParentNode) return null;
 
     let start: "Anchor" | "Focus" | undefined;
 
@@ -518,5 +515,5 @@ export function getSelectionClipboardData(selection: {
         }
     }
 
-    return {preventDefault: true, result: {text, html}};
+    return {text, html};
 }

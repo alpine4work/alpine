@@ -20,6 +20,7 @@ import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
+import {handleDragStartEventIfNotTextInputElement} from "~/client/content/handle_drag_start_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -521,9 +522,16 @@ export default function Root() {
             handleCopyEventIfNotTextInputElement(event);
         };
 
+        const handleDragStart = (event: DragEvent) => {
+            if (event.defaultPrevented) return;
+            handleDragStartEventIfNotTextInputElement(event);
+        };
+
         htmlElement.addEventListener("copy", handleCopy);
+        htmlElement.addEventListener("dragstart", handleDragStart);
         return () => {
             htmlElement.removeEventListener("copy", handleCopy);
+            htmlElement.removeEventListener("dragstart", handleDragStart);
         };
     }, []);
 
