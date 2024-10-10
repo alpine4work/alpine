@@ -26,7 +26,8 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToCssDataUrl} from "~/shared/helpers/html/convert_svg_to_css_data_url.js";
-import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
+import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
+import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
@@ -328,33 +329,16 @@ export function renderContentFilePreview(
                         }
                     }
 
-                    // TODO(calebmer, #files): I might want to rebuild that `<img>` pool for
-                    // Safari. Safari does end up refetching the image on remount.
-                    const imageHtml = new HtmlElementGenerator("img");
-                    imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
-                    imageHtml.setAttribute(
-                        "style",
-                        "object-position: center top; object-fit: cover",
-                    );
-
-                    // Only load the image when it enters the viewport. For long documents with a
-                    // lot of images this improves network utilization. This means our signed URL in
-                    // `src` always needs to be up-to-date since we don't know when the browser will
-                    // need it.
-                    imageHtml.setAttribute("loading", "lazy");
-
-                    imageHtml.setAttribute("src", image1xSource);
-
+                    let imageSrcset: string;
                     if (image1xSource === image2xSource) {
-                        // We don't have any additional responsive image sources.
+                        imageSrcset = image1xSource;
                     } else if (image2xSource === image3xSource) {
-                        imageHtml.setAttribute("srcset", `${image1xSource}, ${image2xSource} 2x`);
+                        imageSrcset = `${image1xSource}, ${image2xSource} 2x`;
                     } else {
-                        imageHtml.setAttribute(
-                            "srcset",
-                            `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`,
-                        );
+                        imageSrcset = `${image1xSource}, ${image2xSource} 2x, ${image3xSource} 3x`;
                     }
+
+                    const imageHtml = renderFileImagePreviewContent(imageSrcset);
 
                     html.appendChild(imageHtml);
                 }
@@ -376,6 +360,82 @@ export function renderContentFilePreview(
 // network in our generated HTML.
 function round6(n: number) {
     return Math.round(n * 10 ** 6) / 10 ** 6;
+}
+
+let pooledFileImagePreviewContentElementsBySrcset: Map<string, Set<HTMLElement>> | null = null;
+
+/**
+ * Render the `<img>` element for file image previews.
+ *
+ * As an optimization, we reuse image DOM elements across re-renders. All
+ * `<img>` elements we render are placed in a pool. Then if we call
+ * `renderFileImagePreviewContent()` again with the same `srcset` we reuse an
+ * old `<img>` element if it's been removed from the DOM.
+ *
+ * This is noticeable on initial render if you open Chrome DevTools, go to the
+ * Network tab, and turn on "Disable cache". Then reload the page. Without
+ * pooling there will be two network requests for the same image. With pooling
+ * there's only one. Normally caching will be turned on in Chrome so why bother
+ * fixing this? Well Safari doesn't cache the image element source after it has
+ * been removed from the DOM. So you always get two network requests from
+ * Safari on initial render without pooling.
+ */
+function renderFileImagePreviewContent(srcset: string): HtmlGenerator {
+    const elements = pooledFileImagePreviewContentElementsBySrcset?.get(srcset);
+
+    // If there's an existing `element` for this `srcset` that's not currently in
+    // our document then let's reuse that element.
+    if (elements) {
+        const element = iterableFind(elements, element => !document.body.contains(element));
+
+        if (element) {
+            elements.delete(element);
+            if (elements.size === 0) pooledFileImagePreviewContentElementsBySrcset?.delete(srcset);
+
+            let generator: HtmlGenerator | null = null;
+
+            return {
+                generateNode: () => element,
+                generateHtml: () => {
+                    generator ??= actuallyRenderFileImagePreviewContent(srcset);
+                    return generator.generateHtml();
+                },
+                patchNode: (previous, node) => {
+                    generator ??= actuallyRenderFileImagePreviewContent(srcset);
+                    return generator.patchNode(previous, node);
+                },
+            };
+        }
+    }
+
+    return actuallyRenderFileImagePreviewContent(srcset);
+}
+
+function actuallyRenderFileImagePreviewContent(srcset: string): HtmlElementGenerator {
+    const imageHtml = new HtmlElementGenerator("img");
+    imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
+    imageHtml.setAttribute("style", "object-position: center top; object-fit: cover");
+
+    // Only load the image when it enters the viewport. For long documents with a
+    // lot of images this improves network utilization. This means our signed URL in
+    // `src` always needs to be up-to-date since we don't know when the browser will
+    // need it.
+    imageHtml.setAttribute("loading", "lazy");
+
+    const srcs = srcset.split(",");
+    const firstSrc = srcs[0]!.trim();
+
+    // The first source should not include a modifier like 2x. Since it's used as
+    // the `<img>`'s default `src`.
+    assert(!firstSrc.includes(" "));
+
+    imageHtml.setAttribute("src", firstSrc);
+
+    if (srcs.length > 1) {
+        imageHtml.setAttribute("srcset", srcset);
+    }
+
+    return imageHtml;
 }
 
 function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlaceholder) {
@@ -710,6 +770,37 @@ export function addContentFilePreviewBehavior(
         handleParentScrollWhenPointerDownAndOver,
     );
 
+    /* ========================================================================== *\
+     *                           Image element pooling                            *
+    \* ========================================================================== */
+
+    const cleanupPooledImageElements: Array<() => void> = [];
+
+    for (const imageElement of element.querySelectorAll("img")) {
+        const imageSrcset = imageElement.getAttribute("srcset") ?? imageElement.getAttribute("src");
+
+        if (imageSrcset === null) continue;
+
+        pooledFileImagePreviewContentElementsBySrcset ??= new Map();
+
+        getOrSetDefaultMapValue(
+            pooledFileImagePreviewContentElementsBySrcset,
+            imageSrcset,
+            () => new Set(),
+        ).add(imageElement);
+
+        // If the image element hasn't been reused within a second from the pool then
+        // we clean it up to avoid memory leaks.
+        cleanupPooledImageElements.push(() => {
+            const elements = pooledFileImagePreviewContentElementsBySrcset?.get(imageSrcset);
+
+            if (elements?.delete(imageElement)) {
+                if (elements.size === 0)
+                    pooledFileImagePreviewContentElementsBySrcset?.delete(imageSrcset);
+            }
+        });
+    }
+
     return () => {
         element.removeEventListener("pointerdown", handlePointerDown);
         element.removeEventListener("pointerup", handlePointerUp);
@@ -728,5 +819,15 @@ export function addContentFilePreviewBehavior(
 
         unsubscribeFromRefreshTimer?.();
         unsubscribeFromRefreshTimer = null;
+
+        // If the image element hasn't been reused within a second from the pool then
+        // we clean it up to avoid memory leaks.
+        if (cleanupPooledImageElements.length > 0) {
+            setTimeout(() => {
+                for (const cleanup of cleanupPooledImageElements) {
+                    cleanup();
+                }
+            }, 1000);
+        }
     };
 }
