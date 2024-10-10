@@ -280,7 +280,7 @@ test("will copy/paste from alpine as div code block lines", async () => {
     );
 });
 
-test.only("pasting paragraph content with selection in title will paste below title", () => {
+test("pasting paragraph content with selection in title will paste below title", () => {
     render(
         <TestContentEditor
             initialContent={DocumentContentProsemirrorSchema.node("doc", {}, [
