@@ -233,6 +233,13 @@ export async function run({
                 watch: {
                     atomic: 500,
                     awaitWriteFinish: {stabilityThreshold: 100, pollInterval: 10},
+                    followSymlinks: false,
+                    // - Ignore dependency files in `node_modules`.
+                    // - Ignore `.runfiles` directories. They recreate the build tree. Vite
+                    //   shouldn't look at an executable's runfiles.
+                    // - Ignore `.ts` and `.tsx` source files. Vite builds finished `.js` artifacts.
+                    // - Ignore `.map` files. Only refresh on `.js` artifact changes.
+                    ignored: /(^|\/)(node_modules|[^/]*\.runfiles|[^/]*\.tsx?|[^/]*\.map)(\/|$)/,
                 },
             },
             optimizeDeps: {
