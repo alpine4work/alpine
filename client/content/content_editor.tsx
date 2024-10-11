@@ -1544,6 +1544,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             const reporter = assertExists(reporterRef.current);
             const spaceId = assertExists(spaceContextRef.current).space.id;
 
+            let hasUploadFileError = false;
+
             let rememberGetters: Array<() => number | Selection | null> = initialRemember.map(
                 item => () => item,
             );
@@ -1577,7 +1579,10 @@ function ContentEditor<Content extends ContentWithReferences>(
             propsRef.current.onLoadingIndicator?.("Pasting", promise, null);
 
             promise.catch(error => {
-                reporter.displayError("Couldn’t paste", error);
+                reporter.displayError(
+                    hasUploadFileError ? "Couldn’t upload file" : "Couldn’t paste",
+                    error,
+                );
             });
 
             async function run(context: AppContext) {
@@ -1657,7 +1662,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 let uploadingFileId: FileId | undefined;
                                 let unsubscribeFromFileStore: (() => void) | undefined;
 
-                                // TODO(calebmer, #files): Error handling
                                 try {
                                     await uploadFileFromContentEditor(context, {
                                         spaceId,
@@ -1696,6 +1700,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         },
                                     });
                                 } catch (error) {
+                                    hasUploadFileError = true;
                                     fileReferencePromiseResolver.reject(error);
                                     throw error;
                                 } finally {

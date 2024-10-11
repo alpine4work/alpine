@@ -67,7 +67,7 @@ test("can ease value progress store", () => {
     const snapshots = [];
 
     snapshots.push(store.getSnapshot());
-    store.ease(1000);
+    store.ease(3000);
     snapshots.push(store.getSnapshot());
     import.meta.jest.advanceTimersByTime(250);
     snapshots.push(store.getSnapshot());

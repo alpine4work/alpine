@@ -75,31 +75,37 @@ export function useContentEditorLoadingIndicator(isSaving: boolean): {
                     : state.progressStores,
             }));
 
-            void promise.finally(() => {
-                setState(state => {
-                    const loadingIndicators = state.loadingIndicators.filter(
-                        loadingIndicator => loadingIndicator.id !== id,
-                    );
+            void promise
+                .catch(() => {
+                    // Don't log an unhandled promise rejection warning for this promise. Unhandled
+                    // promise rejections should be handled before passing the promise into
+                    // `onLoadingIndicator`.
+                })
+                .finally(() => {
+                    setState(state => {
+                        const loadingIndicators = state.loadingIndicators.filter(
+                            loadingIndicator => loadingIndicator.id !== id,
+                        );
 
-                    const progressStores = state.progressStores.map(progressStore =>
-                        progressStore.id === id
-                            ? {...progressStore, isPromiseResolved: true}
-                            : progressStore,
-                    );
+                        const progressStores = state.progressStores.map(progressStore =>
+                            progressStore.id === id
+                                ? {...progressStore, isPromiseResolved: true}
+                                : progressStore,
+                        );
 
-                    return {
-                        loadingIndicators,
-                        // Clear the `progressStores` array once all promises associated with the
-                        // progress stores resolve. This way if we're reporting progress it won't
-                        // "jump back" from 56% to 11% because one of two progress stores completed.
-                        progressStores: !progressStores.every(
-                            progressStore => progressStore.isPromiseResolved,
-                        )
-                            ? progressStores
-                            : emptyArray,
-                    };
+                        return {
+                            loadingIndicators,
+                            // Clear the `progressStores` array once all promises associated with the
+                            // progress stores resolve. This way if we're reporting progress it won't
+                            // "jump back" from 56% to 11% because one of two progress stores completed.
+                            progressStores: !progressStores.every(
+                                progressStore => progressStore.isPromiseResolved,
+                            )
+                                ? progressStores
+                                : emptyArray,
+                        };
+                    });
                 });
-            });
         },
         [],
     );
@@ -131,7 +137,10 @@ export function useContentEditorLoadingIndicator(isSaving: boolean): {
                                   let totalProgress = 0;
                                   for (const progress of progresses) totalProgress += progress;
                                   const progress = totalProgress / progresses.length;
-                                  return Math.round(progress * 100);
+
+                                  // We never want to show 100%. The most we'll show is 99%. 100%
+                                  // means done.
+                                  return Math.round(progress * 99);
                               },
                           )
                         : null
@@ -140,14 +149,16 @@ export function useContentEditorLoadingIndicator(isSaving: boolean): {
         );
     }, [state.loadingIndicators, state.progressStores]);
 
-    const loadingIndicator = useMemo((): ReactElement | null => {
-        if (loadingIndicatorWithoutSaving) return loadingIndicatorWithoutSaving;
-        if (!isSaving) return null;
-        return <ContentEditorLoadingIndicator summary="Saving" progressStore={null} />;
-    }, [isSaving, loadingIndicatorWithoutSaving]);
+    const hasLoadingIndicator = loadingIndicatorWithoutSaving !== null;
+    const shouldShowLoadingIndicator = useDelayLoadingIndicator(hasLoadingIndicator);
 
-    const isLoading = loadingIndicator !== null;
-    const shouldShowLoadingIndicator = useDelayLoadingIndicator(isLoading);
+    const shouldShowSavingIndicator = useDelayLoadingIndicator(isSaving);
+
+    const loadingIndicator = useMemo((): ReactElement | null => {
+        if (shouldShowLoadingIndicator) return loadingIndicatorWithoutSaving;
+        if (!shouldShowSavingIndicator) return null;
+        return <ContentEditorLoadingIndicator summary="Saving" progressStore={null} />;
+    }, [loadingIndicatorWithoutSaving, shouldShowLoadingIndicator, shouldShowSavingIndicator]);
 
     return {
         loadingIndicator: shouldShowLoadingIndicator ? loadingIndicator : null,

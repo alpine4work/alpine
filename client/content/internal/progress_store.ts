@@ -169,9 +169,9 @@ export class ProgressValueStore extends Store<number> {
     }
 
     /**
-     * Eases the progress monitor from 0 to ~0.86 over the provided duration and
-     * from 0 to ~0.99 over the provided duration times three. Starts by quickly
-     * updating progress then slows down over time.
+     * Eases the progress monitor from 0 to ~0.86 over a third of the provided
+     * duration and from 0 to ~0.99 over the full provided duration. Starts by
+     * quickly updating progress then slows down over time.
      *
      * Use this when you don't have a way to track progress but you know the p95
      * time is around `duration`. This function will provide a realistic looking
@@ -181,7 +181,7 @@ export class ProgressValueStore extends Store<number> {
      */
     public ease(duration: number) {
         // `easeOutCirc(1 / 3)` is ~0.86
-        this._ease(easeOutQuint, duration * 3, 0, 0.99);
+        this._ease(easeOutQuint, duration, 0, 0.99);
     }
 
     private _ease(easing: Easing, duration: number, startProgress: number, endProgress: number) {

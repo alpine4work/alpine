@@ -184,9 +184,9 @@ async function actuallyUploadFileFromContentEditor(
 
                     if (responseContentLength === null) {
                         // No `Content-Length` header available. Hard to estimate download time. We'll
-                        // say 2s which works well medium files on a fast network but not small or
+                        // say 3s which works well medium files on a fast network but not small or
                         // large files.
-                        downloadProgressStore.ease(2000);
+                        downloadProgressStore.ease(3000);
                     } else {
                         let count = 0;
 

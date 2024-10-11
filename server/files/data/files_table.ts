@@ -21,11 +21,12 @@ import {Context} from "~/shared/context/context.js";
 import {
     FailedPreconditionError,
     InternalError,
+    InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-    UnimplementedError,
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {
     FileAttachmentTarget,
@@ -475,11 +476,20 @@ export async function startUploadingAndProcessingFile(
             contentLength: 0,
         };
 
-        if (fileTotalsItem.contentLength + contentLength > maxFileTotalContentLengthForSpace) {
-            throw new UnimplementedError(
+        // We allow one file to be uploaded beyond the space's max content length. This
+        // allows us to say "you've reached your limit" in our error message.
+        if (fileTotalsItem.contentLength > maxFileTotalContentLengthForSpace) {
+            throw new InvalidArgumentError(
                 `Uploading files beyond our ${prettyBytes(
                     maxFileTotalContentLengthForSpace,
                 )} limit is currently unsupported. Eventually we should: 1) Increase the limit for paying customers, 2) Archive old uploaded files to create more space`,
+                {
+                    displayMessage: errorDisplayMessage`This space has exceeded its ${prettyBytes(
+                        maxFileTotalContentLengthForSpace,
+                    )} storage limit. Can’t upload more files. To raise this space’s storage limit contact ${
+                        errorDisplayMessage.supportLink
+                    }.`,
+                },
             );
         }
 
