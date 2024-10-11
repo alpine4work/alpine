@@ -5,7 +5,7 @@ import {Readable as ReadableStream} from "stream";
  * all data from the stream. If aborted while waiting on the stream the promise
  * will reject with the `AbortSignal`'s reason.
  */
-export function waitForReadableStreamData(
+export function waitForReadableStreamBuffer(
     stream: ReadableStream,
     signal: AbortSignal,
 ): Promise<Buffer> {

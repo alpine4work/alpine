@@ -71,12 +71,15 @@ import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
 import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
+    uploadFileFromContentEditorProgressCompositeStoreWeights,
 } from "~/client/content/internal/upload_file_from_content_editor.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
+import {ContentEditorLoadingIndicatorSummary} from "~/client/content/use_content_editor_loading_indicator.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -321,29 +324,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     ) => void;
 
     /**
-     * Fired when the user presses enter in a content editor.
-     *
-     * Providing an `onEnterFromPhysicalKeyboard` callback will prevent the default
-     * enter behavior. It will also switch our editor out of multiline mode for
-     * assistive technologies.
-     *
-     * Pressing shift+enter has the same behavior as pressing enter as a
-     * workaround. Pressing alt+enter will insert a hard line break and won't
-     * trigger this callback. Pasting in content with multiple paragraphs also
-     * allows you to add multiple lines. So providing `onEnterFromPhysicalKeyboard`
-     * doesn't make our editor fully single lined.
-     */
-    onEnterFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
-
-    /**
-     * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
-     * in a content editor.
-     *
-     * Providing an `onModEnter` callback will prevent the default enter behavior.
-     */
-    onModEnter?: (event: KeyboardEvent) => void;
-
-    /**
      * Placeholder text to render in the editor when there is no other content.
      */
     placeholder?: string;
@@ -405,6 +385,12 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onEnsureFileAttachmentTarget?: () => Promise<void>;
 
     /**
+     * Phantom text selections decorations that render on top of the editor and
+     * represent the cursor position of other users.
+     */
+    phantomSelections?: ReadonlyArray<ContentEditorPhantomSelection>;
+
+    /**
      * Event fired when the user focuses the content editor.
      */
     onFocus?: (event: FocusEvent<HTMLDivElement>) => void;
@@ -420,6 +406,29 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 
     /**
+     * Fired when the user presses enter in a content editor.
+     *
+     * Providing an `onEnterFromPhysicalKeyboard` callback will prevent the default
+     * enter behavior. It will also switch our editor out of multiline mode for
+     * assistive technologies.
+     *
+     * Pressing shift+enter has the same behavior as pressing enter as a
+     * workaround. Pressing alt+enter will insert a hard line break and won't
+     * trigger this callback. Pasting in content with multiple paragraphs also
+     * allows you to add multiple lines. So providing `onEnterFromPhysicalKeyboard`
+     * doesn't make our editor fully single lined.
+     */
+    onEnterFromPhysicalKeyboard?: (event: KeyboardEvent) => void;
+
+    /**
+     * Fired when the user press cmd-enter (or ctrl-enter on non MacOS platforms)
+     * in a content editor.
+     *
+     * Providing an `onModEnter` callback will prevent the default enter behavior.
+     */
+    onModEnter?: (event: KeyboardEvent) => void;
+
+    /**
      * Fired when the user presses the escape key.
      */
     onEscape?: (event: KeyboardEvent) => void;
@@ -430,10 +439,19 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     onArrowUp?: (event: KeyboardEvent) => void;
 
     /**
-     * Phantom text selections decorations that render on top of the editor and
-     * represent the cursor position of other users.
+     * If the `<ContentEditor>` is processing some asynchronous data then it'll
+     * call this function with a promise so the parent component can show a
+     * loading indicator for the duration of the promise.
+     *
+     * If the `<ContentEditor>` supports files then this prop is required. You must
+     * show a loading indicator while a file is uploading or else the user may not
+     * know what's going on.
      */
-    phantomSelections?: ReadonlyArray<ContentEditorPhantomSelection>;
+    onLoadingIndicator?: (
+        summary: ContentEditorLoadingIndicatorSummary,
+        promise: Promise<void>,
+        progressStore: Store<number> | null,
+    ) => void;
 
     /**
      * Opens a comment thread when clicked. If your schema supports comment marks
@@ -1530,8 +1548,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 item => () => item,
             );
 
-            // TODO(calebmer, #global-loading-indicator): Show a "pasting" indicator if
-            // we're waiting for a data fetch before applying a paste.
             const promise = context.tracer.withSpan(
                 `Content editor ${origin} with references`,
                 run,
@@ -1552,6 +1568,13 @@ function ContentEditor<Content extends ContentWithReferences>(
                     return getSelection;
                 }
             });
+
+            // While performing an asynchronous paste or drop we show a "Pasting" loading
+            // indicator. We intentionally show a loading indicator that says "Pasting" for
+            // both asynchronous pastes and asynchronous drops. I feel like the copy
+            // "Dropping" might confuse the user since they might not associate the word
+            // "drop" with their drag operation.
+            propsRef.current.onLoadingIndicator?.("Pasting", promise, null);
 
             promise.catch(error => {
                 reporter.displayError("Couldn’t paste", error);
@@ -1625,7 +1648,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 fileStore: Store<FileModel>;
                             }>();
 
-                            promiseWaiter.waitUntil(async () => {
+                            const [progressCompositeStore, progressStores] =
+                                createProgressCompositeStore(
+                                    uploadFileFromContentEditorProgressCompositeStoreWeights,
+                                );
+
+                            const promise = (async () => {
                                 let uploadingFileId: FileId | undefined;
                                 let unsubscribeFromFileStore: (() => void) | undefined;
 
@@ -1638,6 +1666,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                         fileId,
                                         attachmentTarget: toTarget,
                                         input: temporaryPastedFileInfo.input,
+                                        progressStores,
                                         onAttach: ({signedUrlSearch, fileStore}) => {
                                             const initialFile = fileStore.getSnapshot();
                                             uploadingFileId = initialFile.id;
@@ -1673,7 +1702,19 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     if (uploadingFileId) uploadingFileIds?.delete(uploadingFileId);
                                     unsubscribeFromFileStore?.();
                                 }
-                            });
+                            })();
+
+                            promiseWaiter.waitUntil(promise);
+
+                            // While a file is uploading show an "Uploading" loading indicator with the
+                            // progress percentage. If multiple files are uploading at once then the
+                            // implementation of `onLoadingIndicator` is responsible for putting together
+                            // an aggregated summary.
+                            propsRef.current.onLoadingIndicator?.(
+                                "Uploading",
+                                promise,
+                                progressCompositeStore,
+                            );
 
                             const {signedUrlSearch, fileStore} =
                                 await fileReferencePromiseResolver.promise;
@@ -3239,8 +3280,8 @@ function ContentEditor<Content extends ContentWithReferences>(
     const unwrappedState = unwrap(state);
 
     assert(
-        !unwrappedState.schema.nodes.file || fileAttachmentTarget,
-        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
+        !unwrappedState.schema.nodes.file || (fileAttachmentTarget && props.onLoadingIndicator),
+        "When the ProseMirror schema supports files then the props `fileAttachmentTarget` and `onLoadingIndicator` are required",
     );
 
     const floaterState = state.getFloaterState();

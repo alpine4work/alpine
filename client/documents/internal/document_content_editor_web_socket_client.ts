@@ -285,8 +285,7 @@ export class DocumentContentEditorWebSocketClient {
                     break;
                 }
                 case "PersistedContent": {
-                    // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
-                    // content has persisted!
+                    // TODO(calebmer, #files): This?
                     //
                     // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
                     // close the page if we haven't finished saving their document. It will

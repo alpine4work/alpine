@@ -85,6 +85,7 @@ export function useDocumentContentEditorWebSocket(
 ): {
     spaceId: SpaceId;
     isConnected: boolean;
+    isSaving: boolean;
     editorState: ContentEditorState<DocumentContentWithReferences>;
     onChangeEditorState: Memo<
         (editorState: ContentEditorState<DocumentContentWithReferences>) => void
@@ -267,9 +268,15 @@ export function useDocumentContentEditorWebSocket(
         webSocketState?.hasError ? webSocketState : state.errorState,
     );
 
+    const isSaving =
+        state.pendingSendableSteps !== null ||
+        (state.lastReceivedSendableStepsVersion !== null &&
+            state.lastReceivedSendableStepsVersion > state.persistedVersion);
+
     return {
         spaceId,
         isConnected: webSocketState?.isConnected ?? false,
+        isSaving,
         editorState: state.editorState,
         onChangeEditorState: useCallback(
             editorState => {

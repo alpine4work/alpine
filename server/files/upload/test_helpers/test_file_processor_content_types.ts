@@ -7,7 +7,6 @@ import {Server} from "http";
 import looksSame from "looks-same";
 import {extname, join as joinPath} from "path";
 import sharp from "sharp";
-import {ReadableStream} from "stream/web";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {MiniflareR2Client} from "~/server/cloudflare/r2/miniflare_r2_client.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -45,6 +44,7 @@ import {FileModel} from "~/shared/files/file_model.js";
 import {UploadFileEventSchema} from "~/shared/files/upload_file_event.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
@@ -437,7 +437,9 @@ export function testFileProcessorContentTypes(
                         if (!object) throw new NotFoundError("File not found");
 
                         const actualContents = Buffer.from(
-                            await convertReadableStreamToUint8Array(object.body),
+                            await waitForReadableStreamUint8Array(
+                                object.body as globalThis.ReadableStream<Uint8Array>,
+                            ),
                         );
 
                         expect(contents.equals(actualContents)).toEqual(true);
@@ -531,7 +533,9 @@ async function testFileUploadServiceContentTypeExpectedAlternativeSimilarity(
     const object = await r2Bucket.get(`${space.id}/${fileId}-alternative`);
     if (!object) throw new NotFoundError("File alternative not found");
 
-    const actualContents = Buffer.from(await convertReadableStreamToUint8Array(object.body));
+    const actualContents = Buffer.from(
+        await waitForReadableStreamUint8Array(object.body as globalThis.ReadableStream<Uint8Array>),
+    );
 
     const testlogsOutputDirectoryPath = joinPath(
         testlogsPath,
@@ -995,7 +999,9 @@ async function testFileUploadServiceContentTypeExpectedImagePreviewContentSimila
     if (!object) throw new NotFoundError("File preview image file not found");
 
     const [actualImageContents, expectedImageContents] = await runAllPromises([
-        convertReadableStreamToUint8Array(object.body).then(buffer => Buffer.from(buffer)),
+        waitForReadableStreamUint8Array(object.body as globalThis.ReadableStream<Uint8Array>).then(
+            buffer => Buffer.from(buffer),
+        ),
         fs.readFile(
             joinPath(
                 runfilesPath,
@@ -1139,30 +1145,6 @@ function compareFileImagePreviewPlaceholders(
             `Placeholder pixel doesn't match (average distance = ${averageDistance}), actual placeholder: ${actualPlaceholderString}`,
         );
     }
-}
-
-function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
-    const result = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.length, 0));
-    let offset = 0;
-
-    for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-    }
-
-    return result;
-}
-
-async function convertReadableStreamToUint8Array(
-    stream: ReadableStream<Uint8Array>,
-): Promise<Uint8Array> {
-    const chunks: Array<Uint8Array> = [];
-
-    for await (const chunk of stream) {
-        chunks.push(chunk);
-    }
-
-    return concatUint8Arrays(chunks);
 }
 
 function removePathExtension(path: string): string {

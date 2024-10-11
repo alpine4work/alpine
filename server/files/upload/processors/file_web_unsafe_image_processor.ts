@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import {waitForReadableStreamData} from "~/server/files/upload/helpers/wait_for_readable_stream_data.js";
+import {waitForReadableStreamBuffer} from "~/server/files/upload/helpers/wait_for_readable_stream_buffer.js";
 import {
     processImageFile,
     rethrowClassifiedSharpError,
@@ -20,7 +20,7 @@ export function createFileWebUnsafeImageProcessor(
             hasVideoDuration: false,
         },
         process: (stream, signal) => {
-            const dataPromise = waitForReadableStreamData(stream, signal);
+            const dataPromise = waitForReadableStreamBuffer(stream, signal);
             const {imagePreviewSizePromise, imagePreviewPlaceholderPromise} = processImageFile(
                 contentType,
                 dataPromise,

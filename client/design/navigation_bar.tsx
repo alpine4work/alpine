@@ -1688,7 +1688,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             ref={navigationBarBackgroundRef}
                             position="absolute"
                             zIndex="-10"
-                            inset="0"
+                            top="0"
+                            left="0"
+                            right="0"
+                            height={navigationBarHeight}
                             backgroundColor="grey-0"
                             display="flex"
                             justifyContent="center"

@@ -208,11 +208,17 @@ const specialGreyColorVars: {
      * `grey-0` with 60% opacity.
      */
     "grey-0-opacity-60": CssVarFunction;
+
+    /**
+     * `grey-0` with 80% opacity.
+     */
+    "grey-0-opacity-80": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-5-dark-10": colors["grey-5"],
     "grey-0-opacity-20": `${colors["grey-0"]}33`,
     "grey-0-opacity-40": `${colors["grey-0"]}66`,
     "grey-0-opacity-60": `${colors["grey-0"]}99`,
+    "grey-0-opacity-80": `${colors["grey-0"]}cc`,
 });
 
 globalStyle(darkColorSchemeSelector, {
@@ -221,6 +227,7 @@ globalStyle(darkColorSchemeSelector, {
         "grey-0-opacity-20": `${colors["grey-90"]}33`,
         "grey-0-opacity-40": `${colors["grey-90"]}66`,
         "grey-0-opacity-60": `${colors["grey-90"]}99`,
+        "grey-0-opacity-80": `${colors["grey-90"]}cc`,
     }),
 });
 

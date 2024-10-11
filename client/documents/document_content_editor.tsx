@@ -27,6 +27,7 @@ import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.j
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {useContentEditorLoadingIndicator} from "~/client/content/use_content_editor_loading_indicator.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
@@ -226,6 +227,7 @@ export function DocumentContentEditor({
     const {
         spaceId,
         isConnected,
+        isSaving,
         editorState,
         onChangeEditorState,
         otherPresenceStateByConnectionId,
@@ -1506,6 +1508,8 @@ export function DocumentContentEditor({
         };
     }, [isInitialAppRender]);
 
+    const {loadingIndicator, onLoadingIndicator} = useContentEditorLoadingIndicator(isSaving);
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         withMobileLayout,
@@ -1542,6 +1546,32 @@ export function DocumentContentEditor({
         desktopTitleMaxWidthCenterOffset: spaceLayoutStyles.sideBarWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
+        stickyBanner: loadingIndicator ? (
+            <Box
+                position="relative"
+                pointerEvents="none"
+                // Our background color intentionally doesn't cover `paddingRight`. So we don't
+                // cover the scrollbar.
+                paddingRight="2.5"
+                display="flex"
+                justifyContent="flex-end"
+                style={{
+                    // Make sure there's no half pixel gap between this element and the navigation
+                    // bar on high resolution devices.
+                    top: -1,
+                }}
+            >
+                <Box
+                    paddingTop="2"
+                    paddingBottom="1.5"
+                    paddingLeft="1.5"
+                    backgroundColor="grey-0"
+                    borderBottomLeftRadius="1"
+                >
+                    {loadingIndicator}
+                </Box>
+            </Box>
+        ) : null,
     });
 
     return (
@@ -1624,6 +1654,7 @@ export function DocumentContentEditor({
                                     [documentId],
                                 )}
                                 onEnsureFileAttachmentTarget={ensureCreateDocument}
+                                onLoadingIndicator={onLoadingIndicator}
                                 openCommentThread={openCommentThread}
                                 onCommentThreadPressedChange={(commentThreadId, isHovered) => {
                                     setPressedCommentThreadId(pressedCommentThreadId => {

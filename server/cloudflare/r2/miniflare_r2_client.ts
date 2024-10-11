@@ -13,10 +13,11 @@ import {
 import type * as miniflareTypes from "@miniflare/r2";
 import {NodeJsRuntimeStreamingBlobPayloadInputTypes} from "@smithy/types";
 import {Readable as ReadableStream} from "stream";
-import {ReadableStream as ReadableWebStream, TextDecoderStream} from "stream/web";
 import {Headers} from "undici";
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
+import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
+import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -149,10 +150,16 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
                     "body" in object
                         ? Object.assign(ReadableStream.fromWeb(object.body), {
                               transformToByteArray: () =>
-                                  convertReadableStreamToUint8Array(object.body),
+                                  waitForReadableStreamUint8Array(
+                                      object.body as globalThis.ReadableStream<Uint8Array>,
+                                  ),
                               transformToString: (encoding?: string) =>
-                                  convertReadableStreamToString(object.body, encoding),
-                              transformToWebStream: () => object.body as globalThis.ReadableStream,
+                                  waitForReadableStreamString(
+                                      object.body as globalThis.ReadableStream<Uint8Array>,
+                                      encoding,
+                                  ),
+                              transformToWebStream: () =>
+                                  object.body as globalThis.ReadableStream<Uint8Array>,
                           })
                         : undefined,
             };
@@ -389,41 +396,4 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             return `http://${this._fileUploadServiceHostname}/internal/miniflare/get-object/${bucketName}/${key}?exp=${expirationTimeString}`;
         });
     }
-}
-
-function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
-    const result = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.length, 0));
-    let offset = 0;
-
-    for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-    }
-
-    return result;
-}
-
-async function convertReadableStreamToUint8Array(
-    stream: ReadableWebStream<Uint8Array>,
-): Promise<Uint8Array> {
-    const chunks: Array<Uint8Array> = [];
-
-    for await (const chunk of stream) {
-        chunks.push(chunk);
-    }
-
-    return concatUint8Arrays(chunks);
-}
-
-async function convertReadableStreamToString(
-    stream: ReadableWebStream<Uint8Array>,
-    encoding?: string,
-): Promise<string> {
-    let string = "";
-
-    for await (const chunk of stream.pipeThrough(new TextDecoderStream(encoding))) {
-        string += chunk;
-    }
-
-    return string;
 }
