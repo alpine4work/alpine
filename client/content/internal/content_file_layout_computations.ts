@@ -460,13 +460,39 @@ export function computeContentFileFloatLayout(
 }
 
 /**
+ * We treat all files as half their actual size in order to prevent up-scaling
+ * on retina displays.
+ *
+ * A retina display is one where [`devicePixelRatio`][1] is greater than 1.
+ * Most retina display's have a `devicePixelRatio` of 2. (Some newer iPhones
+ * have a `devicePixelRatio` of 3.)
+ *
+ * The theory here is that these days enough displays are retina displays that
+ * we should make sure files look crisp on retina displays and gracefully
+ * degrade on non-retina displays. Additionally, we're betting that most image
+ * files are optimized to look good on retina displays (since they're probably
+ * being produced on retina displays).
+ *
+ * Basically all mobile phones have retina displays. Many monitors also have
+ * retina displays.
+ *
+ * So to make sure a 400x300 image looks crisp on a retina display (with a
+ * `devicePixelRatio` of 2) then we need to render the image at 200x150 (half
+ * the original size). We apply this down-scaling constant to images so the
+ * size we use for layout is the half the actual file's size.
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio
+ */
+const fileImagePreviewSizeDownScale = 2;
+
+/**
  * Get the original size of the file's preview in pixels. When laying out files
  * we'll try to preserve the width/height aspect ratio from this function. We
  * also won't grow the file to a size larger than the width/height returned by
  * this function but we will shrink files to fit in our available space if
  * necessary.
  */
-function getFilePreviewSize(file: FileModel | null): {width: number; height: number} {
+export function getFilePreviewSize(file: FileModel | null): {width: number; height: number} {
     if (!file?.preview) {
         return fallbackFileSize;
     }
@@ -503,8 +529,18 @@ function getFilePreviewSize(file: FileModel | null): {width: number; height: num
             }
 
             return {
-                width: file.preview.size.width / file.preview.size.scale,
-                height: file.preview.size.height / file.preview.size.scale,
+                width:
+                    file.preview.size.width /
+                    // Files that already are at a scale of 2 or more don't need to be downscaled.
+                    // We render PDFs at 2x their actual width/height so they look good on retina
+                    // displays at their proper size.
+                    Math.max(fileImagePreviewSizeDownScale, file.preview.size.scale),
+                height:
+                    file.preview.size.height /
+                    // Files that already are at a scale of 2 or more don't need to be downscaled.
+                    // We render PDFs at 2x their actual width/height so they look good on retina
+                    // displays at their proper size.
+                    Math.max(fileImagePreviewSizeDownScale, file.preview.size.scale),
             };
         }
         default:

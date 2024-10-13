@@ -2,7 +2,10 @@ import classNames from "classnames";
 import Color from "color";
 import {Node} from "prosemirror-model";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
-import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
+import {
+    ContentFileLayout,
+    getFilePreviewSize,
+} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
@@ -243,6 +246,10 @@ export function renderContentFilePreview(
                     break;
                 }
 
+                // This is the file size after applying scaling. If you want the actual pixel
+                // size of the file use `reference.file.preview.size`.
+                const size = getFilePreviewSize(reference.file);
+
                 const adjustments = getFileImagePreviewRenderingAdjustments(
                     reference.file.preview.placeholder,
                 );
@@ -286,7 +293,7 @@ export function renderContentFilePreview(
                 );
                 placeholderImageHtml.setAttribute(
                     "style",
-                    `max-width: ${reference.file.preview.size.width}px; max-height: ${reference.file.preview.size.height}px`,
+                    `max-width: ${size.width}px; max-height: ${size.height}px`,
                 );
                 placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
 
@@ -325,9 +332,6 @@ export function renderContentFilePreview(
                         const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2);
                         const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3);
 
-                        // If we're outside the aspect ratio range then we always want to resize our
-                        // file. Since resizing will also crop the file to our aspect ratio range. This
-                        // will result in a smaller file to download.
                         const aspectRatio =
                             reference.file.preview.size.width / reference.file.preview.size.height;
                         const isOutsideAspectRatioRange =
@@ -335,6 +339,8 @@ export function renderContentFilePreview(
                             aspectRatio > maxFilePreviewAspectRatio;
 
                         if (!isOutsideAspectRatioRange) {
+                            // If the file is smaller than our desired resize width then don't bother
+                            // resizing since resizing will be a noop.
                             image1xSource =
                                 reference.file.preview.size.width <= image1xWidth
                                     ? imageSourceBase
@@ -349,7 +355,11 @@ export function renderContentFilePreview(
                                 reference.file.preview.size.width <= image3xWidth
                                     ? imageSourceBase
                                     : `${imageSourceBase}&width=${image3xWidth}`;
-                        } else {
+                        }
+                        // If we're outside the aspect ratio range then we always want to resize our
+                        // file. Since resizing will also crop the file to our aspect ratio range. This
+                        // will result in a smaller file to download.
+                        else {
                             const defaultWidth = getFilePreviewImageResizeWidth(
                                 reference.file.preview.size.width,
                             );
@@ -382,8 +392,11 @@ export function renderContentFilePreview(
 
                     const imageHtml = renderFileImagePreviewContent({
                         srcset: imageSrcset,
-                        maxWidth: `${reference.file.preview.size.width}px`,
-                        maxHeight: `${reference.file.preview.size.height}px`,
+                        // We need to set the image `max-width` and `max-height` since we don't want
+                        // the image growing to fill its parent if the image is smaller than the
+                        // parent (e.g. a small 32x32 image).
+                        maxWidth: `${size.width}px`,
+                        maxHeight: `${size.height}px`,
                     });
 
                     html.appendChild(imageHtml);
