@@ -1,4 +1,11 @@
-import {assignVars, createGlobalTheme, createVar, globalStyle, style} from "@vanilla-extract/css";
+import {
+    assignVars,
+    createGlobalTheme,
+    createVar,
+    globalStyle,
+    keyframes,
+    style,
+} from "@vanilla-extract/css";
 import Color from "color";
 import {borderRadius} from "~/client/styles/internal/border_radius.css.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/internal/button.css.js";
@@ -1052,13 +1059,68 @@ globalStyle(fileClassName, {
     // interactive.
     cursor: "pointer",
     userSelect: "none",
+    // We use `mix-blend-mode` for our cross fade animation. Without
+    // `isolation: isolate` the background color will be taken into account when
+    // mixing the colors from our placeholder `<img>` and content `<img>` with
+    // `mix-blend-mode: plus-lighter`.
+    isolation: "isolate",
 });
 
-// Images need to be selectable so we get the browser's selection highlight
-// effect.
-globalStyle(`${fileClassName} img`, {
+export const fileImagePreviewContentClassName = style({
+    zIndex: "0",
+    position: "absolute",
+    top: "0",
+    left: "0",
+    width: "100%",
+    height: "100%",
+    objectPosition: "center top",
+    objectFit: "cover",
+    // Images need to be selectable so we get the browser's selection highlight
+    // effect.
     userSelect: "text",
+    // Start at opacity 0. We'll animate to opacity 1 when
+    // `loadedFileImagePreviewClassName` is added.
+    opacity: 0,
+    transition: "opacity 250ms ease-in-out",
 });
+
+export const fileImagePreviewPlaceholderClassName = style({
+    zIndex: "10",
+    position: "absolute",
+    top: "0",
+    left: "0",
+    width: "100%",
+    height: "100%",
+    objectPosition: "center top",
+    objectFit: "cover",
+    pointerEvents: "none",
+    // Start at opacity 1. We'll animate to opacity 0 when
+    // `loadedFileImagePreviewClassName` is added.
+    opacity: 1,
+    transition: "opacity 250ms ease-in-out",
+});
+
+export const loadedFileImagePreviewClassName = style({});
+
+globalStyle(
+    `${fileClassName}${loadedFileImagePreviewClassName} ${fileImagePreviewContentClassName}`,
+    {
+        opacity: 1,
+    },
+);
+
+globalStyle(
+    `${fileClassName}${loadedFileImagePreviewClassName} ${fileImagePreviewPlaceholderClassName}`,
+    {
+        opacity: 0,
+        // Proper cross-fade animation with `plus-lighter`. Otherwise the element goes
+        // to 75% opacity in the middle of the animation since when compositing element
+        // opacities multiply instead of add. Read more here:
+        //
+        // https://jakearchibald.com/2021/dom-cross-fade/
+        mixBlendMode: "plus-lighter",
+    },
+);
 
 // If the user's pointer is down and they're dragging to change the selection
 // then we don't want our files to have an interactive pointer cursor.

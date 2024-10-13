@@ -621,14 +621,20 @@ export function ContentView({
         );
     }, []);
 
-    useEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         filePreviewExpirationTimers?.play();
         return () => {
             filePreviewExpirationTimers?.pause();
         };
     }, [filePreviewExpirationTimers]);
 
-    useEffect(() => {
+    // Some behaviors in this function depend on this effect being a layout effect.
+    // For example, on initial render when `<ContentEditor>` transitions from
+    // `<ContentView>` to ProseMirror's `EditorView` we must run
+    // `addContentFilePreviewBehavior()` `<ContentView>` cleanups before the
+    // `EditorView` is initialized. This only happens if
+    // `addContentFilePreviewBehavior()` is in a layout effect.
+    useLayoutEffectWithoutServerSideWarning(() => {
         if (isInert) return;
 
         // Re-run this effect whenever the HTML changes.
@@ -933,6 +939,7 @@ export function ContentView({
                         attachmentTarget: assertExists(fileAttachmentTarget),
                         expirationTimers: assertExists(filePreviewExpirationTimers),
                         isOurEditorUploading: false,
+                        isEditorInitialAppRender,
                         onUpdate: (file, signedUrlSearch) => {
                             setUpdatedContentReferencesFileById(fileById => {
                                 return mergeContentReferencesFileById(
@@ -981,6 +988,7 @@ export function ContentView({
         context,
         fileAttachmentTarget,
         filePreviewExpirationTimers,
+        isEditorInitialAppRender,
     ]);
 
     // Watch all parent elements of our content editor for scroll events. When a

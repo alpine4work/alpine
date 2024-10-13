@@ -9,7 +9,7 @@ import {
 } from "~/client/styles/internal/platform.css.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
 import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
-import {convertSvgToCssDataUrl} from "~/shared/helpers/html/convert_svg_to_css_data_url.js";
+import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 
 export const sawtoothSize = "4";
 export const sawtoothSizeRem = parseRemLengthNumber(spacing[sawtoothSize]);
@@ -20,36 +20,36 @@ export const sawtoothBorderClassName = style({
     backgroundRepeat: "repeat-x",
     selectors: {
         [`${desktopPlatformSelector} ${lightColorSchemeSelector} &`]: {
-            backgroundImage: convertSvgToCssDataUrl(
+            backgroundImage: `url("${convertSvgToDataUrl(
                 createSawtoothSvg(
                     sawtoothSizeRem * remPxByPlatform.desktop,
                     colorsWithShade["grey-10"],
                 ),
-            ),
+            )}")`,
         },
         [`${desktopPlatformSelector} ${darkColorSchemeSelector} &`]: {
-            backgroundImage: convertSvgToCssDataUrl(
+            backgroundImage: `url("${convertSvgToDataUrl(
                 createSawtoothSvg(
                     sawtoothSizeRem * remPxByPlatform.desktop,
                     invertedColorsWithShade["grey-10"],
                 ),
-            ),
+            )}")`,
         },
         [`${mobilePlatformSelector} ${lightColorSchemeSelector} &`]: {
-            backgroundImage: convertSvgToCssDataUrl(
+            backgroundImage: `url("${convertSvgToDataUrl(
                 createSawtoothSvg(
                     sawtoothSizeRem * remPxByPlatform.mobile,
                     colorsWithShade["grey-10"],
                 ),
-            ),
+            )}")`,
         },
         [`${mobilePlatformSelector} ${darkColorSchemeSelector} &`]: {
-            backgroundImage: convertSvgToCssDataUrl(
+            backgroundImage: `url("${convertSvgToDataUrl(
                 createSawtoothSvg(
                     sawtoothSizeRem * remPxByPlatform.mobile,
                     invertedColorsWithShade["grey-10"],
                 ),
-            ),
+            )}")`,
         },
     },
 });

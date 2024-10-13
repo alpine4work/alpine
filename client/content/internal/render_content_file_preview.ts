@@ -7,7 +7,7 @@ import {
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
-import {contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {
     emptyContentReferences,
     getContentReferencesFileSignedUrlExpirationTime,
@@ -22,10 +22,12 @@ import {
     minFilePreviewAspectRatio,
 } from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {convertSvgToCssDataUrl} from "~/shared/helpers/html/convert_svg_to_css_data_url.js";
+import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -187,8 +189,6 @@ export class ContentFilePreviewExpirationTimers {
  * `HtmlElementGenerator` can either be used to render `<ContentEditor>` or
  * `<ContentView>`.
  */
-// TODO(calebmer, #files): Consider switching to a pure white background color
-// so files on pure white look natural.
 export function renderContentFilePreview(
     get: <Value>(store: Store<Value>) => Value,
     {
@@ -241,14 +241,14 @@ export function renderContentFilePreview(
 
                 const svg = renderFileImagePreviewPlaceholder(reference.file.preview.placeholder);
 
-                html.setAttribute(
-                    "style",
-                    [
-                        `background-image: ${convertSvgToCssDataUrl(svg)}`,
-                        "background-position: center top",
-                        "background-size: cover",
-                    ].join("; "),
+                const placeholderImageHtml = new HtmlElementGenerator("img");
+                placeholderImageHtml.setAttribute(
+                    "class",
+                    contentStyles.fileImagePreviewPlaceholderClassName,
                 );
+                placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
+
+                html.appendChild(placeholderImageHtml);
 
                 // Render the image if we have a signed preview URL and the signature isn't
                 // expired.
@@ -362,7 +362,12 @@ function round6(n: number) {
     return Math.round(n * 10 ** 6) / 10 ** 6;
 }
 
-let pooledFileImagePreviewContentElementsBySrcset: Map<string, Set<HTMLElement>> | null = null;
+let wasEditorInitialAppRender = false;
+
+let reuseFileImagePreviewContentElementsBySrcsetForEditorInitialAppRender: Map<
+    string,
+    Set<HTMLElement>
+> | null = null;
 
 /**
  * Render the `<img>` element for file image previews.
@@ -381,21 +386,28 @@ let pooledFileImagePreviewContentElementsBySrcset: Map<string, Set<HTMLElement>>
  * Safari on initial render without pooling.
  */
 function renderFileImagePreviewContent(srcset: string): HtmlGenerator {
-    const elements = pooledFileImagePreviewContentElementsBySrcset?.get(srcset);
+    const reuseElements =
+        reuseFileImagePreviewContentElementsBySrcsetForEditorInitialAppRender?.get(srcset);
 
     // If there's an existing `element` for this `srcset` that's not currently in
     // our document then let's reuse that element.
-    if (elements) {
-        const element = iterableFind(elements, element => !document.body.contains(element));
+    if (reuseElements) {
+        const reuseElement = iterableFind(
+            reuseElements,
+            element => !document.body.contains(element),
+        );
 
-        if (element) {
-            elements.delete(element);
-            if (elements.size === 0) pooledFileImagePreviewContentElementsBySrcset?.delete(srcset);
+        if (reuseElement) {
+            reuseElements.delete(reuseElement);
+            if (reuseElements.size === 0)
+                reuseFileImagePreviewContentElementsBySrcsetForEditorInitialAppRender?.delete(
+                    srcset,
+                );
 
             let generator: HtmlGenerator | null = null;
 
             return {
-                generateNode: () => element,
+                generateNode: () => reuseElement,
                 generateHtml: () => {
                     generator ??= actuallyRenderFileImagePreviewContent(srcset);
                     return generator.generateHtml();
@@ -413,8 +425,7 @@ function renderFileImagePreviewContent(srcset: string): HtmlGenerator {
 
 function actuallyRenderFileImagePreviewContent(srcset: string): HtmlElementGenerator {
     const imageHtml = new HtmlElementGenerator("img");
-    imageHtml.setAttribute("class", sprinkles({width: "full", height: "full"}));
-    imageHtml.setAttribute("style", "object-position: center top; object-fit: cover");
+    imageHtml.setAttribute("class", contentStyles.fileImagePreviewContentClassName);
 
     // Only load the image when it enters the viewport. For long documents with a
     // lot of images this improves network utilization. This means our signed URL in
@@ -445,7 +456,7 @@ function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlacehol
 
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${pixelGridWidth} ${pixelGridHeight}">`;
 
-    const blurStdDeviation = 3 / 4;
+    const blurStdDeviation = 2 / 3;
     const translateX = -blurStdDeviation * 2;
     const translateY = -blurStdDeviation * 2;
     const scaleX = (pixelGridWidth + -translateX * 2) / pixelGridWidth;
@@ -496,6 +507,7 @@ export function addContentFilePreviewBehavior(
         attachmentTarget,
         expirationTimers,
         isOurEditorUploading,
+        isEditorInitialAppRender,
         onUpdate,
         onSignedUrlRefresh,
         onShiftMouseDown,
@@ -508,6 +520,7 @@ export function addContentFilePreviewBehavior(
         attachmentTarget: FileAttachmentTarget;
         expirationTimers: ContentFilePreviewExpirationTimers;
         isOurEditorUploading: ((fileId: FileId) => boolean) | false;
+        isEditorInitialAppRender: boolean;
         onUpdate: (file: FileModel, signedUrlSearch: string) => void;
         onSignedUrlRefresh: (fileId: FileId, signedUrlSearch: string) => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
@@ -520,6 +533,7 @@ export function addContentFilePreviewBehavior(
     // Make sure `play()` was called on the expiration timers object.
     assert(!expirationTimers.isPaused());
 
+    let hasCleanedUp = false;
     let pollTimeout: Timeout | null = null;
     let unsubscribeFromRefreshTimer: (() => void) | null = null;
 
@@ -771,37 +785,48 @@ export function addContentFilePreviewBehavior(
     );
 
     /* ========================================================================== *\
-     *                           Image element pooling                            *
+     *                               Image elements                               *
     \* ========================================================================== */
 
-    const cleanupPooledImageElements: Array<() => void> = [];
+    const imagePreviewContentElement = element.querySelector<HTMLImageElement>(
+        `.${contentStyles.fileImagePreviewContentClassName}`,
+    );
 
-    for (const imageElement of element.querySelectorAll("img")) {
-        const imageSrcset = imageElement.getAttribute("srcset") ?? imageElement.getAttribute("src");
+    const handleImagePreviewContentLoad = () => {
+        if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {
+            element.classList.add(contentStyles.loadedFileImagePreviewClassName);
+        }
+    };
 
-        if (imageSrcset === null) continue;
-
-        pooledFileImagePreviewContentElementsBySrcset ??= new Map();
-
-        getOrSetDefaultMapValue(
-            pooledFileImagePreviewContentElementsBySrcset,
-            imageSrcset,
-            () => new Set(),
-        ).add(imageElement);
-
-        // If the image element hasn't been reused within a second from the pool then
-        // we clean it up to avoid memory leaks.
-        cleanupPooledImageElements.push(() => {
-            const elements = pooledFileImagePreviewContentElementsBySrcset?.get(imageSrcset);
-
-            if (elements?.delete(imageElement)) {
-                if (elements.size === 0)
-                    pooledFileImagePreviewContentElementsBySrcset?.delete(imageSrcset);
+    // Wait until after `isEditorInitialAppRender` to cross fade in our images.
+    // That way our cross fade animation won't ever be interrupted by unmounting
+    // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
+    if (!isEditorInitialAppRender && imagePreviewContentElement) {
+        if (imagePreviewContentElement.complete) {
+            if (!wasEditorInitialAppRender) {
+                handleImagePreviewContentLoad();
             }
-        });
+            // If we're a microtask after `isEditorInitialAppRender` then only add the
+            // loaded image class name after a macrotask (difference between microtask and
+            // macrotask is important here). Since the CSS transition animation won't apply
+            // if we immediately add the loaded class name.
+            else {
+                scheduleMacrotask(() => {
+                    if (hasCleanedUp) return;
+                    handleImagePreviewContentLoad();
+                });
+            }
+        } else {
+            if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
+                element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
+        }
+
+        imagePreviewContentElement.addEventListener("load", handleImagePreviewContentLoad);
     }
 
     return () => {
+        hasCleanedUp = true;
+
         element.removeEventListener("pointerdown", handlePointerDown);
         element.removeEventListener("pointerup", handlePointerUp);
         element.removeEventListener("pointerleave", handlePointerLeave);
@@ -820,14 +845,50 @@ export function addContentFilePreviewBehavior(
         unsubscribeFromRefreshTimer?.();
         unsubscribeFromRefreshTimer = null;
 
-        // If the image element hasn't been reused within a second from the pool then
-        // we clean it up to avoid memory leaks.
-        if (cleanupPooledImageElements.length > 0) {
-            setTimeout(() => {
-                for (const cleanup of cleanupPooledImageElements) {
-                    cleanup();
-                }
-            }, 1000);
+        imagePreviewContentElement?.removeEventListener("load", handleImagePreviewContentLoad);
+        if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
+            element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
+
+        // On `<ContentEditor>`'s initial app render when we switch from
+        // `<ContentView>` to ProseMirror's `EditorView` we want to reuse the `<img>`
+        // element so we don't need to download the image file a second time.
+        if (isEditorInitialAppRender && imagePreviewContentElement) {
+            if (!wasEditorInitialAppRender) {
+                wasEditorInitialAppRender = true;
+                scheduleMicrotask(() => {
+                    wasEditorInitialAppRender = false;
+                });
+            }
+
+            const imagePreviewContentSrcset =
+                imagePreviewContentElement.getAttribute("srcset") ??
+                imagePreviewContentElement.getAttribute("src");
+
+            if (imagePreviewContentSrcset) {
+                reuseFileImagePreviewContentElementsBySrcsetForEditorInitialAppRender ??= new Map();
+
+                getOrSetDefaultMapValue(
+                    reuseFileImagePreviewContentElementsBySrcsetForEditorInitialAppRender,
+                    imagePreviewContentSrcset,
+                    () => new Set(),
+                ).add(imagePreviewContentElement);
+
+                // If the image element hasn't been reused within a microtask from the reuse
+                // map then we clean it up to avoid memory leaks.
+                scheduleMicrotask(() => {
+                    const elements =
+                        reuseFileImagePreviewContentElementsBySrcsetForEditorInitialAppRender?.get(
+                            imagePreviewContentSrcset,
+                        );
+
+                    if (elements?.delete(imagePreviewContentElement)) {
+                        if (elements.size === 0)
+                            reuseFileImagePreviewContentElementsBySrcsetForEditorInitialAppRender?.delete(
+                                imagePreviewContentSrcset,
+                            );
+                    }
+                });
+            }
         }
     };
 }

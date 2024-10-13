@@ -26,9 +26,6 @@ export type ContentEditorFileDropTarget = {
         | null;
 };
 
-// TODO(calebmer, #files): Images with alpha does placeholder show through? We
-// probably need some fade animation.
-
 /**
  * Get the targets for dropping a file into our document around some top block
  * index. For performance, we only generate drop targets immediately around the

@@ -140,6 +140,7 @@ export function createContentEditorFileNodeViewConstructor({
                     // If we're currently uploading this `FileId` then disable polling.
                     // `FileUploadService` will push us updates immediately when they're available.
                     isOurEditorUploading,
+                    isEditorInitialAppRender: false,
                     onUpdate: (file, signedUrlSearch) => {
                         view.dispatch(
                             updateContentEditorReferences(view.state.tr, {
