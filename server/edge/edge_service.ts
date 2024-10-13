@@ -11,7 +11,7 @@ import {
     createTraceServerResponseHandleSpanName,
     traceServerResponse,
 } from "~/server/tracer/trace_server_response.js";
-import {getContentReferencesFileSignedUrlExpirationTime} from "~/shared/content/content_references.js";
+import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -832,7 +832,9 @@ async function handleFileFetch(
 
         // We set `max-age` to a time just after our URL expires. This lets the browser
         // know it's free to discard the file from its cache after that.
-        const expirationTime = getContentReferencesFileSignedUrlExpirationTime(signedUrl.search);
+        const expirationTime = getContentReferencesFileSignedUrlSearchExpirationTime(
+            signedUrl.search,
+        );
         const cacheControlMaxAge = Math.ceil((expirationTime - Date.now()) / 1000) + 60;
 
         // Use a cache specifically for files since we'll be saving private files to

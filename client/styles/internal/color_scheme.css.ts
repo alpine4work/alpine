@@ -224,10 +224,10 @@ const specialGreyColorVars: {
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(specialGreyColorVars, {
         "grey-5-dark-10": invertedColorsWithShade["grey-10"],
-        "grey-0-opacity-20": `${colors["grey-90"]}33`,
-        "grey-0-opacity-40": `${colors["grey-90"]}66`,
-        "grey-0-opacity-60": `${colors["grey-90"]}99`,
-        "grey-0-opacity-80": `${colors["grey-90"]}cc`,
+        "grey-0-opacity-20": `${invertedColorsWithShade["grey-0"]}33`,
+        "grey-0-opacity-40": `${invertedColorsWithShade["grey-0"]}66`,
+        "grey-0-opacity-60": `${invertedColorsWithShade["grey-0"]}99`,
+        "grey-0-opacity-80": `${invertedColorsWithShade["grey-0"]}cc`,
     }),
 });
 

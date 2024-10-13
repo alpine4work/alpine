@@ -105,7 +105,7 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
         // this loop adding up all `widthVariables` and requiring that they're less
         // than our file row's width.
         {
-            const minWidth = contentStyles.minFileSizeRem * remPx;
+            const minWidth = contentStyles.fileMinSizeRem * remPx;
             const maxWidth = Math.max(minWidth, width);
 
             if (minWidth === maxWidth) {
@@ -142,7 +142,7 @@ export function computeContentFileRowLayout<Files extends Array<FileModel | null
         // than both the file's original height (since making a small file larger will
         // start to add resize artifacts) and the file row's maximum height.
         {
-            const minHeight = contentStyles.minFileSizeRem * remPx;
+            const minHeight = contentStyles.fileMinSizeRem * remPx;
             const maxHeight = clamp(minHeight, height, contentStyles.fileRowMaxHeightRem * remPx);
 
             if (minHeight === maxHeight) {
@@ -306,7 +306,7 @@ export function computeContentFileFloatLayout(
     // this loop adding up all `widthVariables` and requiring that they're less
     // than our file row's width.
     {
-        const minWidth = contentStyles.minFileSizeRem * remPx;
+        const minWidth = contentStyles.fileMinSizeRem * remPx;
         const maxWidth = clamp(minWidth, width, fileFloatMaxWidth);
 
         if (minWidth === maxWidth) {
@@ -481,7 +481,7 @@ function getFilePreviewSize(file: FileModel | null): {width: number; height: num
 
             // Use the larger `remPx` size (mobile). The file will be scaled down as
             // necessary.
-            const height = contentStyles.minFileSizeRem * remPxByPlatform.mobile;
+            const height = contentStyles.fileMinSizeRem * remPxByPlatform.mobile;
             const width = height * aspectRatio;
             return {width, height};
         }

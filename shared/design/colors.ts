@@ -30,7 +30,7 @@ export const colors = {
     // Pure white background color is useful when embedding files since many files
     // have white backgrounds and look odd on an off-white background.
     "grey-0": "#ffffff",
-    "grey-5": "#ebebf0",
+    "grey-5": "#ededf2",
     "grey-10": "#d9d9de",
     "grey-20": "#bcbcc4",
     "grey-30": "#a6a6ab",

@@ -20,8 +20,8 @@ import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_c
 import {
     ContentReferences,
     ContentWithReferences,
-    getContentReferencesFileSignedUrlExpirationTime,
     mergeContentReferences,
+    mergeContentReferencesFileSignedUrlSearches,
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -846,12 +846,12 @@ export function reduceContentReferencesShared<References extends ContentReferenc
                 : action.file;
 
             // Pick the `signedUrlSearch` that expires later.
-            const newSignedUrlSearch =
-                oldFileReference &&
-                getContentReferencesFileSignedUrlExpirationTime(oldFileReference.signedUrlSearch) >=
-                    getContentReferencesFileSignedUrlExpirationTime(action.signedUrlSearch)
-                    ? oldFileReference.signedUrlSearch
-                    : action.signedUrlSearch;
+            const newSignedUrlSearch = oldFileReference
+                ? mergeContentReferencesFileSignedUrlSearches(
+                      oldFileReference.signedUrlSearch,
+                      action.signedUrlSearch,
+                  )
+                : action.signedUrlSearch;
 
             if (
                 oldFileReference?.file === newFile &&

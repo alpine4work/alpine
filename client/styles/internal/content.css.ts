@@ -1,11 +1,4 @@
-import {
-    assignVars,
-    createGlobalTheme,
-    createVar,
-    globalStyle,
-    keyframes,
-    style,
-} from "@vanilla-extract/css";
+import {assignVars, createGlobalTheme, createVar, globalStyle, style} from "@vanilla-extract/css";
 import Color from "color";
 import {borderRadius} from "~/client/styles/internal/border_radius.css.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/internal/button.css.js";
@@ -22,6 +15,7 @@ import {
     fontSizes,
     fontStyles,
 } from "~/client/styles/internal/fonts.css.js";
+import {approximateOpacityForShiftingGreyColor} from "~/client/styles/internal/helpers/approximate_opacity_for_shifting_grey_color.js";
 import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
@@ -945,8 +939,8 @@ globalStyle(
     },
 );
 
-const minFileSize = spacing["20"];
-export const minFileSizeRem = parseRemLengthNumber(minFileSize);
+const fileMinSize = spacing["20"];
+export const fileMinSizeRem = parseRemLengthNumber(fileMinSize);
 
 const fileRowMaxHeight = spacing["128"];
 export const fileRowMaxHeightRem = parseRemLengthNumber(fileRowMaxHeight);
@@ -957,12 +951,12 @@ export const fileRowGapWidthRem = parseRemLengthNumber(fileRowGapWidth);
 globalStyle(fileRowClassName, {
     ...blockStyles,
     position: "relative",
-    marginTop: paragraphMarginVar,
-    marginBottom: paragraphMarginVar,
+    marginTop: standaloneBlockMarginVar,
+    marginBottom: standaloneBlockMarginVar,
     display: "grid",
     justifyContent: "center",
     gap: fileRowGapWidth,
-    minHeight: minFileSize,
+    minHeight: fileMinSize,
     maxHeight: fileRowMaxHeight,
     userSelect: "none",
 });
@@ -990,7 +984,7 @@ const fileFloatMarginY = spacing["1"];
 export const fileFloatMarginYRem = parseRemLengthNumber(fileFloatMarginY);
 
 export const fileFloatMinHeightParagraphLineCount = Math.ceil(
-    minFileSizeRem / paragraphLineHeightRem,
+    fileMinSizeRem / paragraphLineHeightRem,
 );
 export const fileFloatMinHeightRem = fileFloatMinHeightParagraphLineCount * paragraphLineHeightRem;
 
@@ -1030,30 +1024,33 @@ globalStyle(`${fileFloatClassName}::after`, {
 globalStyle(fileFloatLeftClassName, {
     float: "left",
     paddingRight: fileFloatLeftMarginX,
-    marginLeft: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
+    marginLeft: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2 - ${spaceLayoutSideBarWidth} / 2)`,
 });
 
 globalStyle(`${mobilePlatformSelector} ${fileFloatLeftClassName}`, {
-    marginLeft: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
+    marginLeft: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2 - ${spaceLayoutSideBarWidth} / 2)`,
 });
 
 globalStyle(fileFloatRightClassName, {
     float: "right",
     paddingLeft: fileFloatRightMarginX,
-    marginRight: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
+    marginRight: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2 + ${spaceLayoutSideBarWidth} / 2)`,
 });
 
 globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {
-    marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
+    marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2 + ${spaceLayoutSideBarWidth} / 2)`,
 });
+
+const fileBorderRadius = "1";
 
 globalStyle(fileClassName, {
     zIndex: "10",
     position: "relative",
     overflow: "hidden",
-    minWidth: minFileSize,
-    minHeight: minFileSize,
+    minWidth: fileMinSize,
+    minHeight: fileMinSize,
     maxHeight: fileRowMaxHeight,
+    borderRadius: spacing[fileBorderRadius],
     // Files have an interactive pointer cursor as a hint that when you click on a
     // file it opens up the file viewer. The file alone is not obviously
     // interactive.
@@ -1066,11 +1063,32 @@ globalStyle(fileClassName, {
     isolation: "isolate",
 });
 
+export const fileNearBlackClassName = style({
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: colors["grey-0"],
+        },
+    },
+});
+
+export const fileNearWhiteClassName = style({
+    selectors: {
+        [`${lightColorSchemeSelector} &`]: {
+            backgroundColor: colors["grey-100"],
+        },
+    },
+});
+
+export const fileTransparentBackgroundClassName = style({});
+
 export const fileImagePreviewContentClassName = style({
     zIndex: "0",
     position: "absolute",
-    top: "0",
-    left: "0",
+    // While most images are 100% and 100% height, we need to center images smaller
+    // than `fileMinSize`.
+    top: "50%",
+    left: "50%",
+    transform: `translate(-50%, -50%)`,
     width: "100%",
     height: "100%",
     objectPosition: "center top",
@@ -1087,8 +1105,11 @@ export const fileImagePreviewContentClassName = style({
 export const fileImagePreviewPlaceholderClassName = style({
     zIndex: "10",
     position: "absolute",
-    top: "0",
-    left: "0",
+    // While most images are 100% and 100% height, we need to center images smaller
+    // than `fileMinSize`.
+    top: "50%",
+    left: "50%",
+    transform: `translate(-50%, -50%)`,
     width: "100%",
     height: "100%",
     objectPosition: "center top",
@@ -1155,20 +1176,93 @@ export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, c
     }),
 );
 
+// The darker the shade, the lower the opacity, the less the border will show
+// up when rendered on top of an image.
+const fileBorderColorShade = "100";
+
+const fileBorderColorOpacity = approximateOpacityForShiftingGreyColor(
+    fileBorderColorShade,
+    "5",
+    "5",
+    "0",
+);
+
+const lightFileBorderColorWithoutOpacity = Color(colors[`grey-${fileBorderColorShade}`]);
+
+const lightFileBorderColor = Color.rgb(
+    lightFileBorderColorWithoutOpacity.red(),
+    lightFileBorderColorWithoutOpacity.green(),
+    lightFileBorderColorWithoutOpacity.blue(),
+    fileBorderColorOpacity.light,
+).hexa();
+
+const darkFileBorderColorWithoutOpacity = Color(
+    invertedColorsWithShade[`grey-${fileBorderColorShade}`],
+);
+
+const darkFileBorderColor = Color.rgb(
+    darkFileBorderColorWithoutOpacity.red(),
+    darkFileBorderColorWithoutOpacity.green(),
+    darkFileBorderColorWithoutOpacity.blue(),
+    fileBorderColorOpacity.dark,
+).hexa();
+
+// We add a border around images to prevent images from bleeding into the
+// background. Say you have a screenshot of a web design with an off white
+// background. Rendering that without a border on our pure white background
+// will confuse the viewer's eye since the background of the image "bleeds"
+// into our document background. Adding a border helps contain the image to
+// the viewer's eye. The border is low opacity to operate more like a
+// shadow and blend with the image.
+//
+// We use `&::before` to avoid competing with the `&::after` selector for
+// `selectionFileClassNameByColor`.
+globalStyle(`${fileClassName}::before`, {
+    content: '""',
+    zIndex: "20",
+    position: "absolute",
+    inset: "0",
+    boxShadow: `inset 0 0 0 1px ${lightFileBorderColor}`,
+    borderRadius: spacing[fileBorderRadius],
+});
+
+globalStyle(`${darkColorSchemeSelector} ${fileClassName}::before`, {
+    boxShadow: `inset 0 0 0 1px ${darkFileBorderColor}`,
+});
+
+// Turn off borders for files with a transparent background.
+//
+// If the file is near black or near white then we want to keep the border in a
+// matching color scheme since we add an opposite background color to make the
+// image visible.
+globalStyle(
+    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName})::before`,
+    {boxShadow: "none"},
+);
+
+// Turn off borders for files with a transparent background.
+//
+// If the file is near black or near white then we want to keep the border in a
+// matching color scheme since we add an opposite background color to make the
+// image visible.
+globalStyle(
+    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName})::before`,
+    {boxShadow: "none"},
+);
+
+const pressedFileBackgroundColor = Color(colorSchemeVars["grey-100-const"]);
+
 export const pressedFileClassName = style({
     selectors: {
         // We use `&::before` to avoid competing with the `&::after` selector for
         // `selectionFileClassNameByColor`.
         "&::before": {
-            content: '""',
-            zIndex: "20",
-            position: "absolute",
-            top: "0",
-            bottom: "0",
-            left: "0",
-            right: "0",
-            backgroundColor: colorSchemeVars["grey-100-const"],
-            opacity: buttonPressedOverlayOpacity / 2,
+            backgroundColor: Color.rgb([
+                pressedFileBackgroundColor.red(),
+                pressedFileBackgroundColor.green(),
+                pressedFileBackgroundColor.blue(),
+                buttonPressedOverlayOpacity / 2,
+            ]).hexa(),
         },
     },
 });

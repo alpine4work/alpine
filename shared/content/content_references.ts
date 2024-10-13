@@ -116,12 +116,12 @@ export function mergeContentReferencesFileById(
         const fileReference1 = fileById1.get(fileId2);
 
         const newFileReference = {
-            signedUrlSearch:
-                fileReference1 &&
-                getContentReferencesFileSignedUrlExpirationTime(fileReference1.signedUrlSearch) >=
-                    getContentReferencesFileSignedUrlExpirationTime(file2.signedUrlSearch)
-                    ? fileReference1.signedUrlSearch
-                    : file2.signedUrlSearch,
+            signedUrlSearch: fileReference1
+                ? mergeContentReferencesFileSignedUrlSearches(
+                      fileReference1.signedUrlSearch,
+                      file2.signedUrlSearch,
+                  )
+                : file2.signedUrlSearch,
             file: fileReference1
                 ? FileModel.minLoadingCount(fileReference1.file, file2.file)
                 : file2.file,
@@ -142,12 +142,35 @@ export function mergeContentReferencesFileById(
     return newFileById ?? fileById1;
 }
 
-/**
- * Get the expiration time from a signed URL in `ContentReferences` for a file.
- */
-export function getContentReferencesFileSignedUrlExpirationTime(signedUrlSearch: string): number {
+export function getContentReferencesFileSignedUrlSearchExpirationTime(
+    signedUrlSearch: string,
+): number {
     const searchParams = new URLSearchParams(signedUrlSearch.split("?", 2)[1]);
     const expirationTime = parseInt(searchParams.get("exp") ?? "", 10);
     assert(Number.isInteger(expirationTime));
     return expirationTime * 1000;
+}
+
+export function mergeContentReferencesFileSignedUrlSearches(
+    oldSignedUrlSearch: string,
+    newSignedUrlSearch: string,
+): string {
+    const oldExpirationTime =
+        getContentReferencesFileSignedUrlSearchExpirationTime(oldSignedUrlSearch);
+    const newExpirationTime =
+        getContentReferencesFileSignedUrlSearchExpirationTime(newSignedUrlSearch);
+
+    if (oldExpirationTime >= newExpirationTime) return oldSignedUrlSearch;
+
+    // If the new signed URL search has an expiration time less than an hour after
+    // our old expiration time then keep our old URL. This is because every time we
+    // update the URL the browser needs to fetch the image from our server. We
+    // don't want to refetch the image (which'll show the image loading placeholder
+    // to the user) if the expiration time hasn't been extended by much.
+    //
+    // Our URL signatures expire after 24 hours so it's basically unnoticeable if
+    // we only accept new URLs that expire at least an hour after our old URL.
+    if (newExpirationTime - oldExpirationTime < 1000 * 60 * 60) return oldSignedUrlSearch;
+
+    return newSignedUrlSearch;
 }

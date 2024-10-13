@@ -16,6 +16,7 @@ ts_project(
         "//:node_modules/@react-aria/interactions",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
+        "//:node_modules/color",
         "//:node_modules/fuse.js",
         "//:node_modules/phosphor-react",
         "//:node_modules/prosemirror-collab",
