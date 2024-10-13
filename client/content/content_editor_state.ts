@@ -869,12 +869,12 @@ export function reduceContentReferencesShared<References extends ContentReferenc
             if (!oldFileReference) return references;
 
             // Pick the `signedUrlSearch` that expires later.
-            const newSignedUrlSearch =
-                oldFileReference &&
-                getContentReferencesFileSignedUrlExpirationTime(oldFileReference.signedUrlSearch) >=
-                    getContentReferencesFileSignedUrlExpirationTime(action.signedUrlSearch)
-                    ? oldFileReference.signedUrlSearch
-                    : action.signedUrlSearch;
+            const newSignedUrlSearch = oldFileReference
+                ? mergeContentReferencesFileSignedUrlSearches(
+                      oldFileReference.signedUrlSearch,
+                      action.signedUrlSearch,
+                  )
+                : action.signedUrlSearch;
 
             if (oldFileReference.signedUrlSearch === newSignedUrlSearch) {
                 return references;

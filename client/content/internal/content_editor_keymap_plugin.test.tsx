@@ -78,6 +78,7 @@ function TestContentEditor({
                 state={state}
                 onChange={setState}
                 fileAttachmentTarget={fileAttachmentTarget}
+                onLoadingIndicator={() => {}}
             />
         </TestSpaceContextProvider>
     );

@@ -137,6 +137,7 @@ test("will refresh signed URL when it's about to expire", async () => {
                     state={state}
                     onChange={setState}
                     fileAttachmentTarget={fileAttachmentTarget}
+                    onLoadingIndicator={() => {}}
                 />
             </TestContextProvider>
         );
@@ -166,7 +167,7 @@ test("will refresh signed URL when it's about to expire", async () => {
         `/files/${space.id}/${fileId}?exp=${expirationTime1Seconds}&sig=test-image-a&width=600`,
     );
 
-    const expirationTime2Seconds = Math.round((Date.now() + 1000 * 60 * 2) / 1000);
+    const expirationTime2Seconds = Math.round((Date.now() + 1000 * 60 * 62) / 1000);
 
     TestRpcContextModule.resolveLastExecution(getFileSignedUrlFromAttachment, {
         signedUrlSearch: `?exp=${expirationTime2Seconds}&sig=test-image-b`,
@@ -185,7 +186,7 @@ test("will refresh signed URL when it's about to expire", async () => {
         `/files/${space.id}/${fileId}?exp=${expirationTime2Seconds}&sig=test-image-b&width=600`,
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime(1000 * 60 * 61);
 
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(1);
     expect(screen.getByRole("img")).toHaveAttribute(
@@ -206,7 +207,7 @@ test("will refresh signed URL when it's about to expire", async () => {
     expect(TestRpcContextModule.getExecutions(getFileSignedUrlFromAttachment).length).toEqual(2);
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
 
-    const expirationTime3Seconds = Math.round((Date.now() + 1000 * 60 * 2) / 1000);
+    const expirationTime3Seconds = Math.round((Date.now() + 1000 * 60 * 62) / 1000);
 
     TestRpcContextModule.resolveLastExecution(getFileSignedUrlFromAttachment, {
         signedUrlSearch: `?exp=${expirationTime3Seconds}&sig=test-image-c`,

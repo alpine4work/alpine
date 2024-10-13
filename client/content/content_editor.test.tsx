@@ -38,6 +38,7 @@ function TestContentEditor() {
             state={state}
             onChange={setState}
             fileAttachmentTarget={fileAttachmentTarget}
+            onLoadingIndicator={() => {}}
         />
     );
 }
@@ -78,6 +79,7 @@ test("renders an empty document", () => {
             })}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            onLoadingIndicator={() => {}}
         />,
     );
 
@@ -102,6 +104,7 @@ test("renders an initial editor state", () => {
             state={ContentEditorState.create({doc: content, references: emptyContentReferences})}
             onChange={() => {}}
             fileAttachmentTarget={fileAttachmentTarget}
+            onLoadingIndicator={() => {}}
         />,
     );
 
@@ -129,6 +132,7 @@ test("rerenders with a changed document", () => {
             state={ContentEditorState.create({doc: doc1, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
+            onLoadingIndicator={() => {}}
         />,
     );
 
@@ -141,6 +145,7 @@ test("rerenders with a changed document", () => {
             state={ContentEditorState.create({doc: doc2, references: emptyContentReferences})}
             onChange={onTransaction}
             fileAttachmentTarget={fileAttachmentTarget}
+            onLoadingIndicator={() => {}}
         />,
     );
 
@@ -193,6 +198,7 @@ test("won't ever commit optimistic update if it doesn't match props", () => {
                 state={state}
                 onChange={useCallback(() => {}, [])}
                 fileAttachmentTarget={fileAttachmentTarget}
+                onLoadingIndicator={() => {}}
             />
         );
     }

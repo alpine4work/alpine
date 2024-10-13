@@ -46,6 +46,7 @@ function TestContentEditor({initialContent}: {initialContent?: Node}) {
                     state={state}
                     onChange={setState}
                     fileAttachmentTarget={fileAttachmentTarget}
+                    onLoadingIndicator={() => {}}
                 />
             </TooltipCoordinationContextProvider>
         </OverlayScopeContextProvider>

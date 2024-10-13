@@ -2095,8 +2095,13 @@ exports[`file float (left direction) 1`] = `
     <div
       class="content_file"
       data-testid="ContentFile:image/jpeg"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
   </div>
 </div>
 `;
@@ -2135,8 +2140,13 @@ exports[`file float (right direction) 1`] = `
     <div
       class="content_file"
       data-testid="ContentFile:image/jpeg"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
   </div>
 </div>
 `;
@@ -2175,8 +2185,13 @@ exports[`file row (one file) 1`] = `
     <div
       class="content_file"
       data-testid="ContentFile:image/jpeg"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
   </div>
 </div>
 `;
@@ -2253,8 +2268,13 @@ exports[`file row (one file, image type) 1`] = `
     <div
       class="content_file"
       data-testid="ContentFile:image/jpeg"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
   </div>
 </div>
 `;
@@ -2329,8 +2349,13 @@ exports[`file row (one file, video type) 1`] = `
     <div
       class="content_file"
       data-testid="ContentFile:video/mp4"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
   </div>
 </div>
 `;
@@ -2373,18 +2398,33 @@ exports[`file row (three files) 1`] = `
     <div
       class="content_file"
       data-testid="ContentFile:image/jpeg"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
     <div
       class="content_file"
       data-testid="ContentFile:image/heif"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
     <div
       class="content_file"
       data-testid="ContentFile:image/png"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
   </div>
 </div>
 `;
@@ -2438,13 +2478,23 @@ exports[`file row (two files) 1`] = `
     <div
       class="content_file"
       data-testid="ContentFile:image/jpeg"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
     <div
       class="content_file"
       data-testid="ContentFile:image/heif"
-      style="background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.75' /></filter><g filter='url(%23blur)'><rect x='-1.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='-1.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='0.5' width='2' height='2' fill='%23ff0000' /><rect x='-1.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='0.5' y='2.5' width='2' height='2' fill='%23ff0000' /><rect x='2.5' y='2.5' width='2' height='2' fill='%23ff0000' /></g></svg>"); background-position: center top; background-size: cover"
-    />
+    >
+      <img
+        aria-hidden="true"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='blur'><feGaussianBlur in='SourceGraphic' stdDeviation='0.666667' /></filter><g filter='url(%23blur)'><rect x='-1.333333' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='-1.333333' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='0.555556' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='-1.333333' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='0.555556' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /><rect x='2.444444' y='2.444444' width='1.888889' height='1.888889' fill='%23ff0000' /></g></svg>"
+        style="max-width: 600px; max-height: 600px"
+      />
+    </div>
   </div>
 </div>
 `;

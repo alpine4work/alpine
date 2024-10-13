@@ -295,6 +295,9 @@ export function renderContentFilePreview(
                     "style",
                     `max-width: ${size.width}px; max-height: ${size.height}px`,
                 );
+                // The placeholder image is purely decorative. It shouldn't be visible to
+                // assistive technologies.
+                placeholderImageHtml.setAttribute("aria-hidden", "true");
                 placeholderImageHtml.setAttribute("src", convertSvgToDataUrl(svg));
 
                 html.appendChild(placeholderImageHtml);

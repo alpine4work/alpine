@@ -145,7 +145,7 @@ const file8 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 100, height: 1000, scale: 1},
+        size: {width: 200, height: 2000, scale: 1},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
@@ -160,7 +160,7 @@ const file9 = new FileModel({
         isProcessing: false,
         type: "Image",
         ok: true,
-        size: {width: 1000, height: 100, scale: 1},
+        size: {width: 2000, height: 200, scale: 1},
         placeholder: fileImagePreviewPlaceholder,
     },
 });
