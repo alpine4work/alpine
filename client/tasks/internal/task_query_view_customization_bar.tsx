@@ -11,7 +11,7 @@ import {
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {desktopNavigationBarHeightRem} from "~/client/design/navigation_bar.js";
+import {desktopNavigationBarHeightRem} from "~/client/design/navigation_bar_helpers.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonRef,

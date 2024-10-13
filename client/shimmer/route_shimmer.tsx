@@ -3,7 +3,10 @@ import {ComponentType, ReactNode, memo} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {
+    mobileNavigationBarGap,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";

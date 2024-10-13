@@ -1,7 +1,8 @@
 import {SpinnerGap} from "phosphor-react";
 import {useCallback, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {InboxEntryView} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {

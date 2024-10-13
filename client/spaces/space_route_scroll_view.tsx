@@ -1,10 +1,7 @@
 import {ReactNode, Ref, forwardRef} from "react";
 import {Box} from "~/client/design/box.js";
-import {
-    NavigationBarProps,
-    navigationBarHeight,
-    useNavigationBar,
-} from "~/client/design/navigation_bar.js";
+import {NavigationBarProps, useNavigationBar} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";

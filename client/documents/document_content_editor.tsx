@@ -1539,6 +1539,26 @@ export function DocumentContentEditor({
                     },
                 },
             ],
+            [
+                {
+                    hasChildren: true,
+                    label: "Insert",
+                    actions: [
+                        {
+                            label: "Image",
+                            onPress: () => {
+                                // NOCOMMIT
+                            },
+                        },
+                        {
+                            label: "File",
+                            onPress: () => {
+                                // NOCOMMIT
+                            },
+                        },
+                    ],
+                },
+            ],
             ...contextMenuActions,
         ],
         shareButton: {},

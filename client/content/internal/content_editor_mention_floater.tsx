@@ -27,7 +27,7 @@ import {
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {MenuSize, menuSizeConstants} from "~/client/design/menu.js";
+import {Menu, MenuSize} from "~/client/design/menu.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -397,7 +397,7 @@ export function ContentEditorMentionFloater({
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
     const menuSize: MenuSize = "lg";
-    const {width} = menuSizeConstants[menuSize][isMobile ? "mobile" : "desktop"];
+    const {width} = Menu.sizeConstants[menuSize][isMobile ? "mobile" : "desktop"];
 
     return (
         <OverlayAnimated

@@ -21,6 +21,21 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {
+    desktopNavigationBarHeight,
+    desktopNavigationBarHeightRem,
+    dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
+    flushNavigationBarScrollEventEmitter,
+    mobileNavigationBarActionsWidthFittingFlexBasis,
+    mobileNavigationBarGap,
+    mobileNavigationBarHeight,
+    mobileNavigationBarHeightRem,
+    navigationBarActionsFlexBasis,
+    navigationBarDoneButtonActionFlexBasis,
+    navigationBarDoneButtonActionSpacerWidth,
+    navigationBarDoneButtonActionWidth,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
@@ -38,7 +53,7 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
-import {getIsMobileWithoutListening, useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     navigationBarStyles,
@@ -56,143 +71,13 @@ import {
     parseRemLengthNumber,
     remPxByPlatform,
     spacing,
-    subtractRemLengths,
 } from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-
-const {
-    desktopNavigationBarHeight,
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeight,
-    mobileNavigationBarHeightRem,
-    navigationBarBackgroundFadeOutAnimationClassName,
-    navigationBarTitleFadeOutAnimationClassName,
-} = navigationBarStyles;
-
-export {
-    desktopNavigationBarHeight,
-    desktopNavigationBarHeightRem,
-    mobileNavigationBarHeight,
-    mobileNavigationBarHeightRem,
-};
-
-export const navigationBarHeight = {
-    desktop: desktopNavigationBarHeight,
-    mobile: mobileNavigationBarHeight,
-} as const;
-
-export function getNavigationBarHeightRemWithoutListening(): number {
-    if (getIsMobileWithoutListening()) {
-        return mobileNavigationBarHeightRem;
-    } else {
-        return desktopNavigationBarHeightRem;
-    }
-}
-
-export function getNavigationBarHeightPxWithoutListening(): number {
-    if (getIsMobileWithoutListening()) {
-        return mobileNavigationBarHeightRem * remPxByPlatform.mobile;
-    } else {
-        return desktopNavigationBarHeightRem * remPxByPlatform.desktop;
-    }
-}
-
-{
-    // IMPORTANT: If you change this value, you must also change
-    // `navigationBarHeight` in `NavigationBarConstants.swift`.
-    //
-    // We have an assertion below to make sure this value always equals the
-    // navigation bar's pixel height on mobile devices. After converting `Spacing`
-    // to an actual value and applying the rem pixel count.
-    const mobileNavigationBarHeight = 70;
-
-    assert(mobileNavigationBarHeight === mobileNavigationBarHeightRem * remPxByPlatform.mobile);
-}
-
-const navigationBarActionsFlexBasis: Spacing = "10";
-export const mobileNavigationBarGap: Spacing = "3";
-
-const navigationBarDoneButtonActionFlexBasis: Spacing = "16";
-const navigationBarDoneButtonActionWidth = subtractRemLengths(
-    spacing[navigationBarDoneButtonActionFlexBasis],
-    spacing[mobileNavigationBarGap],
-);
-const navigationBarDoneButtonActionSpacerWidth = subtractRemLengths(
-    spacing[navigationBarDoneButtonActionFlexBasis],
-    spacing[navigationBarActionsFlexBasis],
-);
-
-export const mobileNavigationBarActionsWidthFittingFlexBasis = subtractRemLengths(
-    spacing[navigationBarActionsFlexBasis],
-    spacing[mobileNavigationBarGap],
-);
-
-const flushNavigationBarScrollEventEmitter = new EventEmitter<HTMLElement>();
-
-/**
- * If we change `element.scrollTop` then by default the navigation bar will be
- * updated after a `scroll` event. However, this happens asynchronously after
- * `element.scrollTop` is changed since we go from the JavaScript main thread
- * to the async scroll thread and back (at least in browsers like WebKit). This
- * means if an `element.scrollTop` change results in the navigation bar
- * updating its styles the user may see flashes as `scroll` events are
- * processed asynchronously!
- *
- * If you call this function after an `element.scrollTop` change then the
- * navigation bar will update synchronously so the user doesn't see janky
- * flashes of the navigation bar in an incorrect style.
- *
- * One place that needs to call this function is
- * `useTextInputVisibilityMaintainer()`. When a new paragraph or line of
- * text is added we scroll to make sure the text is still visible. Navigation
- * bar detects when the content height and scroll offset change at the same
- * time (detecting new inserted content) and maintains the position of the
- * navigation bar. In mobile WebKit if you quickly add new lines to a post (or
- * document or anything really) then the navigation bar jankiness is clearly
- * visible as the `scroll` event is processed asynchronously. [Video of the
- * bug][1].
- *
- * [1]: https://gist.github.com/calebmer/0d1b4fd7dda8f1283f0c877ec92504dc
- */
-export function flushNavigationBarScrollEvent(scrollableElement: HTMLElement) {
-    flushNavigationBarScrollEventEmitter.emit(scrollableElement);
-}
-
-const onNavigationBarPrepareSmoothScrollToSymbol = Symbol("onNavigationBarPrepareSmoothScrollTo");
-
-/**
- * When we call `scrollTo({top: newScrollTop, behavior: "smooth"})` then in
- * mobile WebKit a scroll animation will be started on iOS's UI thread. We may
- * get scroll events after a delay as iOS prioritizes animation performance.
- *
- * If this scroll would change the scroll direction then we need to update our
- * navigation bar's `scrollDirectionState` BEFORE the animation starts so our
- * sticky positioning CSS is ready for the animation. Otherwise there may be a
- * little jank in the animation as sticky positioning thinks we're scrolling in
- * the wrong direction.
- *
- * Ideally we'd call this before any
- * `scrollTo({top: newScrollTop, behavior: "smooth"})` call but since we don't
- * want to mutate `Element.prototype` instead we'll manually call this function
- * when necessary.
- *
- * Example of bug this fixes:
- * https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
- */
-export function dispatchNavigationBarPrepareSmoothScrollTo(
-    element: Element & {
-        [onNavigationBarPrepareSmoothScrollToSymbol]?: (scrollTop: number) => void;
-    },
-    scrollTop: number,
-) {
-    element[onNavigationBarPrepareSmoothScrollToSymbol]?.(scrollTop);
-}
 
 type ScrollDirectionState = {
     readonly scrollDirection: "Up" | "Down";
@@ -626,11 +511,19 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                     }
                 };
 
-                const handlePrepareSmoothScrollTo = (scrollTop: number) => {
-                    assertExists(navigationBarRef.current).onPrepareSmoothScrollTo(
-                        element,
-                        scrollTop,
-                    );
+                const handlePrepareSmoothScrollTo = ({
+                    element: targetElement,
+                    scrollTop,
+                }: {
+                    element: HTMLElement;
+                    scrollTop: number;
+                }) => {
+                    if (targetElement === element) {
+                        assertExists(navigationBarRef.current).onPrepareSmoothScrollTo(
+                            element,
+                            scrollTop,
+                        );
+                    }
                 };
 
                 let isCancelled = false;
@@ -661,8 +554,9 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                         addResizeListenerForElement(element, handleResize);
                         element.addEventListener("scroll", handleScroll);
                         flushNavigationBarScrollEventEmitter.addListener(handleScrollFromEmitter);
-                        (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
-                            handlePrepareSmoothScrollTo;
+                        dispatchNavigationBarPrepareSmoothScrollToEventEmitter.addListener(
+                            handlePrepareSmoothScrollTo,
+                        );
 
                         cleanup = () => {
                             removeResizeListenerForElement(element, handleResize);
@@ -670,8 +564,9 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
                             flushNavigationBarScrollEventEmitter.removeListener(
                                 handleScrollFromEmitter,
                             );
-                            (element as any)[onNavigationBarPrepareSmoothScrollToSymbol] =
-                                undefined;
+                            dispatchNavigationBarPrepareSmoothScrollToEventEmitter.removeListener(
+                                handlePrepareSmoothScrollTo,
+                            );
                         };
                     });
                 });
@@ -1012,7 +907,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         ? "80"
                         : "40";
                     navigationBarBackgroundElement.classList.remove(
-                        navigationBarBackgroundFadeOutAnimationClassName,
+                        navigationBarStyles.navigationBarBackgroundFadeOutAnimationClassName,
                     );
                 }
 
@@ -1024,7 +919,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         ? "auto"
                         : "none";
                     navigationBarTitleElement.classList.remove(
-                        navigationBarTitleFadeOutAnimationClassName,
+                        navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
                     );
                 }
             };
@@ -1192,7 +1087,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             ? "80"
                             : "40";
                         navigationBarBackgroundElement.classList.remove(
-                            navigationBarBackgroundFadeOutAnimationClassName,
+                            navigationBarStyles.navigationBarBackgroundFadeOutAnimationClassName,
                         );
                     }
 
@@ -1204,7 +1099,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             ? "auto"
                             : "none";
                         navigationBarTitleElement.classList.remove(
-                            navigationBarTitleFadeOutAnimationClassName,
+                            navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
                         );
                     }
                 }
@@ -1313,7 +1208,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
 
                         // If we have a fade out animation running, cancel it.
                         navigationBarBackgroundElement.classList.remove(
-                            navigationBarBackgroundFadeOutAnimationClassName,
+                            navigationBarStyles.navigationBarBackgroundFadeOutAnimationClassName,
                         );
 
                         // NOTE(calebmer): I'm seeing some issues in mobile Safari when using
@@ -1338,7 +1233,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarBackgroundElement.style.pointerEvents = "none";
 
                             navigationBarBackgroundElement.classList.add(
-                                navigationBarBackgroundFadeOutAnimationClassName,
+                                navigationBarStyles.navigationBarBackgroundFadeOutAnimationClassName,
                             );
 
                             // Render under overlays while translucent.
@@ -1348,7 +1243,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarBackgroundElement.style.pointerEvents = "auto";
 
                             navigationBarBackgroundElement.classList.remove(
-                                navigationBarBackgroundFadeOutAnimationClassName,
+                                navigationBarStyles.navigationBarBackgroundFadeOutAnimationClassName,
                             );
 
                             // Render over overlays while opaque.
@@ -1364,14 +1259,14 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarTitleElement.style.pointerEvents = "none";
 
                             navigationBarTitleElement.classList.add(
-                                navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
                             );
                         } else {
                             navigationBarTitleElement.style.opacity = "1";
                             navigationBarTitleElement.style.pointerEvents = "auto";
 
                             navigationBarTitleElement.classList.remove(
-                                navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
                             );
                         }
                     }
@@ -1469,7 +1364,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarBackgroundElement!.style.pointerEvents =
                                 nextIsNavigationBarOpaque ? "80" : "40";
                             navigationBarBackgroundElement!.classList.remove(
-                                navigationBarBackgroundFadeOutAnimationClassName,
+                                navigationBarStyles.navigationBarBackgroundFadeOutAnimationClassName,
                             );
                         }
 
@@ -1480,7 +1375,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             navigationBarTitleElement!.style.pointerEvents =
                                 nextIsNavigationBarTitleVisible ? "auto" : "none";
                             navigationBarTitleElement!.classList.remove(
-                                navigationBarTitleFadeOutAnimationClassName,
+                                navigationBarStyles.navigationBarTitleFadeOutAnimationClassName,
                             );
                         }
 

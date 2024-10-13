@@ -19,7 +19,7 @@ import {createPortal, flushSync} from "react-dom";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {MenuAction, MenuChildrenAction, MenuItem, menuSizeConstants} from "~/client/design/menu.js";
+import {Menu, MenuAction, MenuChildrenAction, MenuItem} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
@@ -676,7 +676,7 @@ const ContextMenu = forwardRef(function ContextMenu(
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
-                    minWidth: menuSizeConstants.base.desktop.width,
+                    minWidth: Menu.sizeConstants.base.desktop.width,
                     borderRadius: "1.5",
                     padding: "1",
                     backgroundColor: "grey-0",

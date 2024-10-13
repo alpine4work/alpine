@@ -4,7 +4,10 @@ import {useLocation} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {
+    mobileNavigationBarGap,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar_helpers.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";

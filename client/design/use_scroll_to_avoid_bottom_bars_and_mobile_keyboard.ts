@@ -2,10 +2,10 @@ import {Memo, RefObject, useCallback, useEffect} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useIsBehindMobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {
-    dispatchNavigationBarPrepareSmoothScrollTo,
-    flushNavigationBarScrollEvent,
+    dispatchNavigationBarPrepareSmoothScrollToEventEmitter,
+    flushNavigationBarScrollEventEmitter,
     getNavigationBarHeightPxWithoutListening,
-} from "~/client/design/navigation_bar.js";
+} from "~/client/design/navigation_bar_helpers.js";
 import {
     getElementSafeAreaInsetTopPx,
     getElementWindowSafeAreaInsetBottomPx,
@@ -460,7 +460,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // Example of bug this fixes:
                 // https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
                 if (isAnimated) {
-                    dispatchNavigationBarPrepareSmoothScrollTo(scrollableElement, newScrollTop);
+                    dispatchNavigationBarPrepareSmoothScrollToEventEmitter.emit({
+                        element: scrollableElement,
+                        scrollTop: newScrollTop,
+                    });
                 }
 
                 scrollableElement.scrollTo({
@@ -469,7 +472,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 });
 
                 if (!isAnimated) {
-                    flushNavigationBarScrollEvent(scrollableElement);
+                    flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                 }
             };
 
@@ -778,7 +781,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // Example of bug this fixes:
                 // https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
                 if (isAnimated) {
-                    dispatchNavigationBarPrepareSmoothScrollTo(scrollableElement, newScrollTop);
+                    dispatchNavigationBarPrepareSmoothScrollToEventEmitter.emit({
+                        element: scrollableElement,
+                        scrollTop: newScrollTop,
+                    });
                 }
 
                 scrollableElement.scrollTo({
@@ -787,7 +793,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 });
 
                 if (!isAnimated) {
-                    flushNavigationBarScrollEvent(scrollableElement);
+                    flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                 }
 
                 const maxScrollTop =
@@ -813,7 +819,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                         });
 
                         if (!isAnimated) {
-                            flushNavigationBarScrollEvent(scrollableElement);
+                            flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                         }
                     });
                 }
@@ -888,7 +894,10 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 // Example of bug this fixes:
                 // https://gist.github.com/calebmer/91334a35af1e9ee8043bea5e1c105728
                 if (isAnimated) {
-                    dispatchNavigationBarPrepareSmoothScrollTo(scrollableElement, newScrollTop);
+                    dispatchNavigationBarPrepareSmoothScrollToEventEmitter.emit({
+                        element: scrollableElement,
+                        scrollTop: newScrollTop,
+                    });
                 }
 
                 scrollableElement.scrollTo({
@@ -897,7 +906,7 @@ export function useScrollToAvoidBottomBarsAndMobileKeyboard<
                 });
 
                 if (!isAnimated) {
-                    flushNavigationBarScrollEvent(scrollableElement);
+                    flushNavigationBarScrollEventEmitter.emit(scrollableElement);
                 }
 
                 if (scrollDelta < originalScrollDelta) {

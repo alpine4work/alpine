@@ -17,12 +17,12 @@ import {
 import {useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {NavigationBarResult} from "~/client/design/navigation_bar.js";
 import {
-    NavigationBarResult,
-    desktopNavigationBarHeight,
-    mobileNavigationBarHeight,
     navigationBarHeight,
-} from "~/client/design/navigation_bar.js";
+    mobileNavigationBarHeight,
+    desktopNavigationBarHeight,
+} from "~/client/design/navigation_bar_helpers.js";
 import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";

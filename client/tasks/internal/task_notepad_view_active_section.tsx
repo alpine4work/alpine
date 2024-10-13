@@ -3,7 +3,7 @@ import {CaretRight} from "phosphor-react";
 import {memo, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {mobileNavigationBarHeight} from "~/client/design/navigation_bar.js";
+import {mobileNavigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";

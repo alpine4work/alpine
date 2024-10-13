@@ -8,7 +8,10 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {mobileNavigationBarGap, navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {
+    mobileNavigationBarGap,
+    navigationBarHeight,
+} from "~/client/design/navigation_bar_helpers.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";

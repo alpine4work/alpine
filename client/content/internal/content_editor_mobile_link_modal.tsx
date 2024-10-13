@@ -3,7 +3,7 @@ import {EditorView} from "prosemirror-view";
 import {RefObject, useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
