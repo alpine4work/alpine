@@ -92,6 +92,7 @@ export function processPdfDocumentFile(
             width: metadata.width * scale,
             height: metadata.height * scale,
             scale,
+            hasAlpha: metadata.hasAlpha ?? false,
         };
     })();
 
@@ -156,10 +157,11 @@ export function processPdfDocumentFile(
     })();
 
     const previewSizePromise = extractPreview
-        ? previewSizeWithoutExtractPromise.then(({width, height, scale}) => ({
+        ? previewSizeWithoutExtractPromise.then(({width, height, scale, hasAlpha}) => ({
               width: clamp(0, width, extractPreview.width * scale),
               height: clamp(0, height, extractPreview.height * scale),
               scale,
+              hasAlpha,
           }))
         : previewSizeWithoutExtractPromise;
 

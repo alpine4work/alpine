@@ -20,11 +20,20 @@ export type FileImagePreviewSize = SchemaType<typeof FileImagePreviewSizeSchema>
  *   the `.pdf` preview image at 2x the file's dimensions so we don't lose
  *   detail on retina screens. So `scale` is typically 2 for `.pdf`s. For
  *   images and other raster formats `scale` is basically always 1.
+ *
+ * - `hasAlpha`: Is there an alpha channel in the image?
+ *
+ *   Is sometimes true even if all pixels in the preview image have an alpha
+ *   value of 1. True means an alpha channel is definitely present in the image
+ *   even if it doesn't contribute to the image. If you want to check if the
+ *   image has transparent pixels then one approach is to look at `placeholder`
+ *   which averages the preview image's pixels together.
  */
 export const FileImagePreviewSizeSchema = Schema.object({
     width: Schema.integer,
     height: Schema.integer,
     scale: Schema.float.default(1),
+    hasAlpha: Schema.boolean.default(false),
 });
 
 /**

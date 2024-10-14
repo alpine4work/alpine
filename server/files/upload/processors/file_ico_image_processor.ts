@@ -48,6 +48,7 @@ export function createFileIcoImageProcessor(
                     width: bestImage.width,
                     height: bestImage.height,
                     scale: 1,
+                    hasAlpha: true,
                 });
 
                 let previewPlaceholderPromise: Promise<FileImagePreviewPlaceholder>;

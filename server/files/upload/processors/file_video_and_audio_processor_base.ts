@@ -90,6 +90,7 @@ export const ffmpegImagePreviewContentOutputOptions = [
  */
 export function parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
     stderr: string,
+    hasAlpha: boolean,
 ): (FileImagePreviewSize & {videoDuration?: number}) | null {
     const match = stderr.match(
         // Notes:
@@ -136,6 +137,7 @@ export function parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStd
         width,
         height,
         scale: 1,
+        hasAlpha,
         videoDuration: duration,
     };
 }

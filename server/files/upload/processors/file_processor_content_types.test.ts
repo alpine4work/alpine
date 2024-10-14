@@ -44,7 +44,7 @@ const testCases: {
         },
         {
             path: "wikimedia_bouncing_beach_ball.png",
-            imagePreviewSize: {width: 100, height: 100},
+            imagePreviewSize: {width: 100, height: 100, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -64,7 +64,7 @@ const testCases: {
         },
         {
             path: "wikimedia_png_transparency_demonstration.avif",
-            imagePreviewSize: {width: 336, height: 252},
+            imagePreviewSize: {width: 336, height: 252, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -73,7 +73,7 @@ const testCases: {
         },
         {
             path: "cooksmarts_guide_to_stir_frying.avif",
-            imagePreviewSize: {width: 400, height: 4778},
+            imagePreviewSize: {width: 400, height: 4778, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -82,7 +82,7 @@ const testCases: {
         },
         {
             path: "cooksmarts_guide_to_stir_frying_rotated.avif",
-            imagePreviewSize: {width: 4778, height: 400},
+            imagePreviewSize: {width: 4778, height: 400, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 12,
@@ -93,7 +93,7 @@ const testCases: {
     "image/gif": [
         {
             path: "unsplash_annie_spratt_0ArJET2aSIQ.gif",
-            imagePreviewSize: {width: 500, height: 375},
+            imagePreviewSize: {width: 500, height: 375, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -102,7 +102,7 @@ const testCases: {
         },
         {
             path: "wikimedia_rotating_earth.gif",
-            imagePreviewSize: {width: 400, height: 400},
+            imagePreviewSize: {width: 400, height: 400, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -133,7 +133,7 @@ const testCases: {
         },
         {
             path: "wikimedia_png_transparency_demonstration.png",
-            imagePreviewSize: {width: 336, height: 252},
+            imagePreviewSize: {width: 336, height: 252, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -142,7 +142,7 @@ const testCases: {
         },
         {
             path: "wikimedia_bouncing_beach_ball.png",
-            imagePreviewSize: {width: 100, height: 100},
+            imagePreviewSize: {width: 100, height: 100, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -153,7 +153,7 @@ const testCases: {
     "image/svg+xml": [
         {
             path: "undraw_landscape_photographer.svg",
-            imagePreviewSize: {width: 732, height: 619},
+            imagePreviewSize: {width: 732, height: 619, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 6,
@@ -162,7 +162,7 @@ const testCases: {
         },
         {
             path: "alpine_favicon_old.svg",
-            imagePreviewSize: {width: 74, height: 74},
+            imagePreviewSize: {width: 74, height: 74, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -202,7 +202,7 @@ const testCases: {
     "image/ico": [
         {
             path: "alpine_favicon_old.ico",
-            imagePreviewSize: {width: 48, height: 48},
+            imagePreviewSize: {width: 48, height: 48, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -216,7 +216,7 @@ const testCases: {
         },
         {
             path: "stackoverflow_favicon.ico",
-            imagePreviewSize: {width: 32, height: 32},
+            imagePreviewSize: {width: 32, height: 32, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -230,7 +230,7 @@ const testCases: {
         },
         {
             path: "stackoverflow_favicon.png.ico",
-            imagePreviewSize: {width: 32, height: 32},
+            imagePreviewSize: {width: 32, height: 32, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -260,7 +260,7 @@ const testCases: {
         },
         {
             path: "wikimedia_png_transparency_demonstration.tiff",
-            imagePreviewSize: {width: 336, height: 252},
+            imagePreviewSize: {width: 336, height: 252, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -318,7 +318,7 @@ const testCases: {
         },
         {
             path: "wikimedia_png_transparency_demonstration.heic",
-            imagePreviewSize: {width: 336, height: 252},
+            imagePreviewSize: {width: 336, height: 252, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -340,7 +340,7 @@ const testCases: {
     "application/pdf": [
         {
             path: "iup_pdf_testpage.pdf",
-            imagePreviewSize: {width: 1224, height: 1584, scale: 2},
+            imagePreviewSize: {width: 1224, height: 1584, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -353,7 +353,7 @@ const testCases: {
         },
         {
             path: "py_pdf_sample_google_doc_document.pdf",
-            imagePreviewSize: {width: 1192, height: 1684, scale: 2},
+            imagePreviewSize: {width: 1192, height: 1684, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -366,7 +366,7 @@ const testCases: {
         },
         {
             path: "py_pdf_sample_libreoffice_form.pdf",
-            imagePreviewSize: {width: 1190, height: 1684, scale: 2},
+            imagePreviewSize: {width: 1190, height: 1684, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -386,7 +386,7 @@ const testCases: {
         },
         {
             path: "py_pdf_sample_multicolumn.pdf",
-            imagePreviewSize: {width: 1190, height: 1684, scale: 2},
+            imagePreviewSize: {width: 1190, height: 1684, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -399,7 +399,7 @@ const testCases: {
         },
         {
             path: "py_pdf_sample_pdflatex_outline.pdf",
-            imagePreviewSize: {width: 1190, height: 1684, scale: 2},
+            imagePreviewSize: {width: 1190, height: 1684, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -412,7 +412,7 @@ const testCases: {
         },
         {
             path: "wikimedia_png_transparency_demonstration.pdf",
-            imagePreviewSize: {width: 672, height: 504, scale: 2},
+            imagePreviewSize: {width: 672, height: 504, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -435,7 +435,7 @@ const testCases: {
         },
         {
             path: "pdfsharp_sample_page_sizes.pdf",
-            imagePreviewSize: {width: 4760, height: 6736, scale: 2},
+            imagePreviewSize: {width: 4760, height: 6736, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,

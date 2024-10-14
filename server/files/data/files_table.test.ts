@@ -13,9 +13,9 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
     InternalError,
+    InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-    UnimplementedError,
 } from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -228,6 +228,14 @@ test("can't start uploading and processing files that exceed byte limit", async 
         hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
     });
 
+    await startUploadingAndProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 2e9,
+        hasAlternative: false,
+        hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
+    });
+
     await expect(
         startUploadingAndProcessingFile(session.action(), {
             spaceId: space.id,
@@ -236,7 +244,7 @@ test("can't start uploading and processing files that exceed byte limit", async 
             hasAlternative: false,
             hasPreview: {type: "Image", hasContent: false, hasVideoDuration: false},
         }),
-    ).rejects.toThrow(UnimplementedError);
+    ).rejects.toThrow(InvalidArgumentError);
 });
 
 test("can finish file processing preview size and preview placeholder", async () => {
@@ -271,6 +279,7 @@ test("can finish file processing preview size and preview placeholder", async ()
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -283,7 +292,7 @@ test("can finish file processing preview size and preview placeholder", async ()
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
             },
         }),
@@ -305,7 +314,7 @@ test("can finish file processing preview size and preview placeholder", async ()
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
             },
         }),
@@ -365,6 +374,7 @@ test("can finish file processing preview size and preview placeholder in any ord
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -378,7 +388,7 @@ test("can finish file processing preview size and preview placeholder in any ord
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
             },
         }),
@@ -419,6 +429,7 @@ test("can't finish file preview processing with a different account", async () =
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         }),
     ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
 
@@ -474,6 +485,7 @@ test("can't finish file preview processing for files without a preview", async (
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         }),
     ).rejects.toThrow(new InternalError("File doesn't have a preview"));
 
@@ -513,6 +525,7 @@ test("can't finish file preview processing if file processing has already comple
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -533,7 +546,7 @@ test("can't finish file preview processing if file processing has already comple
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                 },
             }),
@@ -544,6 +557,7 @@ test("can't finish file preview processing if file processing has already comple
                 width: 100,
                 height: 100,
                 scale: 1,
+                hasAlpha: false,
             }),
         ).rejects.toThrow(
             new InternalError("File has already finished processing its image preview"),
@@ -563,6 +577,7 @@ test("can't finish file preview processing if file processing has already comple
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         await fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -583,7 +598,7 @@ test("can't finish file preview processing if file processing has already comple
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                 },
             }),
@@ -617,6 +632,7 @@ test("can't finish file preview processing for the same data twice", async () =>
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         await expect(
@@ -624,6 +640,7 @@ test("can't finish file preview processing for the same data twice", async () =>
                 width: 100,
                 height: 100,
                 scale: 1,
+                hasAlpha: false,
             }),
         ).rejects.toThrow(
             new InternalError("File has already finished processing its image preview size"),
@@ -688,6 +705,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -700,7 +718,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
                 content: "Processing",
             },
@@ -722,7 +740,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: "Processing",
             },
@@ -746,7 +764,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {
                     contentType: "image/jpeg",
@@ -848,6 +866,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         expect(
@@ -863,7 +882,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {
                         contentType: "image/jpeg",
@@ -934,6 +953,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         expect(
@@ -948,7 +968,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: {
                         contentType: "image/jpeg",
@@ -976,7 +996,7 @@ test("can finish file processing preview size, preview placeholder, and preview 
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {
                         contentType: "image/jpeg",
@@ -1156,6 +1176,7 @@ test("can't finish file preview image processing if file processing has already 
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -1180,7 +1201,7 @@ test("can't finish file preview image processing if file processing has already 
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {contentType: "image/jpeg", contentLength: 110},
             },
@@ -1259,6 +1280,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -1271,7 +1293,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
                 content: "Processing",
                 videoDuration: "Processing",
@@ -1294,7 +1316,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: "Processing",
                 videoDuration: "Processing",
@@ -1318,7 +1340,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {
                     contentType: "image/jpeg",
@@ -1342,7 +1364,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {
                     contentType: "image/jpeg",
@@ -1361,6 +1383,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
                 width: 100,
                 height: 100,
                 scale: 1,
+                hasAlpha: false,
             }),
         (fileUploader, session) =>
             fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -1453,7 +1476,7 @@ test("can finish file processing preview size, preview placeholder, preview imag
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {
                         contentType: "image/jpeg",
@@ -1502,6 +1525,7 @@ test("can finish file processing preview size (and video duration), preview plac
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         },
         {alsoPreviewVideoDuration: 5000},
     );
@@ -1516,7 +1540,7 @@ test("can finish file processing preview size (and video duration), preview plac
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
                 content: "Processing",
                 videoDuration: 5000,
@@ -1539,7 +1563,7 @@ test("can finish file processing preview size (and video duration), preview plac
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: "Processing",
                 videoDuration: 5000,
@@ -1564,7 +1588,7 @@ test("can finish file processing preview size (and video duration), preview plac
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {
                     contentType: "image/jpeg",
@@ -1593,7 +1617,7 @@ test("can finish file processing preview size (and video duration), preview plac
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {
                     contentType: "image/jpeg",
@@ -1614,6 +1638,7 @@ test("can finish file processing preview size (including video duration), previe
                     width: 100,
                     height: 100,
                     scale: 1,
+                    hasAlpha: false,
                 },
                 {alsoPreviewVideoDuration: 5000},
             ),
@@ -1706,7 +1731,7 @@ test("can finish file processing preview size (including video duration), previe
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {
                         contentType: "image/jpeg",
@@ -1897,6 +1922,7 @@ test("can't finish file preview video duration processing for files without a pr
                 width: 100,
                 height: 100,
                 scale: 1,
+                hasAlpha: false,
             },
             {alsoPreviewVideoDuration: 5000},
         ),
@@ -1936,6 +1962,7 @@ test("can't finish file preview video duration processing if file processing has
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -1968,7 +1995,7 @@ test("can't finish file preview video duration processing if file processing has
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {contentType: "image/jpeg", contentLength: 110},
                 videoDuration: 5000,
@@ -2009,6 +2036,7 @@ test("can't finish file preview video duration processing if file processing has
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -2041,7 +2069,7 @@ test("can't finish file preview video duration processing if file processing has
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {contentType: "image/jpeg", contentLength: 110},
                 videoDuration: 5000,
@@ -2126,6 +2154,7 @@ test("can't finish file preview video duration processing for the same data twic
                 width: 100,
                 height: 100,
                 scale: 1,
+                hasAlpha: false,
             },
             {alsoPreviewVideoDuration: 5000},
         ),
@@ -2259,6 +2288,7 @@ test("can finish file processing preview with error after processing preview siz
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -2271,7 +2301,7 @@ test("can finish file processing preview with error after processing preview siz
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
                 content: "Processing",
             },
@@ -2298,7 +2328,7 @@ test("can finish file processing preview with error after processing preview siz
                     code: ErrorCode.InvalidArgument,
                     displayMessage: errorDisplayMessage`Uh oh!`,
                 },
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Error",
                 content: "Error",
             },
@@ -2367,6 +2397,7 @@ test("can't finish file with processed preview size after processing preview err
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         }),
     ).rejects.toThrow(new InternalError("File has already finished processing its image preview"));
 
@@ -2765,6 +2796,7 @@ test("can't finish file preview processing with error if file processing has alr
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     await fileUploader.finishProcessingImagePreviewPlaceholder(
@@ -2789,7 +2821,7 @@ test("can't finish file preview processing with error if file processing has alr
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {contentType: "image/jpeg", contentLength: 110},
             },
@@ -2952,6 +2984,7 @@ test("can finish file processing then finish file uploading", async () => {
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -2964,7 +2997,7 @@ test("can finish file processing then finish file uploading", async () => {
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
             },
         }),
@@ -2986,7 +3019,7 @@ test("can finish file processing then finish file uploading", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
             },
         }),
@@ -3005,7 +3038,7 @@ test("can finish file processing then finish file uploading", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
             },
         }),
@@ -3062,6 +3095,7 @@ test("can finish file uploading then finish file processing", async () => {
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3074,7 +3108,7 @@ test("can finish file uploading then finish file processing", async () => {
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
             },
         }),
@@ -3096,7 +3130,7 @@ test("can finish file uploading then finish file processing", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
             },
         }),
@@ -3135,6 +3169,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3147,7 +3182,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
             },
         }),
@@ -3165,7 +3200,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
             },
         }),
@@ -3187,7 +3222,7 @@ test("can finish uploading interleaved with finishing file processing", async ()
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
             },
         }),
@@ -3226,6 +3261,7 @@ test("can finish file processing even if a different process updates file upload
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3238,7 +3274,7 @@ test("can finish file processing even if a different process updates file upload
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
             },
         }),
@@ -3269,7 +3305,7 @@ test("can finish file processing even if a different process updates file upload
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
             },
         }),
@@ -3291,7 +3327,7 @@ test("can finish file processing even if a different process updates file upload
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
             },
         }),
@@ -3358,6 +3394,7 @@ test("can finish processing file alternative", async () => {
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3375,7 +3412,7 @@ test("can finish processing file alternative", async () => {
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
                 content: "Processing",
             },
@@ -3402,7 +3439,7 @@ test("can finish processing file alternative", async () => {
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: "Processing",
             },
@@ -3431,7 +3468,7 @@ test("can finish processing file alternative", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {contentType: "image/avif", contentLength: 110},
             },
@@ -3475,6 +3512,7 @@ test("can finish processing file alternative in any order", async () => {
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         expect(
@@ -3489,7 +3527,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: "Processing",
                 },
@@ -3518,7 +3556,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: "Processing",
                 },
@@ -3547,7 +3585,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: "Processing",
                 },
@@ -3578,7 +3616,7 @@ test("can finish processing file alternative in any order", async () => {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -3621,6 +3659,7 @@ test("can finish processing file alternative in any order", async () => {
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         expect(
@@ -3635,7 +3674,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: "Processing",
                 },
@@ -3659,7 +3698,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: "Processing",
                 },
@@ -3688,7 +3727,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: "Processing",
                 },
@@ -3719,7 +3758,7 @@ test("can finish processing file alternative in any order", async () => {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -3762,6 +3801,7 @@ test("can finish processing file alternative in any order", async () => {
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         expect(
@@ -3776,7 +3816,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: "Processing",
                 },
@@ -3800,7 +3840,7 @@ test("can finish processing file alternative in any order", async () => {
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: "Processing",
                 },
@@ -3826,7 +3866,7 @@ test("can finish processing file alternative in any order", async () => {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -3856,7 +3896,7 @@ test("can finish processing file alternative in any order", async () => {
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -3898,6 +3938,7 @@ test("can finish processing preview image file alternative", async () => {
         width: 100,
         height: 100,
         scale: 1,
+        hasAlpha: false,
     });
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
@@ -3910,7 +3951,7 @@ test("can finish processing preview image file alternative", async () => {
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: "Processing",
                 content: "Processing",
             },
@@ -3932,7 +3973,7 @@ test("can finish processing preview image file alternative", async () => {
             preview: {
                 type: "Image",
                 isProcessing: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: "Processing",
             },
@@ -3961,7 +4002,7 @@ test("can finish processing preview image file alternative", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 100, height: 100, scale: 1},
+                size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                 placeholder: fileImagePreviewPlaceholder,
                 content: {contentType: "image/avif", contentLength: 110},
             },
@@ -4005,6 +4046,7 @@ test("can finish processing preview image file alternative in any order", async 
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         expect(
@@ -4019,7 +4061,7 @@ test("can finish processing preview image file alternative in any order", async 
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: "Processing",
                 },
@@ -4049,7 +4091,7 @@ test("can finish processing preview image file alternative in any order", async 
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -4079,7 +4121,7 @@ test("can finish processing preview image file alternative in any order", async 
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -4152,6 +4194,7 @@ test("can finish processing preview image file alternative in any order", async 
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         });
 
         expect(
@@ -4171,7 +4214,7 @@ test("can finish processing preview image file alternative in any order", async 
                 preview: {
                     type: "Image",
                     isProcessing: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: "Processing",
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -4201,7 +4244,7 @@ test("can finish processing preview image file alternative in any order", async 
                     type: "Image",
                     isProcessing: false,
                     ok: true,
-                    size: {width: 100, height: 100, scale: 1},
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: false},
                     placeholder: fileImagePreviewPlaceholder,
                     content: {contentType: "image/avif", contentLength: 110},
                 },
@@ -4911,6 +4954,7 @@ test("can't finish processing file image preview size for file with an audio pre
             width: 100,
             height: 100,
             scale: 1,
+            hasAlpha: false,
         }),
     ).rejects.toThrow(new InternalError("File doesn't have an image preview"));
 

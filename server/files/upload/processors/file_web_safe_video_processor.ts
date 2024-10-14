@@ -28,6 +28,7 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
@@ -148,6 +149,20 @@ export function createFileWebSafeVideoProcessor(
                                 const previewSize =
                                     parseFileImagePreviewSizeAndVideoDurationIfPossibleFromFfmpegStderr(
                                         stderr,
+                                        // HACK: Which content types may have an alpha channel? It's ok to return true
+                                        // if the video doesn't actually have any transparent pixels but it's not ok to
+                                        // return false if the video does have transparent pixels.
+                                        //
+                                        // TODO: We should parse the pixel format out of stderr and check if the pixel
+                                        // format has an alpha channel.
+                                        cast<{
+                                            [Key in
+                                                | FileWebmVideoContentType
+                                                | FileMp4VideoContentType]: boolean;
+                                        }>({
+                                            "video/webm": true,
+                                            "video/mp4": false,
+                                        })[contentType],
                                     );
                                 if (!previewSize) return;
                                 previewSizePromiseResolver.resolve(previewSize);

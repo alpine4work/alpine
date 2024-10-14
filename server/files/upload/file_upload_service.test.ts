@@ -356,7 +356,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"signedUrlSearch":""}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
+{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1,"hasAlpha":false}}\n\
 \r\n\
 chunk\r\n\
 {"type":"ImagePreviewPlaceholder","placeholder":[false,7,"..."]}\n\
@@ -382,7 +382,7 @@ chunk\r\n\
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 500, height: 375, scale: 1},
+                size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
@@ -460,7 +460,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"signedUrlSearch":""}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
+{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1,"hasAlpha":false}}\n\
 \r\n\
 chunk\r\n\
 {"type":"Error","error":{...}}\n\
@@ -669,7 +669,7 @@ chunk\r\n\
 {"type":"Start","fileId":"...","hasAlternative":false,"hasPreview":{"type":"Image","hasContent":false,"hasVideoDuration":false},"signedUrlSearch":""}\n\
 \r\n\
 chunk\r\n\
-{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1}}\n\
+{"type":"ImagePreviewSize","size":{"width":500,"height":375,"scale":1,"hasAlpha":false}}\n\
 \r\n\
 chunk\r\n\
 {"type":"ImagePreviewPlaceholder","placeholder":[false,7,"..."]}\n\
@@ -692,7 +692,7 @@ chunk\r\n\
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 500, height: 375, scale: 1},
+                size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
@@ -827,7 +827,7 @@ test("can upload image", async () => {
             fileId: expect.any(String),
             signedUrlSearch: "",
         },
-        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1, hasAlpha: false}},
         {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
         {type: "Finish"},
     ]);
@@ -849,7 +849,7 @@ test("can upload image", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 500, height: 375, scale: 1},
+                size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
@@ -890,7 +890,7 @@ test("can upload image with a provided id", async () => {
             fileId: providedFileId,
             signedUrlSearch: "",
         },
-        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1, hasAlpha: false}},
         {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
         {type: "Finish"},
     ]);
@@ -906,7 +906,7 @@ test("can upload image with a provided id", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 500, height: 375, scale: 1},
+                size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
@@ -948,7 +948,7 @@ test("can't upload image with the same provided id twice", async () => {
                 fileId: providedFileId,
                 signedUrlSearch: "",
             },
-            {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+            {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1, hasAlpha: false}},
             {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
             {type: "Finish"},
         ]);
@@ -965,7 +965,7 @@ test("can't upload image with the same provided id twice", async () => {
                 type: "Image",
                 isProcessing: false,
                 ok: true,
-                size: {width: 500, height: 375, scale: 1},
+                size: {width: 500, height: 375, scale: 1, hasAlpha: false},
                 placeholder: expect.any(FileImagePreviewPlaceholder),
             },
         }),
@@ -1102,7 +1102,7 @@ test("can't resize an image with a session actor", async () => {
             fileId: expect.any(String),
             signedUrlSearch: "",
         },
-        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1, hasAlpha: false}},
         {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
         {type: "Finish"},
     ]);
@@ -1159,7 +1159,7 @@ test("can't resize an image with a token that's not from edge service", async ()
             fileId: expect.any(String),
             signedUrlSearch: "",
         },
-        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+        {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1, hasAlpha: false}},
         {type: "ImagePreviewPlaceholder", placeholder: expect.any(FileImagePreviewPlaceholder)},
         {type: "Finish"},
     ]);
@@ -1241,7 +1241,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                },
             ]);
 
             const fileId = assertExists(
@@ -1344,7 +1347,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
         });
     },
     "image/png": () => {
-        test("can resize a PNG image", async () => {
+        test("can resize a PNG image with transparency", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -1384,7 +1387,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 336, height: 252, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 336, height: 252, scale: 1, hasAlpha: true},
+                },
             ]);
 
             const fileId = assertExists(
@@ -1455,9 +1461,124 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 });
             }
         });
+
+        test("can resize a PNG image without transparency", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+                method: "POST",
+                headers: {
+                    authorization: await authorization(session),
+                    "content-type": "image/png",
+                },
+                body: await fs.readFile(
+                    joinPath(
+                        runfilesPath,
+                        "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.png",
+                    ),
+                ),
+            });
+            const uploadResponseText = await uploadResponse.text();
+
+            expect(uploadResponse.status).toEqual(200);
+            expect(massageHeaders(uploadResponse.headers)).toEqual({
+                "content-type": "application/x-ndjson",
+            });
+            const uploadEvents = parseJsonEvents(uploadResponseText);
+            expect(
+                uploadEvents.filter(
+                    event => event.type === "Start" || event.type === "ImagePreviewSize",
+                ),
+            ).toEqual([
+                {
+                    type: "Start",
+                    hasAlternative: false,
+                    hasPreview: {
+                        type: "Image",
+                        hasContent: false,
+                        hasVideoDuration: false,
+                    },
+                    fileId: expect.any(String),
+                    signedUrlSearch: "",
+                },
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                },
+            ]);
+
+            const fileId = assertExists(
+                iterableFirst(
+                    filterMapIterable(uploadEvents, event =>
+                        event.type === "Start" ? event.fileId : undefined,
+                    ),
+                ),
+            );
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                expect(await sharp(resizeBody).metadata()).toEqual({
+                    format: "heif",
+                    size: expect.any(Number),
+                    width: 400,
+                    height: 300,
+                    space: "srgb",
+                    channels: 3,
+                    depth: "uchar",
+                    isProgressive: false,
+                    pages: 1,
+                    pagePrimary: 0,
+                    compression: "av1",
+                    hasProfile: false,
+                    hasAlpha: false,
+                });
+            }
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                expect(await sharp(resizeBody).metadata()).toEqual({
+                    format: "heif",
+                    size: expect.any(Number),
+                    width: 500,
+                    height: 375,
+                    space: "srgb",
+                    channels: 3,
+                    depth: "uchar",
+                    isProgressive: false,
+                    pages: 1,
+                    pagePrimary: 0,
+                    compression: "av1",
+                    hasProfile: false,
+                    hasAlpha: false,
+                });
+            }
+        });
     },
     "image/gif": () => {
-        test("can resize a GIF image", async () => {
+        test("can resize a GIF image with transparency", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -1497,7 +1618,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 400, height: 400, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 400, height: 400, scale: 1, hasAlpha: true},
+                },
             ]);
 
             const fileId = assertExists(
@@ -1730,6 +1854,203 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 );
             }
         });
+
+        test("can resize a GIF image without transparency", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+                method: "POST",
+                headers: {
+                    authorization: await authorization(session),
+                    "content-type": "image/gif",
+                },
+                body: await fs.readFile(
+                    joinPath(
+                        runfilesPath,
+                        "cyberworlds/server/files/upload/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.gif",
+                    ),
+                ),
+            });
+            const uploadResponseText = await uploadResponse.text();
+
+            expect(uploadResponse.status).toEqual(200);
+            expect(massageHeaders(uploadResponse.headers)).toEqual({
+                "content-type": "application/x-ndjson",
+            });
+            const uploadEvents = parseJsonEvents(uploadResponseText);
+            expect(
+                uploadEvents.filter(
+                    event => event.type === "Start" || event.type === "ImagePreviewSize",
+                ),
+            ).toEqual([
+                {
+                    type: "Start",
+                    hasAlternative: false,
+                    hasPreview: {
+                        type: "Image",
+                        hasContent: false,
+                        hasVideoDuration: false,
+                    },
+                    fileId: expect.any(String),
+                    signedUrlSearch: "",
+                },
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 500, height: 375, scale: 1, hasAlpha: true},
+                },
+            ]);
+
+            const fileId = assertExists(
+                iterableFirst(
+                    filterMapIterable(uploadEvents, event =>
+                        event.type === "Start" ? event.fileId : undefined,
+                    ),
+                ),
+            );
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+                // animated AVIF file which `sharp()` doesn't like.
+                expect(
+                    JSON.parse(
+                        await runProcess(
+                            ffprobeExecutablePath,
+                            ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                            {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                        ),
+                    ),
+                ).toEqual(
+                    expect.objectContaining({
+                        format: expect.objectContaining({
+                            start_time: "0.000000",
+                            duration: "0.100000",
+                        }),
+                        streams: [
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 400,
+                                height: 300,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 400,
+                                height: 300,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 400,
+                                height: 300,
+                                start_time: "0.000000",
+                                avg_frame_rate: "100/1",
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 400,
+                                height: 300,
+                                start_time: "0.000000",
+                                duration: "0.100000",
+                                avg_frame_rate: "100/1",
+                            }),
+                        ],
+                    }),
+                );
+            }
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=600`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                // We need to use `ffprobe` instead of `sharp` since the GIF will become an
+                // animated AVIF file which `sharp()` doesn't like.
+                expect(
+                    JSON.parse(
+                        await runProcess(
+                            ffprobeExecutablePath,
+                            ["-print_format", "json", "-show_streams", "-show_format", "-"],
+                            {cwd: runfilesPath, stdin: new Uint8Array(resizeBody)},
+                        ),
+                    ),
+                ).toEqual(
+                    expect.objectContaining({
+                        format: expect.objectContaining({
+                            start_time: "0.000000",
+                            duration: "0.100000",
+                        }),
+                        streams: [
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 500,
+                                height: 375,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                pix_fmt: "gbrp",
+                                tags: expect.objectContaining({title: "Color"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 500,
+                                height: 375,
+                                start_time: "0.000000",
+                                avg_frame_rate: "1/1",
+                                tags: expect.objectContaining({title: "Alpha"}),
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 500,
+                                height: 375,
+                                start_time: "0.000000",
+                                avg_frame_rate: "100/1",
+                            }),
+                            expect.objectContaining({
+                                codec_name: "av1",
+                                codec_type: "video",
+                                width: 500,
+                                height: 375,
+                                start_time: "0.000000",
+                                duration: "0.100000",
+                                avg_frame_rate: "100/1",
+                            }),
+                        ],
+                    }),
+                );
+            }
+        });
     },
     "image/apng": () => {
         test("can resize an APNG image", async () => {
@@ -1772,7 +2093,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 100, height: 100, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 100, height: 100, scale: 1, hasAlpha: true},
+                },
             ]);
 
             const fileId = assertExists(
@@ -2047,7 +2371,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 640, height: 426, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 640, height: 426, scale: 1, hasAlpha: false},
+                },
             ]);
 
             const fileId = assertExists(
@@ -2189,7 +2516,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 336, height: 252, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 336, height: 252, scale: 1, hasAlpha: true},
+                },
             ]);
 
             const fileId = assertExists(
@@ -2297,7 +2627,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
         });
     },
     "image/webp": () => {
-        test("can resize a WEBP image", async () => {
+        test("can resize a WEBP image without transparency", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession();
 
@@ -2337,7 +2667,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 500, height: 375, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 500, height: 375, scale: 1, hasAlpha: false},
+                },
             ]);
 
             const fileId = assertExists(
@@ -2438,6 +2771,121 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 });
             }
         });
+
+        test("can resize a WEBP image with transparency", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const uploadResponse = await fetch(`http://localhost:${port}/${space.id}/upload`, {
+                method: "POST",
+                headers: {
+                    authorization: await authorization(session),
+                    "content-type": "image/webp",
+                },
+                body: await fs.readFile(
+                    joinPath(
+                        runfilesPath,
+                        "cyberworlds/server/files/upload/test_fixtures/wikimedia_png_transparency_demonstration.webp",
+                    ),
+                ),
+            });
+            const uploadResponseText = await uploadResponse.text();
+
+            expect(uploadResponse.status).toEqual(200);
+            expect(massageHeaders(uploadResponse.headers)).toEqual({
+                "content-type": "application/x-ndjson",
+            });
+            const uploadEvents = parseJsonEvents(uploadResponseText);
+            expect(
+                uploadEvents.filter(
+                    event => event.type === "Start" || event.type === "ImagePreviewSize",
+                ),
+            ).toEqual([
+                {
+                    type: "Start",
+                    hasAlternative: false,
+                    hasPreview: {
+                        type: "Image",
+                        hasContent: false,
+                        hasVideoDuration: false,
+                    },
+                    fileId: expect.any(String),
+                    signedUrlSearch: "",
+                },
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 336, height: 252, scale: 1, hasAlpha: true},
+                },
+            ]);
+
+            const fileId = assertExists(
+                iterableFirst(
+                    filterMapIterable(uploadEvents, event =>
+                        event.type === "Start" ? event.fileId : undefined,
+                    ),
+                ),
+            );
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=200`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                expect(await sharp(resizeBody).metadata()).toEqual({
+                    format: "heif",
+                    size: expect.any(Number),
+                    width: 200,
+                    height: 150,
+                    space: "srgb",
+                    channels: 4,
+                    depth: "uchar",
+                    isProgressive: false,
+                    pages: 1,
+                    pagePrimary: 0,
+                    compression: "av1",
+                    hasProfile: false,
+                    hasAlpha: true,
+                });
+            }
+
+            {
+                const resizeResponse = await fetch(
+                    `http://localhost:${port}/${space.id}/resize/${fileId}?width=400`,
+                    {
+                        method: "GET",
+                        headers: {authorization: await authorization(space)},
+                    },
+                );
+
+                expect(resizeResponse.status).toEqual(200);
+                expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
+
+                const resizeBody = await resizeResponse.arrayBuffer();
+                expect(await sharp(resizeBody).metadata()).toEqual({
+                    format: "heif",
+                    size: expect.any(Number),
+                    width: 336,
+                    height: 252,
+                    space: "srgb",
+                    channels: 4,
+                    depth: "uchar",
+                    isProgressive: false,
+                    pages: 1,
+                    pagePrimary: 0,
+                    compression: "av1",
+                    hasProfile: false,
+                    hasAlpha: true,
+                });
+            }
+        });
     },
     "image/svg+xml": () => {
         test("can't resize an SVG image", async () => {
@@ -2480,7 +2928,10 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     fileId: expect.any(String),
                     signedUrlSearch: "",
                 },
-                {type: "ImagePreviewSize", size: {width: 732, height: 619, scale: 1}},
+                {
+                    type: "ImagePreviewSize",
+                    size: {width: 732, height: 619, scale: 1, hasAlpha: true},
+                },
             ]);
 
             const fileId = assertExists(
@@ -2550,7 +3001,7 @@ test("can resize a HEIC image's preview", async () => {
             fileId: expect.any(String),
             signedUrlSearch: "",
         },
-        {type: "ImagePreviewSize", size: {width: 480, height: 640, scale: 1}},
+        {type: "ImagePreviewSize", size: {width: 480, height: 640, scale: 1, hasAlpha: false}},
     ]);
 
     const fileId = assertExists(
@@ -2704,7 +3155,7 @@ test("will crop when resizing an image beyond our vertical aspect ratio limit", 
             fileId: expect.any(String),
             signedUrlSearch: "",
         },
-        {type: "ImagePreviewSize", size: {width: 400, height: 4778, scale: 1}},
+        {type: "ImagePreviewSize", size: {width: 400, height: 4778, scale: 1, hasAlpha: true}},
     ]);
 
     const fileId = assertExists(
@@ -2860,7 +3311,7 @@ test("will crop when resizing an image beyond our horizontal aspect ratio limit"
             fileId: expect.any(String),
             signedUrlSearch: "",
         },
-        {type: "ImagePreviewSize", size: {width: 4778, height: 400, scale: 1}},
+        {type: "ImagePreviewSize", size: {width: 4778, height: 400, scale: 1, hasAlpha: true}},
     ]);
 
     const fileId = assertExists(

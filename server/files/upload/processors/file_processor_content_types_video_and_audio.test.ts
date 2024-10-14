@@ -21,6 +21,7 @@ const testCases: {
                 width: 240,
                 height: 134,
                 scale: 1,
+                hasAlpha: true,
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
@@ -39,6 +40,7 @@ const testCases: {
                 width: 240,
                 height: 134,
                 scale: 1,
+                hasAlpha: true,
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
@@ -57,6 +59,7 @@ const testCases: {
                 width: 240,
                 height: 134,
                 scale: 1,
+                hasAlpha: true,
             },
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,

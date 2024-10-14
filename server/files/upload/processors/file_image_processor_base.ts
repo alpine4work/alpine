@@ -188,6 +188,7 @@ export function processImageFile(
             width: metadata.width,
             height: metadata.height,
             scale: 1,
+            hasAlpha: metadata.hasAlpha ?? false,
         };
     })();
 

@@ -543,6 +543,7 @@ async function uploadAndProcessFile(
                                   imageWidth: size.width,
                                   imageHeight: size.height,
                                   imageScale: size.scale,
+                                  imageHasAlpha: size.hasAlpha,
                                   imageVideoDurationMs: videoDuration,
                               },
                           },

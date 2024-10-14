@@ -1175,6 +1175,9 @@ export type TracerEventData = {
             /** The scale of the file preview image. */
             readonly imageScale?: number;
 
+            /** Does the image have an alpha channel? */
+            readonly imageHasAlpha?: boolean;
+
             /** If this is a video, how long is the video in milliseconds? */
             readonly imageVideoDurationMs?: number;
 

@@ -221,6 +221,18 @@ export async function resizeFile(
                 );
             }
 
+            let isDefinitelyMissingAlphaChannel = false;
+
+            if (contentType === "image/jpeg") {
+                isDefinitelyMissingAlphaChannel = true;
+            } else if (contentType === "image/png" || contentType === "image/apng") {
+                if (file.preview?.type !== "Image" || typeof file.preview.size === "string") {
+                    throw new FailedPreconditionError("Preview size has not finished processing");
+                }
+
+                isDefinitelyMissingAlphaChannel = !file.preview.size.hasAlpha;
+            }
+
             await parentSpan.withSpan("FFmpeg resize image", async span => {
                 span.addData({common: {width}});
 
@@ -283,7 +295,7 @@ export async function resizeFile(
                         // always returns AVIF streams in a consistent order. If not we'll need to use
                         // `ffprobe` to figure out the right streams to use. But that's annoying since
                         // we don't have the input file data available in memory.
-                        ...(contentType === "image/jpeg"
+                        ...(isDefinitelyMissingAlphaChannel
                             ? ["-vf", filter]
                             : contentType === "image/avif"
                             ? ["-map", "0:v:1?", "-map", "0:v:0", "-vf", filter]

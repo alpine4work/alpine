@@ -25,7 +25,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "file_examples_doc_100kb.pdf",
             },
-            imagePreviewSize: {width: 1190, height: 1684, scale: 2},
+            imagePreviewSize: {width: 1190, height: 1684, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -48,7 +48,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "file_examples_docx_100kb.pdf",
             },
-            imagePreviewSize: {width: 1190, height: 1684, scale: 2},
+            imagePreviewSize: {width: 1190, height: 1684, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -71,7 +71,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "file_examples_xls_50_rows.pdf",
             },
-            imagePreviewSize: {width: 1024, height: 1080, scale: 2},
+            imagePreviewSize: {width: 1024, height: 1080, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -94,7 +94,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "file_examples_xlsx_50_rows.pdf",
             },
-            imagePreviewSize: {width: 1022, height: 1080, scale: 2},
+            imagePreviewSize: {width: 1022, height: 1080, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 5,
@@ -116,7 +116,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "calebmer_typing_speed_percentile_calculator.pdf",
             },
-            imagePreviewSize: {width: 1440, height: 1080, scale: 2},
+            imagePreviewSize: {width: 1440, height: 1080, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -137,7 +137,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "calebmer_small_spreadsheet.pdf",
             },
-            imagePreviewSize: {width: 420, height: 94, scale: 2},
+            imagePreviewSize: {width: 420, height: 94, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 12,
@@ -160,7 +160,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "file_examples_ppt_250kb.pdf",
             },
-            imagePreviewSize: {width: 1588, height: 1190, scale: 2},
+            imagePreviewSize: {width: 1588, height: 1190, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -183,7 +183,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "file_examples_pptx_250kb.pdf",
             },
-            imagePreviewSize: {width: 1588, height: 1190, scale: 2},
+            imagePreviewSize: {width: 1588, height: 1190, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
@@ -204,7 +204,7 @@ const testCases: {
                 contentType: "application/pdf",
                 similarPath: "calebmer_basic_presentation.pdf",
             },
-            imagePreviewSize: {width: 1440, height: 1080, scale: 2},
+            imagePreviewSize: {width: 1440, height: 1080, scale: 2, hasAlpha: true},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 true,
                 7,
