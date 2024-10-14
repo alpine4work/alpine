@@ -3,7 +3,7 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
 import {Node as ProsemirrorNode} from "prosemirror-model";
-import {EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {EditorState, NodeSelection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {useState} from "react";
 import {act} from "react-dom/test-utils";
@@ -6949,4 +6949,54 @@ test("can delete at the end of title in document with only one paragraph", () =>
 
     expect(getDoc().toString()).toEqual('doc(title("foobar"), paragraph)');
     expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+});
+
+test("pressing backspace on a node selection will move selection before the node", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("divider"),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), divider, paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(5))));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), divider, paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+});
+
+test("pressing delete on a node selection will move selection after the node", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("divider"),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), divider, paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(5))));
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), divider, paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "node", anchor: 5});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
 });

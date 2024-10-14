@@ -42,22 +42,6 @@ export type FileWebSafeImageContentType =
     | "image/svg+xml"
     | "image/webp";
 
-const fileWebSafeImageContentTypes: {[Key in FileWebSafeImageContentType]: true} = {
-    "image/apng": true,
-    "image/avif": true,
-    "image/gif": true,
-    "image/jpeg": true,
-    "image/png": true,
-    "image/svg+xml": true,
-    "image/webp": true,
-};
-
-export function isFileWebSafeImageContentType(
-    contentType: FileContentType,
-): contentType is FileWebSafeImageContentType {
-    return contentType in fileWebSafeImageContentTypes;
-}
-
 /**
  * Somewhat popular image types that don't have broad web browser support. We
  * need to convert these images into a format with better web browser support.
@@ -73,6 +57,38 @@ export function isFileWebSafeImageContentType(
  * [3]: https://www.iana.org/assignments/media-types/media-types.xhtml
  */
 export type FileWebUnsafeImageContentType = "image/bmp" | "image/ico" | "image/tiff" | "image/heif";
+
+const fileImageContentTypes: {
+    [Key in FileImageContentType]: Key extends FileWebSafeImageContentType ? true : false;
+} = {
+    "image/apng": true,
+    "image/avif": true,
+    "image/gif": true,
+    "image/jpeg": true,
+    "image/png": true,
+    "image/svg+xml": true,
+    "image/webp": true,
+    "image/bmp": false,
+    "image/ico": false,
+    "image/tiff": false,
+    "image/heif": false,
+};
+
+export function isFileImageContentType(
+    contentType: FileContentType,
+): contentType is FileImageContentType {
+    return contentType in fileImageContentTypes;
+}
+
+export function isFileWebSafeImageContentType(
+    contentType: FileContentType,
+): contentType is FileWebSafeImageContentType {
+    return isFileImageContentType(contentType) && fileImageContentTypes[contentType];
+}
+
+export function getFileImageContentTypes(): ReadonlyArray<FileImageContentType> {
+    return Object.keys(fileImageContentTypes) as ReadonlyArray<FileImageContentType>;
+}
 
 /**
  * Document file types. All documents file types are converted to [PDF
@@ -234,6 +250,26 @@ export type FileMp4VideoContentType = "video/mp4";
 
 export type FileWebUnsafeVideoContentType = "video/quicktime" | "video/mpeg" | "video/x-matroska";
 
+const fileVideoContentTypes: {
+    [Key in FileVideoContentType]: true;
+} = {
+    "video/webm": true,
+    "video/mp4": true,
+    "video/quicktime": true,
+    "video/mpeg": true,
+    "video/x-matroska": true,
+};
+
+export function isFileVideoContentType(
+    contentType: FileContentType,
+): contentType is FileVideoContentType {
+    return contentType in fileVideoContentTypes;
+}
+
+export function getFileVideoContentTypes(): ReadonlyArray<FileVideoContentType> {
+    return Object.keys(fileVideoContentTypes) as ReadonlyArray<FileVideoContentType>;
+}
+
 /**
  * Audio files we support. We support all the same video types as Canva. See
  * [Canva's upload formats][1]. Like video, audio container format and codec
@@ -319,16 +355,30 @@ export type FileMp4AudioContentType = "audio/mp4";
 
 export type FileWebUnsafeAudioContentType = "audio/ogg";
 
-const fileWebSafeAudioContentTypes: {[Key in FileWebSafeAudioContentType]: true} = {
+const fileAudioContentTypes: {
+    [Key in FileAudioContentType]: Key extends FileWebSafeAudioContentType ? true : false;
+} = {
     "audio/mpeg": true,
     "audio/wav": true,
     "audio/webm": true,
+    "audio/mp4": false,
+    "audio/ogg": false,
 };
+
+export function isFileAudioContentType(
+    contentType: FileContentType,
+): contentType is FileAudioContentType {
+    return contentType in fileAudioContentTypes;
+}
 
 export function isFileWebSafeAudioContentType(
     contentType: FileContentType,
 ): contentType is FileWebSafeAudioContentType {
-    return contentType in fileWebSafeAudioContentTypes;
+    return isFileAudioContentType(contentType) && fileAudioContentTypes[contentType];
+}
+
+export function getFileAudioContentTypes(): ReadonlyArray<FileAudioContentType> {
+    return Object.keys(fileAudioContentTypes) as ReadonlyArray<FileAudioContentType>;
 }
 
 /**
@@ -604,10 +654,10 @@ export function getFileContentTypePreferredExtension(contentType: FileContentTyp
  * [2]: https://gitlab.freedesktop.org/xdg/shared-mime-info/-/tree/master
  * [3]: https://gitlab.freedesktop.org/xdg/shared-mime-info/-/blob/815b520eb01992a05d41a5434f1227a8be101e15/data/freedesktop.org.xml.in
  */
-const fileAdditionalContentTypesAndExtensionsByContentType: {
-    [Key in FileContentType]?: {
-        contentTypes?: Array<string>;
-        extensions?: Array<string>;
+export const fileAdditionalContentTypesAndExtensionsByContentType: {
+    readonly [Key in FileContentType]?: {
+        readonly contentTypes?: ReadonlyArray<string>;
+        readonly extensions?: ReadonlyArray<string>;
     };
 } = {
     "image/apng": {

@@ -365,9 +365,9 @@ export function TaskDetailView({
                     if (!contentEditor) return false;
 
                     if (type === "Undo") {
-                        contentEditor.dispatchCommand(undoCommand);
+                        contentEditor.undo();
                     } else {
-                        contentEditor.dispatchCommand(redoCommand);
+                        contentEditor.redo();
                     }
                     break;
                 }

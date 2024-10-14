@@ -106,6 +106,7 @@ export function SpaceLayoutSideBarCreateButton() {
                 [
                     {
                         hasChildren: true,
+                        key: "more",
                         label: "More",
                         actions: [
                             {

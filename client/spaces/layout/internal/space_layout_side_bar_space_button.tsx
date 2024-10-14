@@ -39,6 +39,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
             actions={[
                 {
                     hasChildren: true,
+                    key: "switch-space",
                     icon: <ArrowsLeftRight />,
                     label: "Switch space",
                     size: "xl",

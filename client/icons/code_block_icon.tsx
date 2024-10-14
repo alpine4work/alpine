@@ -1,9 +1,9 @@
 import {IconContext} from "phosphor-react";
 import {CSSProperties, useContext} from "react";
 
-// TODO(calebmer, #phosphor-v2): The updated `<Buildings>` icon is in Phosphor
+// TODO(calebmer, #phosphor-v2): The updated `<CodeBlock>` icon is in Phosphor
 // v2. Upgrading to v2 looks difficult so for now, inlining the SVG.
-export function BuildingsIcon({
+export function CodeBlockIcon({
     color,
     size,
     style,
@@ -42,7 +42,7 @@ export function BuildingsIcon({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={16}
-                d="M136 216V32a8 8 0 0 0-12.44-6.65l-80 53.33A8 8 0 0 0 40 85.35V216M136 88h72a8 8 0 0 1 8 8v120M16 216h224M104 112v16M72 112v16M72 168v16M104 168v16"
+                d="M64 32 32 64l32 32M104 32l32 32-32 32M176 48h24a8 8 0 0 1 8 8v144a8 8 0 0 1-8 8H56a8 8 0 0 1-8-8v-64"
             />
         </svg>
     );

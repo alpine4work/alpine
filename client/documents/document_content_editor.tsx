@@ -7,10 +7,19 @@ import {
     CaretLeft,
     CaretRight,
     CaretUp,
+    File,
+    Image,
+    ListBullets,
+    ListChecks,
+    ListNumbers,
+    Minus,
     SpinnerGap,
+    TextHOne,
+    TextHThree,
+    TextHTwo,
     X,
 } from "phosphor-react";
-import {redo, undo} from "prosemirror-history";
+import {TextSelection} from "prosemirror-state";
 import {
     Memo,
     Ref,
@@ -23,7 +32,11 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {
+    ContentEditor,
+    ContentEditorPhantomSelection,
+    ContentEditorRef,
+} from "~/client/content/content_editor.js";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
@@ -32,7 +45,7 @@ import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu.js";
+import {MenuAction, MenuChildrenAction} from "~/client/design/menu.js";
 import {
     mobileFullScreenModalAnimationDurationLongMs,
     mobileFullScreenModalAnimationDurationMs,
@@ -74,6 +87,10 @@ import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {CodeBlockIcon} from "~/client/icons/code_block_icon.js";
+import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";
+import {VideoIcon} from "~/client/icons/video_icon.js";
+import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
@@ -105,6 +122,7 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/spacing.js";
+import {defaultThemeColor} from "~/shared/design/theme_colors.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -117,6 +135,14 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
+import {
+    FileContentType,
+    fileAdditionalContentTypesAndExtensionsByContentType,
+    getFileAudioContentTypes,
+    getFileContentTypePreferredExtension,
+    getFileImageContentTypes,
+    getFileVideoContentTypes,
+} from "~/shared/files/file_content_type.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -1469,21 +1495,206 @@ export function DocumentContentEditor({
      *                               Navigation Bar                               *
     \* ========================================================================== */
 
-    const contextMenuActions: Array<Array<MenuAction>> = [
+    // TODO(calebmer, #files): Insert menu should be available on right click in
+    // task notes and posts too.
+    //
+    // TODO(calebmer, #files): Mobile version of insert menu.
+    const insertMenuAction: MenuChildrenAction = {
+        hasChildren: true,
+        key: "insert",
+        label: "Insert",
+        // This is a large menu since because:
+        //
+        // 1. If your mouse leaves the menu it closes
+        // 2. There are a lot of options so it takes some precision for the user to find
+        //    the right one
+        //
+        // So there's a risk of the mouse "slipping". Leaving the area while trying to
+        // make a selection causing the insert menu to close. By making the menu larger
+        // there's less risk of slipping.
+        size: "lg",
+        actions: [
+            [
+                {
+                    label: "Image",
+                    iconSize: "4",
+                    icon: <Image />,
+                    onPress: () => {
+                        const inputElement = document.createElement("input");
+                        inputElement.type = "file";
+                        inputElement.multiple = true;
+
+                        inputElement.accept = getFileInputAcceptAttribute(
+                            getFileImageContentTypes(),
+                        );
+
+                        inputElement.addEventListener("change", () => {
+                            if (!inputElement.files) return;
+
+                            const files = Array.from(inputElement.files);
+                            if (files.length === 0) return;
+
+                            editorRef.current?.insertFiles(files);
+                        });
+
+                        inputElement.click();
+                    },
+                },
+                {
+                    label: "Video",
+                    iconSize: "4",
+                    icon: <VideoIcon />,
+                    onPress: () => {
+                        const inputElement = document.createElement("input");
+                        inputElement.type = "file";
+                        inputElement.multiple = true;
+
+                        inputElement.accept = getFileInputAcceptAttribute(
+                            getFileVideoContentTypes(),
+                        );
+
+                        inputElement.addEventListener("change", () => {
+                            if (!inputElement.files) return;
+
+                            const files = Array.from(inputElement.files);
+                            if (files.length === 0) return;
+
+                            editorRef.current?.insertFiles(files);
+                        });
+
+                        inputElement.click();
+                    },
+                },
+                {
+                    label: "Audio",
+                    iconSize: "4",
+                    icon: <WaveformIcon />,
+                    onPress: () => {
+                        const inputElement = document.createElement("input");
+                        inputElement.type = "file";
+                        inputElement.multiple = true;
+
+                        inputElement.accept = getFileInputAcceptAttribute(
+                            getFileAudioContentTypes(),
+                        );
+
+                        inputElement.addEventListener("change", () => {
+                            if (!inputElement.files) return;
+
+                            const files = Array.from(inputElement.files);
+                            if (files.length === 0) return;
+
+                            editorRef.current?.insertFiles(files);
+                        });
+
+                        inputElement.click();
+                    },
+                },
+                {
+                    label: "File",
+                    iconSize: "4",
+                    icon: <File />,
+                    onPress: () => {
+                        const inputElement = document.createElement("input");
+                        inputElement.type = "file";
+                        inputElement.multiple = true;
+
+                        inputElement.addEventListener("change", () => {
+                            if (!inputElement.files) return;
+
+                            const files = Array.from(inputElement.files);
+                            if (files.length === 0) return;
+
+                            editorRef.current?.insertFiles(files);
+                        });
+
+                        inputElement.click();
+                    },
+                },
+            ],
+            [
+                {
+                    label: "Bullet list",
+                    iconSize: "4",
+                    icon: <ListBullets />,
+                    onPress: () => assertExists(editorRef.current).insertUnorderedListItem(),
+                },
+                {
+                    label: "Number list",
+                    iconSize: "4",
+                    icon: <ListNumbers />,
+                    onPress: () => assertExists(editorRef.current).insertOrderedListItem(),
+                },
+                {
+                    label: "Check list",
+                    iconSize: "4",
+                    icon: <ListChecks />,
+                    onPress: () => assertExists(editorRef.current).insertCheckListItem(),
+                },
+            ],
+            [
+                {
+                    label: "Heading 1",
+                    iconSize: "4",
+                    icon: <TextHOne />,
+                    onPress: () => assertExists(editorRef.current).insertHeading(1),
+                },
+                {
+                    label: "Heading 2",
+                    iconSize: "4",
+                    icon: <TextHTwo />,
+                    onPress: () => assertExists(editorRef.current).insertHeading(2),
+                },
+                {
+                    label: "Heading 3",
+                    iconSize: "4",
+                    icon: <TextHThree />,
+                    onPress: () => assertExists(editorRef.current).insertHeading(3),
+                },
+            ],
+            [
+                {
+                    label: "Divider",
+                    iconSize: "4",
+                    icon: <Minus />,
+                    onPress: () => assertExists(editorRef.current).insertDivider(),
+                },
+                {
+                    label: "Quote",
+                    iconSize: "4",
+                    icon: <QuoteBlockIcon />,
+                    onPress: () => assertExists(editorRef.current).insertQuoteBlock(),
+                },
+                {
+                    label: "Code",
+                    iconSize: "4",
+                    icon: <CodeBlockIcon />,
+                    onPress: () => assertExists(editorRef.current).insertCodeBlock(),
+                },
+            ],
+        ],
+    };
+
+    const contextMenuActionsWithoutInsert: Array<Array<MenuAction>> = [
         [
             {
                 label: "Undo",
                 isDisabled: editorState.undoDepth() === 0,
                 keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
-                onPress: () => assertExists(editorRef.current).dispatchCommand(undo),
+                onPress: () => assertExists(editorRef.current).undo(),
             },
             {
                 label: "Redo",
                 isDisabled: editorState.redoDepth() === 0,
                 keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
-                onPress: () => assertExists(editorRef.current).dispatchCommand(redo),
+                onPress: () => assertExists(editorRef.current).redo(),
             },
         ],
+    ];
+
+    const contextMenuActions: Array<Array<MenuAction>> = [
+        [insertMenuAction],
+        ...contextMenuActionsWithoutInsert,
     ];
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
@@ -1508,6 +1719,54 @@ export function DocumentContentEditor({
         };
     }, [isInitialAppRender]);
 
+    const [isFocusWithinNavigationBarInsertMenu, setIsFocusWithinNavigationBarInsertMenu] =
+        useState(false);
+
+    const selection = editorState.getSelection();
+
+    // When the insert menu is focused and the user's selection is empty we want to
+    // render a phantom cursor at the position where we'll insert a node so the
+    // user has context on how their insert action will change the document. If the
+    // user's selection is not empty then the browser should be rendering selection
+    // styles even while the insert menu is open.
+    const phantomSelectionsWithOurSelection =
+        useMemo((): ReadonlyArray<ContentEditorPhantomSelection> => {
+            if (!isFocusWithinNavigationBarInsertMenu) return phantomSelections;
+            if (selection.anchor !== selection.head) return phantomSelections;
+
+            const doc = selection.$anchor.doc;
+
+            // Since we don't insert in the title, don't display our phantom insert cursor
+            // in the title. Move the cursor out of the title.
+            const adjustedAnchor =
+                selection.$anchor.parent.type.name === "title"
+                    ? selection.$anchor.after()
+                    : selection.anchor;
+
+            const adjustedHead =
+                selection.$head.parent.type.name === "title"
+                    ? selection.$head.after()
+                    : selection.head;
+
+            const adjustedSelection =
+                adjustedAnchor !== selection.anchor || adjustedHead !== selection.head
+                    ? TextSelection.between(doc.resolve(adjustedAnchor), doc.resolve(adjustedHead))
+                    : selection;
+
+            return [
+                ...phantomSelections,
+                {
+                    key: "ours",
+                    // TODO(calebmer): When the theme color is configurable, we should use that
+                    // instead of `defaultThemeColor`.
+                    color: defaultThemeColor,
+                    anchor: adjustedSelection.anchor,
+                    head: adjustedSelection.head,
+                    isTextSelection: adjustedSelection instanceof TextSelection,
+                },
+            ];
+        }, [isFocusWithinNavigationBarInsertMenu, phantomSelections, selection]);
+
     const {loadingIndicator, onLoadingIndicator} = useContentEditorLoadingIndicator(isSaving);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
@@ -1520,6 +1779,11 @@ export function DocumentContentEditor({
             : withMobileLayout
             ? contentStyles.mobileLayoutTitlePaddingTop
             : contentStyles.desktopTitlePaddingTop,
+        onMenuStateChange: state => {
+            if (!state.isExpanded) {
+                setIsFocusWithinNavigationBarInsertMenu(false);
+            }
+        },
         menuActions: [
             [
                 {
@@ -1541,25 +1805,20 @@ export function DocumentContentEditor({
             ],
             [
                 {
+                    ...insertMenuAction,
                     hasChildren: true,
-                    label: "Insert",
-                    actions: [
-                        {
-                            label: "Image",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                        {
-                            label: "File",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                    ],
+                    placement: "left",
+                    onOpenChange: isOpen => {
+                        insertMenuAction.onOpenChange?.(isOpen);
+                        if (!isOpen) setIsFocusWithinNavigationBarInsertMenu(false);
+                    },
+                    onFocusWithinChange: isFocusWithin => {
+                        insertMenuAction.onFocusWithinChange?.(isFocusWithin);
+                        if (isFocusWithin) setIsFocusWithinNavigationBarInsertMenu(true);
+                    },
                 },
             ],
-            ...contextMenuActions,
+            ...contextMenuActionsWithoutInsert,
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
@@ -1668,7 +1927,7 @@ export function DocumentContentEditor({
                                 // weird for it to pop up when writing a comment.
                                 withoutMobileKeyboardToolbar={sidebarState.isOpen}
                                 className={documentContentStyles.documentContentClassName}
-                                phantomSelections={phantomSelections}
+                                phantomSelections={phantomSelectionsWithOurSelection}
                                 fileAttachmentTarget={useMemo(
                                     () => ({type: "Document", documentId}),
                                     [documentId],
@@ -2450,4 +2709,31 @@ function DocumentContentEditorSidebar({
             </Box>
         </GlobalKeyDownEvent>
     );
+}
+
+function getFileInputAcceptAttribute(contentTypes: ReadonlyArray<FileContentType>): string {
+    const items: Array<string> = [];
+
+    for (const contentType of contentTypes) {
+        const additionalContentTypesAndExtensions =
+            fileAdditionalContentTypesAndExtensionsByContentType[contentType];
+
+        items.push(contentType);
+
+        if (additionalContentTypesAndExtensions?.contentTypes) {
+            for (const additionalContentType of additionalContentTypesAndExtensions.contentTypes) {
+                items.push(additionalContentType);
+            }
+        }
+
+        items.push(`.${getFileContentTypePreferredExtension(contentType)}`);
+
+        if (additionalContentTypesAndExtensions?.extensions) {
+            for (const additionalExtension of additionalContentTypesAndExtensions?.extensions) {
+                items.push(`.${additionalExtension}`);
+            }
+        }
+    }
+
+    return items.join(",");
 }

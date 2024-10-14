@@ -4,6 +4,7 @@ import {RefObject} from "react";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
 import {useContentEditorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {defaultThemeColor} from "~/shared/design/theme_colors.js";
 
 export function ContentEditorPhantomSelectionCursor({
     state,
@@ -77,19 +78,28 @@ function ContentEditorPhantomTextSelectionCursor({
                     transform: `translateX(-50%)`,
                 }}
             />
-            <div
-                className={sprinkles({
-                    position: "absolute",
-                    width: "1.5",
-                    height: "1.5",
-                    backgroundColor,
-                })}
-                style={{
-                    top: 0,
-                    left: 0,
-                    transform: `translate(-50%, -50%)`,
-                }}
-            />
+            {phantomSelection.color !== defaultThemeColor && (
+                // Don't render a selection head for the space theme color. We use the space
+                // theme color to represent the current user's selection cursor when the editor
+                // is unfocused (see state regarding `isFocusWithinInsertMenu` in
+                // `document_content_editor.tsx`).
+                //
+                // TODO(calebmer): When the theme color is configurable, we should use that
+                // instead of `defaultThemeColor`.
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        width: "1.5",
+                        height: "1.5",
+                        backgroundColor,
+                    })}
+                    style={{
+                        top: 0,
+                        left: 0,
+                        transform: `translate(-50%, -50%)`,
+                    }}
+                />
+            )}
         </div>
     );
 }

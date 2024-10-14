@@ -9,6 +9,7 @@ import {
     ParseRule,
     Schema as ProsemirrorSchema,
     SchemaSpec,
+    TagParseRule,
 } from "prosemirror-model";
 import {
     ContentCodeBlockLanguageId,
@@ -626,7 +627,7 @@ export function toDebugStringWithIndent(node: Node) {
     return args.length === 0 ? `${node.type.name}` : `${node.type.name}(${args.join(", ")})`;
 }
 
-export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): ParseRule {
+export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): TagParseRule {
     return {
         tag: "li",
         priority: 50,
@@ -683,7 +684,7 @@ export function createListItemParseRule(firstListParentTagName: "ul" | "ol"): Pa
  * children. Then we take that result, look for `\n` characters, and create a
  * `codeBlockLine` for each new line we find.
  */
-function createCodeBlockParseRules(): Array<ParseRule> {
+function createCodeBlockParseRules(): Array<TagParseRule> {
     const CodeBlockIntermediateProsemirrorSchema = new DefaultWeakMap<
         ProsemirrorSchema,
         ProsemirrorSchema

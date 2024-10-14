@@ -2,6 +2,7 @@ import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {CaretRight, Check, IconContext, SpinnerGap} from "phosphor-react";
 import React, {
+    Key,
     ReactNode,
     Ref,
     createRef,
@@ -44,6 +45,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 /**
@@ -74,6 +76,11 @@ export type MenuStandardAction = {
      * An optional icon element rendered next to the action label.
      */
     readonly icon?: ReactNode | ((props: {size: "3" | "4"; isDisabled: boolean}) => ReactNode);
+
+    /**
+     * What should the size of the icon be? By default it's based on the menu size.
+     */
+    readonly iconSize?: "3" | "4";
 
     /**
      * Is the icon at the front or back of the menu item? Defaults to `start`.
@@ -196,6 +203,21 @@ export type MenuChildrenAction = {
     readonly withCustomLayout?: undefined;
 
     /**
+     * We need a unique key for menu items with children so we can make sure the
+     * menu stays open across re-renders that change the action object.
+     */
+    readonly key: Key;
+
+    /**
+     * Is the child overlay placed to the right or left? Defaults to right.
+     *
+     * Generally it makes more sense to place child menus on the right so it
+     * doesn't conflict with the left aligned menu label text. But sometimes your
+     * layout will required putting them on the left.
+     */
+    readonly placement?: "right" | "left";
+
+    /**
      * What label do we present to the user for this action?
      *
      * Every action must have a unique label because we also use this string,
@@ -222,12 +244,27 @@ export type MenuChildrenAction = {
      * menu is open.
      */
     readonly actions: MenuActions | (() => MaybePromise<MenuActions>);
+
+    /**
+     * Called when the child menu opens and closes.
+     */
+    readonly onOpenChange?: (isOpen: boolean) => void;
+
+    /**
+     * Whenever an item within this menu is focused then `isFocusWithin` will be
+     * set to true.
+     *
+     * If you provide a handler for this event, you should also consider watching
+     * when the menu closes and setting this to `false`. Since the blur isn't
+     * called on an unmounted element.
+     */
+    readonly onFocusWithinChange?: (isFocusWithin: boolean) => void;
 };
 
 export type MenuSize = "base" | "lg" | "xl" | "brand-icons";
 export type MenuMaxHeight = "48" | "64" | "96";
 
-export const menuSizeConstants: {
+const menuSizeConstants: {
     [Key in MenuSize]: {
         [Key in "desktop" | "mobile"]: {
             width: Spacing;
@@ -299,7 +336,7 @@ export type MenuActions = ReadonlyArray<MenuAction | ReadonlyArray<MenuAction>>;
  *
  * [1]: https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
  */
-export const Menu = forwardRef(function Menu(
+const Menu = forwardRef(function Menu(
     {
         size = "base",
         actions: nestedActions,
@@ -310,7 +347,9 @@ export const Menu = forwardRef(function Menu(
         shouldNotCloseAfterActionPress,
         extraTop,
         extraBottom,
+        onFocusWithinChange,
         onArrowLeftKeyDown,
+        onArrowRightKeyDown,
     }: {
         /**
          * The size of our menu. Defaults to `base`.
@@ -372,9 +411,24 @@ export const Menu = forwardRef(function Menu(
         extraBottom?: ReactNode;
 
         /**
+         * Whenever an item within this menu is focused then `isFocusWithin` will be
+         * set to true.
+         *
+         * If you provide a handler for this event, you should also consider watching
+         * when the menu closes and setting this to `false`. Since the blur isn't
+         * called on an unmounted element.
+         */
+        onFocusWithinChange?: (isFocusWithin: boolean) => void;
+
+        /**
          * Handle left arrow key presses in the menu.
          */
         onArrowLeftKeyDown?: (event: React.KeyboardEvent) => void;
+
+        /**
+         * Handle right arrow key presses in the menu.
+         */
+        onArrowRightKeyDown?: (event: React.KeyboardEvent) => void;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -382,9 +436,11 @@ export const Menu = forwardRef(function Menu(
 
     const {width} = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
 
-    const [openedAction, setOpenedAction] = useState<MenuChildrenAction | null>(null);
+    const [openedActionKey, setOpenedActionKey] = useState<Key | null>(null);
 
     const flattenedActions = useMemo(() => {
+        let keys: Set<Key> | undefined;
+
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
             [];
 
@@ -392,6 +448,12 @@ export const Menu = forwardRef(function Menu(
             ? nestedActions()
             : nestedActions) {
             if (!isReadonlyArray(nestedAction)) {
+                // Make sure all children actions have a unique `key`.
+                if (nestedAction.hasChildren) {
+                    assert(!keys?.has(nestedAction.key));
+                    (keys ??= new Set()).add(nestedAction.key);
+                }
+
                 flattenedActions.push({type: "Action", action: nestedAction});
                 continue;
             }
@@ -401,6 +463,12 @@ export const Menu = forwardRef(function Menu(
             }
 
             for (const action of nestedAction) {
+                // Make sure all children actions have a unique `key`.
+                if (action.hasChildren) {
+                    assert(!keys?.has(action.key));
+                    (keys ??= new Set()).add(action.key);
+                }
+
                 flattenedActions.push({type: "Action", action});
             }
         }
@@ -463,9 +531,11 @@ export const Menu = forwardRef(function Menu(
         // different menu item.
         if (event.type === "focus" && event.currentTarget.contains(event.target)) {
             const focusedAction = activeIndex !== null ? flattenedActions[activeIndex] : undefined;
-            setOpenedAction(openedAction =>
-                focusedAction?.type === "Action" && focusedAction.action === openedAction
-                    ? openedAction
+            setOpenedActionKey(openedActionKey =>
+                focusedAction?.type === "Action" &&
+                focusedAction.action.hasChildren &&
+                focusedAction.action.key === openedActionKey
+                    ? openedActionKey
                     : null,
             );
         }
@@ -527,8 +597,20 @@ export const Menu = forwardRef(function Menu(
                     boxShadow: isMobile ? "elevation-30" : "elevation-20",
                 }),
             )}
-            onFocus={setAriaActiveDescendant}
-            onBlur={setAriaActiveDescendant}
+            onFocus={event => {
+                setAriaActiveDescendant(event);
+                onFocusWithinChange?.(
+                    event.currentTarget !== event.target &&
+                        event.currentTarget.contains(event.target),
+                );
+            }}
+            onBlur={event => {
+                setAriaActiveDescendant(event);
+                onFocusWithinChange?.(
+                    event.currentTarget !== event.relatedTarget &&
+                        event.currentTarget.contains(event.relatedTarget),
+                );
+            }}
             onKeyDown={event => {
                 switch (event.key) {
                     // When focus is in a menu, moves focus to the next item, optionally
@@ -605,8 +687,8 @@ export const Menu = forwardRef(function Menu(
                         return;
                     }
                     case "ArrowRight": {
-                        // Do nothing. We implement `ArrowRight` handling in `<MenuChildrenItem>` for
-                        // items with submenus.
+                        // `<MenuChildrenItem>` needs to implement `ArrowRight` to close the submenu.
+                        onArrowRightKeyDown?.(event);
                         return;
                     }
                     // Moves focus to the first item in the current menu. Technically, the spec
@@ -701,11 +783,11 @@ export const Menu = forwardRef(function Menu(
                                 onCloseWithAnimation={onCloseWithAnimation}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
-                                openedAction={openedAction}
-                                onActionOpen={setOpenedAction}
+                                openedActionKey={openedActionKey}
+                                onActionOpen={action => setOpenedActionKey(action.key)}
                                 onActionClose={action =>
-                                    setOpenedAction(openedAction =>
-                                        openedAction === action ? null : openedAction,
+                                    setOpenedActionKey(openedActionKey =>
+                                        openedActionKey === action.key ? null : openedActionKey,
                                     )
                                 }
                             />
@@ -720,6 +802,11 @@ export const Menu = forwardRef(function Menu(
     );
 });
 
+// Export as an attribute on `Menu` so we don't break hot reloading.
+const MenuExport = Object.assign(Menu, {sizeConstants: menuSizeConstants});
+
+export {MenuExport as Menu};
+
 const defaultMouseMenuItemPressErrorTitle = "The menu option you clicked didn’t work";
 const defaultTouchMenuItemPressErrorTitle = "The menu option you tapped didn’t work";
 
@@ -733,7 +820,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isNotFocusable = false,
         isFocusRingVisible = false,
         shouldNotCloseAfterPress = false,
-        openedAction,
+        openedActionKey,
         onActionOpen,
         onActionClose,
     }: {
@@ -745,7 +832,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isNotFocusable?: boolean;
         isFocusRingVisible?: boolean;
         shouldNotCloseAfterPress?: boolean;
-        openedAction: MenuChildrenAction | null;
+        openedActionKey: Key | null;
         onActionOpen: (action: MenuChildrenAction) => void;
         onActionClose: (action: MenuChildrenAction) => void;
     },
@@ -780,7 +867,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
                 shouldNotCloseAfterPress={shouldNotCloseAfterPress}
-                isOpened={openedAction === action}
+                isOpened={openedActionKey === action.key}
                 onOpen={() => onActionOpen(action)}
                 onClose={() => onActionClose(action)}
             />
@@ -863,8 +950,14 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     const isMobile = useIsMobile();
     const reporter = useReporter();
 
-    const {width, iconSize, itemPaddingY, height} =
-        menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+    const {
+        width,
+        iconSize: defaultIconSize,
+        itemPaddingY,
+        height,
+    } = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+
+    const iconSize = action.iconSize ?? defaultIconSize;
 
     const [pendingState, setPendingState] = useState<
         | {isPending: false; shouldShowPendingSpinner: false}
@@ -1259,6 +1352,8 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
 ) {
     const isMobile = useIsMobile();
 
+    const placement = action.placement ?? "right";
+
     const [actionsPromise, setActionsPromise] = useState<PromiseImmediate<MenuActions> | null>(() =>
         typeof action.actions !== "function" ? PromiseImmediate.resolve(action.actions) : null,
     );
@@ -1428,7 +1523,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!isOpened || !hoverTriangleState) return;
 
-        const shouldDebug = false;
+        const shouldDebug: CommitBlocker | null = null;
 
         // Make sure `shouldDebug` isn't set outside of dev mode.
         if (shouldDebug) {
@@ -1450,7 +1545,13 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         );
         hoverTriangleElement.setAttribute(
             "style",
-            `position: absolute; top: 0; left: -${element.clientWidth}px`,
+            [
+                `width: ${element.clientWidth}px`,
+                `height: ${overlayElement.clientHeight}px`,
+                "position: absolute",
+                "top: 0",
+                `${placement !== "left" ? "left" : "right"}: -${element.clientWidth}px`,
+            ].join("; "),
         );
 
         const hoverTriangleSlopPx = 5;
@@ -1464,19 +1565,42 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                     : "fill: transparent"
             }`,
         );
-        hoverTrianglePolygonElement.setAttribute(
-            "points",
-            [
-                `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
-                    hoverTriangleState.initialY - elementRect.top + hoverTriangleSlopPx
-                }`,
-                `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
-                    hoverTriangleState.initialY - elementRect.top - hoverTriangleSlopPx
-                }`,
-                `${element.clientWidth} 0`,
-                `${element.clientWidth} ${overlayElement.clientHeight}`,
-            ].join(", "),
-        );
+        switch (placement) {
+            case "right": {
+                hoverTrianglePolygonElement.setAttribute(
+                    "points",
+                    [
+                        `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
+                            hoverTriangleState.initialY - elementRect.top + hoverTriangleSlopPx
+                        }`,
+                        `${hoverTriangleState.initialX - elementRect.left - hoverTriangleSlopPx} ${
+                            hoverTriangleState.initialY - elementRect.top - hoverTriangleSlopPx
+                        }`,
+                        `${element.clientWidth} 0`,
+                        `${element.clientWidth} ${overlayElement.clientHeight}`,
+                    ].join(", "),
+                );
+                break;
+            }
+            case "left": {
+                hoverTrianglePolygonElement.setAttribute(
+                    "points",
+                    [
+                        `${hoverTriangleState.initialX - elementRect.left + hoverTriangleSlopPx} ${
+                            hoverTriangleState.initialY - elementRect.top + hoverTriangleSlopPx
+                        }`,
+                        `${hoverTriangleState.initialX - elementRect.left + hoverTriangleSlopPx} ${
+                            hoverTriangleState.initialY - elementRect.top - hoverTriangleSlopPx
+                        }`,
+                        "0 0",
+                        `0 ${overlayElement.clientHeight}`,
+                    ].join(", "),
+                );
+                break;
+            }
+            default:
+                throw exhaustive(placement);
+        }
 
         hoverTriangleElement.addEventListener("pointerdown", event => {
             const elementRect = element.getBoundingClientRect();
@@ -1511,7 +1635,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         return () => {
             hoverTriangleContainerElement.removeChild(hoverTriangleElement);
         };
-    }, [hoverTriangleState, isOpened, onCloseEvent]);
+    }, [hoverTriangleState, isOpened, onCloseEvent, placement]);
 
     const icon = action.icon && (
         <Box flexShrink="0" minWidth={iconSize} minHeight={iconSize}>
@@ -1533,18 +1657,21 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
         <OverlayAnimated
             isVisible={isOpened}
             disableAnimationIn={true}
-            placement="right-start"
+            placement={placement === "left" ? "left-start" : "right-start"}
             offset="-1"
             offsetAlong="-1"
             fallbackPlacements={emptyArray}
+            onActuallyVisibleChange={action.onOpenChange}
             overlay={
                 <Box ref={overlayRef}>
                     {hoverTriangleState && (
                         <Box
                             ref={hoverTriangleContainerRef}
+                            zIndex="10"
                             position="absolute"
                             top="0"
-                            left="0"
+                            left={placement === "right" ? "0" : undefined}
+                            right={placement === "left" ? "0" : undefined}
                             pointerEvents="none"
                         />
                     )}
@@ -1552,11 +1679,25 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                         ref={overlayMenuRef}
                         size={action.size ?? size}
                         actions={actions ?? emptyArray}
-                        placement="right-start"
+                        placement={placement === "left" ? "left-start" : "right-start"}
                         onCloseWithAnimation={onCloseWithAnimation}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         shouldNotCloseAfterActionPress={shouldNotCloseAfterPress}
+                        onFocusWithinChange={action.onFocusWithinChange}
                         onArrowLeftKeyDown={event => {
+                            if (placement !== "right") return;
+
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const itemElement = assertExists(itemRef.current);
+
+                            onClose();
+                            itemElement.focus({preventScroll: true});
+                        }}
+                        onArrowRightKeyDown={event => {
+                            if (placement !== "left") return;
+
                             event.preventDefault();
                             event.stopPropagation();
 
@@ -1601,8 +1742,15 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                             // When focus is in a `menu` and on a `menuitem` that has a submenu, opens the
                             // submenu and places focus on its first item.
                             //
+                            // `ArrowRight` can also open `placement="left"` menus since while the menu is
+                            // opened to the left, the arrow icon is pointing to the right. So the user
+                            // probably expects the right arrow key to work.
+                            //
                             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                            if (event.key === "ArrowRight") {
+                            if (
+                                event.key === "ArrowRight" ||
+                                (placement === "left" && event.key === "ArrowLeft")
+                            ) {
                                 event.preventDefault();
                                 event.stopPropagation();
 

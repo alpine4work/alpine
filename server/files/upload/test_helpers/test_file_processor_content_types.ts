@@ -69,6 +69,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
         width: number;
         height: number;
         scale?: number;
+        hasAlpha?: boolean;
     };
     imagePreviewPlaceholder?: FileImagePreviewPlaceholder;
     isImagePreviewContentAlternative?: boolean;
@@ -281,6 +282,7 @@ export function testFileProcessorContentTypes(
                                           width: expectedImagePreviewSize.width,
                                           height: expectedImagePreviewSize.height,
                                           scale: expectedImagePreviewSize.scale ?? 1,
+                                          hasAlpha: expectedImagePreviewSize.hasAlpha ?? false,
                                       },
                                       placeholder: expect.any(FileImagePreviewPlaceholder),
                                       content: expectedImagePreviewContent
@@ -338,6 +340,7 @@ export function testFileProcessorContentTypes(
                                           width: expectedImagePreviewSize.width,
                                           height: expectedImagePreviewSize.height,
                                           scale: expectedImagePreviewSize.scale ?? 1,
+                                          hasAlpha: expectedImagePreviewSize.hasAlpha ?? false,
                                       },
                                   },
                               ]

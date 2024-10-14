@@ -1,6 +1,6 @@
 import classNames from "classnames";
-import {history, redoDepth, undoDepth} from "prosemirror-history";
-import {Fragment, Node, Slice} from "prosemirror-model";
+import {history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
+import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
 import {
     AllSelection,
     Command,
@@ -67,6 +67,8 @@ import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
 } from "~/client/content/internal/get_content_editor_file_drop_targets.js";
+import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
+import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
 import {
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
@@ -252,9 +254,55 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
     nodeDom(pos: number): globalThis.Node | null;
 
     /**
-     * Execute a ProseMirror command against this editor.
+     * Execute the ProseMirror undo command.
      */
-    dispatchCommand(command: Command): void;
+    undo(): void;
+
+    /**
+     * Execute the ProseMirror redo command.
+     */
+    redo(): void;
+
+    /**
+     * Insert an unordered list item node.
+     */
+    insertUnorderedListItem(): void;
+
+    /**
+     * Insert an ordered list node.
+     */
+    insertOrderedListItem(): void;
+
+    /**
+     * Insert a check list node.
+     */
+    insertCheckListItem(): void;
+
+    /**
+     * Insert a heading node.
+     */
+    insertHeading(level: number): void;
+
+    /**
+     * Insert a divider node.
+     */
+    insertDivider(): void;
+
+    /**
+     * Insert a quote block node.
+     */
+    insertQuoteBlock(): void;
+
+    /**
+     * Insert a code block node.
+     */
+    insertCodeBlock(): void;
+
+    /**
+     * Insert some files into the document as file row nodes. Generally these files
+     * are generally taken from an `<input type="file">` element.
+     */
+    insertFiles(files: ReadonlyArray<File>): void;
 
     /**
      * If we're in a mobile environment and `withoutMobileKeyboardToolbar` is false
@@ -561,58 +609,71 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
 }: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef<Content>>}) {
     useImperativeHandle(
         editorRef,
-        () => ({
-            getState: () => state,
-            isFocused: () => false,
-            focus: () => {
-                throw new UnimplementedError(
-                    "Focusing content editor on initial render is not implemented",
-                );
-            },
-            blur: () => {
-                // Nothing to blur
-            },
-            contains: () => {
-                throw new UnimplementedError(
-                    "Content editor contains on initial render is not implemented",
-                );
-            },
-            selectAll: () => {
-                throw new UnimplementedError(
-                    "Selecting all text in content editor on initial render is not implemented",
-                );
-            },
-            scrollIntoView: () => {
-                throw new UnimplementedError(
-                    "Scrolling content editor selection into view on initial render is not implemented",
-                );
-            },
-            coordsAtPos: () => {
-                throw new UnimplementedError(
-                    "Getting coordinates for position in content editor on initial render is not implemented",
-                );
-            },
-            nodeDom: () => {
-                throw new UnimplementedError(
-                    "Getting DOM for position in content editor on initial render is not implemented",
-                );
-            },
-            dispatchCommand: () => {
+        () => {
+            const unimplementedDispatchCommand = () => {
                 throw new UnimplementedError(
                     "Dispatching a content editor command on initial render is not implemented",
                 );
-            },
-            openMobileKeyboardToolbarCommentInputIfPossible: () => {
-                throw new UnimplementedError(
-                    "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
-                );
-            },
-            _getInternalView: () => {
-                throw new UnimplementedError(
-                    "Getting internal ProseMirror view on initial render is not implemented",
-                );
-            },
-        }),
+            };
+
+            return {
+                getState: () => state,
+                isFocused: () => false,
+                focus: () => {
+                    throw new UnimplementedError(
+                        "Focusing content editor on initial render is not implemented",
+                    );
+                },
+                blur: () => {
+                    // Nothing to blur
+                },
+                contains: () => {
+                    throw new UnimplementedError(
+                        "Content editor contains on initial render is not implemented",
+                    );
+                },
+                selectAll: () => {
+                    throw new UnimplementedError(
+                        "Selecting all text in content editor on initial render is not implemented",
+                    );
+                },
+                scrollIntoView: () => {
+                    throw new UnimplementedError(
+                        "Scrolling content editor selection into view on initial render is not implemented",
+                    );
+                },
+                coordsAtPos: () => {
+                    throw new UnimplementedError(
+                        "Getting coordinates for position in content editor on initial render is not implemented",
+                    );
+                },
+                nodeDom: () => {
+                    throw new UnimplementedError(
+                        "Getting DOM for position in content editor on initial render is not implemented",
+                    );
+                },
+                undo: unimplementedDispatchCommand,
+                redo: unimplementedDispatchCommand,
+                insertUnorderedListItem: unimplementedDispatchCommand,
+                insertOrderedListItem: unimplementedDispatchCommand,
+                insertCheckListItem: unimplementedDispatchCommand,
+                insertHeading: unimplementedDispatchCommand,
+                insertDivider: unimplementedDispatchCommand,
+                insertQuoteBlock: unimplementedDispatchCommand,
+                insertCodeBlock: unimplementedDispatchCommand,
+                insertFiles: unimplementedDispatchCommand,
+                openMobileKeyboardToolbarCommentInputIfPossible: () => {
+                    throw new UnimplementedError(
+                        "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
+                    );
+                },
+                _getInternalView: () => {
+                    throw new UnimplementedError(
+                        "Getting internal ProseMirror view on initial render is not implemented",
+                    );
+                },
+            };
+        },
         [state],
     );
 
@@ -761,6 +822,9 @@ function ContentEditor<Content extends ContentWithReferences>(
     const referencesUpdateEmitterRef = useRef<EventEmitter | null>(null);
     const tripleClickDragStateRef = useRef<ContentEditorTripleClickDragState | null>(null);
     const draggingFileRef = useRef<{getPos: () => number | null} | null>(null);
+    const insertFilesRef = useRef<
+        ((insertSelection: Selection, files: ReadonlyArray<File>) => void) | null
+    >(null);
 
     /* ========================================================================== *\
      *                               Component ref                                *
@@ -768,70 +832,193 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     useImperativeHandle(
         editorRef,
-        () => ({
-            getState: () => {
-                return propsRef.current.state;
-            },
-            isFocused: () => {
-                const view = assertExists(viewRef.current);
-                return document.activeElement === view.dom;
-            },
-            focus: (options?: FocusOptions) => {
-                // If we're in dual modality mode then we need to set our focused state before
-                // the editor is focusable at all.
-                //
-                // This is a little strange. See the same line of code in our `touchstart`
-                // handler (around `touchState`'s `finish` function) for a more thorough
-                // explanation of what's happening here.
-                if (isDualModalityRef.current) {
-                    flushSync(() => setIsFocused(true));
-                }
+        () => {
+            function getInsertSelection(selection: Selection): Selection {
+                const doc = selection.$anchor.doc;
 
-                const view = assertExists(viewRef.current);
-                (view.dom as HTMLDivElement).focus(options);
-            },
-            blur: () => {
-                const view = assertExists(viewRef.current);
-                (view.dom as HTMLDivElement).blur();
-            },
-            contains: element => {
-                const view = assertExists(viewRef.current);
-                return view.dom.contains(element);
-            },
-            selectAll: () => {
-                const view = assertExists(viewRef.current);
-                view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
-            },
-            scrollIntoView: () => {
-                const view = assertExists(viewRef.current);
-                view.dispatch(view.state.tr.scrollIntoView());
-            },
-            coordsAtPos: pos => {
-                const view = assertExists(viewRef.current);
-                return view.coordsAtPos(pos);
-            },
-            nodeDom: pos => {
-                const view = assertExists(viewRef.current);
-                return view.nodeDOM(pos);
-            },
-            dispatchCommand: command => {
-                const view = assertExists(viewRef.current);
-                command(view.state, view.dispatch.bind(view), view);
-            },
-            openMobileKeyboardToolbarCommentInputIfPossible: () => {
-                const view = assertExists(viewRef.current);
+                // Since we don't insert in the title, don't display our phantom insert cursor
+                // in the title. Move the cursor out of the title.
+                const adjustedAnchor =
+                    selection.$anchor.parent.type.name === "title"
+                        ? selection.$anchor.after()
+                        : selection.anchor;
+
+                const adjustedHead =
+                    selection.$head.parent.type.name === "title"
+                        ? selection.$head.after()
+                        : selection.head;
+
+                return adjustedAnchor !== selection.anchor || adjustedHead !== selection.head
+                    ? TextSelection.between(doc.resolve(adjustedAnchor), doc.resolve(adjustedHead))
+                    : selection;
+            }
+
+            function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
+                const {state} = view;
+
+                const insertSelection = getInsertSelection(state.selection);
 
                 if (
-                    view.state.schema.marks.comment &&
-                    view.state.selection.from !== view.state.selection.to
+                    commandIfNotEmpty &&
+                    insertSelection.from !== insertSelection.to &&
+                    !(insertSelection instanceof NodeSelection)
                 ) {
-                    setIsMobileCommentInputOpen(true);
+                    view.focus();
+                    commandIfNotEmpty(state, view.dispatch.bind(view), view);
+                    return;
                 }
-            },
-            _getInternalView: () => {
-                return assertExists(viewRef.current);
-            },
-        }),
+
+                const transaction = state.tr;
+
+                transaction.replaceRangeWith(
+                    insertSelection.$from.parentOffset === 0
+                        ? insertSelection.from - 1
+                        : insertSelection.from,
+                    insertSelection.to,
+                    node,
+                );
+
+                const $pos = findInsertedNodeAfterReplaceRangeWith(
+                    insertSelection.$from,
+                    transaction.doc,
+                    node,
+                );
+                if ($pos) {
+                    transaction.setSelection(Selection.near($pos));
+                }
+
+                view.focus();
+                view.dispatch(transaction);
+            }
+
+            return {
+                getState: () => {
+                    return propsRef.current.state;
+                },
+                isFocused: () => {
+                    const view = assertExists(viewRef.current);
+                    return document.activeElement === view.dom;
+                },
+                focus: (options?: FocusOptions) => {
+                    // If we're in dual modality mode then we need to set our focused state before
+                    // the editor is focusable at all.
+                    //
+                    // This is a little strange. See the same line of code in our `touchstart`
+                    // handler (around `touchState`'s `finish` function) for a more thorough
+                    // explanation of what's happening here.
+                    if (isDualModalityRef.current) {
+                        flushSync(() => setIsFocused(true));
+                    }
+
+                    const view = assertExists(viewRef.current);
+                    (view.dom as HTMLDivElement).focus(options);
+                },
+                blur: () => {
+                    const view = assertExists(viewRef.current);
+                    (view.dom as HTMLDivElement).blur();
+                },
+                contains: element => {
+                    const view = assertExists(viewRef.current);
+                    return view.dom.contains(element);
+                },
+                selectAll: () => {
+                    const view = assertExists(viewRef.current);
+                    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+                },
+                scrollIntoView: () => {
+                    const view = assertExists(viewRef.current);
+                    view.dispatch(view.state.tr.scrollIntoView());
+                },
+                coordsAtPos: pos => {
+                    const view = assertExists(viewRef.current);
+                    return view.coordsAtPos(pos);
+                },
+                nodeDom: pos => {
+                    const view = assertExists(viewRef.current);
+                    return view.nodeDOM(pos);
+                },
+                undo: () => {
+                    const view = assertExists(viewRef.current);
+                    undo(view.state, view.dispatch.bind(view), view);
+                },
+                redo: () => {
+                    const view = assertExists(viewRef.current);
+                    redo(view.state, view.dispatch.bind(view), view);
+                },
+                openMobileKeyboardToolbarCommentInputIfPossible: () => {
+                    const view = assertExists(viewRef.current);
+
+                    if (
+                        view.state.schema.marks.comment &&
+                        view.state.selection.from !== view.state.selection.to
+                    ) {
+                        setIsMobileCommentInputOpen(true);
+                    }
+                },
+                insertUnorderedListItem: () => {
+                    const view = assertExists(viewRef.current);
+                    const {schema} = view.state;
+
+                    const node = schema.node("unorderedListItem", {}, [schema.node("paragraph")]);
+
+                    insertNode(view, node, createToggleListItemsCommand(node.type));
+                },
+                insertOrderedListItem: () => {
+                    const view = assertExists(viewRef.current);
+                    const {schema} = view.state;
+
+                    const node = schema.node("orderedListItem", {}, [schema.node("paragraph")]);
+
+                    insertNode(view, node, createToggleListItemsCommand(node.type));
+                },
+                insertCheckListItem: () => {
+                    const view = assertExists(viewRef.current);
+                    const {schema} = view.state;
+
+                    const node = schema.node("checkListItem", {}, [schema.node("paragraph")]);
+
+                    insertNode(view, node, createToggleListItemsCommand(node.type));
+                },
+                insertHeading: level => {
+                    const view = assertExists(viewRef.current);
+                    const {schema} = view.state;
+
+                    insertNode(
+                        view,
+                        schema.node("heading", {level}),
+                        createToggleBlockTypeCommand(schema.nodes.heading!, {level}),
+                    );
+                },
+                insertDivider: () => {
+                    const view = assertExists(viewRef.current);
+                    const {schema} = view.state;
+
+                    insertNode(view, schema.node("divider"));
+                },
+                insertQuoteBlock: () => {
+                    const view = assertExists(viewRef.current);
+                    const {schema} = view.state;
+
+                    insertNode(view, schema.node("quoteBlock", {}, [schema.node("paragraph")]));
+                },
+                insertCodeBlock: () => {
+                    const view = assertExists(viewRef.current);
+                    const {schema} = view.state;
+
+                    insertNode(view, schema.node("codeBlock", {}, [schema.node("codeBlockLine")]));
+                },
+                insertFiles: files => {
+                    const view = assertExists(viewRef.current);
+                    const insertFiles = assertExists(insertFilesRef.current);
+                    const insertSelection = getInsertSelection(view.state.selection);
+
+                    insertFiles(insertSelection, files);
+                },
+                _getInternalView: () => {
+                    return assertExists(viewRef.current);
+                },
+            };
+        },
         [],
     );
 
@@ -1452,16 +1639,16 @@ function ContentEditor<Content extends ContentWithReferences>(
          *   then we need to attach the files to our attachment target and maybe upload
          *   the files.
          */
-        function handlePasteOrDrop<
+        function handleInsertSlice<
             const Remember extends ReadonlyArray<number | Selection | null>,
         >({
-            origin,
+            asyncSpanName,
             remember: initialRemember,
             slice,
             dataTransfer,
             action,
         }: {
-            origin: "paste" | "drop";
+            asyncSpanName: string;
             remember: Remember;
             slice: Slice;
             dataTransfer: DataTransfer | null;
@@ -1550,10 +1737,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 item => () => item,
             );
 
-            const promise = context.tracer.withSpan(
-                `Content editor ${origin} with references`,
-                run,
-            );
+            const promise = context.tracer.withSpan(asyncSpanName, run);
 
             rememberGetters = initialRemember.map(item => {
                 if (item === null) return () => null;
@@ -1834,8 +2018,8 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             let isSync = true;
 
-            handlePasteOrDrop({
-                origin: "paste",
+            handleInsertSlice({
+                asyncSpanName: "Content editor async paste",
                 remember: [selection],
                 slice,
                 dataTransfer: event.clipboardData,
@@ -1923,8 +2107,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return true;
             }
 
-            handlePasteOrDrop({
-                origin: "drop",
+            handleInsertSlice({
+                asyncSpanName: "Content editor async drop",
                 remember: [
                     view.state.selection,
                     initialFileDropTarget?.action?.pos ?? $mouse.pos,
@@ -2182,6 +2366,99 @@ function ContentEditor<Content extends ContentWithReferences>(
             // We completely override ProseMirror's drop logic and implement our own. Our
             // paste logic is derived from ProseMirror's drop logic.
             return true;
+        };
+
+        /* ========================================================================== *\
+         *                               Insert events                                *
+        \* ========================================================================== */
+
+        insertFilesRef.current = (insertSelection, files) => {
+            if (files.length === 0) return;
+
+            const fileIds: Array<FileId> = [];
+
+            for (const file of files) {
+                const fileId = generateFileIdWithSynchronizedClock();
+                fileIds.push(fileId);
+
+                // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
+                // use this map synchronously after `transformPastedDOM`.
+                if (temporaryPastedFileInfoById === undefined) {
+                    temporaryPastedFileInfoById = new Map();
+                    scheduleMicrotask(() => {
+                        temporaryPastedFileInfoById = undefined;
+                    });
+                }
+
+                temporaryPastedFileInfoById.set(fileId, {
+                    type: "UploadFile",
+                    input: {type: "File", file},
+                });
+            }
+
+            const fileIdsByRow: Array<Array<FileId>> = [[]];
+
+            for (const fileId of fileIds) {
+                if (fileIdsByRow[fileIdsByRow.length - 1]!.length < 3) {
+                    fileIdsByRow[fileIdsByRow.length - 1]!.push(fileId);
+                } else {
+                    fileIdsByRow.push([fileId]);
+                }
+            }
+
+            const slice = new Slice(
+                Fragment.from(
+                    fileIdsByRow.map(fileIds =>
+                        schema.node(
+                            "fileRow",
+                            {},
+                            fileIds.map(fileId => schema.node("file", {fileId})),
+                        ),
+                    ),
+                ),
+                0,
+                0,
+            );
+
+            handleInsertSlice({
+                asyncSpanName: "Content editor insert files",
+                remember: [insertSelection],
+                slice,
+                dataTransfer: null,
+                action: ([insertSelection], slice, createTransaction) => {
+                    const transaction = createTransaction();
+
+                    const singleNode =
+                        slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
+                            ? slice.content.firstChild
+                            : null;
+
+                    if (singleNode) {
+                        insertSelection.replaceWith(transaction, singleNode);
+                    } else {
+                        insertSelection.replace(transaction, slice);
+                    }
+
+                    // Make sure we select the first file after inserting so the user can make
+                    // further modifications from there (like left/right aligning the file).
+                    if (slice.content.firstChild) {
+                        const $pos = findInsertedNodeAfterReplaceRangeWith(
+                            insertSelection.$from,
+                            transaction.doc,
+                            slice.content.firstChild,
+                        );
+
+                        if ($pos) {
+                            transaction.setSelection(
+                                new NodeSelection(transaction.doc.resolve($pos.pos + 1)),
+                            );
+                        }
+                    }
+
+                    view.focus();
+                    view.dispatch(transaction.scrollIntoView());
+                },
+            });
         };
 
         /* ========================================================================== *\
@@ -3939,6 +4216,36 @@ function addSelectionEndOfParagraphSentenceBreakMobileWebKitDecoration(
             {key: "sentenceBreak"},
         ),
     ]);
+}
+
+function findInsertedNodeAfterReplaceRangeWith(
+    $replaceFrom: ResolvedPos,
+    newDoc: Node,
+    node: Node,
+): ResolvedPos | null {
+    if ($replaceFrom.parentOffset === 0) {
+        let $pos = newDoc.resolve($replaceFrom.pos + node.nodeSize);
+        while ($pos.nodeBefore !== node && $pos.depth > 0) {
+            $pos = newDoc.resolve($pos.before());
+        }
+
+        if ($pos.nodeBefore === node) {
+            $pos = newDoc.resolve($pos.pos - node.nodeSize);
+            assert($pos.nodeAfter === node);
+            return $pos;
+        }
+    } else {
+        let $pos = newDoc.resolve($replaceFrom.pos);
+        while ($pos.nodeAfter !== node && $pos.depth > 0) {
+            $pos = newDoc.resolve($pos.after());
+        }
+
+        if ($pos.nodeAfter === node) {
+            return $pos;
+        }
+    }
+
+    return null;
 }
 
 class ContentEditorTripleClickDragState {

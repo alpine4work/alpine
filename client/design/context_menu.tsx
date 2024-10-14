@@ -1,6 +1,7 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {
+    Key,
     ReactElement,
     ReactNode,
     Ref,
@@ -411,7 +412,7 @@ const ContextMenu = forwardRef(function ContextMenu(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const [openedAction, setOpenedAction] = useState<MenuChildrenAction | null>(null);
+    const [openedActionKey, setOpenedActionKey] = useState<Key | null>(null);
 
     const flattenedActions = useMemo(() => {
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
@@ -441,9 +442,11 @@ const ContextMenu = forwardRef(function ContextMenu(
 
         const focusedAction =
             focusedMenuItemIndex !== null ? flattenedActions[focusedMenuItemIndex] : undefined;
-        setOpenedAction(openedAction =>
-            focusedAction?.type === "Action" && focusedAction.action === openedAction
-                ? openedAction
+        setOpenedActionKey(openedActionKey =>
+            focusedAction?.type === "Action" &&
+            focusedAction.action.hasChildren &&
+            focusedAction.action.key === openedActionKey
+                ? openedActionKey
                 : null,
         );
     }, [flattenedActions, focusedMenuItemIndex]);
@@ -705,11 +708,11 @@ const ContextMenu = forwardRef(function ContextMenu(
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 isNotFocusable={true}
                                 isFocusRingVisible={focusedMenuItemIndex === index}
-                                openedAction={openedAction}
-                                onActionOpen={setOpenedAction}
+                                openedActionKey={openedActionKey}
+                                onActionOpen={action => setOpenedActionKey(action.key)}
                                 onActionClose={action =>
-                                    setOpenedAction(openedAction =>
-                                        openedAction === action ? null : openedAction,
+                                    setOpenedActionKey(openedActionKey =>
+                                        openedActionKey === action.key ? null : openedActionKey,
                                     )
                                 }
                             />

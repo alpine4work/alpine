@@ -229,7 +229,9 @@ export function serializeProsemirrorFragmentToHtml(
 }
 
 type DOMOutputSpecArray = _DOMOutputSpecArray<DOMOutputSpec>;
-type _DOMOutputSpecArray<Spec extends DOMOutputSpec> = Spec extends Array<any> ? Spec : never;
+type _DOMOutputSpecArray<Spec extends DOMOutputSpec> = Spec extends ReadonlyArray<any>
+    ? Spec
+    : never;
 
 function isDomNode(structure: object): structure is globalThis.Node {
     return (structure as any).contentType != null;
@@ -664,7 +666,7 @@ export function renderProsemirrorDomOutputSpec(structure: DOMOutputSpec): {
 } {
     if (typeof structure === "string") return {html: new HtmlTextGenerator(structure)};
 
-    assert(Array.isArray(structure), "Can not server-side render node that returns a DOM node");
+    assert(isReadonlyArray(structure), "Can not server-side render node that returns a DOM node");
 
     return renderProsemirrorDomOutputSpecArray(structure);
 }

@@ -448,44 +448,56 @@ export function buildContentEditorKeymapPlugin(
         return transaction;
     };
 
-    const actuallyDeleteSelection: Command = (state, dispatch, view) => {
-        if (dispatch) {
-            const originalDispatch = dispatch;
+    const actuallyDeleteSelection =
+        (isBackspace: boolean): Command =>
+        (state, dispatch, view) => {
+            if (dispatch) {
+                const originalDispatch = dispatch;
 
-            dispatch = transaction => {
-                // If we had a `file` `NodeSelection` when backspace was pressed and we don't
-                // have a `file` `NodeSelection` anymore because we deleted the last file in a
-                // gallery so the next position is in a paragraph or whatever's next then we
-                // want to search backwards for the last file in the gallery and put our
-                // selection there.
-                //
-                // The user expects their selection to stay in the gallery while issuing
-                // keyboard commands. So it's weird if hitting delete causes their selection
-                // to leave the gallery.
-                if (
-                    state.selection instanceof NodeSelection &&
-                    state.selection.node.type.name === "file" &&
-                    state.selection.$anchor.parent.type.name === "fileRow" &&
-                    !(
-                        transaction.selection instanceof NodeSelection &&
-                        transaction.selection.node.type.name === "file" &&
-                        transaction.selection.$anchor.parent.type.name === "fileRow"
-                    )
-                ) {
-                    setSelectionToPreviousFileIfExists(transaction);
-                }
+                dispatch = transaction => {
+                    // If we had a `file` `NodeSelection` when backspace was pressed and we don't
+                    // have a `file` `NodeSelection` anymore because we deleted the last file in a
+                    // gallery so the next position is in a paragraph or whatever's next then we
+                    // want to search backwards for the last file in the gallery and put our
+                    // selection there.
+                    //
+                    // The user expects their selection to stay in the gallery while issuing
+                    // keyboard commands. So it's weird if hitting delete causes their selection
+                    // to leave the gallery.
+                    if (
+                        state.selection instanceof NodeSelection &&
+                        state.selection.node.type.name === "file" &&
+                        state.selection.$anchor.parent.type.name === "fileRow"
+                    ) {
+                        if (
+                            transaction.selection instanceof NodeSelection &&
+                            transaction.selection.node.type.name === "file" &&
+                            transaction.selection.$anchor.parent.type.name === "fileRow"
+                        ) {
+                            // Our new selection is already a file selection. Don't do anything else.
+                        } else {
+                            setSelectionToPreviousFileIfExists(transaction);
+                        }
+                    }
+                    // If backspace was pressed on a `NodeSelection`, we want to make sure the
+                    // cursor is placed before the node not after the node.
+                    else if (isBackspace && state.selection instanceof NodeSelection) {
+                        transaction.setSelection(
+                            Selection.near(transaction.doc.resolve(state.selection.anchor), -1),
+                        );
+                    }
 
-                originalDispatch(transaction);
-            };
-        }
+                    originalDispatch(transaction);
+                };
+            }
 
-        return deleteSelection(state, dispatch, view);
-    };
+            return deleteSelection(state, dispatch, view);
+        };
 
     const backspaceCommand: Command = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
-        actuallyDeleteSelection,
+        actuallyDeleteSelection(true),
 
         // Run quick undos triggered with `Backspace`.
         contentEditorQuickUndoCommand("Backspace"),
@@ -679,6 +691,11 @@ export function buildContentEditorKeymapPlugin(
                     $from.before($from.depth - 1),
                     $to.after($from.depth - 1),
                 );
+
+                transaction.setSelection(
+                    Selection.near(transaction.doc.resolve($from.before($from.depth - 1)), -1),
+                );
+
                 dispatch(transaction);
             }
             return true;
@@ -978,7 +995,7 @@ export function buildContentEditorKeymapPlugin(
     const deleteCommand = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
-        actuallyDeleteSelection,
+        actuallyDeleteSelection(false),
 
         // If delete is pressed in an empty paragraph, remove the paragraph.
         //

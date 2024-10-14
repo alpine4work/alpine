@@ -916,7 +916,13 @@ export function addContentFilePreviewBehavior(
     );
 
     const handleImagePreviewContentLoad = () => {
-        if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {
+        if (
+            imagePreviewContentElement &&
+            imagePreviewContentElement.complete &&
+            imagePreviewContentElement.naturalWidth !== 0 &&
+            imagePreviewContentElement.naturalHeight !== 0 &&
+            !element.classList.contains(contentStyles.loadedFileImagePreviewClassName)
+        ) {
             element.classList.add(contentStyles.loadedFileImagePreviewClassName);
         }
     };
@@ -925,7 +931,14 @@ export function addContentFilePreviewBehavior(
     // That way our cross fade animation won't ever be interrupted by unmounting
     // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
     if (!isEditorInitialAppRender && imagePreviewContentElement) {
-        if (imagePreviewContentElement.complete) {
+        if (
+            imagePreviewContentElement.complete &&
+            // If `naturalWidth` or `naturalHeight` are 0 then that means the image failed
+            // to load. When an image fails to load we want to keep showing the
+            // placeholder.
+            imagePreviewContentElement.naturalWidth !== 0 &&
+            imagePreviewContentElement.naturalHeight !== 0
+        ) {
             if (!wasEditorInitialAppRender) {
                 handleImagePreviewContentLoad();
             }

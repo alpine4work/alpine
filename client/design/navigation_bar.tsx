@@ -37,13 +37,14 @@ import {
     navigationBarHeight,
 } from "~/client/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayTriggerButtonState} from "~/client/design/overlay_trigger_button.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
 import {
     ScrollbarInsetDynamic,
     scrollbarVisibleAfterScrollDurationMs,
 } from "~/client/design/scrollbar.js";
-import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
+import {ShareButton, addShareMenuItem} from "~/client/design/share_button.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -246,6 +247,12 @@ export type NavigationBarProps<TitleBoundaryElement extends HTMLElement = HTMLDi
      * doesn't make sense to give them their own screen space.
      */
     menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+
+    /**
+     * Called whenever the menu opens/closes. Useful if you want to change how
+     * something is rendered when the menu navigation bar is open.
+     */
+    onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
 
     /**
      * Configures the behavior of the share button in the navigation bar. If not
@@ -458,6 +465,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     withoutDisappearingTitle = false,
     subtitle,
     menuActions = emptyArray,
+    onMenuStateChange,
     shareButton,
     stickyBanner,
     replaceActions,
@@ -601,6 +609,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             withoutDisappearingTitle={withoutDisappearingTitle}
             subtitle={subtitle}
             menuActions={menuActions}
+            onMenuStateChange={onMenuStateChange}
             shareButton={shareButton}
             stickyBanner={stickyBanner}
             replaceActions={replaceActions}
@@ -662,6 +671,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     withoutDisappearingTitle,
     subtitle,
     menuActions,
+    onMenuStateChange,
     shareButton,
     stickyBanner,
     replaceActions,
@@ -694,6 +704,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     withoutDisappearingTitle: boolean;
     subtitle: ReactNode | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    onMenuStateChange: ((state: OverlayTriggerButtonState) => void) | undefined;
     shareButton: {} | undefined;
     stickyBanner: ReactNode;
     replaceActions: ReactNode;
@@ -1600,6 +1611,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             withDisappearingTitle={!withoutDisappearingTitle}
                             subtitle={subtitle}
                             menuActions={menuActions}
+                            onMenuStateChange={onMenuStateChange}
                             shareButton={shareButton}
                             replaceActions={replaceActions}
                             extraIconButton={extraIconButton}
@@ -1636,6 +1648,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton = false,
         subtitle,
         menuActions = emptyArray,
+        onMenuStateChange,
         shareButton,
         replaceActions,
         extraIconButton,
@@ -1656,6 +1669,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton?: boolean;
         subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+        onMenuStateChange?: (state: OverlayTriggerButtonState) => void;
         shareButton?: {};
         replaceActions?: ReactNode;
         extraIconButton?: {
@@ -2015,12 +2029,10 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                                 placement="bottom-end"
                                                 actions={
                                                     shareButton && withMobileLayout
-                                                        ? [
-                                                              [createShareMenuItem(reporter)],
-                                                              ...menuActions,
-                                                          ]
+                                                        ? addShareMenuItem(reporter, menuActions)
                                                         : menuActions
                                                 }
+                                                onStateChange={onMenuStateChange}
                                             >
                                                 <IconButton
                                                     size={isMobile ? "base" : "md"}
