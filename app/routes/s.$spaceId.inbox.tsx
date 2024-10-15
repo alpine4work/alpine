@@ -1,4 +1,8 @@
-import {UNSAFE_RemixContext as RemixContext, ShouldRevalidateFunction} from "@remix-run/react";
+import {
+    UNSAFE_RemixContext as RemixContext,
+    ShouldRevalidateFunction,
+    useSearchParams,
+} from "@remix-run/react";
 import {HydrationState, createPath} from "@remix-run/router";
 import {ServerRoute} from "@remix-run/server-runtime";
 import {useContext} from "react";
@@ -148,6 +152,7 @@ function InboxRoute() {
     assert(remixContext, "Expected Remix context");
     const isInitialAppRender = useIsInitialAppRender();
     const {filter, entriesResult, peekData} = useLoaderDataWithSchema(LoaderSchema);
+    const [, setSearchParams] = useSearchParams();
 
     return (
         <Box
@@ -166,28 +171,34 @@ function InboxRoute() {
                 initialEntriesResult={entriesResult}
                 initialPeekData={peekData}
                 onPeekChange={peek => {
-                    const url = new URL(window.location.href);
-                    if (!peek) {
-                        url.searchParams.delete("selected");
-                    } else {
-                        // base64 encode the initial path to hide the fact that it's a URL.
-                        const textEncoder = new TextEncoder();
+                    setSearchParams(
+                        oldSearchParams => {
+                            const newSearchParams = new URLSearchParams(oldSearchParams);
 
-                        const selectedSearchParam = encodeBase64(
-                            textEncoder.encode(
-                                peek.initialSpacePath
-                                    .replace(/^(\/s\/[^/]+\/)/, "")
-                                    .replace(/[?&]inbox=show/, ""),
-                            ),
-                            "Rfc4648Url",
-                        );
+                            if (!peek) {
+                                newSearchParams.delete("selected");
+                            } else {
+                                // base64 encode the initial path to hide the fact that it's a URL.
+                                const textEncoder = new TextEncoder();
 
-                        url.searchParams.set("selected", selectedSearchParam);
-                    }
+                                const selectedSearchParam = encodeBase64(
+                                    textEncoder.encode(
+                                        peek.initialSpacePath
+                                            .replace(/^(\/s\/[^/]+\/)/, "")
+                                            .replace(/[?&]inbox=show/, ""),
+                                    ),
+                                    "Rfc4648Url",
+                                );
 
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(window.history.state, "", url);
+                                newSearchParams.set("selected", selectedSearchParam);
+                            }
+
+                            return newSearchParams;
+                        },
+                        {
+                            replace: true,
+                        },
+                    );
                 }}
             />
             {isInitialAppRender && peekData && (

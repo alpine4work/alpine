@@ -253,7 +253,6 @@ function SpaceLayoutRouteInner({
     loaderData: SchemaType<typeof LoaderSchema>;
     error: unknown;
 }) {
-    const location = useLocation();
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const context = useAppContext();
