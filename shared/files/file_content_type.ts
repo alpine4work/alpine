@@ -74,14 +74,12 @@ const fileImageContentTypes: {
     "image/heif": false,
 };
 
-export function isFileImageContentType(
-    contentType: FileContentType,
-): contentType is FileImageContentType {
+export function isFileImageContentType(contentType: string): contentType is FileImageContentType {
     return contentType in fileImageContentTypes;
 }
 
 export function isFileWebSafeImageContentType(
-    contentType: FileContentType,
+    contentType: string,
 ): contentType is FileWebSafeImageContentType {
     return isFileImageContentType(contentType) && fileImageContentTypes[contentType];
 }

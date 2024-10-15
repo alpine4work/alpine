@@ -20,7 +20,7 @@ import {createPortal, flushSync} from "react-dom";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
-import {Menu, MenuAction, MenuChildrenAction, MenuItem} from "~/client/design/menu.js";
+import {Menu, MenuAction, MenuItem} from "~/client/design/menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
@@ -40,22 +40,57 @@ import {generateId} from "~/shared/id/id.js";
 const contextMenuEventActionsSymbol = Symbol("actions");
 
 /**
+ * Add context menu actions to the `contextmenu` `MouseEvent`. Generally prefer
+ * using `<ContextMenuActions>` which manages the event for you.
+ *
+ * Context menu actions are be ordered from most specific to least specific. So
+ * if you have:
+ *
+ * ```jsx
+ * <ContextMenuActions actions={actions2}>
+ *     <ContextMenuActions actions={actions1}>
+ *         ...
+ *     </ContextMenuActions>
+ * </ContextMenuActions>
+ * ```
+ *
+ * ...the parent's actions should come after the child's actions. So `actions2`
+ * should come after `actions1`.
+ */
+export function addContextMenuActions(
+    event: MouseEvent & {
+        [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
+    },
+    actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
+) {
+    const eventActions = (event[contextMenuEventActionsSymbol] ??= []);
+    eventActions.push(...actions);
+}
+
+/**
  * Create a context menu actions ref if you want to avoid rendering another
  * component with `<ContextMenuActions>` for performance reasons.
+ *
+ * Context menu actions are be ordered from most specific to least specific. So
+ * if you have:
+ *
+ * ```jsx
+ * <ContextMenuActions actions={actions2}>
+ *     <ContextMenuActions actions={actions1}>
+ *         ...
+ *     </ContextMenuActions>
+ * </ContextMenuActions>
+ * ```
+ *
+ * ...the parent's actions should come after the child's actions. So `actions2`
+ * should come after `actions1`.
  */
 export function useContextMenuActionsRef(
     actions: ReadonlyArray<ReadonlyArray<MenuAction>>,
 ): RefCallback<HTMLElement> {
-    const handleContextMenu = useEvent(
-        (
-            event: MouseEvent & {
-                [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
-            },
-        ) => {
-            const eventActions = (event[contextMenuEventActionsSymbol] ??= []);
-            eventActions.unshift(...actions);
-        },
-    );
+    const handleContextMenu = useEvent((event: MouseEvent) => {
+        addContextMenuActions(event, actions);
+    });
 
     const lifecycleRef = useCallback(
         (element: HTMLElement) => {
@@ -92,6 +127,20 @@ export function useContextMenuActionsRef(
  * If you want to add some actions to the context menu then wrap a `<div>` (or
  * other HTML element) in this component. It will listen for context menu
  * events on child elements and add some actions when the user right-clicks.
+ *
+ * Context menu actions are be ordered from most specific to least specific. So
+ * if you have:
+ *
+ * ```jsx
+ * <ContextMenuActions actions={actions2}>
+ *     <ContextMenuActions actions={actions1}>
+ *         ...
+ *     </ContextMenuActions>
+ * </ContextMenuActions>
+ * ```
+ *
+ * ...the parent's actions should come after the child's actions. So `actions2`
+ * should come after `actions1`.
  */
 export function ContextMenuActions({
     actions,

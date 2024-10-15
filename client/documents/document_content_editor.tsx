@@ -1693,8 +1693,11 @@ export function DocumentContentEditor({
     ];
 
     const contextMenuActions: Array<Array<MenuAction>> = [
-        [insertMenuAction],
         ...contextMenuActionsWithoutInsert,
+
+        // It's good for the insert menu action to be the last action since the hover
+        // triangle blocks any items below.
+        [insertMenuAction],
     ];
 
     const navigationBarRef = useRef<NavigationBarRef>(null);
@@ -1803,6 +1806,10 @@ export function DocumentContentEditor({
                     },
                 },
             ],
+            ...contextMenuActionsWithoutInsert,
+
+            // It's good for the insert menu action to be the last action since the hover
+            // triangle blocks any items below.
             [
                 {
                     ...insertMenuAction,
@@ -1818,7 +1825,6 @@ export function DocumentContentEditor({
                     },
                 },
             ],
-            ...contextMenuActionsWithoutInsert,
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,

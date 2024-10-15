@@ -74,7 +74,10 @@ import {
     parentScrollWhenPointerDownAndOverClassNames,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createProgressCompositeStore} from "~/client/content/internal/progress_store.js";
-import {ContentFilePreviewExpirationTimers} from "~/client/content/internal/render_content_file_preview.js";
+import {
+    ContentFilePreviewExpirationTimers,
+    handleCopyContentFile,
+} from "~/client/content/internal/render_content_file_preview.js";
 import {
     UploadFileFromContentEditorInput,
     uploadFileFromContentEditor,
@@ -140,6 +143,7 @@ import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js"
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -2689,6 +2693,32 @@ function ContentEditor<Content extends ContentWithReferences>(
                 if (event.defaultPrevented) return true;
             }
 
+            // Override copy keyboard shortcut when copying files. For some reason the
+            // browser doesn't execute the `copy` event when there's a file
+            // `NodeSelection`. Even if it did, it's still good to run
+            // `handleContentFileCopy()` since it'll write an `image/png` to the clipboard
+            // as well.
+            if (
+                event.key === "c" &&
+                (isAppleDevice ? event.metaKey : event.ctrlKey) &&
+                view.state.selection instanceof NodeSelection &&
+                view.state.selection.node.type.name === "file"
+            ) {
+                const selectedNodeElement = view.dom.getElementsByClassName(
+                    "ProseMirror-selectednode",
+                )[0];
+
+                if (selectedNodeElement) {
+                    handleCopyContentFile(selectedNodeElement, {
+                        spaceId: assertExists(spaceContextRef.current?.space.id),
+                        node: view.state.selection.node,
+                        references: getContentEditorReferences(view.state).references,
+                        attachmentTarget: assertExists(propsRef.current.fileAttachmentTarget),
+                    }).catch(scheduleUncaughtError);
+                }
+                return true;
+            }
+
             return false;
         };
 
@@ -4604,7 +4634,7 @@ class ContentEditorFileDragState {
             !!event.dataTransfer &&
             iterableSome(
                 event.dataTransfer.items,
-                item => item.kind === "file" || item.type === "text/x.cyberworlds.file",
+                item => item.kind === "file" || item.type === "application/x.alpine.file",
             );
         if (!isDraggingFile) return null;
 

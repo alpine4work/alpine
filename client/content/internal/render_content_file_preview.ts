@@ -11,16 +11,21 @@ import {
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {AppContext} from "~/client/context/app_context.js";
+import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
+    ContentReferences,
     emptyContentReferences,
     getContentReferencesFileSignedUrlSearchExpirationTime,
 } from "~/shared/content/content_references.js";
 import {fileClassName} from "~/shared/content/content_styles.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {getFileContentTypePreferredExtension} from "~/shared/files/file_content_type.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {getFilePreviewImageResizeWidth} from "~/shared/files/get_file_preview_image_resize_width.js";
 import {
     maxFilePreviewAspectRatio,
@@ -29,8 +34,10 @@ import {
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {convertSvgToDataUrl} from "~/shared/helpers/html/convert_svg_to_data_url.js";
 import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
@@ -875,10 +882,17 @@ export function addContentFilePreviewBehavior(
         event.dataTransfer.clearData();
         event.dataTransfer.setData("text/html", serializedNode.outerHTML);
 
+        // NOTE(calebmer, 2024-10-15): I'd love to also include `image/png` here with a
+        // `Blob` of the preview image like we do when copying (see the copy
+        // implementation in our `contextmenu` handler). Unfortunately, generating a
+        // `Blob` from a canvas is asynchronous. We could optimistically generate
+        // `Blob`s in the background so they're available synchronously here but that's
+        // too complicated for a feature that's not that important.
+
         // We check for this content type in the `dragenter` event to know if we need
         // to show file drop targets. If this is set then it's assumed `text/html` will
         // be parsed to `fileRow` or `file` nodes.
-        event.dataTransfer.setData("text/x.cyberworlds.file", "true");
+        event.dataTransfer.setData("application/x.alpine.file", "");
 
         if (onDrag) {
             const dragPromiseResolver = createPromiseResolver();
@@ -906,6 +920,59 @@ export function addContentFilePreviewBehavior(
         element,
         handleParentScrollWhenPointerDownAndOver,
     );
+
+    /* ========================================================================== *\
+     *                             Context menu event                             *
+    \* ========================================================================== */
+
+    const handleContextMenu = (event: MouseEvent) => {
+        if (!navigator.clipboard) return;
+
+        addContextMenuActions(event, [
+            [
+                {
+                    label: `Copy ${getFileContentTypeNoun(reference?.file.contentType)}`,
+                    pressErrorTitle: `Couldn’t copy ${getFileContentTypeNoun(
+                        reference?.file.contentType,
+                    )}`,
+                    onPress: async () => {
+                        await handleCopyContentFile(element, {
+                            spaceId,
+                            node,
+                            references: {
+                                ...emptyContentReferences,
+                                fileById: reference
+                                    ? new Map([[reference.file.id, reference]])
+                                    : new Map(),
+                            },
+                            attachmentTarget,
+                        });
+                    },
+                },
+                {
+                    label: `Download ${getFileContentTypeNoun(reference?.file.contentType)}`,
+                    onPress: () => {
+                        if (!reference) return;
+
+                        const downloadLinkElement = document.createElement("a");
+
+                        downloadLinkElement.setAttribute(
+                            "download",
+                            `${getFileContentTypeNoun(
+                                reference.file.contentType,
+                            )}.${getFileContentTypePreferredExtension(reference.file.contentType)}`,
+                        );
+
+                        downloadLinkElement.href = `/files/${spaceId}/${reference.file.id}${reference.signedUrlSearch}`;
+
+                        downloadLinkElement.click();
+                    },
+                },
+            ],
+        ]);
+    };
+
+    element.addEventListener("contextmenu", handleContextMenu);
 
     /* ========================================================================== *\
      *                               Image elements                               *
@@ -968,6 +1035,7 @@ export function addContentFilePreviewBehavior(
         element.removeEventListener("pointerleave", handlePointerLeave);
         element.removeEventListener("pointercancel", handlePointerCancel);
         element.removeEventListener("dragstart", handleDragStart);
+        element.removeEventListener("contextmenu", handleContextMenu);
         removeParentScrollWhenPointerDownAndOverListener(
             element,
             handleParentScrollWhenPointerDownAndOver,
@@ -1028,4 +1096,117 @@ export function addContentFilePreviewBehavior(
             });
         }
     };
+}
+
+export async function handleCopyContentFile(
+    element: Element,
+    {
+        spaceId,
+        node,
+        references,
+        attachmentTarget,
+    }: {
+        spaceId: SpaceId;
+        node: Node;
+        references: ContentReferences;
+        attachmentTarget: FileAttachmentTarget;
+    },
+) {
+    const clipboardSerializer = ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+        node.type.schema,
+        () => spaceId,
+        () => references,
+        () => attachmentTarget,
+    );
+
+    const serializedNode = clipboardSerializer.serializeNode(node);
+    assert(serializedNode instanceof HTMLElement);
+
+    const imagePreviewContentElement = element.querySelector<HTMLImageElement>(
+        `.${contentStyles.fileImagePreviewContentClassName}`,
+    );
+
+    // Draw the preview image in a canvas and convert it to a `.png` blob.
+    // Applications that don't support parsing `text/html` clipboard data (e.g.
+    // Figma) can use the preview `image/png` to still paste the file.
+    let imagePreviewContentBlob: Blob | null = null;
+    if (
+        imagePreviewContentElement &&
+        imagePreviewContentElement.complete &&
+        imagePreviewContentElement.naturalWidth > 0 &&
+        imagePreviewContentElement.naturalHeight > 0
+    ) {
+        const canvasElement = document.createElement("canvas");
+
+        // Absolute position the canvas so it doesn't affect document layout.
+        canvasElement.style.position = "absolute";
+        canvasElement.style.top = "0";
+        canvasElement.style.left = "0";
+        canvasElement.style.visibility = "hidden";
+
+        document.body.appendChild(canvasElement);
+
+        try {
+            // `naturalWidth` and `naturalHeight` are density adjusted. To get the actual
+            // image width/height we need to multiply the device pixel ratio.
+            canvasElement.width = imagePreviewContentElement.naturalWidth * window.devicePixelRatio;
+            canvasElement.height =
+                imagePreviewContentElement.naturalHeight * window.devicePixelRatio;
+
+            const canvasContext = assertExists(canvasElement.getContext("2d"));
+            canvasContext.drawImage(
+                imagePreviewContentElement,
+                0,
+                0,
+                canvasElement.width,
+                canvasElement.height,
+            );
+
+            imagePreviewContentBlob = await new Promise(resolve => {
+                canvasElement.toBlob(resolve, "image/png");
+            });
+
+            // Silently error if converting to a blob fails.
+            if (!imagePreviewContentBlob) {
+                scheduleUncaughtError(new InternalError("Couldn't convert canvas to blob"));
+            }
+        } finally {
+            document.body.removeChild(canvasElement);
+        }
+    }
+
+    await navigator.clipboard.write([
+        new ClipboardItem({
+            "text/html": new Blob(
+                [
+                    serializedNode.outerHTML +
+                        // Add a note for developers explaining that applications should prefer
+                        // parsing `text/html` over `image/png`.
+                        ` <!-- ${new URL(
+                            "/notes/file-data-transfer-readme.md",
+                            window.location.href,
+                        ).toString()} -->`,
+                ],
+                {type: "text/html"},
+            ),
+
+            // The order here is important! If applications support both pasting
+            // `text/html` and `image/png` then the application should first try parsing
+            // `text/html` and then `image/png`. `text/html` contains a link to the full
+            // resolution image whereas `image/png` is just the image preview.
+            //
+            // We can't add the full resolution image to the clipboard because:
+            //
+            // 1. The clipboard doesn't currently support `image/avif` files
+            // 2. We don't have the full resolution image downloaded to the client in most
+            //    cases
+            //
+            // If the user wants the full resolution image because the application they're
+            // pasting into is picking the wrong one then they can select the download
+            // option.
+            ...(imagePreviewContentBlob
+                ? {[imagePreviewContentBlob.type]: imagePreviewContentBlob}
+                : {}),
+        }),
+    ]);
 }
