@@ -4,6 +4,7 @@ import {
     AlignRightSimple,
     ChatCircleText,
     IconContext,
+    Trash,
     UploadSimple,
 } from "phosphor-react";
 import {Fragment, Node, Slice} from "prosemirror-model";
@@ -19,7 +20,6 @@ import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
-import {ImagesIcon} from "~/client/icons/images_icon.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
@@ -363,43 +363,8 @@ function ContentEditorFileToolbar({
                             </ContentEditorFileToolbarButton>
                         </>
                     )}
-                    {selection.$anchor.parent.type.name === "fileRow" && (
-                        <ContentEditorFileToolbarButton
-                            dividerLeft={hasAlignmentButtons}
-                            description={`Add another ${getFileContentTypeNoun(file?.contentType)}`}
-                            viewRef={viewRef}
-                            isActive={false}
-                            command={() => {
-                                const inputElement = document.createElement("input");
-                                inputElement.type = "file";
-                                inputElement.multiple = true;
-
-                                inputElement.addEventListener("change", () => {
-                                    if (!inputElement.files) return;
-
-                                    const files = Array.from(inputElement.files);
-                                    if (files.length === 0) return;
-
-                                    // If the component unmounted while we were waiting on a selection then don't
-                                    // try replacing this file.
-                                    if (!selectionRef.current) return;
-
-                                    onInsertFiles(selectionRef.current.anchor + 1, files);
-                                });
-
-                                inputElement.click();
-
-                                return true;
-                            }}
-                        >
-                            <ImagesIcon />
-                        </ContentEditorFileToolbarButton>
-                    )}
                     <ContentEditorFileToolbarButton
-                        dividerLeft={
-                            hasAlignmentButtons && selection.$anchor.parent.type.name !== "fileRow"
-                        }
-                        dividerRight={!!state.schema.marks.comment}
+                        dividerLeft={hasAlignmentButtons}
                         description={`Replace ${getFileContentTypeNoun(file?.contentType)}`}
                         viewRef={viewRef}
                         isActive={false}
@@ -427,6 +392,18 @@ function ContentEditorFileToolbar({
                         }}
                     >
                         <UploadSimple />
+                    </ContentEditorFileToolbarButton>
+                    <ContentEditorFileToolbarButton
+                        dividerRight={!!state.schema.marks.comment}
+                        description={`Delete ${getFileContentTypeNoun(file?.contentType)}`}
+                        viewRef={viewRef}
+                        isActive={false}
+                        command={(state, dispatch) => {
+                            dispatch?.(state.tr.deleteSelection());
+                            return true;
+                        }}
+                    >
+                        <Trash />
                     </ContentEditorFileToolbarButton>
                     {state.schema.marks.comment && (
                         <ContentEditorFileToolbarButton
