@@ -133,6 +133,7 @@ import {
     deserializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -823,7 +824,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const tripleClickDragStateRef = useRef<ContentEditorTripleClickDragState | null>(null);
     const draggingFileRef = useRef<{getPos: () => number | null} | null>(null);
     const insertFilesRef = useRef<
-        ((insertSelection: Selection, files: ReadonlyArray<File>) => void) | null
+        ((posOrSelection: number | Selection, files: ReadonlyArray<File>) => void) | null
     >(null);
 
     /* ========================================================================== *\
@@ -833,8 +834,19 @@ function ContentEditor<Content extends ContentWithReferences>(
     useImperativeHandle(
         editorRef,
         () => {
-            function getInsertSelection(selection: Selection): Selection {
+            function getInsertPosOrSelection(selection: Selection): number | Selection {
                 const doc = selection.$anchor.doc;
+
+                // If the selection is on a file we'll insert below the file instead of
+                // replacing the file. Since files take a lot of intention to add to the
+                // document so it's likely the user wants to keep it around.
+                //
+                // This is the same logic we have when the user presses the "Enter" key on a
+                // file or a letter key on a file. We start typing in an empty paragraph below
+                // the file instead of replacing the file.
+                if (selection instanceof NodeSelection && selection.node.type.name === "file") {
+                    return selection.$anchor.after();
+                }
 
                 // Since we don't insert in the title, don't display our phantom insert cursor
                 // in the title. Move the cursor out of the title.
@@ -856,12 +868,13 @@ function ContentEditor<Content extends ContentWithReferences>(
             function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
                 const {state} = view;
 
-                const insertSelection = getInsertSelection(state.selection);
+                const insertPosOrSelection = getInsertPosOrSelection(state.selection);
 
                 if (
                     commandIfNotEmpty &&
-                    insertSelection.from !== insertSelection.to &&
-                    !(insertSelection instanceof NodeSelection)
+                    insertPosOrSelection instanceof Selection &&
+                    !(insertPosOrSelection instanceof NodeSelection) &&
+                    insertPosOrSelection.from !== insertPosOrSelection.to
                 ) {
                     view.focus();
                     commandIfNotEmpty(state, view.dispatch.bind(view), view);
@@ -870,16 +883,22 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 const transaction = state.tr;
 
-                transaction.replaceRangeWith(
-                    insertSelection.$from.parentOffset === 0
-                        ? insertSelection.from - 1
-                        : insertSelection.from,
-                    insertSelection.to,
-                    node,
-                );
+                if (!(insertPosOrSelection instanceof Selection)) {
+                    transaction.insert(insertPosOrSelection, node);
+                } else {
+                    transaction.replaceRangeWith(
+                        insertPosOrSelection.$from.parentOffset === 0
+                            ? insertPosOrSelection.from - 1
+                            : insertPosOrSelection.from,
+                        insertPosOrSelection.to,
+                        node,
+                    );
+                }
 
                 const $pos = findInsertedNodeAfterReplaceRangeWith(
-                    insertSelection.$from,
+                    insertPosOrSelection instanceof Selection
+                        ? insertPosOrSelection.$from
+                        : state.doc.resolve(insertPosOrSelection),
                     transaction.doc,
                     node,
                 );
@@ -1010,9 +1029,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                 insertFiles: files => {
                     const view = assertExists(viewRef.current);
                     const insertFiles = assertExists(insertFilesRef.current);
-                    const insertSelection = getInsertSelection(view.state.selection);
 
-                    insertFiles(insertSelection, files);
+                    const insertPosOrSelection =
+                        // If the user has selected a file in a file row then let's try inserting our
+                        // files into the file row instead of below the file row.
+                        view.state.selection instanceof NodeSelection &&
+                        view.state.selection.node.type.name === "file" &&
+                        view.state.selection.$anchor.parent.type.name === "fileRow"
+                            ? view.state.selection.anchor + 1
+                            : getInsertPosOrSelection(view.state.selection);
+
+                    insertFiles(insertPosOrSelection, files);
                 },
                 _getInternalView: () => {
                     return assertExists(viewRef.current);
@@ -2372,7 +2399,7 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                               Insert events                                *
         \* ========================================================================== */
 
-        insertFilesRef.current = (insertSelection, files) => {
+        insertFilesRef.current = (posOrSelection, files) => {
             if (files.length === 0) return;
 
             const fileIds: Array<FileId> = [];
@@ -2422,10 +2449,10 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             handleInsertSlice({
                 asyncSpanName: "Content editor insert files",
-                remember: [insertSelection],
+                remember: [posOrSelection],
                 slice,
                 dataTransfer: null,
-                action: ([insertSelection], slice, createTransaction) => {
+                action: ([posOrSelection], slice, createTransaction) => {
                     const transaction = createTransaction();
 
                     const singleNode =
@@ -2433,25 +2460,170 @@ function ContentEditor<Content extends ContentWithReferences>(
                             ? slice.content.firstChild
                             : null;
 
-                    if (singleNode) {
-                        insertSelection.replaceWith(transaction, singleNode);
-                    } else {
-                        insertSelection.replace(transaction, slice);
-                    }
+                    // The various code paths we support here:
+                    //
+                    // 1. Inserting a file from the insert menu. In a document the insert menu can
+                    //    be found either in the "more" menu or from a right click. We support
+                    //    inserting both when the selection is in text and when we have a file
+                    //    `NodeSelection`.
+                    //
+                    // 2. Replacing a file from the replace button in `<ContentEditorFileToolbar>`.
+                    //
+                    // 3. Adding new files from the add file button in `<ContentEditorFileToolbar>`.
+                    //
+                    // If `posOrSelection` is a number we're inserting into that position. If
+                    // `posOrSelection` is a `Selection` then we're replacing that selection.
+                    if (typeof posOrSelection === "number") {
+                        let pos = posOrSelection;
+                        let $pos = view.state.doc.resolve(pos);
 
-                    // Make sure we select the first file after inserting so the user can make
-                    // further modifications from there (like left/right aligning the file).
-                    if (slice.content.firstChild) {
-                        const $pos = findInsertedNodeAfterReplaceRangeWith(
-                            insertSelection.$from,
-                            transaction.doc,
-                            slice.content.firstChild,
-                        );
+                        if ($pos.parent.type.name !== "fileRow" || $pos.parent.childCount >= 3) {
+                            // Instead of splitting a full file row, insert after the file row.
+                            pos = $pos.parent.type.name === "fileRow" ? $pos.after() : pos;
+                            $pos = $pos.pos !== pos ? view.state.doc.resolve(pos) : $pos;
 
-                        if ($pos) {
-                            transaction.setSelection(
-                                new NodeSelection(transaction.doc.resolve($pos.pos + 1)),
+                            transaction.insert(pos, slice.content);
+
+                            // Make sure we select the first file after inserting so the user can make
+                            // further modifications from there (like left/right aligning the file).
+                            if (slice.content.firstChild) {
+                                const $newPos = findInsertedNodeAfterReplaceRangeWith(
+                                    $pos,
+                                    transaction.doc,
+                                    slice.content.firstChild,
+                                );
+
+                                if ($newPos) {
+                                    transaction.setSelection(
+                                        new NodeSelection(transaction.doc.resolve($newPos.pos + 1)),
+                                    );
+                                }
+                            }
+                        }
+                        // If we're inserting into a file row that's not full, let's add files to the
+                        // row until the row is full and then start adding file rows after the full
+                        // file row.
+                        else {
+                            const maxInsertChildCount = 3 - $pos.parent.childCount;
+
+                            assert(fileIds.length > 0);
+                            assert(maxInsertChildCount > 0);
+
+                            transaction.insert(
+                                pos,
+                                createArrayWithLength(
+                                    Math.min(maxInsertChildCount, fileIds.length),
+                                    index => schema.node("file", {fileId: fileIds[index]}),
+                                ),
                             );
+
+                            transaction.setSelection(
+                                new NodeSelection(transaction.doc.resolve(pos)),
+                            );
+
+                            {
+                                const fileIdsByRow: Array<Array<FileId | null>> = [[]];
+
+                                for (const fileId of fileIds.slice(maxInsertChildCount)) {
+                                    if (fileIdsByRow[fileIdsByRow.length - 1]!.length < 3) {
+                                        fileIdsByRow[fileIdsByRow.length - 1]!.push(fileId);
+                                    } else {
+                                        fileIdsByRow.push([fileId]);
+                                    }
+                                }
+
+                                if ((fileIdsByRow[0]?.[0]?.length ?? 0) > 0) {
+                                    transaction.insert(
+                                        $pos.after() + maxInsertChildCount,
+                                        fileIdsByRow.map(fileIds =>
+                                            schema.node(
+                                                "fileRow",
+                                                {},
+                                                fileIds.map(fileId =>
+                                                    schema.node("file", {fileId}),
+                                                ),
+                                            ),
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    } else {
+                        const selection = posOrSelection;
+
+                        // If this is not a file node selection then replace the selection with our
+                        // `fileRow`(s) slice.
+                        if (
+                            !(selection instanceof NodeSelection) ||
+                            selection.node.type.name !== "file"
+                        ) {
+                            if (singleNode) {
+                                selection.replaceWith(transaction, singleNode);
+                            } else {
+                                selection.replace(transaction, slice);
+                            }
+
+                            // Make sure we select the first file after inserting so the user can make
+                            // further modifications from there (like left/right aligning the file).
+                            if (slice.content.firstChild) {
+                                const $newPos = findInsertedNodeAfterReplaceRangeWith(
+                                    selection.$from,
+                                    transaction.doc,
+                                    slice.content.firstChild,
+                                );
+
+                                if ($newPos) {
+                                    transaction.setSelection(
+                                        new NodeSelection(transaction.doc.resolve($newPos.pos + 1)),
+                                    );
+                                }
+                            }
+                        }
+                        // If this is a file node selection then take the first file from our
+                        // `fileRow`(s) slice and replace the selected `FileId` with that first file.
+                        // All other files will be added to `fileRow`s below.
+                        else {
+                            assert(fileIds.length > 0);
+
+                            // If the editor selection moved then make sure we're selecting our file.
+                            if (transaction.selection !== selection)
+                                transaction.setSelection(selection);
+
+                            transaction.setNodeAttribute(selection.anchor, "fileId", fileIds[0]!);
+
+                            // If there were more than one `FileId`s then add them in rows after the file
+                            // parent we updated.
+                            //
+                            // NOTE(calebmer, 2024-10-15): I don't think this code path runs in practice.
+                            // The replace file button only allows uploading a single file and the insert
+                            // menu code path intentionally moves the selection off a file so we don't
+                            // replace it. I include this code path only for completeness.
+                            {
+                                const fileIdsByRow: Array<Array<FileId | null>> = [[]];
+
+                                for (const fileId of fileIds.slice(1)) {
+                                    if (fileIdsByRow[fileIdsByRow.length - 1]!.length < 3) {
+                                        fileIdsByRow[fileIdsByRow.length - 1]!.push(fileId);
+                                    } else {
+                                        fileIdsByRow.push([fileId]);
+                                    }
+                                }
+
+                                if ((fileIdsByRow[0]?.[0]?.length ?? 0) > 0) {
+                                    transaction.insert(
+                                        posOrSelection.$anchor.after(),
+                                        fileIdsByRow.map(fileIds =>
+                                            schema.node(
+                                                "fileRow",
+                                                {},
+                                                fileIds.map(fileId =>
+                                                    schema.node("file", {fileId}),
+                                                ),
+                                            ),
+                                        ),
+                                    );
+                                }
+                            }
                         }
                     }
 
@@ -3731,6 +3903,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 floaterState={floaterState}
                 selectedNodeElement={selectedNodeElement}
                 hasFileDropTarget={!!fileDropTarget}
+                onInsertFiles={(insertionSelection, files) =>
+                    insertFilesRef.current?.(insertionSelection, files)
+                }
             />
             {!fileDropTarget && selectedNodeElement && (
                 <FocusRing isVisible={true} targetElement={selectedNodeElement} />

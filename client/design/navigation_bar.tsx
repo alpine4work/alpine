@@ -1372,8 +1372,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         if (nextIsNavigationBarOpaque !== lastIsNavigationBarOpaque) {
                             navigationBarBackgroundElement!.style.pointerEvents =
                                 nextIsNavigationBarOpaque ? "auto" : "none";
-                            navigationBarBackgroundElement!.style.pointerEvents =
-                                nextIsNavigationBarOpaque ? "80" : "40";
+                            navigationBarBackgroundElement!.style.zIndex = nextIsNavigationBarOpaque
+                                ? "80"
+                                : "40";
                             navigationBarBackgroundElement!.classList.remove(
                                 navigationBarStyles.navigationBarBackgroundFadeOutAnimationClassName,
                             );

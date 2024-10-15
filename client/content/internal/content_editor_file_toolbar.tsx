@@ -7,7 +7,7 @@ import {
     UploadSimple,
 } from "phosphor-react";
 import {Fragment, Node, Slice} from "prosemirror-model";
-import {Command, EditorState, NodeSelection} from "prosemirror-state";
+import {Command, EditorState, NodeSelection, Selection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
@@ -51,12 +51,14 @@ export function ContentEditorFileToolbarController({
     floaterState,
     selectedNodeElement,
     hasFileDropTarget,
+    onInsertFiles,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
     floaterState: ContentEditorFloaterState;
     selectedNodeElement: HTMLElement | null;
     hasFileDropTarget: boolean;
+    onInsertFiles: (posOrSelection: Selection | number, files: ReadonlyArray<File>) => void;
 }) {
     const [fileToolbar, setFileToolbar] = useState<{
         key: string;
@@ -116,6 +118,7 @@ export function ContentEditorFileToolbarController({
             selection={fileToolbar.selection}
             targetElement={fileToolbar.targetElement}
             isDisablingInitialAnimation={fileToolbar.isDisablingInitialAnimation}
+            onInsertFiles={onInsertFiles}
         />
     ) : null;
 }
@@ -127,6 +130,7 @@ function ContentEditorFileToolbar({
     selection,
     targetElement,
     isDisablingInitialAnimation: isDisablingInitialAnimationFromProps,
+    onInsertFiles,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView>;
@@ -134,7 +138,17 @@ function ContentEditorFileToolbar({
     selection: NodeSelection;
     targetElement: HTMLElement;
     isDisablingInitialAnimation: boolean;
+    onInsertFiles: (posOrSelection: Selection | number, files: ReadonlyArray<File>) => void;
 }) {
+    const selectionRef = useRef<NodeSelection | null>(null);
+
+    useEffect(() => {
+        selectionRef.current = selection;
+        return () => {
+            selectionRef.current = null;
+        };
+    }, [selection]);
+
     const hasAlignmentButtons =
         state.schema.nodes.fileFloat &&
         ((selection.$anchor.parent.type.name === "fileRow" &&
@@ -356,8 +370,26 @@ function ContentEditorFileToolbar({
                             viewRef={viewRef}
                             isActive={false}
                             command={() => {
-                                // TODO(calebmer, #files): Implement!
-                                return false;
+                                const inputElement = document.createElement("input");
+                                inputElement.type = "file";
+                                inputElement.multiple = true;
+
+                                inputElement.addEventListener("change", () => {
+                                    if (!inputElement.files) return;
+
+                                    const files = Array.from(inputElement.files);
+                                    if (files.length === 0) return;
+
+                                    // If the component unmounted while we were waiting on a selection then don't
+                                    // try replacing this file.
+                                    if (!selectionRef.current) return;
+
+                                    onInsertFiles(selectionRef.current.anchor + 1, files);
+                                });
+
+                                inputElement.click();
+
+                                return true;
                             }}
                         >
                             <ImagesIcon />
@@ -372,8 +404,26 @@ function ContentEditorFileToolbar({
                         viewRef={viewRef}
                         isActive={false}
                         command={() => {
-                            // TODO(calebmer, #files): Implement!
-                            return false;
+                            const inputElement = document.createElement("input");
+                            inputElement.type = "file";
+                            inputElement.multiple = false;
+
+                            inputElement.addEventListener("change", () => {
+                                if (!inputElement.files) return;
+
+                                const files = Array.from(inputElement.files);
+                                if (files.length !== 1) return;
+
+                                // If the component unmounted while we were waiting on a selection then don't
+                                // try replacing this file.
+                                if (!selectionRef.current) return;
+
+                                onInsertFiles(selectionRef.current, [files[0]!]);
+                            });
+
+                            inputElement.click();
+
+                            return true;
                         }}
                     >
                         <UploadSimple />

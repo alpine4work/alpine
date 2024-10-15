@@ -1081,6 +1081,8 @@ export const fileNearWhiteClassName = style({
 
 export const fileTransparentBackgroundClassName = style({});
 
+export const loadedFileImagePreviewClassName = style({});
+
 export const fileImagePreviewContentClassName = style({
     zIndex: "0",
     position: "absolute",
@@ -1099,7 +1101,15 @@ export const fileImagePreviewContentClassName = style({
     // Start at opacity 0. We'll animate to opacity 1 when
     // `loadedFileImagePreviewClassName` is added.
     opacity: 0,
-    transition: "opacity 250ms ease-in-out",
+    selectors: {
+        [`${fileClassName}${loadedFileImagePreviewClassName} &`]: {
+            opacity: 1,
+            // We only add `transition` when the loaded class name has been added. This way
+            // we animate from unloaded -> loaded but not from loaded -> unloaded (which
+            // happens when the file source is replaced).
+            transition: "opacity 250ms ease-in-out",
+        },
+    },
 });
 
 export const fileImagePreviewPlaceholderClassName = style({
@@ -1118,30 +1128,22 @@ export const fileImagePreviewPlaceholderClassName = style({
     // Start at opacity 1. We'll animate to opacity 0 when
     // `loadedFileImagePreviewClassName` is added.
     opacity: 1,
-    transition: "opacity 250ms ease-in-out",
+    selectors: {
+        [`${fileClassName}${loadedFileImagePreviewClassName} &`]: {
+            opacity: 0,
+            // Proper cross-fade animation with `plus-lighter`. Otherwise the element goes
+            // to 75% opacity in the middle of the animation since when compositing element
+            // opacities multiply instead of add. Read more here:
+            //
+            // https://jakearchibald.com/2021/dom-cross-fade/
+            mixBlendMode: "plus-lighter",
+            // We only add `transition` when the loaded class name has been added. This way
+            // we animate from unloaded -> loaded but not from loaded -> unloaded (which
+            // happens when the file source is replaced).
+            transition: "opacity 250ms ease-in-out",
+        },
+    },
 });
-
-export const loadedFileImagePreviewClassName = style({});
-
-globalStyle(
-    `${fileClassName}${loadedFileImagePreviewClassName} ${fileImagePreviewContentClassName}`,
-    {
-        opacity: 1,
-    },
-);
-
-globalStyle(
-    `${fileClassName}${loadedFileImagePreviewClassName} ${fileImagePreviewPlaceholderClassName}`,
-    {
-        opacity: 0,
-        // Proper cross-fade animation with `plus-lighter`. Otherwise the element goes
-        // to 75% opacity in the middle of the animation since when compositing element
-        // opacities multiply instead of add. Read more here:
-        //
-        // https://jakearchibald.com/2021/dom-cross-fade/
-        mixBlendMode: "plus-lighter",
-    },
-);
 
 // If the user's pointer is down and they're dragging to change the selection
 // then we don't want our files to have an interactive pointer cursor.
