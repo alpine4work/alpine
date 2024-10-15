@@ -794,6 +794,23 @@ export function addContentFilePreviewBehavior(
         longPressTimeout?.clear();
         longPressTimeout = null;
 
+        // By default, the browser will focus our `[contenteditable=true]` element on
+        // `pointerdown`. We don't want this behavior but we can't call
+        // `event.preventDefault()` since that'll also cancel the browser's ability to
+        // drag our file. So instead, wait an animation frame and blur if the browser
+        // focused our `[contenteditable=true]` element if it was unfocused when the
+        // `pointerdown` ocurred.
+        const docElement = element.closest<HTMLElement>(`.${contentStyles.docClassName}`);
+        if (docElement) {
+            const wasFocused = docElement === document.activeElement;
+            if (!wasFocused) {
+                requestAnimationFrame(() => {
+                    const isFocused = docElement === document.activeElement;
+                    if (isFocused) docElement.blur();
+                });
+            }
+        }
+
         // If the mouse performs a shift or alt click then we select the node instead
         // of opening the file viewer. This interaction is not obvious. You can also
         // use keyboard shortcuts or right click to select a file. The user should be
