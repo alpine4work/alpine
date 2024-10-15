@@ -30,3 +30,5 @@ export const documentCommentThreadCountAgainstLimit = mapObjectValues(
             addRemLengths(documentCommentThreadHeaderMinHeight, messageInputMinHeight[platform]),
         ) / parseRemLengthNumber(messageViewMinHeight),
 );
+
+export const documentContentEditorSidebarWidth = "96";

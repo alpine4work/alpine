@@ -34,7 +34,6 @@ import {
     desktopPlatformSelector,
     mobilePlatformSelector,
 } from "~/client/styles/internal/platform.css.js";
-import {sideBarWidth as spaceLayoutSideBarWidth} from "~/client/styles/internal/space_layout.css.js";
 import {backgroundColorVar} from "~/client/styles/internal/sprinkles.css.js";
 import * as sharedClassNames from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/colors.js";
@@ -205,12 +204,8 @@ export const extraCompactDocClassName = style({
 const blockStyles = {
     width: "100%",
     maxWidth: blockMaxWidthVar,
-    // Visually center the document by removing `spaceLayoutSideBarWidth` from our
-    // `marginLeft`. Even though the space layout sidebar takes up space in layout,
-    // it renders as if it's floating. So in order to optically center we need less
-    // margin on the left.
-    marginLeft: `max(0px, 50% - ${blockMaxWidthVar} / 2 - ${spaceLayoutSideBarWidth} / 2)`,
-    marginRight: `max(0px, 50% - ${blockMaxWidthVar} / 2 + ${spaceLayoutSideBarWidth} / 2)`,
+    marginLeft: "auto",
+    marginRight: "auto",
     // By default, all blocks are rendered below `fileFloat`. If you want your
     // block to be rendered besides `fileFloat` you must explicitly omit this
     // `clear` property.
@@ -1024,21 +1019,21 @@ globalStyle(`${fileFloatClassName}::after`, {
 globalStyle(fileFloatLeftClassName, {
     float: "left",
     paddingRight: fileFloatLeftMarginX,
-    marginLeft: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2 - ${spaceLayoutSideBarWidth} / 2)`,
+    marginLeft: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
 });
 
 globalStyle(`${mobilePlatformSelector} ${fileFloatLeftClassName}`, {
-    marginLeft: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2 - ${spaceLayoutSideBarWidth} / 2)`,
+    marginLeft: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
 });
 
 globalStyle(fileFloatRightClassName, {
     float: "right",
     paddingLeft: fileFloatRightMarginX,
-    marginRight: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2 + ${spaceLayoutSideBarWidth} / 2)`,
+    marginRight: `max(0rem, (100% - ${blockMaxWidth.desktop}) / 2)`,
 });
 
 globalStyle(`${mobilePlatformSelector} ${fileFloatRightClassName}`, {
-    marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2 + ${spaceLayoutSideBarWidth} / 2)`,
+    marginRight: `max(0rem, (100% - ${blockMaxWidth.mobile}) / 2)`,
 });
 
 const fileBorderRadius = "1";

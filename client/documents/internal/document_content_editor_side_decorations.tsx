@@ -5,7 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -144,7 +144,6 @@ function DocumentContentEditorCommentThreadSideDecoration({
                 right: `calc(50% + ${addRemLengths(
                     contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                     spacing["4"],
-                    spaceLayoutStyles.sideBarWidth,
                 )} / 2)`,
                 height: markHeight,
                 opacity: isPressed ? 0.75 : undefined,

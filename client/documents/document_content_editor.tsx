@@ -96,6 +96,7 @@ import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.j
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
     messageInputAccountAvatarPaddingY,
     messageInputAccountAvatarSize,
@@ -112,7 +113,6 @@ import {
     contentStyles,
     documentContentStyles,
     inputPlaceholderStyles,
-    spaceLayoutStyles,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {paragraphClassName, titleClassName} from "~/shared/content/content_styles.js";
@@ -159,7 +159,6 @@ import {MessageContentWithReferences} from "~/shared/messaging/message_content_s
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
-export const documentContentEditorSidebarWidth = spacing["96"];
 const documentContentEditorMobileSidebarInsetTop = "48";
 
 export type DocumentContentEditorInitialScroll = {
@@ -410,7 +409,10 @@ export function DocumentContentEditor({
                 contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
-            const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
+            const sidebarWidth = convertRemLengthToPx(
+                spacing[documentContentEditorSidebarWidth],
+                remPx,
+            );
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
             const oldContentOffset = Math.max(
@@ -560,7 +562,10 @@ export function DocumentContentEditor({
                 contentStyles.blockMaxWidth[isMobile ? "mobile" : "desktop"],
                 remPx,
             );
-            const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
+            const sidebarWidth = convertRemLengthToPx(
+                spacing[documentContentEditorSidebarWidth],
+                remPx,
+            );
             const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
             const oldContentOffset = Math.max(
@@ -854,7 +859,7 @@ export function DocumentContentEditor({
     const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
 
     const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
-        documentContentEditorSidebarWidth,
+        spacing[documentContentEditorSidebarWidth],
         useRemPx(),
     );
 
@@ -1828,7 +1833,6 @@ export function DocumentContentEditor({
         ],
         shareButton: {},
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
-        desktopTitleMaxWidthCenterOffset: spaceLayoutStyles.sideBarWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
         stickyBanner: loadingIndicator ? (
@@ -1887,7 +1891,7 @@ export function DocumentContentEditor({
                     style={{
                         width:
                             !withMobileLayout && sidebarState.isOpen
-                                ? `calc(100% - ${documentContentEditorSidebarWidth})`
+                                ? `calc(100% - ${spacing[documentContentEditorSidebarWidth]})`
                                 : "100%",
                     }}
                 >
@@ -2005,7 +2009,10 @@ export function DocumentContentEditor({
                             style={{
                                 width: !withMobileLayout
                                     ? // The `spacing["4"]` is a bit of grace room at the end for a spring bounce.
-                                      addRemLengths(documentContentEditorSidebarWidth, spacing["4"])
+                                      addRemLengths(
+                                          spacing[documentContentEditorSidebarWidth],
+                                          spacing["4"],
+                                      )
                                     : "100%",
                                 // In the mobile layout (mobile devices and peeks) we show the comment thread
                                 // in a bottom sheet. When the comment input is focused on mobile devices we
@@ -2673,7 +2680,7 @@ function DocumentContentEditorSidebar({
                                 // Provide the sidebar width for better layout results when previewing files.
                                 previewFileLayoutScreenWidth={
                                     !withMobileLayout
-                                        ? documentContentEditorSidebarWidth
+                                        ? spacing[documentContentEditorSidebarWidth]
                                         : undefined
                                 }
                                 // If we're focusing the pinned comment input because the user swiped to reply
