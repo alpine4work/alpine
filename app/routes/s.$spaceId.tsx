@@ -277,6 +277,19 @@ function SpaceLayoutRouteInner({
         },
     }));
 
+    useEffect(() => {
+        // TODO(calebmer): Remove this when we have update account name UI. This is
+        // only available temporarily for users who ask for it.
+        (globalThis as any).__updateOurAccountName = async (name: string) => {
+            const {account} = await updateOurAccountName(context, {name});
+            accountsStore.immediatelyUpdateAccountStoreIfExists(account);
+        };
+
+        return () => {
+            delete (globalThis as any).__updateOurAccountName;
+        };
+    }, [accountsStore, context]);
+
     useDevConsoleTool("admin", () => ({
         getAccountById: async (accountId: AccountId) => {
             const {account} = await getAccountByIdAsAdmin(context, {accountId});
