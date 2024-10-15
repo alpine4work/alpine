@@ -6,7 +6,17 @@ import {
     SpinnerGap,
     X,
 } from "phosphor-react";
-import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef, useState} from "react";
+import {
+    Memo,
+    Ref,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {To, createPath} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -68,14 +78,12 @@ const searchModalMaxHeight = addRemLengths(
 const searchModalPeekControlsHeight = "6";
 
 export function SearchModal({
-    initialQueryText,
     onClose,
     pushPeekStack,
     debugOptions,
 }: {
-    initialQueryText: string;
-    onClose: () => void;
-    pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
+    onClose: Memo<() => void>;
+    pushPeekStack: Memo<(to: To, options?: {focus?: boolean}) => Promise<void>>;
     debugOptions: SearchOptions | null;
 }) {
     const context = useAppContext();
@@ -101,31 +109,9 @@ export function SearchModal({
     }, []);
 
     const {output, queryText, onQueryTextChange} = useSearchState({
-        initialQueryText,
+        isSearchParamControlled: true,
         debugOptions,
     });
-
-    // Keep the `search` URL parameter updated while this modal is open.
-    useEffect(() => {
-        const url = new URL(window.location.href);
-        url.searchParams.set("search", queryText);
-
-        // Silently update the URL without telling Remix so our components don't
-        // re-render unnecessarily.
-        window.history.replaceState(window.history.state, "", url);
-    }, [queryText]);
-
-    // When this component unmounts, remove the `search` URL parameter.
-    useEffect(() => {
-        return () => {
-            const url = new URL(window.location.href);
-            url.searchParams.delete("search");
-
-            // Silently update the URL without telling Remix so our components don't
-            // re-render unnecessarily.
-            window.history.replaceState(window.history.state, "", url);
-        };
-    }, []);
 
     const {selectedPeek, activePeek, switchPeek, holdPeekTransition} = usePeekSwitcherState<{
         resultId: SearchResultId;
@@ -147,22 +133,25 @@ export function SearchModal({
     // high signal that this is an entity they care about. In this way search is a
     // self reinforcing system. The more a user selects an entity, the higher the
     // entity will appear in the user's next search.
-    const markResultSelectAffinityInteraction = (resultId: SearchResultId) => {
-        if (!isSearchAffinityId(resultId)) return;
+    const markResultSelectAffinityInteraction = useCallback(
+        (resultId: SearchResultId) => {
+            if (!isSearchAffinityId(resultId)) return;
 
-        markSearchAffinityInteraction(context, {
-            spaceId: space.id,
-            affinityId: resultId,
-            interaction: {type: "HighIntentUpdate"},
-        }).catch(error => {
-            // Silently fail. This doesn't affect anything the user sees so we don't need
-            // to report the error to the user.
-            reporter.logErrorWithoutDisplaying(
-                "Couldn't mark search result select affinity interaction",
-                error,
-            );
-        });
-    };
+            markSearchAffinityInteraction(context, {
+                spaceId: space.id,
+                affinityId: resultId,
+                interaction: {type: "HighIntentUpdate"},
+            }).catch(error => {
+                // Silently fail. This doesn't affect anything the user sees so we don't need
+                // to report the error to the user.
+                reporter.logErrorWithoutDisplaying(
+                    "Couldn't mark search result select affinity interaction",
+                    error,
+                );
+            });
+        },
+        [context, reporter, space.id],
+    );
 
     return (
         <Modal
@@ -338,108 +327,140 @@ export function SearchModal({
                         flexDirection="row"
                         borderTop="grey-10"
                     >
-                        <Box
-                            // Reset our result list if the search response changes.
-                            key={output.key}
-                            flexGrow="1"
-                            height="full"
-                            overflow="hidden"
-                        >
-                            {output.isError ? (
+                        {useMemo(
+                            () => (
                                 <Box
-                                    maxWidth={peekMobileLayoutWidth}
-                                    marginX="auto"
-                                    padding="8"
-                                    paddingTop="16"
-                                    paddingBottom="8"
-                                >
-                                    <ErrorBodyRenderer
-                                        title="Couldn’t get search results"
-                                        error={output.error}
-                                    />
-                                </Box>
-                            ) : !output.results ? (
-                                <Box width="full">
-                                    <Spacer space="1" />
-                                    <SearchResultShimmer titleWidth="64" />
-                                    <SearchResultShimmer titleWidth="32" bodySnippetRagRight="6" />
-                                    <SearchResultShimmer titleWidth="48" bodySnippetRagRight="4" />
-                                    <SearchResultShimmer titleWidth="96" />
-                                    <SearchResultShimmer titleWidth="64" bodySnippetRagRight="5" />
-                                </Box>
-                            ) : output.results.length === 0 ? (
-                                <Box
-                                    color="grey-50"
-                                    padding={searchResultViewPaddingY}
-                                    style={contentStyles.paragraphFontSize}
-                                >
-                                    {queryText.trim().length === 0 ? (
-                                        <>
-                                            As you explore, content you’ve recently visited will
-                                            show up here. For now, try searching.
-                                        </>
-                                    ) : (
-                                        <>
-                                            Couldn’t find anything matching “
-                                            <span
-                                                className={sprinkles({
-                                                    color: "grey-70",
-                                                    fontStyle: "bold",
-                                                })}
-                                            >
-                                                {queryText}
-                                            </span>
-                                            .” Try a different search?
-                                        </>
-                                    )}
-                                </Box>
-                            ) : (
-                                <SearchModalResultList
-                                    searchKey={output.key}
-                                    results={output.results}
-                                    selectedPeek={selectedPeek}
-                                    switchPeek={switchPeek}
-                                    holdPeekTransition={holdPeekTransition}
-                                    markResultSelectAffinityInteraction={
-                                        markResultSelectAffinityInteraction
-                                    }
-                                />
-                            )}
-                        </Box>
-                        <Box
-                            flexShrink="0"
-                            width={peekMobileLayoutWidth}
-                            height="full"
-                            overflow="hidden"
-                            borderLeft="grey-10"
-                        >
-                            {activePeek ? (
-                                <SearchModalPeekContent
-                                    // Fully remount whenever the peek changes...
-                                    key={activePeek.id}
-                                    peek={activePeek}
-                                    onClose={onClose}
-                                    pushPeekStack={pushPeekStack}
-                                    switchPeek={switchPeek}
-                                    markResultSelectAffinityInteraction={
-                                        markResultSelectAffinityInteraction
-                                    }
-                                />
-                            ) : (
-                                <Box
-                                    width="full"
+                                    // Reset our result list if the search response changes.
+                                    key={output.key}
+                                    flexGrow="1"
                                     height="full"
                                     overflow="hidden"
-                                    display="flex"
-                                    flexDirection="column"
-                                    justifyContent="flex-end"
-                                    alignItems="center"
-                                    padding="10"
                                 >
-                                    <SearchInstructionalPlaceholder />
+                                    {output.isError ? (
+                                        <Box
+                                            maxWidth={peekMobileLayoutWidth}
+                                            marginX="auto"
+                                            padding="8"
+                                            paddingTop="16"
+                                            paddingBottom="8"
+                                        >
+                                            <ErrorBodyRenderer
+                                                title="Couldn’t get search results"
+                                                error={output.error}
+                                            />
+                                        </Box>
+                                    ) : !output.results ? (
+                                        <Box width="full">
+                                            <Spacer space="1" />
+                                            <SearchResultShimmer titleWidth="64" />
+                                            <SearchResultShimmer
+                                                titleWidth="32"
+                                                bodySnippetRagRight="6"
+                                            />
+                                            <SearchResultShimmer
+                                                titleWidth="48"
+                                                bodySnippetRagRight="4"
+                                            />
+                                            <SearchResultShimmer titleWidth="96" />
+                                            <SearchResultShimmer
+                                                titleWidth="64"
+                                                bodySnippetRagRight="5"
+                                            />
+                                        </Box>
+                                    ) : output.results.length === 0 ? (
+                                        <Box
+                                            color="grey-50"
+                                            padding={searchResultViewPaddingY}
+                                            style={contentStyles.paragraphFontSize}
+                                        >
+                                            {queryText.trim().length === 0 ? (
+                                                <>
+                                                    As you explore, content you’ve recently visited
+                                                    will show up here. For now, try searching.
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Couldn’t find anything matching “
+                                                    <span
+                                                        className={sprinkles({
+                                                            color: "grey-70",
+                                                            fontStyle: "bold",
+                                                        })}
+                                                    >
+                                                        {queryText}
+                                                    </span>
+                                                    .” Try a different search?
+                                                </>
+                                            )}
+                                        </Box>
+                                    ) : (
+                                        <SearchModalResultList
+                                            searchKey={output.key}
+                                            results={output.results}
+                                            selectedPeek={selectedPeek}
+                                            switchPeek={switchPeek}
+                                            holdPeekTransition={holdPeekTransition}
+                                            markResultSelectAffinityInteraction={
+                                                markResultSelectAffinityInteraction
+                                            }
+                                        />
+                                    )}
                                 </Box>
-                            )}
-                        </Box>
+                            ),
+                            [
+                                holdPeekTransition,
+                                markResultSelectAffinityInteraction,
+                                output,
+                                queryText,
+                                selectedPeek,
+                                switchPeek,
+                            ],
+                        )}
+                        {useMemo(
+                            () => (
+                                <Box
+                                    flexShrink="0"
+                                    width={peekMobileLayoutWidth}
+                                    height="full"
+                                    overflow="hidden"
+                                    borderLeft="grey-10"
+                                >
+                                    {activePeek ? (
+                                        <SearchModalPeekContent
+                                            // Fully remount whenever the peek changes...
+                                            key={activePeek.id}
+                                            peek={activePeek}
+                                            onClose={onClose}
+                                            pushPeekStack={pushPeekStack}
+                                            switchPeek={switchPeek}
+                                            markResultSelectAffinityInteraction={
+                                                markResultSelectAffinityInteraction
+                                            }
+                                        />
+                                    ) : (
+                                        <Box
+                                            width="full"
+                                            height="full"
+                                            overflow="hidden"
+                                            display="flex"
+                                            flexDirection="column"
+                                            justifyContent="flex-end"
+                                            alignItems="center"
+                                            padding="10"
+                                        >
+                                            <SearchInstructionalPlaceholder />
+                                        </Box>
+                                    )}
+                                </Box>
+                            ),
+                            [
+                                activePeek,
+                                markResultSelectAffinityInteraction,
+                                onClose,
+                                pushPeekStack,
+                                switchPeek,
+                            ],
+                        )}
                     </Box>
                 </Box>
             </GlobalKeyDownEvent>

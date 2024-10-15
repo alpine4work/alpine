@@ -13,7 +13,7 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {greyElevated1ClassName, modalStyles, sprinkles} from "~/client/styles/styles.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export const defaultModalMaxWidth: Spacing = "128";
@@ -28,7 +28,7 @@ export function Modal({
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     children,
-    onClose: _onCloseWithoutAnimation,
+    onClose: onCloseWithoutAnimationFromProps,
     "aria-describedby": ariaDescribedBy,
     maxWidth = defaultModalMaxWidth,
     height = "auto",
@@ -139,20 +139,29 @@ export function Modal({
     );
     const [isFadingOut, setIsFadingOut] = useState(false);
 
-    const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
+    const onCloseWithoutAnimation = useEvent(onCloseWithoutAnimationFromProps);
     useEffect(() => {
         if (!isFadingOut) return;
+
+        let resetTimeout: Timeout | null = null;
 
         const timeout = createTimeout(() => {
             onCloseWithoutAnimation();
 
-            // If the `onClose()` callback doesn't actually close the modal in the same
-            // React render, the modal component is still mounted so should be made visible
-            // again.
-            setIsFadingOut(false);
+            // If the `onClose()` callback doesn't actually close the modal after 1s, then
+            // the modal component is still mounted so should be made visible again.
+            //
+            // We wait 1s since sometimes there's a small asynchronous delay between the
+            // `onClose()` prop and the React render which actually closes the modal.
+            resetTimeout = createTimeout(() => {
+                setIsFadingOut(false);
+            }, 1000);
         }, modalStyles.modalFadeOutDuration);
 
-        return () => timeout.clear();
+        return () => {
+            timeout.clear();
+            resetTimeout?.clear();
+        };
     }, [isFadingOut, onCloseWithoutAnimation]);
 
     const onCloseWithAnimation = () => {

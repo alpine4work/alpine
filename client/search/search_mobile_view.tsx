@@ -52,7 +52,7 @@ export function SearchMobileView({
     const maxWidth = !isMobile ? "96" : undefined;
 
     const {output, queryText, onQueryTextChange} = useSearchState({
-        initialQueryText: "",
+        isSearchParamControlled: false,
         debugOptions: null,
         affinityResults,
     });
