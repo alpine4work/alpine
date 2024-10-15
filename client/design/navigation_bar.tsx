@@ -1598,12 +1598,16 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             top="0"
                             left="0"
                             right="0"
-                            height={navigationBarHeight}
                             backgroundColor="grey-0"
                             display="flex"
                             justifyContent="center"
                             // Initial opacity is 0. Our code will update the opacity.
                             opacity="0"
+                            style={{
+                                height: `calc(${
+                                    spacing[navigationBarHeight[isMobile ? "mobile" : "desktop"]]
+                                } + var(--safe-area-inset-top, 0px))`,
+                            }}
                         />
                         <NavigationBarContent
                             ref={navigationBarContentRef}
