@@ -625,8 +625,6 @@ function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlacehol
     return svg;
 }
 
-// TODO(calebmer, #files): Copy option in context menu that both writes HTML to
-// clipboard and also downloads the full file.
 export function addContentFilePreviewBehavior(
     getContext: () => AppContext,
     element: HTMLElement,
@@ -745,8 +743,6 @@ export function addContentFilePreviewBehavior(
                     onSignedUrlRefresh(reference.file.id, output.signedUrlSearch);
                 },
                 error => {
-                    // TODO(calebmer, #files): Should we present this error to the user somehow?
-                    // Perhaps by switching to an error rendering for the file.
                     getContext()
                         .tracer.getRoot()
                         .logUncaughtException(
